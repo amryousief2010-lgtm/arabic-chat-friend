@@ -115,6 +115,8 @@ const ManualStockAdditionDialog = ({
   const [sourceKey, setSourceKey] = useState("");
   const [sourceOther, setSourceOther] = useState("");
   const [reason, setReason] = useState("");
+  const [supplier, setSupplier] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [rows, setRows] = useState<Row[]>([newRow()]);
   const [saving, setSaving] = useState(false);
@@ -136,7 +138,9 @@ const ManualStockAdditionDialog = ({
   useEffect(() => {
     if (!open) {
       setSourceKey(""); setSourceOther("");
-      setReason(""); setNotes("");
+      setReason(""); setSupplier("");
+      setDeliveryDate(new Date().toISOString().slice(0, 10));
+      setNotes("");
       setRows([newRow()]);
     }
   }, [open]);
@@ -168,7 +172,7 @@ const ManualStockAdditionDialog = ({
   }, [rows]);
 
   const validRows = rows.length > 0 && rows.every(r => r.itemId && rowQty(r) > 0);
-  const canSave = validSource && reason.trim().length > 0 && validRows && mergedRows.size > 0 && !saving;
+  const canSave = validSource && reason.trim().length > 0 && supplier.trim().length > 0 && !!deliveryDate && validRows && mergedRows.size > 0 && !saving;
 
   const updateRow = (uid: string, patch: Partial<Row>) =>
     setRows(rs => rs.map(r => r.uid === uid ? { ...r, ...patch } : r));
@@ -178,6 +182,8 @@ const ManualStockAdditionDialog = ({
 
   const handleSave = async () => {
     if (!validSource) { toast({ title: "اختر جهة التوريد", variant: "destructive" }); return; }
+    if (!supplier.trim()) { toast({ title: "أدخل القائم بالتوريد", variant: "destructive" }); return; }
+    if (!deliveryDate) { toast({ title: "اختر تاريخ التوريد", variant: "destructive" }); return; }
     if (!reason.trim()) { toast({ title: "أدخل سبب الإضافة / التوريد", variant: "destructive" }); return; }
     if (mergedRows.size === 0) { toast({ title: "أضف صنف واحد على الأقل", variant: "destructive" }); return; }
     for (const r of rows) {
@@ -228,6 +234,8 @@ const ManualStockAdditionDialog = ({
           `توريد مباشر مؤقت`,
           `رقم العملية: ${opNo}`,
           `جهة التوريد: ${sourceLabel}`,
+          `القائم بالتوريد: ${supplier.trim()}`,
+          `تاريخ التوريد: ${deliveryDate}`,
           pkgLine,
           `السبب: ${reason.trim()}`,
           notes.trim() ? `ملاحظات: ${notes.trim()}` : null,
@@ -351,7 +359,24 @@ const ManualStockAdditionDialog = ({
             onCreated={async (p) => { await loadCustom(); setSourceKey(`custom:${p.id}`); }}
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <Label className="text-xs">القائم بالتوريد *</Label>
+              <Input
+                value={supplier}
+                onChange={(e) => setSupplier(e.target.value)}
+                placeholder="مثال: عبدالمنعم عثمان، محمد شعلة، مسؤول المجزر"
+                maxLength={120}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">تاريخ التوريد *</Label>
+              <Input
+                type="date"
+                value={deliveryDate}
+                onChange={(e) => setDeliveryDate(e.target.value)}
+              />
+            </div>
             <div>
               <Label className="text-xs">سبب الإضافة / التوريد *</Label>
               <Input
@@ -361,7 +386,7 @@ const ManualStockAdditionDialog = ({
                 maxLength={200}
               />
             </div>
-            <div>
+            <div className="md:col-span-3">
               <Label className="text-xs">ملاحظات (اختياري)</Label>
               <Input
                 value={notes}
