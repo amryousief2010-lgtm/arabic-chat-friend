@@ -116,6 +116,14 @@ export default function WarehouseStocktaking() {
                 </Select>
               </div>
               <div className="flex-1 min-w-[200px]">
+                <Label className="text-xs">القائم بالجرد / مسؤول المخزن *</Label>
+                <Input value={stocktaker} onChange={(e) => setStocktaker(e.target.value)} placeholder="اسم القائم بالجرد" />
+              </div>
+              <div className="w-[180px]">
+                <Label className="text-xs">تاريخ الجرد *</Label>
+                <Input type="date" value={countDate} onChange={(e) => setCountDate(e.target.value)} />
+              </div>
+              <div className="flex-1 min-w-[200px]">
                 <Label className="text-xs">بحث</Label>
                 <div className="relative">
                   <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -123,6 +131,16 @@ export default function WarehouseStocktaking() {
                 </div>
               </div>
             </div>
+
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                <strong>القائم بالجرد:</strong> {stocktaker || "—"} — يجهّز الأرقام ويسجل الفروق.
+                <br />
+                <strong>المعتمد:</strong> {canApprove ? `${profile?.full_name || "—"} (${role})` : "المدير العام / المدير التنفيذي فقط"} — اعتماد الرصيد النهائي وتثبيت التسوية متاح لهذين الدورين فقط.
+              </AlertDescription>
+            </Alert>
+
 
             <div className="overflow-x-auto">
               <Table>
