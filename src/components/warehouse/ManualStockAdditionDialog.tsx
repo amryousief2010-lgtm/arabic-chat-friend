@@ -26,6 +26,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import AddManualPartyDialog from "@/components/warehouse/AddManualPartyDialog";
 import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
+import { STOCK_ADJUSTMENT_REASONS, isValidAdjustmentReason } from "@/lib/warehouseAdjustmentReasons";
+import { useStocktakingLock } from "@/hooks/useStocktakingLock";
+import { ShieldCheck, Lock } from "lucide-react";
 
 interface InventoryItem {
   id: string;
@@ -427,12 +430,14 @@ const ManualStockAdditionDialog = ({
             </div>
             <div>
               <Label className="text-xs">سبب الإضافة / التوريد *</Label>
-              <Input
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="مثال: تسوية رصيد، مرتجع تشغيل، تصحيح جرد"
-                maxLength={200}
-              />
+              <Select value={reason} onValueChange={setReason}>
+                <SelectTrigger><SelectValue placeholder="اختر السبب (إجباري)" /></SelectTrigger>
+                <SelectContent>
+                  {STOCK_ADJUSTMENT_REASONS.map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="md:col-span-3">
               <Label className="text-xs">ملاحظات (اختياري)</Label>
