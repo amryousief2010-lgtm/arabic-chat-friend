@@ -234,6 +234,8 @@ const ManualStockAdditionDialog = ({
           `توريد مباشر مؤقت`,
           `رقم العملية: ${opNo}`,
           `جهة التوريد: ${sourceLabel}`,
+          `القائم بالتوريد: ${supplier.trim()}`,
+          `تاريخ التوريد: ${deliveryDate}`,
           pkgLine,
           `السبب: ${reason.trim()}`,
           notes.trim() ? `ملاحظات: ${notes.trim()}` : null,
