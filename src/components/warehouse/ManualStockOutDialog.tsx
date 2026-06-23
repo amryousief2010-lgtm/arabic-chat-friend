@@ -595,14 +595,28 @@ const ManualStockOutDialog = ({
           </div>
         </div>
 
+        {lastSaved && (
+          <Alert className="border-rose-300 bg-rose-50 dark:bg-rose-950/30">
+            <Info className="h-4 w-4 text-rose-700" />
+            <AlertDescription className="text-xs text-rose-900 dark:text-rose-200 flex items-center justify-between gap-2 flex-wrap">
+              <span>تم حفظ الصرف برقم <b>{lastSaved.opNo}</b> — يمكنك طباعة محضر الصرف الآن.</span>
+              <Button size="sm" variant="outline" onClick={handlePrint} className="border-rose-400">
+                <Printer className="w-4 h-4 ml-1" /> طباعة محضر الصرف
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            إلغاء
+            {lastSaved ? "إغلاق" : "إلغاء"}
           </Button>
-          <Button onClick={handleSave} disabled={!canSave} className="bg-rose-600 hover:bg-rose-700">
-            {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <PackageMinus className="w-4 h-4 ml-1" />}
-            حفظ الصرف
-          </Button>
+          {!lastSaved && (
+            <Button onClick={handleSave} disabled={!canSave} className="bg-rose-600 hover:bg-rose-700">
+              {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <PackageMinus className="w-4 h-4 ml-1" />}
+              حفظ الصرف
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
