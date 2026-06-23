@@ -20,6 +20,8 @@ import InboundSupplyTab from "@/components/warehouse/InboundSupplyTab";
 import { SlaughterToMainWarehouseInbox } from "@/components/warehouse/SlaughterToMainWarehouseInbox";
 import ManualStockAdditionDialog from "@/components/warehouse/ManualStockAdditionDialog";
 import ManualStockOutDialog from "@/components/warehouse/ManualStockOutDialog";
+import ItemMovementsDialog from "@/components/warehouse/ItemMovementsDialog";
+import { History } from "lucide-react";
 import { isFeatureEnabled } from "@/config/featureFlags";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 import { Printer, PackagePlus, PackageMinus } from "lucide-react";
@@ -45,6 +47,7 @@ const WarehouseDetail = () => {
   const { canManageWarehouses, user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor, isAgouzaWarehouseKeeper, isProductionManager } = useAuth();
   const [manualAddOpen, setManualAddOpen] = useState(false);
   const [manualOutOpen, setManualOutOpen] = useState(false);
+  const [itemMovItem, setItemMovItem] = useState<any>(null);
 
   const canDeleteOutletOrder = isGeneralManager || isExecutiveManager;
   const { toast } = useToast();
@@ -1216,10 +1219,11 @@ const WarehouseDetail = () => {
                 <TableHeader><TableRow>
                   <TableHead>الصنف</TableHead><TableHead>الفئة</TableHead><TableHead>الرصيد</TableHead>
                   <TableHead>الوحدة</TableHead><TableHead>الحد الأدنى</TableHead><TableHead>التكلفة</TableHead>
+                  <TableHead className="text-center">سجل الحركة</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {items.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">لا توجد أصناف بهذا المخزن</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">لا توجد أصناف بهذا المخزن</TableCell></TableRow>
                   ) : items.map(it => (
                     <TableRow key={it.id} className={Number(it.stock) <= Number(it.low_stock_threshold) ? "bg-destructive/5" : ""}>
                       <TableCell className="font-medium flex items-center gap-2"><Package className="w-4 h-4 text-muted-foreground" />{it.name}{it.sku && <span className="text-xs text-muted-foreground">({it.sku})</span>}</TableCell>
@@ -1228,6 +1232,11 @@ const WarehouseDetail = () => {
                       <TableCell>{it.unit}</TableCell>
                       <TableCell>{it.low_stock_threshold}</TableCell>
                       <TableCell>{Number(it.unit_cost).toFixed(2)}</TableCell>
+                      <TableCell className="text-center">
+                        <Button size="sm" variant="outline" onClick={() => setItemMovItem(it)} className="gap-1">
+                          <History className="w-4 h-4" /> سجل الحركة
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -2186,6 +2195,14 @@ const WarehouseDetail = () => {
           onSaved={fetchAll}
         />
       )}
+
+      <ItemMovementsDialog
+        open={!!itemMovItem}
+        onOpenChange={(o) => { if (!o) setItemMovItem(null); }}
+        item={itemMovItem}
+        warehouseId={id!}
+        warehouseName={warehouse?.name}
+      />
 
     </DashboardLayout>
 
