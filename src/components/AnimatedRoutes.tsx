@@ -113,6 +113,8 @@ const WarehouseMovementsLog = lazy(() => import("@/pages/modules/WarehouseMoveme
 const WarehousePendingTransfers = lazy(() => import("@/pages/modules/WarehousePendingTransfers"));
 const WarehouseStocktaking = lazy(() => import("@/pages/modules/WarehouseStocktaking"));
 const WarehouseReports = lazy(() => import("@/pages/modules/WarehouseReports"));
+const WarehouseDailyReport = lazy(() => import("@/pages/modules/WarehouseDailyReport"));
+const WarehouseAdjustmentsLog = lazy(() => import("@/pages/modules/WarehouseAdjustmentsLog"));
 const RecipeDetail = lazy(() => import("@/pages/modules/feed/RecipeDetail"));
 const BatchTracking = lazy(() => import("@/pages/modules/feed/BatchTracking"));
 const FeedDashboard = lazy(() => import("@/pages/modules/feed/FeedDashboard"));
