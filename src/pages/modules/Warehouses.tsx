@@ -1073,14 +1073,21 @@ const Warehouses = () => {
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => setMenuSubview(null)}><ArrowLeftRight className="w-4 h-4 ml-1" />رجوع للقائمة</Button>
                 </div>
-                <div className="rounded-lg border border-border bg-card overflow-hidden">
-                  <iframe
-                    src={`${menuSubview}?embed=1`}
-                    title={menuSubview}
-                    className="w-full"
-                    style={{ height: "calc(100vh - 260px)", minHeight: "600px", border: "none" }}
-                  />
-                </div>
+                {menuSubview === "/modules/warehouses/main-guide" ? (
+                  <MainWarehouseGuide embedded />
+                ) : menuSubview === "/modules/warehouses/operational-dates" ? (
+                  isGeneralManager || isExecutiveManager ? (
+                    <WarehouseOperationalDates embedded />
+                  ) : (
+                    <Card><CardContent className="py-10 text-center text-muted-foreground">هذا الجزء مخصص للإدارة فقط.</CardContent></Card>
+                  )
+                ) : menuSubview === "/modules/warehouses/opening-balance" ? (
+                  <WarehouseOpeningBalance embedded />
+                ) : menuSubview === "/modules/warehouses/dashboard" ? (
+                  <WarehouseDashboard embedded />
+                ) : (
+                  <Card><CardContent className="py-10 text-center text-muted-foreground">القسم غير متاح أو غير مسجل.</CardContent></Card>
+                )}
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
