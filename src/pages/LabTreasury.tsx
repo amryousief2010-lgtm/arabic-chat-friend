@@ -231,6 +231,18 @@ export default function LabTreasury() {
   const [openingByMethod, setOpeningByMethod] = useState<Record<PaymentMethod, number>>({ cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 });
   const [officialByMethod, setOfficialByMethod] = useState<Record<PaymentMethod, number>>({ cash: 0, vodafone_cash: 0, instapay: 0, bank_transfer: 0 });
   const [loading, setLoading] = useState(true);
+  const [externalReceivablesRem, setExternalReceivablesRem] = useState<number>(0);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("lab_treasury_external_receivables")
+        .select("amount,paid_amount,status")
+        .neq("status", "paid");
+      const sum = (data || []).reduce((s: number, r: any) => s + (Number(r.amount) - Number(r.paid_amount)), 0);
+      setExternalReceivablesRem(sum);
+    })();
+  }, []);
 
   // filters
   const [fromDate, setFromDate] = useState("");
