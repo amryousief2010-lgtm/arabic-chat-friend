@@ -138,6 +138,90 @@ export default function WarehouseMovementsLog() {
 
   const whName = (id: string | null) => (id ? warehouses.find((w) => w.id === id)?.name || "—" : "—");
 
+  // Track first occurrence of each manual operation reference so we only show one print button per op.
+  const firstByRef = useMemo(() => {
+    const seen = new Set<string>();
+    const map = new Map<string, boolean>();
+    for (const m of filteredRows) {
+      const isManual = m.reference_type === "manual_addition" || m.reference_type === "manual_out";
+      const ref = m.reference || m.reference_id;
+      if (isManual && ref && !seen.has(ref)) {
+        seen.add(ref);
+        map.set(m.id, true);
+      }
+    }
+    return map;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, itemFilter, items]);
+
+  const parseField = (notes: string | null, label: string): string => {
+    if (!notes) return "";
+    const re = new RegExp(`${label}:\\s*([^•]+?)(?=\\s*•|$)`);
+    const m = notes.match(re);
+    return m ? m[1].trim() : "";
+  };
+
+  const printManualOp = async (mov: Mov) => {
+    const ref = mov.reference || mov.reference_id;
+    if (!ref) return;
+    const refCol = mov.reference ? "reference" : "reference_id";
+    const { data } = await supabase
+      .from("inventory_movements")
+      .select("item_id, quantity, package_count, package_weight_kg, notes, party, reason, performed_at, warehouse_id, performed_by, reference_type")
+      .eq(refCol, ref)
+      .order("id");
+    const list = (data || []) as any[];
+    if (list.length === 0) return;
+    // Ensure item names + user name
+    const missingItems = list.map(r => r.item_id).filter(id => !items[id]);
+    if (missingItems.length) {
+      const { data: its } = await supabase.from("inventory_items").select("id, name, unit").in("id", missingItems);
+      const im = { ...items };
+      (its || []).forEach((it: any) => { im[it.id] = { name: it.name, unit: it.unit }; });
+      setItems(im);
+    }
+    const performerId = list[0].performed_by;
+    let performerName = users[performerId || ""] || "";
+    if (performerId && !performerName) {
+      const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", performerId).maybeSingle();
+      performerName = (prof as any)?.full_name || "";
+    }
+    const itemsMap = items;
+    const slipRows: SlipItemRow[] = list.map(r => {
+      const it = itemsMap[r.item_id];
+      return {
+        name: it?.name || r.item_id,
+        unit: it?.unit || "كجم",
+        packageCount: r.package_count,
+        packageWeightKg: r.package_weight_kg,
+        quantity: Number(r.quantity || 0),
+        stockBefore: Number(parseField(r.notes, "قبل").replace(/[^\d.\-]/g, "")) || null,
+        stockAfter: Number(parseField(r.notes, "بعد").replace(/[^\d.\-]/g, "")) || null,
+      };
+    });
+    const first = list[0];
+    const kind: "in" | "out" = first.reference_type === "manual_out" ? "out" : "in";
+    const partyKey = kind === "in" ? "جهة التوريد" : "جهة الصرف";
+    const partyLabel = parseField(first.notes, partyKey) || (first.party || "").split("—")[0]?.replace(/^.+?: /, "").trim() || "";
+    const supplier = parseField(first.notes, "القائم بالتوريد");
+    const deliveryDate = parseField(first.notes, "تاريخ التوريد");
+    const extraNotes = parseField(first.notes, "ملاحظات");
+
+    printWarehouseSlip({
+      kind,
+      opNo: String(ref),
+      warehouseName: whName(first.warehouse_id),
+      partyLabel,
+      supplier,
+      deliveryDate,
+      performedByName: performerName,
+      performedAt: first.performed_at,
+      notes: extraNotes,
+      rows: slipRows,
+    });
+  };
+
+
   const exportXlsx = () => {
     const data = filteredRows.map((m) => ({
       "رقم الحركة": m.movement_no || "",
