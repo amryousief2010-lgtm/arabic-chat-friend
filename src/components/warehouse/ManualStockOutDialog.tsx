@@ -240,6 +240,7 @@ const ManualStockOutDialog = ({
 
   const hasReservedConflict = reservationAnalysis.some((r) => r.reservedFlag);
   const hasNegativeAfter = reservationAnalysis.some((r) => r.negative);
+  const exceedRows = reservationAnalysis.filter((r) => r.requested > r.stock).map((r) => r.itemId);
   const negativeBlocked = hasNegativeAfter && (!isManager || !overrideNegative || overrideReason.trim().length < 3);
 
   const validRows = rows.length > 0 && rows.every(r => r.itemId && rowQty(r) > 0);
