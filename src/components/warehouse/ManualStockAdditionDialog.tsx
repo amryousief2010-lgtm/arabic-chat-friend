@@ -115,6 +115,8 @@ const ManualStockAdditionDialog = ({
   const [sourceKey, setSourceKey] = useState("");
   const [sourceOther, setSourceOther] = useState("");
   const [reason, setReason] = useState("");
+  const [supplier, setSupplier] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [rows, setRows] = useState<Row[]>([newRow()]);
   const [saving, setSaving] = useState(false);
