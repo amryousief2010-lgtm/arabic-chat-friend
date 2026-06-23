@@ -115,7 +115,8 @@ const ManualStockOutDialog = ({
   const [destOther, setDestOther] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState(""); // stores القائم بالتوريد (supplier)
+  const [deliveryDate, setDeliveryDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [rows, setRows] = useState<Row[]>([newRow()]);
   const [saving, setSaving] = useState(false);
