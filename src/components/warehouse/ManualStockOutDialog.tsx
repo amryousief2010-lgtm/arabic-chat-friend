@@ -19,12 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Info, Loader2, PackageMinus, Plus, Printer, Trash2 } from "lucide-react";
+import { AlertTriangle, Info, Loader2, Lock, PackageMinus, Plus, Printer, ShieldAlert, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import AddManualPartyDialog from "@/components/warehouse/AddManualPartyDialog";
 import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
+import { STOCK_ADJUSTMENT_REASONS, isValidAdjustmentReason } from "@/lib/warehouseAdjustmentReasons";
+import { useStocktakingLock } from "@/hooks/useStocktakingLock";
+import { useReservedQuantities } from "@/hooks/useReservedQuantities";
 
 interface InventoryItem {
   id: string;
@@ -112,11 +115,15 @@ const ManualStockOutDialog = ({
   const { user, profile, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth() as any;
   const canAddParty = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const canManualKg = isGeneralManager || isExecutiveManager;
+  const isManager = isGeneralManager || isExecutiveManager;
   const [destKey, setDestKey] = useState("");
   const [destOther, setDestOther] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
   const [reason, setReason] = useState(""); // stores القائم بالتوريد (supplier)
+  const [category, setCategory] = useState<string>(""); // سبب الصرف الإجباري (الفئة)
+  const [overrideNegative, setOverrideNegative] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
   const [deliveryDate, setDeliveryDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [rows, setRows] = useState<Row[]>([newRow()]);
