@@ -1001,7 +1001,8 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           warehouseName={movDlg.whLabel}
         />
       )}
-    </>
+    </TooltipProvider>
+
   );
 
   return embedded ? content : <DashboardLayout>{content}</DashboardLayout>;
