@@ -396,14 +396,22 @@ const ManualStockOutDialog = ({
             onCreated={async (p) => { await loadCustom(); setDestKey(`custom:${p.id}`); }}
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <Label className="text-xs">سبب الصرف *</Label>
+              <Label className="text-xs">القائم بالتوريد *</Label>
               <Input
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="مثال: توريد للفرع، تسليم لمندوب، توريد لعميل، تالف..."
+                placeholder="اسم من قام بالتسليم (مثال: عبدالمنعم عثمان، محمد شعلة، مندوب التوريد)"
                 maxLength={200}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">تاريخ التوريد *</Label>
+              <Input
+                type="date"
+                value={deliveryDate}
+                onChange={(e) => setDeliveryDate(e.target.value)}
               />
             </div>
             <div>
