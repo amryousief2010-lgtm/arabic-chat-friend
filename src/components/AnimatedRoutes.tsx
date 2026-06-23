@@ -743,6 +743,11 @@ const AnimatedRoutes = () => {
               <PageTransition><LabHistoricalReceivables /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/lab-treasury/external-receivables" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'accountant', 'financial_manager', 'slaughterhouse_manager', 'slaughterhouse_custody_keeper']}>
+              <PageTransition><LabExternalReceivables /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/lab-treasury/customer-debts" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver']}>
               <PageTransition><LabCustomerDebts /></PageTransition>
