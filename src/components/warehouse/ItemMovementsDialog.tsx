@@ -10,7 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateTime } from "@/lib/dateFormat";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
-import { Printer, FileSpreadsheet, FileText, ArrowDown, ArrowUp, Package } from "lucide-react";
+import { Printer, FileSpreadsheet, FileText, ArrowDown, ArrowUp, Package, Archive } from "lucide-react";
+import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
 import * as XLSX from "xlsx";
 
 interface Props {
@@ -58,6 +59,9 @@ const ItemMovementsDialog = ({ open, onOpenChange, item, warehouseId, warehouseN
   const [typeFilter, setTypeFilter] = useState<"all" | "in" | "out">("all");
   const [partyFilter, setPartyFilter] = useState<string>("all");
   const [search, setSearch] = useState<string>("");
+  // إقفال تاريخي: افتراضي = الحركات الحالية (>= cutoff). يمكن عرض الأرشيف أو الكل.
+  const [archiveScope, setArchiveScope] = useState<"current" | "archived" | "all">("current");
+  const cutoffMs = useMemo(() => new Date(MAIN_WAREHOUSE_OPERATIONAL_START_ISO).getTime(), []);
 
   useEffect(() => {
     if (!open || !item?.id) return;
@@ -117,6 +121,9 @@ const ItemMovementsDialog = ({ open, onOpenChange, item, warehouseId, warehouseN
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
+      const t = new Date(r.performed_at).getTime();
+      if (archiveScope === "current" && t < cutoffMs) return false;
+      if (archiveScope === "archived" && t >= cutoffMs) return false;
       if (typeFilter !== "all" && r._dir !== typeFilter) return false;
       if (dateFrom && new Date(r.performed_at) < new Date(dateFrom)) return false;
       if (dateTo) {
@@ -131,7 +138,21 @@ const ItemMovementsDialog = ({ open, onOpenChange, item, warehouseId, warehouseN
       }
       return true;
     });
-  }, [rows, typeFilter, dateFrom, dateTo, partyFilter, search]);
+  }, [rows, typeFilter, dateFrom, dateTo, partyFilter, search, archiveScope, cutoffMs]);
+
+  const filteredReservations = useMemo(() => {
+    return reservations.filter((r) => {
+      const created = r.orders?.created_at ? new Date(r.orders.created_at).getTime() : 0;
+      if (archiveScope === "current") return created >= cutoffMs;
+      if (archiveScope === "archived") return created < cutoffMs;
+      return true;
+    });
+  }, [reservations, archiveScope, cutoffMs]);
+
+  const archivedCount = useMemo(
+    () => rows.filter((r) => new Date(r.performed_at).getTime() < cutoffMs).length,
+    [rows, cutoffMs]
+  );
 
   const parties = useMemo(() => {
     const set = new Set<string>();
@@ -245,9 +266,16 @@ const ItemMovementsDialog = ({ open, onOpenChange, item, warehouseId, warehouseN
 
         <Tabs defaultValue="movements">
           <TabsList>
-            <TabsTrigger value="movements">الحركات ({rows.length})</TabsTrigger>
-            <TabsTrigger value="reservations">الحجوزات ({reservations.length})</TabsTrigger>
+            <TabsTrigger value="movements">الحركات ({filtered.length})</TabsTrigger>
+            <TabsTrigger value="reservations">الحجوزات ({filteredReservations.length})</TabsTrigger>
           </TabsList>
+
+          {archivedCount > 0 && (
+            <div className="text-xs text-muted-foreground flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+              <Archive className="w-4 h-4 text-amber-600" />
+              تم إقفال السجلات قبل <b>{MAIN_WAREHOUSE_OPERATIONAL_START}</b> ضمن بداية جرد جديد. عدد الحركات المؤرشفة لهذا الصنف: <b>{archivedCount}</b>. لعرضها اختر «المؤرشف» أو «الكل» من الفلتر.
+            </div>
+          )}
 
           <TabsContent value="movements" className="space-y-3">
             {/* Filters */}
@@ -262,6 +290,17 @@ const ItemMovementsDialog = ({ open, onOpenChange, item, warehouseId, warehouseN
                     <SelectItem value="all">الكل</SelectItem>
                     <SelectItem value="in">وارد فقط</SelectItem>
                     <SelectItem value="out">صرف فقط</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">الأرشيف</label>
+                <Select value={archiveScope} onValueChange={(v) => setArchiveScope(v as any)}>
+                  <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="current">الحركات الحالية (من {MAIN_WAREHOUSE_OPERATIONAL_START})</SelectItem>
+                    <SelectItem value="archived">المؤرشف (قبل {MAIN_WAREHOUSE_OPERATIONAL_START})</SelectItem>
+                    <SelectItem value="all">الكل</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -340,9 +379,9 @@ const ItemMovementsDialog = ({ open, onOpenChange, item, warehouseId, warehouseN
                   <TableHead>التاريخ</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {reservations.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">لا توجد حجوزات حالية</TableCell></TableRow>
-                  ) : reservations.map((r) => (
+                  {filteredReservations.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">لا توجد حجوزات{archiveScope === "current" ? ` بعد ${MAIN_WAREHOUSE_OPERATIONAL_START}` : ""}</TableCell></TableRow>
+                  ) : filteredReservations.map((r) => (
                     <TableRow key={r.id}>
                       <TableCell className="font-mono">{r.orders?.order_number || "—"}</TableCell>
                       <TableCell>{r.orders?.customer?.name || "—"}</TableCell>
