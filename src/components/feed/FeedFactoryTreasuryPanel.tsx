@@ -95,6 +95,7 @@ export default function FeedFactoryTreasuryPanel({
   const totals = useMemo(() => {
     let inSum = 0, outSum = 0;
     txns.forEach((t) => {
+      if (t.status === "cancelled") return;
       const a = Number(t.amount || 0);
       if (t.direction === "in") inSum += a; else outSum += a;
     });
@@ -108,7 +109,7 @@ export default function FeedFactoryTreasuryPanel({
     setParty(""); setFromDate(""); setToDate("");
   };
 
-  // Compute running balance ASC, then map by id for the displayed rows
+  // Compute running balance ASC, then map by id for the displayed rows (cancelled rows do not affect balance)
   const runningBalance = useMemo(() => {
     const asc = [...txns].sort((a, b) => {
       const d = +new Date(a.txn_date) - +new Date(b.txn_date);
@@ -118,7 +119,9 @@ export default function FeedFactoryTreasuryPanel({
     const map: Record<string, number> = {};
     let bal = 0;
     asc.forEach((t) => {
-      bal += t.direction === "in" ? Number(t.amount || 0) : -Number(t.amount || 0);
+      if (t.status !== "cancelled") {
+        bal += t.direction === "in" ? Number(t.amount || 0) : -Number(t.amount || 0);
+      }
       map[t.id] = bal;
     });
     return map;
