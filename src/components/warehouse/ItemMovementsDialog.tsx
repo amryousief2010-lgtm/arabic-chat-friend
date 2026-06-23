@@ -379,9 +379,9 @@ const ItemMovementsDialog = ({ open, onOpenChange, item, warehouseId, warehouseN
                   <TableHead>التاريخ</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {reservations.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">لا توجد حجوزات حالية</TableCell></TableRow>
-                  ) : reservations.map((r) => (
+                  {filteredReservations.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">لا توجد حجوزات{archiveScope === "current" ? ` بعد ${MAIN_WAREHOUSE_OPERATIONAL_START}` : ""}</TableCell></TableRow>
+                  ) : filteredReservations.map((r) => (
                     <TableRow key={r.id}>
                       <TableCell className="font-mono">{r.orders?.order_number || "—"}</TableCell>
                       <TableCell>{r.orders?.customer?.name || "—"}</TableCell>
