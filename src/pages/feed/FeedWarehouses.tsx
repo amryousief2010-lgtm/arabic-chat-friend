@@ -354,8 +354,8 @@ export default function FeedWarehouses() {
 
   const rawValue = useMemo(() => (rawQ.data || []).reduce((s: number, r: any) => s + Number(r.stock || 0) * Number(r.unit_cost || 0), 0), [rawQ.data]);
   const finishedValue = useMemo(() => (prodQ.data || []).reduce((s: number, p: any) => s + Number(p.current_stock || 0) * Number(p.latest_unit_cost || 0), 0), [prodQ.data]);
-  const treasuryBalance = useMemo(() => (treasuryQ.data || []).reduce((s: number, t: any) => s + (t.direction === "in" ? 1 : -1) * Number(t.amount || 0), 0), [treasuryQ.data]);
-  const loanFromNaam = useMemo(() => (treasuryQ.data || []).filter((t: any) => t.kind === "loan_from_naam").reduce((s: number, t: any) => s + Number(t.amount), 0) - (treasuryQ.data || []).filter((t: any) => t.kind === "loan_to_naam").reduce((s: number, t: any) => s + Number(t.amount), 0), [treasuryQ.data]);
+  const treasuryBalance = useMemo(() => (treasuryQ.data || []).filter((t: any) => t.status !== "cancelled").reduce((s: number, t: any) => s + (t.direction === "in" ? 1 : -1) * Number(t.amount || 0), 0), [treasuryQ.data]);
+  const loanFromNaam = useMemo(() => (treasuryQ.data || []).filter((t: any) => t.status !== "cancelled" && t.kind === "loan_from_naam").reduce((s: number, t: any) => s + Number(t.amount), 0) - (treasuryQ.data || []).filter((t: any) => t.status !== "cancelled" && t.kind === "loan_to_naam").reduce((s: number, t: any) => s + Number(t.amount), 0), [treasuryQ.data]);
 
   const exportRaw = () => exportCSV("raw_materials.csv", (rawQ.data||[]).map((r:any)=>{const sp=Number(r.sale_price||0);const uc=Number(r.unit_cost||0);return ({الصنف:r.name,الكود:r.item_code||"",الرصيد:r.stock,الوحدة:r.unit,متوسط_التكلفة:uc,سعر_البيع:sp,القيمة_تكلفة:Number(r.stock)*uc,القيمة_بيع:Number(r.stock)*sp,هامش_الربح:sp>0?sp-uc:0,نسبة_الهامش:sp>0?((sp-uc)/sp*100).toFixed(2)+"%":"",المورد:r.supplier||""});}));
   const getReadyRaws = () => (rawQ.data||[]).filter((r:any)=>{const n=String(r.name||"").toLowerCase();return n.includes("بريمكس")||n.includes("دريس")||n.includes("premix")||n.includes("dress");});
