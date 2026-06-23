@@ -91,17 +91,75 @@ export default function ExternalReceivables({ embedded = false }: Props) {
   // details dialog
   const [viewDlg, setViewDlg] = useState<{ open: boolean; row: Receivable | null }>({ open: false, row: null });
 
+  const [histItemsByRid, setHistItemsByRid] = useState<Record<string, any[]>>({});
+
   async function load() {
     setLoading(true);
-    const [r1, r2] = await Promise.all([
+    const [r1, r2, h1, h2, h3] = await Promise.all([
       (supabase as any).from("lab_treasury_external_receivables")
         .select("*").order("entry_date", { ascending: false }).limit(1000),
       (supabase as any).from("lab_treasury_external_receivable_settlements")
         .select("*").order("created_at", { ascending: false }).limit(2000),
+      (supabase as any).from("lab_treasury_historical_receivables")
+        .select("*").order("created_at", { ascending: false }).limit(500),
+      (supabase as any).from("lab_treasury_historical_receivable_items")
+        .select("*").order("entry_date", { ascending: true }).limit(5000),
+      (supabase as any).from("lab_treasury_historical_receivable_settlements")
+        .select("*").order("created_at", { ascending: false }).limit(2000),
     ]);
     if (r1.error) toast.error("فشل تحميل المستحقات: " + r1.error.message);
-    setRows((r1.data || []) as Receivable[]);
-    setSettlements((r2.data || []) as Settlement[]);
+
+    const histItems = (h2.data || []) as any[];
+    const histSettles = (h3.data || []) as any[];
+    const histVirtual: Receivable[] = ((h1.data || []) as any[]).map((h) => {
+      const items = histItems.filter((it) => it.receivable_id === h.id);
+      const paid = histSettles
+        .filter((s) => s.receivable_id === h.id)
+        .reduce((sum, s) => sum + Number(s.amount || 0), 0);
+      const total = Number(h.total_amount || 0);
+      const earliest = items.length
+        ? items.reduce((min, it) => (it.entry_date < min ? it.entry_date : min), items[0].entry_date)
+        : (h.created_at || today()).slice(0, 10);
+      const status: Status = paid <= 0 ? "unpaid" : paid + 0.001 >= total ? "paid" : "partial";
+      return {
+        id: `hist:${h.id}`,
+        party: "slaughter_custody",
+        party_label: "خزنة عهدة المجزر",
+        entry_date: earliest,
+        description: h.title || "مستحقات سابقة",
+        amount: total,
+        paid_amount: paid,
+        status,
+        notes: h.note || "ترحيل المستحقات القديمة إلى شاشة مستحقات الخزنة عند الغير",
+        source_type: "historical",
+        source_id: h.id,
+        created_by: null,
+        created_at: h.created_at,
+      };
+    });
+
+    const histSettleMapped: Settlement[] = histSettles.map((s: any) => ({
+      id: s.id,
+      receivable_id: `hist:${s.receivable_id}`,
+      amount: Number(s.amount || 0),
+      settlement_date: s.settlement_date,
+      destination_treasury: (s.destination || "lab") as Dest,
+      payment_method: s.payment_method || "cash",
+      notes: s.notes || null,
+      lab_movement_id: s.lab_movement_id || null,
+      created_by: s.created_by || null,
+      created_at: s.created_at,
+    }));
+
+    const itemsMap: Record<string, any[]> = {};
+    for (const it of histItems) {
+      const k = `hist:${it.receivable_id}`;
+      (itemsMap[k] = itemsMap[k] || []).push(it);
+    }
+    setHistItemsByRid(itemsMap);
+
+    setRows([...((r1.data || []) as Receivable[]), ...histVirtual]);
+    setSettlements([...((r2.data || []) as Settlement[]), ...histSettleMapped]);
     setLoading(false);
   }
   useEffect(() => { load(); }, []);
