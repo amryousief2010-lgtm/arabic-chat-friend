@@ -641,6 +641,41 @@ const Orders = () => {
     return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesWarehouseScope && matchesOperationalStart;
   }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, isWarehouseSupervisor, isGeneralManager, isExecutiveManager]);
 
+  // Detect duplicate orders by customer phone — every order after the earliest one
+  // for the same normalized phone is flagged as duplicate (shown red in the UI).
+  const duplicatePhoneOrderIds = useMemo(() => {
+    const groups = new Map<string, { id: string; created_at: string }[]>();
+    for (const o of orders) {
+      const norm = (o.customer_phone || "").replace(/[^\d]/g, "");
+      if (norm.length < 6) continue;
+      const arr = groups.get(norm) || [];
+      arr.push({ id: o.id, created_at: o.created_at });
+      groups.set(norm, arr);
+    }
+    const dups = new Set<string>();
+    for (const arr of groups.values()) {
+      if (arr.length < 2) continue;
+      arr.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      for (let i = 1; i < arr.length; i++) dups.add(arr[i].id);
+    }
+    return dups;
+  }, [orders]);
+
+  // One-time popup alert for م. آلاء حامد (مديرة المبيعات) when she opens the app
+  // and there are duplicate-phone orders to review.
+  const [showDupAlert, setShowDupAlert] = useState(false);
+  const [dupAlertOrders, setDupAlertOrders] = useState<Order[]>([]);
+  useEffect(() => {
+    if (!user?.id || user.id !== SALES_MANAGER_ID) return;
+    if (orders.length === 0) return;
+    if (sessionStorage.getItem('dup-alert-shown') === '1') return;
+    const dups = orders.filter((o) => duplicatePhoneOrderIds.has(o.id));
+    if (dups.length === 0) return;
+    setDupAlertOrders(dups.slice(0, 10));
+    setShowDupAlert(true);
+    sessionStorage.setItem('dup-alert-shown', '1');
+  }, [user?.id, orders, duplicatePhoneOrderIds]);
+
   const availableGovernorates = Array.from(
     new Set(orders.map(o => (o.governorate || "").trim()).filter(Boolean))
   ).sort((a, b) => a.localeCompare(b, 'ar'));
