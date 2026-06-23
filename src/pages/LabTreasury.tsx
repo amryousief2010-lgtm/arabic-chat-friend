@@ -1647,11 +1647,21 @@ export default function LabTreasury() {
                           })()}
                         </TableCell>
                         <TableCell className="text-xs">{profiles[m.created_by || ""] || "—"}</TableCell>
-                        {isManager && (
-                          <TableCell>
-                            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteDlg({ open: true, movement: m, reason: "" })}>حذف</Button>
-                          </TableCell>
-                        )}
+                        <TableCell>
+                          <div className="flex gap-1 items-center">
+                            <Button size="icon" variant="ghost" title="عرض التفاصيل" onClick={() => setDetailsDlg({ open: true, movement: m })}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" title="طباعة سند" onClick={() => printVoucher(m)}>
+                              <Printer className="w-4 h-4" />
+                            </Button>
+                            {isManager && (
+                              <Button size="icon" variant="ghost" className="text-destructive" title="حذف / إلغاء" onClick={() => setDeleteDlg({ open: true, movement: m, reason: "" })}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
