@@ -814,7 +814,59 @@ export default function LabTreasury() {
         break;
       default:
         toast.info(`المصدر: ${m.source_table} #${m.source_id?.slice(0, 8) || ""}`);
-    }
+  }
+
+  // ---- Print voucher (سند صرف / إيصال إيراد) ----
+  function printVoucher(m: Movement) {
+    const isIncome = m.movement_type === "income";
+    const title = isIncome ? "إيصال إيراد خزنة" : "سند صرف خزنة";
+    const catLabel = isIncome
+      ? INCOME_LABELS[m.income_category as IncomeCat] || "—"
+      : EXPENSE_LABELS[m.expense_category as ExpenseCat] || "—";
+    const userName = profiles[m.created_by || ""] || "—";
+    const sourceLabel = m.source_table
+      ? (m.source_table === "brooding_chick_sales" ? `تلقائي — بيع كتاكيت ${m.source_ref || ""}`
+        : m.source_table === "hatch_customer_payments" ? `تلقائي — دفع تفريخ ${m.source_ref || ""}`
+        : m.source_table === "hatchery_invoice_payments" ? `تلقائي — فاتورة تفريخ ${m.source_ref || ""}`
+        : `تلقائي — ${m.source_table} ${m.source_ref || ""}`)
+      : "يدوي";
+    const html = `
+      <div style="font-family: 'Cairo', sans-serif; padding: 24px; max-width: 720px; margin: 0 auto;">
+        <div style="text-align:center; border-bottom: 2px solid #6d28d9; padding-bottom: 12px; margin-bottom: 16px;">
+          <h1 style="margin:0; color:#6d28d9;">شركة نعام العاصمة</h1>
+          <h2 style="margin:6px 0 0; color:#1f2937;">${title}</h2>
+          <div style="font-size:12px; color:#6b7280; margin-top:4px;">خزنة المعمل والحضانات</div>
+        </div>
+        <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+          <tbody>
+            <tr><td style="padding:6px 8px; background:#f9fafb; width:35%;">رقم الحركة</td><td style="padding:6px 8px;">${escapeHtml(m.id.slice(0, 8))}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">التاريخ</td><td style="padding:6px 8px;">${escapeHtml(m.movement_date)}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">الخزنة</td><td style="padding:6px 8px;">المعمل والحضانات</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">التصنيف</td><td style="padding:6px 8px;">${escapeHtml(catLabel)}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">البيان</td><td style="padding:6px 8px;">${escapeHtml(m.description || "—")}</td></tr>
+            ${m.customer_name ? `<tr><td style="padding:6px 8px; background:#f9fafb;">العميل</td><td style="padding:6px 8px;">${escapeHtml(m.customer_name)}</td></tr>` : ""}
+            ${m.beneficiary ? `<tr><td style="padding:6px 8px; background:#f9fafb;">المستفيد</td><td style="padding:6px 8px;">${escapeHtml(m.beneficiary)}</td></tr>` : ""}
+            <tr><td style="padding:10px 8px; background:#fef3c7; font-weight:bold;">المبلغ</td><td style="padding:10px 8px; font-weight:bold; font-size:18px; color:${isIncome ? "#15803d" : "#b91c1c"};">${fmtNum(Number(m.amount), 2)} ج.م</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">طريقة الدفع</td><td style="padding:6px 8px;">${escapeHtml(PAYMENT_LABELS[m.payment_method])}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">الحالة</td><td style="padding:6px 8px;">${escapeHtml(STATUS_LABELS[m.status])}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">المصدر</td><td style="padding:6px 8px;">${escapeHtml(sourceLabel)}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">سجّل بواسطة</td><td style="padding:6px 8px;">${escapeHtml(userName)}</td></tr>
+            <tr><td style="padding:6px 8px; background:#f9fafb;">تاريخ التسجيل</td><td style="padding:6px 8px;">${escapeHtml(fmtDate(m.created_at))}</td></tr>
+            ${m.notes ? `<tr><td style="padding:6px 8px; background:#f9fafb;">ملاحظات</td><td style="padding:6px 8px;">${escapeHtml(m.notes)}</td></tr>` : ""}
+          </tbody>
+        </table>
+        <div style="display:flex; justify-content:space-between; margin-top:48px; font-size:13px;">
+          <div style="text-align:center;">
+            <div style="border-top:1px solid #1f2937; padding-top:6px; width:180px;">توقيع ${isIncome ? "المُسلِّم" : "المستلم"}</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="border-top:1px solid #1f2937; padding-top:6px; width:180px;">توقيع المسؤول</div>
+          </div>
+        </div>
+      </div>
+    `;
+    openPrintWindow({ title, bodyHtml: html });
+  }
   }
 
   // ---- Operational reports (server-side via RPC) ----
