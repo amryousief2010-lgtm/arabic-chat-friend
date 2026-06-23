@@ -295,6 +295,7 @@ export default function LabTreasury() {
   // dialogs
   const [rejectDlg, setRejectDlg] = useState<{ open: boolean; movement: Movement | null; reason: string }>({ open: false, movement: null, reason: "" });
   const [deleteDlg, setDeleteDlg] = useState<{ open: boolean; movement: Movement | null; reason: string }>({ open: false, movement: null, reason: "" });
+  const [detailsDlg, setDetailsDlg] = useState<{ open: boolean; movement: Movement | null }>({ open: false, movement: null });
   const [closeDayDlg, setCloseDayDlg] = useState<{ open: boolean; date: string; notes: string }>({ open: false, date: today(), notes: "" });
   const [reopenDlg, setReopenDlg] = useState<{ open: boolean; closure: DayClosure | null; reason: string }>({ open: false, closure: null, reason: "" });
 
