@@ -202,10 +202,27 @@ export default function FeedWarehouses() {
   };
   const delTreasury = async (t: any) => {
     if (t.kind === "sale" || t.kind === "purchase") return toast.error("هذه الحركة ناتجة عن فاتورة — احذف الفاتورة من تبويبها.");
-    if (!confirmDel(`حذف حركة الخزنة ${t.txn_no}؟`)) return;
-    const { error } = await (supabase as any).from("feed_factory_treasury_txns").delete().eq("id", t.id);
-    if (error) return toast.error(error.message);
-    toast.success("تم حذف الحركة");
+    if (t.status === "cancelled") return toast.error("هذه الحركة ملغاة بالفعل.");
+    const restore = t.direction === "out" ? Number(t.amount || 0) : -Number(t.amount || 0);
+    const before = (treasuryQ.data || []).filter((x: any) => x.status !== "cancelled").reduce((s: number, x: any) => s + (x.direction === "in" ? 1 : -1) * Number(x.amount || 0), 0);
+    const after = before + restore;
+    const msg = `سيتم إلغاء حركة الخزنة ${t.txn_no}\nالمبلغ: ${Number(t.amount).toLocaleString("ar-EG")} ج.م (${t.direction === "in" ? "وارد" : "منصرف"})\nرصيد الخزنة قبل الإلغاء: ${before.toLocaleString("ar-EG")} ج.م\nرصيد الخزنة بعد الإلغاء: ${after.toLocaleString("ar-EG")} ج.م\n\nاكتب سبب الإلغاء (إجباري):`;
+    const reason = window.prompt(msg, "");
+    if (reason === null) return;
+    if (reason.trim().length < 3) return toast.error("سبب الإلغاء إجباري (3 أحرف على الأقل).");
+    const { error } = await (supabase as any).rpc("feed_treasury_cancel_txn", { p_id: t.id, p_reason: reason.trim() });
+    if (error) {
+      const map: Record<string, string> = {
+        AUTH_REQUIRED: "سجل الدخول أولاً.",
+        CANCEL_REASON_REQUIRED: "سبب الإلغاء إجباري.",
+        PERMISSION_DENIED: "لا تملك صلاحية إلغاء حركات الخزنة.",
+        TXN_NOT_FOUND: "الحركة غير موجودة.",
+        ALREADY_CANCELLED: "هذه الحركة ملغاة بالفعل.",
+        LINKED_TO_INVOICE: "الحركة مرتبطة بفاتورة — احذفها من الفاتورة.",
+      };
+      return toast.error(map[(error as any).message] || (error as any).message);
+    }
+    toast.success(`تم إلغاء الحركة وإرجاع المبلغ للخزنة (${Math.abs(restore).toLocaleString("ar-EG")} ج.م).`);
     qc.invalidateQueries({ queryKey: ["feed-treasury"] });
   };
   const delCount = async (c: any) => {
