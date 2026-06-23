@@ -137,6 +137,7 @@ const ManualStockOutDialog = ({
     if (!open) {
       setDestKey(""); setDestOther(""); setCustomerName("");
       setReason(""); setNotes("");
+      setDeliveryDate(new Date().toISOString().slice(0, 10));
       setRows([newRow()]);
     } else {
       void loadCustom();
