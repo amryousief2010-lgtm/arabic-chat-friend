@@ -1794,6 +1794,8 @@ const Orders = () => {
           orderId={editAddressOrder.id}
           initialAddress={editAddressOrder.delivery_address}
           initialWarehouseId={editAddressOrder.source_warehouse_id}
+          initialFulfillmentType={editAddressOrder.fulfillment_type}
+          initialShippingCompany={editAddressOrder.shipping_company}
           onSaved={(next) => {
             setOrders((prev) => prev.map((o) => o.id === editAddressOrder.id ? { ...o, ...next } : o));
             setEditAddressOrder(null);
