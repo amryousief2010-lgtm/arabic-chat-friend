@@ -92,7 +92,7 @@ export default function WarehouseMovementsLog() {
 
       let q = supabase
         .from("inventory_movements")
-        .select("id, movement_no, performed_at, warehouse_id, destination_warehouse_id, source_warehouse_id, item_id, movement_type, quantity, unit_cost, reference_id, reference_type, performed_by, reason, notes, approval_status, module")
+        .select("id, movement_no, performed_at, warehouse_id, destination_warehouse_id, source_warehouse_id, item_id, movement_type, quantity, unit_cost, reference, reference_id, reference_type, performed_by, reason, notes, party, package_count, package_weight_kg, approval_status, module")
         .gte("performed_at", effectiveFrom)
         .lte("performed_at", to + "T23:59:59")
         .order("performed_at", { ascending: false })
