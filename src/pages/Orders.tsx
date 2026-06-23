@@ -1893,6 +1893,40 @@ const Orders = () => {
       {!isSalesModerator && isPrivateDeliveryRep && (
         <ModeratorQuickAccessCards privateDeliveryOnly />
       )}
+
+      {/* Popup alert for م. آلاء حامد عند فتح التطبيق إذا كان هناك طلبات بأرقام مكررة */}
+      <Dialog open={showDupAlert} onOpenChange={setShowDupAlert}>
+        <DialogContent className="max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              تنبيه: طلبات بأرقام هواتف مكررة
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              تم رصد {dupAlertOrders.length} طلب لعملاء سبق تسجيل طلب لهم بنفس رقم الهاتف.
+              برجاء المراجعة لتجنب التكرار.
+            </p>
+            <div className="max-h-64 overflow-auto space-y-2">
+              {dupAlertOrders.map((o) => (
+                <div key={o.id} className="border border-red-300 bg-red-50 dark:bg-red-950/40 rounded-md p-2 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs">{o.order_number}</span>
+                    <span className="font-bold text-red-700 dark:text-red-200">{o.customer_name}</span>
+                  </div>
+                  {o.customer_phone && (
+                    <div className="text-xs font-mono text-muted-foreground" dir="ltr">{o.customer_phone}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <Button className="w-full" onClick={() => setShowDupAlert(false)}>
+              فهمت، سأراجع الطلبات
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
