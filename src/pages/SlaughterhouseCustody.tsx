@@ -1011,6 +1011,64 @@ export default function SlaughterhouseCustody() {
           </DialogContent>
         </Dialog>
 
+        {/* Details Dialog */}
+        <Dialog open={detailsDlg.open} onOpenChange={(o) => setDetailsDlg({ open: o, exp: o ? detailsDlg.exp : null })}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>تفاصيل المصروف</DialogTitle>
+              <DialogDescription>كل بيانات المصروف ومصدره والمسؤول عنه.</DialogDescription>
+            </DialogHeader>
+            {detailsDlg.exp && (() => {
+              const e = detailsDlg.exp;
+              const Row = ({ k, v }: { k: string; v: any }) => (
+                <div className="grid grid-cols-3 gap-2 py-1.5 border-b last:border-0">
+                  <div className="text-xs text-muted-foreground">{k}</div>
+                  <div className="col-span-2 text-sm">{v ?? "—"}</div>
+                </div>
+              );
+              return (
+                <div className="text-sm">
+                  <Row k="رقم المصروف" v={<span className="font-mono">{e.id.slice(0, 8)}</span>} />
+                  <Row k="التاريخ" v={e.expense_date} />
+                  <Row k="البند" v={CAT_LBL[e.category]} />
+                  <Row k="الوصف" v={e.description} />
+                  <Row k="المبلغ" v={<span className="font-mono font-bold">{fmtNum(e.amount, 2)} ج.م</span>} />
+                  <Row k="طريقة الدفع" v={PM_LBL[e.payment_method]} />
+                  <Row k="المستفيد" v={e.beneficiary} />
+                  <Row k="فاتورة؟" v={e.has_invoice ? "نعم" : "لا"} />
+                  <Row k="الحالة" v={<Badge variant={e.status === "approved" ? "default" : e.status === "rejected" ? "destructive" : "secondary"}>{ST_LBL[e.status]}</Badge>} />
+                  <Row k="المصدر" v="يدوي" />
+                  <Row k="سجّل بواسطة" v={creatorNames[e.created_by] || e.created_by.slice(0, 8)} />
+                  <Row k="تاريخ التسجيل" v={fmtDate(e.created_at)} />
+                  {e.approved_at && <Row k="تاريخ الاعتماد" v={fmtDate(e.approved_at)} />}
+                  {e.rejection_reason && <Row k="سبب الرفض / الإلغاء" v={<span className="text-destructive">{e.rejection_reason}</span>} />}
+                  {e.notes && <Row k="ملاحظات" v={e.notes} />}
+                  {e.receipt_url && <Row k="إيصال" v={<a className="text-primary underline" href={e.receipt_url} target="_blank" rel="noreferrer">عرض المرفق</a>} />}
+                </div>
+              );
+            })()}
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => detailsDlg.exp && printExpenseVoucher(detailsDlg.exp)} className="gap-2"><Printer className="h-4 w-4" />طباعة سند</Button>
+              <Button onClick={() => setDetailsDlg({ open: false, exp: null })}>إغلاق</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Cancel / Delete Dialog */}
+        <Dialog open={cancelDlg.open} onOpenChange={(o) => setCancelDlg({ ...cancelDlg, open: o })}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>إلغاء / حذف المصروف</DialogTitle>
+              <DialogDescription>سبب الإلغاء إلزامي ويُسجل في سجل التدقيق (Audit Log). متاح للمدير العام أو التنفيذي فقط. سيتم إرجاع المبلغ تلقائيًا إلى رصيد الخزنة وإلغاء أي خصم HR مرتبط.</DialogDescription>
+            </DialogHeader>
+            <Textarea placeholder="اكتب سبب الإلغاء..." value={cancelDlg.reason} onChange={(e) => setCancelDlg({ ...cancelDlg, reason: e.target.value })} rows={4} />
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setCancelDlg({ open: false, exp: null, reason: "" })}>تراجع</Button>
+              <Button variant="destructive" onClick={confirmCancelExpense}>تأكيد الإلغاء</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
       </div>
     </DashboardLayout>
   );
