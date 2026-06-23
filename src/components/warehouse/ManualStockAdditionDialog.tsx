@@ -26,6 +26,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import AddManualPartyDialog from "@/components/warehouse/AddManualPartyDialog";
 import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
+import { STOCK_ADJUSTMENT_REASONS, isValidAdjustmentReason } from "@/lib/warehouseAdjustmentReasons";
+import { useStocktakingLock } from "@/hooks/useStocktakingLock";
+import { Lock } from "lucide-react";
 
 interface InventoryItem {
   id: string;
@@ -113,6 +116,8 @@ const ManualStockAdditionDialog = ({
   const { user, profile, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth() as any;
   const canAddParty = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const canManualKg = isGeneralManager || isExecutiveManager;
+  const isManager = isGeneralManager || isExecutiveManager;
+  const { lock } = useStocktakingLock(open ? warehouseId : null);
   const [sourceKey, setSourceKey] = useState("");
   const [sourceOther, setSourceOther] = useState("");
   const [reason, setReason] = useState("");
@@ -184,7 +189,7 @@ const ManualStockAdditionDialog = ({
   }, [rows]);
 
   const validRows = rows.length > 0 && rows.every(r => r.itemId && rowQty(r) > 0);
-  const canSave = validSource && reason.trim().length > 0 && supplier.trim().length > 0 && !!deliveryDate && validRows && mergedRows.size > 0 && !saving;
+  const canSave = validSource && isValidAdjustmentReason(reason) && supplier.trim().length > 0 && !!deliveryDate && validRows && mergedRows.size > 0 && !saving;
 
   const updateRow = (uid: string, patch: Partial<Row>) =>
     setRows(rs => rs.map(r => r.uid === uid ? { ...r, ...patch } : r));
@@ -196,7 +201,7 @@ const ManualStockAdditionDialog = ({
     if (!validSource) { toast({ title: "اختر جهة التوريد", variant: "destructive" }); return; }
     if (!supplier.trim()) { toast({ title: "أدخل القائم بالتوريد", variant: "destructive" }); return; }
     if (!deliveryDate) { toast({ title: "اختر تاريخ التوريد", variant: "destructive" }); return; }
-    if (!reason.trim()) { toast({ title: "أدخل سبب الإضافة / التوريد", variant: "destructive" }); return; }
+    if (!isValidAdjustmentReason(reason)) { toast({ title: "اختر سبب الإضافة من القائمة (إجباري)", variant: "destructive" }); return; }
     if (mergedRows.size === 0) { toast({ title: "أضف صنف واحد على الأقل", variant: "destructive" }); return; }
     for (const r of rows) {
       if (!r.itemId) { toast({ title: "اختر الصنف في كل صف", variant: "destructive" }); return; }
@@ -365,6 +370,16 @@ const ManualStockAdditionDialog = ({
           </AlertDescription>
         </Alert>
 
+        {lock && (
+          <Alert className="border-violet-300 bg-violet-50 dark:bg-violet-950/30">
+            <Lock className="h-4 w-4 text-violet-700" />
+            <AlertDescription className="text-xs text-violet-900 dark:text-violet-200">
+              <b>تم اعتماد جرد رسمي</b> لهذا المخزن (جلسة {lock.sessionNo} — {new Date(lock.approvedAt).toLocaleString("ar-EG-u-nu-latn")}).
+              أي توريد بعد هذا التاريخ يُسجَّل كحركة موثقة بسبب وصاحب توريد ولا يعدّل الرصيد المعتمد إلا بحركة رسمية.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="space-y-3">
           <div>
             <Label className="text-xs">جهة التوريد *</Label>
@@ -427,12 +442,14 @@ const ManualStockAdditionDialog = ({
             </div>
             <div>
               <Label className="text-xs">سبب الإضافة / التوريد *</Label>
-              <Input
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="مثال: تسوية رصيد، مرتجع تشغيل، تصحيح جرد"
-                maxLength={200}
-              />
+              <Select value={reason} onValueChange={setReason}>
+                <SelectTrigger><SelectValue placeholder="اختر السبب (إجباري)" /></SelectTrigger>
+                <SelectContent>
+                  {STOCK_ADJUSTMENT_REASONS.map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="md:col-span-3">
               <Label className="text-xs">ملاحظات (اختياري)</Label>

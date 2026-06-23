@@ -19,12 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Info, Loader2, PackageMinus, Plus, Printer, Trash2 } from "lucide-react";
+import { AlertTriangle, Info, Loader2, Lock, PackageMinus, Plus, Printer, ShieldAlert, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import AddManualPartyDialog from "@/components/warehouse/AddManualPartyDialog";
 import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
+import { STOCK_ADJUSTMENT_REASONS, isValidAdjustmentReason } from "@/lib/warehouseAdjustmentReasons";
+import { useStocktakingLock } from "@/hooks/useStocktakingLock";
+import { useReservedQuantities } from "@/hooks/useReservedQuantities";
 
 interface InventoryItem {
   id: string;
@@ -112,11 +115,15 @@ const ManualStockOutDialog = ({
   const { user, profile, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth() as any;
   const canAddParty = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const canManualKg = isGeneralManager || isExecutiveManager;
+  const isManager = isGeneralManager || isExecutiveManager;
   const [destKey, setDestKey] = useState("");
   const [destOther, setDestOther] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
   const [reason, setReason] = useState(""); // stores القائم بالتوريد (supplier)
+  const [category, setCategory] = useState<string>(""); // سبب الصرف الإجباري (الفئة)
+  const [overrideNegative, setOverrideNegative] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
   const [deliveryDate, setDeliveryDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [rows, setRows] = useState<Row[]>([newRow()]);
@@ -147,7 +154,8 @@ const ManualStockOutDialog = ({
   useEffect(() => {
     if (!open) {
       setDestKey(""); setDestOther(""); setCustomerName("");
-      setReason(""); setNotes("");
+      setReason(""); setNotes(""); setCategory("");
+      setOverrideNegative(false); setOverrideReason("");
       setDeliveryDate(new Date().toISOString().slice(0, 10));
       setRows([newRow()]);
       setLastSaved(null);
@@ -155,6 +163,13 @@ const ManualStockOutDialog = ({
       void loadCustom();
     }
   }, [open]);
+
+  const { lock } = useStocktakingLock(open ? warehouseId : null);
+  const selectedItemIds = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.itemId).filter(Boolean))),
+    [rows]
+  );
+  const { reservedByItem } = useReservedQuantities(open ? warehouseId : null, selectedItemIds);
 
   useEffect(() => {
     if (destKey === "customer" && customers.length === 0) {
@@ -195,20 +210,49 @@ const ManualStockOutDialog = ({
     return acc;
   }, [rows]);
 
-  // exceeds stock check (after merging)
-  const exceedRows = useMemo(() => {
-    const out: string[] = [];
+  // Reservation analysis per merged row
+  const reservationAnalysis = useMemo(() => {
+    const out: Array<{
+      itemId: string; name: string; unit: string;
+      stock: number; reserved: number; available: number;
+      requested: number; availableAfter: number; reservedFlag: boolean; negative: boolean;
+    }> = [];
     for (const [id, q] of mergedRows.entries()) {
       const it = itemsById.get(id);
-      const avail = Number(it?.stock || 0);
-      if (q > avail) out.push(id);
+      if (!it) continue;
+      const stock = Number(it.stock || 0);
+      const reserved = Number(reservedByItem[id] || 0);
+      const available = stock - reserved;
+      const availableAfter = available - q;
+      out.push({
+        itemId: id,
+        name: it.name,
+        unit: it.unit || "كجم",
+        stock, reserved, available,
+        requested: q,
+        availableAfter,
+        reservedFlag: reserved > 0,
+        negative: availableAfter < 0,
+      });
     }
     return out;
-  }, [mergedRows, itemsById]);
+  }, [mergedRows, itemsById, reservedByItem]);
+
+  const hasReservedConflict = reservationAnalysis.some((r) => r.reservedFlag);
+  const hasNegativeAfter = reservationAnalysis.some((r) => r.negative);
+  const exceedRows = reservationAnalysis.filter((r) => r.requested > r.stock).map((r) => r.itemId);
+  const negativeBlocked = hasNegativeAfter && (!isManager || !overrideNegative || overrideReason.trim().length < 3);
 
   const validRows = rows.length > 0 && rows.every(r => r.itemId && rowQty(r) > 0);
-  const canSave = validDest && reason.trim().length > 0 && deliveryDate.length > 0 && validRows
-    && mergedRows.size > 0 && exceedRows.length === 0 && !saving;
+  const canSave = validDest
+    && reason.trim().length > 0
+    && isValidAdjustmentReason(category)
+    && deliveryDate.length > 0
+    && validRows
+    && mergedRows.size > 0
+    && exceedRows.length === 0
+    && !negativeBlocked
+    && !saving;
 
   const updateRow = (uid: string, patch: Partial<Row>) =>
     setRows(rs => rs.map(r => r.uid === uid ? { ...r, ...patch } : r));
@@ -219,6 +263,7 @@ const ManualStockOutDialog = ({
   const handleSave = async () => {
     if (!validDest) { toast({ title: "اختر جهة الصرف", variant: "destructive" }); return; }
     if (!reason.trim()) { toast({ title: "أدخل اسم القائم بالتوريد", variant: "destructive" }); return; }
+    if (!isValidAdjustmentReason(category)) { toast({ title: "اختر سبب الصرف من القائمة (إجباري)", variant: "destructive" }); return; }
     if (!deliveryDate) { toast({ title: "اختر تاريخ التوريد", variant: "destructive" }); return; }
     if (mergedRows.size === 0) { toast({ title: "أضف صنف واحد على الأقل", variant: "destructive" }); return; }
     for (const r of rows) {
@@ -226,8 +271,24 @@ const ManualStockOutDialog = ({
       if (rowQty(r) <= 0) { toast({ title: "أدخل كمية صحيحة لكل صنف", variant: "destructive" }); return; }
     }
     if (exceedRows.length > 0) {
-      toast({ title: "الكمية أكبر من الرصيد المتاح في بعض الأصناف", variant: "destructive" });
+      toast({ title: "الكمية أكبر من الرصيد الفعلي في بعض الأصناف", variant: "destructive" });
       return;
+    }
+    if (hasNegativeAfter) {
+      if (!isManager) {
+        toast({
+          title: "صرف يجعل المتاح بالسالب — يتطلب صلاحية المدير العام أو التنفيذي",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!overrideNegative || overrideReason.trim().length < 3) {
+        toast({
+          title: "فعّل تأكيد المدير وسجّل سببًا واضحًا (≥ ٣ حروف) للصرف بالسالب",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     setSaving(true);
@@ -268,13 +329,18 @@ const ManualStockOutDialog = ({
         const pkgLine = info.manual
           ? `إدخال يدوي بالكيلو: ${info.qty} كجم`
           : `${info.pkgCount} عبوة × ${info.pkgWeight} كجم = ${info.qty} كجم`;
+        const reservedNow = Number(reservedByItem[itemId] || 0);
+        const availableAfter = stockBefore - reservedNow - info.qty;
         const combinedNotes = [
           `صرف مباشر مؤقت`,
           `رقم العملية: ${opNo}`,
           `جهة الصرف: ${destLabel}`,
           pkgLine,
+          `السبب: ${category}`,
           `القائم بالتوريد: ${reason.trim()}`,
           `تاريخ التوريد: ${deliveryDate}`,
+          reservedNow > 0 ? `محجوز للطلبات: ${reservedNow} ${unit}` : null,
+          availableAfter < 0 ? `⚠️ المتاح بعد الصرف: ${availableAfter} ${unit} — اعتماد مدير: ${profile?.full_name || ""} • سبب: ${overrideReason.trim()}` : null,
           notes.trim() ? `ملاحظات: ${notes.trim()}` : null,
           `قبل: ${stockBefore} ${unit}`,
           `بعد: ${stockAfter} ${unit}`,
@@ -294,7 +360,7 @@ const ManualStockOutDialog = ({
           reference: opNo,
           reference_type: "manual_out",
           party: partyWithPkg,
-          reason: reason.trim(),
+          reason: category,
           notes: combinedNotes,
           module: "warehouse_manual",
           performed_by: user?.id ?? null,
@@ -388,6 +454,16 @@ const ManualStockOutDialog = ({
           </AlertDescription>
         </Alert>
 
+        {lock && (
+          <Alert className="border-violet-300 bg-violet-50 dark:bg-violet-950/30">
+            <Lock className="h-4 w-4 text-violet-700" />
+            <AlertDescription className="text-xs text-violet-900 dark:text-violet-200">
+              <b>تم اعتماد جرد رسمي</b> لهذا المخزن (جلسة {lock.sessionNo} — {new Date(lock.approvedAt).toLocaleString("ar-EG-u-nu-latn")}).
+              أي صرف بعد هذا التاريخ يُسجَّل كحركة موثقة بسبب وصاحب صرف ولا يعدّل الرصيد المعتمد إلا بحركة رسمية.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="space-y-3">
           <div>
             <Label className="text-xs">جهة الصرف *</Label>
@@ -455,6 +531,17 @@ const ManualStockOutDialog = ({
               />
             </div>
             <div>
+              <Label className="text-xs">سبب الصرف *</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger><SelectValue placeholder="اختر السبب (إجباري)" /></SelectTrigger>
+                <SelectContent>
+                  {STOCK_ADJUSTMENT_REASONS.map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label className="text-xs">تاريخ التوريد *</Label>
               <Input
                 type="date"
@@ -471,6 +558,74 @@ const ManualStockOutDialog = ({
               />
             </div>
           </div>
+
+          {/* Reservation warning panel */}
+          {hasReservedConflict && (
+            <Alert className="border-amber-400 bg-amber-50 dark:bg-amber-950/30">
+              <AlertTriangle className="h-4 w-4 text-amber-700" />
+              <AlertDescription className="text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                <div className="font-bold">
+                  هذا الصنف عليه كمية محجوزة للطلبات. برجاء التأكد قبل الصرف.
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[11px] mt-1">
+                    <thead>
+                      <tr className="text-amber-900/80">
+                        <th className="text-right p-1">الصنف</th>
+                        <th className="text-right p-1">الرصيد الفعلي</th>
+                        <th className="text-right p-1">المحجوز</th>
+                        <th className="text-right p-1">المتاح للبيع</th>
+                        <th className="text-right p-1">المطلوب صرفه</th>
+                        <th className="text-right p-1">المتاح بعد الصرف</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reservationAnalysis.filter((r) => r.reservedFlag || r.negative).map((r) => (
+                        <tr key={r.itemId} className="border-t border-amber-200">
+                          <td className="p-1 font-medium">{r.name}</td>
+                          <td className="p-1 font-mono">{r.stock}</td>
+                          <td className="p-1 font-mono text-amber-800">{r.reserved}</td>
+                          <td className="p-1 font-mono">{r.available}</td>
+                          <td className="p-1 font-mono text-rose-700">−{r.requested}</td>
+                          <td className={`p-1 font-mono font-bold ${r.availableAfter < 0 ? "text-rose-700" : "text-emerald-700"}`}>
+                            {r.availableAfter}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {hasNegativeAfter && (
+            <Alert className="border-rose-400 bg-rose-50 dark:bg-rose-950/30">
+              <ShieldAlert className="h-4 w-4 text-rose-700" />
+              <AlertDescription className="text-xs text-rose-900 dark:text-rose-200 space-y-2">
+                <div className="font-bold">
+                  ⚠️ هذا الصرف سيجعل المتاح بالسالب لبعض الأصناف.
+                </div>
+                {!isManager ? (
+                  <div>الحفظ يتطلب صلاحية المدير العام أو المدير التنفيذي.</div>
+                ) : (
+                  <>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={overrideNegative}
+                             onChange={(e) => setOverrideNegative(e.target.checked)} />
+                      <span>أؤكد كمدير الصرف بالسالب على مسؤوليتي.</span>
+                    </label>
+                    <Input
+                      placeholder="سبب اعتماد المدير للصرف بالسالب (إجباري)"
+                      value={overrideReason}
+                      onChange={(e) => setOverrideReason(e.target.value)}
+                      maxLength={300}
+                    />
+                  </>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
 
           <div className="rounded border">
             <div className="flex items-center justify-between p-2 bg-muted/40">
