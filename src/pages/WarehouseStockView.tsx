@@ -618,118 +618,105 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
 
 
-      {/* ملخص سريع */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4`}>
-        <Card
-          className="cursor-pointer hover:border-primary/40 transition-colors"
-          onClick={isSingleScope(scope) ? () => { setCardSearch(""); setCardDialog("withStock"); } : () => setShowItemsTable(true)}
-        >
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-md bg-green-500/15 text-green-700 dark:text-green-300">
-              <PackageCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">أصناف لها رصيد فعلي</div>
-              <div className="text-xl font-bold">{summary.itemsWithStock}</div>
-              <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card
-          className={isSingleScope(scope) ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}
-          onClick={isSingleScope(scope) ? () => { setTableFilter("all"); setShowItemsTable(true); } : undefined}
-        >
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-md bg-orange-500/15 text-orange-700 dark:text-orange-300">
-              <Lock className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">إجمالي محجوز للطلبات</div>
-              <div className="text-xl font-bold">{summary.totalReservedKg} كجم</div>
-              {isSingleScope(scope) && <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>}
-            </div>
-          </CardContent>
-        </Card>
-        <Card
-          className={`${summary.belowZero > 0 ? "border-destructive/40" : ""} cursor-pointer hover:border-primary/40 transition-colors`}
-          onClick={isSingleScope(scope) ? () => { setCardSearch(""); setCardDialog("overReserved"); } : () => setShowItemsTable(true)}
-        >
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className={`p-2 rounded-md ${summary.belowZero > 0 ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">أصناف محجوز أكثر من الفعلي</div>
-              <div className={`text-xl font-bold ${summary.belowZero > 0 ? "text-destructive" : ""}`}>{summary.belowZero}</div>
-              <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card
-          className="cursor-pointer hover:border-primary/40 transition-colors"
-          onClick={() => { setTableFilter("all"); setShowItemsTable((v) => !v); }}
-        >
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-md bg-blue-500/15 text-blue-700 dark:text-blue-300">
-              <Package className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">عدد الأصناف</div>
-              <div className="text-xl font-bold">{summary.itemsCount}</div>
-              <div className="text-[10px] text-muted-foreground">{showItemsTable ? "اضغط للإخفاء" : "اضغط لعرض الجدول"}</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {isSingleScope(scope) && (
-          <>
-            <Card>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-                  <PackageCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">قيمة المخزون</div>
-                  <div className="text-xl font-bold">{summary.totalValue.toLocaleString()} ج.م</div>
-                </div>
-              </CardContent>
-            </Card>
+      {/* KPI cards — premium */}
+      {(() => {
+        const Kpi = ({ icon: Icon, label, value, sub, tone = "neutral", onClick, valueClass = "" }: any) => {
+          const tones: Record<string, string> = {
+            green: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/20",
+            orange: "bg-orange-500/10 text-orange-700 dark:text-orange-300 ring-orange-500/20",
+            red: "bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-500/20",
+            purple: "bg-violet-500/10 text-violet-700 dark:text-violet-300 ring-violet-500/20",
+            blue: "bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-sky-500/20",
+            neutral: "bg-muted text-muted-foreground ring-border",
+          };
+          return (
             <Card
-              className={`${summary.lowStockCount > 0 ? "border-destructive/40" : ""} cursor-pointer hover:border-primary/40 transition-colors`}
-              onClick={() => { setTableFilter("lowStock"); setShowItemsTable(true); }}
+              onClick={onClick}
+              className={`group relative overflow-hidden rounded-xl border-border/60 shadow-sm transition-all ${onClick ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30" : ""}`}
             >
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className={`p-2 rounded-md ${summary.lowStockCount > 0 ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">منتجات منخفضة</div>
-                  <div className={`text-xl font-bold ${summary.lowStockCount > 0 ? "text-destructive" : ""}`}>{summary.lowStockCount}</div>
-                  <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300">
-                  <RefreshCw className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">آخر حركة</div>
-                  <div className="text-sm font-semibold">
-                    {summary.lastMoveTs ? new Date(summary.lastMoveTs).toLocaleString("ar-EG") : "—"}
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-medium text-muted-foreground tracking-tight">{label}</div>
+                    <div className={`mt-1.5 text-2xl font-bold tabular-nums leading-none ${valueClass}`}>{value}</div>
+                    {sub && <div className="mt-1.5 text-[10px] text-muted-foreground">{sub}</div>}
                   </div>
-                  {summary.lastMovePid && (
-                    <div className="text-[10px] text-muted-foreground truncate max-w-[180px]">
-                      {products.find(p => p.id === summary.lastMovePid)?.name || ""}
-                    </div>
-                  )}
+                  <div className={`h-10 w-10 rounded-xl ring-1 flex items-center justify-center ${tones[tone]}`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          </>
-        )}
-      </div>
+          );
+        };
+        return (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            {isSingleScope(scope) && (
+              <Kpi
+                icon={Wallet}
+                tone="green"
+                label="قيمة المخزون"
+                value={`${summary.totalValue.toLocaleString()} ج.م`}
+              />
+            )}
+            <Kpi
+              icon={Boxes}
+              tone="blue"
+              label="عدد الأصناف"
+              value={summary.itemsCount}
+              sub={showItemsTable ? "اضغط للإخفاء" : "اضغط لعرض الجدول"}
+              onClick={() => { setTableFilter("all"); setShowItemsTable((v) => !v); }}
+            />
+            <Kpi
+              icon={PackageCheck}
+              tone="green"
+              label="أصناف لها رصيد فعلي"
+              value={summary.itemsWithStock}
+              sub="اضغط للتفاصيل"
+              onClick={isSingleScope(scope) ? () => { setCardSearch(""); setCardDialog("withStock"); } : () => setShowItemsTable(true)}
+            />
+            <Kpi
+              icon={Lock}
+              tone="orange"
+              label="إجمالي محجوز للطلبات"
+              value={`${summary.totalReservedKg} كجم`}
+              sub={isSingleScope(scope) ? "اضغط للتفاصيل" : undefined}
+              onClick={isSingleScope(scope) ? () => { setTableFilter("all"); setShowItemsTable(true); } : undefined}
+            />
+            {isSingleScope(scope) && (
+              <Kpi
+                icon={AlertTriangle}
+                tone={summary.lowStockCount > 0 ? "red" : "neutral"}
+                label="منتجات منخفضة"
+                value={summary.lowStockCount}
+                valueClass={summary.lowStockCount > 0 ? "text-rose-600" : ""}
+                sub="اضغط للتفاصيل"
+                onClick={() => { setTableFilter("lowStock"); setShowItemsTable(true); }}
+              />
+            )}
+            <Kpi
+              icon={AlertTriangle}
+              tone={summary.belowZero > 0 ? "red" : "neutral"}
+              label="محجوز أكثر من الفعلي"
+              value={summary.belowZero}
+              valueClass={summary.belowZero > 0 ? "text-rose-600" : ""}
+              sub="اضغط للتفاصيل"
+              onClick={isSingleScope(scope) ? () => { setCardSearch(""); setCardDialog("overReserved"); } : () => setShowItemsTable(true)}
+            />
+            {isSingleScope(scope) && (
+              <Kpi
+                icon={Clock}
+                tone="purple"
+                label="آخر حركة"
+                value={summary.lastMoveTs ? new Date(summary.lastMoveTs).toLocaleString("ar-EG", { dateStyle: "short", timeStyle: "short" }) : "—"}
+                valueClass="text-sm"
+                sub={summary.lastMovePid ? (products.find(p => p.id === summary.lastMovePid)?.name || "") : undefined}
+              />
+            )}
+          </div>
+        );
+      })()}
+
 
 
 
