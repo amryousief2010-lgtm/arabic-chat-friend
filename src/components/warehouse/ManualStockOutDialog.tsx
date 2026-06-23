@@ -150,6 +150,7 @@ const ManualStockOutDialog = ({
       setReason(""); setNotes("");
       setDeliveryDate(new Date().toISOString().slice(0, 10));
       setRows([newRow()]);
+      setLastSaved(null);
     } else {
       void loadCustom();
     }
