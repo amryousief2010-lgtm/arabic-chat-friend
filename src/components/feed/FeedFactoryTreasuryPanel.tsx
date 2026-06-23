@@ -20,6 +20,8 @@ type Txn = {
   created_by_name?: string | null;
   ref_table?: string | null;
   ref_id?: string | null;
+  status?: string | null;
+  cancellation_reason?: string | null;
 };
 
 const fmt = (n: number) =>
