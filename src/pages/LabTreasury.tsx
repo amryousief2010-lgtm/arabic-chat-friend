@@ -2032,6 +2032,80 @@ export default function LabTreasury() {
         </DialogContent>
       </Dialog>
 
+      {/* Details Dialog */}
+      <Dialog open={detailsDlg.open} onOpenChange={(o) => setDetailsDlg({ open: o, movement: o ? detailsDlg.movement : null })}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="w-5 h-5" />
+              تفاصيل الحركة
+            </DialogTitle>
+            <DialogDescription>كل بيانات الحركة المسجلة في الخزنة</DialogDescription>
+          </DialogHeader>
+          {detailsDlg.movement && (() => {
+            const m = detailsDlg.movement;
+            const isIncome = m.movement_type === "income";
+            const catLabel = isIncome
+              ? INCOME_LABELS[m.income_category as IncomeCat] || "—"
+              : EXPENSE_LABELS[m.expense_category as ExpenseCat] || "—";
+            const sourceLabel = m.source_table
+              ? (m.source_table === "brooding_chick_sales" ? "تلقائي — بيع كتاكيت"
+                : m.source_table === "hatch_customer_payments" ? "تلقائي — دفع تفريخ"
+                : m.source_table === "hatchery_invoice_payments" ? "تلقائي — فاتورة تفريخ"
+                : `تلقائي — ${m.source_table}`)
+              : "يدوي";
+            const Row = ({ k, v }: { k: string; v: React.ReactNode }) => (
+              <div className="grid grid-cols-3 gap-2 py-2 border-b text-sm">
+                <div className="text-muted-foreground">{k}</div>
+                <div className="col-span-2 font-medium">{v}</div>
+              </div>
+            );
+            return (
+              <div className="space-y-1">
+                <Row k="رقم الحركة" v={<span className="font-mono text-xs">{m.id}</span>} />
+                <Row k="التاريخ" v={m.movement_date} />
+                <Row k="النوع" v={isIncome ? <Badge>إيراد</Badge> : <Badge variant="destructive">مصروف</Badge>} />
+                <Row k="التصنيف" v={catLabel} />
+                <Row k="البيان" v={m.description || "—"} />
+                <Row k="المبلغ" v={<span className={`font-mono font-bold ${isIncome ? "text-emerald-600" : "text-red-600"}`}>{fmtNum(Number(m.amount), 2)} ج.م</span>} />
+                <Row k="طريقة الدفع" v={PAYMENT_LABELS[m.payment_method]} />
+                <Row k="الخزنة" v="خزنة المعمل والحضانات" />
+                <Row k="المصدر" v={
+                  m.source_table ? (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">{sourceLabel}</Badge>
+                      {m.source_ref && (
+                        <Button size="sm" variant="link" className="h-auto p-0" onClick={() => openSource(m)}>
+                          <LinkIcon className="w-3 h-3 me-1" />{m.source_ref}
+                        </Button>
+                      )}
+                    </div>
+                  ) : <Badge variant="outline">يدوي</Badge>
+                } />
+                {m.customer_name && <Row k="العميل" v={m.customer_name} />}
+                {m.beneficiary && <Row k="المستفيد" v={m.beneficiary} />}
+                <Row k="سجّل بواسطة" v={profiles[m.created_by || ""] || "—"} />
+                <Row k="تاريخ التسجيل" v={fmtDate(m.created_at)} />
+                <Row k="الحالة" v={<StatusBadge s={m.status} />} />
+                {m.approved_by && <Row k="اعتمد بواسطة" v={`${profiles[m.approved_by] || "—"} - ${m.approved_at ? fmtDate(m.approved_at) : ""}`} />}
+                {m.rejected_by && <Row k="رفض بواسطة" v={`${profiles[m.rejected_by] || "—"} - ${m.rejected_at ? fmtDate(m.rejected_at) : ""}`} />}
+                {m.rejection_reason && <Row k="سبب الرفض" v={<span className="text-destructive">{m.rejection_reason}</span>} />}
+                {m.notes && <Row k="ملاحظات" v={m.notes} />}
+                {m.receipt_url && <Row k="المرفق" v={<a href={m.receipt_url} target="_blank" rel="noreferrer" className="text-primary underline">عرض الإيصال</a>} />}
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => detailsDlg.movement && printVoucher(detailsDlg.movement)} className="gap-2">
+              <Printer className="w-4 h-4" />طباعة سند
+            </Button>
+            <Button onClick={() => setDetailsDlg({ open: false, movement: null })}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+
       {/* Close Day Dialog */}
       <Dialog open={closeDayDlg.open} onOpenChange={(o) => setCloseDayDlg({ ...closeDayDlg, open: o })}>
         <DialogContent>
