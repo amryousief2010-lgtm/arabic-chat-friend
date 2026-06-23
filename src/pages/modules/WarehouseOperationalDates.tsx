@@ -22,7 +22,9 @@ interface Row {
 
 const TARGET_NAMES = ["المخزن الرئيسي", "مخزن العجوزة"];
 
-export default function WarehouseOperationalDates() {
+interface WarehouseOperationalDatesProps { embedded?: boolean }
+
+export default function WarehouseOperationalDates({ embedded = false }: WarehouseOperationalDatesProps) {
   const { isGeneralManager, isExecutiveManager } = useAuth();
   const canEdit = isGeneralManager || isExecutiveManager;
   const [rows, setRows] = useState<Row[]>([]);
@@ -84,9 +86,8 @@ export default function WarehouseOperationalDates() {
     }
   };
 
-  return (
-    <DashboardLayout>
-      <div className="space-y-6 p-4" dir="rtl">
+  const content = (
+      <div className={`space-y-6 ${embedded ? "" : "p-4"}`} dir="rtl">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
             <CalendarClock className="w-6 h-6 text-primary" />
@@ -172,6 +173,7 @@ export default function WarehouseOperationalDates() {
           </div>
         )}
       </div>
-    </DashboardLayout>
   );
+
+  return embedded ? content : <DashboardLayout>{content}</DashboardLayout>;
 }
