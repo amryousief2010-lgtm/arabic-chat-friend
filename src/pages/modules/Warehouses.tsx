@@ -1043,18 +1043,19 @@ const Warehouses = () => {
                       </CardContent>
                     </Card>
                   )}
-                  <div className="rounded-lg border border-border bg-card overflow-hidden">
-                    <iframe
-                      src={`${t.path}?embed=1`}
-                      title={t.value}
-                      className="w-full"
-                      style={{ height: "calc(100vh - 260px)", minHeight: "600px", border: "none" }}
-                    />
-                  </div>
+                  {t.value === "wh-activity" ? (
+                    <MainWarehouseActivity embedded />
+                  ) : "scope" in t ? (
+                    <WarehouseStockView scope={t.scope} embedded />
+                  ) : null}
                 </TabsContent>
               );
             });
           })()}
+
+          <TabsContent value="reports" className="space-y-4">
+            <WarehouseReports embedded />
+          </TabsContent>
 
           {/* RESTAURANT MENU tab (products & prices from PDF) */}
           <TabsContent value="menu" className="space-y-4">
