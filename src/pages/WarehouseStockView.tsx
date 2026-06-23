@@ -811,6 +811,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                   {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">الفعلي</th>}
                   {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">المحجوز</th>}
                   {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">المتاح</th>}
+                  <th className="p-2 font-semibold whitespace-nowrap text-center">سجل الحركة</th>
                 </tr>
               </thead>
               <tbody>
