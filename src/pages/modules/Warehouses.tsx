@@ -1075,6 +1075,14 @@ const Warehouses = () => {
                   </CardHeader>
                 </Card>
               </Link>
+              <Link to="/modules/warehouses/stocktaking" className="block">
+                <Card className="cursor-pointer hover:border-primary transition-colors h-full border-violet-200">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base"><ClipboardCheck className="w-5 h-5 text-violet-600" />جرد وتسوية المخزون</CardTitle>
+                    <CardDescription>إدخال الجرد الفعلي، مراجعة فروق الجرد، واعتماد الرصيد النهائي</CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
             </div>
             <WarehouseReports embedded />
           </TabsContent>
