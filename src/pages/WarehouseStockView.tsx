@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X, ArrowLeftRight, AlertTriangle, PackageCheck, Lock, PackagePlus, PackageMinus, Package, History } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X, ArrowLeftRight, AlertTriangle, PackageCheck, Lock, PackagePlus, PackageMinus, Package, History, Wallet, Clock, Boxes } from "lucide-react";
 import ItemMovementsDialog from "@/components/warehouse/ItemMovementsDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { printWarehouseStock } from "@/lib/printUtils";
@@ -17,6 +19,7 @@ import ManualStockAdditionDialog from "@/components/warehouse/ManualStockAdditio
 import ManualStockOutDialog from "@/components/warehouse/ManualStockOutDialog";
 import MainCardDialog from "@/components/warehouse/MainCardDialog";
 import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
+import companyLogo from "@/assets/company-logo.jpg";
 
 interface Product { id: string; name: string; unit: string; category?: string | null; }
 
@@ -546,20 +549,46 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
 
   const content = (
-    <>
+    <TooltipProvider delayDuration={200}>
       {!embedded && <Header title={title} subtitle={subtitle} />}
 
-
-      {isSingleScope(scope) && currentWhId && (
-        <div className="flex flex-wrap gap-2 mb-3">
-          <Button size="sm" onClick={() => setManualAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
-            <PackagePlus className="w-4 h-4 ml-1" /> إضافة رصيد / توريد مباشر
-          </Button>
-          <Button size="sm" onClick={() => setManualOutOpen(true)} className="bg-rose-600 hover:bg-rose-700">
-            <PackageMinus className="w-4 h-4 ml-1" /> صرف منتجات / توريد للجهات
-          </Button>
-        </div>
+      {/* Premium hero header */}
+      {isSingleScope(scope) && (
+        <Card className="mb-4 overflow-hidden border-primary/10 shadow-sm">
+          <div className="relative bg-gradient-to-l from-primary/8 via-background to-orange-500/8 p-5">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="h-14 w-14 rounded-2xl bg-white shadow-sm ring-1 ring-primary/15 flex items-center justify-center overflow-hidden shrink-0">
+                  <img src={companyLogo} alt="نعام العاصمة" className="h-12 w-12 object-contain" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
+                    <Warehouse className="w-5 h-5 text-primary" />
+                    {title}
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    الفعلي • المحجوز للطلبات • المتاح للبيع
+                  </p>
+                </div>
+              </div>
+              {currentWhId && (
+                <div className="md:ms-auto flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => setManualAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 shadow-sm h-9">
+                    <PackagePlus className="w-4 h-4 ml-1.5" /> إضافة رصيد / توريد
+                  </Button>
+                  <Button size="sm" onClick={() => setManualOutOpen(true)} className="bg-rose-600 hover:bg-rose-700 shadow-sm h-9">
+                    <PackageMinus className="w-4 h-4 ml-1.5" /> صرف / توريد للجهات
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={fetchAll} disabled={loading} className="h-9">
+                    <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
       )}
+
 
       {isSingleScope(scope) && currentWhId && (
         <>
@@ -589,152 +618,135 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
 
 
-      {/* ملخص سريع */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4`}>
-        <Card
-          className="cursor-pointer hover:border-primary/40 transition-colors"
-          onClick={isSingleScope(scope) ? () => { setCardSearch(""); setCardDialog("withStock"); } : () => setShowItemsTable(true)}
-        >
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-md bg-green-500/15 text-green-700 dark:text-green-300">
-              <PackageCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">أصناف لها رصيد فعلي</div>
-              <div className="text-xl font-bold">{summary.itemsWithStock}</div>
-              <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card
-          className={isSingleScope(scope) ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}
-          onClick={isSingleScope(scope) ? () => { setTableFilter("all"); setShowItemsTable(true); } : undefined}
-        >
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-md bg-orange-500/15 text-orange-700 dark:text-orange-300">
-              <Lock className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">إجمالي محجوز للطلبات</div>
-              <div className="text-xl font-bold">{summary.totalReservedKg} كجم</div>
-              {isSingleScope(scope) && <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>}
-            </div>
-          </CardContent>
-        </Card>
-        <Card
-          className={`${summary.belowZero > 0 ? "border-destructive/40" : ""} cursor-pointer hover:border-primary/40 transition-colors`}
-          onClick={isSingleScope(scope) ? () => { setCardSearch(""); setCardDialog("overReserved"); } : () => setShowItemsTable(true)}
-        >
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className={`p-2 rounded-md ${summary.belowZero > 0 ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">أصناف محجوز أكثر من الفعلي</div>
-              <div className={`text-xl font-bold ${summary.belowZero > 0 ? "text-destructive" : ""}`}>{summary.belowZero}</div>
-              <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card
-          className="cursor-pointer hover:border-primary/40 transition-colors"
-          onClick={() => { setTableFilter("all"); setShowItemsTable((v) => !v); }}
-        >
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-md bg-blue-500/15 text-blue-700 dark:text-blue-300">
-              <Package className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">عدد الأصناف</div>
-              <div className="text-xl font-bold">{summary.itemsCount}</div>
-              <div className="text-[10px] text-muted-foreground">{showItemsTable ? "اضغط للإخفاء" : "اضغط لعرض الجدول"}</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {isSingleScope(scope) && (
-          <>
-            <Card>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-                  <PackageCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">قيمة المخزون</div>
-                  <div className="text-xl font-bold">{summary.totalValue.toLocaleString()} ج.م</div>
-                </div>
-              </CardContent>
-            </Card>
+      {/* KPI cards — premium */}
+      {(() => {
+        const Kpi = ({ icon: Icon, label, value, sub, tone = "neutral", onClick, valueClass = "" }: any) => {
+          const tones: Record<string, string> = {
+            green: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/20",
+            orange: "bg-orange-500/10 text-orange-700 dark:text-orange-300 ring-orange-500/20",
+            red: "bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-500/20",
+            purple: "bg-violet-500/10 text-violet-700 dark:text-violet-300 ring-violet-500/20",
+            blue: "bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-sky-500/20",
+            neutral: "bg-muted text-muted-foreground ring-border",
+          };
+          return (
             <Card
-              className={`${summary.lowStockCount > 0 ? "border-destructive/40" : ""} cursor-pointer hover:border-primary/40 transition-colors`}
-              onClick={() => { setTableFilter("lowStock"); setShowItemsTable(true); }}
+              onClick={onClick}
+              className={`group relative overflow-hidden rounded-xl border-border/60 shadow-sm transition-all ${onClick ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30" : ""}`}
             >
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className={`p-2 rounded-md ${summary.lowStockCount > 0 ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">منتجات منخفضة</div>
-                  <div className={`text-xl font-bold ${summary.lowStockCount > 0 ? "text-destructive" : ""}`}>{summary.lowStockCount}</div>
-                  <div className="text-[10px] text-muted-foreground">اضغط للتفاصيل</div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300">
-                  <RefreshCw className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">آخر حركة</div>
-                  <div className="text-sm font-semibold">
-                    {summary.lastMoveTs ? new Date(summary.lastMoveTs).toLocaleString("ar-EG") : "—"}
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-medium text-muted-foreground tracking-tight">{label}</div>
+                    <div className={`mt-1.5 text-2xl font-bold tabular-nums leading-none ${valueClass}`}>{value}</div>
+                    {sub && <div className="mt-1.5 text-[10px] text-muted-foreground">{sub}</div>}
                   </div>
-                  {summary.lastMovePid && (
-                    <div className="text-[10px] text-muted-foreground truncate max-w-[180px]">
-                      {products.find(p => p.id === summary.lastMovePid)?.name || ""}
-                    </div>
-                  )}
+                  <div className={`h-10 w-10 rounded-xl ring-1 flex items-center justify-center ${tones[tone]}`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          </>
-        )}
-      </div>
+          );
+        };
+        return (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            {isSingleScope(scope) && (
+              <Kpi
+                icon={Wallet}
+                tone="green"
+                label="قيمة المخزون"
+                value={`${summary.totalValue.toLocaleString()} ج.م`}
+              />
+            )}
+            <Kpi
+              icon={Boxes}
+              tone="blue"
+              label="عدد الأصناف"
+              value={summary.itemsCount}
+              sub={showItemsTable ? "اضغط للإخفاء" : "اضغط لعرض الجدول"}
+              onClick={() => { setTableFilter("all"); setShowItemsTable((v) => !v); }}
+            />
+            <Kpi
+              icon={PackageCheck}
+              tone="green"
+              label="أصناف لها رصيد فعلي"
+              value={summary.itemsWithStock}
+              sub="اضغط للتفاصيل"
+              onClick={isSingleScope(scope) ? () => { setCardSearch(""); setCardDialog("withStock"); } : () => setShowItemsTable(true)}
+            />
+            <Kpi
+              icon={Lock}
+              tone="orange"
+              label="إجمالي محجوز للطلبات"
+              value={`${summary.totalReservedKg} كجم`}
+              sub={isSingleScope(scope) ? "اضغط للتفاصيل" : undefined}
+              onClick={isSingleScope(scope) ? () => { setTableFilter("all"); setShowItemsTable(true); } : undefined}
+            />
+            {isSingleScope(scope) && (
+              <Kpi
+                icon={AlertTriangle}
+                tone={summary.lowStockCount > 0 ? "red" : "neutral"}
+                label="منتجات منخفضة"
+                value={summary.lowStockCount}
+                valueClass={summary.lowStockCount > 0 ? "text-rose-600" : ""}
+                sub="اضغط للتفاصيل"
+                onClick={() => { setTableFilter("lowStock"); setShowItemsTable(true); }}
+              />
+            )}
+            <Kpi
+              icon={AlertTriangle}
+              tone={summary.belowZero > 0 ? "red" : "neutral"}
+              label="محجوز أكثر من الفعلي"
+              value={summary.belowZero}
+              valueClass={summary.belowZero > 0 ? "text-rose-600" : ""}
+              sub="اضغط للتفاصيل"
+              onClick={isSingleScope(scope) ? () => { setCardSearch(""); setCardDialog("overReserved"); } : () => setShowItemsTable(true)}
+            />
+            {isSingleScope(scope) && (
+              <Kpi
+                icon={Clock}
+                tone="purple"
+                label="آخر حركة"
+                value={summary.lastMoveTs ? new Date(summary.lastMoveTs).toLocaleString("ar-EG", { dateStyle: "short", timeStyle: "short" }) : "—"}
+                valueClass="text-sm"
+                sub={summary.lastMovePid ? (products.find(p => p.id === summary.lastMovePid)?.name || "") : undefined}
+              />
+            )}
+          </div>
+        );
+      })()}
+
 
 
 
       {showItemsTable && (
-      <Card>
-        <div className="px-4 pt-3 flex justify-end">
-          <Button size="sm" variant="outline" onClick={() => setShowItemsTable(false)}>
-            <X className="w-4 h-4 ml-1" /> رجوع للمخزن
-          </Button>
-        </div>
-
-        <CardHeader>
+      <Card className="rounded-xl border-border/60 shadow-sm overflow-hidden">
+        <CardHeader className="pb-3 border-b bg-muted/30">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <CardTitle className="flex items-center gap-2">
-              <Warehouse className="w-5 h-5 text-primary" />
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                <Warehouse className="w-4 h-4" />
+              </div>
               المنتجات والكميات
             </CardTitle>
             <div className="flex gap-2 items-center flex-wrap">
-              <div className="relative flex-1 sm:w-64">
+              <div className="relative flex-1 sm:w-72">
                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="بحث باسم المنتج..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pr-9"
+                  className="pr-9 h-9 bg-background"
                 />
               </div>
-              <Button size="sm" variant="outline" onClick={fetchAll} disabled={loading}>
-                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              <Button size="sm" variant="ghost" onClick={() => setShowItemsTable(false)} className="h-9">
+                <X className="w-4 h-4 ml-1" /> رجوع
               </Button>
               {scope === "agouza" && (isAgouzaWarehouseKeeper || canEditAll) && agouzaWhId && (
                 <Button
                   size="sm"
-                  className="gap-1"
+                  className="gap-1 h-9"
                   onClick={() => navigate(`/modules/warehouses/${agouzaWhId}`)}
                 >
                   <ArrowLeftRight className="w-4 h-4" />
@@ -745,27 +757,25 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                 const rows = filtered.map(p => ({
                   name: p.name,
                   unit: p.unit,
-                  // legacy fields = available (للحفاظ على التوافق)
                   agouza: (agouzaStock[p.id] ?? 0) - (agouzaPending[p.id] ?? 0),
                   main: (mainStock[p.id] ?? 0) - (mainPending[p.id] ?? 0),
-                  // الحقول الجديدة: الفعلي والمحجوز
                   agouza_actual: agouzaStock[p.id] ?? 0,
                   agouza_reserved: agouzaPending[p.id] ?? 0,
                   main_actual: mainStock[p.id] ?? 0,
                   main_reserved: mainPending[p.id] ?? 0,
                 }));
                 const filter = search.trim() || undefined;
-                const btn = "inline-flex items-center gap-1 h-8 px-3 text-xs rounded-md border bg-background hover:bg-muted transition";
+                const btn = "inline-flex items-center gap-1.5 h-9 px-3 text-xs rounded-md border bg-background hover:bg-muted hover:border-primary/30 transition-colors";
                 const renderViewButtons = (mode: "agouza" | "main") => (
                   <>
                     <button className={btn} title="طباعة الجرد الفعلي قبل المحجوز" onClick={() => printWarehouseStock(rows, { filter, mode, view: "actual" })}>
-                      <Printer className="w-4 h-4" /> الفعلي
+                      <Printer className="w-3.5 h-3.5" /> الفعلي
                     </button>
                     <button className={btn} title="طباعة المتاح للبيع بعد المحجوز" onClick={() => printWarehouseStock(rows, { filter, mode, view: "available" })}>
-                      <Printer className="w-4 h-4" /> المتاح للبيع
+                      <Printer className="w-3.5 h-3.5" /> المتاح
                     </button>
                     <button className={btn} title="طباعة الفعلي والمحجوز والمتاح في 3 أعمدة" onClick={() => printWarehouseStock(rows, { filter, mode, view: "full" })}>
-                      <Printer className="w-4 h-4" /> 3 أعمدة
+                      <Printer className="w-3.5 h-3.5" /> 3 أعمدة
                     </button>
                   </>
                 );
@@ -774,47 +784,51 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                 return (
                   <>
                     <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "agouza", view: "full" })}>
-                      <Printer className="w-4 h-4" /> العجوزة
+                      <Printer className="w-3.5 h-3.5" /> العجوزة
                     </button>
                     <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "main", view: "full" })}>
-                      <Printer className="w-4 h-4" /> الرئيسي
+                      <Printer className="w-3.5 h-3.5" /> الرئيسي
                     </button>
                     <button className={btn} onClick={() => printWarehouseStock(rows, { filter, mode: "both", view: "full" })}>
-                      <Printer className="w-4 h-4" /> الإجمالي
+                      <Printer className="w-3.5 h-3.5" /> الإجمالي
                     </button>
                   </>
                 );
               })()}
-
             </div>
           </div>
-          <div className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
-            <span className="inline-flex items-center gap-1 me-3"><Badge variant="outline" className="px-1.5">الفعلي</Badge> الجرد على أرض الواقع</span>
-            <span className="inline-flex items-center gap-1 me-3"><Badge className="bg-orange-500/15 text-orange-700 border border-orange-500/30 hover:bg-orange-500/15 px-1.5">المحجوز</Badge> طلبات لم تُصرف/تُسلَّم بعد</span>
-            <span className="inline-flex items-center gap-1"><Badge className="bg-green-500/15 text-green-700 border-green-500/30 px-1.5">المتاح</Badge> = الفعلي − المحجوز</span>
+          <div className="text-[11px] text-muted-foreground mt-1 leading-relaxed flex flex-wrap gap-x-3 gap-y-1">
+            <span className="inline-flex items-center gap-1"><Badge variant="outline" className="px-1.5 py-0">الفعلي</Badge> الجرد على أرض الواقع</span>
+            <span className="inline-flex items-center gap-1"><Badge className="bg-orange-500/15 text-orange-700 border border-orange-500/30 hover:bg-orange-500/15 px-1.5 py-0">المحجوز</Badge> طلبات لم تُصرف بعد</span>
+            <span className="inline-flex items-center gap-1"><Badge className="bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 hover:bg-emerald-500/15 px-1.5 py-0">المتاح</Badge> = الفعلي − المحجوز</span>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {/* Desktop table */}
-          <div className="hidden md:block border rounded-lg overflow-x-auto">
-            <table className="w-full text-right text-sm">
-              <thead className="bg-muted/60 text-xs">
-                <tr>
-                  <th className="p-2 font-semibold">المنتج</th>
-                  <th className="p-2 font-semibold">الوحدة</th>
-                  {renderAgouzaCols && <th className="p-2 font-semibold whitespace-nowrap">العجوزة — الفعلي</th>}
-                  {renderAgouzaCols && <th className="p-2 font-semibold whitespace-nowrap">العجوزة — المحجوز</th>}
-                  {renderAgouzaCols && <th className="p-2 font-semibold whitespace-nowrap">العجوزة — المتاح</th>}
-                  {renderMainCols && <th className="p-2 font-semibold whitespace-nowrap">الرئيسي — الفعلي</th>}
-                  {renderMainCols && <th className="p-2 font-semibold whitespace-nowrap">الرئيسي — المحجوز</th>}
-                  {renderMainCols && <th className="p-2 font-semibold whitespace-nowrap">الرئيسي — المتاح</th>}
-                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">الفعلي</th>}
-                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">المحجوز</th>}
-                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-2 font-semibold whitespace-nowrap">المتاح</th>}
-                  <th className="p-2 font-semibold whitespace-nowrap text-center">سجل الحركة</th>
+          <div className="hidden md:block overflow-x-auto max-h-[70vh]">
+            <table className="w-full text-right text-sm border-collapse">
+              <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur supports-[backdrop-filter]:bg-muted/60 text-xs">
+                <tr className="border-b">
+                  <th className="p-3 font-semibold text-muted-foreground">المنتج</th>
+                  <th className="p-3 font-semibold text-muted-foreground">الوحدة</th>
+                  {renderAgouzaCols && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">العجوزة — الفعلي</th>}
+                  {renderAgouzaCols && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">العجوزة — المحجوز</th>}
+                  {renderAgouzaCols && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">العجوزة — المتاح</th>}
+                  {renderMainCols && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">الرئيسي — الفعلي</th>}
+                  {renderMainCols && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">الرئيسي — المحجوز</th>}
+                  {renderMainCols && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">الرئيسي — المتاح</th>}
+                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">الفعلي</th>}
+                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">المحجوز</th>}
+                  {(renderCarrefourCols || renderHealthyCols) && <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap">المتاح</th>}
+                  <th className="p-3 font-semibold text-muted-foreground whitespace-nowrap text-center sticky left-0 bg-muted/80 backdrop-blur">إجراءات</th>
                 </tr>
               </thead>
               <tbody>
+                {loading && filtered.length === 0 && Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={`sk-${i}`} className="border-b">
+                    <td colSpan={11} className="p-3"><Skeleton className="h-8 w-full" /></td>
+                  </tr>
+                ))}
                 {filtered
                   .filter((p) => {
                     if (!currentSingleScope) return true;
@@ -834,52 +848,79 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                   const cActual = currentSingleScope ? (currentStock[p.id] ?? 0) : 0;
                   const cPend = currentSingleScope ? (currentPending[p.id] ?? 0) : 0;
                   return (
-                    <tr key={p.id} className="border-t hover:bg-muted/30">
-                      <td className="p-2 font-bold text-green-600 dark:text-green-400">{p.name}</td>
-                      <td className="p-2 text-muted-foreground">{p.unit}</td>
-                      {renderAgouzaCols && <td className="p-2"><ActualCell wh="agouza" pid={p.id} name={p.name} kgValue={aActual} /></td>}
-                      {renderAgouzaCols && <td className="p-2"><ReservedCell pending={aPend} name={p.name} onOpen={() => setReservedDlg({ wh: "agouza", productId: p.id, productName: p.name, total: aPend })} /></td>}
-                      {renderAgouzaCols && <td className="p-2"><AvailableCell actual={aActual} pending={aPend} name={p.name} /></td>}
-                      {renderMainCols && <td className="p-2"><ActualCell wh="main" pid={p.id} name={p.name} kgValue={mActual} /></td>}
-                      {renderMainCols && <td className="p-2"><ReservedCell pending={mPend} name={p.name} onOpen={() => setReservedDlg({ wh: "main", productId: p.id, productName: p.name, total: mPend })} /></td>}
-                      {renderMainCols && <td className="p-2"><AvailableCell actual={mActual} pending={mPend} name={p.name} /></td>}
+                    <tr key={p.id} className="border-b border-border/50 hover:bg-primary/[0.03] transition-colors group">
+                      <td className="p-3 font-semibold text-foreground">{p.name}</td>
+                      <td className="p-3 text-muted-foreground text-xs">{p.unit}</td>
+                      {renderAgouzaCols && <td className="p-3"><ActualCell wh="agouza" pid={p.id} name={p.name} kgValue={aActual} /></td>}
+                      {renderAgouzaCols && <td className="p-3"><ReservedCell pending={aPend} name={p.name} onOpen={() => setReservedDlg({ wh: "agouza", productId: p.id, productName: p.name, total: aPend })} /></td>}
+                      {renderAgouzaCols && <td className="p-3"><AvailableCell actual={aActual} pending={aPend} name={p.name} /></td>}
+                      {renderMainCols && <td className="p-3"><ActualCell wh="main" pid={p.id} name={p.name} kgValue={mActual} /></td>}
+                      {renderMainCols && <td className="p-3"><ReservedCell pending={mPend} name={p.name} onOpen={() => setReservedDlg({ wh: "main", productId: p.id, productName: p.name, total: mPend })} /></td>}
+                      {renderMainCols && <td className="p-3"><AvailableCell actual={mActual} pending={mPend} name={p.name} /></td>}
                       {(renderCarrefourCols || renderHealthyCols) && currentSingleScope && (
                         <>
-                          <td className="p-2"><ActualCell wh={currentSingleScope} pid={p.id} name={p.name} kgValue={cActual} /></td>
-                          <td className="p-2"><ReservedCell pending={cPend} name={p.name} onOpen={() => setReservedDlg({ wh: currentSingleScope, productId: p.id, productName: p.name, total: cPend })} /></td>
-                          <td className="p-2"><AvailableCell actual={cActual} pending={cPend} name={p.name} /></td>
+                          <td className="p-3"><ActualCell wh={currentSingleScope} pid={p.id} name={p.name} kgValue={cActual} /></td>
+                          <td className="p-3"><ReservedCell pending={cPend} name={p.name} onOpen={() => setReservedDlg({ wh: currentSingleScope, productId: p.id, productName: p.name, total: cPend })} /></td>
+                          <td className="p-3"><AvailableCell actual={cActual} pending={cPend} name={p.name} /></td>
                         </>
                       )}
-                      <td className="p-2 text-center">
+                      <td className="p-2 text-center sticky left-0 bg-card group-hover:bg-primary/[0.03] transition-colors">
                         {(() => {
                           const whKey: SingleWh | null = currentSingleScope ?? (renderMainCols && mainItemIds[p.id] ? "main" : renderAgouzaCols && agouzaItemIds[p.id] ? "agouza" : null);
                           const iid = whKey ? getItemIdsMap(whKey)[p.id] : null;
                           const whId = whKey ? getWhId(whKey) : null;
                           const stockVal = whKey === "main" ? mActual : whKey === "agouza" ? aActual : cActual;
+                          const hasReserved = (whKey === "main" ? mPend : whKey === "agouza" ? aPend : cPend) > 0;
                           if (!iid || !whId) return <span className="text-muted-foreground text-xs">—</span>;
                           return (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 px-2 gap-1"
-                              title={`سجل حركة ${p.name}`}
-                              onClick={() => setMovDlg({ itemId: iid, name: p.name, unit: p.unit, stock: stockVal, whId, whLabel: getWhLabel(whKey!) })}
-                            >
-                              <History className="w-4 h-4" />
-                              <span className="hidden lg:inline text-xs">سجل الحركة</span>
-                            </Button>
+                            <div className="flex items-center justify-center gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-violet-500/10 text-violet-700 dark:text-violet-300 hover:bg-violet-500/20 transition-colors"
+                                    onClick={() => setMovDlg({ itemId: iid, name: p.name, unit: p.unit, stock: stockVal, whId, whLabel: getWhLabel(whKey!) })}
+                                  >
+                                    <History className="w-4 h-4" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">سجل حركة الصنف</TooltipContent>
+                              </Tooltip>
+                              {hasReserved && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="h-8 w-8 inline-flex items-center justify-center rounded-lg bg-orange-500/10 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 transition-colors"
+                                      onClick={() => setReservedDlg({ wh: whKey!, productId: p.id, productName: p.name, total: whKey === "main" ? mPend : whKey === "agouza" ? aPend : cPend })}
+                                    >
+                                      <Lock className="w-4 h-4" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">الحجوزات</TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
                           );
                         })()}
                       </td>
                     </tr>
                   );
                 })}
-                {filtered.length === 0 && (
-                  <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">لا توجد منتجات</td></tr>
+                {!loading && filtered.length === 0 && (
+                  <tr><td colSpan={11} className="p-12 text-center text-muted-foreground">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                        <Package className="w-6 h-6 opacity-50" />
+                      </div>
+                      <div className="text-sm">لا توجد منتجات مطابقة</div>
+                    </div>
+                  </td></tr>
                 )}
               </tbody>
             </table>
           </div>
+
 
           {/* Mobile cards */}
           <div className="md:hidden space-y-2">
@@ -972,7 +1013,8 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           warehouseName={movDlg.whLabel}
         />
       )}
-    </>
+    </TooltipProvider>
+
   );
 
   return embedded ? content : <DashboardLayout>{content}</DashboardLayout>;
