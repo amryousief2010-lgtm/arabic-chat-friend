@@ -10,7 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateTime } from "@/lib/dateFormat";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
-import { Printer, FileSpreadsheet, FileText, ArrowDown, ArrowUp, Package } from "lucide-react";
+import { Printer, FileSpreadsheet, FileText, ArrowDown, ArrowUp, Package, Archive } from "lucide-react";
+import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
 import * as XLSX from "xlsx";
 
 interface Props {
