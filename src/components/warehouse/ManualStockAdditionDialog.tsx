@@ -138,7 +138,9 @@ const ManualStockAdditionDialog = ({
   useEffect(() => {
     if (!open) {
       setSourceKey(""); setSourceOther("");
-      setReason(""); setNotes("");
+      setReason(""); setSupplier("");
+      setDeliveryDate(new Date().toISOString().slice(0, 10));
+      setNotes("");
       setRows([newRow()]);
     }
   }, [open]);
