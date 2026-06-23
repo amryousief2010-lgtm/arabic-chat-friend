@@ -351,14 +351,18 @@ export default function WarehouseMovementsLog() {
                     <TableHead>المستخدم</TableHead>
                     <TableHead>السبب</TableHead>
                     <TableHead>الحالة</TableHead>
+                    <TableHead>طباعة</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={13} className="text-center py-8 text-muted-foreground">جاري التحميل...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={14} className="text-center py-8 text-muted-foreground">جاري التحميل...</TableCell></TableRow>
                   ) : filteredRows.length === 0 ? (
-                    <TableRow><TableCell colSpan={13} className="text-center py-8 text-muted-foreground">لا توجد حركات بالفلاتر الحالية.</TableCell></TableRow>
-                  ) : filteredRows.map((m) => (
+                    <TableRow><TableCell colSpan={14} className="text-center py-8 text-muted-foreground">لا توجد حركات بالفلاتر الحالية.</TableCell></TableRow>
+                  ) : filteredRows.map((m) => {
+                    const isManual = m.reference_type === "manual_addition" || m.reference_type === "manual_out";
+                    const showPrint = isManual && firstByRef.get(m.id);
+                    return (
                     <TableRow key={m.id}>
                       <TableCell className="font-mono text-xs">{m.movement_no || "—"}</TableCell>
                       <TableCell className="text-xs">{new Date(m.performed_at).toLocaleString("ar-EG")}</TableCell>
@@ -369,12 +373,19 @@ export default function WarehouseMovementsLog() {
                       <TableCell className="text-xs">{items[m.item_id]?.unit || "—"}</TableCell>
                       <TableCell className="text-xs">{whName(m.source_warehouse_id)}</TableCell>
                       <TableCell className="text-xs">{whName(m.destination_warehouse_id)}</TableCell>
-                      <TableCell className="font-mono text-xs max-w-[200px] truncate" title={m.reference_id || ""}>{m.reference_id || "—"}</TableCell>
+                      <TableCell className="font-mono text-xs max-w-[200px] truncate" title={m.reference || m.reference_id || ""}>{m.reference || m.reference_id || "—"}</TableCell>
                       <TableCell className="text-xs">{users[m.performed_by || ""] || "—"}</TableCell>
                       <TableCell className="text-xs max-w-[180px] truncate" title={m.reason || ""}>{m.reason || "—"}</TableCell>
                       <TableCell><Badge className={STATUS_COLORS[m.approval_status] || ""}>{m.approval_status}</Badge></TableCell>
+                      <TableCell>
+                        {showPrint ? (
+                          <Button size="sm" variant="outline" onClick={() => printManualOp(m)} title="طباعة محضر العملية">
+                            <Printer className="w-3 h-3 ml-1" /> طباعة
+                          </Button>
+                        ) : null}
+                      </TableCell>
                     </TableRow>
-                  ))}
+                  );})}
                 </TableBody>
               </Table>
             </div>
