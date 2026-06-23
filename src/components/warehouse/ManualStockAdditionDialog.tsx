@@ -116,6 +116,8 @@ const ManualStockAdditionDialog = ({
   const { user, profile, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth() as any;
   const canAddParty = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const canManualKg = isGeneralManager || isExecutiveManager;
+  const isManager = isGeneralManager || isExecutiveManager;
+  const { lock } = useStocktakingLock(open ? warehouseId : null);
   const [sourceKey, setSourceKey] = useState("");
   const [sourceOther, setSourceOther] = useState("");
   const [reason, setReason] = useState("");
@@ -187,7 +189,7 @@ const ManualStockAdditionDialog = ({
   }, [rows]);
 
   const validRows = rows.length > 0 && rows.every(r => r.itemId && rowQty(r) > 0);
-  const canSave = validSource && reason.trim().length > 0 && supplier.trim().length > 0 && !!deliveryDate && validRows && mergedRows.size > 0 && !saving;
+  const canSave = validSource && isValidAdjustmentReason(reason) && supplier.trim().length > 0 && !!deliveryDate && validRows && mergedRows.size > 0 && !saving;
 
   const updateRow = (uid: string, patch: Partial<Row>) =>
     setRows(rs => rs.map(r => r.uid === uid ? { ...r, ...patch } : r));
@@ -199,7 +201,7 @@ const ManualStockAdditionDialog = ({
     if (!validSource) { toast({ title: "اختر جهة التوريد", variant: "destructive" }); return; }
     if (!supplier.trim()) { toast({ title: "أدخل القائم بالتوريد", variant: "destructive" }); return; }
     if (!deliveryDate) { toast({ title: "اختر تاريخ التوريد", variant: "destructive" }); return; }
-    if (!reason.trim()) { toast({ title: "أدخل سبب الإضافة / التوريد", variant: "destructive" }); return; }
+    if (!isValidAdjustmentReason(reason)) { toast({ title: "اختر سبب الإضافة من القائمة (إجباري)", variant: "destructive" }); return; }
     if (mergedRows.size === 0) { toast({ title: "أضف صنف واحد على الأقل", variant: "destructive" }); return; }
     for (const r of rows) {
       if (!r.itemId) { toast({ title: "اختر الصنف في كل صف", variant: "destructive" }); return; }
