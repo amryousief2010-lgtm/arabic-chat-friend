@@ -165,7 +165,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: ClipboardCheck, label: "تسوية حسابات عملاء المعمل", path: "/hatchery/customer-reconciliation", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager'] },
       { icon: FileText, label: "كشف حساب تشغيل عملاء المعمل", path: "/hatchery/operational-statement", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver'] },
       { icon: Wallet, label: "خزنة المعمل والحضانات", path: "/lab-treasury", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver'] },
-      { icon: Wallet, label: "مستحقات خزنة المعمل عند المجزر", path: "/lab-treasury/historical-receivables", roles: ['general_manager', 'executive_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_external_collector', 'slaughterhouse_manager', 'slaughterhouse_custody_keeper'] },
+      // "مستحقات خزنة المعمل عند المجزر" أُزيلت من السايد بار — يتم الوصول إليها من داخل خزنة المعمل (زر "مستحقات الخزنة عند الغير")
       { icon: Wallet, label: "كشف حساب عملاء المعمل", path: "/lab-treasury/customer-statement", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper'] },
       { icon: Wallet, label: "أرصدة عملاء معمل التفريخ", path: "/lab-treasury/customer-balances", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper'] },
       { icon: Wallet, label: "تحصيلاتي لخزنة المعمل", path: "/my-lab-collections", roles: ['lab_external_collector'] },
