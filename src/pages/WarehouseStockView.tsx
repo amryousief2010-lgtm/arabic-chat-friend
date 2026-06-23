@@ -962,6 +962,16 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           warehouseName={currentWhLabel}
         />
       )}
+
+      {movDlg && (
+        <ItemMovementsDialog
+          open={!!movDlg}
+          onOpenChange={(o) => { if (!o) setMovDlg(null); }}
+          item={{ id: movDlg.itemId, name: movDlg.name, unit: movDlg.unit, stock: movDlg.stock }}
+          warehouseId={movDlg.whId}
+          warehouseName={movDlg.whLabel}
+        />
+      )}
     </>
   );
 
