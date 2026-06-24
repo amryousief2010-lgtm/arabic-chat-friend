@@ -706,6 +706,35 @@ const BatchDetailDialog = ({ batch, expenses, mortality, sales, onSaved }:
             {settlement.notes && <div className="text-xs text-amber-800 pt-1 border-t border-amber-200">📝 {settlement.notes}</div>}
           </div>
         )}
+        {batch.treasury_source === "deferred" && (() => {
+          const total = batchTotalCost(batch);
+          const paid = Number(batch.paid_amount || 0);
+          const outstanding = Math.max(0, total - paid);
+          const status = batch.payment_status || "deferred";
+          return (
+            <div className="mb-4 p-3 rounded-md border border-amber-400 bg-amber-50 text-sm space-y-2">
+              <div className="font-bold text-amber-900 flex items-center justify-between gap-2 flex-wrap">
+                <span className="flex items-center gap-2">
+                  <Wallet className="w-4 h-4" /> مصدر التمويل: شراء آجل / بدون دفع حالي
+                </span>
+                {status === "deferred" && <Badge className="bg-amber-500 text-white border-amber-600">غير مدفوع</Badge>}
+                {status === "partial" && <Badge className="bg-orange-500 text-white border-orange-600">مدفوع جزئيًا</Badge>}
+                {status === "paid" && <Badge className="bg-emerald-500 text-white border-emerald-600">تم السداد</Badge>}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-amber-900">
+                <div>المورد: <strong>{batch.supplier_name}</strong></div>
+                <div>إجمالي قيمة الشراء: <strong>{fmtEGP(total)}</strong></div>
+                <div>المدفوع: <strong>{fmtEGP(paid)}</strong></div>
+                <div>المتبقي للمورد: <strong className="text-amber-900">{fmtEGP(outstanding)}</strong></div>
+              </div>
+              {outstanding > 0 && (
+                <div className="pt-1 border-t border-amber-200 flex justify-end">
+                  <PayDeferredDialog batch={batch} onSaved={onSaved} />
+                </div>
+              )}
+            </div>
+          );
+        })()}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           <KCard label="عدد الشراء" value={batch.original_count} />
           <KCard label="المتاح حالياً" value={batch.current_count} />
