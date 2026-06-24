@@ -1936,8 +1936,8 @@ const Warehouses = () => {
 
       {/* Manual Supply / Issuance Group Details */}
       <Dialog open={!!manualGroupRef} onOpenChange={(v) => { if (!v) setManualGroupRef(null); }}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle>
               {manualGroup ? (
                 <>
@@ -1957,7 +1957,7 @@ const Warehouses = () => {
           </DialogHeader>
 
           {manualGroup && (
-            <div className="space-y-3">
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-3">
               <div className="overflow-x-auto border rounded-md">
                 <Table>
                   <TableHeader>
