@@ -1715,6 +1715,8 @@ export type Database = {
           created_by: string | null
           current_count: number
           dead_count: number
+          diff_amount: number
+          diff_treasury_source: string | null
           disinfection_cost: number
           id: string
           main_account_id: string | null
@@ -1723,6 +1725,7 @@ export type Database = {
           other_costs: number
           purchase_date: string
           purchase_total: number
+          settlement_id: string | null
           sold_count: number
           status: string
           supplier_name: string
@@ -1742,6 +1745,8 @@ export type Database = {
           created_by?: string | null
           current_count: number
           dead_count?: number
+          diff_amount?: number
+          diff_treasury_source?: string | null
           disinfection_cost?: number
           id?: string
           main_account_id?: string | null
@@ -1750,6 +1755,7 @@ export type Database = {
           other_costs?: number
           purchase_date?: string
           purchase_total?: number
+          settlement_id?: string | null
           sold_count?: number
           status?: string
           supplier_name: string
@@ -1769,6 +1775,8 @@ export type Database = {
           created_by?: string | null
           current_count?: number
           dead_count?: number
+          diff_amount?: number
+          diff_treasury_source?: string | null
           disinfection_cost?: number
           id?: string
           main_account_id?: string | null
@@ -1777,6 +1785,7 @@ export type Database = {
           other_costs?: number
           purchase_date?: string
           purchase_total?: number
+          settlement_id?: string | null
           sold_count?: number
           status?: string
           supplier_name?: string
@@ -1786,6 +1795,62 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      chick_trading_debt_settlements: {
+        Row: {
+          balance_after: number
+          balance_before: number
+          created_at: string
+          created_by: string | null
+          customer_name: string
+          diff_amount: number
+          diff_treasury_source: string | null
+          id: string
+          notes: string | null
+          purchase_batch_id: string
+          settlement_amount: number
+          settlement_no: string
+          updated_at: string
+        }
+        Insert: {
+          balance_after: number
+          balance_before: number
+          created_at?: string
+          created_by?: string | null
+          customer_name: string
+          diff_amount?: number
+          diff_treasury_source?: string | null
+          id?: string
+          notes?: string | null
+          purchase_batch_id: string
+          settlement_amount: number
+          settlement_no: string
+          updated_at?: string
+        }
+        Update: {
+          balance_after?: number
+          balance_before?: number
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string
+          diff_amount?: number
+          diff_treasury_source?: string | null
+          id?: string
+          notes?: string | null
+          purchase_batch_id?: string
+          settlement_amount?: number
+          settlement_no?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chick_trading_debt_settlements_purchase_batch_id_fkey"
+            columns: ["purchase_batch_id"]
+            isOneToOne: false
+            referencedRelation: "chick_trading_batches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chick_trading_expenses: {
         Row: {
@@ -17563,6 +17628,8 @@ export type Database = {
           created_by: string | null
           current_count: number
           dead_count: number
+          diff_amount: number
+          diff_treasury_source: string | null
           disinfection_cost: number
           id: string
           main_account_id: string | null
@@ -17571,6 +17638,63 @@ export type Database = {
           other_costs: number
           purchase_date: string
           purchase_total: number
+          settlement_id: string | null
+          sold_count: number
+          status: string
+          supplier_name: string
+          transport_cost: number
+          treasury_source: string
+          unit_purchase_price: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "chick_trading_batches"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      chick_trading_create_purchase_v2: {
+        Args: {
+          _age: number
+          _attachment_url: string
+          _count: number
+          _diff_treasury_source?: string
+          _disinfection: number
+          _main_account_id: string
+          _notes: string
+          _other: number
+          _purchase_date: string
+          _settlement_amount?: number
+          _settlement_customer?: string
+          _settlement_notes?: string
+          _supplier: string
+          _transport: number
+          _treasury_source: string
+          _unit_price: number
+        }
+        Returns: {
+          age_at_purchase: number
+          attachment_url: string | null
+          batch_no: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          created_at: string
+          created_by: string | null
+          current_count: number
+          dead_count: number
+          diff_amount: number
+          diff_treasury_source: string | null
+          disinfection_cost: number
+          id: string
+          main_account_id: string | null
+          notes: string | null
+          original_count: number
+          other_costs: number
+          purchase_date: string
+          purchase_total: number
+          settlement_id: string | null
           sold_count: number
           status: string
           supplier_name: string
@@ -17637,6 +17761,17 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      chick_trading_customer_balance: {
+        Args: { _customer: string }
+        Returns: number
+      }
+      chick_trading_customers_with_debt: {
+        Args: never
+        Returns: {
+          balance: number
+          customer_name: string
+        }[]
       }
       compare_period_to_snapshot: {
         Args: { p_raise_alert?: boolean; p_snapshot_id: string }
@@ -18520,6 +18655,10 @@ export type Database = {
         Returns: string
       }
       next_chick_trading_sale_no: { Args: never; Returns: string }
+      next_chick_trading_settlement_no: {
+        Args: { _date: string }
+        Returns: string
+      }
       next_feed_factory_movement_no: { Args: never; Returns: string }
       next_feed_transfer_ref: { Args: never; Returns: string }
       normalize_ar: { Args: { s: string }; Returns: string }
