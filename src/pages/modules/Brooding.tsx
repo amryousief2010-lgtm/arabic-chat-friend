@@ -251,6 +251,7 @@ const Brooding = () => {
   const [feedStockMovements, setFeedStockMovements] = useState<FeedStockMovement[]>([]);
   const [snapshots, setSnapshots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const { prices: marketPrices } = useMarketPrices();
 
   const loadAll = async () => {
