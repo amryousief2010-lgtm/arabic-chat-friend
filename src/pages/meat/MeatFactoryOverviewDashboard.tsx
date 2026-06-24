@@ -209,25 +209,67 @@ export default function MeatFactoryOverviewDashboard() {
 
   return (
     <DashboardLayout>
-      <div className="p-4 md:p-6 space-y-6" dir="rtl">
-        {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
+      <div className="p-4 md:p-6 space-y-5" dir="rtl">
+        {/* HEADER — title right with factory icon */}
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm"><Link to="/meat-factory/purchase-invoices"><ShoppingCart className="w-4 h-4 ml-1" />فاتورة مشتريات</Link></Button>
+            <Button asChild size="sm" className="bg-purple-600 hover:bg-purple-700"><Link to="/meat-factory/manufacturing"><Factory className="w-4 h-4 ml-1" />فاتورة تصنيع</Link></Button>
+          </div>
+          <div className="flex items-center gap-3 text-right">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold">
+                <span className="text-foreground">مصنع اللحوم</span>{" "}
+                <span className="text-muted-foreground/70 font-medium tracking-tight">Dashboard</span>
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">مؤشرات المخزون والتصنيع — {periodLabel}</p>
+            </div>
             <div className="p-3 rounded-xl bg-gradient-to-br from-purple-600 to-orange-500 text-white">
               <Factory className="w-7 h-7" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold">لوحة تحكم مصنع اللحوم</h1>
-              <p className="text-sm text-muted-foreground">نظرة شاملة على المشتريات والتصنيع والمخزون والتوريد</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button asChild variant="outline"><Link to="/meat-factory/purchase-invoices"><ShoppingCart className="w-4 h-4 ml-1" />فاتورة مشتريات</Link></Button>
-            <Button asChild className="bg-purple-600 hover:bg-purple-700"><Link to="/meat-factory/manufacturing"><Factory className="w-4 h-4 ml-1" />فاتورة تصنيع</Link></Button>
           </div>
         </div>
 
-        {/* Smart Alerts */}
+        {/* FILTER BAR */}
+        <Card className="border-border/60">
+          <CardContent className="p-3 md:p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-muted-foreground">المنتج:</span>
+              <Select value={productFilter} onValueChange={setProductFilter}>
+                <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل المنتجات</SelectItem>
+                  {productList.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-muted-foreground mr-2">النوع:</span>
+              <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
+                <SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  <SelectItem value="raw">خامات</SelectItem>
+                  <SelectItem value="spice">بهارات</SelectItem>
+                  <SelectItem value="packaging">تغليف</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {period === "custom" && (
+                <>
+                  <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-9 w-36" />
+                  <span className="text-muted-foreground text-sm">→</span>
+                  <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-9 w-36" />
+                </>
+              )}
+              <Button variant={period === "custom" ? "default" : "outline"} size="sm" onClick={() => setPeriod("custom")}>من - إلى</Button>
+              <Button variant={period === "month" ? "default" : "outline"} size="sm" onClick={() => setPeriod("month")} className={period === "month" ? "bg-purple-600 hover:bg-purple-700" : ""}>هذا الشهر</Button>
+              <Button variant={period === "week" ? "default" : "outline"} size="sm" onClick={() => setPeriod("week")} className={period === "week" ? "bg-purple-600 hover:bg-purple-700" : ""}>هذا الأسبوع</Button>
+              <Button variant={period === "today" ? "default" : "outline"} size="sm" onClick={() => setPeriod("today")} className={period === "today" ? "bg-purple-600 hover:bg-purple-700" : ""}>اليوم</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Smart Alerts (kept, compact) */}
         {(k.pending > 0 || lowStockRaw.length > 0 || lowStockPack.length > 0) && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {k.pending > 0 && (
@@ -247,7 +289,7 @@ export default function MeatFactoryOverviewDashboard() {
                   <AlertTriangle className="w-6 h-6 text-red-600" />
                   <div className="text-sm">
                     <div className="font-bold text-red-700">{lowStockRaw.length} صنف خامات/بهارات تحت حد التنبيه</div>
-                    <div className="text-xs">{lowStockRaw.slice(0,3).map(x => x.name).join("، ")}{lowStockRaw.length > 3 ? "…" : ""}</div>
+                    <div className="text-xs">{lowStockRaw.slice(0, 3).map(x => x.name).join("، ")}{lowStockRaw.length > 3 ? "…" : ""}</div>
                   </div>
                 </CardContent>
               </Card>
@@ -258,7 +300,7 @@ export default function MeatFactoryOverviewDashboard() {
                   <Package className="w-6 h-6 text-orange-600" />
                   <div className="text-sm">
                     <div className="font-bold text-orange-700">{lowStockPack.length} صنف تغليف تحت حد التنبيه</div>
-                    <div className="text-xs">{lowStockPack.slice(0,3).map(x => x.name).join("، ")}{lowStockPack.length > 3 ? "…" : ""}</div>
+                    <div className="text-xs">{lowStockPack.slice(0, 3).map(x => x.name).join("، ")}{lowStockPack.length > 3 ? "…" : ""}</div>
                   </div>
                 </CardContent>
               </Card>
@@ -266,19 +308,27 @@ export default function MeatFactoryOverviewDashboard() {
           </div>
         )}
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <KPI icon={ShoppingCart} label="إجمالي مشتريات الخامات" value={`${fmt(k.purchaseTotal)} ج`} color={PURPLE} to="/meat-factory/purchase-invoices" />
-          <KPI icon={Package} label="مشتريات التغليف" value={`${fmt(k.packPurchases)} ج`} color={ORANGE} to="/meat-factory/purchase-invoices" />
-          <KPI icon={Factory} label="فواتير التصنيع" value={fmt(k.mfgCount)} sub={`${fmt(k.approved)} معتمدة`} color={BLUE} to="/meat-factory/manufacturing" />
-          <KPI icon={Beef} label="إجمالي المنتجات المصنعة" value={fmt(k.producedQty)} sub="كجم/عبوة" color={GREEN} />
-          <KPI icon={TrendingUp} label="إجمالي تكلفة التصنيع" value={`${fmt(k.mfgCost)} ج`} color={PURPLE} />
-          <KPI icon={CheckCircle2} label="المعتمدة" value={fmt(k.approved)} color={GREEN} />
-          <KPI icon={Clock} label="بانتظار الاعتماد" value={fmt(k.pending)} color="#f59e0b" />
-          <KPI icon={XCircle} label="المرفوضة" value={fmt(k.rejected)} color={RED} />
-          <KPI icon={Send} label="الموردة للمخزن الرئيسي" value={fmt(k.transferred)} color={BLUE} />
-          <KPI icon={Boxes} label="إجمالي أصناف المخزن" value={fmt(items.length)} sub={`${items.filter(i=>i.kind==='packaging').length} تغليف`} color={ORANGE} />
+        {/* KPI GRID — 4 cols × 3 rows */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {/* Row 1 — values */}
+          <StatTile icon={Package} label="قيمة التغليف" value={fmt(inv.packagingValue)} unit="ج" color={GREEN} />
+          <StatTile icon={FlaskConical} label="قيمة البهارات" value={fmt(inv.spiceValue)} unit="ج" color={ORANGE} />
+          <StatTile icon={Leaf} label="قيمة الخامات" value={fmt(inv.rawValue)} unit="ج" color={ORANGE} />
+          <StatTile icon={Wallet} label="إجمالي قيمة المخزون" value={fmt(inv.totalInventoryValue)} unit="ج" color={PURPLE} />
+
+          {/* Row 2 — this period flows */}
+          <StatTile icon={FileText} label={`فواتير تصنيع — ${periodLabel}`} value={fmtInt(k.mfgCount)} sub={`${fmt(k.mfgTotalAmount)} ج إجمالي`} color={PURPLE} to="/meat-factory/manufacturing" />
+          <StatTile icon={TrendingDown} label={`صرف تصنيع — ${periodLabel}`} value={fmt(k.dispenseQty)} unit="وحدة" color={ORANGE} />
+          <StatTile icon={ShoppingCart} label={`مشتريات — ${periodLabel}`} value={fmt(k.purchaseTotal)} unit="ج" sub={`${fmtInt(k.purchaseCount)} فاتورة`} color={GREEN} to="/meat-factory/purchase-invoices" />
+          <StatTile icon={Beef} label={`وارد المجزر — ${periodLabel}`} value={fmt(k.slaughterInbound)} unit="ج" color={RED} />
+
+          {/* Row 3 — operations & alerts */}
+          <StatTile icon={ClipboardList} label="تركيبات التصنيع" value={fmtInt(recipesCount)} unit="تركيبة" sub="مرجع جاهز" color={PURPLE} to="/meat-factory/recipes" />
+          <StatTile icon={AlertTriangle} label="أصناف نفدت" value={fmtInt(inv.outOfStock)} color={RED} />
+          <StatTile icon={TrendingDown} label="أصناف منخفضة" value={fmtInt(inv.lowStock)} color={ORANGE} />
+          <StatTile icon={CheckCircle2} label={`كمية مصنعة — ${periodLabel}`} value={fmt(k.producedQty)} unit="كجم" sub={k.producedQty === 0 ? "—" : `${fmtInt(k.transferred)} موردة للرئيسي`} color={GREEN} />
         </div>
+
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
