@@ -444,7 +444,14 @@ const Warehouses = () => {
         if (!L.item_id || !(L.quantity > 0)) {
           throw new Error("تأكد من اختيار الصنف وإدخال كمية صحيحة لكل صنف");
         }
+        if (sampleWh && L._isNew) {
+          const item = items.find(i => i.id === L.item_id);
+          if (item && item.warehouse_id && item.warehouse_id !== sampleWh) {
+            throw new Error("هذا الصنف غير مرتبط بالمخزن المحدد ولا يمكن إضافته لهذه التوريدة.");
+          }
+        }
       }
+
       // Apply per-line changes
       for (const L of editManualLines) {
         if (L._isNew && !L._deleted) {
