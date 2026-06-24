@@ -1183,8 +1183,23 @@ export default function ChickTradingTab() {
                           : <Badge variant="destructive">ملغاة</Badge>}
                     </TableCell>
                     <TableCell>
-                      <BatchDetailDialog batch={b} expenses={expenses} mortality={mortality}
-                        sales={sales} onSaved={reload} />
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <BatchDetailDialog batch={b} expenses={expenses} mortality={mortality}
+                          sales={sales} onSaved={reload} />
+                        <EditBatchDialog
+                          batch={b}
+                          hasActivity={
+                            expenses.some(e => e.batch_id === b.id) ||
+                            mortality.some(m => m.batch_id === b.id) ||
+                            sales.some(s => s.batch_id === b.id)
+                          }
+                          onSaved={reload}
+                        />
+                        <Button size="sm" variant="outline" className="gap-1" onClick={() => printBatch(b)}>
+                          <Printer className="w-3 h-3" />طباعة
+                        </Button>
+                        <LinkOperationalButton batch={b} onSaved={reload} />
+                      </div>
                     </TableCell>
                   </TableRow>
                   );
