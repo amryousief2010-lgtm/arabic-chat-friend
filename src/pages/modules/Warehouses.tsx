@@ -33,6 +33,7 @@ import WarehouseOpeningBalance from "@/pages/modules/WarehouseOpeningBalance";
 import WarehouseOperationalDates from "@/pages/modules/WarehouseOperationalDates";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import WarehousesDashboardPanel from "@/components/warehouses/WarehousesDashboardPanel";
+import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, isAllowedWarehouseDropdownItem } from "@/lib/warehouseItemFilters";
 
 
 const qualityLabelText: Record<string, string> = {
@@ -163,6 +164,7 @@ interface WarehouseRow {
 interface InventoryItem {
   id: string;
   warehouse_id: string;
+  product_id?: string | null;
   name: string;
   category: string | null;
   sku: string | null;
@@ -172,6 +174,9 @@ interface InventoryItem {
   unit_cost: number;
   expiry_date: string | null;
   is_active: boolean;
+  module?: string | null;
+  archived?: boolean | null;
+  archived_at?: string | null;
   warehouse?: { name: string };
 }
 
@@ -444,11 +449,12 @@ const Warehouses = () => {
         if (!L.item_id || !(L.quantity > 0)) {
           throw new Error("تأكد من اختيار الصنف وإدخال كمية صحيحة لكل صنف");
         }
-        if (sampleWh && L._isNew) {
-          const item = items.find(i => i.id === L.item_id);
-          if (item && item.warehouse_id && item.warehouse_id !== sampleWh) {
-            throw new Error("هذا الصنف غير مرتبط بالمخزن المحدد ولا يمكن إضافته لهذه التوريدة.");
-          }
+        const item = items.find(i => i.id === L.item_id);
+        if (!item || !isAllowedWarehouseDropdownItem(item, sampleWh, isEditManualMainWarehouse, editManualVisibleProductIds)) {
+          throw new Error(isEditManualMainWarehouse
+            ? "هذا الصنف غير تابع للمخزن الرئيسي ولا يمكن إضافته لهذه التوريدة."
+            : "هذا الصنف غير مرتبط بالمخزن المحدد ولا يمكن إضافته لهذه التوريدة."
+          );
         }
       }
 
@@ -509,6 +515,7 @@ const Warehouses = () => {
       toast({ title: "تم حفظ التعديلات", description: editManualRef });
       setEditManualOpen(false);
       setEditManualRef(null);
+      setEditManualWarehouseId(null);
       await fetchAll();
     } catch (e: any) {
       toast({ title: "تعذّر الحفظ", description: e?.message || "حدث خطأ", variant: "destructive" });
@@ -689,6 +696,30 @@ const Warehouses = () => {
     }
     return base;
   })();
+  const editManualWarehouse = editManualWarehouseId
+    ? warehouses.find((w) => w.id === editManualWarehouseId)
+    : undefined;
+  const isEditManualMainWarehouse = !!editManualWarehouse && isMainWarehouseName(editManualWarehouse.name);
+  const editManualVisibleProductIds = useMemo(() => {
+    if (!isEditManualMainWarehouse) return undefined;
+    const visible = new Set<string>();
+    items.forEach((item) => {
+      if (item.warehouse_id === editManualWarehouseId && item.product_id && !isMainWarehouseExcludedCategory((item as any).category)) {
+        visible.add(item.product_id);
+      }
+    });
+    return visible;
+  }, [items, editManualWarehouseId, isEditManualMainWarehouse]);
+  const editManualDropdownItems = useMemo(
+    () => getAllowedWarehouseDropdownItems(items, editManualWarehouseId, isEditManualMainWarehouse, editManualVisibleProductIds),
+    [items, editManualWarehouseId, isEditManualMainWarehouse, editManualVisibleProductIds]
+  );
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !editManualOpen) return;
+    console.table(editManualDropdownItems.map(getWarehouseItemDebugRow));
+  }, [editManualOpen, editManualDropdownItems]);
+
   const lowStockItems = items.filter(i => i.stock <= i.low_stock_threshold);
   const pendingSlaughter = slaughterOutputs.filter(o => o.received_status !== 'received');
 
@@ -2085,30 +2116,13 @@ const Warehouses = () => {
                             }}>
                               <SelectTrigger><SelectValue placeholder="اختر صنفاً" /></SelectTrigger>
                               <SelectContent className="max-h-72">
-                                {(() => {
-                                  const filtered = items.filter(i =>
-                                    (!editManualWarehouseId || i.warehouse_id === editManualWarehouseId)
-                                    && (i as any).is_active !== false
-                                    && (i as any).archived !== true
-                                  );
-                                  const seen = new Set<string>();
-                                  const unique: typeof filtered = [];
-                                  for (const it of filtered) {
-                                    const key = ((it as any).product_id || "") + "|" + (it.name || "").trim().toLowerCase();
-                                    if (seen.has(key)) continue;
-                                    seen.add(key);
-                                    unique.push(it);
-                                  }
-                                  unique.sort((a, b) => (a.name || "").localeCompare(b.name || "", "ar"));
-                                  return unique.map(i => {
-                                    const pkg = (i as any).package_weight_kg || (i as any).default_package_weight_kg;
-                                    return (
-                                      <SelectItem key={i.id} value={i.id}>
-                                        {i.name}{pkg ? ` — ${pkg} كجم` : ""} — {i.warehouse?.name || ""}
-                                      </SelectItem>
-                                    );
-                                  });
-                                })()}
+                                {editManualDropdownItems.length === 0 ? (
+                                  <div className="px-3 py-2 text-xs text-muted-foreground">لا توجد أصناف مسموحة لهذا المخزن</div>
+                                ) : editManualDropdownItems.map(i => (
+                                  <SelectItem key={i.id} value={i.id}>
+                                    {i.name} — {i.warehouse?.name || editManualWarehouse?.name || ""}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
 
 
@@ -2168,7 +2182,7 @@ const Warehouses = () => {
             </Button>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setEditManualOpen(false); setEditManualRef(null); }}>إلغاء</Button>
+            <Button variant="outline" onClick={() => { setEditManualOpen(false); setEditManualRef(null); setEditManualWarehouseId(null); }}>إلغاء</Button>
             <Button onClick={saveEditManual} disabled={manualBusy}>حفظ التعديلات</Button>
           </DialogFooter>
         </DialogContent>

@@ -553,6 +553,22 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const currentCost = currentSingleScope ? getCostMap(currentSingleScope) : {};
   const currentSku = currentSingleScope ? getSkuMap(currentSingleScope) : {};
   const currentLastMove = currentSingleScope ? getLastMoveMap(currentSingleScope) : {};
+  const currentDialogItems = useMemo(
+    () => products
+      .filter((p) => currentItemIds[p.id])
+      .map((p) => ({
+        id: currentItemIds[p.id],
+        warehouse_id: currentWhId,
+        product_id: p.id,
+        name: p.name,
+        category: p.category,
+        unit: p.unit,
+        stock: currentStock[p.id] || 0,
+        is_active: true,
+        module: "warehouse",
+      })),
+    [products, currentItemIds, currentWhId, currentStock]
+  );
 
 
 
@@ -605,9 +621,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             onOpenChange={setManualAddOpen}
             warehouseId={currentWhId}
             warehouseName={currentWhLabel}
-            items={products
-              .filter((p) => currentItemIds[p.id])
-              .map((p) => ({ id: currentItemIds[p.id], name: p.name, unit: p.unit, stock: currentStock[p.id] || 0 }))}
+            items={currentDialogItems}
             onSaved={fetchAll}
           />
           <ManualStockOutDialog
@@ -615,9 +629,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             onOpenChange={setManualOutOpen}
             warehouseId={currentWhId}
             warehouseName={currentWhLabel}
-            items={products
-              .filter((p) => currentItemIds[p.id])
-              .map((p) => ({ id: currentItemIds[p.id], name: p.name, unit: p.unit, stock: currentStock[p.id] || 0 }))}
+            items={currentDialogItems}
             onSaved={fetchAll}
           />
         </>
