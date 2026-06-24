@@ -577,7 +577,17 @@ const HREmployees = () => {
                             </button>
                           </TableCell>
                           <TableCell>
-                            {hasMissingSalary && totalApproved > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setDeductionsOf(e)}
+                              className={`font-mono text-sm font-semibold text-right hover:opacity-80 ${totalAdvances > 0 ? "text-rose-700" : "text-muted-foreground"}`}
+                              title="تفاصيل السلف والعهد"
+                            >
+                              {totalAdvances > 0 ? `- ${totalAdvances.toLocaleString("ar-EG")}` : "—"}
+                            </button>
+                          </TableCell>
+                          <TableCell>
+                            {hasMissingSalary && (totalApproved > 0 || totalAdvances > 0) ? (
                               <div className="max-w-48 text-xs text-amber-700 leading-snug">
                                 راتب الموظف غير مسجل، لا يمكن احتساب صافي الراتب
                               </div>
