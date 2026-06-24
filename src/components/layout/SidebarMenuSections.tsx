@@ -159,21 +159,11 @@ export const moduleSections: ModuleSection[] = [
     label: "3. المعمل وتفريغ الكتاكيت",
     roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_external_collector'],
     items: [
-      { icon: FlaskConical, label: "معمل التفريخ والحضانات", path: "/modules/hatchery-lab", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager', 'accountant'] },
-      { icon: Upload, label: "استيراد دفعات المعمل", path: "/hatchery/import-batches", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager'] },
-      { icon: ClipboardCheck, label: "مراجعة دفعات المعمل المستوردة", path: "/hatchery/import-batches/review", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager'] },
-      { icon: ClipboardCheck, label: "تسوية حسابات عملاء المعمل", path: "/hatchery/customer-reconciliation", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager'] },
-      { icon: FileText, label: "كشف حساب تشغيل عملاء المعمل", path: "/hatchery/operational-statement", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver'] },
-      { icon: Wallet, label: "خزنة المعمل والحضانات", path: "/lab-treasury", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver'] },
-      // "مستحقات خزنة المعمل عند المجزر" أُزيلت من السايد بار — يتم الوصول إليها من داخل خزنة المعمل (زر "مستحقات الخزنة عند الغير")
-      { icon: Wallet, label: "كشف حساب عملاء المعمل", path: "/lab-treasury/customer-statement", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper'] },
-      { icon: Wallet, label: "أرصدة عملاء معمل التفريخ", path: "/lab-treasury/customer-balances", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper'] },
+      // تم تبسيط القائمة الجانبية: كل الصفحات الفرعية متاحة من داخل صفحة معمل التفريخ والحضانات (Tabs + روابط سريعة)
+      // كل المسارات القديمة لا تزال شغالة ومحفوظة في AnimatedRoutes
+      { icon: FlaskConical, label: "معمل التفريخ والحضانات", path: "/modules/hatchery-lab", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver'] },
+      // مستخدم خاص: المحصِّل الخارجي ليس له صفحة المعمل، يدخل مباشرة لصفحته
       { icon: Wallet, label: "تحصيلاتي لخزنة المعمل", path: "/my-lab-collections", roles: ['lab_external_collector'] },
-      // الصفحات القديمة متاحة للمدير العام فقط للمراجعة (الـ Routes لا تزال تعمل)
-      { icon: FlaskConical, label: "إدارة المعمل (أرشيف)", path: "/hatchery", roles: ['general_manager'] },
-      { icon: Wallet, label: "دفعات عملاء المعمل (أرشيف)", path: "/hatchery/payments", roles: ['general_manager'] },
-      { icon: TrendingUp, label: "لوحة المزرعة والمعمل (أرشيف)", path: "/modules/farm-hatchery-dashboard", roles: ['general_manager'] },
-      { icon: TrendingUp, label: "سجل وارد المزرعة (أرشيف)", path: "/farm-shipments-log", roles: ['general_manager'] },
     ],
   },
   {
