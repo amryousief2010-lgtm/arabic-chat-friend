@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,9 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowDownLeft, ArrowUpRight, RefreshCw, Search, Activity, PackageCheck } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { ArrowDownLeft, ArrowUpRight, RefreshCw, Search, Activity, PackageCheck, Eye, Printer, Edit, Trash2, ArrowDown, ArrowUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
 import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
 
 interface Row {
@@ -20,8 +24,14 @@ interface Row {
   reason: string | null;
   party: string | null;
   reference_type: string | null;
+  reference: string | null;
+  item_id?: string;
+  warehouse_id?: string;
+  package_count?: number | null;
+  package_weight_kg?: number | null;
   item_name?: string;
   unit?: string;
+  warehouse_name?: string;
   source_name?: string;
   destination_name?: string;
   performed_by_name?: string;
@@ -70,7 +80,10 @@ const isOut = (mt: string, qty: number) =>
 interface MainWarehouseActivityProps { embedded?: boolean }
 
 export default function MainWarehouseActivity({ embedded = false }: MainWarehouseActivityProps) {
-  const { isGeneralManager } = useAuth();
+  const { user, isGeneralManager, isExecutiveManager } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const canManageManual = isGeneralManager || isExecutiveManager;
   // أرشيف ما قبل بداية تشغيل المخزن الرئيسي (2026-06-18) متاح للمدير العام فقط.
   // المدير التنفيذي ومسؤول/مشرف المخزن لا يرون الأرشيف ولا زر التبديل.
   const isAdmin = isGeneralManager;
@@ -84,6 +97,8 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
   // العرض الافتراضي = من تاريخ بداية تشغيل المخزن الرئيسي (2026-06-18) فقط.
   // الأرشيف القديم متاح للإدارة فقط (المدير العام / التنفيذي).
   const [showArchive, setShowArchive] = useState(false);
+  const [detailRef, setDetailRef] = useState<string | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -109,7 +124,7 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
 
       let q = supabase
         .from("inventory_movements")
-        .select("id, performed_at, movement_type, quantity, notes, reason, party, item_id, source_warehouse_id, destination_warehouse_id, performed_by, reference_type")
+        .select("id, performed_at, movement_type, quantity, notes, reason, party, item_id, warehouse_id, source_warehouse_id, destination_warehouse_id, performed_by, reference_type, reference, package_count, package_weight_kg")
         .or(`warehouse_id.eq.${wh.id},source_warehouse_id.eq.${wh.id},destination_warehouse_id.eq.${wh.id}`)
         .order("performed_at", { ascending: false })
         .limit(1000);
@@ -132,7 +147,7 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
 
       const itemIds = Array.from(new Set((mvs || []).map((m: any) => m.item_id).filter(Boolean)));
       const whIds = Array.from(new Set(
-        (mvs || []).flatMap((m: any) => [m.source_warehouse_id, m.destination_warehouse_id]).filter(Boolean)
+        (mvs || []).flatMap((m: any) => [m.warehouse_id, m.source_warehouse_id, m.destination_warehouse_id]).filter(Boolean)
       ));
       const userIds = Array.from(new Set((mvs || []).map((m: any) => m.performed_by).filter(Boolean)));
 
@@ -162,8 +177,14 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
         reason: m.reason,
         party: m.party,
         reference_type: m.reference_type,
+        reference: m.reference ?? null,
+        item_id: m.item_id,
+        warehouse_id: m.warehouse_id,
+        package_count: m.package_count ?? null,
+        package_weight_kg: m.package_weight_kg ?? null,
         item_name: itemMap.get(m.item_id)?.name,
         unit: itemMap.get(m.item_id)?.unit,
+        warehouse_name: m.warehouse_id ? whMap.get(m.warehouse_id) : undefined,
         source_name: m.source_warehouse_id ? whMap.get(m.source_warehouse_id) : undefined,
         destination_name: m.destination_warehouse_id ? whMap.get(m.destination_warehouse_id) : undefined,
         performed_by_name: m.performed_by ? userMap.get(m.performed_by) : undefined,
@@ -200,6 +221,137 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
     const opening = filtered.filter(r => r.movement_type === "opening_balance").length;
     return { ins, outs, opening, total: filtered.length };
   }, [filtered]);
+
+  // ===== Grouping: merge MAN-IN-/MAN-OUT- supplies into one row per reference =====
+  type DisplayRow =
+    | { kind: "single"; row: Row }
+    | { kind: "manual"; reference: string; direction: "in" | "out"; date: string; rows: Row[]; totalQty: number; partyLabel: string };
+
+  const parseNoteField = (notes: string | null | undefined, label: string): string => {
+    if (!notes) return "";
+    const re = new RegExp(`${label}:\\s*([^•]+?)(?=\\s*•|$)`);
+    const m = notes.match(re);
+    return m ? m[1].trim() : "";
+  };
+
+  const grouped = useMemo<DisplayRow[]>(() => {
+    const manualMap = new Map<string, Row[]>();
+    const others: Row[] = [];
+    filtered.forEach((r) => {
+      const ref = r.reference || "";
+      const isManIn = /^MAN-IN-\d{8}-\d{4}$/.test(ref) && r.reference_type === "manual_addition";
+      const isManOut = /^MAN-OUT-\d{8}-\d{4}$/.test(ref) && r.reference_type === "manual_out";
+      if (isManIn || isManOut) {
+        if (!manualMap.has(ref)) manualMap.set(ref, []);
+        manualMap.get(ref)!.push(r);
+      } else {
+        others.push(r);
+      }
+    });
+    const out: DisplayRow[] = others.map((r) => ({ kind: "single", row: r }));
+    manualMap.forEach((rs, ref) => {
+      const direction: "in" | "out" = ref.startsWith("MAN-IN") ? "in" : "out";
+      const sample = rs[0];
+      const partyKey = direction === "in" ? "جهة التوريد" : "جهة الصرف";
+      const partyLabel = parseNoteField(sample.notes, partyKey) || sample.party || "—";
+      out.push({
+        kind: "manual",
+        reference: ref,
+        direction,
+        date: sample.performed_at,
+        rows: rs,
+        totalQty: rs.reduce((s, x) => s + Number(x.quantity || 0), 0),
+        partyLabel,
+      });
+    });
+    out.sort((a, b) => {
+      const da = a.kind === "single" ? a.row.performed_at : a.date;
+      const db = b.kind === "single" ? b.row.performed_at : b.date;
+      return new Date(db).getTime() - new Date(da).getTime();
+    });
+    return out;
+  }, [filtered]);
+
+  const detailGroup = useMemo(
+    () => grouped.find((r) => r.kind === "manual" && r.reference === detailRef) as
+      | Extract<DisplayRow, { kind: "manual" }>
+      | undefined,
+    [grouped, detailRef]
+  );
+
+  const printGroup = (g: Extract<DisplayRow, { kind: "manual" }>) => {
+    const first = g.rows[0];
+    const supplier = parseNoteField(first.notes, "القائم بالتوريد");
+    const deliveryDate = parseNoteField(first.notes, "تاريخ التوريد");
+    const extraNotes = parseNoteField(first.notes, "ملاحظات");
+    const slipRows: SlipItemRow[] = g.rows.map((r) => ({
+      name: r.item_name || "—",
+      unit: r.unit || "كجم",
+      packageCount: r.package_count ?? null,
+      packageWeightKg: r.package_weight_kg ?? null,
+      quantity: Number(r.quantity || 0),
+      stockBefore: Number(parseNoteField(r.notes, "قبل").replace(/[^\d.\-]/g, "")) || null,
+      stockAfter: Number(parseNoteField(r.notes, "بعد").replace(/[^\d.\-]/g, "")) || null,
+    }));
+    printWarehouseSlip({
+      kind: g.direction,
+      opNo: g.reference,
+      warehouseName: first.warehouse_name || "المخزن الرئيسي",
+      partyLabel: g.partyLabel,
+      supplier,
+      deliveryDate,
+      performedByName: first.performed_by_name || "",
+      performedAt: first.performed_at,
+      notes: extraNotes,
+      rows: slipRows,
+    });
+  };
+
+  const cancelGroup = async (g: Extract<DisplayRow, { kind: "manual" }>) => {
+    if (!canManageManual) return;
+    const reason = window.prompt("سبب الإلغاء / العكس (إجباري):", "");
+    if (!reason || !reason.trim()) {
+      toast({ title: "السبب مطلوب لإلغاء التوريدة", variant: "destructive" });
+      return;
+    }
+    const note = window.prompt("ملاحظة إضافية (اختياري):", "") || "";
+    if (!window.confirm(`سيتم إلغاء التوريدة ${g.reference} وعكس أثرها على المخزون. متابعة؟`)) return;
+    setCancelBusy(true);
+    try {
+      for (const m of g.rows) {
+        if (!m.item_id) continue;
+        const delta = (g.direction === "in" ? -1 : 1) * Number(m.quantity || 0);
+        const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", m.item_id).maybeSingle();
+        const newStock = Number((it as any)?.stock || 0) + delta;
+        await supabase.from("inventory_items").update({ stock: newStock }).eq("id", m.item_id);
+      }
+      const ids = g.rows.map((r) => r.id);
+      const { error } = await supabase.from("inventory_movements").delete().in("id", ids);
+      if (error) throw error;
+      try {
+        await supabase.from("notifications").insert({
+          user_id: user?.id,
+          type: "warehouse_supply_cancelled",
+          title: `إلغاء توريدة ${g.reference}`,
+          message: `سبب: ${reason}${note ? ` | ملاحظة: ${note}` : ""} | بواسطة: ${user?.email || user?.id || "—"}`,
+          read: false,
+        } as any);
+      } catch { /* audit best-effort */ }
+      toast({ title: "تم إلغاء التوريدة", description: `${g.reference} — ${reason}` });
+      setDetailRef(null);
+      await fetchAll();
+    } catch (e: any) {
+      toast({ title: "تعذّر الإلغاء", description: e?.message || "حدث خطأ", variant: "destructive" });
+    } finally {
+      setCancelBusy(false);
+    }
+  };
+
+  const editGroup = (g: Extract<DisplayRow, { kind: "manual" }>) => {
+    // التعديل يفتح في شاشة إدارة المخازن (تبويب الحركات) حيث يوجد نموذج التعديل التفصيلي
+    toast({ title: "افتح التوريدة من شاشة المخازن للتعديل", description: g.reference });
+    navigate(`/modules/warehouses?tab=movements&ref=${encodeURIComponent(g.reference)}`);
+  };
 
   const content = (
     <>
@@ -324,10 +476,63 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
                   <th className="p-2">من / إلى</th>
                   <th className="p-2">المستخدم</th>
                   <th className="p-2">السبب / ملاحظات</th>
+                  <th className="p-2 text-center">إجراءات</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r) => {
+                {grouped.map((g) => {
+                  if (g.kind === "manual") {
+                    const isInDir = g.direction === "in";
+                    const sample = g.rows[0];
+                    const unit = sample?.unit || "كجم";
+                    return (
+                      <tr key={g.reference} className={`border-t ${isInDir ? "bg-emerald-50/40" : "bg-rose-50/40"} hover:bg-muted/30`}>
+                        <td className="p-2 whitespace-nowrap text-xs text-muted-foreground">{formatDate(g.date)}</td>
+                        <td className="p-2">
+                          <Badge className={`gap-1 ${isInDir ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"} text-white`}>
+                            {isInDir ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />}
+                            {isInDir ? "توريد مباشر" : "صرف مباشر"}
+                          </Badge>
+                        </td>
+                        <td className="p-2 text-xs">
+                          <Badge variant="outline" className="bg-muted/30">{sample?.reference_type || "manual"}</Badge>
+                        </td>
+                        <td className="p-2 font-semibold" colSpan={1}>
+                          <span className="text-muted-foreground">توريدة</span>{" "}
+                          <span className="font-mono text-primary">{g.reference}</span>
+                          <span className="text-muted-foreground mr-2">({g.rows.length} صنف)</span>
+                        </td>
+                        <td className="p-2 whitespace-nowrap font-mono">{g.totalQty.toFixed(2)} {unit}</td>
+                        <td className="p-2 text-xs">{g.partyLabel}</td>
+                        <td className="p-2 text-xs">{sample?.performed_by_name || <span className="text-muted-foreground">—</span>}</td>
+                        <td className="p-2 text-xs text-muted-foreground">{isInDir ? "توريد جديد" : "صرف"}</td>
+                        <td className="p-2">
+                          <div className="flex gap-1 justify-center flex-wrap">
+                            <Button size="sm" variant="outline" onClick={() => setDetailRef(g.reference)}>
+                              <Eye className="w-3 h-3 ml-1" /> تفاصيل
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => printGroup(g)}>
+                              <Printer className="w-3 h-3 ml-1" /> طباعة
+                            </Button>
+                            {canManageManual && (
+                              <>
+                                <Button size="sm" variant="outline" className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                                        onClick={() => editGroup(g)}>
+                                  <Edit className="w-3 h-3 ml-1" /> تعديل
+                                </Button>
+                                <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10"
+                                        disabled={cancelBusy}
+                                        onClick={() => cancelGroup(g)}>
+                                  <Trash2 className="w-3 h-3 ml-1" /> إلغاء
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  const r = g.row;
                   const t = typeLabel(r.movement_type);
                   const srcKey = r.reference_type || "";
                   const src = SOURCE_LABELS[srcKey];
@@ -355,11 +560,12 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
                       <td className="p-2 text-xs text-muted-foreground">
                         {r.reason || r.notes || r.party || ""}
                       </td>
+                      <td className="p-2" />
                     </tr>
                   );
                 })}
-                {filtered.length === 0 && (
-                  <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">
+                {grouped.length === 0 && (
+                  <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">
                     {loading ? "جاري التحميل..." : "لا توجد حركات في النطاق المحدد"}
                   </td></tr>
                 )}
@@ -368,6 +574,83 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
           </div>
         </CardContent>
       </Card>
+
+      {/* Details Dialog for grouped supplies */}
+      <Dialog open={!!detailRef} onOpenChange={(v) => { if (!v) setDetailRef(null); }}>
+        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle>
+              {detailGroup ? (
+                <>
+                  {detailGroup.direction === "in" ? "تفاصيل توريدة" : "تفاصيل صرف"}{" "}
+                  <span className="font-mono text-primary">{detailGroup.reference}</span>
+                </>
+              ) : "تفاصيل التوريدة"}
+            </DialogTitle>
+            <DialogDescription>
+              {detailGroup ? (
+                <>
+                  {formatDate(detailGroup.date)} • {detailGroup.partyLabel} •{" "}
+                  {detailGroup.rows.length} صنف • إجمالي {detailGroup.totalQty.toFixed(2)} كجم
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          {detailGroup && (
+            <div className="flex-1 overflow-y-auto min-h-0 border rounded-lg">
+              <table className="w-full text-right text-sm">
+                <thead className="bg-muted/60 text-xs sticky top-0">
+                  <tr>
+                    <th className="p-2">#</th>
+                    <th className="p-2">الصنف</th>
+                    <th className="p-2">الوحدة</th>
+                    <th className="p-2">عدد العبوات</th>
+                    <th className="p-2">وزن العبوة</th>
+                    <th className="p-2">الكمية</th>
+                    <th className="p-2">السبب / ملاحظات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detailGroup.rows.map((r, i) => (
+                    <tr key={r.id} className="border-t">
+                      <td className="p-2">{i + 1}</td>
+                      <td className="p-2 font-semibold">{r.item_name || "—"}</td>
+                      <td className="p-2">{r.unit || "كجم"}</td>
+                      <td className="p-2 font-mono">{r.package_count ?? "—"}</td>
+                      <td className="p-2 font-mono">{r.package_weight_kg ?? "—"}</td>
+                      <td className="p-2 font-mono">{Number(r.quantity || 0).toFixed(2)}</td>
+                      <td className="p-2 text-xs text-muted-foreground">{r.reason || r.notes || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <DialogFooter className="shrink-0 gap-2">
+            {detailGroup && (
+              <>
+                <Button variant="outline" onClick={() => printGroup(detailGroup)}>
+                  <Printer className="w-4 h-4 ml-1" /> طباعة
+                </Button>
+                {canManageManual && (
+                  <>
+                    <Button variant="outline" className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                            onClick={() => editGroup(detailGroup)}>
+                      <Edit className="w-4 h-4 ml-1" /> تعديل
+                    </Button>
+                    <Button variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10"
+                            disabled={cancelBusy}
+                            onClick={() => cancelGroup(detailGroup)}>
+                      <Trash2 className="w-4 h-4 ml-1" /> إلغاء التوريدة
+                    </Button>
+                  </>
+                )}
+              </>
+            )}
+            <Button onClick={() => setDetailRef(null)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 
