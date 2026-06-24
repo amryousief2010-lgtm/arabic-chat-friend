@@ -180,9 +180,13 @@ interface Movement {
   quantity: number;
   destination_warehouse_id: string | null;
   reference: string | null;
+  reference_type?: string | null;
   party: string | null;
   notes: string | null;
   performed_at: string;
+  package_count?: number | null;
+  package_weight_kg?: number | null;
+  performed_by?: string | null;
   item?: { name: string; unit: string };
   warehouse?: { name: string };
   destination?: { name: string };
