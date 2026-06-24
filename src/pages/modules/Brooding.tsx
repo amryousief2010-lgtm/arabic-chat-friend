@@ -530,7 +530,7 @@ const Brooding = () => {
         />
 
         <Tabs defaultValue="batches" className="space-y-4">
-          <TabsList className="flex-wrap h-auto">
+          <TabsList className="flex-wrap h-auto bg-gradient-to-l from-muted/60 to-muted/30 border border-border/60 rounded-2xl p-1.5 shadow-sm [&>button]:rounded-xl [&>button]:transition-all">
             <TabsTrigger value="batches" className="text-rose-600 data-[state=active]:bg-rose-600 data-[state=active]:text-white">الدفعات</TabsTrigger>
             <TabsTrigger value="mortality" className="text-red-700 data-[state=active]:bg-red-700 data-[state=active]:text-white">النافق</TabsTrigger>
             <TabsTrigger value="expenses" className="text-amber-600 data-[state=active]:bg-amber-600 data-[state=active]:text-white">المصروفات</TabsTrigger>
