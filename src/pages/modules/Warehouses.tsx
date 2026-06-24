@@ -2078,8 +2078,11 @@ const Warehouses = () => {
                             }}>
                               <SelectTrigger><SelectValue placeholder="اختر صنفاً" /></SelectTrigger>
                               <SelectContent className="max-h-72">
-                                {items.map(i => <SelectItem key={i.id} value={i.id}>{i.name} — {i.warehouse?.name || ""}</SelectItem>)}
+                                {items
+                                  .filter(i => !editManualWarehouseId || i.warehouse_id === editManualWarehouseId)
+                                  .map(i => <SelectItem key={i.id} value={i.id}>{i.name} — {i.warehouse?.name || ""}</SelectItem>)}
                               </SelectContent>
+
                             </Select>
                           ) : (
                             <span className="font-medium">{items.find(i => i.id === L.item_id)?.name || "—"}</span>
