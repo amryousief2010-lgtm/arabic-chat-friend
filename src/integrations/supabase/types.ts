@@ -6323,6 +6323,75 @@ export type Database = {
           },
         ]
       }
+      hr_employee_suspensions: {
+        Row: {
+          action: string
+          advances_amount: number
+          base_salary: number
+          created_at: string
+          daily_value: number
+          days_count: number
+          deductions_amount: number
+          employee_id: string
+          gross_amount: number
+          id: string
+          net_amount: number
+          notes: string | null
+          performed_by: string | null
+          reason: string
+          suspension_date: string
+        }
+        Insert: {
+          action: string
+          advances_amount?: number
+          base_salary?: number
+          created_at?: string
+          daily_value?: number
+          days_count?: number
+          deductions_amount?: number
+          employee_id: string
+          gross_amount?: number
+          id?: string
+          net_amount?: number
+          notes?: string | null
+          performed_by?: string | null
+          reason: string
+          suspension_date: string
+        }
+        Update: {
+          action?: string
+          advances_amount?: number
+          base_salary?: number
+          created_at?: string
+          daily_value?: number
+          days_count?: number
+          deductions_amount?: number
+          employee_id?: string
+          gross_amount?: number
+          id?: string
+          net_amount?: number
+          notes?: string | null
+          performed_by?: string | null
+          reason?: string
+          suspension_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_suspensions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_suspensions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "v_hr_employee_monthly_payroll"
+            referencedColumns: ["employee_id"]
+          },
+        ]
+      }
       hr_employee_transfers: {
         Row: {
           created_at: string
@@ -6400,6 +6469,7 @@ export type Database = {
           employment_type: Database["public"]["Enums"]["hr_employment_type"]
           full_name: string
           id: string
+          is_suspended: boolean
           job_title: string | null
           national_id: string | null
           notes: string | null
@@ -6407,6 +6477,12 @@ export type Database = {
           phone: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["hr_employee_status"]
+          suspended_at: string | null
+          suspended_by: string | null
+          suspension_date: string | null
+          suspension_net_amount: number | null
+          suspension_notes: string | null
+          suspension_reason: string | null
           updated_at: string
           user_id: string | null
         }
@@ -6421,6 +6497,7 @@ export type Database = {
           employment_type?: Database["public"]["Enums"]["hr_employment_type"]
           full_name: string
           id?: string
+          is_suspended?: boolean
           job_title?: string | null
           national_id?: string | null
           notes?: string | null
@@ -6428,6 +6505,12 @@ export type Database = {
           phone?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["hr_employee_status"]
+          suspended_at?: string | null
+          suspended_by?: string | null
+          suspension_date?: string | null
+          suspension_net_amount?: number | null
+          suspension_notes?: string | null
+          suspension_reason?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -6442,6 +6525,7 @@ export type Database = {
           employment_type?: Database["public"]["Enums"]["hr_employment_type"]
           full_name?: string
           id?: string
+          is_suspended?: boolean
           job_title?: string | null
           national_id?: string | null
           notes?: string | null
@@ -6449,6 +6533,12 @@ export type Database = {
           phone?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["hr_employee_status"]
+          suspended_at?: string | null
+          suspended_by?: string | null
+          suspension_date?: string | null
+          suspension_net_amount?: number | null
+          suspension_notes?: string | null
+          suspension_reason?: string | null
           updated_at?: string
           user_id?: string | null
         }
