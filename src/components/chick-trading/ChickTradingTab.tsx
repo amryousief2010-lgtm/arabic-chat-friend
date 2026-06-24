@@ -869,10 +869,20 @@ export default function ChickTradingTab() {
     const totalCollected = activeSales.filter(s => s.collected).reduce((a, s) => a + Number(s.total), 0);
     const totalCredit = totalSales - totalCollected;
     const open = batches.filter(b => b.status === "open").length;
+    // Deferred purchase aggregates
+    const deferredBatches = batches.filter(b => b.treasury_source === "deferred" && b.status !== "cancelled");
+    let deferredTotal = 0, deferredPaid = 0, deferredOutstanding = 0;
+    deferredBatches.forEach(b => {
+      const t = batchTotalCost(b);
+      const p = Number(b.paid_amount || 0);
+      deferredTotal += t; deferredPaid += p; deferredOutstanding += Math.max(0, t - p);
+    });
+    const deferredOpenCount = deferredBatches.filter(b => (b.payment_status || "deferred") !== "paid").length;
     return {
       open, totalPurchaseCost, totalExp, totalSales, totalCollected, totalCredit,
       profit: totalSales - totalPurchaseCost - totalExp,
       birdsAlive: batches.reduce((a, b) => a + b.current_count, 0),
+      deferredTotal, deferredPaid, deferredOutstanding, deferredOpenCount,
     };
   }, [batches, sales, expenses]);
 
@@ -889,6 +899,16 @@ export default function ChickTradingTab() {
         <KCard label="صافي الربح/الخسارة" value={fmtEGP(totals.profit)}
           color={totals.profit >= 0 ? "emerald" : "red"} />
       </div>
+
+      {/* Deferred-purchase KPIs */}
+      {totals.deferredTotal > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KCard label="دفعات شراء آجل" value={totals.deferredOpenCount} color="orange" />
+          <KCard label="إجمالي مشتريات آجل" value={fmtEGP(totals.deferredTotal)} color="orange" />
+          <KCard label="مدفوع من الآجل" value={fmtEGP(totals.deferredPaid)} color="emerald" />
+          <KCard label="متبقي للموردين" value={fmtEGP(totals.deferredOutstanding)} color="red" />
+        </div>
+      )}
 
       {/* Actions */}
       {canManage && (
