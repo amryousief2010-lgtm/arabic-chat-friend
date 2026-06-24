@@ -1025,27 +1025,40 @@ const Warehouses = () => {
 
 
         <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setForceAllKpi(false); if (v === "more") setMenuSubview(null); }} defaultValue="items">
-          <div className="overflow-x-auto pb-2 premium-tabs-scroll">
-            <TabsList className="w-max flex-nowrap bg-card/70 backdrop-blur-xl border border-border/40 rounded-2xl p-2 gap-1 shadow-lg shadow-black/5 [&_[data-state=active]]:bg-gradient-to-br [&_[data-state=active]]:from-primary [&_[data-state=active]]:to-primary/80 [&_[data-state=active]]:text-primary-foreground [&_[data-state=active]]:shadow-xl [&_[data-state=active]]:shadow-primary/25 [&_[data-state=active]]:ring-2 [&_[data-state=active]]:ring-primary/20 [&_[data-state=active]]:font-bold [&>button]:rounded-xl [&>button]:px-3.5 [&>button]:py-2 [&>button]:text-sm [&>button]:font-semibold [&>button]:transition-all [&>button]:duration-200 [&>button]:hover:bg-muted/50">
-
-              <TabsTrigger value="dashboard-all" className="gap-1"><BarChart3 className="w-4 h-4" />داشبورد المخازن</TabsTrigger>
-              <TabsTrigger value="available" className="gap-1"><Warehouse className="w-4 h-4" />المتاح في المخازن</TabsTrigger>
-              <TabsTrigger value="items">الأصناف</TabsTrigger>
-
-              <TabsTrigger value="receipts" className="gap-1"><Inbox className="w-4 h-4" />الاستلامات</TabsTrigger>
-              <TabsTrigger value="movements">الحركات</TabsTrigger>
-              <TabsTrigger value="low">منخفضة <Badge variant="destructive" className="mr-2">{lowStockItems.length}</Badge></TabsTrigger>
-              <TabsTrigger value="distribution" className="gap-1"><MapPin className="w-4 h-4" />التوزيع الجغرافي</TabsTrigger>
-              <TabsTrigger value="wh-main" className="gap-1"><Warehouse className="w-4 h-4" />المخزن الرئيسي</TabsTrigger>
-              <TabsTrigger value="wh-agouza" className="gap-1"><Warehouse className="w-4 h-4" />مخزن العجوزة</TabsTrigger>
-              <TabsTrigger value="wh-hht" className="gap-1"><Warehouse className="w-4 h-4" />هايبر هيلثي تيست</TabsTrigger>
-              <TabsTrigger value="wh-carrefour" className="gap-1"><Warehouse className="w-4 h-4" />هايبر كارفور</TabsTrigger>
-              <TabsTrigger value="wh-packaging" className="gap-1"><Package className="w-4 h-4" />التغليف والتعبئة</TabsTrigger>
-              <TabsTrigger value="wh-activity" className="gap-1"><BarChart3 className="w-4 h-4" />سجل حركات المخزن الرئيسي</TabsTrigger>
-              <TabsTrigger value="wh-treasury" className="gap-1"><Wallet className="w-4 h-4" />خزينة المخزن الرئيسي</TabsTrigger>
-              <TabsTrigger value="reports" className="gap-1"><FileText className="w-4 h-4" />التقارير</TabsTrigger>
-              <TabsTrigger value="menu" className="gap-1"><UtensilsCrossed className="w-4 h-4" />المنيو</TabsTrigger>
-              <TabsTrigger value="more" className="gap-1"><Menu className="w-4 h-4" />المزيد</TabsTrigger>
+          <div className="mb-4">
+            <TabsList
+              className="
+                h-auto w-full bg-card/70 backdrop-blur-xl border border-border/40 rounded-2xl p-2 gap-2 shadow-lg shadow-black/5
+                grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-9
+                [&>button]:h-auto [&>button]:min-h-[80px] [&>button]:flex [&>button]:flex-col [&>button]:items-center [&>button]:justify-center [&>button]:gap-1.5
+                [&>button]:rounded-xl [&>button]:px-2 [&>button]:py-3 [&>button]:text-xs [&>button]:font-semibold [&>button]:leading-tight [&>button]:text-center [&>button]:whitespace-normal
+                [&>button]:transition-all [&>button]:duration-200 [&>button]:hover:bg-muted/60 [&>button]:border [&>button]:border-transparent [&>button]:hover:border-border/40
+                [&>button>svg]:w-5 [&>button>svg]:h-5 [&>button>svg]:mb-0.5
+                [&_[data-state=active]]:bg-gradient-to-br [&_[data-state=active]]:from-primary [&_[data-state=active]]:to-primary/80
+                [&_[data-state=active]]:text-primary-foreground [&_[data-state=active]]:shadow-xl [&_[data-state=active]]:shadow-primary/25
+                [&_[data-state=active]]:ring-2 [&_[data-state=active]]:ring-primary/20 [&_[data-state=active]]:font-bold [&_[data-state=active]]:border-transparent
+              "
+            >
+              <TabsTrigger value="dashboard-all"><BarChart3 />داشبورد المخازن</TabsTrigger>
+              <TabsTrigger value="available"><Warehouse />المتاح في المخازن</TabsTrigger>
+              <TabsTrigger value="items"><Package />الأصناف</TabsTrigger>
+              <TabsTrigger value="receipts"><Inbox />الاستلامات</TabsTrigger>
+              <TabsTrigger value="movements"><BarChart3 />الحركات</TabsTrigger>
+              <TabsTrigger value="low">
+                <Warehouse />
+                <span className="flex items-center gap-1">منخفضة <Badge variant="destructive" className="h-4 px-1.5 text-[10px]">{lowStockItems.length}</Badge></span>
+              </TabsTrigger>
+              <TabsTrigger value="distribution"><MapPin />التوزيع الجغرافي</TabsTrigger>
+              <TabsTrigger value="wh-main"><Warehouse />المخزن الرئيسي</TabsTrigger>
+              <TabsTrigger value="wh-agouza"><Warehouse />مخزن العجوزة</TabsTrigger>
+              <TabsTrigger value="wh-hht"><Warehouse />هايبر هيلثي تيست</TabsTrigger>
+              <TabsTrigger value="wh-carrefour"><Warehouse />هايبر كارفور</TabsTrigger>
+              <TabsTrigger value="wh-packaging"><Package />التغليف والتعبئة</TabsTrigger>
+              <TabsTrigger value="wh-activity"><BarChart3 />سجل حركات المخزن الرئيسي</TabsTrigger>
+              <TabsTrigger value="wh-treasury"><Wallet />خزينة المخزن الرئيسي</TabsTrigger>
+              <TabsTrigger value="reports"><FileText />التقارير</TabsTrigger>
+              <TabsTrigger value="menu"><UtensilsCrossed />المنيو</TabsTrigger>
+              <TabsTrigger value="more"><Menu />المزيد</TabsTrigger>
             </TabsList>
           </div>
 
