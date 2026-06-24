@@ -593,15 +593,65 @@ const Warehouses = () => {
           </div>
         </div>
 
-        {/* KPIs */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card><CardHeader className="pb-2"><CardDescription>المخازن النشطة</CardDescription><CardTitle className="text-3xl">{warehouses.filter(w => w.is_active).length}</CardTitle></CardHeader></Card>
-          <Card><CardHeader className="pb-2"><CardDescription>إجمالي الأصناف</CardDescription><CardTitle className="text-3xl">{items.length}</CardTitle></CardHeader></Card>
-          <Card><CardHeader className="pb-2"><CardDescription>قيمة المخزون</CardDescription><CardTitle className="text-2xl">{items.reduce((s, i) => s + i.stock * i.unit_cost, 0).toLocaleString()}</CardTitle></CardHeader></Card>
-          <Card className={lowStockItems.length > 0 ? "border-destructive" : ""}>
-            <CardHeader className="pb-2"><CardDescription>أصناف منخفضة</CardDescription><CardTitle className={`text-3xl ${lowStockItems.length > 0 ? "text-destructive" : ""}`}>{lowStockItems.length}</CardTitle></CardHeader>
-          </Card>
-        </div>
+        {/* KPIs — dynamic based on selected warehouse */}
+        {(() => {
+          const selWh = selectedKpiWarehouseId ? warehouses.find(w => w.id === selectedKpiWarehouseId) : null;
+          const scopeItems = selWh ? items.filter(i => i.warehouse_id === selWh.id) : items;
+          const scopeValue = scopeItems.reduce((s, i) => s + i.stock * i.unit_cost, 0);
+          const scopeLow = scopeItems.filter(i => i.stock <= i.low_stock_threshold);
+          const scopeNeg = scopeItems.filter(i => i.stock < 0);
+          return (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <h2 className="text-lg font-semibold">
+                  {selWh ? `إحصائيات: ${selWh.name}` : "إجمالي كل المخازن"}
+                </h2>
+                {selWh && (
+                  <Button variant="outline" size="sm" onClick={() => setSelectedKpiWarehouseId(null)}>
+                    عرض إجمالي كل المخازن
+                  </Button>
+                )}
+              </div>
+              {selWh ? (
+                <div className="grid gap-4 md:grid-cols-4">
+                  <Card><CardHeader className="pb-2"><CardDescription>عدد الأصناف</CardDescription><CardTitle className="text-3xl">{scopeItems.length}</CardTitle></CardHeader></Card>
+                  <Card><CardHeader className="pb-2"><CardDescription>قيمة المخزون</CardDescription><CardTitle className="text-2xl">{scopeValue.toLocaleString()}</CardTitle></CardHeader></Card>
+                  <Card className={scopeLow.length > 0 ? "border-destructive" : ""}>
+                    <CardHeader className="pb-2"><CardDescription>أصناف منخفضة</CardDescription><CardTitle className={`text-3xl ${scopeLow.length > 0 ? "text-destructive" : ""}`}>{scopeLow.length}</CardTitle></CardHeader>
+                  </Card>
+                  <Card className={scopeNeg.length > 0 ? "border-destructive" : ""}>
+                    <CardHeader className="pb-2"><CardDescription>أصناف بالسالب</CardDescription><CardTitle className={`text-3xl ${scopeNeg.length > 0 ? "text-destructive" : ""}`}>{scopeNeg.length}</CardTitle></CardHeader>
+                  </Card>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-4">
+                  <Card><CardHeader className="pb-2"><CardDescription>المخازن النشطة</CardDescription><CardTitle className="text-3xl">{warehouses.filter(w => w.is_active).length}</CardTitle></CardHeader></Card>
+                  <Card><CardHeader className="pb-2"><CardDescription>إجمالي الأصناف</CardDescription><CardTitle className="text-3xl">{items.length}</CardTitle></CardHeader></Card>
+                  <Card><CardHeader className="pb-2"><CardDescription>قيمة المخزون</CardDescription><CardTitle className="text-2xl">{items.reduce((s, i) => s + i.stock * i.unit_cost, 0).toLocaleString()}</CardTitle></CardHeader></Card>
+                  <Card className={lowStockItems.length > 0 ? "border-destructive" : ""}>
+                    <CardHeader className="pb-2"><CardDescription>أصناف منخفضة</CardDescription><CardTitle className={`text-3xl ${lowStockItems.length > 0 ? "text-destructive" : ""}`}>{lowStockItems.length}</CardTitle></CardHeader>
+                  </Card>
+                </div>
+              )}
+              {warehouses.length > 0 && (
+                <div className="flex gap-2 flex-wrap pt-1">
+                  {warehouses.map(w => (
+                    <Button
+                      key={w.id}
+                      size="sm"
+                      variant={selectedKpiWarehouseId === w.id ? "default" : "outline"}
+                      onClick={() => setSelectedKpiWarehouseId(w.id)}
+                      className="text-xs"
+                    >
+                      {w.name}
+                      {selectedKpiWarehouseId === w.id && <Badge variant="secondary" className="mr-2">المحدد</Badge>}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "more") setMenuSubview(null); }} defaultValue="items">
           <div className="overflow-x-auto pb-1">
