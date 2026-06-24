@@ -76,35 +76,98 @@ const useChickTrading = () => {
 
 // ============ Purchase Dialog ============
 const NewPurchaseDialog = ({ onSaved }: { onSaved: () => void }) => {
+  const { isGeneralManager, isExecutiveManager, isAccountant } = useAuth();
+  const canUseDebtSettlement = isGeneralManager || isExecutiveManager || isAccountant;
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [f, setF] = useState({
     supplier_name: "", purchase_date: new Date().toISOString().slice(0, 10),
     age_at_purchase: 1, count: 0, unit_price: 0,
     transport_cost: 0, disinfection_cost: 0, other_costs: 0,
-    treasury_source: "lab" as "lab" | "main",
+    treasury_source: "lab" as "lab" | "main" | "customer_debt",
     notes: "", attachment_url: "",
+    settlement_customer: "",
+    settlement_amount: 0,
+    diff_treasury_source: "lab" as "lab" | "main" | "none",
+    settlement_notes: "",
   });
   const total = (Number(f.count) * Number(f.unit_price)) +
     Number(f.transport_cost) + Number(f.disinfection_cost) + Number(f.other_costs);
 
+  // Customers with outstanding debt
+  const [debtCustomers, setDebtCustomers] = useState<Array<{ customer_name: string; balance: number }>>([]);
+  const [customerBalance, setCustomerBalance] = useState<number>(0);
+  useEffect(() => {
+    if (!open || f.treasury_source !== "customer_debt") return;
+    supabase.rpc("chick_trading_customers_with_debt" as any).then(({ data }) => {
+      setDebtCustomers((data || []) as any);
+    });
+  }, [open, f.treasury_source]);
+  useEffect(() => {
+    if (f.treasury_source !== "customer_debt" || !f.settlement_customer) { setCustomerBalance(0); return; }
+    supabase.rpc("chick_trading_customer_balance" as any, { _customer: f.settlement_customer })
+      .then(({ data }) => setCustomerBalance(Number(data || 0)));
+  }, [f.settlement_customer, f.treasury_source]);
+
+  // Auto-fill settlement amount with min(balance, total)
+  useEffect(() => {
+    if (f.treasury_source !== "customer_debt") return;
+    const suggested = Math.min(customerBalance, total);
+    setF(prev => ({ ...prev, settlement_amount: Number(suggested.toFixed(2)) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerBalance, total, f.treasury_source]);
+
+  const diffAmount = f.treasury_source === "customer_debt"
+    ? Math.max(0, total - Number(f.settlement_amount || 0))
+    : 0;
+  const remainingDebt = Math.max(0, customerBalance - Number(f.settlement_amount || 0));
+
   const save = async () => {
     if (!f.supplier_name.trim()) return toast.error("اسم المورد مطلوب");
     if (!f.count || !f.unit_price) return toast.error("العدد والسعر مطلوبان");
+    if (f.treasury_source === "customer_debt") {
+      if (!canUseDebtSettlement) return toast.error("لا تملك صلاحية تسوية مديونية عميل");
+      if (!f.settlement_customer) return toast.error("اختر العميل");
+      if (!f.settlement_amount || f.settlement_amount <= 0) return toast.error("قيمة التسوية مطلوبة");
+      if (f.settlement_amount > customerBalance) {
+        return toast.error(`قيمة التسوية أكبر من رصيد مديونية العميل (${fmtEGP(customerBalance)})`);
+      }
+      if (f.settlement_amount > total) {
+        return toast.error("قيمة التسوية أكبر من إجمالي الشراء");
+      }
+    }
     setSaving(true);
-    const { error } = await supabase.rpc("chick_trading_create_purchase" as any, {
+    const { error } = await supabase.rpc("chick_trading_create_purchase_v2" as any, {
       _supplier: f.supplier_name, _purchase_date: f.purchase_date, _age: f.age_at_purchase,
       _count: f.count, _unit_price: f.unit_price,
       _transport: f.transport_cost, _disinfection: f.disinfection_cost, _other: f.other_costs,
       _treasury_source: f.treasury_source, _main_account_id: null,
       _notes: f.notes || null, _attachment_url: f.attachment_url || null,
+      _settlement_customer: f.treasury_source === "customer_debt" ? f.settlement_customer : null,
+      _settlement_amount: f.treasury_source === "customer_debt" ? f.settlement_amount : 0,
+      _diff_treasury_source: f.treasury_source === "customer_debt" && diffAmount > 0 ? f.diff_treasury_source : null,
+      _settlement_notes: f.treasury_source === "customer_debt" ? (f.settlement_notes || null) : null,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success("تم تسجيل شراء كتاكيت التجارة وخصم الخزنة");
+    if (f.treasury_source === "customer_debt") {
+      toast.success(`تم خصم ${fmtEGP(f.settlement_amount)} من مديونية العميل. المتبقي عليه: ${fmtEGP(remainingDebt)}`);
+    } else {
+      toast.success("تم تسجيل شراء كتاكيت التجارة وخصم الخزنة");
+    }
     setOpen(false); onSaved();
-    setF({ ...f, supplier_name: "", count: 0, unit_price: 0, transport_cost: 0, disinfection_cost: 0, other_costs: 0, notes: "" });
+    setF({
+      ...f, supplier_name: "", count: 0, unit_price: 0,
+      transport_cost: 0, disinfection_cost: 0, other_costs: 0,
+      notes: "", settlement_customer: "", settlement_amount: 0, settlement_notes: "",
+    });
   };
+
+  const summaryLabel = f.treasury_source === "customer_debt"
+    ? (diffAmount > 0
+        ? `إجمالي يُسوّى من مديونية العميل + فرق يُخصم من ${TREASURY_LABEL[f.diff_treasury_source] || ""}:`
+        : "إجمالي يُسوّى من مديونية العميل:")
+    : `إجمالي يُخصم من ${TREASURY_LABEL[f.treasury_source]}:`;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -113,7 +176,7 @@ const NewPurchaseDialog = ({ onSaved }: { onSaved: () => void }) => {
           <ShoppingCart className="w-4 h-4" /> شراء كتاكيت تجارة
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl" dir="rtl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto" dir="rtl">
         <DialogHeader><DialogTitle>شراء كتاكيت تجارة</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div><Label>اسم المزرعة / المورد *</Label>
@@ -140,13 +203,66 @@ const NewPurchaseDialog = ({ onSaved }: { onSaved: () => void }) => {
               <SelectContent>
                 <SelectItem value="lab">خزنة المعمل والحضانات</SelectItem>
                 <SelectItem value="main">الخزنة الرئيسية</SelectItem>
+                {canUseDebtSettlement && (
+                  <SelectItem value="customer_debt">تسوية من مديونية عميل</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
+
+          {f.treasury_source === "customer_debt" && (
+            <>
+              <div className="col-span-2 p-3 rounded-md bg-amber-50 border border-amber-300 text-xs text-amber-900">
+                ⚠️ لن يتم خصم أي مبلغ من الخزنة إلا إذا كان هناك فرق بين قيمة الشراء ومديونية العميل.
+              </div>
+              <div className="col-span-2"><Label>اسم العميل *</Label>
+                <Select value={f.settlement_customer} onValueChange={v => setF({ ...f, settlement_customer: v })}>
+                  <SelectTrigger><SelectValue placeholder="اختر عميل عليه مديونية" /></SelectTrigger>
+                  <SelectContent>
+                    {debtCustomers.length === 0 && (
+                      <div className="p-2 text-xs text-muted-foreground text-center">
+                        لا يوجد عملاء عليهم مديونية في تجارة الكتاكيت
+                      </div>
+                    )}
+                    {debtCustomers.map(c => (
+                      <SelectItem key={c.customer_name} value={c.customer_name}>
+                        {c.customer_name} — رصيده: {fmtEGP(c.balance)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>رصيد مديونية العميل الحالي</Label>
+                <Input readOnly value={fmtEGP(customerBalance)} className="bg-muted" /></div>
+              <div><Label>قيمة الكتاكيت / الشراء</Label>
+                <Input readOnly value={fmtEGP(total)} className="bg-muted" /></div>
+              <div><Label>المبلغ الذي سيُخصم من الدين *</Label>
+                <Input type="number" step="0.01" value={f.settlement_amount}
+                  onChange={e => setF({ ...f, settlement_amount: +e.target.value })} /></div>
+              <div><Label>المتبقي على العميل بعد التسوية</Label>
+                <Input readOnly value={fmtEGP(remainingDebt)} className="bg-muted font-semibold" /></div>
+              {diffAmount > 0 && (
+                <div className="col-span-2"><Label>طريقة دفع الفرق ({fmtEGP(diffAmount)}) *</Label>
+                  <Select value={f.diff_treasury_source} onValueChange={(v: any) => setF({ ...f, diff_treasury_source: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="lab">خزنة المعمل والحضانات</SelectItem>
+                      <SelectItem value="main">الخزنة الرئيسية</SelectItem>
+                      <SelectItem value="none">نقدي لاحقًا (بدون خصم خزنة)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="col-span-2"><Label>سبب / ملاحظات التسوية</Label>
+                <Textarea value={f.settlement_notes}
+                  onChange={e => setF({ ...f, settlement_notes: e.target.value })} /></div>
+            </>
+          )}
+
           <div className="col-span-2"><Label>ملاحظات</Label>
             <Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
           <div className="col-span-2 p-3 rounded-md bg-purple-50 border border-purple-200 flex justify-between">
-            <span className="font-semibold">إجمالي يُخصم من {TREASURY_LABEL[f.treasury_source]}:</span>
+            <span className="font-semibold">{summaryLabel}</span>
             <span className="font-bold text-purple-700 text-lg">{fmtEGP(total)}</span>
           </div>
         </div>
