@@ -224,10 +224,42 @@ const HRDeductions = () => {
   const dailyValue = isDays && form.days_per_month > 0 ? empSalary / form.days_per_month : 0;
   const computedDaysAmount = isDays ? +(dailyValue * (form.days_count || 0)).toFixed(2) : 0;
 
+  // Detect when reason/notes mention an employee name different from the selected beneficiary
+  const nameMismatch = useMemo(() => {
+    const text = `${form.reason || ""} ${form.notes || ""}`.trim();
+    if (!text || !selectedEmp) return null;
+    const norm = (s: string) =>
+      (s || "")
+        .replace(/[ًٌٍَُِّْـ]/g, "")
+        .replace(/[إأآا]/g, "ا")
+        .replace(/[ىي]/g, "ي")
+        .replace(/ة/g, "ه")
+        .toLowerCase();
+    const haystack = norm(text);
+    const selectedTokens = norm(selectedEmp.full_name).split(/\s+/).filter((t) => t.length >= 3);
+    const selectedMentioned = selectedTokens.some((t) => haystack.includes(t));
+    for (const e of employees) {
+      if (e.id === selectedEmp.id) continue;
+      const tokens = norm(e.full_name).split(/\s+/).filter((t) => t.length >= 3);
+      const hit = tokens.find((t) => haystack.includes(t));
+      if (hit && !selectedMentioned) {
+        return { other: e.full_name, token: hit };
+      }
+    }
+    return null;
+  }, [form.reason, form.notes, selectedEmp, employees]);
+
+
   const save = async () => {
     if (!canRecord) return;
-    if (!form.employee_id) return toast.error("اختر الموظف");
+    if (!form.employee_id) return toast.error("اختر الموظف المستفيد (إجباري)");
     if (!form.deduction_type) return toast.error("اختر نوع الخصم");
+    if (nameMismatch) {
+      const ok = confirm(
+        `تنبيه: الملاحظات/السبب يذكرون اسم "${nameMismatch.other}" بينما الموظف المستفيد المختار هو "${selectedEmp?.full_name}".\n\nهل أنت متأكد من المتابعة؟`,
+      );
+      if (!ok) return;
+    }
 
     let finalAmount = form.amount;
     let daysCount: number | null = null;
@@ -686,14 +718,23 @@ const HRDeductions = () => {
           </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="md:col-span-2">
-              <Label>الموظف *</Label>
+              <Label>
+                الموظف المستفيد <span className="text-rose-600">*</span>
+                <span className="text-xs text-muted-foreground mr-2">(إجباري — صاحب السلفة/الخصم وليس من سجّل الحركة)</span>
+              </Label>
               <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
-                <SelectTrigger><SelectValue placeholder="اختر الموظف" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="اختر الموظف المستفيد" /></SelectTrigger>
                 <SelectContent className="max-h-72">
                   {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name} {e.department ? `— ${e.department}` : ""}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
+            {nameMismatch && (
+              <div className="md:col-span-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                ⚠ تنبيه: الملاحظات/السبب يذكرون اسم <b>«{nameMismatch.other}»</b> بينما الموظف المستفيد المختار هو <b>«{selectedEmp?.full_name}»</b>.
+                تأكد من اختيار الموظف الصحيح قبل الحفظ حتى لا يحدث ربط خاطئ.
+              </div>
+            )}
             <div>
               <Label>التاريخ *</Label>
               <Input
