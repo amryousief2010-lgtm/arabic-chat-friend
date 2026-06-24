@@ -1050,6 +1050,7 @@ const BATCH_ACTIONS = [
   { key: "expense", label: "إضافة مصروف", icon: Wallet },
   { key: "sale", label: "بيع كتاكيت", icon: ShoppingCart },
   { key: "transfer", label: "تحويل للمجزر", icon: ArrowRightLeft },
+  { key: "internal_transfer", label: "نقل داخلي حضانة/تسمين", icon: ArrowRightLeft },
 ] as const;
 
 const BatchActionsMenu = ({ batch, batches, feedInventory, settings, canManage, onReload }: { batch: Batch; batches: Batch[]; feedInventory: FeedInventory[]; settings: BroodingSettings; canManage: boolean; onReload: () => void }) => {
