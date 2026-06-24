@@ -340,27 +340,41 @@ const Warehouses = () => {
     });
   };
 
-  const cancelManualGroup = async () => {
-    if (!manualGroup || !canManageManual) return;
-    const reason = window.prompt("سبب الإلغاء (مطلوب):", "");
+  const cancelManualGroupRow = async (
+    group?: Extract<GroupedRow, { kind: "manual" }>
+  ) => {
+    const target = group || manualGroup;
+    if (!target || !canManageManual) return;
+    const reason = window.prompt("سبب الإلغاء / العكس (إجباري):", "");
     if (!reason || !reason.trim()) {
       toast({ title: "السبب مطلوب لإلغاء التوريدة", variant: "destructive" });
       return;
     }
-    if (!window.confirm(`سيتم إلغاء التوريدة ${manualGroup.reference} وعكس أثرها على المخزون. متابعة؟`)) return;
+    const note = window.prompt("ملاحظة إضافية (اختياري):", "") || "";
+    if (!window.confirm(`سيتم إلغاء التوريدة ${target.reference} وعكس أثرها على المخزون. متابعة؟`)) return;
     setManualBusy(true);
     try {
       // Reverse stock for each line, then delete the original movements.
-      for (const m of manualGroup.movs) {
+      for (const m of target.movs) {
         const delta = (m.movement_type === "in" ? -1 : 1) * Number(m.quantity || 0);
         const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", m.item_id).maybeSingle();
         const newStock = Number((it as any)?.stock || 0) + delta;
         await supabase.from("inventory_items").update({ stock: newStock }).eq("id", m.item_id);
       }
-      const ids = manualGroup.movs.map((m) => m.id);
+      const ids = target.movs.map((m) => m.id);
       const { error } = await supabase.from("inventory_movements").delete().in("id", ids);
       if (error) throw error;
-      toast({ title: "تم إلغاء التوريدة", description: `${manualGroup.reference} — ${reason}` });
+      // Lightweight audit trail — appended into a notification for managers
+      try {
+        await supabase.from("notifications").insert({
+          user_id: user?.id,
+          type: "warehouse_supply_cancelled",
+          title: `إلغاء توريدة ${target.reference}`,
+          message: `سبب: ${reason}${note ? ` | ملاحظة: ${note}` : ""} | بواسطة: ${user?.email || user?.id || "—"}`,
+          read: false,
+        } as any);
+      } catch { /* audit best-effort */ }
+      toast({ title: "تم إلغاء التوريدة", description: `${target.reference} — ${reason}` });
       setManualGroupRef(null);
       await fetchAll();
     } catch (e: any) {
@@ -369,6 +383,7 @@ const Warehouses = () => {
       setManualBusy(false);
     }
   };
+  const cancelManualGroup = () => cancelManualGroupRow();
 
 
   const fetchAll = async () => {
