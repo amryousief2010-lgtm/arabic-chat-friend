@@ -820,6 +820,23 @@ const HREmployees = () => {
           baseSalary={Number(deductionsOf.base_salary) || 0}
         />
       )}
+
+      {suspendOf && (
+        <EmployeeSuspensionDialog
+          open={!!suspendOf}
+          onOpenChange={(o) => !o && setSuspendOf(null)}
+          employee={{
+            id: suspendOf.id,
+            code: suspendOf.code,
+            full_name: suspendOf.full_name,
+            job_title: suspendOf.job_title,
+            location_name: suspendOf.current_location_id ? locById.get(suspendOf.current_location_id)?.name || null : null,
+            base_salary: Number(suspendOf.base_salary) || 0,
+            pay_day: suspendOf.pay_day,
+          }}
+          onDone={load}
+        />
+      )}
     </DashboardLayout>
   );
 };
