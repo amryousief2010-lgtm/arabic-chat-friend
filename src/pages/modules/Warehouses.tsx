@@ -31,6 +31,7 @@ import MainWarehouseGuide from "@/pages/MainWarehouseGuide";
 import WarehouseOpeningBalance from "@/pages/modules/WarehouseOpeningBalance";
 import WarehouseOperationalDates from "@/pages/modules/WarehouseOperationalDates";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
+import WarehousesDashboardPanel from "@/components/warehouses/WarehousesDashboardPanel";
 
 
 const qualityLabelText: Record<string, string> = {
