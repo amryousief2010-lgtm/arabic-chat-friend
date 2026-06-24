@@ -146,7 +146,8 @@ const HREmployees = () => {
       supabase.from("hr_employees").select("*").order("code"),
       supabase.from("hr_work_locations").select("id, name, department").eq("is_active", true).order("sort_order"),
     ]);
-    setEmployees((emp.data || []) as Employee[]);
+    const empList = (emp.data || []) as Employee[];
+    setEmployees(empList);
     setLocations((loc.data || []) as Location[]);
 
     if (canSeeDocStatus) {
@@ -159,6 +160,16 @@ const HREmployees = () => {
       setDocsSummary(map);
     }
     await loadDeductions();
+    // Load treasury advances and group by matched employee
+    try {
+      const { fetchAdvancesByEmployee, sumAdvances } = await import("@/lib/hrAdvances");
+      const { map } = await fetchAdvancesByEmployee(empList.map((e) => ({ id: e.id, full_name: e.full_name })));
+      const totals: Record<string, number> = {};
+      for (const k of Object.keys(map)) totals[k] = sumAdvances(map[k]);
+      setAdvancesMap(totals);
+    } catch (e) {
+      console.error("Failed to load advances", e);
+    }
     setLoading(false);
   };
 
