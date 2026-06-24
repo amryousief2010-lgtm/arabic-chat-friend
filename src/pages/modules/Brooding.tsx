@@ -251,7 +251,6 @@ const Brooding = () => {
   const [feedStockMovements, setFeedStockMovements] = useState<FeedStockMovement[]>([]);
   const [snapshots, setSnapshots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const { prices: marketPrices } = useMarketPrices();
 
   const loadAll = async () => {
@@ -312,44 +311,36 @@ const Brooding = () => {
 
   // ===== KPIs =====
   const kpis = useMemo(() => {
-    const scopeBatches = selectedLocation
-      ? batches.filter(b => (b.rearing_location || "chick_nursery") === selectedLocation)
-      : batches;
-    const scopeIds = new Set(scopeBatches.map(b => b.id));
-    const inScope = <T extends { batch_id: string }>(arr: T[]) =>
-      selectedLocation ? arr.filter(x => scopeIds.has(x.batch_id)) : arr;
-    const sFeed = inScope(feed as any);
-    const sMed = inScope(medicine as any);
-    const sExpenses = inScope(expenses as any);
-    const sSales = inScope(sales as any);
-    const sTransfers = inScope(transfers as any);
-
-    const totalBirds = scopeBatches.reduce((a, b) => a + b.current_count, 0);
-    const openBatches = scopeBatches.filter(b => b.status === "active").length;
-    const totalMortality = scopeBatches.reduce((a, b) => a + b.mortality_count, 0);
-    const totalSold = scopeBatches.reduce((a, b) => a + b.sold_count, 0);
-    const totalTransferred = scopeBatches.reduce((a, b) => a + b.transferred_count, 0);
-    const totalOriginal = scopeBatches.reduce((a, b) => a + b.original_count, 0);
+    const totalBirds = batches.reduce((a, b) => a + b.current_count, 0);
+    const openBatches = batches.filter(b => b.status === "active").length;
+    const totalMortality = batches.reduce((a, b) => a + b.mortality_count, 0);
+    const totalSold = batches.reduce((a, b) => a + b.sold_count, 0);
+    const totalTransferred = batches.reduce((a, b) => a + b.transferred_count, 0);
+    const totalOriginal = batches.reduce((a, b) => a + b.original_count, 0);
     const mortalityRate = totalOriginal > 0 ? (totalMortality / totalOriginal) * 100 : 0;
-    const totalCost = scopeBatches.reduce((a, b) => a + Number(b.total_cost), 0);
+    const totalCost = batches.reduce((a, b) => a + Number(b.total_cost), 0);
     const avgCostPerBird = totalBirds > 0 ? totalCost / totalBirds : 0;
-    const currentChicksValue = scopeBatches.reduce(
+    // Current chicks value: per-batch (current_count × cost_per_bird) from DB.
+    // total_cost stored in DB already includes opening + feed + medicine + expenses,
+    // and cost_per_bird = total_cost / current_count (recomputed after every movement),
+    // so mortality automatically redistributes the cost on the remaining live birds.
+    const currentChicksValue = batches.reduce(
       (acc, b) => acc + b.current_count * Number(b.cost_per_bird),
       0,
     );
-    const feedCost = sFeed.reduce((a, x: any) => a + Number(x.total_cost), 0);
-    const medCost = sMed.reduce((a, x: any) => a + Number(x.total_cost), 0);
+    const feedCost = feed.reduce((a, x) => a + Number(x.total_cost), 0);
+    const medCost = medicine.reduce((a, x) => a + Number(x.total_cost), 0);
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 15);
-    const last15 = [...sExpenses, ...sFeed.map((f: any) => ({ expense_date: f.issue_date, total_amount: f.total_cost })), ...sMed.map((m: any) => ({ expense_date: m.issue_date, total_amount: m.total_cost }))]
+    const last15 = [...expenses, ...feed.map(f => ({ expense_date: f.issue_date, total_amount: f.total_cost })), ...medicine.map(m => ({ expense_date: m.issue_date, total_amount: m.total_cost }))]
       .filter((x: any) => new Date(x.expense_date) >= cutoff)
       .reduce((a, x: any) => a + Number(x.total_amount), 0);
-    const salesProfit = sSales.reduce((a, x: any) => a + Number(x.profit), 0);
-    const salesRevenue = sSales.reduce((a, x: any) => a + Number(x.total_amount), 0);
-    const transferredCost = sTransfers.reduce((a, x: any) => a + Number(x.transferred_cost), 0);
+    const salesProfit = sales.reduce((a, x) => a + Number(x.profit), 0);
+    const salesRevenue = sales.reduce((a, x) => a + Number(x.total_amount), 0);
+    const transferredCost = transfers.reduce((a, x) => a + Number(x.transferred_cost), 0);
     const feedStockKg = feedInventory.reduce((a, x) => a + Number(x.current_kg), 0);
     const feedStockValue = feedInventory.reduce((a, x) => a + Number(x.current_kg) * Number(x.last_unit_cost), 0);
     return { totalBirds, openBatches, totalMortality, mortalityRate, totalSold, totalTransferred, totalCost, avgCostPerBird, feedCost, medCost, last15, salesProfit, salesRevenue, currentChicksValue, transferredCost, feedStockKg, feedStockValue };
-  }, [batches, feed, medicine, expenses, sales, transfers, feedInventory, settings.default_chick_price, selectedLocation]);
+  }, [batches, feed, medicine, expenses, sales, transfers, feedInventory, settings.default_chick_price]);
 
   const batchLabel = (id: string) => batches.find(b => b.id === id)?.batch_number || id.slice(0, 6);
   const feedNameById = (id: string | null) => feedInventory.find(f => f.id === id)?.feed_name || '-';
@@ -392,92 +383,7 @@ const Brooding = () => {
           </Card>
         )}
 
-        {/* Hero dashboard */}
-        {(() => {
-          const locKey = selectedLocation || "all";
-          const locLabel = selectedLocation ? locationLabel(selectedLocation) : "إجمالي كل المواقع";
-          const scopeBatches = selectedLocation
-            ? batches.filter(b => (b.rearing_location || "chick_nursery") === selectedLocation)
-            : batches;
-          const LOCATIONS: { key: string; label: string }[] = [
-            { key: "chick_nursery", label: "حضانات الكتاكيت" },
-            { key: "fattening_farm", label: "مزرعة التسمين" },
-          ];
-          return (
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-              {/* Active location */}
-              <Card className="lg:col-span-1 border-primary/30 bg-gradient-to-br from-primary/5 to-orange-500/5">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs text-muted-foreground">الموقع النشط</div>
-                    <div className="p-2 rounded-lg bg-gradient-to-br from-primary to-orange-500 text-white">
-                      <Bird className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <div className="text-lg font-bold leading-tight">{locLabel}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {fmt(scopeBatches.length)} دفعة • {fmt(scopeBatches.filter(b => b.status === "active").length)} نشطة
-                  </div>
-                  {selectedLocation && (
-                    <Button size="sm" variant="outline" className="w-full" onClick={() => setSelectedLocation(null)}>
-                      عرض إجمالي كل المواقع
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Quick actions */}
-              <Card className="lg:col-span-1">
-                <CardContent className="p-4 space-y-2">
-                  <div className="text-xs text-muted-foreground mb-2">إجراءات سريعة</div>
-                  {canManage && (
-                    <NewBatchDialog onCreated={loadAll} nextBatchNumber={nextBatchNumber} settings={settings} />
-                  )}
-                  <Button size="sm" variant="outline" className="w-full justify-start" onClick={() => exportXlsx(batches, "brooding_batches")}>
-                    <FileSpreadsheet className="w-4 h-4 ml-2" /> تصدير Excel
-                  </Button>
-                  <Button size="sm" variant="outline" className="w-full justify-start" onClick={() => printTable("تقرير الدفعات", ["رقم", "تاريخ الاستلام", "العمر", "مكان التربية", "الأصلي", "الحالي", "نافق", "مباع", "محوّل", "تكلفة", "تكلفة الطائر", "الحالة"],
-                    batches.map(b => [b.batch_number, b.received_date, ageLabel(b), locationLabel(b.rearing_location), b.original_count, b.current_count, b.mortality_count, b.sold_count, b.transferred_count, fmtMoney(Number(b.total_cost)), fmtMoney(Number(b.cost_per_bird)), b.status]), settings)}>
-                    <Printer className="w-4 h-4 ml-2" /> طباعة الدفعات
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Locations selector */}
-              <Card className="lg:col-span-2">
-                <CardContent className="p-4 space-y-2">
-                  <div className="text-xs text-muted-foreground mb-2">المواقع</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {LOCATIONS.map(loc => {
-                      const list = batches.filter(b => (b.rearing_location || "chick_nursery") === loc.key);
-                      const birds = list.reduce((a, b) => a + b.current_count, 0);
-                      const active = list.filter(b => b.status === "active").length;
-                      const isSel = selectedLocation === loc.key;
-                      return (
-                        <button
-                          key={loc.key}
-                          type="button"
-                          onClick={() => setSelectedLocation(isSel ? null : loc.key)}
-                          className={`text-right p-3 rounded-lg border transition ${isSel ? "border-primary border-2 ring-2 ring-primary/20 bg-primary/5" : "border-border hover:bg-muted/50"}`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="font-semibold text-sm">{loc.label}</div>
-                            {isSel && <Badge variant="secondary" className="text-[10px]">المحدد</Badge>}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {fmt(birds)} طائر • {fmt(active)} دفعة نشطة
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          );
-        })()}
-
-        {/* KPIs (scoped by selected location) */}
+        {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KPI label="الطيور الحالية" value={fmt(kpis.totalBirds)} icon={<Bird className="w-5 h-5" />} color="from-purple-500 to-purple-700" />
           <KPI label="قيمة الكتاكيت الحالية" value={fmtMoney(kpis.currentChicksValue)} icon={<Wallet className="w-5 h-5" />} color="from-emerald-600 to-emerald-800" />
@@ -496,7 +402,6 @@ const Brooding = () => {
           <KPI label="أرباح البيع" value={fmtMoney(kpis.salesProfit)} icon={<TrendingUp className="w-5 h-5" />} color="from-green-500 to-green-700" />
           <KPI label="تكلفة المحوّل للمجزر" value={fmtMoney(kpis.transferredCost)} icon={<ArrowRightLeft className="w-5 h-5" />} color="from-indigo-600 to-indigo-800" />
         </div>
-
 
         {/* Market profitability dashboard */}
         <MarketProfitabilityCard
