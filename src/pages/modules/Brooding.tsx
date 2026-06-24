@@ -1091,6 +1091,7 @@ const BatchActionsMenu = ({ batch, batches, feedInventory, settings, canManage, 
           {action === "expense" && <ExpenseForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
           {action === "sale" && <SaleForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
           {action === "transfer" && <TransferForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
+          {action === "internal_transfer" && <InternalTransferForm batch={batch} onDone={close} />}
         </DialogContent>
       </Dialog>
     </>
