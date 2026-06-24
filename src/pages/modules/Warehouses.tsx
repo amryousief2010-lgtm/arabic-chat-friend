@@ -1024,12 +1024,45 @@ const Warehouses = () => {
                     <TableHead>الكمية</TableHead>
                     <TableHead>الوجهة/الجهة</TableHead>
                     <TableHead>المرجع</TableHead>
+                    <TableHead className="text-center">إجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {movements.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
-                  ) : movements.map(m => {
+                  {groupedMovements.length === 0 ? (
+                    <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+                  ) : groupedMovements.map((row) => {
+                    if (row.kind === "manual") {
+                      const isIn = row.direction === "in";
+                      const sample = row.movs[0];
+                      const unit = sample?.item?.unit || "كجم";
+                      return (
+                        <TableRow key={row.reference} className={isIn ? "bg-emerald-50/40" : "bg-rose-50/40"}>
+                          <TableCell className="text-xs">{formatDateTime(row.date)}</TableCell>
+                          <TableCell>
+                            <Badge className={`gap-1 ${isIn ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"}`}>
+                              {isIn ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />}
+                              {isIn ? "توريد مباشر" : "صرف مباشر"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell colSpan={2} className="font-medium">
+                            <span className="text-muted-foreground">توريدة</span>{" "}
+                            <span className="font-mono">{row.reference}</span>
+                            <span className="text-muted-foreground mr-2">({row.movs.length} صنف)</span>
+                          </TableCell>
+                          <TableCell>{row.totalQty.toFixed(2)} {unit}</TableCell>
+                          <TableCell>{row.partyLabel || "—"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground font-mono">{row.reference}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1 justify-center">
+                              <Button size="sm" variant="outline" onClick={() => setManualGroupRef(row.reference)}>
+                                <Eye className="w-3 h-3 ml-1" /> تفاصيل
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+                    const m = row.mov;
                     const cfg = movementTypeLabels[m.movement_type];
                     const Icon = cfg?.icon || ArrowDown;
                     return (
@@ -1041,6 +1074,7 @@ const Warehouses = () => {
                         <TableCell>{m.quantity} {m.item?.unit}</TableCell>
                         <TableCell>{m.destination?.name || m.party || "—"}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{m.reference || "—"}</TableCell>
+                        <TableCell />
                       </TableRow>
                     );
                   })}
