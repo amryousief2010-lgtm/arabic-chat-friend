@@ -597,65 +597,318 @@ const Warehouses = () => {
           </div>
         </div>
 
-        {/* KPIs — dynamic based on selected warehouse */}
+        {/* Hero dashboard — selected warehouse, quick actions, lists */}
         {(() => {
-          const selWh = selectedKpiWarehouseId ? warehouses.find(w => w.id === selectedKpiWarehouseId) : null;
+          const selWh = selectedKpiWarehouseId
+            ? warehouses.find(w => w.id === selectedKpiWarehouseId)
+            : (warehouses.find(w => isMainWarehouseName(w.name)) || warehouses[0]);
           const scopeItems = selWh ? items.filter(i => i.warehouse_id === selWh.id) : items;
           const scopeValue = scopeItems.reduce((s, i) => s + i.stock * i.unit_cost, 0);
-          const scopeLow = scopeItems.filter(i => i.stock <= i.low_stock_threshold);
-          const scopeNeg = scopeItems.filter(i => i.stock < 0);
+          const totalValue = items.reduce((s, i) => s + i.stock * i.unit_cost, 0);
+          const totalMoves = movements.length;
+          const pendingCount = (recentOrders || []).filter((o: any) => ["pending", "processing", "confirmed"].includes(o.status)).length;
+          const mainNames = (w: any) => isMainWarehouseName(w.name) || /العجوزة|كارفور|هيلثي|healthy|carrefour/i.test(w.name);
+          const mainWhs = warehouses.filter(mainNames);
+          const regionWhs = warehouses.filter(w => !mainNames(w));
+          const lastMove = movements[0];
+          const lastMoveAgo = lastMove ? formatDateTime(lastMove.performed_at) : "—";
+
           return (
-            <div className="space-y-3">
+            <div className="space-y-5">
+              {/* HERO ROW */}
+              <div className="grid gap-4 lg:grid-cols-4">
+                {/* Active warehouse hero */}
+                <Card className="lg:col-span-1 overflow-hidden border-primary/20 bg-gradient-to-br from-primary/5 via-background to-primary/10 relative">
+                  <div className="absolute top-4 right-4">
+                    <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0 gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      نشط الآن
+                    </Badge>
+                  </div>
+                  <CardContent className="p-5 pt-12 space-y-3">
+                    <div className="text-right">
+                      <h3 className="text-xl font-bold text-foreground">{selWh?.name || "—"}</h3>
+                      <p className="text-xs text-muted-foreground mt-1">آخر مزامنة: {lastMoveAgo}</p>
+                    </div>
+                    <div className="flex items-center justify-center py-2">
+                      <div className="w-32 h-24 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center">
+                        <Warehouse className="w-14 h-14 text-primary/70" />
+                      </div>
+                    </div>
+                    {selWh && (
+                      <Link to={`/modules/warehouses/${selWh.id}`} className="block">
+                        <Button className="w-full" size="sm">
+                          عرض تفاصيل المخزن
+                        </Button>
+                      </Link>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Quick actions */}
+                <Card className="lg:col-span-1">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base text-center">إجراءات سريعة</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {canManageWarehouses && (
+                      <button
+                        onClick={() => openWhDialog()}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border bg-card hover:bg-accent/50 hover:border-primary/40 transition-all text-sm"
+                      >
+                        <span className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center"><Plus className="w-4 h-4 text-primary" /></span>
+                        <span className="flex-1 text-right">إنشاء مخزن جديد</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { setMoveForm({ ...moveForm, movement_type: "transfer" }); setMoveDialog(true); }}
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border bg-card hover:bg-accent/50 hover:border-primary/40 transition-all text-sm"
+                    >
+                      <span className="w-8 h-8 rounded-md bg-blue-100 flex items-center justify-center"><ArrowLeftRight className="w-4 h-4 text-blue-600" /></span>
+                      <span className="flex-1 text-right">تحويل بين المخازن</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("low")}
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border bg-card hover:bg-accent/50 hover:border-primary/40 transition-all text-sm"
+                    >
+                      <span className="w-8 h-8 rounded-md bg-amber-100 flex items-center justify-center"><BarChart3 className="w-4 h-4 text-amber-600" /></span>
+                      <span className="flex-1 text-right">مخزون تحت الطلب</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("more")}
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border bg-card hover:bg-accent/50 hover:border-primary/40 transition-all text-sm"
+                    >
+                      <span className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center"><Settings2 className="w-4 h-4 text-slate-600" /></span>
+                      <span className="flex-1 text-right">إعدادات المخازن</span>
+                    </button>
+                  </CardContent>
+                </Card>
+
+                {/* Region warehouses */}
+                <Card className="lg:col-span-1">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base text-center">مخازن المناطق</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1.5">
+                    {regionWhs.slice(0, 5).map(w => {
+                      const isSel = selectedKpiWarehouseId === w.id;
+                      return (
+                        <button
+                          key={w.id}
+                          onClick={() => setSelectedKpiWarehouseId(isSel ? null : w.id)}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
+                            isSel ? "bg-primary/10 border-primary" : "bg-card hover:bg-accent/40 hover:border-primary/30"
+                          }`}
+                        >
+                          <span className={`w-7 h-7 rounded-md flex items-center justify-center ${isSel ? "bg-primary/20" : "bg-muted"}`}>
+                            <Warehouse className={`w-3.5 h-3.5 ${isSel ? "text-primary" : "text-muted-foreground"}`} />
+                          </span>
+                          <span className="flex-1 text-right truncate">{w.name}</span>
+                        </button>
+                      );
+                    })}
+                    {regionWhs.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">لا توجد مخازن مناطق</p>}
+                    {regionWhs.length > 5 && (
+                      <button onClick={() => setActiveTab("warehouses")} className="w-full text-xs text-primary hover:underline pt-1">
+                        عرض جميع مخازن المناطق ←
+                      </button>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Main warehouses */}
+                <Card className="lg:col-span-1">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base text-center">المخازن الرئيسية</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1.5">
+                    {mainWhs.map(w => {
+                      const isSel = selectedKpiWarehouseId === w.id || (!selectedKpiWarehouseId && selWh?.id === w.id);
+                      return (
+                        <button
+                          key={w.id}
+                          onClick={() => setSelectedKpiWarehouseId(w.id)}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
+                            isSel ? "bg-primary/10 border-primary" : "bg-card hover:bg-accent/40 hover:border-primary/30"
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${isSel ? "bg-primary" : "bg-transparent border border-muted-foreground/30"}`} />
+                          <Warehouse className={`w-3.5 h-3.5 ${isSel ? "text-primary" : "text-muted-foreground"}`} />
+                          <span className="flex-1 text-right truncate">{w.name}</span>
+                        </button>
+                      );
+                    })}
+                    {mainWhs.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">لا توجد مخازن رئيسية</p>}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* KPI ROW with colored icon tiles */}
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <h2 className="text-lg font-semibold">
-                  {selWh ? `إحصائيات: ${selWh.name}` : "إجمالي كل المخازن"}
+                <h2 className="text-base font-semibold text-muted-foreground">
+                  {selectedKpiWarehouseId && selWh ? `مؤشرات: ${selWh.name}` : "مؤشرات إجمالية"}
                 </h2>
-                {selWh && (
-                  <Button variant="outline" size="sm" onClick={() => setSelectedKpiWarehouseId(null)}>
+                {selectedKpiWarehouseId && (
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedKpiWarehouseId(null)} className="text-xs">
                     عرض إجمالي كل المخازن
                   </Button>
                 )}
               </div>
-              {selWh ? (
-                <div className="grid gap-4 md:grid-cols-4">
-                  <Card><CardHeader className="pb-2"><CardDescription>عدد الأصناف</CardDescription><CardTitle className="text-3xl">{scopeItems.length}</CardTitle></CardHeader></Card>
-                  <Card><CardHeader className="pb-2"><CardDescription>قيمة المخزون</CardDescription><CardTitle className="text-2xl">{scopeValue.toLocaleString()}</CardTitle></CardHeader></Card>
-                  <Card className={scopeLow.length > 0 ? "border-destructive" : ""}>
-                    <CardHeader className="pb-2"><CardDescription>أصناف منخفضة</CardDescription><CardTitle className={`text-3xl ${scopeLow.length > 0 ? "text-destructive" : ""}`}>{scopeLow.length}</CardTitle></CardHeader>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {[
+                  {
+                    icon: Package,
+                    iconBg: "bg-amber-100",
+                    iconColor: "text-amber-600",
+                    label: "قيمة المخزون",
+                    value: (selectedKpiWarehouseId ? scopeValue : totalValue).toLocaleString(undefined, { maximumFractionDigits: 0 }),
+                    unit: "ج.م",
+                  },
+                  {
+                    icon: Warehouse,
+                    iconBg: "bg-violet-100",
+                    iconColor: "text-violet-600",
+                    label: "إجمالي الأصناف",
+                    value: (selectedKpiWarehouseId ? scopeItems.length : items.length).toLocaleString(),
+                  },
+                  {
+                    icon: ArrowLeftRight,
+                    iconBg: "bg-orange-100",
+                    iconColor: "text-orange-600",
+                    label: "إجمالي الحركات",
+                    value: totalMoves.toLocaleString(),
+                  },
+                  {
+                    icon: FileText,
+                    iconBg: "bg-blue-100",
+                    iconColor: "text-blue-600",
+                    label: "طلبات قيد التنفيذ",
+                    value: pendingCount.toLocaleString(),
+                  },
+                ].map((k, i) => (
+                  <Card key={i} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-5">
+                      <div className="flex items-start gap-4">
+                        <div className={`w-12 h-12 rounded-xl ${k.iconBg} flex items-center justify-center shrink-0`}>
+                          <k.icon className={`w-6 h-6 ${k.iconColor}`} />
+                        </div>
+                        <div className="flex-1 text-right">
+                          <p className="text-sm text-muted-foreground">{k.label}</p>
+                          <p className="text-2xl font-bold mt-1 text-foreground">
+                            {k.value}
+                            {k.unit && <span className="text-sm text-muted-foreground font-normal mr-1">{k.unit}</span>}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
                   </Card>
-                  <Card className={scopeNeg.length > 0 ? "border-destructive" : ""}>
-                    <CardHeader className="pb-2"><CardDescription>أصناف بالسالب</CardDescription><CardTitle className={`text-3xl ${scopeNeg.length > 0 ? "text-destructive" : ""}`}>{scopeNeg.length}</CardTitle></CardHeader>
-                  </Card>
-                </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-4">
-                  <Card><CardHeader className="pb-2"><CardDescription>المخازن النشطة</CardDescription><CardTitle className="text-3xl">{warehouses.filter(w => w.is_active).length}</CardTitle></CardHeader></Card>
-                  <Card><CardHeader className="pb-2"><CardDescription>إجمالي الأصناف</CardDescription><CardTitle className="text-3xl">{items.length}</CardTitle></CardHeader></Card>
-                  <Card><CardHeader className="pb-2"><CardDescription>قيمة المخزون</CardDescription><CardTitle className="text-2xl">{items.reduce((s, i) => s + i.stock * i.unit_cost, 0).toLocaleString()}</CardTitle></CardHeader></Card>
-                  <Card className={lowStockItems.length > 0 ? "border-destructive" : ""}>
-                    <CardHeader className="pb-2"><CardDescription>أصناف منخفضة</CardDescription><CardTitle className={`text-3xl ${lowStockItems.length > 0 ? "text-destructive" : ""}`}>{lowStockItems.length}</CardTitle></CardHeader>
-                  </Card>
-                </div>
-              )}
-              {warehouses.length > 0 && (
-                <div className="flex gap-2 flex-wrap pt-1">
-                  {warehouses.map(w => (
-                    <Button
-                      key={w.id}
-                      size="sm"
-                      variant={selectedKpiWarehouseId === w.id ? "default" : "outline"}
-                      onClick={() => setSelectedKpiWarehouseId(w.id)}
-                      className="text-xs"
-                    >
-                      {w.name}
-                      {selectedKpiWarehouseId === w.id && <Badge variant="secondary" className="mr-2">المحدد</Badge>}
-                    </Button>
-                  ))}
-                </div>
-              )}
+                ))}
+              </div>
+
+              {/* OVERVIEW TABLES */}
+              <div className="grid gap-4 lg:grid-cols-2">
+                {/* Quick warehouses overview */}
+                <Card>
+                  <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+                    <CardTitle className="text-base">نظرة سريعة على المخازن</CardTitle>
+                    <button onClick={() => setActiveTab("warehouses")} className="text-xs text-primary hover:underline">عرض الكل</button>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-right">المخزن</TableHead>
+                          <TableHead className="text-right">قيمة المخزون</TableHead>
+                          <TableHead className="text-right">الأصناف</TableHead>
+                          <TableHead className="text-right">الحالة</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {warehouses.slice(0, 6).map(w => {
+                          const whIt = items.filter(i => i.warehouse_id === w.id);
+                          const whVal = whIt.reduce((s, i) => s + i.stock * i.unit_cost, 0);
+                          return (
+                            <TableRow key={w.id} className="cursor-pointer" onClick={() => setSelectedKpiWarehouseId(w.id)}>
+                              <TableCell className="font-medium flex items-center gap-2">
+                                <Warehouse className="w-4 h-4 text-muted-foreground" />
+                                {w.name}
+                              </TableCell>
+                              <TableCell>{whVal.toLocaleString(undefined, { maximumFractionDigits: 0 })} <span className="text-xs text-muted-foreground">ج.م</span></TableCell>
+                              <TableCell>{whIt.length.toLocaleString()}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={w.is_active ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-muted text-muted-foreground"}>
+                                  {w.is_active ? "نشط" : "متوقف"}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {warehouses.length === 0 && (
+                          <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">لا توجد مخازن</TableCell></TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+
+                {/* Recent movements */}
+                <Card>
+                  <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+                    <CardTitle className="text-base">آخر الحركات</CardTitle>
+                    <button onClick={() => setActiveTab("movements")} className="text-xs text-primary hover:underline">عرض الكل</button>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-right">نوع الحركة</TableHead>
+                          <TableHead className="text-right">المخزن</TableHead>
+                          <TableHead className="text-right">الصنف</TableHead>
+                          <TableHead className="text-right">الكمية</TableHead>
+                          <TableHead className="text-right">الوقت</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {movements.slice(0, 6).map((m: any) => {
+                          const isIn = m.movement_type === "in";
+                          const isOut = m.movement_type === "out";
+                          const isTransfer = m.movement_type === "transfer";
+                          const cls = isIn
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : isOut
+                            ? "bg-orange-50 text-orange-700 border-orange-200"
+                            : isTransfer
+                            ? "bg-blue-50 text-blue-700 border-blue-200"
+                            : "bg-slate-50 text-slate-700 border-slate-200";
+                          const label = isIn ? "إضافة مخزون" : isOut ? "صرف مخزون" : isTransfer ? "تحويل" : "تسوية";
+                          const Icon = isIn ? ArrowDown : isOut ? ArrowUp : isTransfer ? ArrowLeftRight : Settings2;
+                          return (
+                            <TableRow key={m.id}>
+                              <TableCell>
+                                <Badge variant="outline" className={`gap-1 ${cls}`}>
+                                  <Icon className="w-3 h-3" />
+                                  {label}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-sm">{m.warehouse?.name || "—"}</TableCell>
+                              <TableCell className="text-sm">{m.item?.name || "—"}</TableCell>
+                              <TableCell className="text-sm">{m.quantity}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{formatDateTime(m.performed_at)}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {movements.length === 0 && (
+                          <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">لا توجد حركات</TableCell></TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           );
         })()}
+
 
         <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "more") setMenuSubview(null); }} defaultValue="items">
           <div className="overflow-x-auto pb-1">
