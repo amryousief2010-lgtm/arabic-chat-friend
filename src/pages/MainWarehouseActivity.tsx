@@ -119,7 +119,7 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
 
       let q = supabase
         .from("inventory_movements")
-        .select("id, performed_at, movement_type, quantity, notes, reason, party, item_id, source_warehouse_id, destination_warehouse_id, performed_by, reference_type")
+        .select("id, performed_at, movement_type, quantity, notes, reason, party, item_id, warehouse_id, source_warehouse_id, destination_warehouse_id, performed_by, reference_type, reference, package_count, package_weight_kg")
         .or(`warehouse_id.eq.${wh.id},source_warehouse_id.eq.${wh.id},destination_warehouse_id.eq.${wh.id}`)
         .order("performed_at", { ascending: false })
         .limit(1000);
@@ -142,7 +142,7 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
 
       const itemIds = Array.from(new Set((mvs || []).map((m: any) => m.item_id).filter(Boolean)));
       const whIds = Array.from(new Set(
-        (mvs || []).flatMap((m: any) => [m.source_warehouse_id, m.destination_warehouse_id]).filter(Boolean)
+        (mvs || []).flatMap((m: any) => [m.warehouse_id, m.source_warehouse_id, m.destination_warehouse_id]).filter(Boolean)
       ));
       const userIds = Array.from(new Set((mvs || []).map((m: any) => m.performed_by).filter(Boolean)));
 
@@ -172,8 +172,14 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
         reason: m.reason,
         party: m.party,
         reference_type: m.reference_type,
+        reference: m.reference ?? null,
+        item_id: m.item_id,
+        warehouse_id: m.warehouse_id,
+        package_count: m.package_count ?? null,
+        package_weight_kg: m.package_weight_kg ?? null,
         item_name: itemMap.get(m.item_id)?.name,
         unit: itemMap.get(m.item_id)?.unit,
+        warehouse_name: m.warehouse_id ? whMap.get(m.warehouse_id) : undefined,
         source_name: m.source_warehouse_id ? whMap.get(m.source_warehouse_id) : undefined,
         destination_name: m.destination_warehouse_id ? whMap.get(m.destination_warehouse_id) : undefined,
         performed_by_name: m.performed_by ? userMap.get(m.performed_by) : undefined,
