@@ -2085,10 +2085,32 @@ const Warehouses = () => {
                             }}>
                               <SelectTrigger><SelectValue placeholder="اختر صنفاً" /></SelectTrigger>
                               <SelectContent className="max-h-72">
-                                {items
-                                  .filter(i => !editManualWarehouseId || i.warehouse_id === editManualWarehouseId)
-                                  .map(i => <SelectItem key={i.id} value={i.id}>{i.name} — {i.warehouse?.name || ""}</SelectItem>)}
+                                {(() => {
+                                  const filtered = items.filter(i =>
+                                    (!editManualWarehouseId || i.warehouse_id === editManualWarehouseId)
+                                    && (i as any).is_active !== false
+                                    && (i as any).archived !== true
+                                  );
+                                  const seen = new Set<string>();
+                                  const unique: typeof filtered = [];
+                                  for (const it of filtered) {
+                                    const key = ((it as any).product_id || "") + "|" + (it.name || "").trim().toLowerCase();
+                                    if (seen.has(key)) continue;
+                                    seen.add(key);
+                                    unique.push(it);
+                                  }
+                                  unique.sort((a, b) => (a.name || "").localeCompare(b.name || "", "ar"));
+                                  return unique.map(i => {
+                                    const pkg = (i as any).package_weight_kg || (i as any).default_package_weight_kg;
+                                    return (
+                                      <SelectItem key={i.id} value={i.id}>
+                                        {i.name}{pkg ? ` — ${pkg} كجم` : ""} — {i.warehouse?.name || ""}
+                                      </SelectItem>
+                                    );
+                                  });
+                                })()}
                               </SelectContent>
+
 
                             </Select>
                           ) : (
