@@ -39,6 +39,7 @@ type Batch = {
   status: string;
   notes: string | null;
   rearing_location?: string | null;
+  source_chick_trading_batch_id?: string | null;
 };
 
 const LOCATION_LABELS: Record<string, string> = {
@@ -582,7 +583,14 @@ const Brooding = () => {
                   <TableBody>
                     {batches.map(b => (
                       <TableRow key={b.id}>
-                        <TableCell className="font-semibold">{b.batch_number}</TableCell>
+                        <TableCell className="font-semibold">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {b.batch_number}
+                            {b.source_chick_trading_batch_id && (
+                              <Badge className="bg-purple-100 text-purple-800 border-purple-300 text-[10px]">تجارة</Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>{b.received_date}</TableCell>
                         <TableCell>{ageLabel(b)}</TableCell>
                         <TableCell><Badge variant="outline" className={b.rearing_location === "fattening_farm" ? "border-orange-400 text-orange-700" : "border-purple-400 text-purple-700"}>{locationLabel(b.rearing_location)}</Badge></TableCell>

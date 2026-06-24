@@ -182,6 +182,7 @@ export type Database = {
           received_date: string
           sold_count: number
           source: string
+          source_chick_trading_batch_id: string | null
           source_hatchery_batch_id: string | null
           status: Database["public"]["Enums"]["brooding_batch_status"]
           total_cost: number
@@ -203,6 +204,7 @@ export type Database = {
           received_date: string
           sold_count?: number
           source?: string
+          source_chick_trading_batch_id?: string | null
           source_hatchery_batch_id?: string | null
           status?: Database["public"]["Enums"]["brooding_batch_status"]
           total_cost?: number
@@ -224,13 +226,22 @@ export type Database = {
           received_date?: string
           sold_count?: number
           source?: string
+          source_chick_trading_batch_id?: string | null
           source_hatchery_batch_id?: string | null
           status?: Database["public"]["Enums"]["brooding_batch_status"]
           total_cost?: number
           transferred_count?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "brooding_batches_source_chick_trading_batch_id_fkey"
+            columns: ["source_chick_trading_batch_id"]
+            isOneToOne: false
+            referencedRelation: "chick_trading_batches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       brooding_chick_sales: {
         Row: {
@@ -1721,6 +1732,7 @@ export type Database = {
           diff_treasury_source: string | null
           disinfection_cost: number
           id: string
+          linked_brooding_batch_id: string | null
           main_account_id: string | null
           notes: string | null
           original_count: number
@@ -1755,6 +1767,7 @@ export type Database = {
           diff_treasury_source?: string | null
           disinfection_cost?: number
           id?: string
+          linked_brooding_batch_id?: string | null
           main_account_id?: string | null
           notes?: string | null
           original_count: number
@@ -1789,6 +1802,7 @@ export type Database = {
           diff_treasury_source?: string | null
           disinfection_cost?: number
           id?: string
+          linked_brooding_batch_id?: string | null
           main_account_id?: string | null
           notes?: string | null
           original_count?: number
@@ -1806,7 +1820,15 @@ export type Database = {
           unit_purchase_price?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chick_trading_batches_linked_brooding_batch_id_fkey"
+            columns: ["linked_brooding_batch_id"]
+            isOneToOne: false
+            referencedRelation: "brooding_batches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chick_trading_debt_settlements: {
         Row: {
@@ -17569,6 +17591,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      chick_trading_batch_has_activity: {
+        Args: { _batch_id: string }
+        Returns: boolean
+      }
       chick_trading_batch_pnl: { Args: { _batch_id: string }; Returns: Json }
       chick_trading_cancel_sale: {
         Args: { _reason: string; _sale_id: string }
@@ -17614,6 +17640,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      chick_trading_create_operational_batch: {
+        Args: { _batch_id: string }
+        Returns: string
+      }
       chick_trading_create_purchase: {
         Args: {
           _age: number
@@ -17646,6 +17676,7 @@ export type Database = {
           diff_treasury_source: string | null
           disinfection_cost: number
           id: string
+          linked_brooding_batch_id: string | null
           main_account_id: string | null
           notes: string | null
           original_count: number
@@ -17706,6 +17737,7 @@ export type Database = {
           diff_treasury_source: string | null
           disinfection_cost: number
           id: string
+          linked_brooding_batch_id: string | null
           main_account_id: string | null
           notes: string | null
           original_count: number
@@ -17818,6 +17850,7 @@ export type Database = {
           diff_treasury_source: string | null
           disinfection_cost: number
           id: string
+          linked_brooding_batch_id: string | null
           main_account_id: string | null
           notes: string | null
           original_count: number
@@ -17841,6 +17874,19 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      chick_trading_update_batch: {
+        Args: {
+          _age: number
+          _batch_id: string
+          _notes: string
+          _original_count: number
+          _purchase_date: string
+          _supplier: string
+          _treasury_source: string
+          _unit_price: number
+        }
+        Returns: undefined
       }
       compare_period_to_snapshot: {
         Args: { p_raise_alert?: boolean; p_snapshot_id: string }

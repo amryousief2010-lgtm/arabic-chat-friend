@@ -21,8 +21,9 @@ import { toast } from "sonner";
 import {
   Plus, ShoppingCart, DollarSign, Skull, Wheat, Pill, FileText,
   TrendingUp, TrendingDown, Wallet, Tag, X, CheckCircle2,
+  Pencil, Printer, Link2, ExternalLink,
 } from "lucide-react";
-import { fmtNum, fmtDate } from "@/lib/printPdf";
+import { fmtNum, fmtDate, openPrintWindow, escapeHtml, COMPANY_AR } from "@/lib/printPdf";
 
 const fmtEGP = (v: any) => `${fmtNum(Number(v || 0), 2)} ج.م`;
 
@@ -35,6 +36,7 @@ type Batch = {
   created_at: string;
   payment_status?: string; paid_amount?: number;
   deferred_paid_at?: string | null; deferred_payment_treasury?: string | null;
+  linked_brooding_batch_id?: string | null;
 };
 type Sale = {
   id: string; sale_no: string; batch_id: string; customer_name: string; phone?: string;
@@ -659,6 +661,205 @@ const PayDeferredDialog = ({ batch, onSaved }: { batch: Batch; onSaved: () => vo
   );
 };
 
+// ============ Edit Batch Dialog (blocked if any activity) ============
+const EditBatchDialog = ({ batch, hasActivity, onSaved }:
+  { batch: Batch; hasActivity: boolean; onSaved: () => void }) => {
+  const { isGeneralManager, isExecutiveManager, isAccountant } = useAuth();
+  const canEdit = isGeneralManager || isExecutiveManager || isAccountant;
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [f, setF] = useState({
+    supplier_name: batch.supplier_name,
+    purchase_date: batch.purchase_date,
+    age_at_purchase: batch.age_at_purchase,
+    count: batch.original_count,
+    unit_price: Number(batch.unit_purchase_price),
+    treasury_source: batch.treasury_source,
+    notes: batch.notes || "",
+  });
+  useEffect(() => {
+    if (open) {
+      setF({
+        supplier_name: batch.supplier_name,
+        purchase_date: batch.purchase_date,
+        age_at_purchase: batch.age_at_purchase,
+        count: batch.original_count,
+        unit_price: Number(batch.unit_purchase_price),
+        treasury_source: batch.treasury_source,
+        notes: batch.notes || "",
+      });
+    }
+  }, [open, batch]);
+  if (!canEdit) return null;
+
+  const save = async () => {
+    if (hasActivity) {
+      return toast.error("لا يمكن تعديل بيانات مؤثرة بعد وجود حركات على الدفعة.");
+    }
+    if (!f.supplier_name.trim()) return toast.error("اسم المورد مطلوب");
+    if (!f.count || !f.unit_price) return toast.error("العدد والسعر مطلوبان");
+    setSaving(true);
+    const { error } = await supabase.rpc("chick_trading_update_batch" as any, {
+      _batch_id: batch.id,
+      _supplier: f.supplier_name,
+      _purchase_date: f.purchase_date,
+      _age: f.age_at_purchase,
+      _original_count: f.count,
+      _unit_price: f.unit_price,
+      _treasury_source: f.treasury_source,
+      _notes: f.notes || null,
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم حفظ التعديلات");
+    setOpen(false);
+    onSaved();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline" className="gap-1">
+          <Pencil className="w-3 h-3" />تعديل
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto" dir="rtl">
+        <DialogHeader>
+          <DialogTitle>تعديل دفعة {batch.batch_no}</DialogTitle>
+        </DialogHeader>
+        {hasActivity ? (
+          <div className="p-3 rounded-md bg-amber-50 border border-amber-300 text-sm text-amber-900">
+            ⚠️ لا يمكن تعديل بيانات مؤثرة بعد وجود حركات على الدفعة (بيع/نافق/مصروف).
+            استخدم حركة تصحيح إدارية لإجراء أي تعديل.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>المورد</Label>
+              <Input value={f.supplier_name} onChange={e => setF({ ...f, supplier_name: e.target.value })} /></div>
+            <div><Label>تاريخ الشراء</Label>
+              <Input type="date" value={f.purchase_date} onChange={e => setF({ ...f, purchase_date: e.target.value })} /></div>
+            <div><Label>عدد الكتاكيت</Label>
+              <Input type="number" value={f.count} onChange={e => setF({ ...f, count: +e.target.value })} /></div>
+            <div><Label>عمر الكتاكيت (يوم)</Label>
+              <Input type="number" value={f.age_at_purchase} onChange={e => setF({ ...f, age_at_purchase: +e.target.value })} /></div>
+            <div><Label>سعر الكتكوت</Label>
+              <Input type="number" step="0.01" value={f.unit_price} onChange={e => setF({ ...f, unit_price: +e.target.value })} /></div>
+            <div><Label>مصدر التمويل</Label>
+              <Select value={f.treasury_source} onValueChange={(v: any) => setF({ ...f, treasury_source: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="lab">خزنة المعمل والحضانات</SelectItem>
+                  <SelectItem value="main">الخزنة الرئيسية</SelectItem>
+                  <SelectItem value="customer_debt">تسوية من مديونية عميل</SelectItem>
+                  <SelectItem value="deferred">شراء آجل / بدون دفع حالي</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-2"><Label>الملاحظات</Label>
+              <Textarea value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
+            <div className="col-span-2 p-2 rounded-md bg-muted/40 text-xs text-muted-foreground">
+              ℹ️ التعديل لا يُحدث أي حركة خزنة. لو الدفعة مرتبطة بدفعة تشغيلية في الحضانات هيتم تحديث بياناتها تلقائيًا.
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+          {!hasActivity && (
+            <Button onClick={save} disabled={saving}>
+              {saving ? "جاري الحفظ..." : "حفظ التعديلات"}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// ============ Print batch document ============
+const printBatch = (b: Batch) => {
+  const total = (Number(b.original_count) * Number(b.unit_purchase_price)) +
+    Number(b.transport_cost || 0) + Number(b.disinfection_cost || 0) + Number(b.other_costs || 0);
+  const paid = Number(b.paid_amount || 0);
+  const outstanding = b.treasury_source === "deferred" ? Math.max(0, total - paid) : 0;
+  const payStatusLabel =
+    b.treasury_source !== "deferred" ? "مدفوعة" :
+    (b.payment_status === "paid" ? "مسدّدة" : b.payment_status === "partial" ? "مدفوعة جزئيًا" : "غير مدفوعة (آجل)");
+  const body = `
+    <header>
+      <div>
+        <h1>${escapeHtml(COMPANY_AR)}</h1>
+        <div class="en">محضر دفعة شراء — تجارة كتاكيت</div>
+      </div>
+      <div class="meta">
+        <div>رقم الدفعة: <strong>${escapeHtml(b.batch_no)}</strong></div>
+        <div>تاريخ الطباعة: ${escapeHtml(fmtDate(new Date().toISOString()))}</div>
+      </div>
+    </header>
+    <h2>بيانات الدفعة</h2>
+    <table>
+      <tbody>
+        <tr><th style="width:30%">المورد</th><td>${escapeHtml(b.supplier_name)}</td></tr>
+        <tr><th>تاريخ الشراء</th><td>${escapeHtml(fmtDate(b.purchase_date))}</td></tr>
+        <tr><th>عدد الكتاكيت</th><td class="num">${fmtNum(b.original_count)}</td></tr>
+        <tr><th>عمر الكتاكيت</th><td>${fmtNum(b.age_at_purchase)} يوم</td></tr>
+        <tr><th>سعر الكتكوت</th><td class="num">${fmtNum(b.unit_purchase_price, 2)} ج.م</td></tr>
+        <tr><th>رسوم النقل</th><td class="num">${fmtNum(b.transport_cost, 2)} ج.م</td></tr>
+        <tr><th>تطهير/بداية</th><td class="num">${fmtNum(b.disinfection_cost, 2)} ج.م</td></tr>
+        <tr><th>مصروفات أخرى</th><td class="num">${fmtNum(b.other_costs, 2)} ج.م</td></tr>
+        <tr><th>إجمالي قيمة الشراء</th><td class="num"><strong>${fmtNum(total, 2)} ج.م</strong></td></tr>
+      </tbody>
+    </table>
+    <h2>التمويل والسداد</h2>
+    <table>
+      <tbody>
+        <tr><th style="width:30%">مصدر التمويل</th><td>${escapeHtml(TREASURY_LABEL[b.treasury_source] || b.treasury_source)}</td></tr>
+        <tr><th>حالة الدفع</th><td>${escapeHtml(payStatusLabel)}</td></tr>
+        ${b.treasury_source === "deferred" ? `
+          <tr><th>المدفوع</th><td class="num">${fmtNum(paid, 2)} ج.م</td></tr>
+          <tr><th>المتبقي للمورد</th><td class="num"><strong>${fmtNum(outstanding, 2)} ج.م</strong></td></tr>
+        ` : ""}
+      </tbody>
+    </table>
+    ${b.notes ? `<h2>ملاحظات</h2><div style="padding:6px;border:1px solid #e0e0e0;border-radius:6px;background:#fafafa">${escapeHtml(b.notes)}</div>` : ""}
+    <div style="margin-top:30px;display:grid;grid-template-columns:1fr 1fr;gap:20px;font-size:11px">
+      <div style="border-top:1px solid #444;padding-top:6px;text-align:center">توقيع المسؤول</div>
+      <div style="border-top:1px solid #444;padding-top:6px;text-align:center">توقيع المدير</div>
+    </div>
+  `;
+  openPrintWindow(`دفعة تجارة كتاكيت ${b.batch_no}`, body);
+};
+
+// ============ Link operational batch button ============
+const LinkOperationalButton = ({ batch, onSaved }:
+  { batch: Batch; onSaved: () => void }) => {
+  const [busy, setBusy] = useState(false);
+  const create = async () => {
+    if (batch.linked_brooding_batch_id) {
+      toast.info("الدفعة مرتبطة بالفعل بدفعة تشغيلية");
+      return;
+    }
+    setBusy(true);
+    const { data, error } = await supabase.rpc("chick_trading_create_operational_batch" as any, { _batch_id: batch.id });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم إنشاء/ربط دفعة تشغيلية في دفعات الحضانات");
+    onSaved();
+  };
+  if (batch.linked_brooding_batch_id) {
+    return (
+      <Button size="sm" variant="ghost" className="gap-1 text-emerald-700"
+        onClick={() => window.open("/modules/brooding", "_blank")}>
+        <ExternalLink className="w-3 h-3" />دفعة تشغيلية
+      </Button>
+    );
+  }
+  return (
+    <Button size="sm" variant="outline" className="gap-1" onClick={create} disabled={busy}>
+      <Link2 className="w-3 h-3" />{busy ? "..." : "إنشاء دفعة تشغيلية"}
+    </Button>
+  );
+};
+
 // ============ Batch Detail Dialog ============
 const BatchDetailDialog = ({ batch, expenses, mortality, sales, onSaved }:
   { batch: Batch; expenses: any[]; mortality: any[]; sales: Sale[]; onSaved: () => void }) => {
@@ -685,9 +886,18 @@ const BatchDetailDialog = ({ batch, expenses, mortality, sales, onSaved }:
       </DialogTrigger>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto" dir="rtl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
             دفعة {batch.batch_no}
             <Badge className="bg-purple-100 text-purple-800 border-purple-300"><Tag className="w-3 h-3 ml-1" />تجارة</Badge>
+            <Button size="sm" variant="outline" className="gap-1" onClick={() => printBatch(batch)}>
+              <Printer className="w-3 h-3" />طباعة
+            </Button>
+            {batch.linked_brooding_batch_id && (
+              <Button size="sm" variant="ghost" className="gap-1 text-emerald-700"
+                onClick={() => window.open("/modules/brooding", "_blank")}>
+                <ExternalLink className="w-3 h-3" />عرض الدفعة التشغيلية
+              </Button>
+            )}
           </DialogTitle>
         </DialogHeader>
         {batch.treasury_source === "customer_debt" && settlement && (
@@ -982,8 +1192,23 @@ export default function ChickTradingTab() {
                           : <Badge variant="destructive">ملغاة</Badge>}
                     </TableCell>
                     <TableCell>
-                      <BatchDetailDialog batch={b} expenses={expenses} mortality={mortality}
-                        sales={sales} onSaved={reload} />
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <BatchDetailDialog batch={b} expenses={expenses} mortality={mortality}
+                          sales={sales} onSaved={reload} />
+                        <EditBatchDialog
+                          batch={b}
+                          hasActivity={
+                            expenses.some(e => e.batch_id === b.id) ||
+                            mortality.some(m => m.batch_id === b.id) ||
+                            sales.some(s => s.batch_id === b.id)
+                          }
+                          onSaved={reload}
+                        />
+                        <Button size="sm" variant="outline" className="gap-1" onClick={() => printBatch(b)}>
+                          <Printer className="w-3 h-3" />طباعة
+                        </Button>
+                        <LinkOperationalButton batch={b} onSaved={reload} />
+                      </div>
                     </TableCell>
                   </TableRow>
                   );
