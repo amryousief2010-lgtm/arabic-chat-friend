@@ -222,9 +222,20 @@ const NewPurchaseDialog = ({ onSaved }: { onSaved: () => void }) => {
                 {canUseDebtSettlement && (
                   <SelectItem value="customer_debt">تسوية من مديونية عميل</SelectItem>
                 )}
+                {canUseDeferred && (
+                  <SelectItem value="deferred">شراء آجل / بدون دفع حالي</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
+
+          {f.treasury_source === "deferred" && (
+            <div className="col-span-2 p-3 rounded-md bg-amber-50 border border-amber-300 text-xs text-amber-900 space-y-1">
+              <div className="font-bold">⚠️ شراء آجل / بدون دفع حالي</div>
+              <div>لن يتم خصم أي مبلغ من خزنة المعمل أو الخزنة الرئيسية الآن.</div>
+              <div>الدفعة ستظهر بحالة «غير مدفوع» ويمكن سدادها لاحقًا من تفاصيل الدفعة.</div>
+            </div>
+          )}
 
           {f.treasury_source === "customer_debt" && (
             <>
