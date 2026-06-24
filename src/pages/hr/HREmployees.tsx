@@ -29,6 +29,10 @@ interface Employee {
   status: "active" | "inactive";
   notes: string | null;
   pay_day: number;
+  is_suspended?: boolean;
+  suspension_date?: string | null;
+  suspension_reason?: string | null;
+  suspension_net_amount?: number | null;
 }
 
 interface DeductionSummary {
