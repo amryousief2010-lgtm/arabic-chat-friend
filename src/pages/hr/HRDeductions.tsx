@@ -718,7 +718,6 @@ const HRDeductions = () => {
           </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="md:col-span-2">
-            <div className="md:col-span-2">
               <Label>
                 الموظف المستفيد <span className="text-rose-600">*</span>
                 <span className="text-xs text-muted-foreground mr-2">(إجباري — صاحب السلفة/الخصم وليس من سجّل الحركة)</span>
