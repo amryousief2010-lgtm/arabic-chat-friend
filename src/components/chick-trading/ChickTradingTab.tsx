@@ -581,6 +581,13 @@ const BatchDetailDialog = ({ batch, expenses, mortality, sales, onSaved }:
   const batchExp = expenses.filter(e => e.batch_id === batch.id);
   const batchMort = mortality.filter(m => m.batch_id === batch.id);
   const batchSales = sales.filter(s => s.batch_id === batch.id);
+  const [settlement, setSettlement] = useState<any>(null);
+  useEffect(() => {
+    if (!open || batch.treasury_source !== "customer_debt") { setSettlement(null); return; }
+    supabase.from("chick_trading_debt_settlements" as any)
+      .select("*").eq("purchase_batch_id", batch.id).maybeSingle()
+      .then(({ data }) => setSettlement(data));
+  }, [open, batch.id, batch.treasury_source]);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -593,6 +600,22 @@ const BatchDetailDialog = ({ batch, expenses, mortality, sales, onSaved }:
             <Badge className="bg-purple-100 text-purple-800 border-purple-300"><Tag className="w-3 h-3 ml-1" />تجارة</Badge>
           </DialogTitle>
         </DialogHeader>
+        {batch.treasury_source === "customer_debt" && settlement && (
+          <div className="mb-4 p-3 rounded-md border border-amber-300 bg-amber-50 text-sm space-y-1">
+            <div className="font-bold text-amber-900 flex items-center gap-2">
+              <Wallet className="w-4 h-4" /> مصدر التمويل: تسوية من مديونية عميل
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs text-amber-900">
+              <div>العميل: <strong>{settlement.customer_name}</strong></div>
+              <div>الدين قبل التسوية: <strong>{fmtEGP(settlement.balance_before)}</strong></div>
+              <div>قيمة التسوية: <strong>{fmtEGP(settlement.settlement_amount)}</strong></div>
+              <div>المتبقي على العميل: <strong>{fmtEGP(settlement.balance_after)}</strong></div>
+              <div>فرق مدفوع من خزنة: <strong>{Number(settlement.diff_amount) > 0 ? `${fmtEGP(settlement.diff_amount)} (${TREASURY_LABEL[settlement.diff_treasury_source] || settlement.diff_treasury_source})` : "لا"}</strong></div>
+              <div>رقم التسوية: <strong className="font-mono">{settlement.settlement_no}</strong></div>
+            </div>
+            {settlement.notes && <div className="text-xs text-amber-800 pt-1 border-t border-amber-200">📝 {settlement.notes}</div>}
+          </div>
+        )}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           <KCard label="عدد الشراء" value={batch.original_count} />
           <KCard label="المتاح حالياً" value={batch.current_count} />
