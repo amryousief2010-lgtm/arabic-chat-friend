@@ -1305,6 +1305,24 @@ const Warehouses = () => {
                       movements={movements}
                     />
                   )}
+                  {t.value !== "wh-activity" && t.wh && (
+                    <details className="group rounded-2xl border border-primary/20 bg-card overflow-hidden">
+                      <summary className="cursor-pointer select-none px-4 py-3 flex items-center gap-2 bg-gradient-to-l from-primary/5 to-transparent hover:bg-primary/10 transition-colors">
+                        <BarChart3 className="w-4 h-4 text-primary" />
+                        <span className="font-semibold">داشبورد المخزن — {t.label}</span>
+                        <span className="text-xs text-muted-foreground mr-2">(اضغط للعرض/الإخفاء)</span>
+                      </summary>
+                      <div className="p-4 border-t border-border/60">
+                        <WarehousesDashboardPanel
+                          warehouses={warehouses as any}
+                          items={items as any}
+                          movements={movements as any}
+                          scopeWarehouseId={t.wh.id}
+                          title={`داشبورد ${t.label}`}
+                        />
+                      </div>
+                    </details>
+                  )}
                   {t.value !== "wh-activity" && t.value !== "wh-main" && t.value !== "wh-agouza" && t.value !== "wh-hht" && t.value !== "wh-carrefour" && t.wh && (
                     <Card>
                       <CardHeader className="pb-2">
