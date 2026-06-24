@@ -476,10 +476,63 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
                   <th className="p-2">من / إلى</th>
                   <th className="p-2">المستخدم</th>
                   <th className="p-2">السبب / ملاحظات</th>
+                  <th className="p-2 text-center">إجراءات</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r) => {
+                {grouped.map((g) => {
+                  if (g.kind === "manual") {
+                    const isInDir = g.direction === "in";
+                    const sample = g.rows[0];
+                    const unit = sample?.unit || "كجم";
+                    return (
+                      <tr key={g.reference} className={`border-t ${isInDir ? "bg-emerald-50/40" : "bg-rose-50/40"} hover:bg-muted/30`}>
+                        <td className="p-2 whitespace-nowrap text-xs text-muted-foreground">{formatDate(g.date)}</td>
+                        <td className="p-2">
+                          <Badge className={`gap-1 ${isInDir ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"} text-white`}>
+                            {isInDir ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />}
+                            {isInDir ? "توريد مباشر" : "صرف مباشر"}
+                          </Badge>
+                        </td>
+                        <td className="p-2 text-xs">
+                          <Badge variant="outline" className="bg-muted/30">{sample?.reference_type || "manual"}</Badge>
+                        </td>
+                        <td className="p-2 font-semibold" colSpan={1}>
+                          <span className="text-muted-foreground">توريدة</span>{" "}
+                          <span className="font-mono text-primary">{g.reference}</span>
+                          <span className="text-muted-foreground mr-2">({g.rows.length} صنف)</span>
+                        </td>
+                        <td className="p-2 whitespace-nowrap font-mono">{g.totalQty.toFixed(2)} {unit}</td>
+                        <td className="p-2 text-xs">{g.partyLabel}</td>
+                        <td className="p-2 text-xs">{sample?.performed_by_name || <span className="text-muted-foreground">—</span>}</td>
+                        <td className="p-2 text-xs text-muted-foreground">{isInDir ? "توريد جديد" : "صرف"}</td>
+                        <td className="p-2">
+                          <div className="flex gap-1 justify-center flex-wrap">
+                            <Button size="sm" variant="outline" onClick={() => setDetailRef(g.reference)}>
+                              <Eye className="w-3 h-3 ml-1" /> تفاصيل
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => printGroup(g)}>
+                              <Printer className="w-3 h-3 ml-1" /> طباعة
+                            </Button>
+                            {canManageManual && (
+                              <>
+                                <Button size="sm" variant="outline" className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                                        onClick={() => editGroup(g)}>
+                                  <Edit className="w-3 h-3 ml-1" /> تعديل
+                                </Button>
+                                <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10"
+                                        disabled={cancelBusy}
+                                        onClick={() => cancelGroup(g)}>
+                                  <Trash2 className="w-3 h-3 ml-1" /> إلغاء
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  const r = g.row;
                   const t = typeLabel(r.movement_type);
                   const srcKey = r.reference_type || "";
                   const src = SOURCE_LABELS[srcKey];
@@ -507,11 +560,12 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
                       <td className="p-2 text-xs text-muted-foreground">
                         {r.reason || r.notes || r.party || ""}
                       </td>
+                      <td className="p-2" />
                     </tr>
                   );
                 })}
-                {filtered.length === 0 && (
-                  <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">
+                {grouped.length === 0 && (
+                  <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">
                     {loading ? "جاري التحميل..." : "لا توجد حركات في النطاق المحدد"}
                   </td></tr>
                 )}
@@ -520,6 +574,83 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
           </div>
         </CardContent>
       </Card>
+
+      {/* Details Dialog for grouped supplies */}
+      <Dialog open={!!detailRef} onOpenChange={(v) => { if (!v) setDetailRef(null); }}>
+        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle>
+              {detailGroup ? (
+                <>
+                  {detailGroup.direction === "in" ? "تفاصيل توريدة" : "تفاصيل صرف"}{" "}
+                  <span className="font-mono text-primary">{detailGroup.reference}</span>
+                </>
+              ) : "تفاصيل التوريدة"}
+            </DialogTitle>
+            <DialogDescription>
+              {detailGroup ? (
+                <>
+                  {formatDate(detailGroup.date)} • {detailGroup.partyLabel} •{" "}
+                  {detailGroup.rows.length} صنف • إجمالي {detailGroup.totalQty.toFixed(2)} كجم
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          {detailGroup && (
+            <div className="flex-1 overflow-y-auto min-h-0 border rounded-lg">
+              <table className="w-full text-right text-sm">
+                <thead className="bg-muted/60 text-xs sticky top-0">
+                  <tr>
+                    <th className="p-2">#</th>
+                    <th className="p-2">الصنف</th>
+                    <th className="p-2">الوحدة</th>
+                    <th className="p-2">عدد العبوات</th>
+                    <th className="p-2">وزن العبوة</th>
+                    <th className="p-2">الكمية</th>
+                    <th className="p-2">السبب / ملاحظات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detailGroup.rows.map((r, i) => (
+                    <tr key={r.id} className="border-t">
+                      <td className="p-2">{i + 1}</td>
+                      <td className="p-2 font-semibold">{r.item_name || "—"}</td>
+                      <td className="p-2">{r.unit || "كجم"}</td>
+                      <td className="p-2 font-mono">{r.package_count ?? "—"}</td>
+                      <td className="p-2 font-mono">{r.package_weight_kg ?? "—"}</td>
+                      <td className="p-2 font-mono">{Number(r.quantity || 0).toFixed(2)}</td>
+                      <td className="p-2 text-xs text-muted-foreground">{r.reason || r.notes || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <DialogFooter className="shrink-0 gap-2">
+            {detailGroup && (
+              <>
+                <Button variant="outline" onClick={() => printGroup(detailGroup)}>
+                  <Printer className="w-4 h-4 ml-1" /> طباعة
+                </Button>
+                {canManageManual && (
+                  <>
+                    <Button variant="outline" className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                            onClick={() => editGroup(detailGroup)}>
+                      <Edit className="w-4 h-4 ml-1" /> تعديل
+                    </Button>
+                    <Button variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10"
+                            disabled={cancelBusy}
+                            onClick={() => cancelGroup(detailGroup)}>
+                      <Trash2 className="w-4 h-4 ml-1" /> إلغاء التوريدة
+                    </Button>
+                  </>
+                )}
+              </>
+            )}
+            <Button onClick={() => setDetailRef(null)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 
