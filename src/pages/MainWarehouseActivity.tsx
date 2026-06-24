@@ -24,8 +24,14 @@ interface Row {
   reason: string | null;
   party: string | null;
   reference_type: string | null;
+  reference: string | null;
+  item_id?: string;
+  warehouse_id?: string;
+  package_count?: number | null;
+  package_weight_kg?: number | null;
   item_name?: string;
   unit?: string;
+  warehouse_name?: string;
   source_name?: string;
   destination_name?: string;
   performed_by_name?: string;
