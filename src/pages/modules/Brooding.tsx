@@ -1043,6 +1043,191 @@ const NewBatchDialog = ({ onCreated, nextBatchNumber, settings, prominent = fals
   );
 };
 
+// ===== Internal Transfer (chick_nursery <-> fattening_farm) =====
+const InternalTransferForm = ({ batch, onDone }: { batch: Batch; onDone: () => void }) => {
+  const currentLoc = (batch.rearing_location as 'chick_nursery' | 'fattening_farm') || 'chick_nursery';
+  const otherLoc: 'chick_nursery' | 'fattening_farm' = currentLoc === 'chick_nursery' ? 'fattening_farm' : 'chick_nursery';
+  const [destination, setDestination] = useState<'chick_nursery' | 'fattening_farm'>(otherLoc);
+  const [count, setCount] = useState<number>(batch.current_count);
+  const [transferDate, setTransferDate] = useState(new Date().toISOString().slice(0, 10));
+  const [performer, setPerformer] = useState("");
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    if (destination === currentLoc) { toast.error("اختر وجهة مختلفة عن الموقع الحالي"); return; }
+    if (!count || count <= 0) { toast.error("عدد الطيور يجب أن يكون أكبر من صفر"); return; }
+    if (count > batch.current_count) { toast.error(`العدد المطلوب أكبر من المتاح (${batch.current_count})`); return; }
+    if (!performer.trim()) { toast.error("أدخل اسم القائم بالنقل"); return; }
+    setSaving(true);
+    try {
+      const cpb = Number(batch.cost_per_bird) || 0;
+      const movedCost = +(cpb * count).toFixed(2);
+      const auditDesc = `نقل داخلي • من ${locationLabel(currentLoc)} ← إلى ${locationLabel(destination)} • ${count} طائر • التاريخ ${transferDate} • القائم: ${performer}${reason ? ` • السبب: ${reason}` : ''}${notes ? ` • ملاحظات: ${notes}` : ''}`;
+
+      // FULL transfer: just update location
+      if (count === batch.current_count) {
+        const { error: e1 } = await supabase
+          .from("brooding_batches")
+          .update({ rearing_location: destination })
+          .eq("id", batch.id);
+        if (e1) throw e1;
+        await supabase.from("brooding_batch_movements").insert({
+          batch_id: batch.id,
+          movement_type: "internal_transfer" as any,
+          movement_date: transferDate,
+          count_delta: 0,
+          cost_delta: 0,
+          description: auditDesc,
+        });
+        toast.success(`تم نقل الدفعة كاملة إلى ${locationLabel(destination)}`);
+        onDone();
+        return;
+      }
+
+      // PARTIAL: split → new sub-batch, decrement source via opening adjustment
+      // 1) Find unique sub-batch number
+      const baseNo = batch.batch_number;
+      const { data: siblings } = await supabase
+        .from("brooding_batches")
+        .select("batch_number")
+        .like("batch_number", `${baseNo}-T%`);
+      const used = new Set((siblings || []).map((r: any) => r.batch_number));
+      let suffix = 1;
+      while (used.has(`${baseNo}-T${suffix}`)) suffix++;
+      const newNo = `${baseNo}-T${suffix}`;
+
+      // 2) Create destination batch (inherits cost/age/received_date)
+      const { data: ins, error: e2 } = await supabase
+        .from("brooding_batches")
+        .insert({
+          batch_number: newNo,
+          received_date: batch.received_date,
+          source: batch.source,
+          age_at_receipt_days: batch.age_at_receipt_days,
+          original_count: count,
+          current_count: count,
+          total_cost: movedCost,
+          cost_per_bird: cpb,
+          status: "active",
+          rearing_location: destination,
+          notes: `نقل داخلي من الدفعة ${baseNo} بتاريخ ${transferDate}${reason ? ' — السبب: ' + reason : ''}`,
+        })
+        .select("id")
+        .single();
+      if (e2) throw e2;
+      const newId = ins?.id;
+
+      // 3) Encode cost shift via 'opening' movements so recalc keeps the new totals
+      //    (recalc derives total_cost from SUM(opening cost_delta) + expenses ... - sold/transferred)
+      await supabase.from("brooding_batch_movements").insert([
+        {
+          batch_id: newId,
+          movement_type: "opening" as any,
+          movement_date: transferDate,
+          count_delta: count,
+          cost_delta: movedCost,
+          description: `افتتاحي — نقل داخلي من ${baseNo}`,
+        },
+        {
+          batch_id: newId,
+          movement_type: "internal_transfer" as any,
+          movement_date: transferDate,
+          count_delta: count,
+          cost_delta: movedCost,
+          description: auditDesc,
+        },
+        {
+          batch_id: batch.id,
+          movement_type: "opening" as any,
+          movement_date: transferDate,
+          count_delta: -count,
+          cost_delta: -movedCost,
+          description: `خصم نقل داخلي إلى ${newNo} (${locationLabel(destination)})`,
+        },
+        {
+          batch_id: batch.id,
+          movement_type: "internal_transfer" as any,
+          movement_date: transferDate,
+          count_delta: -count,
+          cost_delta: -movedCost,
+          description: auditDesc,
+        },
+      ]);
+
+      // 4) Decrement source original_count (recalc will then derive current_count correctly)
+      const { error: e3 } = await supabase
+        .from("brooding_batches")
+        .update({ original_count: batch.original_count - count })
+        .eq("id", batch.id);
+      if (e3) throw e3;
+
+      // 5) Recalc both (RPC)
+      await supabase.rpc("recalc_brooding_batch", { _batch_id: batch.id } as any);
+      if (newId) await supabase.rpc("recalc_brooding_batch", { _batch_id: newId } as any);
+
+      toast.success(`تم النقل — تم إنشاء الدفعة الفرعية ${newNo} في ${locationLabel(destination)}`);
+      onDone();
+    } catch (err: any) {
+      toast.error(err?.message || "فشل النقل الداخلي");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="p-3 rounded-lg bg-purple-50 border border-purple-200 text-sm space-y-1">
+        <div><strong>رقم الدفعة:</strong> {batch.batch_number}</div>
+        <div><strong>الموقع الحالي:</strong> {locationLabel(currentLoc)}</div>
+        <div><strong>العدد الحالي:</strong> {batch.current_count} طائر</div>
+        <div><strong>العمر الحالي:</strong> {ageLabel(batch)}</div>
+        <div><strong>تكلفة الطائر:</strong> {fmtMoney(Number(batch.cost_per_bird))}</div>
+      </div>
+      <div>
+        <Label>الوجهة</Label>
+        <Select value={destination} onValueChange={(v: any) => setDestination(v)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="chick_nursery">حضانات الكتاكيت</SelectItem>
+            <SelectItem value="fattening_farm">مزرعة التسمين</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <Label>عدد الطيور المنقولة</Label>
+          <Input type="number" min={1} max={batch.current_count} value={count} onChange={e => setCount(parseInt(e.target.value) || 0)} />
+          <p className="text-xs text-muted-foreground mt-1">الحد الأقصى: {batch.current_count}</p>
+        </div>
+        <div>
+          <Label>تاريخ النقل</Label>
+          <Input type="date" value={transferDate} onChange={e => setTransferDate(e.target.value)} />
+        </div>
+      </div>
+      <div>
+        <Label>القائم بالنقل</Label>
+        <Input value={performer} onChange={e => setPerformer(e.target.value)} placeholder="اسم الموظف" />
+      </div>
+      <div>
+        <Label>سبب النقل</Label>
+        <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="مثال: تجاوز عمر التحضين" />
+      </div>
+      <div>
+        <Label>ملاحظات</Label>
+        <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
+      </div>
+      <div className="p-2 rounded bg-amber-50 border border-amber-200 text-xs text-amber-800">
+        النقل الداخلي لا ينشئ بيع/خزنة/فاتورة. التكلفة والعمر ينتقلان كما هما مع الطيور المنقولة.
+      </div>
+      <Button onClick={submit} disabled={saving} className="w-full">
+        {saving ? "جاري النقل..." : `تأكيد النقل إلى ${locationLabel(destination)}`}
+      </Button>
+    </div>
+  );
+};
+
 const BATCH_ACTIONS = [
   { key: "mortality", label: "تسجيل نافق", icon: Skull },
   { key: "feed", label: "صرف علف", icon: Wheat },
@@ -1050,6 +1235,7 @@ const BATCH_ACTIONS = [
   { key: "expense", label: "إضافة مصروف", icon: Wallet },
   { key: "sale", label: "بيع كتاكيت", icon: ShoppingCart },
   { key: "transfer", label: "تحويل للمجزر", icon: ArrowRightLeft },
+  { key: "internal_transfer", label: "نقل داخلي حضانة/تسمين", icon: ArrowRightLeft },
 ] as const;
 
 const BatchActionsMenu = ({ batch, batches, feedInventory, settings, canManage, onReload }: { batch: Batch; batches: Batch[]; feedInventory: FeedInventory[]; settings: BroodingSettings; canManage: boolean; onReload: () => void }) => {
@@ -1090,6 +1276,7 @@ const BatchActionsMenu = ({ batch, batches, feedInventory, settings, canManage, 
           {action === "expense" && <ExpenseForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
           {action === "sale" && <SaleForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
           {action === "transfer" && <TransferForm batches={batches} defaultBatchId={batch.id} onDone={close} />}
+          {action === "internal_transfer" && <InternalTransferForm batch={batch} onDone={close} />}
         </DialogContent>
       </Dialog>
     </>

@@ -1,0 +1,1 @@
+ALTER TYPE public.brooding_movement_type ADD VALUE IF NOT EXISTS 'internal_transfer';
