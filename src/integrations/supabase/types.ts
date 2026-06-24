@@ -8850,6 +8850,51 @@ export type Database = {
           },
         ]
       }
+      main_warehouse_treasury_txns: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          direction: string
+          id: string
+          notes: string | null
+          performed_at: string
+          performed_by: string | null
+          reference: string | null
+          status: string
+          transfer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          direction: string
+          id?: string
+          notes?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          reference?: string | null
+          status?: string
+          transfer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          notes?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          reference?: string | null
+          status?: string
+          transfer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       manager_review_audit: {
         Row: {
           action: string

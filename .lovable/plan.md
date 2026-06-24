@@ -1,121 +1,110 @@
-## نظام تجارة الكتاكيت — معمل التفريخ والحضانات
+## الهدف
+إنشاء **خزينة مستقلة للمخزن الرئيسي** يديرها عبدالمنعم عثمان، تظهر كتبويب واضح في شريط تبويبات صفحة `/modules/warehouses` (بجانب "سجل حركات المخزن الرئيسي")، مع دورة اعتماد للتحويلات إلى الخزينة الرئيسية (محمد شعلة).
 
-نظام جديد منفصل تمامًا عن إنتاج التفريخ وعن دفعات التحضين الداخلية، لإدارة دورة شراء كتاكيت من مزارع خارجية، تحضينها، ثم بيعها بربح.
-
----
-
-### 1) قاعدة البيانات (Migration واحدة)
-
-**جداول جديدة:**
-
-- `chick_trading_batches` — دفعة تجارة
-  - `batch_no` (TRD-CHICKS-YYYYMMDD-NNNN), `supplier_name`, `purchase_date`, `age_at_purchase`, `original_count`, `current_count`, `dead_count`, `sold_count`, `unit_purchase_price`, `purchase_total`, `transport_cost`, `disinfection_cost`, `other_costs`, `notes`, `attachment_url`, `status` (open/closed/cancelled), `treasury_source` (lab/main), `created_by`, audit timestamps.
-
-- `chick_trading_expenses` — مصروفات أثناء التحضين (علف/أدوية/أخرى)
-  - `batch_id`, `expense_type` (feed/medicine/other), `amount`, `quantity`, `unit`, `notes`, `expense_date`, `created_by`.
-
-- `chick_trading_mortality` — نافق
-  - `batch_id`, `count`, `mortality_date`, `reason`, `created_by`.
-
-- `chick_trading_sales` — بيع
-  - `sale_no`, `batch_id`, `customer_name`, `phone`, `address`, `quantity`, `unit_price`, `total`, `payment_method` (cash/credit/transfer), `treasury_destination` (lab/main), `sale_date`, `collected` (bool), `collected_at`, `collection_treasury` (lab/main), `notes`, `created_by`.
-
-- `chick_trading_audit_log` — سجل تدقيق لكل العمليات.
-
-**Triggers:**
-
-1. على `INSERT chick_trading_batches`: 
-   - يخصم `purchase_total + transport + disinfection + other` من الخزنة المختارة (`lab_treasury_movements` أو `main_treasury_transactions`) ببيان "شراء كتاكيت تجارة من [supplier]".
-   - يربط الحركة بـ `ref_table='chick_trading_batch'`, `ref_id=batch.id`.
-
-2. على `INSERT chick_trading_expenses`: يخصم من نفس خزنة الدفعة، بيان "مصروف تجارة كتاكيت — [type]".
-
-3. على `INSERT chick_trading_mortality`: ينقص `current_count` و يزيد `dead_count`.
-
-4. على `INSERT chick_trading_sales`:
-   - يتحقق `quantity <= current_count`.
-   - يخصم من `current_count` ويضيف لـ `sold_count`.
-   - لو `payment_method != credit`: يضيف إيراد في الخزنة المختارة، بيان "بيع كتاكيت تجارة للعميل [name]".
-   - لو آجل: لا يدخل الخزنة (يبقى مديونية في `lab_customer_ledger` أو سجل مديونية بسيط).
-
-5. على `DELETE/UPDATE`: كل تغيير يُسجَّل في `chick_trading_audit_log` ويعكس أثره على الخزنة.
-
-**RPC functions:**
-- `compute_chick_trading_batch_pnl(batch_id)` → JSON بكل أرقام الربح/الخسارة (تكلفة الشراء، المصروفات، المباع، المحصل، المديونية، صافي الربح، تكلفة الكتكوت الحالية).
-
-**RLS:** القراءة لكل المصرح لهم، الكتابة للأدوار: `general_manager`, `executive_manager`, `lab_manager` (دور جديد إن لزم) + `chick_trading_operator`.
+> ملاحظة: لا توجد أي جداول/مكونات حالية باسم "خزينة المخزن الرئيسي" في الكود — سيتم إنشاء كل شيء من الصفر بنفس نمط `feed_factory_treasury_txns` و `treasury_transfers`.
 
 ---
 
-### 2) واجهة المستخدم — Tab جديد "تجارة كتاكيت"
+## 1) قاعدة البيانات (Migration)
 
-في صفحة معمل التفريخ والحضانات، أضف Tab بالاسم "تجارة كتاكيت" بجانب التابات الموجودة (الدفعات، النافق، صرف علف، ... إلخ كما في الصورة).
+### جدول `main_warehouse_treasury_txns`
+حركات خزينة المخزن الرئيسي (إيداع/سحب/تحصيل بيع مباشر/تحويل صادر):
+- `id`, `created_at`, `performed_at`
+- `direction` (`in` | `out`)
+- `category` (`direct_sale_cash` | `transfer_to_main_treasury` | `manual_adjust` | `opening_balance` | `other`)
+- `amount` (numeric)
+- `reference` (نص اختياري — رقم طلب/فاتورة)
+- `notes`
+- `performed_by` (uuid)
+- `transfer_id` (FK اختياري لـ `treasury_transfers`)
+- `status` (`posted` | `pending_approval` | `rejected`)
 
-**ملفات React جديدة:**
+### استخدام `treasury_transfers` الحالي
+لتحويل المبالغ إلى الخزينة الرئيسية، نُدخل صفًا في `treasury_transfers` بـ:
+- `source_type = 'main_warehouse'`
+- `destination_type = 'main_treasury'`
+- `status = 'pending_approval'`
+- `requested_by = عبدالمنعم`
+- ويُرسل إشعار `notifications` تلقائيًا لمحمد شعلة وفق نمط الإشعارات الموجود في المشروع.
+
+### RLS و GRANTs
+- `SELECT` للجميع الذين لديهم صلاحية مشاهدة المخازن.
+- `INSERT/UPDATE` لـ عبدالمنعم عثمان (warehouse keeper المخصص) + المدير العام + المدير التنفيذي.
+- اعتماد/رفض التحويل = محمد شعلة (المدير المالي/الخزينة الرئيسية) + المدير العام عبر `treasury_transfers` policies الموجودة.
+- `GRANT` كامل على الجدول لـ `authenticated` و `service_role`.
+
+---
+
+## 2) مكون `MainWarehouseTreasuryTab.tsx`
+ملف جديد في `src/components/warehouses/`، يعرض داشبورد بنفس ستايل خزينة مصنع الأعلاف:
 
 ```
-src/pages/hatchery/ChickTradingTab.tsx          ← الحاوي الرئيسي مع 4 تابات فرعية
-src/components/chick-trading/
-  ├─ ChickTradingDashboard.tsx                  ← ملخص + KPIs
-  ├─ ChickTradingBatchesList.tsx                ← قائمة دفعات التجارة
-  ├─ ChickTradingBatchDetail.tsx                ← تفاصيل دفعة + المصروفات/النافق/المبيعات/الربح
-  ├─ NewChickTradingPurchaseDialog.tsx          ← شاشة شراء (مع اختيار الخزنة)
-  ├─ NewChickTradingSaleDialog.tsx              ← شاشة بيع (مع اختيار خزنة التحصيل)
-  ├─ AddTradingExpenseDialog.tsx                ← صرف علف/أدوية/أخرى
-  ├─ AddTradingMortalityDialog.tsx              ← تسجيل نافق
-  ├─ ChickTradingReport.tsx                     ← تقرير الربح والخسارة
-  └─ TradingBatchPnLPanel.tsx                   ← لوحة ربح/خسارة لكل دفعة
++------------------------------------------------------+
+| الرصيد الحالي | إيرادات اليوم | تحويلات معلّقة | المحوّل |
++------------------------------------------------------+
+| [+ تسجيل تحصيل]  [→ تحويل للخزينة الرئيسية]         |
+| [طباعة]  [Excel]  [PDF]                              |
++------------------------------------------------------+
+| الحركات (جدول قابل للفلترة + بحث + تاريخ)            |
++------------------------------------------------------+
+| التحويلات بانتظار اعتماد محمد شعلة (قسم منفصل)       |
++------------------------------------------------------+
 ```
 
-**شارة "تجارة"** تظهر في:
-- قائمة دفعات التجارة (Badge برتقالي).
-- في تاب "دفعات التحضين" الأصلي: مجرد ربط/رابط لقائمة تجارة الكتاكيت (لا نخلطها مع دفعات BRD-).
+### الحوارات (Dialogs)
+1. **تسجيل تحصيل بيع مباشر**: مبلغ + رقم طلب (اختياري) + ملاحظات → `direction=in, category=direct_sale_cash`.
+2. **تحويل إلى الخزينة الرئيسية**: مبلغ + ملاحظات + تأكيد → ينشئ `treasury_transfers` (pending) + حركة `out` بحالة `pending_approval` + إشعار لمحمد شعلة.
+3. **تأكيد/رفض التحويل** (لمحمد شعلة فقط): يعدّل `treasury_transfers.status` و يثبّت/يلغي حركة الخزينة المقابلة.
 
-**Hooks مشتركة:**
+### التصدير والطباعة
+استخدام `openPrintWindow` من `@/lib/printPdf` (ضمن قواعد الذاكرة لطباعة العربي بشكل صحيح) + `xlsx` للإكسل بنفس النمط المستخدم في `WarehousesDashboardPanel.tsx`.
+
+---
+
+## 3) دمج التبويب في `Warehouses.tsx`
+
+إضافة TabsTrigger بعد "سجل حركات المخزن الرئيسي" (السطر ~1001):
+
+```tsx
+<TabsTrigger value="wh-treasury" className="gap-1">
+  <Wallet className="w-4 h-4" />خزينة المخزن الرئيسي
+</TabsTrigger>
 ```
-src/hooks/useChickTrading.tsx                   ← list/get/create/update لكل العمليات
-```
+
+و `TabsContent` يحمل المكون الجديد، مع شرط ظهور: المدير العام/التنفيذي/المالي + عبدالمنعم عثمان (warehouse keeper المخزن الرئيسي). إذا لم تكن لديه صلاحية → التبويب مخفي.
+
+كذلك إضافة بند موازٍ داخل قائمة "المزيد" حتى تظهر في حالة ضيق الشاشة (نفس النمط الموجود للتبويبات الأخرى في السطور 1429-1431).
 
 ---
 
-### 3) تكامل الخزائن
-
-- **خزنة المعمل**: نستخدم `lab_treasury_movements` (kind: `out / chick_trading_purchase` و `in / chick_trading_sale`).
-- **الخزنة الرئيسية**: نستخدم `main_treasury_transactions` (category جديدة: "تجارة كتاكيت").
-
-عند الشراء: حركة واحدة فقط، خزنة واحدة، بربط `ref`.
-عند البيع نقدي: حركة واحدة فقط في الخزنة المختارة.
-عند البيع آجل: لا حركة الآن — يظهر زر "تحصيل" لاحقًا داخل تفاصيل البيع، عند الضغط يطلب الخزنة ويسجل الإيراد.
-
-Unique indexes تمنع تكرار حركة الخزنة لنفس (ref_table, ref_id, kind).
+## 4) الصلاحيات (RBAC)
+استخدام `useAuth`:
+- `canManageMainWarehouseTreasury = isGeneralManager || isExecutiveManager || isFinancialManager || (isWarehouseKeeper && warehouse === 'main')`
+- `canApproveMainTreasuryTransfer = isGeneralManager || isFinancialManager` (محمد شعلة لديه دور `financial_manager`).
 
 ---
 
-### 4) القيود والأمان
-
-- لا يمكن بيع `quantity > current_count` (CHECK + trigger).
-- إلغاء دفعة شراء يعكس حركة الخزنة ويسجل في audit.
-- إلغاء بيع آجل قبل التحصيل: يرد العدد للدفعة فقط.
-- إلغاء بيع نقدي: يعكس إيراد الخزنة ويرد العدد.
-- لا يؤثر النظام إطلاقًا على `hatch_batches`, `hatchery_batch_lots`, `brooding_batches`, ولا فواتير `hatchery_client_invoices`.
+## 5) الإشعارات
+عند إنشاء تحويل: `notifications.insert({ type: 'main_warehouse_transfer_pending', title, message, user_id: <محمد شعلة> })` — نفس النمط الموجود في `treasury_transfers` و `feed_internal_payments`.
 
 ---
 
-### 5) الاختبارات اليدوية بعد التنفيذ
-
-1. شراء 100 كتكوت × 50 ج من خزنة المعمل → التحقق من ظهور المصروف ودفعة TRD-CHICKS-...
-2. صرف علف 200 ج على الدفعة → تكلفة الكتكوت تتحدث.
-3. بيع 50 كتكوت × 80 ج نقدي للخزنة الرئيسية → دخول الإيراد + نقص الرصيد.
-4. بيع آجل: لا تتأثر الخزنة، يظهر في مديونية العميل.
-5. تقرير الربح/الخسارة يعرض كل الأرقام صحيحة.
+## ضمانات
+- **لا يتم تعديل أي جدول حالي** غير إضافة FK اختياري في الـ migration الجديد.
+- **لا يتم حذف أي تبويب** قديم.
+- **لا تتأثر الأرصدة الحالية** للمخازن أو الخزينة الرئيسية إلا عند اعتماد محمد شعلة للتحويل.
+- جميع الـ GRANTs و RLS مكتوبة في نفس الـ migration.
 
 ---
 
-### ملاحظات تقنية
+## التسليم بعد التنفيذ
+1. تبويب "خزينة المخزن الرئيسي" ظاهر في شريط التبويبات العلوي.
+2. عبدالمنعم يرى الخزينة ويستطيع التسجيل والتحويل.
+3. محمد شعلة يرى إشعار التحويل ويعتمده/يرفضه.
+4. التصدير والطباعة يعملان (عربي صحيح).
 
-- لو وافقت أولاً على المُهاجرة، أنشئها قبل كتابة الواجهة لأن types ستتولد بعدها.
-- الواجهة Arabic/RTL، ألوان Purple/Orange، framer-motion للانتقالات (التزامًا بقواعد المشروع).
-- استخدام `@/lib/cairoDate` لكل فلاتر التاريخ.
-- PDF prints عبر `openPrintWindow` من `@/lib/printPdf`.
+---
 
-هل أبدأ بالمهاجرة (الجداول + التريجرز + RPC)؟ بمجرد اعتمادها، سأبني كل شاشات الواجهة في نفس الدورة.
+**هل أبدأ التنفيذ بهذا الشكل؟** ولديّ سؤالان قبل الانطلاق:
+1. هل لـ عبدالمنعم عثمان دور موجود فعلًا في `user_roles` (مثل `warehouse_keeper` أو دور مخصص)؟ أم نعتمد على `profiles.full_name` للتمييز؟
+2. هل تريد رصيد افتتاحي للخزينة عند الإنشاء (مثلاً 0 أم مبلغ محدد تدخله أنت)؟
