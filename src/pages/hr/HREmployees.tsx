@@ -110,6 +110,7 @@ const HREmployees = () => {
 
   const [docsOf, setDocsOf] = useState<Employee | null>(null);
   const [deductionsOf, setDeductionsOf] = useState<Employee | null>(null);
+  const [suspendOf, setSuspendOf] = useState<Employee | null>(null);
   const [payDayFilter, setPayDayFilter] = useState<"all" | "1" | "5" | "15">("all");
   const [docsSummary, setDocsSummary] = useState<
     Record<string, { id: boolean; contract: boolean }>
