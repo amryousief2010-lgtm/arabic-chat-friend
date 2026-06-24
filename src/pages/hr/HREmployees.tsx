@@ -521,6 +521,7 @@ const HREmployees = () => {
                     <TableHead>يوم الصرف</TableHead>
                     <TableHead>المرتب</TableHead>
                     <TableHead>الخصومات</TableHead>
+                    <TableHead>السلف / العهد</TableHead>
                     <TableHead>صافي الراتب</TableHead>
                     <TableHead>الهاتف</TableHead>
                     {canViewDocs && <TableHead>المستندات</TableHead>}
@@ -530,17 +531,18 @@ const HREmployees = () => {
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={canViewDocs ? 12 : 11} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={canViewDocs ? 13 : 12} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
                   ) : filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={canViewDocs ? 12 : 11} className="text-center py-8 text-muted-foreground">لا يوجد موظفون مطابقون</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={canViewDocs ? 13 : 12} className="text-center py-8 text-muted-foreground">لا يوجد موظفون مطابقون</TableCell></TableRow>
                   ) : (
                     filtered.map((e) => {
                       const ded = deductionsMap[e.id];
                       const totalApproved = ded?.total_approved || 0;
                       const totalPending = ded?.total_pending || 0;
+                      const totalAdvances = advancesMap[e.id] || 0;
                       const base = Number(e.base_salary) || 0;
                       const hasMissingSalary = base <= 0;
-                      const net = hasMissingSalary ? null : Math.max(0, base - totalApproved);
+                      const net = hasMissingSalary ? null : Math.max(0, base - totalApproved - totalAdvances);
                       const byType = ded?.by_type || {};
                       return (
                         <TableRow key={e.id}>
