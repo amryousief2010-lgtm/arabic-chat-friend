@@ -542,17 +542,17 @@ const Warehouses = () => {
       <div class="header">
         <img src="${companyLogo}" />
         <div class="title">
-          <h1>تقرير ملخص المخزون والمنتجات</h1>
+          <h1>${reportTitle}</h1>
           <p>كابيتال أوستريش</p>
           <p>تاريخ الإصدار: ${new Date().toLocaleString("ar-EG")}</p>
         </div>
         <div style="width:70px"></div>
       </div>
       <div class="summary">
-        <div><strong>${items.length}</strong><span>إجمالي الأصناف</span></div>
-        <div><strong>${activeWarehouses}</strong><span>المخازن النشطة</span></div>
+        <div><strong>${scopeItems.length}</strong><span>${selWh ? 'أصناف هذا المخزن' : 'إجمالي الأصناف'}</span></div>
+        <div><strong>${activeWarehouses}</strong><span>${selWh ? 'المخزن' : 'المخازن النشطة'}</span></div>
         <div><strong>${totalValue.toLocaleString()}</strong><span>قيمة المخزون (ج.م)</span></div>
-        <div><strong style="color:#c0392b">${lowStockItems.length}</strong><span>أصناف منخفضة</span></div>
+        <div><strong style="color:#c0392b">${lowScope.length}</strong><span>أصناف منخفضة</span></div>
       </div>
       <table>
         <thead><tr>
