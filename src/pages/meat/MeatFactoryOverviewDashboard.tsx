@@ -5,39 +5,48 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Factory, ShoppingCart, Package, AlertTriangle, CheckCircle2, Clock, XCircle,
-  TrendingUp, Boxes, Send, Beef, Loader2,
+  TrendingUp, Boxes, Send, Beef, Loader2, Wallet, FileText, ClipboardList,
+  TrendingDown, Scale, FlaskConical, Leaf,
 } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, Legend } from "recharts";
 
 const fmt = (n: any) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
+const fmtInt = (n: any) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 0 });
 const PURPLE = "#7c3aed"; const ORANGE = "#ea580c"; const GREEN = "#10b981"; const RED = "#ef4444"; const BLUE = "#3b82f6";
 const COLORS = [PURPLE, ORANGE, GREEN, BLUE, RED, "#06b6d4", "#f59e0b", "#8b5cf6"];
+
+type Period = "today" | "week" | "month" | "custom";
+
 
 type Item = { id: string; name: string; unit: string; current_stock: number; avg_cost: number; kind: string; low_stock_threshold: number };
 type Purchase = { id: string; invoice_no: string | null; purchase_date: string; supplier: string | null; total_amount: number; status: string; invoice_type: string; created_at: string };
 type Invoice = { id: string; invoice_no: string | null; product_name: string; finished_qty: number; unit: string; status: string; raw_cost: number; spice_cost: number; packaging_cost: number; total_manufacturing_cost: number; materials_total_cost: number; unit_cost: number | null; created_at: string; destination_kind: string };
 type Move = { id: string; item_kind: string; item_name: string; direction: string; quantity: number; unit_cost: number; reason: string; ref_table: string; created_at: string };
 
-const KPI = ({ icon: Icon, label, value, sub, color, to }: any) => {
+// Reference-style KPI: white card, label+icon top, large colored number, small unit/sub
+const StatTile = ({ icon: Icon, label, value, unit, sub, color, to }: any) => {
   const inner = (
-    <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-      <CardContent className="pt-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="text-2xl font-bold mt-1" style={{ color }}>{value}</div>
-            {sub && <div className="text-xs text-muted-foreground mt-1">{sub}</div>}
-          </div>
-          <div className="p-2 rounded-lg" style={{ background: `${color}15` }}>
-            <Icon className="w-5 h-5" style={{ color }} />
+    <Card className="hover:shadow-md transition-shadow border-border/60">
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <p className="text-sm text-muted-foreground font-medium">{label}</p>
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${color}15` }}>
+            <Icon className="w-4 h-4" style={{ color }} />
           </div>
         </div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-3xl font-bold" style={{ color }}>{value}</span>
+          {unit && <span className="text-sm text-muted-foreground">{unit}</span>}
+        </div>
+        {sub && <p className="text-xs text-muted-foreground mt-1.5">{sub}</p>}
       </CardContent>
     </Card>
   );
-  return to ? <Link to={to}>{inner}</Link> : inner;
+  return to ? <Link to={to} className="block">{inner}</Link> : inner;
 };
 
 export default function MeatFactoryOverviewDashboard() {
@@ -46,36 +55,103 @@ export default function MeatFactoryOverviewDashboard() {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [moves, setMoves] = useState<Move[]>([]);
+  const [recipesCount, setRecipesCount] = useState(0);
+
+  // Filters
+  const [period, setPeriod] = useState<Period>("month");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | "raw" | "spice" | "packaging">("all");
+  const [productFilter, setProductFilter] = useState<string>("all");
+
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [it, pu, inv, mv] = await Promise.all([
+      const [it, pu, inv, mv, rc] = await Promise.all([
         supabase.from("meat_factory_raw_items" as any).select("id,name,unit,current_stock,avg_cost,kind,low_stock_threshold").order("name"),
         supabase.from("meat_factory_purchases" as any).select("id,invoice_no,purchase_date,supplier,total_amount,status,invoice_type,created_at").order("created_at", { ascending: false }).limit(500),
         supabase.from("meat_manufacturing_invoices" as any).select("id,invoice_no,product_name,finished_qty,unit,status,raw_cost,spice_cost,packaging_cost,total_manufacturing_cost,materials_total_cost,unit_cost,created_at,destination_kind").order("created_at", { ascending: false }).limit(500),
-        supabase.from("meat_factory_inventory_moves" as any).select("id,item_kind,item_name,direction,quantity,unit_cost,reason,ref_table,created_at").order("created_at", { ascending: false }).limit(200),
+        supabase.from("meat_factory_inventory_moves" as any).select("id,item_kind,item_name,direction,quantity,unit_cost,reason,ref_table,created_at").order("created_at", { ascending: false }).limit(500),
+        supabase.from("meat_factory_recipes" as any).select("id", { count: "exact", head: true }),
       ]);
       setItems((it.data as any) || []);
       setPurchases((pu.data as any) || []);
       setInvoices((inv.data as any) || []);
       setMoves((mv.data as any) || []);
+      setRecipesCount((rc as any)?.count || 0);
       setLoading(false);
     })();
   }, []);
 
+  // Period date range
+  const { rangeStart, rangeEnd } = useMemo(() => {
+    const now = new Date();
+    let start = new Date(now);
+    const end = new Date(now); end.setHours(23, 59, 59, 999);
+    if (period === "today") { start.setHours(0, 0, 0, 0); }
+    else if (period === "week") { start.setDate(now.getDate() - 6); start.setHours(0, 0, 0, 0); }
+    else if (period === "month") { start = new Date(now.getFullYear(), now.getMonth(), 1); }
+    else if (period === "custom" && fromDate && toDate) {
+      start = new Date(fromDate); start.setHours(0, 0, 0, 0);
+      const e = new Date(toDate); e.setHours(23, 59, 59, 999);
+      return { rangeStart: start, rangeEnd: e };
+    }
+    return { rangeStart: start, rangeEnd: end };
+  }, [period, fromDate, toDate]);
+
+  const inRange = (iso: string) => {
+    if (!iso) return false;
+    const d = new Date(iso);
+    return d >= rangeStart && d <= rangeEnd;
+  };
+
+  // Filtered datasets
+  const fPurchases = useMemo(() => purchases.filter(p => inRange(p.created_at || p.purchase_date)), [purchases, rangeStart, rangeEnd]);
+  const fInvoices = useMemo(
+    () => invoices.filter(i => inRange(i.created_at) && (productFilter === "all" || i.product_name === productFilter)),
+    [invoices, productFilter, rangeStart, rangeEnd]
+  );
+  const fMoves = useMemo(
+    () => moves.filter(m => inRange(m.created_at) && (typeFilter === "all" || m.item_kind === typeFilter)),
+    [moves, typeFilter, rangeStart, rangeEnd]
+  );
+
+  // Inventory values (always current)
+  const inv = useMemo(() => {
+    const valOf = (kind: string) => items.filter(i => i.kind === kind).reduce((s, i) => s + Number(i.current_stock || 0) * Number(i.avg_cost || 0), 0);
+    const packagingValue = valOf("packaging");
+    const spiceValue = valOf("spice");
+    const rawValue = valOf("raw");
+    const totalInventoryValue = packagingValue + spiceValue + rawValue;
+    const outOfStock = items.filter(i => Number(i.current_stock || 0) <= 0).length;
+    const lowStock = items.filter(i => Number(i.current_stock || 0) > 0 && Number(i.current_stock || 0) <= Number(i.low_stock_threshold || 0)).length;
+    return { packagingValue, spiceValue, rawValue, totalInventoryValue, outOfStock, lowStock };
+  }, [items]);
+
   const k = useMemo(() => {
-    const purchaseTotal = purchases.filter(p => p.status === "approved").reduce((s,p) => s + Number(p.total_amount||0), 0);
-    const packPurchases = purchases.filter(p => p.status === "approved" && (p.invoice_type === "packaging")).reduce((s,p) => s + Number(p.total_amount||0), 0);
-    const mfgCount = invoices.length;
-    const producedQty = invoices.filter(i => i.status !== "draft" && i.status !== "rejected" && i.status !== "cancelled").reduce((s,i) => s + Number(i.finished_qty||0), 0);
-    const mfgCost = invoices.filter(i => i.status !== "draft").reduce((s,i) => s + Number(i.total_manufacturing_cost||0), 0);
-    const approved = invoices.filter(i => i.status === "approved" || i.status === "transferred").length;
-    const pending = invoices.filter(i => i.status === "draft").length;
-    const rejected = invoices.filter(i => i.status === "rejected").length;
-    const transferred = invoices.filter(i => i.status === "transferred").length;
-    return { purchaseTotal, packPurchases, mfgCount, producedQty, mfgCost, approved, pending, rejected, transferred };
-  }, [purchases, invoices]);
+    const purchaseTotal = fPurchases.filter(p => p.status === "approved").reduce((s, p) => s + Number(p.total_amount || 0), 0);
+    const purchaseCount = fPurchases.length;
+    const packPurchases = fPurchases.filter(p => p.status === "approved" && p.invoice_type === "packaging").reduce((s, p) => s + Number(p.total_amount || 0), 0);
+    const mfgCount = fInvoices.length;
+    const mfgTotalAmount = fInvoices.filter(i => i.status !== "draft").reduce((s, i) => s + Number(i.total_manufacturing_cost || 0), 0);
+    const producedQty = fInvoices.filter(i => i.status !== "draft" && i.status !== "rejected" && i.status !== "cancelled").reduce((s, i) => s + Number(i.finished_qty || 0), 0);
+    const mfgCost = fInvoices.filter(i => i.status !== "draft").reduce((s, i) => s + Number(i.total_manufacturing_cost || 0), 0);
+    const approved = fInvoices.filter(i => i.status === "approved" || i.status === "transferred").length;
+    const pending = fInvoices.filter(i => i.status === "draft").length;
+    const rejected = fInvoices.filter(i => i.status === "rejected").length;
+    const transferred = fInvoices.filter(i => i.status === "transferred").length;
+    // Manufacturing dispense — OUT moves linked to manufacturing
+    const dispenseQty = fMoves.filter(m => m.direction === "OUT" && m.ref_table === "meat_manufacturing_invoices").reduce((s, m) => s + Number(m.quantity || 0), 0);
+    // Slaughter inbound — purchases of type 'raw' or moves IN with kind=raw
+    const slaughterInbound = fPurchases.filter(p => p.invoice_type === "raw" || p.invoice_type === "slaughter").reduce((s, p) => s + Number(p.total_amount || 0), 0);
+    return { purchaseTotal, purchaseCount, packPurchases, mfgCount, mfgTotalAmount, producedQty, mfgCost, approved, pending, rejected, transferred, dispenseQty, slaughterInbound };
+  }, [fPurchases, fInvoices, fMoves]);
+
+  const productList = useMemo(() => Array.from(new Set(invoices.map(i => i.product_name).filter(Boolean))).sort(), [invoices]);
+
+  const periodLabel = period === "today" ? "اليوم" : period === "week" ? "هذا الأسبوع" : period === "month" ? "هذا الشهر" : "نطاق مخصص";
+
 
   const lowStockRaw = useMemo(() => items.filter(i => (i.kind === "raw" || i.kind === "spice") && i.current_stock <= (i.low_stock_threshold || 0)).slice(0, 8), [items]);
   const lowStockPack = useMemo(() => items.filter(i => i.kind === "packaging" && i.current_stock <= (i.low_stock_threshold || 0)).slice(0, 8), [items]);
@@ -133,25 +209,67 @@ export default function MeatFactoryOverviewDashboard() {
 
   return (
     <DashboardLayout>
-      <div className="p-4 md:p-6 space-y-6" dir="rtl">
-        {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
+      <div className="p-4 md:p-6 space-y-5" dir="rtl">
+        {/* HEADER — title right with factory icon */}
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm"><Link to="/meat-factory/purchase-invoices"><ShoppingCart className="w-4 h-4 ml-1" />فاتورة مشتريات</Link></Button>
+            <Button asChild size="sm" className="bg-purple-600 hover:bg-purple-700"><Link to="/meat-factory/manufacturing"><Factory className="w-4 h-4 ml-1" />فاتورة تصنيع</Link></Button>
+          </div>
+          <div className="flex items-center gap-3 text-right">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold">
+                <span className="text-foreground">مصنع اللحوم</span>{" "}
+                <span className="text-muted-foreground/70 font-medium tracking-tight">Dashboard</span>
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">مؤشرات المخزون والتصنيع — {periodLabel}</p>
+            </div>
             <div className="p-3 rounded-xl bg-gradient-to-br from-purple-600 to-orange-500 text-white">
               <Factory className="w-7 h-7" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold">لوحة تحكم مصنع اللحوم</h1>
-              <p className="text-sm text-muted-foreground">نظرة شاملة على المشتريات والتصنيع والمخزون والتوريد</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button asChild variant="outline"><Link to="/meat-factory/purchase-invoices"><ShoppingCart className="w-4 h-4 ml-1" />فاتورة مشتريات</Link></Button>
-            <Button asChild className="bg-purple-600 hover:bg-purple-700"><Link to="/meat-factory/manufacturing"><Factory className="w-4 h-4 ml-1" />فاتورة تصنيع</Link></Button>
           </div>
         </div>
 
-        {/* Smart Alerts */}
+        {/* FILTER BAR */}
+        <Card className="border-border/60">
+          <CardContent className="p-3 md:p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-muted-foreground">المنتج:</span>
+              <Select value={productFilter} onValueChange={setProductFilter}>
+                <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل المنتجات</SelectItem>
+                  {productList.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-muted-foreground mr-2">النوع:</span>
+              <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
+                <SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  <SelectItem value="raw">خامات</SelectItem>
+                  <SelectItem value="spice">بهارات</SelectItem>
+                  <SelectItem value="packaging">تغليف</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {period === "custom" && (
+                <>
+                  <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-9 w-36" />
+                  <span className="text-muted-foreground text-sm">→</span>
+                  <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-9 w-36" />
+                </>
+              )}
+              <Button variant={period === "custom" ? "default" : "outline"} size="sm" onClick={() => setPeriod("custom")}>من - إلى</Button>
+              <Button variant={period === "month" ? "default" : "outline"} size="sm" onClick={() => setPeriod("month")} className={period === "month" ? "bg-purple-600 hover:bg-purple-700" : ""}>هذا الشهر</Button>
+              <Button variant={period === "week" ? "default" : "outline"} size="sm" onClick={() => setPeriod("week")} className={period === "week" ? "bg-purple-600 hover:bg-purple-700" : ""}>هذا الأسبوع</Button>
+              <Button variant={period === "today" ? "default" : "outline"} size="sm" onClick={() => setPeriod("today")} className={period === "today" ? "bg-purple-600 hover:bg-purple-700" : ""}>اليوم</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Smart Alerts (kept, compact) */}
         {(k.pending > 0 || lowStockRaw.length > 0 || lowStockPack.length > 0) && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {k.pending > 0 && (
@@ -171,7 +289,7 @@ export default function MeatFactoryOverviewDashboard() {
                   <AlertTriangle className="w-6 h-6 text-red-600" />
                   <div className="text-sm">
                     <div className="font-bold text-red-700">{lowStockRaw.length} صنف خامات/بهارات تحت حد التنبيه</div>
-                    <div className="text-xs">{lowStockRaw.slice(0,3).map(x => x.name).join("، ")}{lowStockRaw.length > 3 ? "…" : ""}</div>
+                    <div className="text-xs">{lowStockRaw.slice(0, 3).map(x => x.name).join("، ")}{lowStockRaw.length > 3 ? "…" : ""}</div>
                   </div>
                 </CardContent>
               </Card>
@@ -182,7 +300,7 @@ export default function MeatFactoryOverviewDashboard() {
                   <Package className="w-6 h-6 text-orange-600" />
                   <div className="text-sm">
                     <div className="font-bold text-orange-700">{lowStockPack.length} صنف تغليف تحت حد التنبيه</div>
-                    <div className="text-xs">{lowStockPack.slice(0,3).map(x => x.name).join("، ")}{lowStockPack.length > 3 ? "…" : ""}</div>
+                    <div className="text-xs">{lowStockPack.slice(0, 3).map(x => x.name).join("، ")}{lowStockPack.length > 3 ? "…" : ""}</div>
                   </div>
                 </CardContent>
               </Card>
@@ -190,19 +308,27 @@ export default function MeatFactoryOverviewDashboard() {
           </div>
         )}
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <KPI icon={ShoppingCart} label="إجمالي مشتريات الخامات" value={`${fmt(k.purchaseTotal)} ج`} color={PURPLE} to="/meat-factory/purchase-invoices" />
-          <KPI icon={Package} label="مشتريات التغليف" value={`${fmt(k.packPurchases)} ج`} color={ORANGE} to="/meat-factory/purchase-invoices" />
-          <KPI icon={Factory} label="فواتير التصنيع" value={fmt(k.mfgCount)} sub={`${fmt(k.approved)} معتمدة`} color={BLUE} to="/meat-factory/manufacturing" />
-          <KPI icon={Beef} label="إجمالي المنتجات المصنعة" value={fmt(k.producedQty)} sub="كجم/عبوة" color={GREEN} />
-          <KPI icon={TrendingUp} label="إجمالي تكلفة التصنيع" value={`${fmt(k.mfgCost)} ج`} color={PURPLE} />
-          <KPI icon={CheckCircle2} label="المعتمدة" value={fmt(k.approved)} color={GREEN} />
-          <KPI icon={Clock} label="بانتظار الاعتماد" value={fmt(k.pending)} color="#f59e0b" />
-          <KPI icon={XCircle} label="المرفوضة" value={fmt(k.rejected)} color={RED} />
-          <KPI icon={Send} label="الموردة للمخزن الرئيسي" value={fmt(k.transferred)} color={BLUE} />
-          <KPI icon={Boxes} label="إجمالي أصناف المخزن" value={fmt(items.length)} sub={`${items.filter(i=>i.kind==='packaging').length} تغليف`} color={ORANGE} />
+        {/* KPI GRID — 4 cols × 3 rows */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {/* Row 1 — values */}
+          <StatTile icon={Package} label="قيمة التغليف" value={fmt(inv.packagingValue)} unit="ج" color={GREEN} />
+          <StatTile icon={FlaskConical} label="قيمة البهارات" value={fmt(inv.spiceValue)} unit="ج" color={ORANGE} />
+          <StatTile icon={Leaf} label="قيمة الخامات" value={fmt(inv.rawValue)} unit="ج" color={ORANGE} />
+          <StatTile icon={Wallet} label="إجمالي قيمة المخزون" value={fmt(inv.totalInventoryValue)} unit="ج" color={PURPLE} />
+
+          {/* Row 2 — this period flows */}
+          <StatTile icon={FileText} label={`فواتير تصنيع — ${periodLabel}`} value={fmtInt(k.mfgCount)} sub={`${fmt(k.mfgTotalAmount)} ج إجمالي`} color={PURPLE} to="/meat-factory/manufacturing" />
+          <StatTile icon={TrendingDown} label={`صرف تصنيع — ${periodLabel}`} value={fmt(k.dispenseQty)} unit="وحدة" color={ORANGE} />
+          <StatTile icon={ShoppingCart} label={`مشتريات — ${periodLabel}`} value={fmt(k.purchaseTotal)} unit="ج" sub={`${fmtInt(k.purchaseCount)} فاتورة`} color={GREEN} to="/meat-factory/purchase-invoices" />
+          <StatTile icon={Beef} label={`وارد المجزر — ${periodLabel}`} value={fmt(k.slaughterInbound)} unit="ج" color={RED} />
+
+          {/* Row 3 — operations & alerts */}
+          <StatTile icon={ClipboardList} label="تركيبات التصنيع" value={fmtInt(recipesCount)} unit="تركيبة" sub="مرجع جاهز" color={PURPLE} to="/meat-factory/recipes" />
+          <StatTile icon={AlertTriangle} label="أصناف نفدت" value={fmtInt(inv.outOfStock)} color={RED} />
+          <StatTile icon={TrendingDown} label="أصناف منخفضة" value={fmtInt(inv.lowStock)} color={ORANGE} />
+          <StatTile icon={CheckCircle2} label={`كمية مصنعة — ${periodLabel}`} value={fmt(k.producedQty)} unit="كجم" sub={k.producedQty === 0 ? "—" : `${fmtInt(k.transferred)} موردة للرئيسي`} color={GREEN} />
         </div>
+
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
