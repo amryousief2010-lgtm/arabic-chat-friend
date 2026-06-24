@@ -409,6 +409,43 @@ const Warehouses = () => {
   const lowStockItems = items.filter(i => i.stock <= i.low_stock_threshold);
   const pendingSlaughter = slaughterOutputs.filter(o => o.received_status !== 'received');
 
+  // ============ KPI Scope (top cards) ============
+  // الكروت العلوية تتحدث حسب التبويب المختار أو تعود للإجمالي.
+  const [forceAllKpi, setForceAllKpi] = useState(false);
+  const tabWarehouseMap = useMemo(() => {
+    const f = (pats: RegExp[]) => warehouses.find((w) => pats.some((p) => p.test(w.name)));
+    return {
+      "wh-main": f([/رئيسي/, /main/i]),
+      "wh-agouza": f([/عجوزة/, /agouza/i]),
+      "wh-hht": f([/هيلثي/, /healthy/i]),
+      "wh-carrefour": f([/كارفور/, /carrefour/i]),
+      "wh-packaging": f([/تغليف/, /تعبئة/, /packaging/i]) || warehouses.find((w) => w.type === "packaging"),
+      "wh-activity": f([/رئيسي/, /main/i]),
+    } as Record<string, any>;
+  }, [warehouses]);
+  const kpiWh = !forceAllKpi ? tabWarehouseMap[activeTab] : undefined;
+  const kpiScopeLabel = kpiWh ? `إحصائيات ${kpiWh.name}` : "إجمالي كل المخازن";
+  const kpiItems = useMemo(() => {
+    if (!kpiWh) return items;
+    let base = items.filter((i) => i.warehouse_id === kpiWh.id);
+    if (isMainWarehouseName(kpiWh.name)) {
+      base = base.filter((i) => !isMainWarehouseExcludedCategory((i as any).category));
+    }
+    return base;
+  }, [items, kpiWh]);
+  const kpiLowStock = useMemo(
+    () => kpiItems.filter((i) => i.stock <= i.low_stock_threshold),
+    [kpiItems]
+  );
+  const kpiTotalValue = useMemo(
+    () => kpiItems.reduce((s, i) => s + i.stock * i.unit_cost, 0),
+    [kpiItems]
+  );
+  const kpiActiveWh = kpiWh ? 1 : warehouses.filter((w) => w.is_active).length;
+  const kpiFirstCardLabel = kpiWh ? "حالة المخزن" : "المخازن النشطة";
+  const kpiFirstCardValue = kpiWh ? (kpiWh.is_active ? "نشط" : "متوقف") : String(kpiActiveWh);
+
+
   // group pending outputs by batch
   const pendingBatches = Object.values(
     pendingSlaughter.reduce((acc: Record<string, any>, o: any) => {
