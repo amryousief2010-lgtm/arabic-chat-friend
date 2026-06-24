@@ -509,6 +509,41 @@ const FeedFactory = () => {
               title="سجل حركات مصنع الأعلاف"
             />
           </TabsContent>
+
+          <TabsContent value="reports" className="space-y-4">
+            {roles.some(r => ['general_manager','executive_manager','feed_factory_manager','accountant','financial_manager'].includes(r)) && (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Warehouse className="w-5 h-5 text-orange-500" />
+                      الأرصدة الافتتاحية لمخازن العلف
+                    </CardTitle>
+                    <CardDescription>إدارة الأرصدة الافتتاحية لمخازن المصنع</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Link to="/feed-factory/opening-balances">
+                      <Button variant="outline" className="w-full">فتح الأرصدة الافتتاحية</Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <FileSpreadsheet className="w-5 h-5 text-primary" />
+                      بيانات مرجعية — المحتسب
+                    </CardTitle>
+                    <CardDescription>البيانات المرجعية والمحتسب للمصنع</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Link to="/feed-factory/historical-reference">
+                      <Button variant="outline" className="w-full">فتح البيانات المرجعية</Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
 
