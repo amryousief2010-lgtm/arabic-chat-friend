@@ -410,7 +410,7 @@ const Warehouses = () => {
   const pendingSlaughter = slaughterOutputs.filter(o => o.received_status !== 'received');
 
   // group pending outputs by batch
-  const pendingBatches = Object.values(
+  const pendingBatchesAll = Object.values(
     pendingSlaughter.reduce((acc: Record<string, any>, o: any) => {
       const key = o.batch_id;
       if (!acc[key]) acc[key] = {
@@ -424,6 +424,17 @@ const Warehouses = () => {
       return acc;
     }, {})
   ) as any[];
+
+  // Archive cutoff: batches with slaughter_date before this are considered
+  // historical "archived_pending_receipt" — kept in DB untouched (no stock
+  // movement, no balance change) but hidden from default view.
+  const ARCHIVE_CUTOFF = '2026-06-24';
+  const isArchived = (b: any) => !b.slaughter_date || String(b.slaughter_date) < ARCHIVE_CUTOFF;
+  const pendingBatches = pendingBatchesAll.filter(b =>
+    pendingFilter === 'all' ? true : pendingFilter === 'archived' ? isArchived(b) : !isArchived(b)
+  );
+  const archivedCount = pendingBatchesAll.filter(isArchived).length;
+  const currentCount = pendingBatchesAll.length - archivedCount;
 
   const openReceiveBatch = (batch: any) => {
     setReceiveBatch(batch);
