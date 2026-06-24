@@ -93,7 +93,7 @@ const HREmployees = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "suspended">("active");
   const [locFilter, setLocFilter] = useState<string>("all");
   const [docFilter, setDocFilter] = useState<
     "all" | "id_yes" | "id_no" | "contract_yes" | "contract_no" | "missing"
