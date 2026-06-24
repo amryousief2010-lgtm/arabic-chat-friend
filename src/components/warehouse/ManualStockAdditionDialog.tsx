@@ -130,6 +130,8 @@ const ManualStockAdditionDialog = ({
   const [saving, setSaving] = useState(false);
   const [customParties, setCustomParties] = useState<{ id: string; name: string }[]>([]);
   const [addPartyOpen, setAddPartyOpen] = useState(false);
+  const [addReasonOpen, setAddReasonOpen] = useState(false);
+  const [reasonsTick, setReasonsTick] = useState(0);
   const [lastSaved, setLastSaved] = useState<{
     opNo: string;
     partyLabel: string;
