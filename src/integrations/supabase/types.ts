@@ -18826,6 +18826,7 @@ export type Database = {
         | "chick_sale"
         | "slaughter_transfer"
         | "adjustment"
+        | "internal_transfer"
       chick_order_status: "pending" | "delivered" | "returned" | "cancelled"
       feed_order_status:
         | "draft"
@@ -19146,6 +19147,7 @@ export const Constants = {
         "chick_sale",
         "slaughter_transfer",
         "adjustment",
+        "internal_transfer",
       ],
       chick_order_status: ["pending", "delivered", "returned", "cancelled"],
       feed_order_status: [
