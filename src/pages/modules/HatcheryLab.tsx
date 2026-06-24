@@ -147,18 +147,21 @@ const HatcheryLab = () => {
     <DashboardLayout>
       <Header title="معمل التفريخ والحضانات" subtitle="نظام كامل: دفعات • كشف • هاتشر • حضانات • فواتير" />
       <div className="p-4 max-w-7xl mx-auto space-y-4">
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline" size="sm">
-            <a href="/hatchery/import-batches/review">
-              <ClipboardCheck className="w-4 h-4 ml-1" /> مراجعة دفعات المعمل المستوردة
-            </a>
-          </Button>
-          <Button asChild variant="ghost" size="sm">
-            <a href="/hatchery/import-batches">
-              <FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد دفعات المعمل
-            </a>
-          </Button>
-        </div>
+        <Card className="p-3">
+          <div className="text-sm font-semibold mb-2 text-muted-foreground">روابط سريعة لكل وظائف المعمل</div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm"><a href="/hatchery/import-batches"><FileSpreadsheet className="w-4 h-4 ml-1" />استيراد دفعات المعمل</a></Button>
+            <Button asChild variant="outline" size="sm"><a href="/hatchery/import-batches/review"><ClipboardCheck className="w-4 h-4 ml-1" />مراجعة الدفعات المستوردة</a></Button>
+            <Button asChild variant="outline" size="sm"><a href="/hatchery/customer-reconciliation"><ClipboardCheck className="w-4 h-4 ml-1" />تسوية حسابات العملاء</a></Button>
+            <Button asChild variant="outline" size="sm"><a href="/hatchery/operational-statement"><FileText className="w-4 h-4 ml-1" />كشف حساب تشغيل العملاء</a></Button>
+            <Button asChild variant="outline" size="sm"><a href="/lab-treasury"><Wallet className="w-4 h-4 ml-1" />خزنة المعمل والحضانات</a></Button>
+            <Button asChild variant="outline" size="sm"><a href="/lab-treasury/customer-statement"><Wallet className="w-4 h-4 ml-1" />كشف حساب عملاء المعمل</a></Button>
+            <Button asChild variant="outline" size="sm"><a href="/lab-treasury/customer-balances"><Wallet className="w-4 h-4 ml-1" />أرصدة العملاء</a></Button>
+            <Button asChild variant="ghost" size="sm"><a href="/hatchery/payments"><Wallet className="w-4 h-4 ml-1" />دفعات العملاء (أرشيف)</a></Button>
+            <Button asChild variant="ghost" size="sm"><a href="/modules/farm-hatchery-dashboard"><TrendingUp className="w-4 h-4 ml-1" />لوحة المزرعة والمعمل</a></Button>
+            <Button asChild variant="ghost" size="sm"><a href="/farm-shipments-log"><TrendingUp className="w-4 h-4 ml-1" />سجل وارد المزرعة</a></Button>
+          </div>
+        </Card>
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="dashboard"><Activity className="w-4 h-4 ml-1" />الداشبورد</TabsTrigger>
