@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet, FileText, MapPin, Menu, BookOpen, Calendar, Scale, UtensilsCrossed, Inbox, ClipboardCheck } from "lucide-react";
+import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet, FileText, MapPin, Menu, BookOpen, Calendar, Scale, UtensilsCrossed, Inbox, ClipboardCheck, Eye } from "lucide-react";
+import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -180,9 +181,13 @@ interface Movement {
   quantity: number;
   destination_warehouse_id: string | null;
   reference: string | null;
+  reference_type?: string | null;
   party: string | null;
   notes: string | null;
   performed_at: string;
+  package_count?: number | null;
+  package_weight_kg?: number | null;
+  performed_by?: string | null;
   item?: { name: string; unit: string };
   warehouse?: { name: string };
   destination?: { name: string };
@@ -236,6 +241,134 @@ const Warehouses = () => {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("items");
   const [menuSubview, setMenuSubview] = useState<string | null>(null);
+
+  // Grouped manual supply/issuance dialog
+  const [manualGroupRef, setManualGroupRef] = useState<string | null>(null);
+  const [manualBusy, setManualBusy] = useState(false);
+  const canManageManual = isGeneralManager || isExecutiveManager;
+
+  // Group movements by reference for MAN-IN / MAN-OUT (one row per supply batch)
+  type GroupedRow =
+    | { kind: "single"; mov: Movement }
+    | { kind: "manual"; reference: string; direction: "in" | "out"; date: string; movs: Movement[]; totalQty: number; partyLabel: string };
+
+  const groupedMovements = useMemo<GroupedRow[]>(() => {
+    const manualMap = new Map<string, Movement[]>();
+    const others: Movement[] = [];
+    movements.forEach((m) => {
+      const ref = m.reference || "";
+      const isManualIn = /^MAN-IN-\d{8}-\d{4}$/.test(ref) && m.reference_type === "manual_addition";
+      const isManualOut = /^MAN-OUT-\d{8}-\d{4}$/.test(ref) && m.reference_type === "manual_out";
+      if (isManualIn || isManualOut) {
+        if (!manualMap.has(ref)) manualMap.set(ref, []);
+        manualMap.get(ref)!.push(m);
+      } else {
+        others.push(m);
+      }
+    });
+    const parseField = (notes: string | null | undefined, label: string): string => {
+      if (!notes) return "";
+      const re = new RegExp(`${label}:\\s*([^•]+?)(?=\\s*•|$)`);
+      const x = notes.match(re);
+      return x ? x[1].trim() : "";
+    };
+    const rows: GroupedRow[] = others.map((m) => ({ kind: "single", mov: m }));
+    manualMap.forEach((movs, ref) => {
+      const direction: "in" | "out" = ref.startsWith("MAN-IN") ? "in" : "out";
+      const sample = movs[0] || ({} as Movement);
+      const partyKey = direction === "in" ? "جهة التوريد" : "جهة الصرف";
+      const partyLabel = parseField(sample.notes, partyKey) || sample.party || "—";
+      rows.push({
+        kind: "manual",
+        reference: ref,
+        direction,
+        date: sample.performed_at,
+        movs,
+        totalQty: movs.reduce((s, x) => s + Number(x.quantity || 0), 0),
+        partyLabel,
+      });
+    });
+    rows.sort((a, b) => {
+      const da = a.kind === "single" ? a.mov.performed_at : a.date;
+      const db = b.kind === "single" ? b.mov.performed_at : b.date;
+      return new Date(db).getTime() - new Date(da).getTime();
+    });
+    return rows;
+  }, [movements]);
+
+  const manualGroup = useMemo(
+    () => groupedMovements.find((r) => r.kind === "manual" && r.reference === manualGroupRef) as
+      | (Extract<GroupedRow, { kind: "manual" }>)
+      | undefined,
+    [groupedMovements, manualGroupRef]
+  );
+
+  const parseNoteField = (notes: string | null | undefined, label: string): string => {
+    if (!notes) return "";
+    const re = new RegExp(`${label}:\\s*([^•]+?)(?=\\s*•|$)`);
+    const m = notes.match(re);
+    return m ? m[1].trim() : "";
+  };
+
+  const printManualGroup = () => {
+    if (!manualGroup) return;
+    const first = manualGroup.movs[0];
+    const supplier = parseNoteField(first.notes, "القائم بالتوريد");
+    const deliveryDate = parseNoteField(first.notes, "تاريخ التوريد");
+    const extraNotes = parseNoteField(first.notes, "ملاحظات");
+    const slipRows: SlipItemRow[] = manualGroup.movs.map((r) => ({
+      name: r.item?.name || r.item_id,
+      unit: r.item?.unit || "كجم",
+      packageCount: r.package_count ?? null,
+      packageWeightKg: r.package_weight_kg ?? null,
+      quantity: Number(r.quantity || 0),
+      stockBefore: Number(parseNoteField(r.notes, "قبل").replace(/[^\d.\-]/g, "")) || null,
+      stockAfter: Number(parseNoteField(r.notes, "بعد").replace(/[^\d.\-]/g, "")) || null,
+    }));
+    printWarehouseSlip({
+      kind: manualGroup.direction,
+      opNo: manualGroup.reference,
+      warehouseName: first.warehouse?.name || "—",
+      partyLabel: manualGroup.partyLabel,
+      supplier,
+      deliveryDate,
+      performedByName: "",
+      performedAt: first.performed_at,
+      notes: extraNotes,
+      rows: slipRows,
+    });
+  };
+
+  const cancelManualGroup = async () => {
+    if (!manualGroup || !canManageManual) return;
+    const reason = window.prompt("سبب الإلغاء (مطلوب):", "");
+    if (!reason || !reason.trim()) {
+      toast({ title: "السبب مطلوب لإلغاء التوريدة", variant: "destructive" });
+      return;
+    }
+    if (!window.confirm(`سيتم إلغاء التوريدة ${manualGroup.reference} وعكس أثرها على المخزون. متابعة؟`)) return;
+    setManualBusy(true);
+    try {
+      // Reverse stock for each line, then delete the original movements.
+      for (const m of manualGroup.movs) {
+        const delta = (m.movement_type === "in" ? -1 : 1) * Number(m.quantity || 0);
+        const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", m.item_id).maybeSingle();
+        const newStock = Number((it as any)?.stock || 0) + delta;
+        await supabase.from("inventory_items").update({ stock: newStock }).eq("id", m.item_id);
+      }
+      const ids = manualGroup.movs.map((m) => m.id);
+      const { error } = await supabase.from("inventory_movements").delete().in("id", ids);
+      if (error) throw error;
+      toast({ title: "تم إلغاء التوريدة", description: `${manualGroup.reference} — ${reason}` });
+      setManualGroupRef(null);
+      await fetchAll();
+    } catch (e: any) {
+      toast({ title: "تعذّر الإلغاء", description: e?.message || "حدث خطأ", variant: "destructive" });
+    } finally {
+      setManualBusy(false);
+    }
+  };
+
 
   const fetchAll = async () => {
     setLoading(true);
@@ -891,12 +1024,45 @@ const Warehouses = () => {
                     <TableHead>الكمية</TableHead>
                     <TableHead>الوجهة/الجهة</TableHead>
                     <TableHead>المرجع</TableHead>
+                    <TableHead className="text-center">إجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {movements.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
-                  ) : movements.map(m => {
+                  {groupedMovements.length === 0 ? (
+                    <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+                  ) : groupedMovements.map((row) => {
+                    if (row.kind === "manual") {
+                      const isIn = row.direction === "in";
+                      const sample = row.movs[0];
+                      const unit = sample?.item?.unit || "كجم";
+                      return (
+                        <TableRow key={row.reference} className={isIn ? "bg-emerald-50/40" : "bg-rose-50/40"}>
+                          <TableCell className="text-xs">{formatDateTime(row.date)}</TableCell>
+                          <TableCell>
+                            <Badge className={`gap-1 ${isIn ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"}`}>
+                              {isIn ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />}
+                              {isIn ? "توريد مباشر" : "صرف مباشر"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell colSpan={2} className="font-medium">
+                            <span className="text-muted-foreground">توريدة</span>{" "}
+                            <span className="font-mono">{row.reference}</span>
+                            <span className="text-muted-foreground mr-2">({row.movs.length} صنف)</span>
+                          </TableCell>
+                          <TableCell>{row.totalQty.toFixed(2)} {unit}</TableCell>
+                          <TableCell>{row.partyLabel || "—"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground font-mono">{row.reference}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1 justify-center">
+                              <Button size="sm" variant="outline" onClick={() => setManualGroupRef(row.reference)}>
+                                <Eye className="w-3 h-3 ml-1" /> تفاصيل
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+                    const m = row.mov;
                     const cfg = movementTypeLabels[m.movement_type];
                     const Icon = cfg?.icon || ArrowDown;
                     return (
@@ -908,6 +1074,7 @@ const Warehouses = () => {
                         <TableCell>{m.quantity} {m.item?.unit}</TableCell>
                         <TableCell>{m.destination?.name || m.party || "—"}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{m.reference || "—"}</TableCell>
+                        <TableCell />
                       </TableRow>
                     );
                   })}
@@ -1586,6 +1753,92 @@ const Warehouses = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Manual Supply / Issuance Group Details */}
+      <Dialog open={!!manualGroupRef} onOpenChange={(v) => { if (!v) setManualGroupRef(null); }}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>
+              {manualGroup ? (
+                <>
+                  {manualGroup.direction === "in" ? "تفاصيل توريدة" : "تفاصيل صرف"}{" "}
+                  <span className="font-mono text-primary">{manualGroup.reference}</span>
+                </>
+              ) : "تفاصيل التوريدة"}
+            </DialogTitle>
+            <DialogDescription>
+              {manualGroup ? (
+                <>
+                  {formatDateTime(manualGroup.date)} • {manualGroup.partyLabel} •{" "}
+                  {manualGroup.movs.length} صنف • إجمالي {manualGroup.totalQty.toFixed(2)} كجم
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+
+          {manualGroup && (
+            <div className="space-y-3">
+              <div className="overflow-x-auto border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>الصنف</TableHead>
+                      <TableHead className="text-center">عدد العبوات</TableHead>
+                      <TableHead className="text-center">وزن العبوة</TableHead>
+                      <TableHead className="text-center">الكمية</TableHead>
+                      <TableHead className="text-center">الوحدة</TableHead>
+                      <TableHead className="text-center">الرصيد قبل</TableHead>
+                      <TableHead className="text-center">الرصيد بعد</TableHead>
+                      <TableHead>ملاحظات</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {manualGroup.movs.map((m) => {
+                      const before = parseNoteField(m.notes, "قبل");
+                      const after = parseNoteField(m.notes, "بعد");
+                      const extra = parseNoteField(m.notes, "ملاحظات");
+                      return (
+                        <TableRow key={m.id}>
+                          <TableCell className="font-medium">{m.item?.name || "—"}</TableCell>
+                          <TableCell className="text-center">{m.package_count ?? "—"}</TableCell>
+                          <TableCell className="text-center">{m.package_weight_kg ?? "—"}</TableCell>
+                          <TableCell className="text-center">{Number(m.quantity).toFixed(2)}</TableCell>
+                          <TableCell className="text-center">{m.item?.unit || "كجم"}</TableCell>
+                          <TableCell className="text-center text-xs">{before || "—"}</TableCell>
+                          <TableCell className="text-center text-xs">{after || "—"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{extra || "—"}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {!canManageManual && (
+                <p className="text-xs text-muted-foreground">
+                  أزرار الطباعة والإلغاء متاحة للمدير العام والمدير التنفيذي فقط.
+                </p>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setManualGroupRef(null)}>إغلاق</Button>
+            {canManageManual && manualGroup && (
+              <>
+                <Button variant="outline" onClick={printManualGroup}>
+                  <Printer className="w-4 h-4 ml-1" /> طباعة
+                </Button>
+                <Button variant="destructive" onClick={cancelManualGroup} disabled={manualBusy}>
+                  <Trash2 className="w-4 h-4 ml-1" /> إلغاء التوريدة
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
 
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
