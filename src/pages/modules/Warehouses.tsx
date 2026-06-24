@@ -405,7 +405,9 @@ const Warehouses = () => {
       return;
     }
     setEditManualRef(group.reference);
+    setEditManualWarehouseId(group.movs[0]?.warehouse_id || null);
     setEditManualReason("");
+
     setEditManualLines(
       group.movs.map((m) => ({
         id: m.id,
