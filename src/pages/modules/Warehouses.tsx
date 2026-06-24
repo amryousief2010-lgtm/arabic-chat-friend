@@ -235,6 +235,7 @@ const Warehouses = () => {
 
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("items");
+  const [pendingFilter, setPendingFilter] = useState<'current' | 'archived' | 'all'>('current');
   const [menuSubview, setMenuSubview] = useState<string | null>(null);
 
   const fetchAll = async () => {
