@@ -59,11 +59,13 @@ export const isAllowedWarehouseDropdownItem = (
   item: WarehouseDropdownItem,
   warehouseId: string | null | undefined,
   isMainWarehouse: boolean,
+  visibleProductIds?: Set<string>,
 ): boolean => {
   if (!warehouseId || !item.id) return false;
   if (item.warehouse_id !== warehouseId) return false;
   if (!isWarehouseItemActive(item)) return false;
   if (isMainWarehouse && !isMainWarehouseStockItemAllowed(item)) return false;
+  if (isMainWarehouse && visibleProductIds && (!item.product_id || !visibleProductIds.has(item.product_id))) return false;
   return true;
 };
 
@@ -76,10 +78,11 @@ export const getAllowedWarehouseDropdownItems = <T extends WarehouseDropdownItem
   items: T[],
   warehouseId: string | null | undefined,
   isMainWarehouse: boolean,
+  visibleProductIds?: Set<string>,
 ): T[] => {
   const byKey = new Map<string, T>();
   items
-    .filter((item) => isAllowedWarehouseDropdownItem(item, warehouseId, isMainWarehouse))
+    .filter((item) => isAllowedWarehouseDropdownItem(item, warehouseId, isMainWarehouse, visibleProductIds))
     .forEach((item) => {
       const key = item.product_id || item.id;
       const current = byKey.get(key);
