@@ -388,6 +388,7 @@ const HREmployees = () => {
                   <SelectContent>
                     <SelectItem value="all">كل الحالات</SelectItem>
                     <SelectItem value="active">نشط</SelectItem>
+                    <SelectItem value="suspended">موقوف عن العمل</SelectItem>
                     <SelectItem value="inactive">غير نشط</SelectItem>
                   </SelectContent>
                 </Select>
