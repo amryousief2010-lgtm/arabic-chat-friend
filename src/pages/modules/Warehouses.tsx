@@ -237,6 +237,7 @@ const Warehouses = () => {
   const [activeTab, setActiveTab] = useState("items");
   const [pendingFilter, setPendingFilter] = useState<'current' | 'archived' | 'all'>('current');
   const [menuSubview, setMenuSubview] = useState<string | null>(null);
+  const [selectedKpiWarehouseId, setSelectedKpiWarehouseId] = useState<string | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -495,9 +496,13 @@ const Warehouses = () => {
   };
 
   const exportInventorySummaryPDF = () => {
-    const totalValue = items.reduce((s, i) => s + i.stock * i.unit_cost, 0);
-    const activeWarehouses = warehouses.filter(w => w.is_active).length;
-    const rows = (warehouseFilter === 'all' ? items : filteredItems).map((it, i) => `
+    const selWh = selectedKpiWarehouseId ? warehouses.find(w => w.id === selectedKpiWarehouseId) : null;
+    const scopeItems = selWh ? items.filter(i => i.warehouse_id === selWh.id) : items;
+    const totalValue = scopeItems.reduce((s, i) => s + i.stock * i.unit_cost, 0);
+    const activeWarehouses = selWh ? 1 : warehouses.filter(w => w.is_active).length;
+    const lowScope = scopeItems.filter(i => i.stock <= i.low_stock_threshold);
+    const reportTitle = selWh ? `تقرير مخزون: ${selWh.name}` : 'تقرير ملخص المخزون والمنتجات';
+    const rows = scopeItems.map((it, i) => `
       <tr>
         <td>${i + 1}</td>
         <td>${esc(it.name)}${it.sku ? ` <span style="color:#666;font-size:11px">(${esc(it.sku)})</span>` : ''}</td>
@@ -537,17 +542,17 @@ const Warehouses = () => {
       <div class="header">
         <img src="${companyLogo}" />
         <div class="title">
-          <h1>تقرير ملخص المخزون والمنتجات</h1>
+          <h1>${reportTitle}</h1>
           <p>كابيتال أوستريش</p>
           <p>تاريخ الإصدار: ${new Date().toLocaleString("ar-EG")}</p>
         </div>
         <div style="width:70px"></div>
       </div>
       <div class="summary">
-        <div><strong>${items.length}</strong><span>إجمالي الأصناف</span></div>
-        <div><strong>${activeWarehouses}</strong><span>المخازن النشطة</span></div>
+        <div><strong>${scopeItems.length}</strong><span>${selWh ? 'أصناف هذا المخزن' : 'إجمالي الأصناف'}</span></div>
+        <div><strong>${activeWarehouses}</strong><span>${selWh ? 'المخزن' : 'المخازن النشطة'}</span></div>
         <div><strong>${totalValue.toLocaleString()}</strong><span>قيمة المخزون (ج.م)</span></div>
-        <div><strong style="color:#c0392b">${lowStockItems.length}</strong><span>أصناف منخفضة</span></div>
+        <div><strong style="color:#c0392b">${lowScope.length}</strong><span>أصناف منخفضة</span></div>
       </div>
       <table>
         <thead><tr>
@@ -592,15 +597,65 @@ const Warehouses = () => {
           </div>
         </div>
 
-        {/* KPIs */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card><CardHeader className="pb-2"><CardDescription>المخازن النشطة</CardDescription><CardTitle className="text-3xl">{warehouses.filter(w => w.is_active).length}</CardTitle></CardHeader></Card>
-          <Card><CardHeader className="pb-2"><CardDescription>إجمالي الأصناف</CardDescription><CardTitle className="text-3xl">{items.length}</CardTitle></CardHeader></Card>
-          <Card><CardHeader className="pb-2"><CardDescription>قيمة المخزون</CardDescription><CardTitle className="text-2xl">{items.reduce((s, i) => s + i.stock * i.unit_cost, 0).toLocaleString()}</CardTitle></CardHeader></Card>
-          <Card className={lowStockItems.length > 0 ? "border-destructive" : ""}>
-            <CardHeader className="pb-2"><CardDescription>أصناف منخفضة</CardDescription><CardTitle className={`text-3xl ${lowStockItems.length > 0 ? "text-destructive" : ""}`}>{lowStockItems.length}</CardTitle></CardHeader>
-          </Card>
-        </div>
+        {/* KPIs — dynamic based on selected warehouse */}
+        {(() => {
+          const selWh = selectedKpiWarehouseId ? warehouses.find(w => w.id === selectedKpiWarehouseId) : null;
+          const scopeItems = selWh ? items.filter(i => i.warehouse_id === selWh.id) : items;
+          const scopeValue = scopeItems.reduce((s, i) => s + i.stock * i.unit_cost, 0);
+          const scopeLow = scopeItems.filter(i => i.stock <= i.low_stock_threshold);
+          const scopeNeg = scopeItems.filter(i => i.stock < 0);
+          return (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <h2 className="text-lg font-semibold">
+                  {selWh ? `إحصائيات: ${selWh.name}` : "إجمالي كل المخازن"}
+                </h2>
+                {selWh && (
+                  <Button variant="outline" size="sm" onClick={() => setSelectedKpiWarehouseId(null)}>
+                    عرض إجمالي كل المخازن
+                  </Button>
+                )}
+              </div>
+              {selWh ? (
+                <div className="grid gap-4 md:grid-cols-4">
+                  <Card><CardHeader className="pb-2"><CardDescription>عدد الأصناف</CardDescription><CardTitle className="text-3xl">{scopeItems.length}</CardTitle></CardHeader></Card>
+                  <Card><CardHeader className="pb-2"><CardDescription>قيمة المخزون</CardDescription><CardTitle className="text-2xl">{scopeValue.toLocaleString()}</CardTitle></CardHeader></Card>
+                  <Card className={scopeLow.length > 0 ? "border-destructive" : ""}>
+                    <CardHeader className="pb-2"><CardDescription>أصناف منخفضة</CardDescription><CardTitle className={`text-3xl ${scopeLow.length > 0 ? "text-destructive" : ""}`}>{scopeLow.length}</CardTitle></CardHeader>
+                  </Card>
+                  <Card className={scopeNeg.length > 0 ? "border-destructive" : ""}>
+                    <CardHeader className="pb-2"><CardDescription>أصناف بالسالب</CardDescription><CardTitle className={`text-3xl ${scopeNeg.length > 0 ? "text-destructive" : ""}`}>{scopeNeg.length}</CardTitle></CardHeader>
+                  </Card>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-4">
+                  <Card><CardHeader className="pb-2"><CardDescription>المخازن النشطة</CardDescription><CardTitle className="text-3xl">{warehouses.filter(w => w.is_active).length}</CardTitle></CardHeader></Card>
+                  <Card><CardHeader className="pb-2"><CardDescription>إجمالي الأصناف</CardDescription><CardTitle className="text-3xl">{items.length}</CardTitle></CardHeader></Card>
+                  <Card><CardHeader className="pb-2"><CardDescription>قيمة المخزون</CardDescription><CardTitle className="text-2xl">{items.reduce((s, i) => s + i.stock * i.unit_cost, 0).toLocaleString()}</CardTitle></CardHeader></Card>
+                  <Card className={lowStockItems.length > 0 ? "border-destructive" : ""}>
+                    <CardHeader className="pb-2"><CardDescription>أصناف منخفضة</CardDescription><CardTitle className={`text-3xl ${lowStockItems.length > 0 ? "text-destructive" : ""}`}>{lowStockItems.length}</CardTitle></CardHeader>
+                  </Card>
+                </div>
+              )}
+              {warehouses.length > 0 && (
+                <div className="flex gap-2 flex-wrap pt-1">
+                  {warehouses.map(w => (
+                    <Button
+                      key={w.id}
+                      size="sm"
+                      variant={selectedKpiWarehouseId === w.id ? "default" : "outline"}
+                      onClick={() => setSelectedKpiWarehouseId(w.id)}
+                      className="text-xs"
+                    >
+                      {w.name}
+                      {selectedKpiWarehouseId === w.id && <Badge variant="secondary" className="mr-2">المحدد</Badge>}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "more") setMenuSubview(null); }} defaultValue="items">
           <div className="overflow-x-auto pb-1">
@@ -864,21 +919,28 @@ const Warehouses = () => {
                 <Card className="md:col-span-2 lg:col-span-3"><CardContent className="py-8 text-center text-muted-foreground">لا توجد مخازن. أضف مخزناً للبدء.</CardContent></Card>
               ) : warehouses.map(w => {
                 const whItems = items.filter(i => i.warehouse_id === w.id);
+                const isSelected = selectedKpiWarehouseId === w.id;
                 return (
-                  <Card key={w.id}>
+                  <Card
+                    key={w.id}
+                    onClick={() => setSelectedKpiWarehouseId(isSelected ? null : w.id)}
+                    className={`cursor-pointer transition-all hover:shadow-md hover:border-primary/40 ${isSelected ? "border-primary border-2 ring-2 ring-primary/20 bg-primary/5" : ""}`}
+                  >
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div>
-                          <Link to={`/modules/warehouses/${w.id}`} className="group">
-                            <CardTitle className="text-lg flex items-center gap-2 group-hover:text-primary transition-colors cursor-pointer">
-                              <Warehouse className="w-5 h-5 text-primary" />
-                              <span className="underline-offset-4 group-hover:underline">{w.name}</span>
-                            </CardTitle>
-                          </Link>
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Warehouse className="w-5 h-5 text-primary" />
+                            <span>{w.name}</span>
+                            {isSelected && <Badge variant="default" className="mr-1">المحدد حاليًا</Badge>}
+                          </CardTitle>
                           <CardDescription>{warehouseTypes[w.type] || w.type}{w.location && ` • ${w.location}`}</CardDescription>
+                          <Link to={`/modules/warehouses/${w.id}`} onClick={(e) => e.stopPropagation()} className="text-xs text-primary hover:underline mt-1 inline-block">
+                            فتح صفحة المخزن ←
+                          </Link>
                         </div>
                         {canManageWarehouses && (
-                          <div className="flex gap-1">
+                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                             <Button size="sm" variant="ghost" onClick={() => openWhDialog(w)}><Edit className="w-4 h-4" /></Button>
                             <Button size="sm" variant="ghost" onClick={() => setDeleteTarget({ type: "warehouse", id: w.id, name: w.name })}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                           </div>
