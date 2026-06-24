@@ -222,6 +222,137 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
     return { ins, outs, opening, total: filtered.length };
   }, [filtered]);
 
+  // ===== Grouping: merge MAN-IN-/MAN-OUT- supplies into one row per reference =====
+  type DisplayRow =
+    | { kind: "single"; row: Row }
+    | { kind: "manual"; reference: string; direction: "in" | "out"; date: string; rows: Row[]; totalQty: number; partyLabel: string };
+
+  const parseNoteField = (notes: string | null | undefined, label: string): string => {
+    if (!notes) return "";
+    const re = new RegExp(`${label}:\\s*([^•]+?)(?=\\s*•|$)`);
+    const m = notes.match(re);
+    return m ? m[1].trim() : "";
+  };
+
+  const grouped = useMemo<DisplayRow[]>(() => {
+    const manualMap = new Map<string, Row[]>();
+    const others: Row[] = [];
+    filtered.forEach((r) => {
+      const ref = r.reference || "";
+      const isManIn = /^MAN-IN-\d{8}-\d{4}$/.test(ref) && r.reference_type === "manual_addition";
+      const isManOut = /^MAN-OUT-\d{8}-\d{4}$/.test(ref) && r.reference_type === "manual_out";
+      if (isManIn || isManOut) {
+        if (!manualMap.has(ref)) manualMap.set(ref, []);
+        manualMap.get(ref)!.push(r);
+      } else {
+        others.push(r);
+      }
+    });
+    const out: DisplayRow[] = others.map((r) => ({ kind: "single", row: r }));
+    manualMap.forEach((rs, ref) => {
+      const direction: "in" | "out" = ref.startsWith("MAN-IN") ? "in" : "out";
+      const sample = rs[0];
+      const partyKey = direction === "in" ? "جهة التوريد" : "جهة الصرف";
+      const partyLabel = parseNoteField(sample.notes, partyKey) || sample.party || "—";
+      out.push({
+        kind: "manual",
+        reference: ref,
+        direction,
+        date: sample.performed_at,
+        rows: rs,
+        totalQty: rs.reduce((s, x) => s + Number(x.quantity || 0), 0),
+        partyLabel,
+      });
+    });
+    out.sort((a, b) => {
+      const da = a.kind === "single" ? a.row.performed_at : a.date;
+      const db = b.kind === "single" ? b.row.performed_at : b.date;
+      return new Date(db).getTime() - new Date(da).getTime();
+    });
+    return out;
+  }, [filtered]);
+
+  const detailGroup = useMemo(
+    () => grouped.find((r) => r.kind === "manual" && r.reference === detailRef) as
+      | Extract<DisplayRow, { kind: "manual" }>
+      | undefined,
+    [grouped, detailRef]
+  );
+
+  const printGroup = (g: Extract<DisplayRow, { kind: "manual" }>) => {
+    const first = g.rows[0];
+    const supplier = parseNoteField(first.notes, "القائم بالتوريد");
+    const deliveryDate = parseNoteField(first.notes, "تاريخ التوريد");
+    const extraNotes = parseNoteField(first.notes, "ملاحظات");
+    const slipRows: SlipItemRow[] = g.rows.map((r) => ({
+      name: r.item_name || "—",
+      unit: r.unit || "كجم",
+      packageCount: r.package_count ?? null,
+      packageWeightKg: r.package_weight_kg ?? null,
+      quantity: Number(r.quantity || 0),
+      stockBefore: Number(parseNoteField(r.notes, "قبل").replace(/[^\d.\-]/g, "")) || null,
+      stockAfter: Number(parseNoteField(r.notes, "بعد").replace(/[^\d.\-]/g, "")) || null,
+    }));
+    printWarehouseSlip({
+      kind: g.direction,
+      opNo: g.reference,
+      warehouseName: first.warehouse_name || "المخزن الرئيسي",
+      partyLabel: g.partyLabel,
+      supplier,
+      deliveryDate,
+      performedByName: first.performed_by_name || "",
+      performedAt: first.performed_at,
+      notes: extraNotes,
+      rows: slipRows,
+    });
+  };
+
+  const cancelGroup = async (g: Extract<DisplayRow, { kind: "manual" }>) => {
+    if (!canManageManual) return;
+    const reason = window.prompt("سبب الإلغاء / العكس (إجباري):", "");
+    if (!reason || !reason.trim()) {
+      toast({ title: "السبب مطلوب لإلغاء التوريدة", variant: "destructive" });
+      return;
+    }
+    const note = window.prompt("ملاحظة إضافية (اختياري):", "") || "";
+    if (!window.confirm(`سيتم إلغاء التوريدة ${g.reference} وعكس أثرها على المخزون. متابعة؟`)) return;
+    setCancelBusy(true);
+    try {
+      for (const m of g.rows) {
+        if (!m.item_id) continue;
+        const delta = (g.direction === "in" ? -1 : 1) * Number(m.quantity || 0);
+        const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", m.item_id).maybeSingle();
+        const newStock = Number((it as any)?.stock || 0) + delta;
+        await supabase.from("inventory_items").update({ stock: newStock }).eq("id", m.item_id);
+      }
+      const ids = g.rows.map((r) => r.id);
+      const { error } = await supabase.from("inventory_movements").delete().in("id", ids);
+      if (error) throw error;
+      try {
+        await supabase.from("notifications").insert({
+          user_id: user?.id,
+          type: "warehouse_supply_cancelled",
+          title: `إلغاء توريدة ${g.reference}`,
+          message: `سبب: ${reason}${note ? ` | ملاحظة: ${note}` : ""} | بواسطة: ${user?.email || user?.id || "—"}`,
+          read: false,
+        } as any);
+      } catch { /* audit best-effort */ }
+      toast({ title: "تم إلغاء التوريدة", description: `${g.reference} — ${reason}` });
+      setDetailRef(null);
+      await fetchAll();
+    } catch (e: any) {
+      toast({ title: "تعذّر الإلغاء", description: e?.message || "حدث خطأ", variant: "destructive" });
+    } finally {
+      setCancelBusy(false);
+    }
+  };
+
+  const editGroup = (g: Extract<DisplayRow, { kind: "manual" }>) => {
+    // التعديل يفتح في شاشة إدارة المخازن (تبويب الحركات) حيث يوجد نموذج التعديل التفصيلي
+    toast({ title: "افتح التوريدة من شاشة المخازن للتعديل", description: g.reference });
+    navigate(`/modules/warehouses?tab=movements&ref=${encodeURIComponent(g.reference)}`);
+  };
+
   const content = (
     <>
       {!embedded && (
