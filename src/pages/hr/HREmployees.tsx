@@ -240,7 +240,7 @@ const HREmployees = () => {
       g.net += base > 0 ? Math.max(0, base - ded - adv) : 0;
     });
     return groups;
-  }, [filtered, deductionsMap]);
+  }, [filtered, deductionsMap, advancesMap]);
 
   const openCreate = () => {
     setEditing(null);
