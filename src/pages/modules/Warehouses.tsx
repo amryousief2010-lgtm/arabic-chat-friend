@@ -1025,8 +1025,8 @@ const Warehouses = () => {
 
 
         <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setForceAllKpi(false); if (v === "more") setMenuSubview(null); }} defaultValue="items">
-          <div className="overflow-x-auto pb-1">
-            <TabsList className="w-max flex-nowrap bg-gradient-to-l from-muted/60 to-muted/30 border border-border/60 rounded-2xl p-1.5 shadow-sm [&_[data-state=active]]:bg-gradient-to-br [&_[data-state=active]]:from-primary [&_[data-state=active]]:to-primary/80 [&_[data-state=active]]:text-primary-foreground [&_[data-state=active]]:shadow-md [&_[data-state=active]]:shadow-primary/20 [&>button]:rounded-xl [&>button]:transition-all">
+          <div className="overflow-x-auto pb-2 premium-tabs-scroll">
+            <TabsList className="w-max flex-nowrap bg-card/70 backdrop-blur-xl border border-border/40 rounded-2xl p-2 gap-1 shadow-lg shadow-black/5 [&_[data-state=active]]:bg-gradient-to-br [&_[data-state=active]]:from-primary [&_[data-state=active]]:to-primary/80 [&_[data-state=active]]:text-primary-foreground [&_[data-state=active]]:shadow-xl [&_[data-state=active]]:shadow-primary/25 [&_[data-state=active]]:ring-2 [&_[data-state=active]]:ring-primary/20 [&_[data-state=active]]:font-bold [&>button]:rounded-xl [&>button]:px-3.5 [&>button]:py-2 [&>button]:text-sm [&>button]:font-semibold [&>button]:transition-all [&>button]:duration-200 [&>button]:hover:bg-muted/50">
 
               <TabsTrigger value="dashboard-all" className="gap-1"><BarChart3 className="w-4 h-4" />داشبورد المخازن</TabsTrigger>
               <TabsTrigger value="available" className="gap-1"><Warehouse className="w-4 h-4" />المتاح في المخازن</TabsTrigger>
