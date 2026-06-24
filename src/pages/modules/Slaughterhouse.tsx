@@ -1133,7 +1133,7 @@ const Slaughterhouse = () => {
 
       <Tabs defaultValue="daily" dir="rtl">
         <div className="w-full overflow-x-auto -mx-1 px-1 mb-2">
-          <TabsList className="inline-flex w-max min-w-full gap-1 h-auto flex-wrap md:flex-nowrap">
+          <TabsList className="inline-flex w-max min-w-full gap-1 h-auto flex-wrap md:flex-nowrap bg-gradient-to-l from-muted/60 to-muted/30 rounded-2xl p-1.5 [&>button]:rounded-xl [&>button[data-state=active]]:bg-background [&>button[data-state=active]]:shadow-sm [&>button[data-state=active]]:text-primary">
             <TabsTrigger value="daily" className="text-xs md:text-sm whitespace-nowrap">التقرير اليومي</TabsTrigger>
             <TabsTrigger value="batches" className="text-xs md:text-sm whitespace-nowrap">دفعات الذبح</TabsTrigger>
             <TabsTrigger value="receipts" className="text-xs md:text-sm whitespace-nowrap">استلام حي</TabsTrigger>
