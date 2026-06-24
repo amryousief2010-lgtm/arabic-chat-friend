@@ -1000,6 +1000,7 @@ const Warehouses = () => {
               <TabsTrigger value="wh-carrefour" className="gap-1"><Warehouse className="w-4 h-4" />هايبر كارفور</TabsTrigger>
               <TabsTrigger value="wh-packaging" className="gap-1"><Package className="w-4 h-4" />التغليف والتعبئة</TabsTrigger>
               <TabsTrigger value="wh-activity" className="gap-1"><BarChart3 className="w-4 h-4" />سجل حركات المخزن الرئيسي</TabsTrigger>
+              <TabsTrigger value="wh-treasury" className="gap-1"><Wallet className="w-4 h-4" />خزينة المخزن الرئيسي</TabsTrigger>
               <TabsTrigger value="reports" className="gap-1"><FileText className="w-4 h-4" />التقارير</TabsTrigger>
               <TabsTrigger value="menu" className="gap-1"><UtensilsCrossed className="w-4 h-4" />المنيو</TabsTrigger>
               <TabsTrigger value="more" className="gap-1"><Menu className="w-4 h-4" />المزيد</TabsTrigger>
