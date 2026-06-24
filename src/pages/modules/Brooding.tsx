@@ -1228,7 +1228,7 @@ const InternalTransferForm = ({ batch, onDone }: { batch: Batch; onDone: () => v
   );
 };
 
-
+const BATCH_ACTIONS = [
   { key: "mortality", label: "تسجيل نافق", icon: Skull },
   { key: "feed", label: "صرف علف", icon: Wheat },
   { key: "medicine", label: "صرف دواء", icon: Pill },
