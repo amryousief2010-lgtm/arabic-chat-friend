@@ -326,17 +326,24 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
     if (!whId) return;
     const itemId = getItemIdsMap(wh)[productId];
 
-    // المخزن الرئيسي: لازم سبب + يمر عبر RPC مدقَّق يسجل حركة تعديل جرد
+    // المخزن الرئيسي: تعديل الرصيد الفعلي / التسوية اليدوية = حصري للمدير العام أو المدير التنفيذي
+    // + سبب وملاحظة إجباريين، وتمر عبر RPC مدقَّق يسجل حركة تعديل جرد
     if (wh === "main") {
+      if (!(isGeneralManager || isExecutiveManager)) {
+        toast.error("غير مسموح بتعديل الرصيد الفعلي يدويًا. التعديل متاح فقط للمدير العام أو المدير التنفيذي.");
+        return;
+      }
       if (!itemId) { toast.error("الصنف غير موجود في الجرد، أضِفه أولاً"); return; }
-      const reason = window.prompt("سبب تعديل الجرد (إلزامي):", "تعديل جرد يدوي");
-      if (!reason || reason.trim().length < 3) { toast.error("لازم تكتب سبب"); return; }
+      const reason = window.prompt("سبب تعديل الجرد (إجباري — 3 أحرف على الأقل):", "تعديل جرد يدوي");
+      if (!reason || reason.trim().length < 3) { toast.error("لازم تكتب سبب واضح"); return; }
+      const notes = window.prompt("ملاحظة توضيحية (إجبارية — 5 أحرف على الأقل):", "");
+      if (!notes || notes.trim().length < 5) { toast.error("لازم تكتب ملاحظة توضيحية"); return; }
       setSaving(true);
       try {
         const { error } = await supabase.rpc("adjust_main_warehouse_stock", {
           p_item_id: itemId,
           p_new_qty: newActualKg,
-          p_reason: reason.trim(),
+          p_reason: `${reason.trim()} — ${notes.trim()}`,
         });
         if (error) throw error;
         setMainStock((s) => ({ ...s, [productId]: newActualKg }));
@@ -347,6 +354,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
       } finally { setSaving(false); }
       return;
     }
+
 
     setSaving(true);
     try {
