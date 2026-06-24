@@ -42,7 +42,11 @@ type Sale = {
   status: string; notes?: string; created_at: string;
 };
 
-const TREASURY_LABEL: Record<string, string> = { lab: "خزنة المعمل والحضانات", main: "الخزنة الرئيسية" };
+const TREASURY_LABEL: Record<string, string> = {
+  lab: "خزنة المعمل والحضانات",
+  main: "الخزنة الرئيسية",
+  customer_debt: "تسوية من مديونية عميل",
+};
 
 // ============ Hook ============
 const useChickTrading = () => {
