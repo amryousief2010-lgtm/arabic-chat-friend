@@ -235,6 +235,7 @@ const Warehouses = () => {
 
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("items");
+  const [pendingFilter, setPendingFilter] = useState<'current' | 'archived' | 'all'>('current');
   const [menuSubview, setMenuSubview] = useState<string | null>(null);
 
   const fetchAll = async () => {
@@ -410,7 +411,7 @@ const Warehouses = () => {
   const pendingSlaughter = slaughterOutputs.filter(o => o.received_status !== 'received');
 
   // group pending outputs by batch
-  const pendingBatches = Object.values(
+  const pendingBatchesAll = Object.values(
     pendingSlaughter.reduce((acc: Record<string, any>, o: any) => {
       const key = o.batch_id;
       if (!acc[key]) acc[key] = {
@@ -424,6 +425,17 @@ const Warehouses = () => {
       return acc;
     }, {})
   ) as any[];
+
+  // Archive cutoff: batches with slaughter_date before this are considered
+  // historical "archived_pending_receipt" — kept in DB untouched (no stock
+  // movement, no balance change) but hidden from default view.
+  const ARCHIVE_CUTOFF = '2026-06-24';
+  const isArchived = (b: any) => !b.slaughter_date || String(b.slaughter_date) < ARCHIVE_CUTOFF;
+  const pendingBatches = pendingBatchesAll.filter(b =>
+    pendingFilter === 'all' ? true : pendingFilter === 'archived' ? isArchived(b) : !isArchived(b)
+  );
+  const archivedCount = pendingBatchesAll.filter(isArchived).length;
+  const currentCount = pendingBatchesAll.length - archivedCount;
 
   const openReceiveBatch = (batch: any) => {
     setReceiveBatch(batch);
@@ -683,12 +695,33 @@ const Warehouses = () => {
 
           {/* RECEIPTS — top-level grouped receipts hub (includes pending slaughter batches) */}
           <TabsContent value="receipts" className="space-y-4">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Beef className="w-5 h-5 text-primary" />
+                <h3 className="font-bold">دفعات المجزر بانتظار الاستلام <Badge variant="destructive" className="mr-1">{pendingBatches.length}</Badge></h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">عرض:</span>
+                <Select value={pendingFilter} onValueChange={(v: any) => setPendingFilter(v)}>
+                  <SelectTrigger className="w-56 h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="current">الدفعات الحالية ({currentCount})</SelectItem>
+                    <SelectItem value="archived">الدفعات المؤرشفة ({archivedCount})</SelectItem>
+                    <SelectItem value="all">الكل ({currentCount + archivedCount})</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {pendingFilter === 'archived' && (
+              <Card className="border-amber-300 bg-amber-50/40">
+                <CardContent className="py-3 text-sm text-amber-900">
+                  📁 هذه دفعات مؤرشفة (قبل {ARCHIVE_CUTOFF}) — للعرض والمراجعة فقط. لم يتم استلامها ولا تأثير على المخزون أو الأرصدة (إقفال تاريخي قبل بدء تشغيل المخزن).
+                </CardContent>
+              </Card>
+            )}
             {pendingBatches.length > 0 && (
               <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Beef className="w-5 h-5 text-primary" />
-                  <h3 className="font-bold">دفعات المجزر بانتظار الاستلام <Badge variant="destructive" className="mr-1">{pendingBatches.length}</Badge></h3>
-                </div>
+
                 {pendingBatches.map((b: any) => {
                   const totalKg = b.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
                   const accepted = b.outputs.filter((o: any) => o.quality_status === 'accepted').length;
