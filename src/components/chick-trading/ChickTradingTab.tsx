@@ -33,6 +33,8 @@ type Batch = {
   purchase_total: number; transport_cost: number; disinfection_cost: number;
   other_costs: number; status: string; treasury_source: string; notes?: string;
   created_at: string;
+  payment_status?: string; paid_amount?: number;
+  deferred_paid_at?: string | null; deferred_payment_treasury?: string | null;
 };
 type Sale = {
   id: string; sale_no: string; batch_id: string; customer_name: string; phone?: string;
@@ -46,7 +48,12 @@ const TREASURY_LABEL: Record<string, string> = {
   lab: "خزنة المعمل والحضانات",
   main: "الخزنة الرئيسية",
   customer_debt: "تسوية من مديونية عميل",
+  deferred: "شراء آجل / بدون دفع حالي",
 };
+
+const batchTotalCost = (b: Batch) =>
+  (Number(b.original_count) * Number(b.unit_purchase_price)) +
+  Number(b.transport_cost || 0) + Number(b.disinfection_cost || 0) + Number(b.other_costs || 0);
 
 // ============ Hook ============
 const useChickTrading = () => {
