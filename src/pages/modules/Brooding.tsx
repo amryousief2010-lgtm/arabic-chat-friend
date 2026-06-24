@@ -251,6 +251,7 @@ const Brooding = () => {
   const [feedStockMovements, setFeedStockMovements] = useState<FeedStockMovement[]>([]);
   const [snapshots, setSnapshots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [summaryLocation, setSummaryLocation] = useState<'all' | 'chick_nursery' | 'fattening_farm'>('all');
   const { prices: marketPrices } = useMarketPrices();
 
   const loadAll = async () => {
@@ -382,6 +383,111 @@ const Brooding = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Active locations summary + Age breakdown */}
+        {(() => {
+          const scope = batches.filter(b =>
+            b.status === 'active' &&
+            (summaryLocation === 'all' || (b.rearing_location || 'chick_nursery') === summaryLocation)
+          );
+          const totalBirdsScope = scope.reduce((a, b) => a + (b.current_count || 0), 0);
+          // Bucket by age: < 30 days => bucket per day group (round to weeks? we'll group <30 as a single "أقل من شهر" plus exact days breakdown)
+          // Per spec: <1 month → show in days; ≥1 month → show in months
+          const ageBuckets = new Map<string, { key: string; label: string; count: number; sortKey: number }>();
+          const monthName = (n: number) => {
+            if (n === 1) return 'شهر';
+            if (n === 2) return 'شهرين';
+            if (n <= 10) return `${n} شهور`;
+            return `${n} شهر`;
+          };
+          for (const b of scope) {
+            const d = currentAgeDays(b);
+            let label: string;
+            let key: string;
+            let sortKey: number;
+            if (d == null || isNaN(d) || d < 0) {
+              label = 'عمر غير محدد';
+              key = 'unknown';
+              sortKey = 99999;
+            } else if (d < 30) {
+              label = `${d} يوم`;
+              key = `d-${d}`;
+              sortKey = d;
+            } else {
+              const months = Math.floor(d / 30);
+              label = `عمر ${monthName(months)}`;
+              key = `m-${months}`;
+              sortKey = 1000 + months;
+            }
+            const cur = ageBuckets.get(key) || { key, label, count: 0, sortKey };
+            cur.count += (b.current_count || 0);
+            ageBuckets.set(key, cur);
+          }
+          const rows = Array.from(ageBuckets.values()).filter(r => r.count > 0).sort((a, b) => a.sortKey - b.sortKey);
+          const locLabel = summaryLocation === 'all' ? 'إجمالي كل المواقع' : locationLabel(summaryLocation);
+
+          return (
+            <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/5 via-background to-orange-500/5">
+              <CardContent className="p-5 space-y-4">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary to-orange-500 text-white">
+                      <Bird className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">الموقع النشط</div>
+                      <div className="text-lg font-bold leading-tight">{locLabel}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {fmt(scope.length)} دفعة • {fmt(totalBirdsScope)} طائر نشط
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-1 flex-wrap">
+                    {[
+                      { k: 'all', l: 'الكل' },
+                      { k: 'chick_nursery', l: 'حضانات الكتاكيت' },
+                      { k: 'fattening_farm', l: 'مزرعة التسمين' },
+                    ].map(opt => (
+                      <button
+                        key={opt.k}
+                        type="button"
+                        onClick={() => setSummaryLocation(opt.k as any)}
+                        className={`text-xs px-3 py-1.5 rounded-full border transition ${
+                          summaryLocation === opt.k
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-card hover:bg-muted border-border text-muted-foreground'
+                        }`}
+                      >
+                        {opt.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t pt-3">
+                  <div className="text-xs font-semibold text-muted-foreground mb-2">ملخص الأعمار</div>
+                  {rows.length === 0 ? (
+                    <div className="text-xs text-muted-foreground py-2">لا توجد دفعات نشطة في هذا الموقع</div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {rows.map(r => (
+                        <div
+                          key={r.key}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-border/60 shadow-sm text-sm"
+                        >
+                          <span className="font-bold text-primary">{fmt(r.count)}</span>
+                          <span className="text-muted-foreground">كتكوت</span>
+                          <span className="text-muted-foreground">—</span>
+                          <span className="font-medium">{r.label.startsWith('عمر') ? r.label : `عمر ${r.label}`}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
