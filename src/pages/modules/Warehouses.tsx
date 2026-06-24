@@ -520,9 +520,15 @@ const Warehouses = () => {
   };
 
   const exportInventorySummaryPDF = () => {
-    const totalValue = items.reduce((s, i) => s + i.stock * i.unit_cost, 0);
-    const activeWarehouses = warehouses.filter(w => w.is_active).length;
-    const rows = (warehouseFilter === 'all' ? items : filteredItems).map((it, i) => `
+    const scopedItems = kpiItems;
+    const totalValue = scopedItems.reduce((s, i) => s + i.stock * i.unit_cost, 0);
+    const activeWarehouses = kpiWh ? 1 : warehouses.filter(w => w.is_active).length;
+    const lowCount = scopedItems.filter(i => i.stock <= i.low_stock_threshold).length;
+    const reportTitle = kpiWh ? `تقرير مخزون — ${kpiWh.name}` : "تقرير ملخص المخزون والمنتجات";
+    const firstSummaryLabel = kpiWh ? "حالة المخزن" : "المخازن النشطة";
+    const firstSummaryValue = kpiWh ? (kpiWh.is_active ? "نشط" : "متوقف") : String(activeWarehouses);
+    const rows = scopedItems.map((it, i) => `
+
       <tr>
         <td>${i + 1}</td>
         <td>${esc(it.name)}${it.sku ? ` <span style="color:#666;font-size:11px">(${esc(it.sku)})</span>` : ''}</td>
