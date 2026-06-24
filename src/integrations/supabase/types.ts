@@ -1715,6 +1715,8 @@ export type Database = {
           created_by: string | null
           current_count: number
           dead_count: number
+          deferred_paid_at: string | null
+          deferred_payment_treasury: string | null
           diff_amount: number
           diff_treasury_source: string | null
           disinfection_cost: number
@@ -1723,6 +1725,8 @@ export type Database = {
           notes: string | null
           original_count: number
           other_costs: number
+          paid_amount: number
+          payment_status: string
           purchase_date: string
           purchase_total: number
           settlement_id: string | null
@@ -1745,6 +1749,8 @@ export type Database = {
           created_by?: string | null
           current_count: number
           dead_count?: number
+          deferred_paid_at?: string | null
+          deferred_payment_treasury?: string | null
           diff_amount?: number
           diff_treasury_source?: string | null
           disinfection_cost?: number
@@ -1753,6 +1759,8 @@ export type Database = {
           notes?: string | null
           original_count: number
           other_costs?: number
+          paid_amount?: number
+          payment_status?: string
           purchase_date?: string
           purchase_total?: number
           settlement_id?: string | null
@@ -1775,6 +1783,8 @@ export type Database = {
           created_by?: string | null
           current_count?: number
           dead_count?: number
+          deferred_paid_at?: string | null
+          deferred_payment_treasury?: string | null
           diff_amount?: number
           diff_treasury_source?: string | null
           disinfection_cost?: number
@@ -1783,6 +1793,8 @@ export type Database = {
           notes?: string | null
           original_count?: number
           other_costs?: number
+          paid_amount?: number
+          payment_status?: string
           purchase_date?: string
           purchase_total?: number
           settlement_id?: string | null
@@ -17628,6 +17640,8 @@ export type Database = {
           created_by: string | null
           current_count: number
           dead_count: number
+          deferred_paid_at: string | null
+          deferred_payment_treasury: string | null
           diff_amount: number
           diff_treasury_source: string | null
           disinfection_cost: number
@@ -17636,6 +17650,8 @@ export type Database = {
           notes: string | null
           original_count: number
           other_costs: number
+          paid_amount: number
+          payment_status: string
           purchase_date: string
           purchase_total: number
           settlement_id: string | null
@@ -17684,6 +17700,8 @@ export type Database = {
           created_by: string | null
           current_count: number
           dead_count: number
+          deferred_paid_at: string | null
+          deferred_payment_treasury: string | null
           diff_amount: number
           diff_treasury_source: string | null
           disinfection_cost: number
@@ -17692,6 +17710,8 @@ export type Database = {
           notes: string | null
           original_count: number
           other_costs: number
+          paid_amount: number
+          payment_status: string
           purchase_date: string
           purchase_total: number
           settlement_id: string | null
@@ -17772,6 +17792,55 @@ export type Database = {
           balance: number
           customer_name: string
         }[]
+      }
+      chick_trading_pay_deferred_purchase: {
+        Args: {
+          _amount?: number
+          _batch_id: string
+          _main_account_id?: string
+          _notes?: string
+          _treasury: string
+        }
+        Returns: {
+          age_at_purchase: number
+          attachment_url: string | null
+          batch_no: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          created_at: string
+          created_by: string | null
+          current_count: number
+          dead_count: number
+          deferred_paid_at: string | null
+          deferred_payment_treasury: string | null
+          diff_amount: number
+          diff_treasury_source: string | null
+          disinfection_cost: number
+          id: string
+          main_account_id: string | null
+          notes: string | null
+          original_count: number
+          other_costs: number
+          paid_amount: number
+          payment_status: string
+          purchase_date: string
+          purchase_total: number
+          settlement_id: string | null
+          sold_count: number
+          status: string
+          supplier_name: string
+          transport_cost: number
+          treasury_source: string
+          unit_purchase_price: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "chick_trading_batches"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       compare_period_to_snapshot: {
         Args: { p_raise_alert?: boolean; p_snapshot_id: string }
