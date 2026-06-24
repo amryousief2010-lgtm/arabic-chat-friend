@@ -27,24 +27,26 @@ type Purchase = { id: string; invoice_no: string | null; purchase_date: string; 
 type Invoice = { id: string; invoice_no: string | null; product_name: string; finished_qty: number; unit: string; status: string; raw_cost: number; spice_cost: number; packaging_cost: number; total_manufacturing_cost: number; materials_total_cost: number; unit_cost: number | null; created_at: string; destination_kind: string };
 type Move = { id: string; item_kind: string; item_name: string; direction: string; quantity: number; unit_cost: number; reason: string; ref_table: string; created_at: string };
 
-const KPI = ({ icon: Icon, label, value, sub, color, to }: any) => {
+// Reference-style KPI: white card, label+icon top, large colored number, small unit/sub
+const StatTile = ({ icon: Icon, label, value, unit, sub, color, to }: any) => {
   const inner = (
-    <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-      <CardContent className="pt-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="text-2xl font-bold mt-1" style={{ color }}>{value}</div>
-            {sub && <div className="text-xs text-muted-foreground mt-1">{sub}</div>}
-          </div>
-          <div className="p-2 rounded-lg" style={{ background: `${color}15` }}>
-            <Icon className="w-5 h-5" style={{ color }} />
+    <Card className="hover:shadow-md transition-shadow border-border/60">
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <p className="text-sm text-muted-foreground font-medium">{label}</p>
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${color}15` }}>
+            <Icon className="w-4 h-4" style={{ color }} />
           </div>
         </div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-3xl font-bold" style={{ color }}>{value}</span>
+          {unit && <span className="text-sm text-muted-foreground">{unit}</span>}
+        </div>
+        {sub && <p className="text-xs text-muted-foreground mt-1.5">{sub}</p>}
       </CardContent>
     </Card>
   );
-  return to ? <Link to={to}>{inner}</Link> : inner;
+  return to ? <Link to={to} className="block">{inner}</Link> : inner;
 };
 
 export default function MeatFactoryOverviewDashboard() {
@@ -53,6 +55,15 @@ export default function MeatFactoryOverviewDashboard() {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [moves, setMoves] = useState<Move[]>([]);
+  const [recipesCount, setRecipesCount] = useState(0);
+
+  // Filters
+  const [period, setPeriod] = useState<Period>("month");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | "raw" | "spice" | "packaging">("all");
+  const [productFilter, setProductFilter] = useState<string>("all");
+
 
   useEffect(() => {
     (async () => {
