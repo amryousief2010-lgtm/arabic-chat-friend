@@ -560,9 +560,15 @@ const HREmployees = () => {
                             </TableCell>
                           )}
                           <TableCell>
-                            {e.status === "active"
-                              ? <Badge className="bg-emerald-500/15 text-emerald-700">نشط</Badge>
-                              : <Badge variant="outline" className="text-muted-foreground">غير نشط</Badge>}
+                            {e.is_suspended ? (
+                              <Badge className="bg-rose-500/15 text-rose-700" title={e.suspension_date || ""}>
+                                موقوف عن العمل
+                              </Badge>
+                            ) : e.status === "active" ? (
+                              <Badge className="bg-emerald-500/15 text-emerald-700">نشط</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-muted-foreground">غير نشط</Badge>
+                            )}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1 justify-end">
@@ -575,6 +581,28 @@ const HREmployees = () => {
                               {canViewDocs && (
                                 <Button size="sm" variant="ghost" onClick={() => setDocsOf(e)} title="المستندات">
                                   <FileText className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {canManage && !e.is_suspended && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-rose-700 hover:text-rose-800 hover:bg-rose-50"
+                                  onClick={() => setSuspendOf(e)}
+                                  title="إيقاف عن العمل"
+                                >
+                                  <UserMinus className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {canManage && e.is_suspended && (isGeneralManager || isExecutiveManager) && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50"
+                                  onClick={() => reactivateEmployee(e)}
+                                  title="إعادة تفعيل الموظف"
+                                >
+                                  <UserCheck className="w-4 h-4" />
                                 </Button>
                               )}
                               {canManage && (
