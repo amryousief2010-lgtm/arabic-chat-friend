@@ -710,9 +710,20 @@ const Warehouses = () => {
     ? warehouses.find((w) => w.id === editManualWarehouseId)
     : undefined;
   const isEditManualMainWarehouse = !!editManualWarehouse && isMainWarehouseName(editManualWarehouse.name);
+  const editManualVisibleProductIds = useMemo(() => {
+    if (!isEditManualMainWarehouse) return undefined;
+    const visible = new Set<string>();
+    items.forEach((item) => {
+      if (item.warehouse_id === editManualWarehouseId && item.product_id && !isMainWarehouseExcludedCategory((item as any).category)) {
+        visible.add(item.product_id);
+      }
+    });
+    products.forEach((product) => visible.add(product.id));
+    return visible;
+  }, [items, products, editManualWarehouseId, isEditManualMainWarehouse]);
   const editManualDropdownItems = useMemo(
-    () => getAllowedWarehouseDropdownItems(items, editManualWarehouseId, isEditManualMainWarehouse),
-    [items, editManualWarehouseId, isEditManualMainWarehouse]
+    () => getAllowedWarehouseDropdownItems(items, editManualWarehouseId, isEditManualMainWarehouse, editManualVisibleProductIds),
+    [items, editManualWarehouseId, isEditManualMainWarehouse, editManualVisibleProductIds]
   );
 
   useEffect(() => {
