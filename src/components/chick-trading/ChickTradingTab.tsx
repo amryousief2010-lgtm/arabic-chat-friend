@@ -134,6 +134,9 @@ const NewPurchaseDialog = ({ onSaved }: { onSaved: () => void }) => {
   const save = async () => {
     if (!f.supplier_name.trim()) return toast.error("اسم المورد مطلوب");
     if (!f.count || !f.unit_price) return toast.error("العدد والسعر مطلوبان");
+    if (f.treasury_source === "deferred" && !canUseDeferred) {
+      return toast.error("لا تملك صلاحية تسجيل شراء آجل");
+    }
     if (f.treasury_source === "customer_debt") {
       if (!canUseDebtSettlement) return toast.error("لا تملك صلاحية تسوية مديونية عميل");
       if (!f.settlement_customer) return toast.error("اختر العميل");
@@ -161,6 +164,8 @@ const NewPurchaseDialog = ({ onSaved }: { onSaved: () => void }) => {
     if (error) return toast.error(error.message);
     if (f.treasury_source === "customer_debt") {
       toast.success(`تم خصم ${fmtEGP(f.settlement_amount)} من مديونية العميل. المتبقي عليه: ${fmtEGP(remainingDebt)}`);
+    } else if (f.treasury_source === "deferred") {
+      toast.success("تم تسجيل دفعة الكتاكيت كشراء آجل بدون خصم من أي خزنة");
     } else {
       toast.success("تم تسجيل شراء كتاكيت التجارة وخصم الخزنة");
     }
@@ -176,7 +181,9 @@ const NewPurchaseDialog = ({ onSaved }: { onSaved: () => void }) => {
     ? (diffAmount > 0
         ? `إجمالي يُسوّى من مديونية العميل + فرق يُخصم من ${TREASURY_LABEL[f.diff_treasury_source] || ""}:`
         : "إجمالي يُسوّى من مديونية العميل:")
-    : `إجمالي يُخصم من ${TREASURY_LABEL[f.treasury_source]}:`;
+    : f.treasury_source === "deferred"
+      ? "إجمالي شراء آجل (لن يُخصم من أي خزنة الآن):"
+      : `إجمالي يُخصم من ${TREASURY_LABEL[f.treasury_source]}:`;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
