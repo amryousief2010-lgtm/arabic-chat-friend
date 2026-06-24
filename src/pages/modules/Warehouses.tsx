@@ -848,6 +848,7 @@ const Warehouses = () => {
           <div className="overflow-x-auto pb-1">
             <TabsList className="w-max flex-nowrap bg-gradient-to-l from-muted/60 to-muted/30 border border-border/60 rounded-2xl p-1.5 shadow-sm [&_[data-state=active]]:bg-gradient-to-br [&_[data-state=active]]:from-primary [&_[data-state=active]]:to-primary/80 [&_[data-state=active]]:text-primary-foreground [&_[data-state=active]]:shadow-md [&_[data-state=active]]:shadow-primary/20 [&>button]:rounded-xl [&>button]:transition-all">
 
+              <TabsTrigger value="dashboard-all" className="gap-1"><BarChart3 className="w-4 h-4" />داشبورد المخازن</TabsTrigger>
               <TabsTrigger value="available" className="gap-1"><Warehouse className="w-4 h-4" />المتاح في المخازن</TabsTrigger>
               <TabsTrigger value="items">الأصناف</TabsTrigger>
 
