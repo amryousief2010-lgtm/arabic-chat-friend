@@ -337,6 +337,45 @@ const HREmployees = () => {
     setTransfers((data || []) as Transfer[]);
   };
 
+  const reactivateEmployee = async (e: Employee) => {
+    if (!(isGeneralManager || isExecutiveManager)) {
+      toast.error("إعادة التفعيل متاحة للمدير العام والمدير التنفيذي فقط");
+      return;
+    }
+    if (!confirm(`هل تريد إعادة تفعيل ${e.full_name}؟`)) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const { error: insErr } = await supabase.from("hr_employee_suspensions").insert({
+      employee_id: e.id,
+      action: "reactivate",
+      suspension_date: today,
+      reason: "إعادة تفعيل الموظف",
+      performed_by: user?.id,
+    });
+    if (insErr) { toast.error("فشل: " + insErr.message); return; }
+    const { error } = await supabase
+      .from("hr_employees")
+      .update({
+        is_suspended: false,
+        suspension_date: null,
+        suspension_reason: null,
+        suspension_notes: null,
+        suspension_net_amount: null,
+        suspended_by: null,
+        suspended_at: null,
+      })
+      .eq("id", e.id);
+    if (error) { toast.error("فشل: " + error.message); return; }
+    await supabase.from("hr_audit_log").insert({
+      entity_type: "hr_employee",
+      entity_id: e.id,
+      employee_id: e.id,
+      action: "reactivate",
+      performed_by: user?.id,
+    });
+    toast.success(`تم إعادة تفعيل ${e.full_name}`);
+    await load();
+  };
+
   if (!canAccessPage) {
     return (
       <DashboardLayout>
