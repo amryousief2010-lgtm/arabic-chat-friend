@@ -1754,6 +1754,92 @@ const Warehouses = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Manual Supply / Issuance Group Details */}
+      <Dialog open={!!manualGroupRef} onOpenChange={(v) => { if (!v) setManualGroupRef(null); }}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>
+              {manualGroup ? (
+                <>
+                  {manualGroup.direction === "in" ? "تفاصيل توريدة" : "تفاصيل صرف"}{" "}
+                  <span className="font-mono text-primary">{manualGroup.reference}</span>
+                </>
+              ) : "تفاصيل التوريدة"}
+            </DialogTitle>
+            <DialogDescription>
+              {manualGroup ? (
+                <>
+                  {formatDateTime(manualGroup.date)} • {manualGroup.partyLabel} •{" "}
+                  {manualGroup.movs.length} صنف • إجمالي {manualGroup.totalQty.toFixed(2)} كجم
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+
+          {manualGroup && (
+            <div className="space-y-3">
+              <div className="overflow-x-auto border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>الصنف</TableHead>
+                      <TableHead className="text-center">عدد العبوات</TableHead>
+                      <TableHead className="text-center">وزن العبوة</TableHead>
+                      <TableHead className="text-center">الكمية</TableHead>
+                      <TableHead className="text-center">الوحدة</TableHead>
+                      <TableHead className="text-center">الرصيد قبل</TableHead>
+                      <TableHead className="text-center">الرصيد بعد</TableHead>
+                      <TableHead>ملاحظات</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {manualGroup.movs.map((m) => {
+                      const before = parseNoteField(m.notes, "قبل");
+                      const after = parseNoteField(m.notes, "بعد");
+                      const extra = parseNoteField(m.notes, "ملاحظات");
+                      return (
+                        <TableRow key={m.id}>
+                          <TableCell className="font-medium">{m.item?.name || "—"}</TableCell>
+                          <TableCell className="text-center">{m.package_count ?? "—"}</TableCell>
+                          <TableCell className="text-center">{m.package_weight_kg ?? "—"}</TableCell>
+                          <TableCell className="text-center">{Number(m.quantity).toFixed(2)}</TableCell>
+                          <TableCell className="text-center">{m.item?.unit || "كجم"}</TableCell>
+                          <TableCell className="text-center text-xs">{before || "—"}</TableCell>
+                          <TableCell className="text-center text-xs">{after || "—"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{extra || "—"}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {!canManageManual && (
+                <p className="text-xs text-muted-foreground">
+                  أزرار الطباعة والإلغاء متاحة للمدير العام والمدير التنفيذي فقط.
+                </p>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setManualGroupRef(null)}>إغلاق</Button>
+            {canManageManual && manualGroup && (
+              <>
+                <Button variant="outline" onClick={printManualGroup}>
+                  <Printer className="w-4 h-4 ml-1" /> طباعة
+                </Button>
+                <Button variant="destructive" onClick={cancelManualGroup} disabled={manualBusy}>
+                  <Trash2 className="w-4 h-4 ml-1" /> إلغاء التوريدة
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
