@@ -360,20 +360,26 @@ const Brooding = () => {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6" dir="rtl">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-orange-500 text-white">
-              <Bird className="w-7 h-7" />
+        {/* Premium Header */}
+        <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-orange-500/10 p-6 shadow-sm">
+          <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-16 -left-16 w-56 h-56 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
+          <div className="relative flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-primary to-orange-500 text-white shadow-lg shadow-primary/30 ring-1 ring-white/20">
+                <Bird className="w-7 h-7" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-l from-primary to-orange-500 bg-clip-text text-transparent">التحضين والتسمين</h1>
+                <p className="text-muted-foreground mt-1">إدارة دفعات الكتاكيت من الاستلام حتى البيع أو المجزر</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold">التحضين والتسمين</h1>
-              <p className="text-muted-foreground">إدارة دفعات الكتاكيت من الاستلام حتى البيع أو المجزر</p>
-            </div>
+            {canManage && (
+              <NewBatchDialog onCreated={loadAll} nextBatchNumber={nextBatchNumber} settings={settings} prominent />
+            )}
           </div>
-          {canManage && (
-            <NewBatchDialog onCreated={loadAll} nextBatchNumber={nextBatchNumber} settings={settings} prominent />
-          )}
         </div>
+
 
         {!canManage && (
           <Card className="border-amber-300 bg-amber-50">
