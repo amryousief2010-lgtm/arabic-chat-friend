@@ -31,12 +31,23 @@ import AddAdjustmentReasonDialog from "@/components/warehouse/AddAdjustmentReaso
 // Plus already imported above
 import { useStocktakingLock } from "@/hooks/useStocktakingLock";
 import { Lock } from "lucide-react";
+import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, isAllowedWarehouseDropdownItem } from "@/lib/warehouseItemFilters";
+import { isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
 
 interface InventoryItem {
   id: string;
+  warehouse_id?: string | null;
+  product_id?: string | null;
   name: string;
+  category?: string | null;
   unit?: string | null;
   stock?: number | null;
+  is_active?: boolean | null;
+  archived?: boolean | null;
+  archived_at?: string | null;
+  module?: string | null;
+  item_type?: string | null;
+  source_module?: string | null;
 }
 
 interface Props {
@@ -155,6 +166,17 @@ const ManualStockAdditionDialog = ({
 
   useEffect(() => { if (open) void loadCustom(); }, [open]);
 
+  const isMainWarehouse = isMainWarehouseName(warehouseName);
+  const allowedItems = useMemo(
+    () => getAllowedWarehouseDropdownItems(items, warehouseId, isMainWarehouse),
+    [items, warehouseId, isMainWarehouse]
+  );
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !open) return;
+    console.table(allowedItems.map(getWarehouseItemDebugRow));
+  }, [open, allowedItems]);
+
   useEffect(() => {
     if (!open) {
       setSourceKey(""); setSourceOther("");
@@ -168,9 +190,9 @@ const ManualStockAdditionDialog = ({
 
   const itemsById = useMemo(() => {
     const m = new Map<string, InventoryItem>();
-    items.forEach(i => m.set(i.id, i));
+    allowedItems.forEach(i => m.set(i.id, i));
     return m;
-  }, [items]);
+  }, [allowedItems]);
 
   const customMatch = customParties.find((p) => `custom:${p.id}` === sourceKey);
   const sourceLabel = sourceKey === "other"
@@ -244,12 +266,15 @@ const ManualStockAdditionDialog = ({
       if (itemIdsToCheck.length > 0) {
         const { data: checkRows, error: checkErr } = await supabase
           .from("inventory_items")
-          .select("id, warehouse_id, name")
+          .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, module")
           .in("id", itemIdsToCheck);
         if (checkErr) throw checkErr;
-        const foreign = (checkRows || []).find((r: any) => r.warehouse_id !== warehouseId);
+        const foreign = (checkRows || []).find((r: any) => !isAllowedWarehouseDropdownItem(r, warehouseId, isMainWarehouse));
         if (foreign) {
-          throw new Error(`الصنف "${foreign.name}" غير مرتبط بالمخزن المحدد ولا يمكن إضافته لهذه التوريدة.`);
+          throw new Error(isMainWarehouse
+            ? "هذا الصنف غير تابع للمخزن الرئيسي ولا يمكن إضافته لهذه التوريدة."
+            : `الصنف "${foreign.name}" غير مرتبط بالمخزن المحدد ولا يمكن إضافته لهذه التوريدة.`
+          );
         }
       }
 
@@ -534,9 +559,9 @@ const ManualStockAdditionDialog = ({
                           <Select value={r.itemId} onValueChange={(v) => updateRow(r.uid, { itemId: v })}>
                             <SelectTrigger className="h-8"><SelectValue placeholder="اختر الصنف" /></SelectTrigger>
                             <SelectContent className="max-h-72">
-                              {items.length === 0 ? (
+                              {allowedItems.length === 0 ? (
                                 <div className="px-3 py-2 text-xs text-muted-foreground">لا توجد أصناف</div>
-                              ) : items.map((i) => (
+                              ) : allowedItems.map((i) => (
                                 <SelectItem key={i.id} value={i.id}>
                                   {i.name} {i.unit ? `(${i.unit})` : ""} — {Number(i.stock || 0)}
                                 </SelectItem>
