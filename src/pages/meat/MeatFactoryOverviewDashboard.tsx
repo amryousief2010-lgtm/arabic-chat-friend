@@ -134,22 +134,27 @@ export default function MeatFactoryOverviewDashboard() {
   return (
     <DashboardLayout>
       <div className="p-4 md:p-6 space-y-6" dir="rtl">
-        {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-purple-600 to-orange-500 text-white">
-              <Factory className="w-7 h-7" />
+        {/* Premium Header */}
+        <div className="relative overflow-hidden rounded-3xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 via-background to-orange-500/10 p-6 shadow-sm">
+          <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-16 -left-16 w-56 h-56 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
+          <div className="relative flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-purple-600 to-orange-500 text-white shadow-lg shadow-purple-500/30 ring-1 ring-white/20">
+                <Factory className="w-7 h-7" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-l from-purple-600 to-orange-500 bg-clip-text text-transparent">لوحة تحكم مصنع اللحوم</h1>
+                <p className="text-sm text-muted-foreground mt-1">نظرة شاملة على المشتريات والتصنيع والمخزون والتوريد</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold">لوحة تحكم مصنع اللحوم</h1>
-              <p className="text-sm text-muted-foreground">نظرة شاملة على المشتريات والتصنيع والمخزون والتوريد</p>
+            <div className="flex gap-2">
+              <Button asChild variant="outline"><Link to="/meat-factory/purchase-invoices"><ShoppingCart className="w-4 h-4 ml-1" />فاتورة مشتريات</Link></Button>
+              <Button asChild className="bg-purple-600 hover:bg-purple-700 shadow-md shadow-purple-500/30"><Link to="/meat-factory/manufacturing"><Factory className="w-4 h-4 ml-1" />فاتورة تصنيع</Link></Button>
             </div>
-          </div>
-          <div className="flex gap-2">
-            <Button asChild variant="outline"><Link to="/meat-factory/purchase-invoices"><ShoppingCart className="w-4 h-4 ml-1" />فاتورة مشتريات</Link></Button>
-            <Button asChild className="bg-purple-600 hover:bg-purple-700"><Link to="/meat-factory/manufacturing"><Factory className="w-4 h-4 ml-1" />فاتورة تصنيع</Link></Button>
           </div>
         </div>
+
 
         {/* Smart Alerts */}
         {(k.pending > 0 || lowStockRaw.length > 0 || lowStockPack.length > 0) && (
