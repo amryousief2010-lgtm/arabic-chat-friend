@@ -83,15 +83,17 @@ const useChickTrading = () => {
 
 // ============ Purchase Dialog ============
 const NewPurchaseDialog = ({ onSaved }: { onSaved: () => void }) => {
-  const { isGeneralManager, isExecutiveManager, isAccountant } = useAuth();
+  const { isGeneralManager, isExecutiveManager, isAccountant, isHatcheryManager, roles } = useAuth();
+  const isBroodingManager = (roles || []).includes("brooding_manager");
   const canUseDebtSettlement = isGeneralManager || isExecutiveManager || isAccountant;
+  const canUseDeferred = isGeneralManager || isExecutiveManager || isAccountant || isHatcheryManager || isBroodingManager;
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [f, setF] = useState({
     supplier_name: "", purchase_date: new Date().toISOString().slice(0, 10),
     age_at_purchase: 1, count: 0, unit_price: 0,
     transport_cost: 0, disinfection_cost: 0, other_costs: 0,
-    treasury_source: "lab" as "lab" | "main" | "customer_debt",
+    treasury_source: "lab" as "lab" | "main" | "customer_debt" | "deferred",
     notes: "", attachment_url: "",
     settlement_customer: "",
     settlement_amount: 0,
