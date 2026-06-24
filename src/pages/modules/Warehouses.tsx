@@ -622,14 +622,38 @@ const Warehouses = () => {
           </div>
         </div>
 
-        {/* KPIs — Premium */}
+        {/* KPI Scope label + reset to total */}
+        <div className="flex items-center justify-between flex-wrap gap-2 px-1 -mb-2">
+          <div className="flex items-center gap-2 text-xs">
+            <Badge variant={kpiWh ? "default" : "outline"} className="rounded-full">
+              {kpiScopeLabel}
+            </Badge>
+            {kpiWh && (
+              <span className="text-muted-foreground">
+                — الكروت أدناه تخص هذا المخزن فقط
+              </span>
+            )}
+          </div>
+          {kpiWh && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setForceAllKpi(true); setActiveTab("items"); }}
+            >
+              <BarChart3 className="w-4 h-4 ml-1" />
+              عرض إجمالي كل المخازن
+            </Button>
+          )}
+        </div>
+
+        {/* KPIs — Premium (scope-aware) */}
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="group relative overflow-hidden rounded-2xl border-primary/10 bg-gradient-to-br from-card to-primary/[0.03] hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 transition-all duration-300">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
-                  <CardDescription className="text-xs font-medium">المخازن النشطة</CardDescription>
-                  <CardTitle className="text-3xl font-bold tabular-nums">{warehouses.filter(w => w.is_active).length}</CardTitle>
+                  <CardDescription className="text-xs font-medium">{kpiFirstCardLabel}</CardDescription>
+                  <CardTitle className="text-3xl font-bold tabular-nums">{kpiFirstCardValue}</CardTitle>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center ring-1 ring-primary/15 group-hover:bg-primary/15 transition-colors">
                   <Warehouse className="w-5 h-5 text-primary" />
@@ -642,7 +666,7 @@ const Warehouses = () => {
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
                   <CardDescription className="text-xs font-medium">إجمالي الأصناف</CardDescription>
-                  <CardTitle className="text-3xl font-bold tabular-nums">{items.length}</CardTitle>
+                  <CardTitle className="text-3xl font-bold tabular-nums">{kpiItems.length}</CardTitle>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center ring-1 ring-blue-500/15 group-hover:bg-blue-500/15 transition-colors">
                   <Package className="w-5 h-5 text-blue-600" />
@@ -655,7 +679,7 @@ const Warehouses = () => {
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
                   <CardDescription className="text-xs font-medium">قيمة المخزون</CardDescription>
-                  <CardTitle className="text-2xl font-bold tabular-nums">{items.reduce((s, i) => s + i.stock * i.unit_cost, 0).toLocaleString()}</CardTitle>
+                  <CardTitle className="text-2xl font-bold tabular-nums">{kpiTotalValue.toLocaleString()}</CardTitle>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center ring-1 ring-emerald-500/15 group-hover:bg-emerald-500/15 transition-colors">
                   <BarChart3 className="w-5 h-5 text-emerald-600" />
@@ -663,20 +687,21 @@ const Warehouses = () => {
               </div>
             </CardHeader>
           </Card>
-          <Card className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card to-destructive/[0.04] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ${lowStockItems.length > 0 ? "border-destructive/40 hover:shadow-destructive/10" : "border-primary/10 hover:border-primary/30"}`}>
+          <Card className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card to-destructive/[0.04] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ${kpiLowStock.length > 0 ? "border-destructive/40 hover:shadow-destructive/10" : "border-primary/10 hover:border-primary/30"}`}>
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
                   <CardDescription className="text-xs font-medium">أصناف منخفضة</CardDescription>
-                  <CardTitle className={`text-3xl font-bold tabular-nums ${lowStockItems.length > 0 ? "text-destructive" : ""}`}>{lowStockItems.length}</CardTitle>
+                  <CardTitle className={`text-3xl font-bold tabular-nums ${kpiLowStock.length > 0 ? "text-destructive" : ""}`}>{kpiLowStock.length}</CardTitle>
                 </div>
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center ring-1 transition-colors ${lowStockItems.length > 0 ? "bg-destructive/10 ring-destructive/20 group-hover:bg-destructive/15" : "bg-muted ring-border"}`}>
-                  <AlertTriangle className={`w-5 h-5 ${lowStockItems.length > 0 ? "text-destructive" : "text-muted-foreground"}`} />
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center ring-1 transition-colors ${kpiLowStock.length > 0 ? "bg-destructive/10 ring-destructive/20 group-hover:bg-destructive/15" : "bg-muted ring-border"}`}>
+                  <AlertTriangle className={`w-5 h-5 ${kpiLowStock.length > 0 ? "text-destructive" : "text-muted-foreground"}`} />
                 </div>
               </div>
             </CardHeader>
           </Card>
         </div>
+
 
         <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "more") setMenuSubview(null); }} defaultValue="items">
           <div className="overflow-x-auto pb-1">
