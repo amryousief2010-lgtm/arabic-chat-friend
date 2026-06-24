@@ -39,6 +39,7 @@ type Batch = {
   status: string;
   notes: string | null;
   rearing_location?: string | null;
+  source_chick_trading_batch_id?: string | null;
 };
 
 const LOCATION_LABELS: Record<string, string> = {
