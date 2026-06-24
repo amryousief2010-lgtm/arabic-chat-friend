@@ -52,7 +52,7 @@ export default function MainWarehouseTreasuryTab() {
   const { user, roles, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth();
   const { toast } = useToast();
   const isFinancialManager = (roles || []).includes("financial_manager");
-  const isMainTreasuryApprover = (roles || []).includes("main_treasury_approver");
+  const isMainTreasuryApprover = ((roles || []) as string[]).includes("main_treasury_approver");
 
   // عبدالمنعم عثمان = warehouse_supervisor للمخزن الرئيسي → يستطيع التسجيل والتحويل.
   const canRecord = isGeneralManager || isExecutiveManager || isFinancialManager || isWarehouseSupervisor;
