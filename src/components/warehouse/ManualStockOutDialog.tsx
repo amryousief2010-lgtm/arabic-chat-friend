@@ -27,7 +27,7 @@ import AddManualPartyDialog from "@/components/warehouse/AddManualPartyDialog";
 import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
 import { isValidAdjustmentReason, getAllAdjustmentReasons } from "@/lib/warehouseAdjustmentReasons";
 import AddAdjustmentReasonDialog from "@/components/warehouse/AddAdjustmentReasonDialog";
-import { Plus } from "lucide-react";
+// Plus already imported above
 import { useStocktakingLock } from "@/hooks/useStocktakingLock";
 import { useReservedQuantities } from "@/hooks/useReservedQuantities";
 
