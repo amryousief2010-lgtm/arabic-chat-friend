@@ -232,11 +232,12 @@ const HREmployees = () => {
     filtered.forEach((e) => {
       const g = groups[e.pay_day] || (groups[e.pay_day] = { count: 0, salaries: 0, deductions: 0, net: 0 });
       const ded = deductionsMap[e.id]?.total_approved || 0;
+      const adv = advancesMap[e.id] || 0;
       g.count += 1;
       g.salaries += Number(e.base_salary) || 0;
-      g.deductions += ded;
+      g.deductions += ded + adv;
       const base = Number(e.base_salary) || 0;
-      g.net += base > 0 ? Math.max(0, base - ded) : 0;
+      g.net += base > 0 ? Math.max(0, base - ded - adv) : 0;
     });
     return groups;
   }, [filtered, deductionsMap]);
