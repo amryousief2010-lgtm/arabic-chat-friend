@@ -31,6 +31,7 @@ import MainWarehouseGuide from "@/pages/MainWarehouseGuide";
 import WarehouseOpeningBalance from "@/pages/modules/WarehouseOpeningBalance";
 import WarehouseOperationalDates from "@/pages/modules/WarehouseOperationalDates";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
+import WarehousesDashboardPanel from "@/components/warehouses/WarehousesDashboardPanel";
 
 
 const qualityLabelText: Record<string, string> = {
@@ -847,6 +848,7 @@ const Warehouses = () => {
           <div className="overflow-x-auto pb-1">
             <TabsList className="w-max flex-nowrap bg-gradient-to-l from-muted/60 to-muted/30 border border-border/60 rounded-2xl p-1.5 shadow-sm [&_[data-state=active]]:bg-gradient-to-br [&_[data-state=active]]:from-primary [&_[data-state=active]]:to-primary/80 [&_[data-state=active]]:text-primary-foreground [&_[data-state=active]]:shadow-md [&_[data-state=active]]:shadow-primary/20 [&>button]:rounded-xl [&>button]:transition-all">
 
+              <TabsTrigger value="dashboard-all" className="gap-1"><BarChart3 className="w-4 h-4" />داشبورد المخازن</TabsTrigger>
               <TabsTrigger value="available" className="gap-1"><Warehouse className="w-4 h-4" />المتاح في المخازن</TabsTrigger>
               <TabsTrigger value="items">الأصناف</TabsTrigger>
 
@@ -865,6 +867,16 @@ const Warehouses = () => {
               <TabsTrigger value="more" className="gap-1"><Menu className="w-4 h-4" />المزيد</TabsTrigger>
             </TabsList>
           </div>
+
+          {/* DASHBOARD ALL */}
+          <TabsContent value="dashboard-all" className="space-y-4">
+            <WarehousesDashboardPanel
+              warehouses={warehouses as any}
+              items={items as any}
+              movements={movements as any}
+              title="داشبورد المخازن"
+            />
+          </TabsContent>
 
           {/* AVAILABLE — المتاح في المخازن (نفس محتوى /warehouse-stock) */}
           <TabsContent value="available" className="space-y-4">
@@ -1292,6 +1304,24 @@ const Warehouses = () => {
                       items={items}
                       movements={movements}
                     />
+                  )}
+                  {t.value !== "wh-activity" && t.wh && (
+                    <details className="group rounded-2xl border border-primary/20 bg-card overflow-hidden">
+                      <summary className="cursor-pointer select-none px-4 py-3 flex items-center gap-2 bg-gradient-to-l from-primary/5 to-transparent hover:bg-primary/10 transition-colors">
+                        <BarChart3 className="w-4 h-4 text-primary" />
+                        <span className="font-semibold">داشبورد المخزن — {t.label}</span>
+                        <span className="text-xs text-muted-foreground mr-2">(اضغط للعرض/الإخفاء)</span>
+                      </summary>
+                      <div className="p-4 border-t border-border/60">
+                        <WarehousesDashboardPanel
+                          warehouses={warehouses as any}
+                          items={items as any}
+                          movements={movements as any}
+                          scopeWarehouseId={t.wh.id}
+                          title={`داشبورد ${t.label}`}
+                        />
+                      </div>
+                    </details>
                   )}
                   {t.value !== "wh-activity" && t.value !== "wh-main" && t.value !== "wh-agouza" && t.value !== "wh-hht" && t.value !== "wh-carrefour" && t.wh && (
                     <Card>
