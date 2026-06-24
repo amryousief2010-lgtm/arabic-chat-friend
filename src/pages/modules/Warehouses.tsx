@@ -33,6 +33,7 @@ import WarehouseOpeningBalance from "@/pages/modules/WarehouseOpeningBalance";
 import WarehouseOperationalDates from "@/pages/modules/WarehouseOperationalDates";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import WarehousesDashboardPanel from "@/components/warehouses/WarehousesDashboardPanel";
+import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, isAllowedWarehouseDropdownItem } from "@/lib/warehouseItemFilters";
 
 
 const qualityLabelText: Record<string, string> = {
@@ -163,6 +164,7 @@ interface WarehouseRow {
 interface InventoryItem {
   id: string;
   warehouse_id: string;
+  product_id?: string | null;
   name: string;
   category: string | null;
   sku: string | null;
@@ -172,6 +174,9 @@ interface InventoryItem {
   unit_cost: number;
   expiry_date: string | null;
   is_active: boolean;
+  module?: string | null;
+  archived?: boolean | null;
+  archived_at?: string | null;
   warehouse?: { name: string };
 }
 
@@ -689,6 +694,20 @@ const Warehouses = () => {
     }
     return base;
   })();
+  const editManualWarehouse = editManualWarehouseId
+    ? warehouses.find((w) => w.id === editManualWarehouseId)
+    : undefined;
+  const isEditManualMainWarehouse = !!editManualWarehouse && isMainWarehouseName(editManualWarehouse.name);
+  const editManualDropdownItems = useMemo(
+    () => getAllowedWarehouseDropdownItems(items, editManualWarehouseId, isEditManualMainWarehouse),
+    [items, editManualWarehouseId, isEditManualMainWarehouse]
+  );
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !editManualOpen) return;
+    console.table(editManualDropdownItems.map(getWarehouseItemDebugRow));
+  }, [editManualOpen, editManualDropdownItems]);
+
   const lowStockItems = items.filter(i => i.stock <= i.low_stock_threshold);
   const pendingSlaughter = slaughterOutputs.filter(o => o.received_status !== 'received');
 
