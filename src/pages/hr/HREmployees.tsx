@@ -9,13 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UsersRound, Plus, Search, Edit, History as HistoryIcon, Printer, FileText, Wallet } from "lucide-react";
+import { UsersRound, Plus, Search, Edit, History as HistoryIcon, Printer, FileText, Wallet, UserMinus, UserCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import PrintEmployeesAdvancesDialog from "@/components/hr/PrintEmployeesAdvancesDialog";
 import EmployeeDocumentsDialog from "@/components/hr/EmployeeDocumentsDialog";
 import EmployeeDeductionsDialog from "@/components/hr/EmployeeDeductionsDialog";
+import EmployeeSuspensionDialog from "@/components/hr/EmployeeSuspensionDialog";
 
 interface Location { id: string; name: string; department: string | null }
 interface Employee {
@@ -28,6 +29,10 @@ interface Employee {
   status: "active" | "inactive";
   notes: string | null;
   pay_day: number;
+  is_suspended?: boolean;
+  suspension_date?: string | null;
+  suspension_reason?: string | null;
+  suspension_net_amount?: number | null;
 }
 
 interface DeductionSummary {
@@ -88,7 +93,7 @@ const HREmployees = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "suspended">("active");
   const [locFilter, setLocFilter] = useState<string>("all");
   const [docFilter, setDocFilter] = useState<
     "all" | "id_yes" | "id_no" | "contract_yes" | "contract_no" | "missing"
@@ -105,6 +110,7 @@ const HREmployees = () => {
 
   const [docsOf, setDocsOf] = useState<Employee | null>(null);
   const [deductionsOf, setDeductionsOf] = useState<Employee | null>(null);
+  const [suspendOf, setSuspendOf] = useState<Employee | null>(null);
   const [payDayFilter, setPayDayFilter] = useState<"all" | "1" | "5" | "15">("all");
   const [docsSummary, setDocsSummary] = useState<
     Record<string, { id: boolean; contract: boolean }>
@@ -177,7 +183,13 @@ const HREmployees = () => {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return employees.filter((e) => {
-      if (statusFilter !== "all" && e.status !== statusFilter) return false;
+      if (statusFilter === "suspended") {
+        if (!e.is_suspended) return false;
+      } else if (statusFilter === "active") {
+        if (e.status !== "active" || e.is_suspended) return false;
+      } else if (statusFilter === "inactive") {
+        if (e.status !== "inactive") return false;
+      }
       if (locFilter !== "all" && e.current_location_id !== locFilter) return false;
       if (payDayFilter !== "all" && String(e.pay_day) !== payDayFilter) return false;
       if (docFilter !== "all") {
@@ -325,6 +337,45 @@ const HREmployees = () => {
     setTransfers((data || []) as Transfer[]);
   };
 
+  const reactivateEmployee = async (e: Employee) => {
+    if (!(isGeneralManager || isExecutiveManager)) {
+      toast.error("إعادة التفعيل متاحة للمدير العام والمدير التنفيذي فقط");
+      return;
+    }
+    if (!confirm(`هل تريد إعادة تفعيل ${e.full_name}؟`)) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const { error: insErr } = await supabase.from("hr_employee_suspensions").insert({
+      employee_id: e.id,
+      action: "reactivate",
+      suspension_date: today,
+      reason: "إعادة تفعيل الموظف",
+      performed_by: user?.id,
+    });
+    if (insErr) { toast.error("فشل: " + insErr.message); return; }
+    const { error } = await supabase
+      .from("hr_employees")
+      .update({
+        is_suspended: false,
+        suspension_date: null,
+        suspension_reason: null,
+        suspension_notes: null,
+        suspension_net_amount: null,
+        suspended_by: null,
+        suspended_at: null,
+      })
+      .eq("id", e.id);
+    if (error) { toast.error("فشل: " + error.message); return; }
+    await supabase.from("hr_audit_log").insert({
+      entity_type: "hr_employee",
+      entity_id: e.id,
+      employee_id: e.id,
+      action: "reactivate",
+      performed_by: user?.id,
+    });
+    toast.success(`تم إعادة تفعيل ${e.full_name}`);
+    await load();
+  };
+
   if (!canAccessPage) {
     return (
       <DashboardLayout>
@@ -376,6 +427,7 @@ const HREmployees = () => {
                   <SelectContent>
                     <SelectItem value="all">كل الحالات</SelectItem>
                     <SelectItem value="active">نشط</SelectItem>
+                    <SelectItem value="suspended">موقوف عن العمل</SelectItem>
                     <SelectItem value="inactive">غير نشط</SelectItem>
                   </SelectContent>
                 </Select>
@@ -547,9 +599,15 @@ const HREmployees = () => {
                             </TableCell>
                           )}
                           <TableCell>
-                            {e.status === "active"
-                              ? <Badge className="bg-emerald-500/15 text-emerald-700">نشط</Badge>
-                              : <Badge variant="outline" className="text-muted-foreground">غير نشط</Badge>}
+                            {e.is_suspended ? (
+                              <Badge className="bg-rose-500/15 text-rose-700" title={e.suspension_date || ""}>
+                                موقوف عن العمل
+                              </Badge>
+                            ) : e.status === "active" ? (
+                              <Badge className="bg-emerald-500/15 text-emerald-700">نشط</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-muted-foreground">غير نشط</Badge>
+                            )}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1 justify-end">
@@ -562,6 +620,28 @@ const HREmployees = () => {
                               {canViewDocs && (
                                 <Button size="sm" variant="ghost" onClick={() => setDocsOf(e)} title="المستندات">
                                   <FileText className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {canManage && !e.is_suspended && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-rose-700 hover:text-rose-800 hover:bg-rose-50"
+                                  onClick={() => setSuspendOf(e)}
+                                  title="إيقاف عن العمل"
+                                >
+                                  <UserMinus className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {canManage && e.is_suspended && (isGeneralManager || isExecutiveManager) && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50"
+                                  onClick={() => reactivateEmployee(e)}
+                                  title="إعادة تفعيل الموظف"
+                                >
+                                  <UserCheck className="w-4 h-4" />
                                 </Button>
                               )}
                               {canManage && (
@@ -738,6 +818,23 @@ const HREmployees = () => {
           employeeId={deductionsOf.id}
           employeeName={`${deductionsOf.full_name} (${deductionsOf.code})`}
           baseSalary={Number(deductionsOf.base_salary) || 0}
+        />
+      )}
+
+      {suspendOf && (
+        <EmployeeSuspensionDialog
+          open={!!suspendOf}
+          onOpenChange={(o) => !o && setSuspendOf(null)}
+          employee={{
+            id: suspendOf.id,
+            code: suspendOf.code,
+            full_name: suspendOf.full_name,
+            job_title: suspendOf.job_title,
+            location_name: suspendOf.current_location_id ? locById.get(suspendOf.current_location_id)?.name || null : null,
+            base_salary: Number(suspendOf.base_salary) || 0,
+            pay_day: suspendOf.pay_day,
+          }}
+          onDone={load}
         />
       )}
     </DashboardLayout>
