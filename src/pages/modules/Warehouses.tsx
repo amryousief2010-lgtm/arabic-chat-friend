@@ -248,6 +248,17 @@ const Warehouses = () => {
   const [manualBusy, setManualBusy] = useState(false);
   const canManageManual = isGeneralManager || isExecutiveManager;
 
+  // Edit manual supply (GM/EM only)
+  const [editManualOpen, setEditManualOpen] = useState(false);
+  const [editManualRef, setEditManualRef] = useState<string | null>(null);
+  const [editManualLines, setEditManualLines] = useState<Array<{
+    id?: string; item_id: string; quantity: number;
+    package_count: number | null; package_weight_kg: number | null;
+    notes: string; _deleted?: boolean; _isNew?: boolean;
+    _origQty?: number;
+  }>>([]);
+  const [editManualReason, setEditManualReason] = useState("");
+
   // Group movements by reference for MAN-IN / MAN-OUT (one row per supply batch)
   type GroupedRow =
     | { kind: "single"; mov: Movement }
@@ -340,27 +351,41 @@ const Warehouses = () => {
     });
   };
 
-  const cancelManualGroup = async () => {
-    if (!manualGroup || !canManageManual) return;
-    const reason = window.prompt("سبب الإلغاء (مطلوب):", "");
+  const cancelManualGroupRow = async (
+    group?: Extract<GroupedRow, { kind: "manual" }>
+  ) => {
+    const target = group || manualGroup;
+    if (!target || !canManageManual) return;
+    const reason = window.prompt("سبب الإلغاء / العكس (إجباري):", "");
     if (!reason || !reason.trim()) {
       toast({ title: "السبب مطلوب لإلغاء التوريدة", variant: "destructive" });
       return;
     }
-    if (!window.confirm(`سيتم إلغاء التوريدة ${manualGroup.reference} وعكس أثرها على المخزون. متابعة؟`)) return;
+    const note = window.prompt("ملاحظة إضافية (اختياري):", "") || "";
+    if (!window.confirm(`سيتم إلغاء التوريدة ${target.reference} وعكس أثرها على المخزون. متابعة؟`)) return;
     setManualBusy(true);
     try {
       // Reverse stock for each line, then delete the original movements.
-      for (const m of manualGroup.movs) {
+      for (const m of target.movs) {
         const delta = (m.movement_type === "in" ? -1 : 1) * Number(m.quantity || 0);
         const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", m.item_id).maybeSingle();
         const newStock = Number((it as any)?.stock || 0) + delta;
         await supabase.from("inventory_items").update({ stock: newStock }).eq("id", m.item_id);
       }
-      const ids = manualGroup.movs.map((m) => m.id);
+      const ids = target.movs.map((m) => m.id);
       const { error } = await supabase.from("inventory_movements").delete().in("id", ids);
       if (error) throw error;
-      toast({ title: "تم إلغاء التوريدة", description: `${manualGroup.reference} — ${reason}` });
+      // Lightweight audit trail — appended into a notification for managers
+      try {
+        await supabase.from("notifications").insert({
+          user_id: user?.id,
+          type: "warehouse_supply_cancelled",
+          title: `إلغاء توريدة ${target.reference}`,
+          message: `سبب: ${reason}${note ? ` | ملاحظة: ${note}` : ""} | بواسطة: ${user?.email || user?.id || "—"}`,
+          read: false,
+        } as any);
+      } catch { /* audit best-effort */ }
+      toast({ title: "تم إلغاء التوريدة", description: `${target.reference} — ${reason}` });
       setManualGroupRef(null);
       await fetchAll();
     } catch (e: any) {
@@ -369,6 +394,118 @@ const Warehouses = () => {
       setManualBusy(false);
     }
   };
+  const cancelManualGroup = () => cancelManualGroupRow();
+
+  const openEditManual = (group: Extract<GroupedRow, { kind: "manual" }>) => {
+    if (!canManageManual) {
+      toast({ title: "غير مصرح", description: "هذا الإجراء للمدير العام أو التنفيذي فقط", variant: "destructive" });
+      return;
+    }
+    setEditManualRef(group.reference);
+    setEditManualReason("");
+    setEditManualLines(
+      group.movs.map((m) => ({
+        id: m.id,
+        item_id: m.item_id,
+        quantity: Number(m.quantity || 0),
+        package_count: m.package_count ?? null,
+        package_weight_kg: m.package_weight_kg ?? null,
+        notes: m.notes || "",
+        _origQty: Number(m.quantity || 0),
+      }))
+    );
+    setEditManualOpen(true);
+  };
+
+  const saveEditManual = async () => {
+    if (!canManageManual || !editManualRef) return;
+    if (!editManualReason.trim()) {
+      toast({ title: "السبب إجباري", description: "أدخل سبب التعديل", variant: "destructive" });
+      return;
+    }
+    const group = groupedMovements.find((r) => r.kind === "manual" && r.reference === editManualRef) as
+      Extract<GroupedRow, { kind: "manual" }> | undefined;
+    if (!group) return;
+    const direction = group.direction; // "in" | "out"
+    const sign = direction === "in" ? 1 : -1;
+    const sampleWh = group.movs[0]?.warehouse_id;
+    const referenceType = direction === "in" ? "manual_addition" : "manual_out";
+
+    setManualBusy(true);
+    try {
+      // Validate
+      for (const L of editManualLines) {
+        if (L._deleted) continue;
+        if (!L.item_id || !(L.quantity > 0)) {
+          throw new Error("تأكد من اختيار الصنف وإدخال كمية صحيحة لكل صنف");
+        }
+      }
+      // Apply per-line changes
+      for (const L of editManualLines) {
+        if (L._isNew && !L._deleted) {
+          // new line: add stock & insert movement
+          const item = items.find(i => i.id === L.item_id);
+          if (!item) continue;
+          const newStock = Number(item.stock || 0) + sign * Number(L.quantity);
+          await supabase.from("inventory_items").update({ stock: newStock }).eq("id", L.item_id);
+          await supabase.from("inventory_movements").insert({
+            item_id: L.item_id,
+            warehouse_id: item.warehouse_id || sampleWh,
+            movement_type: direction === "in" ? "in" : "out",
+            quantity: Number(L.quantity),
+            destination_warehouse_id: null,
+            reference: editManualRef,
+            reference_type: referenceType,
+            party: group.partyLabel || null,
+            notes: `${L.notes || ""}${L.notes ? " • " : ""}مضاف بالتعديل: ${editManualReason}`,
+            unit_cost: item.unit_cost,
+            performed_by: user?.id,
+            package_count: L.package_count ?? null,
+            package_weight_kg: L.package_weight_kg ?? null,
+          } as any);
+        } else if (L._deleted && L.id) {
+          // delete line: reverse its quantity from stock & delete row
+          const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", L.item_id).maybeSingle();
+          const newStock = Number((it as any)?.stock || 0) - sign * Number(L._origQty || 0);
+          await supabase.from("inventory_items").update({ stock: newStock }).eq("id", L.item_id);
+          await supabase.from("inventory_movements").delete().eq("id", L.id);
+        } else if (L.id) {
+          // updated line: stock delta = sign * (newQty - origQty)
+          const delta = sign * (Number(L.quantity) - Number(L._origQty || 0));
+          if (delta !== 0) {
+            const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", L.item_id).maybeSingle();
+            const newStock = Number((it as any)?.stock || 0) + delta;
+            await supabase.from("inventory_items").update({ stock: newStock }).eq("id", L.item_id);
+          }
+          await supabase.from("inventory_movements").update({
+            quantity: Number(L.quantity),
+            package_count: L.package_count ?? null,
+            package_weight_kg: L.package_weight_kg ?? null,
+            notes: `${L.notes || ""}${L.notes ? " • " : ""}عُدّل بسبب: ${editManualReason}`,
+          } as any).eq("id", L.id);
+        }
+      }
+      try {
+        await supabase.from("notifications").insert({
+          user_id: user?.id,
+          type: "warehouse_supply_edited",
+          title: `تعديل توريدة ${editManualRef}`,
+          message: `سبب: ${editManualReason} | بواسطة: ${user?.email || user?.id || "—"}`,
+          read: false,
+        } as any);
+      } catch { /* best-effort audit */ }
+      toast({ title: "تم حفظ التعديلات", description: editManualRef });
+      setEditManualOpen(false);
+      setEditManualRef(null);
+      await fetchAll();
+    } catch (e: any) {
+      toast({ title: "تعذّر الحفظ", description: e?.message || "حدث خطأ", variant: "destructive" });
+    } finally {
+      setManualBusy(false);
+    }
+  };
+
+
 
 
   const fetchAll = async () => {
@@ -1065,10 +1202,23 @@ const Warehouses = () => {
                           <TableCell>{row.partyLabel || "—"}</TableCell>
                           <TableCell className="text-xs text-muted-foreground font-mono">{row.reference}</TableCell>
                           <TableCell>
-                            <div className="flex gap-1 justify-center">
+                            <div className="flex gap-1 justify-center flex-wrap">
                               <Button size="sm" variant="outline" onClick={() => setManualGroupRef(row.reference)}>
                                 <Eye className="w-3 h-3 ml-1" /> تفاصيل
                               </Button>
+                              {canManageManual && (
+                                <>
+                                  <Button size="sm" variant="outline" className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                                          onClick={() => openEditManual(row)}>
+                                    <Edit className="w-3 h-3 ml-1" /> تعديل
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10"
+                                          disabled={manualBusy}
+                                          onClick={() => cancelManualGroupRow(row)}>
+                                    <Trash2 className="w-3 h-3 ml-1" /> إلغاء
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -1867,6 +2017,122 @@ const Warehouses = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* تعديل توريدة مجمعة — للمدير العام/التنفيذي فقط */}
+      <Dialog open={editManualOpen} onOpenChange={(v) => { if (!v) { setEditManualOpen(false); setEditManualRef(null); } }}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>تعديل التوريدة {editManualRef}</DialogTitle>
+            <DialogDescription>
+              يمكنك تعديل الأصناف وعدد العبوات والكميات وإضافة/حذف أصناف. سيتم تصحيح المخزون تلقائيًا بالفرق.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md border border-amber-300 bg-amber-50/50 p-3 text-xs text-amber-800">
+              تنبيه: هذا التعديل سيؤثر مباشرةً على رصيد المخزون بمقدار فرق الكميات. السبب إجباري ويُسجَّل ضمن سجل الإجراءات.
+            </div>
+            <div>
+              <Label>سبب التعديل (إجباري)</Label>
+              <Input value={editManualReason} onChange={(e) => setEditManualReason(e.target.value)} placeholder="مثال: تصحيح خطأ في كمية صنف" />
+            </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>الصنف</TableHead>
+                    <TableHead>عدد العبوات</TableHead>
+                    <TableHead>وزن العبوة (كجم)</TableHead>
+                    <TableHead>الكمية</TableHead>
+                    <TableHead>ملاحظات</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {editManualLines.map((L, idx) => {
+                    if (L._deleted) return (
+                      <TableRow key={idx} className="opacity-50 line-through">
+                        <TableCell colSpan={5}>{items.find(i => i.id === L.item_id)?.name || "—"} (محذوف)</TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="ghost" onClick={() => {
+                            const next = [...editManualLines]; next[idx] = { ...L, _deleted: false }; setEditManualLines(next);
+                          }}>تراجع</Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                    return (
+                      <TableRow key={idx}>
+                        <TableCell className="min-w-[180px]">
+                          {L._isNew ? (
+                            <Select value={L.item_id} onValueChange={(v) => {
+                              const next = [...editManualLines]; next[idx] = { ...L, item_id: v }; setEditManualLines(next);
+                            }}>
+                              <SelectTrigger><SelectValue placeholder="اختر صنفاً" /></SelectTrigger>
+                              <SelectContent className="max-h-72">
+                                {items.map(i => <SelectItem key={i.id} value={i.id}>{i.name} — {i.warehouse?.name || ""}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <span className="font-medium">{items.find(i => i.id === L.item_id)?.name || "—"}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="w-28">
+                          <Input type="number" min={0} value={L.package_count ?? ""} onChange={(e) => {
+                            const next = [...editManualLines]; next[idx] = { ...L, package_count: e.target.value === "" ? null : Number(e.target.value) }; setEditManualLines(next);
+                          }} />
+                        </TableCell>
+                        <TableCell className="w-28">
+                          <Input type="number" step="0.01" min={0} value={L.package_weight_kg ?? ""} onChange={(e) => {
+                            const next = [...editManualLines]; next[idx] = { ...L, package_weight_kg: e.target.value === "" ? null : Number(e.target.value) }; setEditManualLines(next);
+                          }} />
+                        </TableCell>
+                        <TableCell className="w-28">
+                          <Input type="number" step="0.01" min={0} value={L.quantity} onChange={(e) => {
+                            const next = [...editManualLines]; next[idx] = { ...L, quantity: Number(e.target.value || 0) }; setEditManualLines(next);
+                          }} />
+                          {!L._isNew && Number(L.quantity) !== Number(L._origQty || 0) && (
+                            <div className="text-[10px] text-muted-foreground mt-0.5">
+                              فرق: {(Number(L.quantity) - Number(L._origQty || 0)).toFixed(2)}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="min-w-[200px]">
+                          <Input value={L.notes} onChange={(e) => {
+                            const next = [...editManualLines]; next[idx] = { ...L, notes: e.target.value }; setEditManualLines(next);
+                          }} />
+                        </TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => {
+                            const next = [...editManualLines];
+                            if (L._isNew) next.splice(idx, 1);
+                            else next[idx] = { ...L, _deleted: true };
+                            setEditManualLines(next);
+                          }}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => {
+              setEditManualLines([...editManualLines, {
+                item_id: "", quantity: 0, package_count: null, package_weight_kg: null,
+                notes: "", _isNew: true,
+              }]);
+            }}>
+              <Plus className="w-4 h-4 ml-1" /> إضافة صنف
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditManualOpen(false); setEditManualRef(null); }}>إلغاء</Button>
+            <Button onClick={saveEditManual} disabled={manualBusy}>حفظ التعديلات</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
 
 
 
