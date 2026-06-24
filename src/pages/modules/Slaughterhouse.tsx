@@ -916,21 +916,39 @@ const Slaughterhouse = () => {
 
   return (
     <DashboardLayout>
-      <Header title="إدارة المجزر" subtitle="استلام النعام، تفريغة الذبح اليومي، التقسيمة والتوزيع على الفروع" />
-
-      <div className="flex justify-end gap-2 mb-3 flex-wrap">
-        <Button asChild variant="outline" size="sm">
-          <a href="/modules/slaughterhouse/transfers"><Truck className="w-4 h-4 ml-1" />سجل نقل اللحوم</a>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <a href="/modules/slaughterhouse/payroll"><Users className="w-4 h-4 ml-1" />رواتب وبونص الجزارين</a>
-        </Button>
-        <RequestCorrectionDialog
-          targetModule="المجزر"
-          targetType="slaughterhouse"
-          label="طلب تصحيح بيانات للإدارة"
-          variant="outline"
-        />
+      {/* Premium gradient header */}
+      <div className="relative overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/10 via-background to-orange-500/10 p-6 mb-6">
+        <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 w-56 h-56 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-orange-500 flex items-center justify-center shadow-lg shadow-primary/20">
+              <Beef className="w-8 h-8 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-l from-primary to-foreground bg-clip-text text-transparent">
+                لوحة عمليات المجزر
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                مؤشرات التشغيل والاستلام والجودة — استلام النعام، الذبح اليومي والتوزيع
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Button asChild variant="outline" size="sm" className="bg-background/60 backdrop-blur">
+              <a href="/modules/slaughterhouse/transfers"><Truck className="w-4 h-4 ml-1" />سجل نقل اللحوم</a>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="bg-background/60 backdrop-blur">
+              <a href="/modules/slaughterhouse/payroll"><Users className="w-4 h-4 ml-1" />رواتب وبونص الجزارين</a>
+            </Button>
+            <RequestCorrectionDialog
+              targetModule="المجزر"
+              targetType="slaughterhouse"
+              label="طلب تصحيح بيانات للإدارة"
+              variant="outline"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="mb-6">
