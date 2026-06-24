@@ -322,9 +322,24 @@ const ManualStockOutDialog = ({
         }
       });
 
+      // Defensive guard: ensure all selected items belong to the target warehouse
+      const itemIdsToCheck = Array.from(byItem.keys());
+      if (itemIdsToCheck.length > 0) {
+        const { data: checkRows, error: checkErr } = await supabase
+          .from("inventory_items")
+          .select("id, warehouse_id, name")
+          .in("id", itemIdsToCheck);
+        if (checkErr) throw checkErr;
+        const foreign = (checkRows || []).find((r: any) => r.warehouse_id !== warehouseId);
+        if (foreign) {
+          throw new Error(`الصنف "${foreign.name}" غير مرتبط بالمخزن المحدد ولا يمكن صرفه من هذه التوريدة.`);
+        }
+      }
+
       const inserts: any[] = [];
       const stockUpdates: { id: string; newStock: number }[] = [];
       const slipRows: SlipItemRow[] = [];
+
 
       for (const [itemId, info] of byItem.entries()) {
         const it = itemsById.get(itemId);
