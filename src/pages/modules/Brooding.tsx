@@ -251,6 +251,7 @@ const Brooding = () => {
   const [feedStockMovements, setFeedStockMovements] = useState<FeedStockMovement[]>([]);
   const [snapshots, setSnapshots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [summaryLocation, setSummaryLocation] = useState<'all' | 'chick_nursery' | 'fattening_farm'>('all');
   const { prices: marketPrices } = useMarketPrices();
 
   const loadAll = async () => {
