@@ -21,8 +21,9 @@ import { toast } from "sonner";
 import {
   Plus, ShoppingCart, DollarSign, Skull, Wheat, Pill, FileText,
   TrendingUp, TrendingDown, Wallet, Tag, X, CheckCircle2,
+  Pencil, Printer, Link2, ExternalLink,
 } from "lucide-react";
-import { fmtNum, fmtDate } from "@/lib/printPdf";
+import { fmtNum, fmtDate, openPrintWindow, escapeHtml, COMPANY_AR } from "@/lib/printPdf";
 
 const fmtEGP = (v: any) => `${fmtNum(Number(v || 0), 2)} ج.م`;
 
