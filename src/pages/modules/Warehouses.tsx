@@ -252,7 +252,9 @@ const Warehouses = () => {
   // Edit manual supply (GM/EM only)
   const [editManualOpen, setEditManualOpen] = useState(false);
   const [editManualRef, setEditManualRef] = useState<string | null>(null);
+  const [editManualWarehouseId, setEditManualWarehouseId] = useState<string | null>(null);
   const [editManualLines, setEditManualLines] = useState<Array<{
+
     id?: string; item_id: string; quantity: number;
     package_count: number | null; package_weight_kg: number | null;
     notes: string; _deleted?: boolean; _isNew?: boolean;
