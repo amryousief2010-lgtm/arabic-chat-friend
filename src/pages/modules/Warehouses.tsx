@@ -868,6 +868,16 @@ const Warehouses = () => {
             </TabsList>
           </div>
 
+          {/* DASHBOARD ALL */}
+          <TabsContent value="dashboard-all" className="space-y-4">
+            <WarehousesDashboardPanel
+              warehouses={warehouses as any}
+              items={items as any}
+              movements={movements as any}
+              title="داشبورد المخازن"
+            />
+          </TabsContent>
+
           {/* AVAILABLE — المتاح في المخازن (نفس محتوى /warehouse-stock) */}
           <TabsContent value="available" className="space-y-4">
             <WarehouseStockView embedded />
