@@ -68,32 +68,90 @@ export default function MeatFactoryOverviewDashboard() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [it, pu, inv, mv] = await Promise.all([
+      const [it, pu, inv, mv, rc] = await Promise.all([
         supabase.from("meat_factory_raw_items" as any).select("id,name,unit,current_stock,avg_cost,kind,low_stock_threshold").order("name"),
         supabase.from("meat_factory_purchases" as any).select("id,invoice_no,purchase_date,supplier,total_amount,status,invoice_type,created_at").order("created_at", { ascending: false }).limit(500),
         supabase.from("meat_manufacturing_invoices" as any).select("id,invoice_no,product_name,finished_qty,unit,status,raw_cost,spice_cost,packaging_cost,total_manufacturing_cost,materials_total_cost,unit_cost,created_at,destination_kind").order("created_at", { ascending: false }).limit(500),
-        supabase.from("meat_factory_inventory_moves" as any).select("id,item_kind,item_name,direction,quantity,unit_cost,reason,ref_table,created_at").order("created_at", { ascending: false }).limit(200),
+        supabase.from("meat_factory_inventory_moves" as any).select("id,item_kind,item_name,direction,quantity,unit_cost,reason,ref_table,created_at").order("created_at", { ascending: false }).limit(500),
+        supabase.from("meat_factory_recipes" as any).select("id", { count: "exact", head: true }),
       ]);
       setItems((it.data as any) || []);
       setPurchases((pu.data as any) || []);
       setInvoices((inv.data as any) || []);
       setMoves((mv.data as any) || []);
+      setRecipesCount((rc as any)?.count || 0);
       setLoading(false);
     })();
   }, []);
 
+  // Period date range
+  const { rangeStart, rangeEnd } = useMemo(() => {
+    const now = new Date();
+    let start = new Date(now);
+    const end = new Date(now); end.setHours(23, 59, 59, 999);
+    if (period === "today") { start.setHours(0, 0, 0, 0); }
+    else if (period === "week") { start.setDate(now.getDate() - 6); start.setHours(0, 0, 0, 0); }
+    else if (period === "month") { start = new Date(now.getFullYear(), now.getMonth(), 1); }
+    else if (period === "custom" && fromDate && toDate) {
+      start = new Date(fromDate); start.setHours(0, 0, 0, 0);
+      const e = new Date(toDate); e.setHours(23, 59, 59, 999);
+      return { rangeStart: start, rangeEnd: e };
+    }
+    return { rangeStart: start, rangeEnd: end };
+  }, [period, fromDate, toDate]);
+
+  const inRange = (iso: string) => {
+    if (!iso) return false;
+    const d = new Date(iso);
+    return d >= rangeStart && d <= rangeEnd;
+  };
+
+  // Filtered datasets
+  const fPurchases = useMemo(() => purchases.filter(p => inRange(p.created_at || p.purchase_date)), [purchases, rangeStart, rangeEnd]);
+  const fInvoices = useMemo(
+    () => invoices.filter(i => inRange(i.created_at) && (productFilter === "all" || i.product_name === productFilter)),
+    [invoices, productFilter, rangeStart, rangeEnd]
+  );
+  const fMoves = useMemo(
+    () => moves.filter(m => inRange(m.created_at) && (typeFilter === "all" || m.item_kind === typeFilter)),
+    [moves, typeFilter, rangeStart, rangeEnd]
+  );
+
+  // Inventory values (always current)
+  const inv = useMemo(() => {
+    const valOf = (kind: string) => items.filter(i => i.kind === kind).reduce((s, i) => s + Number(i.current_stock || 0) * Number(i.avg_cost || 0), 0);
+    const packagingValue = valOf("packaging");
+    const spiceValue = valOf("spice");
+    const rawValue = valOf("raw");
+    const totalInventoryValue = packagingValue + spiceValue + rawValue;
+    const outOfStock = items.filter(i => Number(i.current_stock || 0) <= 0).length;
+    const lowStock = items.filter(i => Number(i.current_stock || 0) > 0 && Number(i.current_stock || 0) <= Number(i.low_stock_threshold || 0)).length;
+    return { packagingValue, spiceValue, rawValue, totalInventoryValue, outOfStock, lowStock };
+  }, [items]);
+
   const k = useMemo(() => {
-    const purchaseTotal = purchases.filter(p => p.status === "approved").reduce((s,p) => s + Number(p.total_amount||0), 0);
-    const packPurchases = purchases.filter(p => p.status === "approved" && (p.invoice_type === "packaging")).reduce((s,p) => s + Number(p.total_amount||0), 0);
-    const mfgCount = invoices.length;
-    const producedQty = invoices.filter(i => i.status !== "draft" && i.status !== "rejected" && i.status !== "cancelled").reduce((s,i) => s + Number(i.finished_qty||0), 0);
-    const mfgCost = invoices.filter(i => i.status !== "draft").reduce((s,i) => s + Number(i.total_manufacturing_cost||0), 0);
-    const approved = invoices.filter(i => i.status === "approved" || i.status === "transferred").length;
-    const pending = invoices.filter(i => i.status === "draft").length;
-    const rejected = invoices.filter(i => i.status === "rejected").length;
-    const transferred = invoices.filter(i => i.status === "transferred").length;
-    return { purchaseTotal, packPurchases, mfgCount, producedQty, mfgCost, approved, pending, rejected, transferred };
-  }, [purchases, invoices]);
+    const purchaseTotal = fPurchases.filter(p => p.status === "approved").reduce((s, p) => s + Number(p.total_amount || 0), 0);
+    const purchaseCount = fPurchases.length;
+    const packPurchases = fPurchases.filter(p => p.status === "approved" && p.invoice_type === "packaging").reduce((s, p) => s + Number(p.total_amount || 0), 0);
+    const mfgCount = fInvoices.length;
+    const mfgTotalAmount = fInvoices.filter(i => i.status !== "draft").reduce((s, i) => s + Number(i.total_manufacturing_cost || 0), 0);
+    const producedQty = fInvoices.filter(i => i.status !== "draft" && i.status !== "rejected" && i.status !== "cancelled").reduce((s, i) => s + Number(i.finished_qty || 0), 0);
+    const mfgCost = fInvoices.filter(i => i.status !== "draft").reduce((s, i) => s + Number(i.total_manufacturing_cost || 0), 0);
+    const approved = fInvoices.filter(i => i.status === "approved" || i.status === "transferred").length;
+    const pending = fInvoices.filter(i => i.status === "draft").length;
+    const rejected = fInvoices.filter(i => i.status === "rejected").length;
+    const transferred = fInvoices.filter(i => i.status === "transferred").length;
+    // Manufacturing dispense — OUT moves linked to manufacturing
+    const dispenseQty = fMoves.filter(m => m.direction === "OUT" && m.ref_table === "meat_manufacturing_invoices").reduce((s, m) => s + Number(m.quantity || 0), 0);
+    // Slaughter inbound — purchases of type 'raw' or moves IN with kind=raw
+    const slaughterInbound = fPurchases.filter(p => p.invoice_type === "raw" || p.invoice_type === "slaughter").reduce((s, p) => s + Number(p.total_amount || 0), 0);
+    return { purchaseTotal, purchaseCount, packPurchases, mfgCount, mfgTotalAmount, producedQty, mfgCost, approved, pending, rejected, transferred, dispenseQty, slaughterInbound };
+  }, [fPurchases, fInvoices, fMoves]);
+
+  const productList = useMemo(() => Array.from(new Set(invoices.map(i => i.product_name).filter(Boolean))).sort(), [invoices]);
+
+  const periodLabel = period === "today" ? "اليوم" : period === "week" ? "هذا الأسبوع" : period === "month" ? "هذا الشهر" : "نطاق مخصص";
+
 
   const lowStockRaw = useMemo(() => items.filter(i => (i.kind === "raw" || i.kind === "spice") && i.current_stock <= (i.low_stock_threshold || 0)).slice(0, 8), [items]);
   const lowStockPack = useMemo(() => items.filter(i => i.kind === "packaging" && i.current_stock <= (i.low_stock_threshold || 0)).slice(0, 8), [items]);
