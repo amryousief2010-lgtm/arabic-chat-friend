@@ -248,6 +248,17 @@ const Warehouses = () => {
   const [manualBusy, setManualBusy] = useState(false);
   const canManageManual = isGeneralManager || isExecutiveManager;
 
+  // Edit manual supply (GM/EM only)
+  const [editManualOpen, setEditManualOpen] = useState(false);
+  const [editManualRef, setEditManualRef] = useState<string | null>(null);
+  const [editManualLines, setEditManualLines] = useState<Array<{
+    id?: string; item_id: string; quantity: number;
+    package_count: number | null; package_weight_kg: number | null;
+    notes: string; _deleted?: boolean; _isNew?: boolean;
+    _origQty?: number;
+  }>>([]);
+  const [editManualReason, setEditManualReason] = useState("");
+
   // Group movements by reference for MAN-IN / MAN-OUT (one row per supply batch)
   type GroupedRow =
     | { kind: "single"; mov: Movement }
