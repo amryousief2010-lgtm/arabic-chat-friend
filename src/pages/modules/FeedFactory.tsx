@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Wheat, Trash2, Edit, Play, CheckCircle2, XCircle, Package2, Eye } from "lucide-react";
+import { Plus, Wheat, Trash2, Edit, Play, CheckCircle2, XCircle, Package2, Eye, Warehouse, FileSpreadsheet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { MovementsLog } from "@/components/MovementsLog";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,7 +73,7 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
 };
 
 const FeedFactory = () => {
-  const { canManageFeedFactory, user } = useAuth();
+  const { canManageFeedFactory, user, roles } = useAuth();
   const { toast } = useToast();
   const [materials, setMaterials] = useState<RawMaterial[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
