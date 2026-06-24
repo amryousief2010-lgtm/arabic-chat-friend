@@ -947,12 +947,24 @@ export default function ChickTradingTab() {
                     لا توجد دفعات. ابدأ بإضافة عملية شراء كتاكيت تجارة.
                   </TableCell></TableRow>
                 )}
-                {batches.map(b => (
-                  <TableRow key={b.id}>
+                {batches.map(b => {
+                  const isDeferred = b.treasury_source === "deferred";
+                  const payStatus = b.payment_status || (isDeferred ? "deferred" : "paid");
+                  return (
+                  <TableRow key={b.id} className={isDeferred && payStatus !== "paid" ? "bg-amber-50/70 hover:bg-amber-100/70" : ""}>
                     <TableCell className="font-mono text-xs">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         {b.batch_no}
                         <Badge className="bg-purple-100 text-purple-800 border-purple-300 text-[10px]">تجارة</Badge>
+                        {isDeferred && payStatus === "deferred" && (
+                          <Badge className="bg-amber-500 text-white border-amber-600 text-[10px]">شراء آجل</Badge>
+                        )}
+                        {isDeferred && payStatus === "partial" && (
+                          <Badge className="bg-orange-500 text-white border-orange-600 text-[10px]">مدفوع جزئيًا</Badge>
+                        )}
+                        {isDeferred && payStatus === "paid" && (
+                          <Badge className="bg-emerald-500 text-white border-emerald-600 text-[10px]">آجل — مسدّد</Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>{b.supplier_name}</TableCell>
@@ -974,7 +986,8 @@ export default function ChickTradingTab() {
                         sales={sales} onSaved={reload} />
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
