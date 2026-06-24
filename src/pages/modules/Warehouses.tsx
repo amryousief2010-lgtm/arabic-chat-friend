@@ -2018,6 +2018,122 @@ const Warehouses = () => {
         </DialogContent>
       </Dialog>
 
+      {/* تعديل توريدة مجمعة — للمدير العام/التنفيذي فقط */}
+      <Dialog open={editManualOpen} onOpenChange={(v) => { if (!v) { setEditManualOpen(false); setEditManualRef(null); } }}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>تعديل التوريدة {editManualRef}</DialogTitle>
+            <DialogDescription>
+              يمكنك تعديل الأصناف وعدد العبوات والكميات وإضافة/حذف أصناف. سيتم تصحيح المخزون تلقائيًا بالفرق.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md border border-amber-300 bg-amber-50/50 p-3 text-xs text-amber-800">
+              تنبيه: هذا التعديل سيؤثر مباشرةً على رصيد المخزون بمقدار فرق الكميات. السبب إجباري ويُسجَّل ضمن سجل الإجراءات.
+            </div>
+            <div>
+              <Label>سبب التعديل (إجباري)</Label>
+              <Input value={editManualReason} onChange={(e) => setEditManualReason(e.target.value)} placeholder="مثال: تصحيح خطأ في كمية صنف" />
+            </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>الصنف</TableHead>
+                    <TableHead>عدد العبوات</TableHead>
+                    <TableHead>وزن العبوة (كجم)</TableHead>
+                    <TableHead>الكمية</TableHead>
+                    <TableHead>ملاحظات</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {editManualLines.map((L, idx) => {
+                    if (L._deleted) return (
+                      <TableRow key={idx} className="opacity-50 line-through">
+                        <TableCell colSpan={5}>{items.find(i => i.id === L.item_id)?.name || "—"} (محذوف)</TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="ghost" onClick={() => {
+                            const next = [...editManualLines]; next[idx] = { ...L, _deleted: false }; setEditManualLines(next);
+                          }}>تراجع</Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                    return (
+                      <TableRow key={idx}>
+                        <TableCell className="min-w-[180px]">
+                          {L._isNew ? (
+                            <Select value={L.item_id} onValueChange={(v) => {
+                              const next = [...editManualLines]; next[idx] = { ...L, item_id: v }; setEditManualLines(next);
+                            }}>
+                              <SelectTrigger><SelectValue placeholder="اختر صنفاً" /></SelectTrigger>
+                              <SelectContent className="max-h-72">
+                                {items.map(i => <SelectItem key={i.id} value={i.id}>{i.name} — {i.warehouse?.name || ""}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <span className="font-medium">{items.find(i => i.id === L.item_id)?.name || "—"}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="w-28">
+                          <Input type="number" min={0} value={L.package_count ?? ""} onChange={(e) => {
+                            const next = [...editManualLines]; next[idx] = { ...L, package_count: e.target.value === "" ? null : Number(e.target.value) }; setEditManualLines(next);
+                          }} />
+                        </TableCell>
+                        <TableCell className="w-28">
+                          <Input type="number" step="0.01" min={0} value={L.package_weight_kg ?? ""} onChange={(e) => {
+                            const next = [...editManualLines]; next[idx] = { ...L, package_weight_kg: e.target.value === "" ? null : Number(e.target.value) }; setEditManualLines(next);
+                          }} />
+                        </TableCell>
+                        <TableCell className="w-28">
+                          <Input type="number" step="0.01" min={0} value={L.quantity} onChange={(e) => {
+                            const next = [...editManualLines]; next[idx] = { ...L, quantity: Number(e.target.value || 0) }; setEditManualLines(next);
+                          }} />
+                          {!L._isNew && Number(L.quantity) !== Number(L._origQty || 0) && (
+                            <div className="text-[10px] text-muted-foreground mt-0.5">
+                              فرق: {(Number(L.quantity) - Number(L._origQty || 0)).toFixed(2)}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="min-w-[200px]">
+                          <Input value={L.notes} onChange={(e) => {
+                            const next = [...editManualLines]; next[idx] = { ...L, notes: e.target.value }; setEditManualLines(next);
+                          }} />
+                        </TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => {
+                            const next = [...editManualLines];
+                            if (L._isNew) next.splice(idx, 1);
+                            else next[idx] = { ...L, _deleted: true };
+                            setEditManualLines(next);
+                          }}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => {
+              setEditManualLines([...editManualLines, {
+                item_id: "", quantity: 0, package_count: null, package_weight_kg: null,
+                notes: "", _isNew: true,
+              }]);
+            }}>
+              <Plus className="w-4 h-4 ml-1" /> إضافة صنف
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditManualOpen(false); setEditManualRef(null); }}>إلغاء</Button>
+            <Button onClick={saveEditManual} disabled={manualBusy}>حفظ التعديلات</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+
 
 
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
