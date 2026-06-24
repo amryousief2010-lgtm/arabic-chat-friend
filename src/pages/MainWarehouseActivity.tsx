@@ -80,7 +80,10 @@ const isOut = (mt: string, qty: number) =>
 interface MainWarehouseActivityProps { embedded?: boolean }
 
 export default function MainWarehouseActivity({ embedded = false }: MainWarehouseActivityProps) {
-  const { isGeneralManager } = useAuth();
+  const { user, isGeneralManager, isExecutiveManager } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const canManageManual = isGeneralManager || isExecutiveManager;
   // أرشيف ما قبل بداية تشغيل المخزن الرئيسي (2026-06-18) متاح للمدير العام فقط.
   // المدير التنفيذي ومسؤول/مشرف المخزن لا يرون الأرشيف ولا زر التبديل.
   const isAdmin = isGeneralManager;
@@ -94,6 +97,8 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
   // العرض الافتراضي = من تاريخ بداية تشغيل المخزن الرئيسي (2026-06-18) فقط.
   // الأرشيف القديم متاح للإدارة فقط (المدير العام / التنفيذي).
   const [showArchive, setShowArchive] = useState(false);
+  const [detailRef, setDetailRef] = useState<string | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
