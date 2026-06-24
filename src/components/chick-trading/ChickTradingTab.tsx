@@ -596,6 +596,69 @@ const CollectSaleDialog = ({ sale, onSaved }: { sale: Sale; onSaved: () => void 
   );
 };
 
+// ============ Pay Deferred Purchase Dialog ============
+const PayDeferredDialog = ({ batch, onSaved }: { batch: Batch; onSaved: () => void }) => {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const total = batchTotalCost(batch);
+  const outstanding = Math.max(0, total - Number(batch.paid_amount || 0));
+  const [treasury, setTreasury] = useState<"lab" | "main">("lab");
+  const [amount, setAmount] = useState<number>(outstanding);
+  const [notes, setNotes] = useState("");
+  useEffect(() => { if (open) setAmount(outstanding); }, [open, outstanding]);
+  const pay = async () => {
+    if (!amount || amount <= 0) return toast.error("أدخل مبلغ السداد");
+    if (amount > outstanding) return toast.error(`المتبقي فقط ${fmtEGP(outstanding)}`);
+    setSaving(true);
+    const { error } = await supabase.rpc("chick_trading_pay_deferred_purchase" as any, {
+      _batch_id: batch.id, _treasury: treasury, _main_account_id: null,
+      _amount: amount, _notes: notes || null,
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم سداد قيمة الشراء وتسجيل حركة الخزنة");
+    setOpen(false); onSaved();
+  };
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" className="gap-1 bg-amber-600 hover:bg-amber-700 text-white">
+          <Wallet className="w-3 h-3" />سداد قيمة الشراء
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md" dir="rtl">
+        <DialogHeader><DialogTitle>سداد شراء آجل — دفعة {batch.batch_no}</DialogTitle></DialogHeader>
+        <div className="grid gap-3">
+          <div className="p-3 rounded-md bg-amber-50 border border-amber-200 text-xs space-y-1">
+            <div>إجمالي الشراء: <strong>{fmtEGP(total)}</strong></div>
+            <div>المدفوع سابقًا: <strong>{fmtEGP(batch.paid_amount || 0)}</strong></div>
+            <div className="text-amber-900">المتبقي: <strong>{fmtEGP(outstanding)}</strong></div>
+          </div>
+          <div><Label>الخزنة *</Label>
+            <Select value={treasury} onValueChange={(v: any) => setTreasury(v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="lab">خزنة المعمل والحضانات</SelectItem>
+                <SelectItem value="main">الخزنة الرئيسية</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div><Label>مبلغ السداد *</Label>
+            <Input type="number" step="0.01" value={amount} onChange={e => setAmount(+e.target.value)} />
+          </div>
+          <div><Label>ملاحظات</Label>
+            <Textarea value={notes} onChange={e => setNotes(e.target.value)} /></div>
+        </div>
+        <DialogFooter>
+          <Button onClick={pay} disabled={saving} className="bg-amber-600 hover:bg-amber-700">
+            {saving ? "جاري السداد..." : "تأكيد السداد"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 // ============ Batch Detail Dialog ============
 const BatchDetailDialog = ({ batch, expenses, mortality, sales, onSaved }:
   { batch: Batch; expenses: any[]; mortality: any[]; sales: Sale[]; onSaved: () => void }) => {
