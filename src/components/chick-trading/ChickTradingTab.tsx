@@ -36,6 +36,7 @@ type Batch = {
   created_at: string;
   payment_status?: string; paid_amount?: number;
   deferred_paid_at?: string | null; deferred_payment_treasury?: string | null;
+  linked_brooding_batch_id?: string | null;
 };
 type Sale = {
   id: string; sale_no: string; batch_id: string; customer_name: string; phone?: string;
