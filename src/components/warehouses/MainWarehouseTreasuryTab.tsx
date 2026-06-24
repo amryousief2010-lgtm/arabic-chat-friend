@@ -49,13 +49,15 @@ const fmt = (n: number) => new Intl.NumberFormat("ar-EG-u-nu-latn", { minimumFra
 const fmtDate = (iso: string) => new Date(iso).toLocaleString("ar-EG", { dateStyle: "short", timeStyle: "short" });
 
 export default function MainWarehouseTreasuryTab() {
-  const { user, isGeneralManager, isExecutiveManager, isFinancialManager, isWarehouseSupervisor } = useAuth();
+  const { user, roles, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth();
   const { toast } = useToast();
+  const isFinancialManager = (roles || []).includes("financial_manager");
+  const isMainTreasuryApprover = (roles || []).includes("main_treasury_approver");
 
   // عبدالمنعم عثمان = warehouse_supervisor للمخزن الرئيسي → يستطيع التسجيل والتحويل.
   const canRecord = isGeneralManager || isExecutiveManager || isFinancialManager || isWarehouseSupervisor;
   // محمد شعلة = financial_manager → يعتمد التحويلات للخزينة الرئيسية.
-  const canApprove = isGeneralManager || isFinancialManager;
+  const canApprove = isGeneralManager || isFinancialManager || isMainTreasuryApprover;
 
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Txn[]>([]);
