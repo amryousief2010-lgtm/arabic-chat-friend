@@ -33,6 +33,8 @@ type Batch = {
   purchase_total: number; transport_cost: number; disinfection_cost: number;
   other_costs: number; status: string; treasury_source: string; notes?: string;
   created_at: string;
+  payment_status?: string; paid_amount?: number;
+  deferred_paid_at?: string | null; deferred_payment_treasury?: string | null;
 };
 type Sale = {
   id: string; sale_no: string; batch_id: string; customer_name: string; phone?: string;
@@ -46,7 +48,12 @@ const TREASURY_LABEL: Record<string, string> = {
   lab: "خزنة المعمل والحضانات",
   main: "الخزنة الرئيسية",
   customer_debt: "تسوية من مديونية عميل",
+  deferred: "شراء آجل / بدون دفع حالي",
 };
+
+const batchTotalCost = (b: Batch) =>
+  (Number(b.original_count) * Number(b.unit_purchase_price)) +
+  Number(b.transport_cost || 0) + Number(b.disinfection_cost || 0) + Number(b.other_costs || 0);
 
 // ============ Hook ============
 const useChickTrading = () => {
@@ -76,15 +83,17 @@ const useChickTrading = () => {
 
 // ============ Purchase Dialog ============
 const NewPurchaseDialog = ({ onSaved }: { onSaved: () => void }) => {
-  const { isGeneralManager, isExecutiveManager, isAccountant } = useAuth();
+  const { isGeneralManager, isExecutiveManager, isAccountant, isHatcheryManager, roles } = useAuth();
+  const isBroodingManager = (roles || []).includes("brooding_manager");
   const canUseDebtSettlement = isGeneralManager || isExecutiveManager || isAccountant;
+  const canUseDeferred = isGeneralManager || isExecutiveManager || isAccountant || isHatcheryManager || isBroodingManager;
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [f, setF] = useState({
     supplier_name: "", purchase_date: new Date().toISOString().slice(0, 10),
     age_at_purchase: 1, count: 0, unit_price: 0,
     transport_cost: 0, disinfection_cost: 0, other_costs: 0,
-    treasury_source: "lab" as "lab" | "main" | "customer_debt",
+    treasury_source: "lab" as "lab" | "main" | "customer_debt" | "deferred",
     notes: "", attachment_url: "",
     settlement_customer: "",
     settlement_amount: 0,
@@ -125,6 +134,9 @@ const NewPurchaseDialog = ({ onSaved }: { onSaved: () => void }) => {
   const save = async () => {
     if (!f.supplier_name.trim()) return toast.error("اسم المورد مطلوب");
     if (!f.count || !f.unit_price) return toast.error("العدد والسعر مطلوبان");
+    if (f.treasury_source === "deferred" && !canUseDeferred) {
+      return toast.error("لا تملك صلاحية تسجيل شراء آجل");
+    }
     if (f.treasury_source === "customer_debt") {
       if (!canUseDebtSettlement) return toast.error("لا تملك صلاحية تسوية مديونية عميل");
       if (!f.settlement_customer) return toast.error("اختر العميل");
@@ -152,6 +164,8 @@ const NewPurchaseDialog = ({ onSaved }: { onSaved: () => void }) => {
     if (error) return toast.error(error.message);
     if (f.treasury_source === "customer_debt") {
       toast.success(`تم خصم ${fmtEGP(f.settlement_amount)} من مديونية العميل. المتبقي عليه: ${fmtEGP(remainingDebt)}`);
+    } else if (f.treasury_source === "deferred") {
+      toast.success("تم تسجيل دفعة الكتاكيت كشراء آجل بدون خصم من أي خزنة");
     } else {
       toast.success("تم تسجيل شراء كتاكيت التجارة وخصم الخزنة");
     }
@@ -167,7 +181,9 @@ const NewPurchaseDialog = ({ onSaved }: { onSaved: () => void }) => {
     ? (diffAmount > 0
         ? `إجمالي يُسوّى من مديونية العميل + فرق يُخصم من ${TREASURY_LABEL[f.diff_treasury_source] || ""}:`
         : "إجمالي يُسوّى من مديونية العميل:")
-    : `إجمالي يُخصم من ${TREASURY_LABEL[f.treasury_source]}:`;
+    : f.treasury_source === "deferred"
+      ? "إجمالي شراء آجل (لن يُخصم من أي خزنة الآن):"
+      : `إجمالي يُخصم من ${TREASURY_LABEL[f.treasury_source]}:`;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -206,9 +222,20 @@ const NewPurchaseDialog = ({ onSaved }: { onSaved: () => void }) => {
                 {canUseDebtSettlement && (
                   <SelectItem value="customer_debt">تسوية من مديونية عميل</SelectItem>
                 )}
+                {canUseDeferred && (
+                  <SelectItem value="deferred">شراء آجل / بدون دفع حالي</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
+
+          {f.treasury_source === "deferred" && (
+            <div className="col-span-2 p-3 rounded-md bg-amber-50 border border-amber-300 text-xs text-amber-900 space-y-1">
+              <div className="font-bold">⚠️ شراء آجل / بدون دفع حالي</div>
+              <div>لن يتم خصم أي مبلغ من خزنة المعمل أو الخزنة الرئيسية الآن.</div>
+              <div>الدفعة ستظهر بحالة «غير مدفوع» ويمكن سدادها لاحقًا من تفاصيل الدفعة.</div>
+            </div>
+          )}
 
           {f.treasury_source === "customer_debt" && (
             <>
@@ -569,6 +596,69 @@ const CollectSaleDialog = ({ sale, onSaved }: { sale: Sale; onSaved: () => void 
   );
 };
 
+// ============ Pay Deferred Purchase Dialog ============
+const PayDeferredDialog = ({ batch, onSaved }: { batch: Batch; onSaved: () => void }) => {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const total = batchTotalCost(batch);
+  const outstanding = Math.max(0, total - Number(batch.paid_amount || 0));
+  const [treasury, setTreasury] = useState<"lab" | "main">("lab");
+  const [amount, setAmount] = useState<number>(outstanding);
+  const [notes, setNotes] = useState("");
+  useEffect(() => { if (open) setAmount(outstanding); }, [open, outstanding]);
+  const pay = async () => {
+    if (!amount || amount <= 0) return toast.error("أدخل مبلغ السداد");
+    if (amount > outstanding) return toast.error(`المتبقي فقط ${fmtEGP(outstanding)}`);
+    setSaving(true);
+    const { error } = await supabase.rpc("chick_trading_pay_deferred_purchase" as any, {
+      _batch_id: batch.id, _treasury: treasury, _main_account_id: null,
+      _amount: amount, _notes: notes || null,
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم سداد قيمة الشراء وتسجيل حركة الخزنة");
+    setOpen(false); onSaved();
+  };
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" className="gap-1 bg-amber-600 hover:bg-amber-700 text-white">
+          <Wallet className="w-3 h-3" />سداد قيمة الشراء
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md" dir="rtl">
+        <DialogHeader><DialogTitle>سداد شراء آجل — دفعة {batch.batch_no}</DialogTitle></DialogHeader>
+        <div className="grid gap-3">
+          <div className="p-3 rounded-md bg-amber-50 border border-amber-200 text-xs space-y-1">
+            <div>إجمالي الشراء: <strong>{fmtEGP(total)}</strong></div>
+            <div>المدفوع سابقًا: <strong>{fmtEGP(batch.paid_amount || 0)}</strong></div>
+            <div className="text-amber-900">المتبقي: <strong>{fmtEGP(outstanding)}</strong></div>
+          </div>
+          <div><Label>الخزنة *</Label>
+            <Select value={treasury} onValueChange={(v: any) => setTreasury(v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="lab">خزنة المعمل والحضانات</SelectItem>
+                <SelectItem value="main">الخزنة الرئيسية</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div><Label>مبلغ السداد *</Label>
+            <Input type="number" step="0.01" value={amount} onChange={e => setAmount(+e.target.value)} />
+          </div>
+          <div><Label>ملاحظات</Label>
+            <Textarea value={notes} onChange={e => setNotes(e.target.value)} /></div>
+        </div>
+        <DialogFooter>
+          <Button onClick={pay} disabled={saving} className="bg-amber-600 hover:bg-amber-700">
+            {saving ? "جاري السداد..." : "تأكيد السداد"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 // ============ Batch Detail Dialog ============
 const BatchDetailDialog = ({ batch, expenses, mortality, sales, onSaved }:
   { batch: Batch; expenses: any[]; mortality: any[]; sales: Sale[]; onSaved: () => void }) => {
@@ -616,6 +706,35 @@ const BatchDetailDialog = ({ batch, expenses, mortality, sales, onSaved }:
             {settlement.notes && <div className="text-xs text-amber-800 pt-1 border-t border-amber-200">📝 {settlement.notes}</div>}
           </div>
         )}
+        {batch.treasury_source === "deferred" && (() => {
+          const total = batchTotalCost(batch);
+          const paid = Number(batch.paid_amount || 0);
+          const outstanding = Math.max(0, total - paid);
+          const status = batch.payment_status || "deferred";
+          return (
+            <div className="mb-4 p-3 rounded-md border border-amber-400 bg-amber-50 text-sm space-y-2">
+              <div className="font-bold text-amber-900 flex items-center justify-between gap-2 flex-wrap">
+                <span className="flex items-center gap-2">
+                  <Wallet className="w-4 h-4" /> مصدر التمويل: شراء آجل / بدون دفع حالي
+                </span>
+                {status === "deferred" && <Badge className="bg-amber-500 text-white border-amber-600">غير مدفوع</Badge>}
+                {status === "partial" && <Badge className="bg-orange-500 text-white border-orange-600">مدفوع جزئيًا</Badge>}
+                {status === "paid" && <Badge className="bg-emerald-500 text-white border-emerald-600">تم السداد</Badge>}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-amber-900">
+                <div>المورد: <strong>{batch.supplier_name}</strong></div>
+                <div>إجمالي قيمة الشراء: <strong>{fmtEGP(total)}</strong></div>
+                <div>المدفوع: <strong>{fmtEGP(paid)}</strong></div>
+                <div>المتبقي للمورد: <strong className="text-amber-900">{fmtEGP(outstanding)}</strong></div>
+              </div>
+              {outstanding > 0 && (
+                <div className="pt-1 border-t border-amber-200 flex justify-end">
+                  <PayDeferredDialog batch={batch} onSaved={onSaved} />
+                </div>
+              )}
+            </div>
+          );
+        })()}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           <KCard label="عدد الشراء" value={batch.original_count} />
           <KCard label="المتاح حالياً" value={batch.current_count} />
@@ -750,10 +869,20 @@ export default function ChickTradingTab() {
     const totalCollected = activeSales.filter(s => s.collected).reduce((a, s) => a + Number(s.total), 0);
     const totalCredit = totalSales - totalCollected;
     const open = batches.filter(b => b.status === "open").length;
+    // Deferred purchase aggregates
+    const deferredBatches = batches.filter(b => b.treasury_source === "deferred" && b.status !== "cancelled");
+    let deferredTotal = 0, deferredPaid = 0, deferredOutstanding = 0;
+    deferredBatches.forEach(b => {
+      const t = batchTotalCost(b);
+      const p = Number(b.paid_amount || 0);
+      deferredTotal += t; deferredPaid += p; deferredOutstanding += Math.max(0, t - p);
+    });
+    const deferredOpenCount = deferredBatches.filter(b => (b.payment_status || "deferred") !== "paid").length;
     return {
       open, totalPurchaseCost, totalExp, totalSales, totalCollected, totalCredit,
       profit: totalSales - totalPurchaseCost - totalExp,
       birdsAlive: batches.reduce((a, b) => a + b.current_count, 0),
+      deferredTotal, deferredPaid, deferredOutstanding, deferredOpenCount,
     };
   }, [batches, sales, expenses]);
 
@@ -770,6 +899,16 @@ export default function ChickTradingTab() {
         <KCard label="صافي الربح/الخسارة" value={fmtEGP(totals.profit)}
           color={totals.profit >= 0 ? "emerald" : "red"} />
       </div>
+
+      {/* Deferred-purchase KPIs */}
+      {totals.deferredTotal > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KCard label="دفعات شراء آجل" value={totals.deferredOpenCount} color="orange" />
+          <KCard label="إجمالي مشتريات آجل" value={fmtEGP(totals.deferredTotal)} color="orange" />
+          <KCard label="مدفوع من الآجل" value={fmtEGP(totals.deferredPaid)} color="emerald" />
+          <KCard label="متبقي للموردين" value={fmtEGP(totals.deferredOutstanding)} color="red" />
+        </div>
+      )}
 
       {/* Actions */}
       {canManage && (
@@ -808,12 +947,24 @@ export default function ChickTradingTab() {
                     لا توجد دفعات. ابدأ بإضافة عملية شراء كتاكيت تجارة.
                   </TableCell></TableRow>
                 )}
-                {batches.map(b => (
-                  <TableRow key={b.id}>
+                {batches.map(b => {
+                  const isDeferred = b.treasury_source === "deferred";
+                  const payStatus = b.payment_status || (isDeferred ? "deferred" : "paid");
+                  return (
+                  <TableRow key={b.id} className={isDeferred && payStatus !== "paid" ? "bg-amber-50/70 hover:bg-amber-100/70" : ""}>
                     <TableCell className="font-mono text-xs">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         {b.batch_no}
                         <Badge className="bg-purple-100 text-purple-800 border-purple-300 text-[10px]">تجارة</Badge>
+                        {isDeferred && payStatus === "deferred" && (
+                          <Badge className="bg-amber-500 text-white border-amber-600 text-[10px]">شراء آجل</Badge>
+                        )}
+                        {isDeferred && payStatus === "partial" && (
+                          <Badge className="bg-orange-500 text-white border-orange-600 text-[10px]">مدفوع جزئيًا</Badge>
+                        )}
+                        {isDeferred && payStatus === "paid" && (
+                          <Badge className="bg-emerald-500 text-white border-emerald-600 text-[10px]">آجل — مسدّد</Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>{b.supplier_name}</TableCell>
@@ -835,7 +986,8 @@ export default function ChickTradingTab() {
                         sales={sales} onSaved={reload} />
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
