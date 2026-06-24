@@ -183,7 +183,13 @@ const HREmployees = () => {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return employees.filter((e) => {
-      if (statusFilter !== "all" && e.status !== statusFilter) return false;
+      if (statusFilter === "suspended") {
+        if (!e.is_suspended) return false;
+      } else if (statusFilter === "active") {
+        if (e.status !== "active" || e.is_suspended) return false;
+      } else if (statusFilter === "inactive") {
+        if (e.status !== "inactive") return false;
+      }
       if (locFilter !== "all" && e.current_location_id !== locFilter) return false;
       if (payDayFilter !== "all" && String(e.pay_day) !== payDayFilter) return false;
       if (docFilter !== "all") {
