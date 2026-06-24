@@ -116,6 +116,7 @@ const HREmployees = () => {
     Record<string, { id: boolean; contract: boolean }>
   >({});
   const [deductionsMap, setDeductionsMap] = useState<Record<string, DeductionSummary>>({});
+  const [advancesMap, setAdvancesMap] = useState<Record<string, number>>({});
 
   const loadDeductions = async () => {
     const { data } = await supabase
