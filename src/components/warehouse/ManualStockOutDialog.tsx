@@ -25,7 +25,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import AddManualPartyDialog from "@/components/warehouse/AddManualPartyDialog";
 import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
-import { STOCK_ADJUSTMENT_REASONS, isValidAdjustmentReason } from "@/lib/warehouseAdjustmentReasons";
+import { isValidAdjustmentReason, getAllAdjustmentReasons } from "@/lib/warehouseAdjustmentReasons";
+import AddAdjustmentReasonDialog from "@/components/warehouse/AddAdjustmentReasonDialog";
+// Plus already imported above
 import { useStocktakingLock } from "@/hooks/useStocktakingLock";
 import { useReservedQuantities } from "@/hooks/useReservedQuantities";
 
@@ -130,6 +132,10 @@ const ManualStockOutDialog = ({
   const [saving, setSaving] = useState(false);
   const [customParties, setCustomParties] = useState<{ id: string; name: string }[]>([]);
   const [addPartyOpen, setAddPartyOpen] = useState(false);
+  const [addReasonOpen, setAddReasonOpen] = useState(false);
+  const [reasonsTick, setReasonsTick] = useState(0);
+  const allReasons = (() => { void reasonsTick; return getAllAdjustmentReasons("out"); })();
+  const canAddReason = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const [lastSaved, setLastSaved] = useState<{
     opNo: string;
     partyLabel: string;
@@ -532,14 +538,33 @@ const ManualStockOutDialog = ({
             </div>
             <div>
               <Label className="text-xs">سبب الصرف *</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger><SelectValue placeholder="اختر السبب (إجباري)" /></SelectTrigger>
-                <SelectContent>
-                  {STOCK_ADJUSTMENT_REASONS.map((r) => (
-                    <SelectItem key={r} value={r}>{r}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="flex-1"><SelectValue placeholder="اختر السبب (إجباري)" /></SelectTrigger>
+                  <SelectContent>
+                    {allReasons.map((r) => (
+                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {canAddReason && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="إضافة سبب جديد"
+                    onClick={() => setAddReasonOpen(true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              <AddAdjustmentReasonDialog
+                open={addReasonOpen}
+                onOpenChange={setAddReasonOpen}
+                kind="out"
+                onCreated={(r) => { setReasonsTick((t) => t + 1); setCategory(r); }}
+              />
             </div>
             <div>
               <Label className="text-xs">تاريخ التوريد *</Label>

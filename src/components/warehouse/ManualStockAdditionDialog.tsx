@@ -26,7 +26,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import AddManualPartyDialog from "@/components/warehouse/AddManualPartyDialog";
 import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
-import { STOCK_ADJUSTMENT_REASONS, isValidAdjustmentReason } from "@/lib/warehouseAdjustmentReasons";
+import { isValidAdjustmentReason, getAllAdjustmentReasons } from "@/lib/warehouseAdjustmentReasons";
+import AddAdjustmentReasonDialog from "@/components/warehouse/AddAdjustmentReasonDialog";
+// Plus already imported above
 import { useStocktakingLock } from "@/hooks/useStocktakingLock";
 import { Lock } from "lucide-react";
 
@@ -128,6 +130,8 @@ const ManualStockAdditionDialog = ({
   const [saving, setSaving] = useState(false);
   const [customParties, setCustomParties] = useState<{ id: string; name: string }[]>([]);
   const [addPartyOpen, setAddPartyOpen] = useState(false);
+  const [addReasonOpen, setAddReasonOpen] = useState(false);
+  const [reasonsTick, setReasonsTick] = useState(0);
   const [lastSaved, setLastSaved] = useState<{
     opNo: string;
     partyLabel: string;
@@ -442,14 +446,33 @@ const ManualStockAdditionDialog = ({
             </div>
             <div>
               <Label className="text-xs">سبب الإضافة / التوريد *</Label>
-              <Select value={reason} onValueChange={setReason}>
-                <SelectTrigger><SelectValue placeholder="اختر السبب (إجباري)" /></SelectTrigger>
-                <SelectContent>
-                  {STOCK_ADJUSTMENT_REASONS.map((r) => (
-                    <SelectItem key={r} value={r}>{r}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select value={reason} onValueChange={setReason}>
+                  <SelectTrigger className="flex-1"><SelectValue placeholder="اختر السبب (إجباري)" /></SelectTrigger>
+                  <SelectContent>
+                    {getAllAdjustmentReasons("in").map((r) => (
+                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {(isGeneralManager || isExecutiveManager || isWarehouseSupervisor) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="إضافة سبب جديد"
+                    onClick={() => setAddReasonOpen(true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              <AddAdjustmentReasonDialog
+                open={addReasonOpen}
+                onOpenChange={setAddReasonOpen}
+                kind="in"
+                onCreated={(r) => { setReasonsTick((t) => t + 1); setReason(r); }}
+              />
             </div>
             <div className="md:col-span-3">
               <Label className="text-xs">ملاحظات (اختياري)</Label>
