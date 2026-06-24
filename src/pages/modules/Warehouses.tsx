@@ -396,6 +396,117 @@ const Warehouses = () => {
   };
   const cancelManualGroup = () => cancelManualGroupRow();
 
+  const openEditManual = (group: Extract<GroupedRow, { kind: "manual" }>) => {
+    if (!canManageManual) {
+      toast({ title: "غير مصرح", description: "هذا الإجراء للمدير العام أو التنفيذي فقط", variant: "destructive" });
+      return;
+    }
+    setEditManualRef(group.reference);
+    setEditManualReason("");
+    setEditManualLines(
+      group.movs.map((m) => ({
+        id: m.id,
+        item_id: m.item_id,
+        quantity: Number(m.quantity || 0),
+        package_count: m.package_count ?? null,
+        package_weight_kg: m.package_weight_kg ?? null,
+        notes: m.notes || "",
+        _origQty: Number(m.quantity || 0),
+      }))
+    );
+    setEditManualOpen(true);
+  };
+
+  const saveEditManual = async () => {
+    if (!canManageManual || !editManualRef) return;
+    if (!editManualReason.trim()) {
+      toast({ title: "السبب إجباري", description: "أدخل سبب التعديل", variant: "destructive" });
+      return;
+    }
+    const group = groupedMovements.find((r) => r.kind === "manual" && r.reference === editManualRef) as
+      Extract<GroupedRow, { kind: "manual" }> | undefined;
+    if (!group) return;
+    const direction = group.direction; // "in" | "out"
+    const sign = direction === "in" ? 1 : -1;
+    const sampleWh = group.movs[0]?.warehouse_id;
+    const referenceType = direction === "in" ? "manual_addition" : "manual_out";
+
+    setManualBusy(true);
+    try {
+      // Validate
+      for (const L of editManualLines) {
+        if (L._deleted) continue;
+        if (!L.item_id || !(L.quantity > 0)) {
+          throw new Error("تأكد من اختيار الصنف وإدخال كمية صحيحة لكل صنف");
+        }
+      }
+      // Apply per-line changes
+      for (const L of editManualLines) {
+        if (L._isNew && !L._deleted) {
+          // new line: add stock & insert movement
+          const item = items.find(i => i.id === L.item_id);
+          if (!item) continue;
+          const newStock = Number(item.stock || 0) + sign * Number(L.quantity);
+          await supabase.from("inventory_items").update({ stock: newStock }).eq("id", L.item_id);
+          await supabase.from("inventory_movements").insert({
+            item_id: L.item_id,
+            warehouse_id: item.warehouse_id || sampleWh,
+            movement_type: direction === "in" ? "in" : "out",
+            quantity: Number(L.quantity),
+            destination_warehouse_id: null,
+            reference: editManualRef,
+            reference_type: referenceType,
+            party: group.partyLabel || null,
+            notes: `${L.notes || ""}${L.notes ? " • " : ""}مضاف بالتعديل: ${editManualReason}`,
+            unit_cost: item.unit_cost,
+            performed_by: user?.id,
+            package_count: L.package_count ?? null,
+            package_weight_kg: L.package_weight_kg ?? null,
+          } as any);
+        } else if (L._deleted && L.id) {
+          // delete line: reverse its quantity from stock & delete row
+          const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", L.item_id).maybeSingle();
+          const newStock = Number((it as any)?.stock || 0) - sign * Number(L._origQty || 0);
+          await supabase.from("inventory_items").update({ stock: newStock }).eq("id", L.item_id);
+          await supabase.from("inventory_movements").delete().eq("id", L.id);
+        } else if (L.id) {
+          // updated line: stock delta = sign * (newQty - origQty)
+          const delta = sign * (Number(L.quantity) - Number(L._origQty || 0));
+          if (delta !== 0) {
+            const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", L.item_id).maybeSingle();
+            const newStock = Number((it as any)?.stock || 0) + delta;
+            await supabase.from("inventory_items").update({ stock: newStock }).eq("id", L.item_id);
+          }
+          await supabase.from("inventory_movements").update({
+            quantity: Number(L.quantity),
+            package_count: L.package_count ?? null,
+            package_weight_kg: L.package_weight_kg ?? null,
+            notes: `${L.notes || ""}${L.notes ? " • " : ""}عُدّل بسبب: ${editManualReason}`,
+          } as any).eq("id", L.id);
+        }
+      }
+      try {
+        await supabase.from("notifications").insert({
+          user_id: user?.id,
+          type: "warehouse_supply_edited",
+          title: `تعديل توريدة ${editManualRef}`,
+          message: `سبب: ${editManualReason} | بواسطة: ${user?.email || user?.id || "—"}`,
+          read: false,
+        } as any);
+      } catch { /* best-effort audit */ }
+      toast({ title: "تم حفظ التعديلات", description: editManualRef });
+      setEditManualOpen(false);
+      setEditManualRef(null);
+      await fetchAll();
+    } catch (e: any) {
+      toast({ title: "تعذّر الحفظ", description: e?.message || "حدث خطأ", variant: "destructive" });
+    } finally {
+      setManualBusy(false);
+    }
+  };
+
+
+
 
   const fetchAll = async () => {
     setLoading(true);
