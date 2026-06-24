@@ -886,9 +886,18 @@ const BatchDetailDialog = ({ batch, expenses, mortality, sales, onSaved }:
       </DialogTrigger>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto" dir="rtl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
             دفعة {batch.batch_no}
             <Badge className="bg-purple-100 text-purple-800 border-purple-300"><Tag className="w-3 h-3 ml-1" />تجارة</Badge>
+            <Button size="sm" variant="outline" className="gap-1" onClick={() => printBatch(batch)}>
+              <Printer className="w-3 h-3" />طباعة
+            </Button>
+            {batch.linked_brooding_batch_id && (
+              <Button size="sm" variant="ghost" className="gap-1 text-emerald-700"
+                onClick={() => window.open("/modules/brooding", "_blank")}>
+                <ExternalLink className="w-3 h-3" />عرض الدفعة التشغيلية
+              </Button>
+            )}
           </DialogTitle>
         </DialogHeader>
         {batch.treasury_source === "customer_debt" && settlement && (
