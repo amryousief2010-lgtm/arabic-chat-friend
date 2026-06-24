@@ -237,6 +237,7 @@ const Warehouses = () => {
   const [activeTab, setActiveTab] = useState("items");
   const [pendingFilter, setPendingFilter] = useState<'current' | 'archived' | 'all'>('current');
   const [menuSubview, setMenuSubview] = useState<string | null>(null);
+  const [selectedKpiWarehouseId, setSelectedKpiWarehouseId] = useState<string | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
