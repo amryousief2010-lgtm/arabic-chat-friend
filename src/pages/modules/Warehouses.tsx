@@ -496,9 +496,13 @@ const Warehouses = () => {
   };
 
   const exportInventorySummaryPDF = () => {
-    const totalValue = items.reduce((s, i) => s + i.stock * i.unit_cost, 0);
-    const activeWarehouses = warehouses.filter(w => w.is_active).length;
-    const rows = (warehouseFilter === 'all' ? items : filteredItems).map((it, i) => `
+    const selWh = selectedKpiWarehouseId ? warehouses.find(w => w.id === selectedKpiWarehouseId) : null;
+    const scopeItems = selWh ? items.filter(i => i.warehouse_id === selWh.id) : items;
+    const totalValue = scopeItems.reduce((s, i) => s + i.stock * i.unit_cost, 0);
+    const activeWarehouses = selWh ? 1 : warehouses.filter(w => w.is_active).length;
+    const lowScope = scopeItems.filter(i => i.stock <= i.low_stock_threshold);
+    const reportTitle = selWh ? `تقرير مخزون: ${selWh.name}` : 'تقرير ملخص المخزون والمنتجات';
+    const rows = scopeItems.map((it, i) => `
       <tr>
         <td>${i + 1}</td>
         <td>${esc(it.name)}${it.sku ? ` <span style="color:#666;font-size:11px">(${esc(it.sku)})</span>` : ''}</td>
