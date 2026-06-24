@@ -1202,10 +1202,23 @@ const Warehouses = () => {
                           <TableCell>{row.partyLabel || "—"}</TableCell>
                           <TableCell className="text-xs text-muted-foreground font-mono">{row.reference}</TableCell>
                           <TableCell>
-                            <div className="flex gap-1 justify-center">
+                            <div className="flex gap-1 justify-center flex-wrap">
                               <Button size="sm" variant="outline" onClick={() => setManualGroupRef(row.reference)}>
                                 <Eye className="w-3 h-3 ml-1" /> تفاصيل
                               </Button>
+                              {canManageManual && (
+                                <>
+                                  <Button size="sm" variant="outline" className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                                          onClick={() => openEditManual(row)}>
+                                    <Edit className="w-3 h-3 ml-1" /> تعديل
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10"
+                                          disabled={manualBusy}
+                                          onClick={() => cancelManualGroupRow(row)}>
+                                    <Trash2 className="w-3 h-3 ml-1" /> إلغاء
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
