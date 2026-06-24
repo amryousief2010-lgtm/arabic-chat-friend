@@ -180,6 +180,13 @@ interface InventoryItem {
   warehouse?: { name: string };
 }
 
+interface ProductRow {
+  id: string;
+  name: string;
+  unit?: string | null;
+  category?: string | null;
+}
+
 interface Movement {
   id: string;
   item_id: string;
@@ -222,6 +229,7 @@ const Warehouses = () => {
   const { toast } = useToast();
   const [warehouses, setWarehouses] = useState<WarehouseRow[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [products, setProducts] = useState<ProductRow[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [slaughterOutputs, setSlaughterOutputs] = useState<any[]>([]);
   const [receiveBatch, setReceiveBatch] = useState<{ batch_id: string; batch_number: string; slaughter_date?: string; status?: string; outputs: any[] } | null>(null);
@@ -450,7 +458,7 @@ const Warehouses = () => {
           throw new Error("تأكد من اختيار الصنف وإدخال كمية صحيحة لكل صنف");
         }
         const item = items.find(i => i.id === L.item_id);
-        if (!item || !isAllowedWarehouseDropdownItem(item, sampleWh, isEditManualMainWarehouse)) {
+        if (!item || !isAllowedWarehouseDropdownItem(item, sampleWh, isEditManualMainWarehouse, editManualVisibleProductIds)) {
           throw new Error(isEditManualMainWarehouse
             ? "هذا الصنف غير تابع للمخزن الرئيسي ولا يمكن إضافته لهذه التوريدة."
             : "هذا الصنف غير مرتبط بالمخزن المحدد ولا يمكن إضافته لهذه التوريدة."
@@ -530,7 +538,7 @@ const Warehouses = () => {
   const fetchAll = async () => {
     setLoading(true);
     const sinceISO = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
-    const [w, i, m, s, o] = await Promise.all([
+    const [w, i, m, s, o, p] = await Promise.all([
       supabase.from("warehouses").select("*").order("name"),
       supabase.from("inventory_items").select("*, warehouse:warehouses(name)").order("name"),
       supabase.from("inventory_movements").select("*, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)").order("performed_at", { ascending: false }).limit(200),
@@ -544,12 +552,14 @@ const Warehouses = () => {
         .gte("created_at", sinceISO)
         .neq("status", "cancelled")
         .limit(1000),
+      supabase.from("products").select("id, name, unit, category").eq("is_active", true).order("name"),
     ]);
     if (w.data) setWarehouses(w.data as WarehouseRow[]);
     if (i.data) setItems(i.data as InventoryItem[]);
     if (m.data) setMovements(m.data as Movement[]);
     if (s.data) setSlaughterOutputs(s.data as any[]);
     if (o.data) setRecentOrders(o.data as any[]);
+    if (p.data) setProducts(p.data as ProductRow[]);
     setLoading(false);
   };
 
