@@ -5,15 +5,22 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Factory, ShoppingCart, Package, AlertTriangle, CheckCircle2, Clock, XCircle,
-  TrendingUp, Boxes, Send, Beef, Loader2,
+  TrendingUp, Boxes, Send, Beef, Loader2, Wallet, FileText, ClipboardList,
+  TrendingDown, Scale, FlaskConical, Leaf,
 } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, Legend } from "recharts";
 
 const fmt = (n: any) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
+const fmtInt = (n: any) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 0 });
 const PURPLE = "#7c3aed"; const ORANGE = "#ea580c"; const GREEN = "#10b981"; const RED = "#ef4444"; const BLUE = "#3b82f6";
 const COLORS = [PURPLE, ORANGE, GREEN, BLUE, RED, "#06b6d4", "#f59e0b", "#8b5cf6"];
+
+type Period = "today" | "week" | "month" | "custom";
+
 
 type Item = { id: string; name: string; unit: string; current_stock: number; avg_cost: number; kind: string; low_stock_threshold: number };
 type Purchase = { id: string; invoice_no: string | null; purchase_date: string; supplier: string | null; total_amount: number; status: string; invoice_type: string; created_at: string };
