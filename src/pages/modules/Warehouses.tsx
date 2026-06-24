@@ -1058,7 +1058,23 @@ const Warehouses = () => {
           })()}
 
           <TabsContent value="reports" className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              <Link to="/modules/warehouses/pending-transfers" className="block">
+                <Card className="cursor-pointer hover:border-primary transition-colors h-full border-orange-200">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base"><ArrowLeftRight className="w-5 h-5 text-orange-600" />التحويلات المعلقة</CardTitle>
+                    <CardDescription>مراجعة واستلام التحويلات بين المخازن</CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
+              <Link to="/modules/warehouses/reports" className="block">
+                <Card className="cursor-pointer hover:border-primary transition-colors h-full border-primary/30">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base"><BarChart3 className="w-5 h-5 text-primary" />تقارير المخازن</CardTitle>
+                    <CardDescription>التقارير الشاملة للمخازن والمخزون</CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
               <Link to="/modules/warehouses/daily-report" className="block">
                 <Card className="cursor-pointer hover:border-primary transition-colors h-full">
                   <CardHeader className="pb-3">

@@ -252,8 +252,6 @@ export const moduleSections: ModuleSection[] = [
 
       // مركز إدارة المخازن الموحّد — كل التابات والصفحات في شاشة واحدة
       { icon: Warehouse, label: "إدارة المخازن", path: "/modules/warehouses", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'production_manager', 'quality_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager', 'accountant', 'financial_manager'] },
-      { icon: ArrowLeftRight, label: "التحويلات المعلقة", path: "/modules/warehouses/pending-transfers", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper'] },
-      { icon: BarChart3, label: "تقارير المخازن", path: "/modules/warehouses/reports", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
       { icon: Wallet, label: "تحصيل المندوب الخاص", path: "/private-delivery-collection", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
       // تنبيهات وتشغيل
       { icon: AlertTriangle, label: "مخزون منخفض", path: "/low-stock", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager'] },
