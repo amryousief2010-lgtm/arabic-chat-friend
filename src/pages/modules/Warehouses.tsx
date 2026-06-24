@@ -252,7 +252,9 @@ const Warehouses = () => {
   // Edit manual supply (GM/EM only)
   const [editManualOpen, setEditManualOpen] = useState(false);
   const [editManualRef, setEditManualRef] = useState<string | null>(null);
+  const [editManualWarehouseId, setEditManualWarehouseId] = useState<string | null>(null);
   const [editManualLines, setEditManualLines] = useState<Array<{
+
     id?: string; item_id: string; quantity: number;
     package_count: number | null; package_weight_kg: number | null;
     notes: string; _deleted?: boolean; _isNew?: boolean;
@@ -403,7 +405,9 @@ const Warehouses = () => {
       return;
     }
     setEditManualRef(group.reference);
+    setEditManualWarehouseId(group.movs[0]?.warehouse_id || null);
     setEditManualReason("");
+
     setEditManualLines(
       group.movs.map((m) => ({
         id: m.id,
@@ -440,7 +444,14 @@ const Warehouses = () => {
         if (!L.item_id || !(L.quantity > 0)) {
           throw new Error("تأكد من اختيار الصنف وإدخال كمية صحيحة لكل صنف");
         }
+        if (sampleWh && L._isNew) {
+          const item = items.find(i => i.id === L.item_id);
+          if (item && item.warehouse_id && item.warehouse_id !== sampleWh) {
+            throw new Error("هذا الصنف غير مرتبط بالمخزن المحدد ولا يمكن إضافته لهذه التوريدة.");
+          }
+        }
       }
+
       // Apply per-line changes
       for (const L of editManualLines) {
         if (L._isNew && !L._deleted) {
@@ -2074,8 +2085,11 @@ const Warehouses = () => {
                             }}>
                               <SelectTrigger><SelectValue placeholder="اختر صنفاً" /></SelectTrigger>
                               <SelectContent className="max-h-72">
-                                {items.map(i => <SelectItem key={i.id} value={i.id}>{i.name} — {i.warehouse?.name || ""}</SelectItem>)}
+                                {items
+                                  .filter(i => !editManualWarehouseId || i.warehouse_id === editManualWarehouseId)
+                                  .map(i => <SelectItem key={i.id} value={i.id}>{i.name} — {i.warehouse?.name || ""}</SelectItem>)}
                               </SelectContent>
+
                             </Select>
                           ) : (
                             <span className="font-medium">{items.find(i => i.id === L.item_id)?.name || "—"}</span>
