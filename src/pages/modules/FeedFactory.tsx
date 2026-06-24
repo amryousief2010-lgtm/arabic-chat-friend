@@ -340,6 +340,7 @@ const FeedFactory = () => {
             <TabsTrigger value="recipes">الوصفات (BOM)</TabsTrigger>
             <TabsTrigger value="materials">المواد الخام</TabsTrigger>
             <TabsTrigger value="movements">سجل الحركات</TabsTrigger>
+            <TabsTrigger value="reports">تقارير وأرصدة</TabsTrigger>
           </TabsList>
 
           <TabsContent value="costing" className="space-y-4">
