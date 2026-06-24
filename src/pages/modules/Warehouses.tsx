@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -409,6 +409,43 @@ const Warehouses = () => {
   const lowStockItems = items.filter(i => i.stock <= i.low_stock_threshold);
   const pendingSlaughter = slaughterOutputs.filter(o => o.received_status !== 'received');
 
+  // ============ KPI Scope (top cards) ============
+  // الكروت العلوية تتحدث حسب التبويب المختار أو تعود للإجمالي.
+  const [forceAllKpi, setForceAllKpi] = useState(false);
+  const tabWarehouseMap = useMemo(() => {
+    const f = (pats: RegExp[]) => warehouses.find((w) => pats.some((p) => p.test(w.name)));
+    return {
+      "wh-main": f([/رئيسي/, /main/i]),
+      "wh-agouza": f([/عجوزة/, /agouza/i]),
+      "wh-hht": f([/هيلثي/, /healthy/i]),
+      "wh-carrefour": f([/كارفور/, /carrefour/i]),
+      "wh-packaging": f([/تغليف/, /تعبئة/, /packaging/i]) || warehouses.find((w) => w.type === "packaging"),
+      "wh-activity": f([/رئيسي/, /main/i]),
+    } as Record<string, any>;
+  }, [warehouses]);
+  const kpiWh = !forceAllKpi ? tabWarehouseMap[activeTab] : undefined;
+  const kpiScopeLabel = kpiWh ? `إحصائيات ${kpiWh.name}` : "إجمالي كل المخازن";
+  const kpiItems = useMemo(() => {
+    if (!kpiWh) return items;
+    let base = items.filter((i) => i.warehouse_id === kpiWh.id);
+    if (isMainWarehouseName(kpiWh.name)) {
+      base = base.filter((i) => !isMainWarehouseExcludedCategory((i as any).category));
+    }
+    return base;
+  }, [items, kpiWh]);
+  const kpiLowStock = useMemo(
+    () => kpiItems.filter((i) => i.stock <= i.low_stock_threshold),
+    [kpiItems]
+  );
+  const kpiTotalValue = useMemo(
+    () => kpiItems.reduce((s, i) => s + i.stock * i.unit_cost, 0),
+    [kpiItems]
+  );
+  const kpiActiveWh = kpiWh ? 1 : warehouses.filter((w) => w.is_active).length;
+  const kpiFirstCardLabel = kpiWh ? "حالة المخزن" : "المخازن النشطة";
+  const kpiFirstCardValue = kpiWh ? (kpiWh.is_active ? "نشط" : "متوقف") : String(kpiActiveWh);
+
+
   // group pending outputs by batch
   const pendingBatches = Object.values(
     pendingSlaughter.reduce((acc: Record<string, any>, o: any) => {
@@ -483,9 +520,15 @@ const Warehouses = () => {
   };
 
   const exportInventorySummaryPDF = () => {
-    const totalValue = items.reduce((s, i) => s + i.stock * i.unit_cost, 0);
-    const activeWarehouses = warehouses.filter(w => w.is_active).length;
-    const rows = (warehouseFilter === 'all' ? items : filteredItems).map((it, i) => `
+    const scopedItems = kpiItems;
+    const totalValue = scopedItems.reduce((s, i) => s + i.stock * i.unit_cost, 0);
+    const activeWarehouses = kpiWh ? 1 : warehouses.filter(w => w.is_active).length;
+    const lowCount = scopedItems.filter(i => i.stock <= i.low_stock_threshold).length;
+    const reportTitle = kpiWh ? `تقرير مخزون — ${kpiWh.name}` : "تقرير ملخص المخزون والمنتجات";
+    const firstSummaryLabel = kpiWh ? "حالة المخزن" : "المخازن النشطة";
+    const firstSummaryValue = kpiWh ? (kpiWh.is_active ? "نشط" : "متوقف") : String(activeWarehouses);
+    const rows = scopedItems.map((it, i) => `
+
       <tr>
         <td>${i + 1}</td>
         <td>${esc(it.name)}${it.sku ? ` <span style="color:#666;font-size:11px">(${esc(it.sku)})</span>` : ''}</td>
@@ -525,18 +568,19 @@ const Warehouses = () => {
       <div class="header">
         <img src="${companyLogo}" />
         <div class="title">
-          <h1>تقرير ملخص المخزون والمنتجات</h1>
+          <h1>${esc(reportTitle)}</h1>
           <p>كابيتال أوستريش</p>
           <p>تاريخ الإصدار: ${new Date().toLocaleString("ar-EG")}</p>
         </div>
         <div style="width:70px"></div>
       </div>
       <div class="summary">
-        <div><strong>${items.length}</strong><span>إجمالي الأصناف</span></div>
-        <div><strong>${activeWarehouses}</strong><span>المخازن النشطة</span></div>
+        <div><strong>${scopedItems.length}</strong><span>إجمالي الأصناف</span></div>
+        <div><strong>${esc(firstSummaryValue)}</strong><span>${esc(firstSummaryLabel)}</span></div>
         <div><strong>${totalValue.toLocaleString()}</strong><span>قيمة المخزون (ج.م)</span></div>
-        <div><strong style="color:#c0392b">${lowStockItems.length}</strong><span>أصناف منخفضة</span></div>
+        <div><strong style="color:#c0392b">${lowCount}</strong><span>أصناف منخفضة</span></div>
       </div>
+
       <table>
         <thead><tr>
           <th>م</th><th>الصنف</th><th>المخزن</th><th>الفئة</th><th>الرصيد</th><th>الوحدة</th><th>التكلفة</th><th>القيمة</th><th>الحالة</th>
@@ -585,14 +629,38 @@ const Warehouses = () => {
           </div>
         </div>
 
-        {/* KPIs — Premium */}
+        {/* KPI Scope label + reset to total */}
+        <div className="flex items-center justify-between flex-wrap gap-2 px-1 -mb-2">
+          <div className="flex items-center gap-2 text-xs">
+            <Badge variant={kpiWh ? "default" : "outline"} className="rounded-full">
+              {kpiScopeLabel}
+            </Badge>
+            {kpiWh && (
+              <span className="text-muted-foreground">
+                — الكروت أدناه تخص هذا المخزن فقط
+              </span>
+            )}
+          </div>
+          {kpiWh && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setForceAllKpi(true); setActiveTab("items"); }}
+            >
+              <BarChart3 className="w-4 h-4 ml-1" />
+              عرض إجمالي كل المخازن
+            </Button>
+          )}
+        </div>
+
+        {/* KPIs — Premium (scope-aware) */}
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="group relative overflow-hidden rounded-2xl border-primary/10 bg-gradient-to-br from-card to-primary/[0.03] hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 transition-all duration-300">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
-                  <CardDescription className="text-xs font-medium">المخازن النشطة</CardDescription>
-                  <CardTitle className="text-3xl font-bold tabular-nums">{warehouses.filter(w => w.is_active).length}</CardTitle>
+                  <CardDescription className="text-xs font-medium">{kpiFirstCardLabel}</CardDescription>
+                  <CardTitle className="text-3xl font-bold tabular-nums">{kpiFirstCardValue}</CardTitle>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center ring-1 ring-primary/15 group-hover:bg-primary/15 transition-colors">
                   <Warehouse className="w-5 h-5 text-primary" />
@@ -605,7 +673,7 @@ const Warehouses = () => {
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
                   <CardDescription className="text-xs font-medium">إجمالي الأصناف</CardDescription>
-                  <CardTitle className="text-3xl font-bold tabular-nums">{items.length}</CardTitle>
+                  <CardTitle className="text-3xl font-bold tabular-nums">{kpiItems.length}</CardTitle>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center ring-1 ring-blue-500/15 group-hover:bg-blue-500/15 transition-colors">
                   <Package className="w-5 h-5 text-blue-600" />
@@ -618,7 +686,7 @@ const Warehouses = () => {
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
                   <CardDescription className="text-xs font-medium">قيمة المخزون</CardDescription>
-                  <CardTitle className="text-2xl font-bold tabular-nums">{items.reduce((s, i) => s + i.stock * i.unit_cost, 0).toLocaleString()}</CardTitle>
+                  <CardTitle className="text-2xl font-bold tabular-nums">{kpiTotalValue.toLocaleString()}</CardTitle>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center ring-1 ring-emerald-500/15 group-hover:bg-emerald-500/15 transition-colors">
                   <BarChart3 className="w-5 h-5 text-emerald-600" />
@@ -626,22 +694,23 @@ const Warehouses = () => {
               </div>
             </CardHeader>
           </Card>
-          <Card className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card to-destructive/[0.04] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ${lowStockItems.length > 0 ? "border-destructive/40 hover:shadow-destructive/10" : "border-primary/10 hover:border-primary/30"}`}>
+          <Card className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card to-destructive/[0.04] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ${kpiLowStock.length > 0 ? "border-destructive/40 hover:shadow-destructive/10" : "border-primary/10 hover:border-primary/30"}`}>
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
                   <CardDescription className="text-xs font-medium">أصناف منخفضة</CardDescription>
-                  <CardTitle className={`text-3xl font-bold tabular-nums ${lowStockItems.length > 0 ? "text-destructive" : ""}`}>{lowStockItems.length}</CardTitle>
+                  <CardTitle className={`text-3xl font-bold tabular-nums ${kpiLowStock.length > 0 ? "text-destructive" : ""}`}>{kpiLowStock.length}</CardTitle>
                 </div>
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center ring-1 transition-colors ${lowStockItems.length > 0 ? "bg-destructive/10 ring-destructive/20 group-hover:bg-destructive/15" : "bg-muted ring-border"}`}>
-                  <AlertTriangle className={`w-5 h-5 ${lowStockItems.length > 0 ? "text-destructive" : "text-muted-foreground"}`} />
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center ring-1 transition-colors ${kpiLowStock.length > 0 ? "bg-destructive/10 ring-destructive/20 group-hover:bg-destructive/15" : "bg-muted ring-border"}`}>
+                  <AlertTriangle className={`w-5 h-5 ${kpiLowStock.length > 0 ? "text-destructive" : "text-muted-foreground"}`} />
                 </div>
               </div>
             </CardHeader>
           </Card>
         </div>
 
-        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "more") setMenuSubview(null); }} defaultValue="items">
+
+        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setForceAllKpi(false); if (v === "more") setMenuSubview(null); }} defaultValue="items">
           <div className="overflow-x-auto pb-1">
             <TabsList className="w-max flex-nowrap bg-gradient-to-l from-muted/60 to-muted/30 border border-border/60 rounded-2xl p-1.5 shadow-sm [&_[data-state=active]]:bg-gradient-to-br [&_[data-state=active]]:from-primary [&_[data-state=active]]:to-primary/80 [&_[data-state=active]]:text-primary-foreground [&_[data-state=active]]:shadow-md [&_[data-state=active]]:shadow-primary/20 [&>button]:rounded-xl [&>button]:transition-all">
 
