@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Wheat, Trash2, Edit, Play, CheckCircle2, XCircle, Package2, Eye } from "lucide-react";
+import { Plus, Wheat, Trash2, Edit, Play, CheckCircle2, XCircle, Package2, Eye, Warehouse, FileSpreadsheet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { MovementsLog } from "@/components/MovementsLog";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,7 +73,7 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
 };
 
 const FeedFactory = () => {
-  const { canManageFeedFactory, user } = useAuth();
+  const { canManageFeedFactory, user, roles } = useAuth();
   const { toast } = useToast();
   const [materials, setMaterials] = useState<RawMaterial[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -340,6 +340,7 @@ const FeedFactory = () => {
             <TabsTrigger value="recipes">الوصفات (BOM)</TabsTrigger>
             <TabsTrigger value="materials">المواد الخام</TabsTrigger>
             <TabsTrigger value="movements">سجل الحركات</TabsTrigger>
+            <TabsTrigger value="reports">تقارير وأرصدة</TabsTrigger>
           </TabsList>
 
           <TabsContent value="costing" className="space-y-4">
@@ -507,6 +508,41 @@ const FeedFactory = () => {
               source="feed_factory_movements"
               title="سجل حركات مصنع الأعلاف"
             />
+          </TabsContent>
+
+          <TabsContent value="reports" className="space-y-4">
+            {roles.some(r => ['general_manager','executive_manager','feed_factory_manager','accountant','financial_manager'].includes(r)) && (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Warehouse className="w-5 h-5 text-orange-500" />
+                      الأرصدة الافتتاحية لمخازن العلف
+                    </CardTitle>
+                    <CardDescription>إدارة الأرصدة الافتتاحية لمخازن المصنع</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Link to="/feed-factory/opening-balances">
+                      <Button variant="outline" className="w-full">فتح الأرصدة الافتتاحية</Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <FileSpreadsheet className="w-5 h-5 text-primary" />
+                      بيانات مرجعية — المحتسب
+                    </CardTitle>
+                    <CardDescription>البيانات المرجعية والمحتسب للمصنع</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Link to="/feed-factory/historical-reference">
+                      <Button variant="outline" className="w-full">فتح البيانات المرجعية</Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
