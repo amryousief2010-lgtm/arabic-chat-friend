@@ -987,7 +987,7 @@ export default function MainWarehouseTreasuryTab() {
     if (!stmtCustody) return;
     const data = stmtRows.map((l: any) => ({
       "التاريخ": fmtDate(l.performed_at),
-      "النوع": l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : "تحصيل نقدية",
+      "النوع": l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : l.line_type === "bonus" ? "مجاني/بونص" : "تحصيل نقدية",
       "الصنف": l.product_name || "",
       "الكمية": Number(l.quantity || 0),
       "الوحدة": l.unit || "",
