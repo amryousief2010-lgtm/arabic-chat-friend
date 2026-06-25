@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Wallet, ArrowDownLeft, ArrowUpRight, Plus, Send, Printer, FileSpreadsheet,
-  CheckCircle2, XCircle, Clock, RefreshCw, Search
+  CheckCircle2, XCircle, Clock, RefreshCw, Search, ClipboardCheck, AlertTriangle, Package, Truck
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -86,6 +86,32 @@ export default function MainWarehouseTreasuryTab() {
 
   const [busy, setBusy] = useState(false);
 
+  // === Reconciliation (cash count) ===
+  const HIGH_BALANCE_THRESHOLD = 20000;
+  const [recons, setRecons] = useState<any[]>([]);
+  const [reconOpen, setReconOpen] = useState(false);
+  const [reconPhysical, setReconPhysical] = useState("");
+  const [reconReason, setReconReason] = useState("");
+  const [reconNotes, setReconNotes] = useState("");
+
+  // === Courier goods custody ===
+  const [custodies, setCustodies] = useState<any[]>([]);
+  const [custodyLines, setCustodyLines] = useState<any[]>([]);
+  const [newCustodyOpen, setNewCustodyOpen] = useState(false);
+  const [newCustodyName, setNewCustodyName] = useState("");
+  const [newCustodyNotes, setNewCustodyNotes] = useState("");
+  const [lineOpen, setLineOpen] = useState(false);
+  const [lineCustodyId, setLineCustodyId] = useState<string | null>(null);
+  const [lineType, setLineType] = useState<"issue" | "return" | "sale" | "cash_collect">("issue");
+  const [lineProduct, setLineProduct] = useState("");
+  const [lineQty, setLineQty] = useState("");
+  const [lineUnit, setLineUnit] = useState("كجم");
+  const [linePrice, setLinePrice] = useState("");
+  const [lineCash, setLineCash] = useState("");
+  const [lineNotes, setLineNotes] = useState("");
+
+
+
 
   const fetchAll = async () => {
     setLoading(true);
@@ -117,9 +143,37 @@ export default function MainWarehouseTreasuryTab() {
     }
   };
 
-  useEffect(() => { fetchAll(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { fetchAll(); fetchRecons(); fetchCustodies(); /* eslint-disable-next-line */ }, []);
 
-  // KPIs
+  const fetchRecons = async () => {
+    const { data } = await (supabase as any)
+      .from("main_warehouse_reconciliations")
+      .select("*")
+      .order("performed_at", { ascending: false })
+      .limit(100);
+    setRecons(data || []);
+  };
+
+  const fetchCustodies = async () => {
+    const { data: c } = await (supabase as any)
+      .from("courier_goods_custodies")
+      .select("*")
+      .order("opened_at", { ascending: false })
+      .limit(50);
+    setCustodies(c || []);
+    const ids = (c || []).map((x: any) => x.id);
+    if (ids.length) {
+      const { data: lns } = await (supabase as any)
+        .from("courier_goods_custody_lines")
+        .select("*")
+        .in("custody_id", ids)
+        .order("performed_at", { ascending: false });
+      setCustodyLines(lns || []);
+    } else {
+      setCustodyLines([]);
+    }
+  };
+
   const kpis = useMemo(() => {
     let balance = 0, todayIn = 0, todayOut = 0, pending = 0, transferred = 0;
     const todayStr = new Date().toDateString();
@@ -285,8 +339,185 @@ export default function MainWarehouseTreasuryTab() {
     } finally { setBusy(false); }
   };
 
+  // === Reconciliation actions ===
+  const submitRecon = async () => {
+    const phys = Number(reconPhysical);
+    if (isNaN(phys) || phys < 0) { toast({ title: "أدخل نقدية فعلية صحيحة", variant: "destructive" }); return; }
+    const diff = phys - kpis.balance;
+    if (Math.abs(diff) > 0.009 && !reconReason.trim()) {
+      toast({ title: "أدخل سبب الفرق", description: `الفرق = ${fmt(diff)} ج.م`, variant: "destructive" }); return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).from("main_warehouse_reconciliations").insert({
+        book_balance: kpis.balance,
+        physical_cash: phys,
+        reason: reconReason.trim() || null,
+        notes: reconNotes.trim() || null,
+        performed_by: user?.id,
+        status: "pending",
+      });
+      if (error) throw error;
+      // notify approvers
+      try {
+        const { data: approvers } = await (supabase as any)
+          .from("user_roles").select("user_id")
+          .in("role", ["general_manager", "executive_manager", "financial_manager"]);
+        const ids = Array.from(new Set((approvers || []).map((a: any) => a.user_id))) as string[];
+        if (ids.length) {
+          await (supabase as any).from("notifications").insert(
+            ids.map((uid) => ({
+              user_id: uid, type: "warehouse_recon_pending", read: false,
+              title: "جرد جديد لخزينة المخزن الرئيسي",
+              message: `الرصيد الدفتري: ${fmt(kpis.balance)} • النقدية: ${fmt(phys)} • الفرق: ${fmt(diff)}`,
+            }))
+          );
+        }
+      } catch {}
+      toast({ title: "تم إرسال الجرد للاعتماد", description: `الفرق: ${fmt(diff)} ج.م` });
+      setReconOpen(false); setReconPhysical(""); setReconReason(""); setReconNotes("");
+      await fetchRecons();
+    } catch (e: any) {
+      toast({ title: "تعذّر التسجيل", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
 
-  // === Export & Print ===
+  const canApproveRecon = isGeneralManager || isExecutiveManager || isFinancialManager;
+  const approveRecon = async (r: any) => {
+    if (!canApproveRecon) return;
+    if (!window.confirm(`اعتماد الجرد؟ الفرق ${fmt(Number(r.difference))} ج.م ${Math.abs(Number(r.difference)) > 0.009 ? "سيتم تسجيل تسوية تلقائية بالخزينة" : ""}`)) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("approve_warehouse_reconciliation", { _id: r.id });
+      if (error) throw error;
+      toast({ title: "تم اعتماد الجرد" });
+      await Promise.all([fetchRecons(), fetchAll()]);
+    } catch (e: any) {
+      toast({ title: "تعذّر الاعتماد", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+  const rejectRecon = async (r: any) => {
+    if (!canApproveRecon) return;
+    const reason = window.prompt("سبب الرفض:", "") || "";
+    if (!reason.trim()) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("reject_warehouse_reconciliation", { _id: r.id, _reason: reason });
+      if (error) throw error;
+      toast({ title: "تم رفض الجرد" });
+      await fetchRecons();
+    } catch (e: any) {
+      toast({ title: "تعذّر الرفض", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  // === Courier custody actions ===
+  const submitNewCustody = async () => {
+    if (!newCustodyName.trim()) { toast({ title: "أدخل اسم المندوب", variant: "destructive" }); return; }
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).from("courier_goods_custodies").insert({
+        courier_name: newCustodyName.trim(),
+        notes: newCustodyNotes.trim() || null,
+        opened_by: user?.id,
+        status: "open",
+      });
+      if (error) throw error;
+      toast({ title: "تم فتح عهدة جديدة" });
+      setNewCustodyOpen(false); setNewCustodyName(""); setNewCustodyNotes("");
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الفتح", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  const openLineDialog = (custodyId: string, type: typeof lineType) => {
+    setLineCustodyId(custodyId); setLineType(type);
+    setLineProduct(""); setLineQty(""); setLinePrice(""); setLineCash(""); setLineNotes(""); setLineUnit("كجم");
+    setLineOpen(true);
+  };
+
+  const submitLine = async () => {
+    if (!lineCustodyId) return;
+    const qty = Number(lineQty || 0);
+    const price = Number(linePrice || 0);
+    const cash = Number(lineCash || 0);
+    if (lineType !== "cash_collect") {
+      if (!lineProduct.trim()) { toast({ title: "أدخل اسم المنتج", variant: "destructive" }); return; }
+      if (!qty || qty <= 0) { toast({ title: "أدخل كمية صحيحة", variant: "destructive" }); return; }
+    } else {
+      if (!cash || cash <= 0) { toast({ title: "أدخل مبلغ نقدية صحيح", variant: "destructive" }); return; }
+    }
+    setBusy(true);
+    try {
+      const total = qty * price;
+      const { error } = await (supabase as any).from("courier_goods_custody_lines").insert({
+        custody_id: lineCustodyId,
+        line_type: lineType,
+        product_name: lineType === "cash_collect" ? null : lineProduct.trim(),
+        quantity: lineType === "cash_collect" ? null : qty,
+        unit: lineType === "cash_collect" ? null : lineUnit,
+        unit_price: lineType === "cash_collect" ? null : (price || null),
+        total_value: lineType === "cash_collect" ? null : (total || null),
+        cash_collected: lineType === "cash_collect" ? cash : null,
+        notes: lineNotes.trim() || null,
+        performed_by: user?.id,
+      });
+      if (error) throw error;
+      // If it's cash_collect, also push into treasury as courier deposit
+      if (lineType === "cash_collect") {
+        const courier = custodies.find((c) => c.id === lineCustodyId)?.courier_name || "مندوب";
+        await (supabase as any).from("main_warehouse_treasury_txns").insert({
+          direction: "in", category: "courier_deposit", amount: cash,
+          courier_name: courier, notes: `تحصيل من عهدة بضائع — ${lineNotes.trim() || ""}`.trim(),
+          performed_by: user?.id, status: "posted",
+        });
+        await fetchAll();
+      }
+      toast({ title: "تم التسجيل" });
+      setLineOpen(false);
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر التسجيل", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  const closeCustody = async (id: string) => {
+    if (!window.confirm("إغلاق العهدة؟ لن يمكن إضافة حركات بعد الإغلاق.")) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).from("courier_goods_custodies")
+        .update({ status: "closed", closed_at: new Date().toISOString(), closed_by: user?.id })
+        .eq("id", id);
+      if (error) throw error;
+      toast({ title: "تم إغلاق العهدة" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الإغلاق", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  // Per-courier custody summary
+  const custodySummary = useMemo(() => {
+    return custodies.map((c) => {
+      const lines = custodyLines.filter((l) => l.custody_id === c.id);
+      let goodsOutValue = 0, goodsReturnedValue = 0, salesValue = 0, cashCollected = 0;
+      lines.forEach((l) => {
+        const tv = Number(l.total_value || 0);
+        if (l.line_type === "issue") goodsOutValue += tv;
+        else if (l.line_type === "return") goodsReturnedValue += tv;
+        else if (l.line_type === "sale") salesValue += tv;
+        else if (l.line_type === "cash_collect") cashCollected += Number(l.cash_collected || 0);
+      });
+      const remainingGoods = goodsOutValue - goodsReturnedValue - salesValue;
+      const remainingCash = salesValue - cashCollected;
+      return { ...c, lines, goodsOutValue, goodsReturnedValue, salesValue, cashCollected, remainingGoods, remainingCash };
+    });
+  }, [custodies, custodyLines]);
+
+  const pendingRecons = recons.filter((r) => r.status === "pending");
+
+
   const exportExcel = () => {
     const data = filtered.map((r) => ({
       "التاريخ": fmtDate(r.performed_at),
@@ -409,6 +640,23 @@ export default function MainWarehouseTreasuryTab() {
         </CardContent></Card>
       </div>
 
+      {/* High balance alert */}
+      {kpis.balance > HIGH_BALANCE_THRESHOLD && (
+        <div className="border border-amber-400 bg-amber-50 text-amber-900 rounded-md p-3 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="text-sm">
+            <div className="font-semibold">يوجد مبلغ كبير بخزينة المخزن الرئيسي</div>
+            <div className="text-xs">الرصيد الحالي {fmt(kpis.balance)} ج.م تجاوز الحد ({fmt(HIGH_BALANCE_THRESHOLD)} ج.م). يفضّل تحويله للخزينة الرئيسية.</div>
+          </div>
+          {canRecord && (
+            <Button size="sm" variant="outline" className="ms-auto" onClick={() => { setTransferAmt(String(kpis.balance)); setTransferOpen(true); }}>
+              <Send className="w-3 h-3 ml-1" /> تحويل الآن
+            </Button>
+          )}
+        </div>
+      )}
+
+
       {/* Pending approvals block */}
       {pendingTransfers.length > 0 && (
         <Card className="border-amber-400 bg-amber-50/40">
@@ -447,7 +695,171 @@ export default function MainWarehouseTreasuryTab() {
         </Card>
       )}
 
+      {/* Reconciliation */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ClipboardCheck className="w-4 h-4 text-primary" /> مطابقة (جرد) خزينة المخزن الرئيسي
+            </CardTitle>
+            {canRecord && (
+              <Button size="sm" onClick={() => { setReconPhysical(""); setReconReason(""); setReconNotes(""); setReconOpen(true); }}>
+                <Plus className="w-4 h-4 ml-1" /> تسجيل جرد جديد
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {recons.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">لا يوجد جرد مسجل بعد</p>
+          ) : (
+            <div className="border rounded-lg overflow-x-auto">
+              <table className="w-full text-right text-sm">
+                <thead className="bg-muted/60 text-xs">
+                  <tr>
+                    <th className="p-2">التاريخ</th>
+                    <th className="p-2">الرصيد الدفتري</th>
+                    <th className="p-2">النقدية الفعلية</th>
+                    <th className="p-2">الفرق</th>
+                    <th className="p-2">السبب</th>
+                    <th className="p-2">الحالة</th>
+                    <th className="p-2">إجراء</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recons.map((r) => {
+                    const diff = Number(r.difference || 0);
+                    return (
+                      <tr key={r.id} className="border-t">
+                        <td className="p-2 text-xs whitespace-nowrap">{fmtDate(r.performed_at)}</td>
+                        <td className="p-2 font-mono">{fmt(Number(r.book_balance))}</td>
+                        <td className="p-2 font-mono">{fmt(Number(r.physical_cash))}</td>
+                        <td className={`p-2 font-mono font-bold ${diff === 0 ? "text-emerald-700" : diff > 0 ? "text-sky-700" : "text-rose-700"}`}>
+                          {diff > 0 ? "+" : ""}{fmt(diff)}
+                        </td>
+                        <td className="p-2 text-xs max-w-[220px] truncate" title={r.reason || ""}>{r.reason || "—"}</td>
+                        <td className="p-2">
+                          <Badge variant="outline" className={
+                            r.status === "approved" ? "bg-emerald-100 text-emerald-700" :
+                            r.status === "rejected" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"
+                          }>
+                            {r.status === "approved" ? "معتمد" : r.status === "rejected" ? "مرفوض" : "بانتظار اعتماد"}
+                          </Badge>
+                        </td>
+                        <td className="p-2">
+                          {r.status === "pending" && canApproveRecon ? (
+                            <div className="flex gap-1">
+                              <Button size="sm" disabled={busy} className="bg-emerald-600 hover:bg-emerald-700 h-7 px-2" onClick={() => approveRecon(r)}>
+                                <CheckCircle2 className="w-3 h-3" />
+                              </Button>
+                              <Button size="sm" disabled={busy} variant="outline" className="h-7 px-2 text-rose-600 border-rose-300" onClick={() => rejectRecon(r)}>
+                                <XCircle className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Courier goods custody */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Truck className="w-4 h-4 text-primary" /> عهدة بضائع المندوبين
+            </CardTitle>
+            {canRecord && (
+              <Button size="sm" onClick={() => { setNewCustodyName(""); setNewCustodyNotes(""); setNewCustodyOpen(true); }}>
+                <Plus className="w-4 h-4 ml-1" /> فتح عهدة جديدة
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {custodySummary.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">لا توجد عهد مفتوحة</p>
+          ) : custodySummary.map((c) => (
+            <div key={c.id} className="border rounded-lg p-3 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-primary" />
+                  <span className="font-bold">{c.courier_name}</span>
+                  <Badge variant="outline" className={c.status === "open" ? "bg-emerald-100 text-emerald-700" : "bg-muted"}>
+                    {c.status === "open" ? "مفتوحة" : "مغلقة"}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">منذ {fmtDate(c.opened_at)}</span>
+                </div>
+                {c.status === "open" && canRecord && (
+                  <div className="flex flex-wrap gap-1">
+                    <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "issue")}>صرف بضاعة</Button>
+                    <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "return")}>استرجاع</Button>
+                    <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "sale")}>تسجيل بيع</Button>
+                    <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "cash_collect")}>تحصيل نقدية</Button>
+                    <Button size="sm" variant="outline" className="h-7 text-rose-600 border-rose-300" onClick={() => closeCustody(c.id)}>إغلاق</Button>
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمة المصروف</div><div className="font-bold font-mono">{fmt(c.goodsOutValue)}</div></div>
+                <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمة المرتجع</div><div className="font-bold font-mono">{fmt(c.goodsReturnedValue)}</div></div>
+                <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمة المبيعات</div><div className="font-bold font-mono text-emerald-700">{fmt(c.salesValue)}</div></div>
+                <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">نقدية محصّلة</div><div className="font-bold font-mono text-sky-700">{fmt(c.cashCollected)}</div></div>
+                <div className={`rounded p-2 ${Math.abs(c.remainingCash) < 0.01 && Math.abs(c.remainingGoods) < 0.01 ? "bg-emerald-50" : "bg-amber-50"}`}>
+                  <div className="text-muted-foreground">المتبقي (بضائع / نقدية)</div>
+                  <div className="font-bold font-mono">{fmt(c.remainingGoods)} / {fmt(c.remainingCash)}</div>
+                </div>
+              </div>
+              {c.lines.length > 0 && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground">عرض الحركات ({c.lines.length})</summary>
+                  <div className="mt-2 border rounded overflow-x-auto">
+                    <table className="w-full text-right">
+                      <thead className="bg-muted/40">
+                        <tr>
+                          <th className="p-1">التاريخ</th>
+                          <th className="p-1">النوع</th>
+                          <th className="p-1">المنتج</th>
+                          <th className="p-1">كمية</th>
+                          <th className="p-1">سعر</th>
+                          <th className="p-1">قيمة</th>
+                          <th className="p-1">نقدية</th>
+                          <th className="p-1">ملاحظات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {c.lines.map((l: any) => (
+                          <tr key={l.id} className="border-t">
+                            <td className="p-1 whitespace-nowrap">{fmtDate(l.performed_at)}</td>
+                            <td className="p-1">
+                              {l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "استرجاع" : l.line_type === "sale" ? "بيع" : "تحصيل نقدية"}
+                            </td>
+                            <td className="p-1">{l.product_name || "—"}</td>
+                            <td className="p-1 font-mono">{l.quantity ? `${l.quantity} ${l.unit || ""}` : "—"}</td>
+                            <td className="p-1 font-mono">{l.unit_price ? fmt(Number(l.unit_price)) : "—"}</td>
+                            <td className="p-1 font-mono">{l.total_value ? fmt(Number(l.total_value)) : "—"}</td>
+                            <td className="p-1 font-mono">{l.cash_collected ? fmt(Number(l.cash_collected)) : "—"}</td>
+                            <td className="p-1 text-muted-foreground">{l.notes || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              )}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
       {/* Movements table */}
+
       <Card>
         <CardHeader className="pb-2">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
@@ -590,6 +1002,89 @@ export default function MainWarehouseTreasuryTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Reconciliation dialog */}
+      <Dialog open={reconOpen} onOpenChange={setReconOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>تسجيل جرد خزينة المخزن الرئيسي</DialogTitle>
+            <DialogDescription>يتم اعتماده من المدير العام / التنفيذي / محمد شعلة، وأي فرق يُسجَّل تلقائيًا كتسوية في الخزينة بعد الاعتماد.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm bg-muted/40 rounded-md p-2">الرصيد الدفتري الحالي: <b>{fmt(kpis.balance)} ج.م</b></div>
+            <div><Label>النقدية الموجودة فعليًا (ج.م)</Label><Input type="number" min="0" step="0.01" value={reconPhysical} onChange={(e) => setReconPhysical(e.target.value)} /></div>
+            {reconPhysical !== "" && (
+              <div className="text-sm bg-amber-50 border border-amber-300 rounded p-2">
+                الفرق: <b className={Number(reconPhysical) - kpis.balance >= 0 ? "text-sky-700" : "text-rose-700"}>{fmt(Number(reconPhysical) - kpis.balance)}</b> ج.م
+              </div>
+            )}
+            <div><Label>سبب الفرق (إلزامي إذا كان هناك فرق)</Label><Textarea rows={2} value={reconReason} onChange={(e) => setReconReason(e.target.value)} /></div>
+            <div><Label>ملاحظات إضافية</Label><Textarea rows={2} value={reconNotes} onChange={(e) => setReconNotes(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReconOpen(false)}>إلغاء</Button>
+            <Button disabled={busy} onClick={submitRecon}>إرسال للاعتماد</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New custody dialog */}
+      <Dialog open={newCustodyOpen} onOpenChange={setNewCustodyOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>فتح عهدة بضائع جديدة</DialogTitle>
+            <DialogDescription>تتبّع البضاعة المصروفة للمندوب حتى يبيعها أو يعيدها أو يحصّل قيمتها.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div><Label>اسم المندوب</Label><Input value={newCustodyName} onChange={(e) => setNewCustodyName(e.target.value)} placeholder="مثال: كيمو" /></div>
+            <div><Label>ملاحظات</Label><Textarea rows={2} value={newCustodyNotes} onChange={(e) => setNewCustodyNotes(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewCustodyOpen(false)}>إلغاء</Button>
+            <Button disabled={busy} onClick={submitNewCustody}>فتح العهدة</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Custody line dialog */}
+      <Dialog open={lineOpen} onOpenChange={setLineOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {lineType === "issue" ? "صرف بضاعة للمندوب" :
+               lineType === "return" ? "استرجاع بضاعة من المندوب" :
+               lineType === "sale" ? "تسجيل بيع من بضاعة العهدة" : "تحصيل نقدية من المندوب"}
+            </DialogTitle>
+            <DialogDescription>
+              {lineType === "cash_collect" ? "سيتم إضافة المبلغ تلقائيًا كتوريد نقدية بخزينة المخزن الرئيسي." : "تُسجَّل الحركة على عهدة المندوب لحساب المتبقي والعجز/الزيادة."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {lineType !== "cash_collect" && (
+              <>
+                <div><Label>المنتج</Label><Input value={lineProduct} onChange={(e) => setLineProduct(e.target.value)} placeholder="مثال: سجق نعام" /></div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div><Label>الكمية</Label><Input type="number" min="0" step="0.001" value={lineQty} onChange={(e) => setLineQty(e.target.value)} /></div>
+                  <div><Label>الوحدة</Label><Input value={lineUnit} onChange={(e) => setLineUnit(e.target.value)} /></div>
+                  <div><Label>سعر الوحدة</Label><Input type="number" min="0" step="0.01" value={linePrice} onChange={(e) => setLinePrice(e.target.value)} /></div>
+                </div>
+                {Number(lineQty) > 0 && Number(linePrice) > 0 && (
+                  <div className="text-sm bg-muted/40 rounded p-2">القيمة: <b>{fmt(Number(lineQty) * Number(linePrice))}</b> ج.م</div>
+                )}
+              </>
+            )}
+            {lineType === "cash_collect" && (
+              <div><Label>المبلغ المحصّل (ج.م)</Label><Input type="number" min="0" step="0.01" value={lineCash} onChange={(e) => setLineCash(e.target.value)} /></div>
+            )}
+            <div><Label>ملاحظات</Label><Textarea rows={2} value={lineNotes} onChange={(e) => setLineNotes(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLineOpen(false)}>إلغاء</Button>
+            <Button disabled={busy} onClick={submitLine}>تسجيل</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 }
