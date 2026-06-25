@@ -4552,6 +4552,8 @@ export type Database = {
       }
       feed_production_invoices: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           bags: number
           client_request_id: string | null
           created_at: string
@@ -4563,11 +4565,17 @@ export type Database = {
           prod_no: string
           product_id: string
           qty_produced: number
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          status: string
           total_cost: number
           unit_cost: number
           updated_at: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           bags?: number
           client_request_id?: string | null
           created_at?: string
@@ -4579,11 +4587,17 @@ export type Database = {
           prod_no?: string
           product_id: string
           qty_produced: number
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          status?: string
           total_cost?: number
           unit_cost?: number
           updated_at?: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           bags?: number
           client_request_id?: string | null
           created_at?: string
@@ -4595,6 +4609,10 @@ export type Database = {
           prod_no?: string
           product_id?: string
           qty_produced?: number
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          status?: string
           total_cost?: number
           unit_cost?: number
           updated_at?: string
@@ -17820,6 +17838,10 @@ export type Database = {
         }
         Returns: string
       }
+      approve_feed_production_invoice: {
+        Args: { p_invoice_id: string }
+        Returns: undefined
+      }
       approve_feed_sales_return: {
         Args: { p_return_id: string }
         Returns: {
@@ -19471,6 +19493,10 @@ export type Database = {
       reject_courier_discount: {
         Args: { _line_id: string; _reason: string }
         Returns: string
+      }
+      reject_feed_production_invoice: {
+        Args: { p_invoice_id: string; p_reason: string }
+        Returns: undefined
       }
       reject_low_yield_transfer: {
         Args: { p_batch_id: string; p_reason: string }
