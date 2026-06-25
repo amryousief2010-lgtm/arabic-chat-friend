@@ -183,6 +183,17 @@ const Orders = () => {
  const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
   const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
   const [orders, setOrders] = useState<Order[]>([]);
+  // Overrides for optimistic status changes — re-applied after every background
+  // pagination batch so that a user's status change does not get visually
+  // "reverted" by a later batch arriving from the still-running fetch loop.
+  const statusOverridesRef = useRef<Map<string, { status: OrderStatus; delivered_at: string | null }>>(new Map());
+  const applyStatusOverrides = useCallback((list: Order[]): Order[] => {
+    if (statusOverridesRef.current.size === 0) return list;
+    return list.map((o) => {
+      const ov = statusOverridesRef.current.get(o.id);
+      return ov ? { ...o, status: ov.status, delivered_at: ov.delivered_at } : o;
+    });
+  }, []);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
