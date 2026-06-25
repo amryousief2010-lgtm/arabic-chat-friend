@@ -55,11 +55,15 @@ interface WarehouseStockItem {
 const CATEGORY_LABELS: Record<string, string> = {
   direct_sale_cash: "تحصيل بيع مباشر",
   courier_deposit: "توريد نقدية من مندوب",
-  transfer_to_main_treasury: "تحويل للخزينة الرئيسية",
+  transfer_to_main_treasury: "تحويل للخزينة الرئيسية (قديم)",
+  transfer_from_main_warehouse_treasury: "تحويل من خزينة المخزن للخزينة الرئيسية",
   manual_adjust: "تسوية يدوية",
   opening_balance: "رصيد افتتاحي",
   other: "أخرى",
 };
+
+const TRANSFER_OUT_CATEGORIES = new Set(["transfer_to_main_treasury", "transfer_from_main_warehouse_treasury"]);
+
 
 
 const STATUS_LABELS: Record<string, { txt: string; cls: string; Icon: typeof CheckCircle2 }> = {
@@ -291,9 +295,9 @@ export default function MainWarehouseTreasuryTab() {
           if (t.direction === "in") todayIn += amt;
           else todayOut += amt;
         }
-        if (t.category === "transfer_to_main_treasury") transferred += amt;
+        if (TRANSFER_OUT_CATEGORIES.has(t.category)) transferred += amt;
       }
-      if (isPending && t.category === "transfer_to_main_treasury") pending += amt;
+      if (isPending && TRANSFER_OUT_CATEGORIES.has(t.category)) pending += amt;
     });
     return { balance, todayIn, todayOut, pending, transferred };
   }, [rows]);
@@ -377,7 +381,7 @@ export default function MainWarehouseTreasuryTab() {
     try {
       const { error } = await (supabase as any).from("main_warehouse_treasury_txns").insert({
         direction: "out",
-        category: "transfer_to_main_treasury",
+        category: "transfer_from_main_warehouse_treasury",
         amount: amt,
         notes: transferNotes.trim() || null,
         performed_by: user?.id,
@@ -1181,7 +1185,7 @@ export default function MainWarehouseTreasuryTab() {
     openPrintWindow("كشف خزينة المخزن الرئيسي", body);
   };
 
-  const pendingTransfers = rows.filter(r => r.status === "pending_approval" && r.category === "transfer_to_main_treasury");
+  const pendingTransfers = rows.filter(r => r.status === "pending_approval" && TRANSFER_OUT_CATEGORIES.has(r.category));
 
   return (
     <div className="space-y-4">
