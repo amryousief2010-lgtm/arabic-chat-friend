@@ -553,7 +553,9 @@ export default function MainWarehouseTreasuryTab() {
     if (lineType === "cash_collect") {
       if (!cash || cash <= 0) { toast({ title: "أدخل مبلغ نقدية صحيح", variant: "destructive" }); return; }
     } else {
-      if (!lineProduct.trim()) { toast({ title: "أدخل اسم المنتج", variant: "destructive" }); return; }
+      if (lineType === "issue") {
+        if (!lineInventoryItemId) { toast({ title: "اختر المنتج من أصناف المخزن الرئيسي", variant: "destructive" }); return; }
+      } else if (!lineProduct.trim()) { toast({ title: "أدخل اسم المنتج", variant: "destructive" }); return; }
       if (!qty || qty <= 0) { toast({ title: "أدخل كمية صحيحة", variant: "destructive" }); return; }
       if (lineType === "sale") {
         if (!price || price <= 0) { toast({ title: "أدخل السعر الأصلي", variant: "destructive" }); return; }
@@ -604,6 +606,26 @@ export default function MainWarehouseTreasuryTab() {
 
     setBusy(true);
     try {
+      let selectedIssueItem: WarehouseStockItem | null = null;
+      if (lineType === "issue") {
+        if (!mainWarehouse?.id) throw new Error("تعذّر تحديد المخزن الرئيسي");
+        const { data: dbItem, error: dbItemErr } = await (supabase as any)
+          .from("inventory_items")
+          .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, archived, archived_at, module, item_type, source_module, unit_cost")
+          .eq("id", lineInventoryItemId)
+          .maybeSingle();
+        if (dbItemErr) throw dbItemErr;
+        const rejectionReason = getWarehouseItemRejectionReason(dbItem as WarehouseStockItem | null, mainWarehouse.id);
+        const debugRow = dbItem
+          ? getWarehouseItemDebugRow(dbItem as WarehouseStockItem, mainWarehouse.id, mainWarehouse.name)
+          : getWarehouseMissingItemDebugRow(lineInventoryItemId, mainWarehouse.id, mainWarehouse.name);
+        console.table([debugRow]);
+        if (rejectionReason) {
+          throw new Error(`الصنف "${(dbItem as any)?.name || lineProduct || "—"}" غير تابع/غير مفعّل بالمخزن الرئيسي (${rejectionReason}).`);
+        }
+        selectedIssueItem = dbItem as WarehouseStockItem;
+      }
+
       // For sale: total_value = qty * actual sale price. For issue/return: qty * price.
       const totalValue =
         lineType === "sale" ? qty * salePrice :
@@ -613,9 +635,10 @@ export default function MainWarehouseTreasuryTab() {
       const insertPayload: any = {
         custody_id: lineCustodyId,
         line_type: lineType,
-        product_name: lineType === "cash_collect" ? null : lineProduct.trim(),
+        product_name: lineType === "cash_collect" ? null : (selectedIssueItem?.name || lineProduct.trim()),
+        inventory_item_id: lineType === "issue" ? lineInventoryItemId : null,
         quantity: lineType === "cash_collect" ? null : qty,
-        unit: lineType === "cash_collect" ? null : lineUnit,
+        unit: lineType === "cash_collect" ? null : (selectedIssueItem?.unit || lineUnit),
         unit_price: lineType === "sale" ? salePrice : (lineType === "cash_collect" ? null : (price || null)),
         total_value: totalValue,
         cash_collected: lineType === "cash_collect" ? cash : null,
