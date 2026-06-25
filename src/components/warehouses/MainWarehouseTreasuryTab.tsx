@@ -143,9 +143,37 @@ export default function MainWarehouseTreasuryTab() {
     }
   };
 
-  useEffect(() => { fetchAll(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { fetchAll(); fetchRecons(); fetchCustodies(); /* eslint-disable-next-line */ }, []);
 
-  // KPIs
+  const fetchRecons = async () => {
+    const { data } = await (supabase as any)
+      .from("main_warehouse_reconciliations")
+      .select("*")
+      .order("performed_at", { ascending: false })
+      .limit(100);
+    setRecons(data || []);
+  };
+
+  const fetchCustodies = async () => {
+    const { data: c } = await (supabase as any)
+      .from("courier_goods_custodies")
+      .select("*")
+      .order("opened_at", { ascending: false })
+      .limit(50);
+    setCustodies(c || []);
+    const ids = (c || []).map((x: any) => x.id);
+    if (ids.length) {
+      const { data: lns } = await (supabase as any)
+        .from("courier_goods_custody_lines")
+        .select("*")
+        .in("custody_id", ids)
+        .order("performed_at", { ascending: false });
+      setCustodyLines(lns || []);
+    } else {
+      setCustodyLines([]);
+    }
+  };
+
   const kpis = useMemo(() => {
     let balance = 0, todayIn = 0, todayOut = 0, pending = 0, transferred = 0;
     const todayStr = new Date().toDateString();
