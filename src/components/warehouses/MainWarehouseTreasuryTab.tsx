@@ -1174,9 +1174,42 @@ export default function MainWarehouseTreasuryTab() {
                 <div className="grid grid-cols-3 gap-2">
                   <div><Label>الكمية</Label><Input type="number" min="0" step="0.001" value={lineQty} onChange={(e) => setLineQty(e.target.value)} /></div>
                   <div><Label>الوحدة</Label><Input value={lineUnit} onChange={(e) => setLineUnit(e.target.value)} /></div>
-                  <div><Label>سعر الوحدة</Label><Input type="number" min="0" step="0.01" value={linePrice} onChange={(e) => setLinePrice(e.target.value)} /></div>
+                  <div><Label>{lineType === "sale" ? "السعر الأصلي" : "سعر الوحدة"}</Label><Input type="number" min="0" step="0.01" value={linePrice} onChange={(e) => setLinePrice(e.target.value)} /></div>
                 </div>
-                {Number(lineQty) > 0 && Number(linePrice) > 0 && (
+                {lineType === "sale" && (
+                  <>
+                    <div><Label>سعر البيع الفعلي للوحدة</Label><Input type="number" min="0" step="0.01" value={lineSalePrice} onChange={(e) => setLineSalePrice(e.target.value)} /></div>
+                    {Number(lineQty) > 0 && Number(linePrice) > 0 && Number(lineSalePrice) > 0 && (() => {
+                      const q = Number(lineQty), p = Number(linePrice), sp = Number(lineSalePrice);
+                      const dAmt = Math.max(0, (p - sp) * q);
+                      const dPct = p > 0 ? Math.max(0, ((p - sp) / p) * 100) : 0;
+                      const needsApproval = dPct > discountThresholdPct && !(isGeneralManager || isExecutiveManager);
+                      return (
+                        <div className={`text-xs rounded p-2 ${dAmt > 0 ? (needsApproval ? "bg-amber-50 border border-amber-300" : "bg-muted/40") : "bg-muted/40"}`}>
+                          <div>قيمة البيع: <b>{fmt(q * sp)}</b> ج.م</div>
+                          {dAmt > 0 && (
+                            <div>
+                              قيمة الخصم: <b className="text-rose-700">{fmt(dAmt)}</b> ج.م ({dPct.toFixed(1)}%)
+                              {needsApproval && <span className="text-amber-700 mr-2">— يتجاوز الحد المسموح ({discountThresholdPct}%)، يتطلب اعتماد المدير العام/التنفيذي.</span>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    {Number(linePrice) > 0 && Number(lineSalePrice) > 0 && Number(linePrice) > Number(lineSalePrice) && (
+                      <div>
+                        <Label>سبب الخصم</Label>
+                        <Select value={lineDiscountReason} onValueChange={setLineDiscountReason}>
+                          <SelectTrigger><SelectValue placeholder="اختر السبب" /></SelectTrigger>
+                          <SelectContent>
+                            {DISCOUNT_REASONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </>
+                )}
+                {lineType !== "sale" && Number(lineQty) > 0 && Number(linePrice) > 0 && (
                   <div className="text-sm bg-muted/40 rounded p-2">القيمة: <b>{fmt(Number(lineQty) * Number(linePrice))}</b> ج.م</div>
                 )}
               </>
@@ -1186,6 +1219,7 @@ export default function MainWarehouseTreasuryTab() {
             )}
             <div><Label>ملاحظات</Label><Textarea rows={2} value={lineNotes} onChange={(e) => setLineNotes(e.target.value)} /></div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setLineOpen(false)}>إلغاء</Button>
             <Button disabled={busy} onClick={submitLine}>تسجيل</Button>
