@@ -1284,10 +1284,37 @@ export default function MainWarehouseTreasuryTab() {
                     <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "return")}>استرجاع</Button>
                     <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "sale")}>تسجيل بيع</Button>
                     <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "cash_collect")}>تحصيل نقدية</Button>
-                    <Button size="sm" variant="outline" className="h-7 text-rose-600 border-rose-300" onClick={() => closeCustody(c.id)}>إغلاق</Button>
+                    <Button size="sm" variant="outline" className="h-7" onClick={() => openStatement(c)}>كشف حساب</Button>
+                    {(isGeneralManager || isExecutiveManager || canRecord) && (
+                      <Button size="sm" variant="outline" className="h-7" onClick={() => closeDay(c.id)}>إغلاق اليوم</Button>
+                    )}
+                    {(isGeneralManager || isExecutiveManager) && (
+                      <Button size="sm" variant="outline" className="h-7" onClick={() => openProfileDialog(c.courier_name)}>إعدادات</Button>
+                    )}
+                    <Button size="sm" variant="outline" className="h-7 text-rose-600 border-rose-300" onClick={() => closeCustody(c.id)}>إغلاق العهدة</Button>
                   </div>
                 )}
               </div>
+
+              {/* Credit limit progress */}
+              {c.creditLimit != null && (
+                <div className="rounded border p-2 bg-slate-50 space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">الحد الائتماني: <b className="font-mono">{fmt(c.creditLimit)}</b></span>
+                    <span className="text-muted-foreground">العهدة الحالية: <b className="font-mono">{fmt(c.remainingGoods)}</b></span>
+                    <span className={(c.creditAvailable ?? 0) < 0 ? "text-rose-700 font-bold" : "text-emerald-700 font-bold"}>
+                      المتبقي: <span className="font-mono">{fmt(c.creditAvailable ?? 0)}</span>
+                    </span>
+                  </div>
+                  <div className="h-2 rounded bg-slate-200 overflow-hidden">
+                    <div
+                      className={`h-full ${(c.creditUsedPct ?? 0) >= 100 ? "bg-rose-600" : (c.creditUsedPct ?? 0) >= 80 ? "bg-amber-500" : "bg-emerald-500"}`}
+                      style={{ width: `${Math.min(100, c.creditUsedPct ?? 0)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
                 <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمة المصروف</div><div className="font-bold font-mono">{fmt(c.goodsOutValue)}</div></div>
                 <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمة المرتجع</div><div className="font-bold font-mono">{fmt(c.goodsReturnedValue)}</div></div>
@@ -1298,6 +1325,94 @@ export default function MainWarehouseTreasuryTab() {
                   <div className="font-bold font-mono">{fmt(c.remainingGoods)} / {fmt(c.remainingCash)}</div>
                 </div>
               </div>
+
+              {/* Commission summary */}
+              {c.profile?.commission_type && c.profile.commission_type !== "none" && (
+                <div className="border rounded p-2 bg-violet-50/50 text-xs flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <b className="text-violet-800">عمولة المندوب:</b>{" "}
+                    {c.profile.commission_type === "percent_of_sales" ? `${c.profile.commission_value}% من المبيعات` :
+                     c.profile.commission_type === "per_kg" ? `${c.profile.commission_value} ج/كجم` :
+                     `${c.profile.commission_value} ج/صنف`}
+                    {" • "}مستحقة: <b className="font-mono">{fmt(c.dueCommission)}</b>
+                    {" • "}مصروفة: <b className="font-mono">{fmt(c.paidCommission)}</b>
+                    {" • "}متبقي: <b className={`font-mono ${c.remainingCommission > 0 ? "text-amber-700" : "text-emerald-700"}`}>{fmt(c.remainingCommission)}</b>
+                  </div>
+                  {(isGeneralManager || isExecutiveManager) && c.remainingCommission > 0 && (
+                    <Button size="sm" className="h-7" onClick={() => openPayCommission(c.courier_name, c.remainingCommission)}>صرف عمولة</Button>
+                  )}
+                </div>
+              )}
+
+              {/* Pending credit override approvals */}
+              {(() => {
+                const pendingCO = c.lines.filter((l: any) => l.line_type === "issue" && l.credit_override_status === "pending");
+                if (pendingCO.length === 0) return null;
+                return (
+                  <div className="border border-rose-300 bg-rose-50 rounded p-2 space-y-1">
+                    <div className="text-xs font-semibold text-rose-800">طلبات تجاوز الحد الائتماني بانتظار الاعتماد ({pendingCO.length})</div>
+                    {pendingCO.map((l: any) => (
+                      <div key={l.id} className="flex flex-wrap items-center justify-between gap-2 text-xs bg-background rounded p-2 border">
+                        <div><b>{l.product_name}</b> — كمية {l.quantity} {l.unit} • قيمة <b>{fmt(Number(l.total_value || 0))}</b></div>
+                        {(isGeneralManager || isExecutiveManager) && (
+                          <div className="flex gap-1">
+                            <Button size="sm" className="h-7 px-2 bg-emerald-600 hover:bg-emerald-700" onClick={() => approveCreditOverride(l.id)}>
+                              <CheckCircle2 className="w-3 h-3" />
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-rose-600 border-rose-300" onClick={() => rejectCreditOverride(l.id)}>
+                              <XCircle className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Daily closures history */}
+              {c.closures && c.closures.length > 0 && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground">إغلاقات يومية ({c.closures.length})</summary>
+                  <div className="mt-2 border rounded overflow-x-auto">
+                    <table className="w-full text-right">
+                      <thead className="bg-muted/40">
+                        <tr>
+                          <th className="p-1">التاريخ</th><th className="p-1">مصروف</th><th className="p-1">مرتجع</th>
+                          <th className="p-1">مبيعات</th><th className="p-1">خصم</th><th className="p-1">نقدية</th>
+                          <th className="p-1">متبقي بضاعة</th><th className="p-1">متبقي نقدية</th>
+                          <th className="p-1">الحالة</th><th className="p-1">إجراءات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {c.closures.map((cl: any) => (
+                          <tr key={cl.id} className="border-t">
+                            <td className="p-1">{cl.closure_date}</td>
+                            <td className="p-1 font-mono">{fmt(Number(cl.goods_out))}</td>
+                            <td className="p-1 font-mono">{fmt(Number(cl.goods_returned))}</td>
+                            <td className="p-1 font-mono">{fmt(Number(cl.sales_value))}</td>
+                            <td className="p-1 font-mono">{fmt(Number(cl.discounts_value))}</td>
+                            <td className="p-1 font-mono">{fmt(Number(cl.cash_collected))}</td>
+                            <td className="p-1 font-mono">{fmt(Number(cl.remaining_goods))}</td>
+                            <td className="p-1 font-mono">{fmt(Number(cl.remaining_cash))}</td>
+                            <td className="p-1">
+                              <Badge variant="outline" className={cl.status === "closed" ? "bg-slate-100" : "bg-amber-100 text-amber-800"}>
+                                {cl.status === "closed" ? "مغلق" : "أُعيد الفتح"}
+                              </Badge>
+                            </td>
+                            <td className="p-1">
+                              {cl.status === "closed" && (isGeneralManager || isExecutiveManager) && (
+                                <Button size="sm" variant="outline" className="h-6 px-2" onClick={() => reopenDay(cl.id)}>إعادة فتح</Button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              )}
+
 
               {/* Pending discount approvals banner */}
               {(() => {
