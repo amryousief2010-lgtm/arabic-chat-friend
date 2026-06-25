@@ -1075,7 +1075,7 @@ export default function MainWarehouseTreasuryTab() {
   const custodySummary = useMemo(() => {
     return custodies.map((c) => {
       const lines = custodyLines.filter((l) => l.custody_id === c.id);
-      let goodsOutValue = 0, goodsReturnedValue = 0, salesValue = 0, cashCollected = 0, discountsValue = 0;
+      let goodsOutValue = 0, goodsReturnedValue = 0, salesValue = 0, cashCollected = 0, discountsValue = 0, bonusValue = 0;
       let salesQtyKg = 0, salesItems = 0;
       lines.forEach((l) => {
         const tv = Number(l.total_value || 0);
@@ -1090,9 +1090,12 @@ export default function MainWarehouseTreasuryTab() {
             salesItems += 1;
           }
         }
+        else if (l.line_type === "bonus") {
+          if (l.bonus_status !== "rejected") bonusValue += tv;
+        }
         else if (l.line_type === "cash_collect") cashCollected += Number(l.cash_collected || 0);
       });
-      const remainingGoods = goodsOutValue - goodsReturnedValue - salesValue;
+      const remainingGoods = goodsOutValue - goodsReturnedValue - salesValue - bonusValue;
       const remainingCash = salesValue - cashCollected;
 
       const profile = profiles.find((p) => p.courier_name === c.courier_name);
@@ -1109,9 +1112,10 @@ export default function MainWarehouseTreasuryTab() {
       const creditLimit = profile?.credit_limit ? Number(profile.credit_limit) : null;
       const creditUsedPct = creditLimit ? Math.min(100, (remainingGoods / creditLimit) * 100) : null;
       const creditAvailable = creditLimit != null ? Math.max(0, creditLimit - remainingGoods) : null;
+      const bonusPct = salesValue > 0 ? (bonusValue / salesValue) * 100 : 0;
 
       return {
-        ...c, lines, goodsOutValue, goodsReturnedValue, salesValue, discountsValue, cashCollected,
+        ...c, lines, goodsOutValue, goodsReturnedValue, salesValue, discountsValue, bonusValue, bonusPct, cashCollected,
         remainingGoods, remainingCash, profile, paidCommission, dueCommission, remainingCommission,
         closures: myClosures, lastClosure, creditLimit, creditUsedPct, creditAvailable,
       };
