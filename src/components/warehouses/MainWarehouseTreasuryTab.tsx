@@ -366,9 +366,13 @@ export default function MainWarehouseTreasuryTab() {
               <Button size="sm" onClick={() => setCollectOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
                 <Plus className="w-4 h-4 ml-1" /> تسجيل تحصيل
               </Button>
+              <Button size="sm" onClick={() => setCourierOpen(true)} className="bg-sky-600 hover:bg-sky-700">
+                <ArrowDownLeft className="w-4 h-4 ml-1" /> توريد نقدية من مندوب
+              </Button>
               <Button size="sm" onClick={() => setTransferOpen(true)} variant="outline">
                 <Send className="w-4 h-4 ml-1" /> تحويل للخزينة الرئيسية
               </Button>
+
             </>
           )}
           <Button size="sm" variant="outline" onClick={printAll}><Printer className="w-4 h-4 ml-1" /> طباعة</Button>
