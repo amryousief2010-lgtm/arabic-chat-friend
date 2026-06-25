@@ -508,7 +508,13 @@ export default function MainWarehouseTreasuryTab() {
                       </td>
                       <td className="p-2 text-xs">{r.reference || "—"}</td>
                       <td className="p-2 text-xs">{r.performed_by_name || "—"}</td>
-                      <td className="p-2 text-xs text-muted-foreground max-w-[260px] truncate" title={r.notes || ""}>{r.notes || "—"}</td>
+                      <td className="p-2 text-xs text-muted-foreground max-w-[260px] truncate" title={[r.courier_name ? `المندوب: ${r.courier_name}` : "", r.notes || "", r.rejection_reason ? `سبب الرفض: ${r.rejection_reason}` : ""].filter(Boolean).join(" • ")}>
+                        {r.courier_name ? <span className="font-semibold text-sky-700">{r.courier_name}</span> : null}
+                        {r.courier_name && r.notes ? " • " : ""}
+                        {r.notes || (!r.courier_name ? "—" : "")}
+                        {r.rejection_reason ? <span className="text-rose-600"> • {r.rejection_reason}</span> : null}
+                      </td>
+
                       <td className="p-2">
                         <Badge variant="outline" className={`gap-1 ${st?.cls || ""}`}>
                           <StIcon className="w-3 h-3" /> {st?.txt || r.status}
