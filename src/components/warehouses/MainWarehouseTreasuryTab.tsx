@@ -1775,7 +1775,37 @@ export default function MainWarehouseTreasuryTab() {
           <div className="space-y-3">
             {lineType !== "cash_collect" && (
               <>
-                <div><Label>المنتج</Label><Input value={lineProduct} onChange={(e) => setLineProduct(e.target.value)} placeholder="مثال: سجق نعام" /></div>
+                {lineType === "issue" ? (
+                  <div>
+                    <Label>المنتج من المخزن الرئيسي</Label>
+                    <Select
+                      value={lineInventoryItemId}
+                      onValueChange={(value) => {
+                        setLineInventoryItemId(value);
+                        const item = allowedMainWarehouseItems.find((x) => x.id === value);
+                        setLineProduct(item?.name || "");
+                        setLineUnit(item?.unit || "كجم");
+                        if (item?.unit_cost != null) setLinePrice(String(item.unit_cost));
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر صنفًا من أصناف المخزن الرئيسي" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allowedMainWarehouseItems.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>
+                            {(item.name || "بدون اسم")} — رصيد: {fmt(Number(item.stock || 0))} {item.unit || ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      نفس مصدر القائمة والتحقق: inventory_items للمخزن الرئيسي + active فقط، بدون شرط product_id.
+                    </div>
+                  </div>
+                ) : (
+                  <div><Label>المنتج</Label><Input value={lineProduct} onChange={(e) => setLineProduct(e.target.value)} placeholder="مثال: سجق نعام" /></div>
+                )}
                 <div className="grid grid-cols-3 gap-2">
                   <div><Label>الكمية</Label><Input type="number" min="0" step="0.001" value={lineQty} onChange={(e) => setLineQty(e.target.value)} /></div>
                   <div><Label>الوحدة</Label><Input value={lineUnit} onChange={(e) => setLineUnit(e.target.value)} /></div>
