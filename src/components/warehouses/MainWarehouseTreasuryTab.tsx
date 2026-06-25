@@ -177,7 +177,7 @@ export default function MainWarehouseTreasuryTab() {
   };
 
   useEffect(() => {
-    fetchAll(); fetchRecons(); fetchCustodies();
+    fetchAll(); fetchRecons(); fetchCustodies(); fetchCourierExtras();
     (async () => {
       const { data } = await (supabase as any).from("courier_custody_settings").select("auto_approve_discount_pct").eq("id", 1).maybeSingle();
       if (data?.auto_approve_discount_pct != null) setDiscountThresholdPct(Number(data.auto_approve_discount_pct));
@@ -209,10 +209,26 @@ export default function MainWarehouseTreasuryTab() {
         .in("custody_id", ids)
         .order("performed_at", { ascending: false });
       setCustodyLines(lns || []);
+      const { data: cls } = await (supabase as any)
+        .from("courier_daily_closures")
+        .select("*")
+        .in("custody_id", ids)
+        .order("closure_date", { ascending: false });
+      setClosures(cls || []);
     } else {
       setCustodyLines([]);
+      setClosures([]);
     }
   };
+
+  const fetchCourierExtras = async () => {
+    const { data: profs } = await (supabase as any).from("courier_profiles").select("*").order("courier_name");
+    setProfiles(profs || []);
+    const { data: pays } = await (supabase as any).from("courier_commission_payouts").select("*").order("paid_at", { ascending: false }).limit(500);
+    setPayouts(pays || []);
+  };
+
+
 
   const kpis = useMemo(() => {
     let balance = 0, todayIn = 0, todayOut = 0, pending = 0, transferred = 0;
