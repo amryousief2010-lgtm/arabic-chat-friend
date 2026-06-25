@@ -74,11 +74,18 @@ export default function MainWarehouseTreasuryTab() {
   const [collectRef, setCollectRef] = useState("");
   const [collectNotes, setCollectNotes] = useState("");
 
+  const [courierOpen, setCourierOpen] = useState(false);
+  const [courierName, setCourierName] = useState("");
+  const [courierAmt, setCourierAmt] = useState("");
+  const [courierDate, setCourierDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [courierNotes, setCourierNotes] = useState("");
+
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferAmt, setTransferAmt] = useState("");
   const [transferNotes, setTransferNotes] = useState("");
 
   const [busy, setBusy] = useState(false);
+
 
   const fetchAll = async () => {
     setLoading(true);
