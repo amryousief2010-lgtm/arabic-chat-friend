@@ -112,6 +112,34 @@ export default function MainWarehouseTreasuryTab() {
   const [lineCash, setLineCash] = useState("");
   const [lineNotes, setLineNotes] = useState("");
   const [discountThresholdPct, setDiscountThresholdPct] = useState<number>(5);
+  const [requestCreditOverride, setRequestCreditOverride] = useState(false);
+
+  // === Profiles / payouts / closures (new) ===
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [payouts, setPayouts] = useState<any[]>([]);
+  const [closures, setClosures] = useState<any[]>([]);
+
+  // Profile dialog
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileCourier, setProfileCourier] = useState("");
+  const [profileLimit, setProfileLimit] = useState("");
+  const [profileCommType, setProfileCommType] = useState<"none" | "percent_of_sales" | "per_kg" | "per_item">("none");
+  const [profileCommValue, setProfileCommValue] = useState("");
+  const [profileNotes, setProfileNotes] = useState("");
+
+  // Statement dialog
+  const [stmtOpen, setStmtOpen] = useState(false);
+  const [stmtCustody, setStmtCustody] = useState<any | null>(null);
+  const [stmtFrom, setStmtFrom] = useState<string>("");
+  const [stmtTo, setStmtTo] = useState<string>(new Date().toISOString().slice(0, 10));
+
+  // Commission payout dialog
+  const [payCommOpen, setPayCommOpen] = useState(false);
+  const [payCommCourier, setPayCommCourier] = useState("");
+  const [payCommAmt, setPayCommAmt] = useState("");
+  const [payCommNotes, setPayCommNotes] = useState("");
+
+
 
 
 
@@ -149,7 +177,7 @@ export default function MainWarehouseTreasuryTab() {
   };
 
   useEffect(() => {
-    fetchAll(); fetchRecons(); fetchCustodies();
+    fetchAll(); fetchRecons(); fetchCustodies(); fetchCourierExtras();
     (async () => {
       const { data } = await (supabase as any).from("courier_custody_settings").select("auto_approve_discount_pct").eq("id", 1).maybeSingle();
       if (data?.auto_approve_discount_pct != null) setDiscountThresholdPct(Number(data.auto_approve_discount_pct));
@@ -181,10 +209,26 @@ export default function MainWarehouseTreasuryTab() {
         .in("custody_id", ids)
         .order("performed_at", { ascending: false });
       setCustodyLines(lns || []);
+      const { data: cls } = await (supabase as any)
+        .from("courier_daily_closures")
+        .select("*")
+        .in("custody_id", ids)
+        .order("closure_date", { ascending: false });
+      setClosures(cls || []);
     } else {
       setCustodyLines([]);
+      setClosures([]);
     }
   };
+
+  const fetchCourierExtras = async () => {
+    const { data: profs } = await (supabase as any).from("courier_profiles").select("*").order("courier_name");
+    setProfiles(profs || []);
+    const { data: pays } = await (supabase as any).from("courier_commission_payouts").select("*").order("paid_at", { ascending: false }).limit(500);
+    setPayouts(pays || []);
+  };
+
+
 
   const kpis = useMemo(() => {
     let balance = 0, todayIn = 0, todayOut = 0, pending = 0, transferred = 0;
@@ -447,8 +491,10 @@ export default function MainWarehouseTreasuryTab() {
     setLineCustodyId(custodyId); setLineType(type);
     setLineProduct(""); setLineQty(""); setLinePrice(""); setLineSalePrice("");
     setLineDiscountReason(""); setLineCash(""); setLineNotes(""); setLineUnit("كجم");
+    setRequestCreditOverride(false);
     setLineOpen(true);
   };
+
 
   const submitLine = async () => {
     if (!lineCustodyId) return;
@@ -483,6 +529,32 @@ export default function MainWarehouseTreasuryTab() {
       }
     }
 
+    // Credit-limit enforcement for issue
+    let creditOverrideStatus: "none" | "pending" | "approved" = "none";
+    if (lineType === "issue") {
+      const sum = custodySummary.find((s) => s.id === lineCustodyId);
+      const limit = sum?.creditLimit;
+      const addValue = qty * price;
+      if (limit != null && sum) {
+        const projected = (sum.remainingGoods || 0) + addValue;
+        if (projected > limit) {
+          if (isGeneralManager || isExecutiveManager) {
+            creditOverrideStatus = "approved";
+          } else if (requestCreditOverride) {
+            creditOverrideStatus = "pending";
+          } else {
+            toast({
+              title: "تجاوز الحد الائتماني",
+              description: `العهدة الحالية ${fmt(sum.remainingGoods)} + قيمة الصرف ${fmt(addValue)} = ${fmt(projected)} > الحد ${fmt(limit)}. فعّل خيار "طلب اعتماد تجاوز" أو اطلب من المدير.`,
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+      }
+    }
+
+
     setBusy(true);
     try {
       // For sale: total_value = qty * actual sale price. For issue/return: qty * price.
@@ -515,6 +587,15 @@ export default function MainWarehouseTreasuryTab() {
           insertPayload.discount_approved_at = new Date().toISOString();
         }
       }
+
+      if (lineType === "issue" && creditOverrideStatus !== "none") {
+        insertPayload.credit_override_status = creditOverrideStatus;
+        if (creditOverrideStatus === "approved") {
+          insertPayload.credit_override_by = user?.id;
+          insertPayload.credit_override_at = new Date().toISOString();
+        }
+      }
+
 
       const { error } = await (supabase as any).from("courier_goods_custody_lines").insert(insertPayload);
       if (error) throw error;
@@ -587,7 +668,229 @@ export default function MainWarehouseTreasuryTab() {
     } finally { setBusy(false); }
   };
 
+  // === Credit override approve/reject ===
+  const approveCreditOverride = async (lineId: string) => {
+    if (!(isGeneralManager || isExecutiveManager)) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("approve_courier_credit_override", { _line_id: lineId });
+      if (error) throw error;
+      toast({ title: "تم اعتماد تجاوز الحد" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الاعتماد", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+  const rejectCreditOverride = async (lineId: string) => {
+    if (!(isGeneralManager || isExecutiveManager)) return;
+    const reason = window.prompt("سبب الرفض:", "") || "";
+    if (!reason.trim()) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("reject_courier_credit_override", { _line_id: lineId, _reason: reason });
+      if (error) throw error;
+      toast({ title: "تم رفض التجاوز" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الرفض", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  // === Profile (limit + commission) save ===
+  const openProfileDialog = (courierName: string) => {
+    const p = profiles.find((x) => x.courier_name === courierName);
+    setProfileCourier(courierName);
+    setProfileLimit(p?.credit_limit != null ? String(p.credit_limit) : "");
+    setProfileCommType(p?.commission_type || "none");
+    setProfileCommValue(p?.commission_value != null ? String(p.commission_value) : "");
+    setProfileNotes(p?.notes || "");
+    setProfileOpen(true);
+  };
+  const saveProfile = async () => {
+    if (!(isGeneralManager || isExecutiveManager)) {
+      toast({ title: "غير مصرح", variant: "destructive" }); return;
+    }
+    setBusy(true);
+    try {
+      const payload: any = {
+        courier_name: profileCourier,
+        credit_limit: profileLimit ? Number(profileLimit) : null,
+        commission_type: profileCommType,
+        commission_value: profileCommValue ? Number(profileCommValue) : 0,
+        notes: profileNotes || null,
+        updated_by: user?.id,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await (supabase as any)
+        .from("courier_profiles")
+        .upsert(payload, { onConflict: "courier_name" });
+      if (error) throw error;
+      toast({ title: "تم حفظ إعدادات المندوب" });
+      setProfileOpen(false);
+      await fetchCourierExtras();
+    } catch (e: any) {
+      toast({ title: "تعذّر الحفظ", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  // === Close day ===
+  const closeDay = async (custodyId: string) => {
+    const dateStr = window.prompt("تاريخ الإغلاق (YYYY-MM-DD):", new Date().toISOString().slice(0, 10));
+    if (!dateStr) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("close_courier_day", { _custody_id: custodyId, _date: dateStr });
+      if (error) throw error;
+      toast({ title: "تم إغلاق اليوم" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الإغلاق", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+  const reopenDay = async (closureId: string) => {
+    if (!(isGeneralManager || isExecutiveManager)) {
+      toast({ title: "إعادة الفتح للمدير العام/التنفيذي فقط", variant: "destructive" }); return;
+    }
+    const reason = window.prompt("سبب إعادة الفتح:", "") || "";
+    if (!reason.trim()) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("reopen_courier_day", { _closure_id: closureId, _reason: reason });
+      if (error) throw error;
+      toast({ title: "تم إعادة الفتح" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر إعادة الفتح", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  // === Pay commission ===
+  const openPayCommission = (courierName: string, suggested: number) => {
+    setPayCommCourier(courierName);
+    setPayCommAmt(suggested > 0 ? suggested.toFixed(2) : "");
+    setPayCommNotes("");
+    setPayCommOpen(true);
+  };
+  const submitPayCommission = async () => {
+    const amt = Number(payCommAmt || 0);
+    if (!amt || amt <= 0) { toast({ title: "أدخل مبلغ صحيح", variant: "destructive" }); return; }
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("pay_courier_commission", {
+        _courier_name: payCommCourier, _amount: amt, _notes: payCommNotes || null,
+      });
+      if (error) throw error;
+      toast({ title: "تم صرف العمولة" });
+      setPayCommOpen(false);
+      await fetchCourierExtras();
+      await fetchAll();
+    } catch (e: any) {
+      toast({ title: "تعذّر الصرف", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  // === Statement helpers ===
+  const openStatement = (sum: any) => {
+    setStmtCustody(sum);
+    setStmtFrom("");
+    setStmtTo(new Date().toISOString().slice(0, 10));
+    setStmtOpen(true);
+  };
+
+
+  const stmtRows = useMemo(() => {
+    if (!stmtCustody) return [] as any[];
+    const fromT = stmtFrom ? new Date(stmtFrom + "T00:00:00").getTime() : -Infinity;
+    const toT = stmtTo ? new Date(stmtTo + "T23:59:59").getTime() : Infinity;
+    return (stmtCustody.lines || [])
+      .filter((l: any) => {
+        const t = new Date(l.performed_at).getTime();
+        return t >= fromT && t <= toT;
+      })
+      .sort((a: any, b: any) => new Date(a.performed_at).getTime() - new Date(b.performed_at).getTime());
+  }, [stmtCustody, stmtFrom, stmtTo]);
+
+  const stmtTotals = useMemo(() => {
+    let issue = 0, ret = 0, sale = 0, disc = 0, cash = 0;
+    stmtRows.forEach((l: any) => {
+      const tv = Number(l.total_value || 0);
+      if (l.line_type === "issue") issue += tv;
+      else if (l.line_type === "return") ret += tv;
+      else if (l.line_type === "sale") { sale += tv; disc += Number(l.discount_amount || 0); }
+      else if (l.line_type === "cash_collect") cash += Number(l.cash_collected || 0);
+    });
+    return { issue, ret, sale, disc, cash, remainingGoods: issue - ret - sale, remainingCash: sale - cash };
+  }, [stmtRows]);
+
+  const exportStatementExcel = () => {
+    if (!stmtCustody) return;
+    const data = stmtRows.map((l: any) => ({
+      "التاريخ": fmtDate(l.performed_at),
+      "النوع": l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : "تحصيل نقدية",
+      "الصنف": l.product_name || "",
+      "الكمية": Number(l.quantity || 0),
+      "الوحدة": l.unit || "",
+      "سعر الوحدة": Number(l.unit_price || 0),
+      "السعر الأصلي": Number(l.original_price || 0),
+      "قيمة الخصم": Number(l.discount_amount || 0),
+      "إجمالي القيمة": Number(l.total_value || 0),
+      "النقدية": Number(l.cash_collected || 0),
+      "ملاحظات": l.notes || "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "كشف حساب");
+    XLSX.writeFile(wb, `كشف-حساب-${stmtCustody.courier_name}-${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
+  const printStatement = () => {
+    if (!stmtCustody) return;
+    const rowsHtml = stmtRows.map((l: any) => `
+      <tr>
+        <td>${escapeHtml(fmtDate(l.performed_at))}</td>
+        <td>${l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : "تحصيل نقدية"}</td>
+        <td>${escapeHtml(l.product_name || "—")}</td>
+        <td class="num">${fmtNum(Number(l.quantity || 0), 2)}</td>
+        <td class="num">${fmtNum(Number(l.unit_price || 0), 2)}</td>
+        <td class="num">${fmtNum(Number(l.discount_amount || 0), 2)}</td>
+        <td class="num"><b>${fmtNum(Number(l.total_value || 0), 2)}</b></td>
+        <td class="num">${fmtNum(Number(l.cash_collected || 0), 2)}</td>
+      </tr>
+    `).join("");
+    const body = `
+      <header>
+        <div>
+          <h1>كشف حساب المندوب — ${escapeHtml(stmtCustody.courier_name)}</h1>
+          <div class="en">${escapeHtml(COMPANY_AR)}</div>
+        </div>
+        <div class="meta">
+          <div>الفترة: <b>${escapeHtml(stmtFrom || "—")} → ${escapeHtml(stmtTo || "—")}</b></div>
+          <div>تاريخ الطباعة: <b>${escapeHtml(new Date().toLocaleString("ar-EG-u-nu-latn"))}</b></div>
+        </div>
+      </header>
+      <table>
+        <thead><tr>
+          <th>التاريخ</th><th>النوع</th><th>الصنف</th><th>الكمية</th>
+          <th>سعر</th><th>خصم</th><th>إجمالي</th><th>نقدية</th>
+        </tr></thead>
+        <tbody>${rowsHtml || `<tr><td colspan="8" style="text-align:center">لا توجد حركات</td></tr>`}</tbody>
+        <tfoot>
+          <tr><td colspan="6">إجمالي البضاعة المصروفة</td><td class="num"><b>${fmtNum(stmtTotals.issue, 2)}</b></td><td></td></tr>
+          <tr><td colspan="6">إجمالي المرتجعات</td><td class="num"><b>${fmtNum(stmtTotals.ret, 2)}</b></td><td></td></tr>
+          <tr><td colspan="6">إجمالي المبيعات</td><td class="num"><b>${fmtNum(stmtTotals.sale, 2)}</b></td><td></td></tr>
+          <tr><td colspan="6">إجمالي الخصومات</td><td class="num"><b>${fmtNum(stmtTotals.disc, 2)}</b></td><td></td></tr>
+          <tr><td colspan="6">إجمالي النقدية الموردة</td><td class="num"><b>${fmtNum(stmtTotals.cash, 2)}</b></td><td></td></tr>
+          <tr><td colspan="6"><b>المتبقي بضاعة مع المندوب</b></td><td class="num"><b>${fmtNum(stmtTotals.remainingGoods, 2)}</b></td><td></td></tr>
+          <tr><td colspan="6"><b>المتبقي نقدية على المندوب</b></td><td class="num"><b>${fmtNum(stmtTotals.remainingCash, 2)}</b></td><td></td></tr>
+        </tfoot>
+      </table>
+    `;
+    openPrintWindow(body, `كشف حساب ${stmtCustody.courier_name}`);
+  };
+
   const DISCOUNT_REASONS = ["عميل جملة", "تصفية صنف", "قرب انتهاء", "عرض خاص", "أخرى"];
+
+
 
 
   const closeCustody = async (id: string) => {
@@ -605,25 +908,56 @@ export default function MainWarehouseTreasuryTab() {
     } finally { setBusy(false); }
   };
 
-  // Per-courier custody summary
+  // Per-courier custody summary (extended with profile, commission, closures)
   const custodySummary = useMemo(() => {
     return custodies.map((c) => {
       const lines = custodyLines.filter((l) => l.custody_id === c.id);
-      let goodsOutValue = 0, goodsReturnedValue = 0, salesValue = 0, cashCollected = 0;
+      let goodsOutValue = 0, goodsReturnedValue = 0, salesValue = 0, cashCollected = 0, discountsValue = 0;
+      let salesQtyKg = 0, salesItems = 0;
       lines.forEach((l) => {
         const tv = Number(l.total_value || 0);
         if (l.line_type === "issue") goodsOutValue += tv;
         else if (l.line_type === "return") goodsReturnedValue += tv;
-        else if (l.line_type === "sale") salesValue += tv;
+        else if (l.line_type === "sale") {
+          // Skip rejected discount sales? we still count, but discount status matters for commission
+          salesValue += tv;
+          discountsValue += Number(l.discount_amount || 0);
+          if (l.discount_status !== "rejected") {
+            salesQtyKg += Number(l.quantity || 0);
+            salesItems += 1;
+          }
+        }
         else if (l.line_type === "cash_collect") cashCollected += Number(l.cash_collected || 0);
       });
       const remainingGoods = goodsOutValue - goodsReturnedValue - salesValue;
       const remainingCash = salesValue - cashCollected;
-      return { ...c, lines, goodsOutValue, goodsReturnedValue, salesValue, cashCollected, remainingGoods, remainingCash };
+
+      const profile = profiles.find((p) => p.courier_name === c.courier_name);
+      const courierPayouts = payouts.filter((p) => p.courier_name === c.courier_name);
+      const paidCommission = courierPayouts.reduce((s, p) => s + Number(p.amount || 0), 0);
+      let dueCommission = 0;
+      if (profile?.commission_type === "percent_of_sales") dueCommission = salesValue * (Number(profile.commission_value || 0) / 100);
+      else if (profile?.commission_type === "per_kg") dueCommission = salesQtyKg * Number(profile.commission_value || 0);
+      else if (profile?.commission_type === "per_item") dueCommission = salesItems * Number(profile.commission_value || 0);
+      const remainingCommission = dueCommission - paidCommission;
+
+      const myClosures = closures.filter((cl) => cl.custody_id === c.id);
+      const lastClosure = myClosures.find((cl) => cl.status === "closed");
+      const creditLimit = profile?.credit_limit ? Number(profile.credit_limit) : null;
+      const creditUsedPct = creditLimit ? Math.min(100, (remainingGoods / creditLimit) * 100) : null;
+      const creditAvailable = creditLimit != null ? Math.max(0, creditLimit - remainingGoods) : null;
+
+      return {
+        ...c, lines, goodsOutValue, goodsReturnedValue, salesValue, discountsValue, cashCollected,
+        remainingGoods, remainingCash, profile, paidCommission, dueCommission, remainingCommission,
+        closures: myClosures, lastClosure, creditLimit, creditUsedPct, creditAvailable,
+      };
     });
-  }, [custodies, custodyLines]);
+  }, [custodies, custodyLines, profiles, payouts, closures]);
 
   const pendingRecons = recons.filter((r) => r.status === "pending");
+
+
 
 
   const exportExcel = () => {
@@ -891,9 +1225,49 @@ export default function MainWarehouseTreasuryTab() {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
+          {/* Dashboard */}
+          {custodySummary.length > 0 && (() => {
+            const tot = custodySummary.reduce((a, c) => ({
+              goods: a.goods + c.remainingGoods,
+              cash: a.cash + c.remainingCash,
+              sales: a.sales + c.salesValue,
+              returns: a.returns + c.goodsReturnedValue,
+              collected: a.collected + c.cashCollected,
+              discounts: a.discounts + (c.discountsValue || 0),
+            }), { goods: 0, cash: 0, sales: 0, returns: 0, collected: 0, discounts: 0 });
+            const topBy = (key: string) => {
+              const sorted = [...custodySummary].sort((a: any, b: any) => Number(b[key] || 0) - Number(a[key] || 0));
+              return sorted[0];
+            };
+            const topSales = topBy("salesValue");
+            const topDisc = topBy("discountsValue");
+            const topCash = topBy("cashCollected");
+            const topDef = [...custodySummary].sort((a, b) => b.remainingCash - a.remainingCash)[0];
+            return (
+              <div className="border rounded-lg p-3 bg-gradient-to-br from-slate-50 to-white space-y-2">
+                <div className="text-xs font-semibold text-slate-700">لوحة المندوبين</div>
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+                  <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">إجمالي البضاعة لدى المندوبين</div><div className="font-bold font-mono">{fmt(tot.goods)}</div></div>
+                  <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">إجمالي المبيعات</div><div className="font-bold font-mono text-emerald-700">{fmt(tot.sales)}</div></div>
+                  <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">إجمالي المرتجعات</div><div className="font-bold font-mono">{fmt(tot.returns)}</div></div>
+                  <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">إجمالي التحصيلات</div><div className="font-bold font-mono text-sky-700">{fmt(tot.collected)}</div></div>
+                  <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">إجمالي الخصومات</div><div className="font-bold font-mono text-rose-700">{fmt(tot.discounts)}</div></div>
+                  <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">المتبقي نقدية</div><div className="font-bold font-mono text-amber-700">{fmt(tot.cash)}</div></div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  <div className="rounded p-2 bg-emerald-50 border border-emerald-200"><div className="text-muted-foreground">أعلى مبيعات</div><div className="font-bold">{topSales?.courier_name || "—"} • {fmt(topSales?.salesValue || 0)}</div></div>
+                  <div className="rounded p-2 bg-rose-50 border border-rose-200"><div className="text-muted-foreground">أعلى خصومات</div><div className="font-bold">{topDisc?.courier_name || "—"} • {fmt(topDisc?.discountsValue || 0)}</div></div>
+                  <div className="rounded p-2 bg-sky-50 border border-sky-200"><div className="text-muted-foreground">أعلى تحصيل</div><div className="font-bold">{topCash?.courier_name || "—"} • {fmt(topCash?.cashCollected || 0)}</div></div>
+                  <div className="rounded p-2 bg-amber-50 border border-amber-200"><div className="text-muted-foreground">أعلى عجز/متبقي</div><div className="font-bold">{topDef?.courier_name || "—"} • {fmt(topDef?.remainingCash || 0)}</div></div>
+                </div>
+              </div>
+            );
+          })()}
+
           {custodySummary.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">لا توجد عهد مفتوحة</p>
           ) : custodySummary.map((c) => (
+
             <div key={c.id} className="border rounded-lg p-3 space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -910,10 +1284,37 @@ export default function MainWarehouseTreasuryTab() {
                     <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "return")}>استرجاع</Button>
                     <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "sale")}>تسجيل بيع</Button>
                     <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "cash_collect")}>تحصيل نقدية</Button>
-                    <Button size="sm" variant="outline" className="h-7 text-rose-600 border-rose-300" onClick={() => closeCustody(c.id)}>إغلاق</Button>
+                    <Button size="sm" variant="outline" className="h-7" onClick={() => openStatement(c)}>كشف حساب</Button>
+                    {(isGeneralManager || isExecutiveManager || canRecord) && (
+                      <Button size="sm" variant="outline" className="h-7" onClick={() => closeDay(c.id)}>إغلاق اليوم</Button>
+                    )}
+                    {(isGeneralManager || isExecutiveManager) && (
+                      <Button size="sm" variant="outline" className="h-7" onClick={() => openProfileDialog(c.courier_name)}>إعدادات</Button>
+                    )}
+                    <Button size="sm" variant="outline" className="h-7 text-rose-600 border-rose-300" onClick={() => closeCustody(c.id)}>إغلاق العهدة</Button>
                   </div>
                 )}
               </div>
+
+              {/* Credit limit progress */}
+              {c.creditLimit != null && (
+                <div className="rounded border p-2 bg-slate-50 space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">الحد الائتماني: <b className="font-mono">{fmt(c.creditLimit)}</b></span>
+                    <span className="text-muted-foreground">العهدة الحالية: <b className="font-mono">{fmt(c.remainingGoods)}</b></span>
+                    <span className={(c.creditAvailable ?? 0) < 0 ? "text-rose-700 font-bold" : "text-emerald-700 font-bold"}>
+                      المتبقي: <span className="font-mono">{fmt(c.creditAvailable ?? 0)}</span>
+                    </span>
+                  </div>
+                  <div className="h-2 rounded bg-slate-200 overflow-hidden">
+                    <div
+                      className={`h-full ${(c.creditUsedPct ?? 0) >= 100 ? "bg-rose-600" : (c.creditUsedPct ?? 0) >= 80 ? "bg-amber-500" : "bg-emerald-500"}`}
+                      style={{ width: `${Math.min(100, c.creditUsedPct ?? 0)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
                 <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمة المصروف</div><div className="font-bold font-mono">{fmt(c.goodsOutValue)}</div></div>
                 <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمة المرتجع</div><div className="font-bold font-mono">{fmt(c.goodsReturnedValue)}</div></div>
@@ -924,6 +1325,94 @@ export default function MainWarehouseTreasuryTab() {
                   <div className="font-bold font-mono">{fmt(c.remainingGoods)} / {fmt(c.remainingCash)}</div>
                 </div>
               </div>
+
+              {/* Commission summary */}
+              {c.profile?.commission_type && c.profile.commission_type !== "none" && (
+                <div className="border rounded p-2 bg-violet-50/50 text-xs flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <b className="text-violet-800">عمولة المندوب:</b>{" "}
+                    {c.profile.commission_type === "percent_of_sales" ? `${c.profile.commission_value}% من المبيعات` :
+                     c.profile.commission_type === "per_kg" ? `${c.profile.commission_value} ج/كجم` :
+                     `${c.profile.commission_value} ج/صنف`}
+                    {" • "}مستحقة: <b className="font-mono">{fmt(c.dueCommission)}</b>
+                    {" • "}مصروفة: <b className="font-mono">{fmt(c.paidCommission)}</b>
+                    {" • "}متبقي: <b className={`font-mono ${c.remainingCommission > 0 ? "text-amber-700" : "text-emerald-700"}`}>{fmt(c.remainingCommission)}</b>
+                  </div>
+                  {(isGeneralManager || isExecutiveManager) && c.remainingCommission > 0 && (
+                    <Button size="sm" className="h-7" onClick={() => openPayCommission(c.courier_name, c.remainingCommission)}>صرف عمولة</Button>
+                  )}
+                </div>
+              )}
+
+              {/* Pending credit override approvals */}
+              {(() => {
+                const pendingCO = c.lines.filter((l: any) => l.line_type === "issue" && l.credit_override_status === "pending");
+                if (pendingCO.length === 0) return null;
+                return (
+                  <div className="border border-rose-300 bg-rose-50 rounded p-2 space-y-1">
+                    <div className="text-xs font-semibold text-rose-800">طلبات تجاوز الحد الائتماني بانتظار الاعتماد ({pendingCO.length})</div>
+                    {pendingCO.map((l: any) => (
+                      <div key={l.id} className="flex flex-wrap items-center justify-between gap-2 text-xs bg-background rounded p-2 border">
+                        <div><b>{l.product_name}</b> — كمية {l.quantity} {l.unit} • قيمة <b>{fmt(Number(l.total_value || 0))}</b></div>
+                        {(isGeneralManager || isExecutiveManager) && (
+                          <div className="flex gap-1">
+                            <Button size="sm" className="h-7 px-2 bg-emerald-600 hover:bg-emerald-700" onClick={() => approveCreditOverride(l.id)}>
+                              <CheckCircle2 className="w-3 h-3" />
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-rose-600 border-rose-300" onClick={() => rejectCreditOverride(l.id)}>
+                              <XCircle className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Daily closures history */}
+              {c.closures && c.closures.length > 0 && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground">إغلاقات يومية ({c.closures.length})</summary>
+                  <div className="mt-2 border rounded overflow-x-auto">
+                    <table className="w-full text-right">
+                      <thead className="bg-muted/40">
+                        <tr>
+                          <th className="p-1">التاريخ</th><th className="p-1">مصروف</th><th className="p-1">مرتجع</th>
+                          <th className="p-1">مبيعات</th><th className="p-1">خصم</th><th className="p-1">نقدية</th>
+                          <th className="p-1">متبقي بضاعة</th><th className="p-1">متبقي نقدية</th>
+                          <th className="p-1">الحالة</th><th className="p-1">إجراءات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {c.closures.map((cl: any) => (
+                          <tr key={cl.id} className="border-t">
+                            <td className="p-1">{cl.closure_date}</td>
+                            <td className="p-1 font-mono">{fmt(Number(cl.goods_out))}</td>
+                            <td className="p-1 font-mono">{fmt(Number(cl.goods_returned))}</td>
+                            <td className="p-1 font-mono">{fmt(Number(cl.sales_value))}</td>
+                            <td className="p-1 font-mono">{fmt(Number(cl.discounts_value))}</td>
+                            <td className="p-1 font-mono">{fmt(Number(cl.cash_collected))}</td>
+                            <td className="p-1 font-mono">{fmt(Number(cl.remaining_goods))}</td>
+                            <td className="p-1 font-mono">{fmt(Number(cl.remaining_cash))}</td>
+                            <td className="p-1">
+                              <Badge variant="outline" className={cl.status === "closed" ? "bg-slate-100" : "bg-amber-100 text-amber-800"}>
+                                {cl.status === "closed" ? "مغلق" : "أُعيد الفتح"}
+                              </Badge>
+                            </td>
+                            <td className="p-1">
+                              {cl.status === "closed" && (isGeneralManager || isExecutiveManager) && (
+                                <Button size="sm" variant="outline" className="h-6 px-2" onClick={() => reopenDay(cl.id)}>إعادة فتح</Button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              )}
+
 
               {/* Pending discount approvals banner */}
               {(() => {
@@ -1263,7 +1752,32 @@ export default function MainWarehouseTreasuryTab() {
             {lineType === "cash_collect" && (
               <div><Label>المبلغ المحصّل (ج.م)</Label><Input type="number" min="0" step="0.01" value={lineCash} onChange={(e) => setLineCash(e.target.value)} /></div>
             )}
+            {lineType === "issue" && lineCustodyId && (() => {
+              const sum = custodySummary.find((s) => s.id === lineCustodyId);
+              if (!sum?.creditLimit) return null;
+              const q = Number(lineQty || 0), p = Number(linePrice || 0);
+              const add = q * p;
+              const projected = (sum.remainingGoods || 0) + add;
+              const over = projected > sum.creditLimit;
+              return (
+                <div className={`rounded p-2 text-xs ${over ? "bg-rose-50 border border-rose-300" : "bg-slate-50 border"}`}>
+                  <div>الحد: <b className="font-mono">{fmt(sum.creditLimit)}</b> • العهدة بعد الصرف: <b className={`font-mono ${over ? "text-rose-700" : ""}`}>{fmt(projected)}</b></div>
+                  {over && (
+                    <>
+                      <div className="text-rose-700 font-bold mt-1">⚠️ هذا الصرف يتجاوز الحد الائتماني للمندوب.</div>
+                      {!(isGeneralManager || isExecutiveManager) && (
+                        <label className="flex items-center gap-2 mt-1">
+                          <input type="checkbox" checked={requestCreditOverride} onChange={(e) => setRequestCreditOverride(e.target.checked)} />
+                          <span>طلب اعتماد تجاوز من المدير العام/التنفيذي</span>
+                        </label>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
             <div><Label>ملاحظات</Label><Textarea rows={2} value={lineNotes} onChange={(e) => setLineNotes(e.target.value)} /></div>
+
           </div>
 
           <DialogFooter>
@@ -1272,7 +1786,122 @@ export default function MainWarehouseTreasuryTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* === Profile dialog: credit limit + commission === */}
+      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>إعدادات المندوب — {profileCourier}</DialogTitle>
+            <DialogDescription>الحد الائتماني وعمولة المندوب (المدير العام/التنفيذي فقط).</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>الحد الائتماني (ج.م)</Label>
+              <Input type="number" min="0" step="0.01" value={profileLimit} onChange={(e) => setProfileLimit(e.target.value)} placeholder="اتركه فارغًا بدون حد" />
+            </div>
+            <div>
+              <Label>نوع العمولة</Label>
+              <Select value={profileCommType} onValueChange={(v) => setProfileCommType(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">بدون عمولة</SelectItem>
+                  <SelectItem value="percent_of_sales">نسبة من المبيعات (%)</SelectItem>
+                  <SelectItem value="per_kg">مبلغ ثابت لكل كيلو</SelectItem>
+                  <SelectItem value="per_item">مبلغ ثابت لكل صنف</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {profileCommType !== "none" && (
+              <div>
+                <Label>{profileCommType === "percent_of_sales" ? "النسبة %" : profileCommType === "per_kg" ? "ج / كجم" : "ج / صنف"}</Label>
+                <Input type="number" min="0" step="0.0001" value={profileCommValue} onChange={(e) => setProfileCommValue(e.target.value)} />
+              </div>
+            )}
+            <div><Label>ملاحظات</Label><Textarea rows={2} value={profileNotes} onChange={(e) => setProfileNotes(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProfileOpen(false)}>إلغاء</Button>
+            <Button disabled={busy || !(isGeneralManager || isExecutiveManager)} onClick={saveProfile}>حفظ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* === Pay commission dialog === */}
+      <Dialog open={payCommOpen} onOpenChange={setPayCommOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>صرف عمولة — {payCommCourier}</DialogTitle>
+            <DialogDescription>سيتم خصم المبلغ من خزينة المخزن الرئيسي.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div><Label>المبلغ (ج.م)</Label><Input type="number" min="0" step="0.01" value={payCommAmt} onChange={(e) => setPayCommAmt(e.target.value)} /></div>
+            <div><Label>ملاحظات</Label><Textarea rows={2} value={payCommNotes} onChange={(e) => setPayCommNotes(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPayCommOpen(false)}>إلغاء</Button>
+            <Button disabled={busy} onClick={submitPayCommission}>صرف</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* === Statement dialog === */}
+      <Dialog open={stmtOpen} onOpenChange={setStmtOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>كشف حساب المندوب — {stmtCustody?.courier_name}</DialogTitle>
+            <DialogDescription>عرض/طباعة/تصدير حركات المندوب خلال فترة محددة.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
+              <div><Label>من تاريخ</Label><Input type="date" value={stmtFrom} onChange={(e) => setStmtFrom(e.target.value)} /></div>
+              <div><Label>إلى تاريخ</Label><Input type="date" value={stmtTo} onChange={(e) => setStmtTo(e.target.value)} /></div>
+              <Button variant="outline" onClick={exportStatementExcel}>تصدير Excel</Button>
+              <Button variant="outline" onClick={printStatement}>طباعة / PDF</Button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-7 gap-2 text-xs">
+              <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">مصروف</div><div className="font-bold font-mono">{fmt(stmtTotals.issue)}</div></div>
+              <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">مرتجع</div><div className="font-bold font-mono">{fmt(stmtTotals.ret)}</div></div>
+              <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">مبيعات</div><div className="font-bold font-mono text-emerald-700">{fmt(stmtTotals.sale)}</div></div>
+              <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">خصومات</div><div className="font-bold font-mono text-rose-700">{fmt(stmtTotals.disc)}</div></div>
+              <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">نقدية</div><div className="font-bold font-mono text-sky-700">{fmt(stmtTotals.cash)}</div></div>
+              <div className="bg-amber-50 rounded p-2"><div className="text-muted-foreground">متبقي بضاعة</div><div className="font-bold font-mono">{fmt(stmtTotals.remainingGoods)}</div></div>
+              <div className="bg-amber-50 rounded p-2"><div className="text-muted-foreground">متبقي نقدية</div><div className="font-bold font-mono">{fmt(stmtTotals.remainingCash)}</div></div>
+            </div>
+            <div className="max-h-[400px] overflow-auto border rounded">
+              <table className="w-full text-xs text-right">
+                <thead className="bg-muted/40 sticky top-0">
+                  <tr>
+                    <th className="p-1">التاريخ</th><th className="p-1">النوع</th><th className="p-1">الصنف</th>
+                    <th className="p-1">كمية</th><th className="p-1">سعر</th><th className="p-1">خصم</th>
+                    <th className="p-1">قيمة</th><th className="p-1">نقدية</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stmtRows.length === 0 ? (
+                    <tr><td colSpan={8} className="p-4 text-center text-muted-foreground">لا توجد حركات</td></tr>
+                  ) : stmtRows.map((l: any) => (
+                    <tr key={l.id} className="border-t">
+                      <td className="p-1 whitespace-nowrap">{fmtDate(l.performed_at)}</td>
+                      <td className="p-1">{l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : "تحصيل"}</td>
+                      <td className="p-1">{l.product_name || "—"}</td>
+                      <td className="p-1 font-mono">{l.quantity ? `${l.quantity} ${l.unit || ""}` : "—"}</td>
+                      <td className="p-1 font-mono">{l.unit_price ? fmt(Number(l.unit_price)) : "—"}</td>
+                      <td className="p-1 font-mono">{l.discount_amount ? fmt(Number(l.discount_amount)) : "—"}</td>
+                      <td className="p-1 font-mono font-bold">{l.total_value ? fmt(Number(l.total_value)) : "—"}</td>
+                      <td className="p-1 font-mono">{l.cash_collected ? fmt(Number(l.cash_collected)) : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStmtOpen(false)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+
 
   );
 }
