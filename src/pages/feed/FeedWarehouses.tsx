@@ -22,6 +22,7 @@ import { kpi as lvKpi, LV_PERIOD, lvTotalSalesValue, lvInternalSalesValue } from
 import FeedInvoiceDetailsDialog, { printInvoice as printFeedInvoice } from "@/components/feed/FeedInvoiceDetailsDialog";
 import FeedFactoryTreasuryPanel from "@/components/feed/FeedFactoryTreasuryPanel";
 import ProductionOrphanChecker from "@/components/feed/ProductionOrphanChecker";
+import FeedProductionApprovals from "@/components/feed/FeedProductionApprovals";
 
 type Line = { id: string; ref_id: string; qty: number; price: number };
 const newLine = (): Line => ({ id: crypto.randomUUID(), ref_id: "", qty: 0, price: 0 });
@@ -858,7 +859,9 @@ export default function FeedWarehouses() {
 
           {/* PRODUCTION INVOICES */}
           <TabsContent value="production" className="space-y-4">
+            <FeedProductionApprovals onChanged={() => { qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] }); qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-products"] }); }} />
             <ProductionOrphanChecker />
+
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
@@ -875,7 +878,12 @@ export default function FeedWarehouses() {
                       <TableRow key={p.id}>
                         <TableCell className="font-mono text-xs">{p.prod_no}</TableCell>
                         <TableCell>{p.prod_date}</TableCell>
-                        <TableCell className="font-medium">{p.feed_products?.name} <Badge variant="outline" className="text-[10px] mr-1">{p.feed_products?.stage}</Badge></TableCell>
+                        <TableCell className="font-medium">
+                          {p.feed_products?.name} <Badge variant="outline" className="text-[10px] mr-1">{p.feed_products?.stage}</Badge>
+                          {p.status === 'pending_approval' && <Badge className="mr-1 bg-amber-100 text-amber-800 border-amber-300" variant="outline">بانتظار الاعتماد</Badge>}
+                          {p.status === 'rejected' && <Badge className="mr-1" variant="destructive">مرفوضة</Badge>}
+                          {p.status === 'approved' && <Badge className="mr-1 bg-green-100 text-green-800 border-green-300" variant="outline">معتمدة</Badge>}
+                        </TableCell>
                         <TableCell>{fmt(p.qty_produced)} كجم</TableCell>
                         <TableCell>{fmt(p.bags)}</TableCell>
                         <TableCell className="font-bold">{fmt(p.total_cost)} ج.م</TableCell>
