@@ -1002,6 +1002,89 @@ export default function MainWarehouseTreasuryTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Reconciliation dialog */}
+      <Dialog open={reconOpen} onOpenChange={setReconOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>تسجيل جرد خزينة المخزن الرئيسي</DialogTitle>
+            <DialogDescription>يتم اعتماده من المدير العام / التنفيذي / محمد شعلة، وأي فرق يُسجَّل تلقائيًا كتسوية في الخزينة بعد الاعتماد.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm bg-muted/40 rounded-md p-2">الرصيد الدفتري الحالي: <b>{fmt(kpis.balance)} ج.م</b></div>
+            <div><Label>النقدية الموجودة فعليًا (ج.م)</Label><Input type="number" min="0" step="0.01" value={reconPhysical} onChange={(e) => setReconPhysical(e.target.value)} /></div>
+            {reconPhysical !== "" && (
+              <div className="text-sm bg-amber-50 border border-amber-300 rounded p-2">
+                الفرق: <b className={Number(reconPhysical) - kpis.balance >= 0 ? "text-sky-700" : "text-rose-700"}>{fmt(Number(reconPhysical) - kpis.balance)}</b> ج.م
+              </div>
+            )}
+            <div><Label>سبب الفرق (إلزامي إذا كان هناك فرق)</Label><Textarea rows={2} value={reconReason} onChange={(e) => setReconReason(e.target.value)} /></div>
+            <div><Label>ملاحظات إضافية</Label><Textarea rows={2} value={reconNotes} onChange={(e) => setReconNotes(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReconOpen(false)}>إلغاء</Button>
+            <Button disabled={busy} onClick={submitRecon}>إرسال للاعتماد</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New custody dialog */}
+      <Dialog open={newCustodyOpen} onOpenChange={setNewCustodyOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>فتح عهدة بضائع جديدة</DialogTitle>
+            <DialogDescription>تتبّع البضاعة المصروفة للمندوب حتى يبيعها أو يعيدها أو يحصّل قيمتها.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div><Label>اسم المندوب</Label><Input value={newCustodyName} onChange={(e) => setNewCustodyName(e.target.value)} placeholder="مثال: كيمو" /></div>
+            <div><Label>ملاحظات</Label><Textarea rows={2} value={newCustodyNotes} onChange={(e) => setNewCustodyNotes(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewCustodyOpen(false)}>إلغاء</Button>
+            <Button disabled={busy} onClick={submitNewCustody}>فتح العهدة</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Custody line dialog */}
+      <Dialog open={lineOpen} onOpenChange={setLineOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {lineType === "issue" ? "صرف بضاعة للمندوب" :
+               lineType === "return" ? "استرجاع بضاعة من المندوب" :
+               lineType === "sale" ? "تسجيل بيع من بضاعة العهدة" : "تحصيل نقدية من المندوب"}
+            </DialogTitle>
+            <DialogDescription>
+              {lineType === "cash_collect" ? "سيتم إضافة المبلغ تلقائيًا كتوريد نقدية بخزينة المخزن الرئيسي." : "تُسجَّل الحركة على عهدة المندوب لحساب المتبقي والعجز/الزيادة."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {lineType !== "cash_collect" && (
+              <>
+                <div><Label>المنتج</Label><Input value={lineProduct} onChange={(e) => setLineProduct(e.target.value)} placeholder="مثال: سجق نعام" /></div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div><Label>الكمية</Label><Input type="number" min="0" step="0.001" value={lineQty} onChange={(e) => setLineQty(e.target.value)} /></div>
+                  <div><Label>الوحدة</Label><Input value={lineUnit} onChange={(e) => setLineUnit(e.target.value)} /></div>
+                  <div><Label>سعر الوحدة</Label><Input type="number" min="0" step="0.01" value={linePrice} onChange={(e) => setLinePrice(e.target.value)} /></div>
+                </div>
+                {Number(lineQty) > 0 && Number(linePrice) > 0 && (
+                  <div className="text-sm bg-muted/40 rounded p-2">القيمة: <b>{fmt(Number(lineQty) * Number(linePrice))}</b> ج.م</div>
+                )}
+              </>
+            )}
+            {lineType === "cash_collect" && (
+              <div><Label>المبلغ المحصّل (ج.م)</Label><Input type="number" min="0" step="0.01" value={lineCash} onChange={(e) => setLineCash(e.target.value)} /></div>
+            )}
+            <div><Label>ملاحظات</Label><Textarea rows={2} value={lineNotes} onChange={(e) => setLineNotes(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLineOpen(false)}>إلغاء</Button>
+            <Button disabled={busy} onClick={submitLine}>تسجيل</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 }
