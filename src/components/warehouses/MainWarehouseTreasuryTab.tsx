@@ -542,6 +542,28 @@ export default function MainWarehouseTreasuryTab() {
         </DialogContent>
       </Dialog>
 
+      {/* Courier deposit dialog */}
+      <Dialog open={courierOpen} onOpenChange={setCourierOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>توريد نقدية من مندوب</DialogTitle>
+            <DialogDescription>تسجيل مبلغ مستلم من مندوب (مثال: كيمو) داخل خزينة المخزن الرئيسي.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div><Label>اسم المندوب</Label><Input value={courierName} onChange={(e) => setCourierName(e.target.value)} placeholder="مثال: كيمو" /></div>
+            <div><Label>المبلغ (ج.م)</Label><Input type="number" min="0" step="0.01" value={courierAmt} onChange={(e) => setCourierAmt(e.target.value)} /></div>
+            <div><Label>التاريخ</Label><Input type="date" value={courierDate} onChange={(e) => setCourierDate(e.target.value)} /></div>
+            <div><Label>ملاحظات</Label><Textarea rows={2} value={courierNotes} onChange={(e) => setCourierNotes(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCourierOpen(false)}>إلغاء</Button>
+            <Button disabled={busy} onClick={submitCourier} className="bg-sky-600 hover:bg-sky-700">تسجيل التوريد</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+
       {/* Transfer dialog */}
       <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
         <DialogContent>
