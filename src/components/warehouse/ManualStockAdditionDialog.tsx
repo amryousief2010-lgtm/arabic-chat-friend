@@ -261,7 +261,9 @@ const ManualStockAdditionDialog = ({
         }
       });
 
-      // Defensive guard: ensure all selected items belong to the target warehouse
+      // Defensive guard: ensure all selected items belong to the target warehouse.
+      // We only check warehouse_id + is_active here — the dropdown already restricts
+      // the visible items, and many legitimate main-warehouse rows have product_id = NULL.
       const itemIdsToCheck = Array.from(byItem.keys());
       if (itemIdsToCheck.length > 0) {
         const { data: checkRows, error: checkErr } = await supabase
@@ -269,12 +271,26 @@ const ManualStockAdditionDialog = ({
           .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, module")
           .in("id", itemIdsToCheck);
         if (checkErr) throw checkErr;
-        const foreign = (checkRows || []).find((r: any) => !isAllowedWarehouseDropdownItem(r, warehouseId, isMainWarehouse));
+        const diag = (checkRows || []).map((r: any) => ({
+          item_id: r.id,
+          product_id: r.product_id,
+          warehouse_id: r.warehouse_id,
+          warehouse_name: warehouseName,
+          name: r.name,
+          available_qty: Number(r.stock || 0),
+          sameWarehouse: r.warehouse_id === warehouseId,
+          isActive: r.is_active !== false,
+          validation_result: r.warehouse_id === warehouseId && r.is_active !== false,
+        }));
+        // eslint-disable-next-line no-console
+        console.table(diag);
+        const foreign = diag.find((d) => !d.sameWarehouse);
         if (foreign) {
-          throw new Error(isMainWarehouse
-            ? "هذا الصنف غير تابع للمخزن الرئيسي ولا يمكن إضافته لهذه التوريدة."
-            : `الصنف "${foreign.name}" غير مرتبط بالمخزن المحدد ولا يمكن إضافته لهذه التوريدة.`
-          );
+          throw new Error(`الصنف "${foreign.name}" مرتبط بمخزن آخر ولا يمكن إضافته إلى "${warehouseName}".`);
+        }
+        const inactive = diag.find((d) => !d.isActive);
+        if (inactive) {
+          throw new Error(`الصنف "${inactive.name}" غير مفعّل ولا يمكن إضافته.`);
         }
       }
 
