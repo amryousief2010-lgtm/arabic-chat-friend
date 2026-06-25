@@ -191,30 +191,15 @@ const AddOfferDialog = ({ open, onOpenChange, orderId, onSaved }: Props) => {
           offer_name: selectedOffer.name,
         }));
 
-      const shippingCost = Number(selectedOffer.shipping_cost || 0);
-      if (shippingCost > 0) {
-        toInsert.push({
-          order_id: orderId,
-          product_id: null,
-          product_name: "تكلفة الشحن",
-          quantity: 1,
-          unit_price: shippingCost,
-          total_price: shippingCost,
-          offer_name: selectedOffer.name,
-        });
-      }
+      // ❌ لا نُضيف سطرًا منفصلًا باسم "تكلفة الشحن":
+      // الشحن مُضمَّن أصلاً داخل أسعار منتجات العرض كما هو مخزَّن في
+      // offer_box_items، فإضافته كسطر إضافي تُسبّب ازدواجية في الإجمالي
+      // وتُظهر بنودًا غريبة (مثل "110 كيلو تكلفة شحن"). نكتفي بإدراج
+      // مكونات العرض وأسعارها كما هي بدون أي تعديل.
 
       const { error: insErr } = await supabase.from("order_items").insert(toInsert);
       if (insErr) throw insErr;
 
-      // Shipping is bundled inside the offer items — zero out the order's delivery_fee
-      if (shippingCost > 0) {
-        const { error: updErr } = await supabase
-          .from("orders")
-          .update({ delivery_fee: 0 })
-          .eq("id", orderId);
-        if (updErr) throw updErr;
-      }
 
       toast.success(`تم إضافة العرض "${selectedOffer.name}" إلى الطلب`);
       onOpenChange(false);

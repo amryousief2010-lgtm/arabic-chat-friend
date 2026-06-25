@@ -242,29 +242,15 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
           offer_name: selectedNewOffer.name,
         }));
 
-      // 2b) Add a separate "تكلفة الشحن" line for this offer's shipping
-      const shippingCost = Number(selectedNewOffer.shipping_cost || 0);
-      if (shippingCost > 0) {
-        toInsert.push({
-          order_id: orderId,
-          product_id: null,
-          product_name: "تكلفة الشحن",
-          quantity: 1,
-          unit_price: shippingCost,
-          total_price: shippingCost,
-          offer_name: selectedNewOffer.name,
-        });
-      }
+      // ❌ لا نُضيف سطرًا منفصلًا باسم "تكلفة الشحن":
+      // الشحن مُضمَّن أصلاً داخل أسعار منتجات العرض (كما هو مخزَّن في
+      // offer_box_items). إضافته كسطر إضافي تُسبّب ازدواجية في الإجمالي
+      // وتُظهر بنودًا غريبة مثل "110 كيلو تكلفة شحن" — احذف العرض القديم
+      // كاملًا وأضِف الجديد بمكوناته وأسعاره كما هي بدون أي تعديل.
 
       const { error: insErr } = await supabase.from("order_items").insert(toInsert);
       if (insErr) throw insErr;
 
-      // 3) Shipping is now a line item inside the offer; keep delivery_fee = 0
-      const { error: updErr } = await supabase
-        .from("orders")
-        .update({ delivery_fee: 0 })
-        .eq("id", orderId);
-      if (updErr) throw updErr;
 
       toast.success(`تم استبدال العرض "${selectedRemoveOffer}" بـ "${selectedNewOffer.name}"`);
       onOpenChange(false);
