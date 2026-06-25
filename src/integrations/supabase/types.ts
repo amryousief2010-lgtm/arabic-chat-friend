@@ -2370,6 +2370,7 @@ export type Database = {
           inventory_movement_id: string | null
           line_type: string
           notes: string | null
+          order_id: string | null
           original_price: number | null
           performed_at: string
           performed_by: string | null
@@ -2402,6 +2403,7 @@ export type Database = {
           inventory_movement_id?: string | null
           line_type: string
           notes?: string | null
+          order_id?: string | null
           original_price?: number | null
           performed_at?: string
           performed_by?: string | null
@@ -2434,6 +2436,7 @@ export type Database = {
           inventory_movement_id?: string | null
           line_type?: string
           notes?: string | null
+          order_id?: string | null
           original_price?: number | null
           performed_at?: string
           performed_by?: string | null
@@ -2449,6 +2452,76 @@ export type Database = {
             columns: ["custody_id"]
             isOneToOne: false
             referencedRelation: "courier_goods_custodies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_goods_custody_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courier_order_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          collected_at: string | null
+          courier_name: string
+          created_at: string
+          custody_id: string
+          delivered_at: string | null
+          id: string
+          notes: string | null
+          order_id: string
+          returned_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          collected_at?: string | null
+          courier_name: string
+          created_at?: string
+          custody_id: string
+          delivered_at?: string | null
+          id?: string
+          notes?: string | null
+          order_id: string
+          returned_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          collected_at?: string | null
+          courier_name?: string
+          created_at?: string
+          custody_id?: string
+          delivered_at?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string
+          returned_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_order_assignments_custody_id_fkey"
+            columns: ["custody_id"]
+            isOneToOne: false
+            referencedRelation: "courier_goods_custodies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_order_assignments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -19698,6 +19771,12 @@ export type Database = {
         | "failed_delivery"
         | "returned_to_warehouse"
         | "cancelled"
+        | "approved_by_marketing"
+        | "prepared_by_warehouse"
+        | "collected"
+        | "completed"
+        | "partially_returned"
+        | "fully_returned"
       pc_failed_reason:
         | "customer_unavailable"
         | "address_unclear"
@@ -20026,6 +20105,12 @@ export const Constants = {
         "failed_delivery",
         "returned_to_warehouse",
         "cancelled",
+        "approved_by_marketing",
+        "prepared_by_warehouse",
+        "collected",
+        "completed",
+        "partially_returned",
+        "fully_returned",
       ],
       pc_failed_reason: [
         "customer_unavailable",
