@@ -18482,19 +18482,30 @@ export type Database = {
         }
         Returns: Json
       }
-      create_feed_production_invoice_atomic: {
-        Args: {
-          p_bags: number
-          p_client_request_id: string
-          p_items: Json
-          p_labor_cost: number
-          p_notes: string
-          p_prod_date: string
-          p_product_id: string
-          p_qty_produced: number
-        }
-        Returns: string
-      }
+      create_feed_production_invoice_atomic:
+        | {
+            Args: {
+              p_bags: number
+              p_client_request_id: string
+              p_items: Json
+              p_labor_cost: number
+              p_notes: string
+              p_prod_date: string
+              p_product_id: string
+              p_qty_produced: number
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_items: Json
+              p_labor_cost: number
+              p_notes: string
+              p_product_id: string
+              p_qty_produced: number
+            }
+            Returns: string
+          }
       create_lab_to_custody_transfer: {
         Args: {
           p_amount: number
