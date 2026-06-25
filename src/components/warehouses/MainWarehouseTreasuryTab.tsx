@@ -649,25 +649,56 @@ export default function MainWarehouseTreasuryTab() {
     } finally { setBusy(false); }
   };
 
-  // Per-courier custody summary
+  // Per-courier custody summary (extended with profile, commission, closures)
   const custodySummary = useMemo(() => {
     return custodies.map((c) => {
       const lines = custodyLines.filter((l) => l.custody_id === c.id);
-      let goodsOutValue = 0, goodsReturnedValue = 0, salesValue = 0, cashCollected = 0;
+      let goodsOutValue = 0, goodsReturnedValue = 0, salesValue = 0, cashCollected = 0, discountsValue = 0;
+      let salesQtyKg = 0, salesItems = 0;
       lines.forEach((l) => {
         const tv = Number(l.total_value || 0);
         if (l.line_type === "issue") goodsOutValue += tv;
         else if (l.line_type === "return") goodsReturnedValue += tv;
-        else if (l.line_type === "sale") salesValue += tv;
+        else if (l.line_type === "sale") {
+          // Skip rejected discount sales? we still count, but discount status matters for commission
+          salesValue += tv;
+          discountsValue += Number(l.discount_amount || 0);
+          if (l.discount_status !== "rejected") {
+            salesQtyKg += Number(l.quantity || 0);
+            salesItems += 1;
+          }
+        }
         else if (l.line_type === "cash_collect") cashCollected += Number(l.cash_collected || 0);
       });
       const remainingGoods = goodsOutValue - goodsReturnedValue - salesValue;
       const remainingCash = salesValue - cashCollected;
-      return { ...c, lines, goodsOutValue, goodsReturnedValue, salesValue, cashCollected, remainingGoods, remainingCash };
+
+      const profile = profiles.find((p) => p.courier_name === c.courier_name);
+      const courierPayouts = payouts.filter((p) => p.courier_name === c.courier_name);
+      const paidCommission = courierPayouts.reduce((s, p) => s + Number(p.amount || 0), 0);
+      let dueCommission = 0;
+      if (profile?.commission_type === "percent_of_sales") dueCommission = salesValue * (Number(profile.commission_value || 0) / 100);
+      else if (profile?.commission_type === "per_kg") dueCommission = salesQtyKg * Number(profile.commission_value || 0);
+      else if (profile?.commission_type === "per_item") dueCommission = salesItems * Number(profile.commission_value || 0);
+      const remainingCommission = dueCommission - paidCommission;
+
+      const myClosures = closures.filter((cl) => cl.custody_id === c.id);
+      const lastClosure = myClosures.find((cl) => cl.status === "closed");
+      const creditLimit = profile?.credit_limit ? Number(profile.credit_limit) : null;
+      const creditUsedPct = creditLimit ? Math.min(100, (remainingGoods / creditLimit) * 100) : null;
+      const creditAvailable = creditLimit != null ? Math.max(0, creditLimit - remainingGoods) : null;
+
+      return {
+        ...c, lines, goodsOutValue, goodsReturnedValue, salesValue, discountsValue, cashCollected,
+        remainingGoods, remainingCash, profile, paidCommission, dueCommission, remainingCommission,
+        closures: myClosures, lastClosure, creditLimit, creditUsedPct, creditAvailable,
+      };
     });
-  }, [custodies, custodyLines]);
+  }, [custodies, custodyLines, profiles, payouts, closures]);
 
   const pendingRecons = recons.filter((r) => r.status === "pending");
+
+
 
 
   const exportExcel = () => {
