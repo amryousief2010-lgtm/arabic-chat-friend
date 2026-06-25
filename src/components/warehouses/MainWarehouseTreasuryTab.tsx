@@ -491,8 +491,10 @@ export default function MainWarehouseTreasuryTab() {
     setLineCustodyId(custodyId); setLineType(type);
     setLineProduct(""); setLineQty(""); setLinePrice(""); setLineSalePrice("");
     setLineDiscountReason(""); setLineCash(""); setLineNotes(""); setLineUnit("كجم");
+    setRequestCreditOverride(false);
     setLineOpen(true);
   };
+
 
   const submitLine = async () => {
     if (!lineCustodyId) return;
