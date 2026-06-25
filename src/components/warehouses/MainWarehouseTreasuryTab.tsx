@@ -121,16 +121,18 @@ export default function MainWarehouseTreasuryTab() {
   const [newCustodyNotes, setNewCustodyNotes] = useState("");
   const [lineOpen, setLineOpen] = useState(false);
   const [lineCustodyId, setLineCustodyId] = useState<string | null>(null);
-  const [lineType, setLineType] = useState<"issue" | "return" | "sale" | "cash_collect">("issue");
+  const [lineType, setLineType] = useState<"issue" | "return" | "sale" | "cash_collect" | "bonus">("issue");
   const [lineInventoryItemId, setLineInventoryItemId] = useState("");
   const [lineProduct, setLineProduct] = useState("");
   const [lineQty, setLineQty] = useState("");
   const [lineUnit, setLineUnit] = useState("كجم");
-  const [linePrice, setLinePrice] = useState(""); // original/list price
+  const [linePrice, setLinePrice] = useState(""); // original/list price (or cost for bonus)
   const [lineSalePrice, setLineSalePrice] = useState(""); // sale: actual price
   const [lineDiscountReason, setLineDiscountReason] = useState("");
   const [lineCash, setLineCash] = useState("");
   const [lineNotes, setLineNotes] = useState("");
+  const [lineCustomerName, setLineCustomerName] = useState("");
+  const [lineBonusReason, setLineBonusReason] = useState("");
   const [discountThresholdPct, setDiscountThresholdPct] = useState<number>(5);
   const [requestCreditOverride, setRequestCreditOverride] = useState(false);
 
@@ -538,6 +540,7 @@ export default function MainWarehouseTreasuryTab() {
     setLineInventoryItemId("");
     setLineProduct(""); setLineQty(""); setLinePrice(""); setLineSalePrice("");
     setLineDiscountReason(""); setLineCash(""); setLineNotes(""); setLineUnit("كجم");
+    setLineCustomerName(""); setLineBonusReason("");
     setRequestCreditOverride(false);
     setLineOpen(true);
   };
@@ -552,6 +555,11 @@ export default function MainWarehouseTreasuryTab() {
 
     if (lineType === "cash_collect") {
       if (!cash || cash <= 0) { toast({ title: "أدخل مبلغ نقدية صحيح", variant: "destructive" }); return; }
+    } else if (lineType === "bonus") {
+      if (!lineInventoryItemId) { toast({ title: "اختر صنف المجاني من المخزن الرئيسي", variant: "destructive" }); return; }
+      if (!qty || qty <= 0) { toast({ title: "أدخل كمية صحيحة للمجاني", variant: "destructive" }); return; }
+      if (!lineCustomerName.trim()) { toast({ title: "أدخل اسم العميل", variant: "destructive" }); return; }
+      if (!lineBonusReason.trim()) { toast({ title: "اختر سبب المجاني", variant: "destructive" }); return; }
     } else {
       if (lineType === "issue") {
         if (!lineInventoryItemId) { toast({ title: "اختر المنتج من أصناف المخزن الرئيسي", variant: "destructive" }); return; }
@@ -607,7 +615,7 @@ export default function MainWarehouseTreasuryTab() {
     setBusy(true);
     try {
       let selectedIssueItem: WarehouseStockItem | null = null;
-      if (lineType === "issue") {
+      if (lineType === "issue" || lineType === "bonus") {
         if (!mainWarehouse?.id) throw new Error("تعذّر تحديد المخزن الرئيسي");
         const { data: dbItem, error: dbItemErr } = await (supabase as any)
           .from("inventory_items")
@@ -626,25 +634,52 @@ export default function MainWarehouseTreasuryTab() {
         selectedIssueItem = dbItem as WarehouseStockItem;
       }
 
+      // Bonus: compute cost value & approval status based on % of sales for this custody
+      let bonusStatus: "auto_approved" | "pending_executive" | "pending_general" = "auto_approved";
+      let bonusUnitCost = 0;
+      if (lineType === "bonus") {
+        bonusUnitCost = Number((selectedIssueItem as any)?.unit_cost || 0);
+        const bonusValueNew = qty * bonusUnitCost;
+        const sum = custodySummary.find((s) => s.id === lineCustodyId);
+        const salesBase = Number(sum?.salesValue || 0);
+        const existingBonus = Number((sum as any)?.bonusValue || 0);
+        const pct = salesBase > 0 ? ((existingBonus + bonusValueNew) / salesBase) * 100 : 100;
+        if (pct <= 3) bonusStatus = "auto_approved";
+        else if (pct <= 5) bonusStatus = "pending_executive";
+        else bonusStatus = "pending_general";
+      }
+
       // For sale: total_value = qty * actual sale price. For issue/return: qty * price.
       const totalValue =
         lineType === "sale" ? qty * salePrice :
         lineType === "cash_collect" ? null :
+        lineType === "bonus" ? qty * bonusUnitCost :
         qty * price;
 
       const insertPayload: any = {
         custody_id: lineCustodyId,
         line_type: lineType,
         product_name: lineType === "cash_collect" ? null : (selectedIssueItem?.name || lineProduct.trim()),
-        inventory_item_id: lineType === "issue" ? lineInventoryItemId : null,
+        inventory_item_id: (lineType === "issue" || lineType === "bonus") ? lineInventoryItemId : null,
         quantity: lineType === "cash_collect" ? null : qty,
         unit: lineType === "cash_collect" ? null : (selectedIssueItem?.unit || lineUnit),
-        unit_price: lineType === "sale" ? salePrice : (lineType === "cash_collect" ? null : (price || null)),
+        unit_price: lineType === "sale" ? salePrice : (lineType === "cash_collect" ? null : (lineType === "bonus" ? bonusUnitCost : (price || null))),
         total_value: totalValue,
         cash_collected: lineType === "cash_collect" ? cash : null,
         notes: lineNotes.trim() || null,
         performed_by: user?.id,
       };
+
+      if (lineType === "bonus") {
+        insertPayload.customer_name = lineCustomerName.trim();
+        insertPayload.bonus_reason = lineBonusReason;
+        insertPayload.bonus_status = bonusStatus === "auto_approved" ? "auto_approved" : "pending";
+        if (bonusStatus === "auto_approved") {
+          insertPayload.bonus_approved_by = user?.id;
+          insertPayload.bonus_approved_at = new Date().toISOString();
+        }
+      }
+
 
       if (lineType === "sale") {
         insertPayload.original_price = price;
@@ -700,9 +735,31 @@ export default function MainWarehouseTreasuryTab() {
         } catch {}
       }
 
+      // notify approvers if pending bonus
+      if (lineType === "bonus" && insertPayload.bonus_status === "pending") {
+        try {
+          const roles = bonusStatus === "pending_executive" ? ["executive_manager", "general_manager"] : ["general_manager"];
+          const { data: approvers } = await (supabase as any)
+            .from("user_roles").select("user_id").in("role", roles);
+          const ids = Array.from(new Set((approvers || []).map((a: any) => a.user_id))) as string[];
+          if (ids.length) {
+            await (supabase as any).from("notifications").insert(
+              ids.map((uid) => ({
+                user_id: uid, type: "courier_bonus_pending", read: false,
+                title: "مجاني مندوب بانتظار الاعتماد",
+                message: `مجاني ${qty} ${selectedIssueItem?.unit || ""} — ${selectedIssueItem?.name || ""} للعميل ${lineCustomerName.trim()}`,
+              }))
+            );
+          }
+        } catch {}
+      }
+
       toast({
         title: "تم التسجيل",
-        description: discountStatus === "pending" ? "الخصم بانتظار اعتماد المدير العام/التنفيذي" : undefined,
+        description:
+          lineType === "bonus" && bonusStatus !== "auto_approved"
+            ? (bonusStatus === "pending_executive" ? "المجاني بانتظار اعتماد المدير التنفيذي" : "المجاني بانتظار اعتماد المدير العام")
+            : (discountStatus === "pending" ? "الخصم بانتظار اعتماد المدير العام/التنفيذي" : undefined),
       });
       setLineOpen(false);
       await fetchCustodies();
@@ -732,6 +789,39 @@ export default function MainWarehouseTreasuryTab() {
       const { error } = await (supabase as any).rpc("reject_courier_discount", { _line_id: lineId, _reason: reason });
       if (error) throw error;
       toast({ title: "تم رفض الخصم" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الرفض", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  const approveBonus = async (lineId: string) => {
+    if (!(isGeneralManager || isExecutiveManager)) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("courier_goods_custody_lines")
+        .update({ bonus_status: "approved", bonus_approved_by: user?.id, bonus_approved_at: new Date().toISOString() })
+        .eq("id", lineId);
+      if (error) throw error;
+      toast({ title: "تم اعتماد المجاني" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الاعتماد", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+  const rejectBonus = async (lineId: string) => {
+    if (!(isGeneralManager || isExecutiveManager)) return;
+    const reason = window.prompt("سبب الرفض:", "") || "";
+    if (!reason.trim()) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("courier_goods_custody_lines")
+        .update({ bonus_status: "rejected", notes: `[رفض: ${reason}]` })
+        .eq("id", lineId);
+      if (error) throw error;
+      toast({ title: "تم رفض المجاني" });
       await fetchCustodies();
     } catch (e: any) {
       toast({ title: "تعذّر الرفض", description: e?.message || "", variant: "destructive" });
@@ -881,22 +971,23 @@ export default function MainWarehouseTreasuryTab() {
   }, [stmtCustody, stmtFrom, stmtTo]);
 
   const stmtTotals = useMemo(() => {
-    let issue = 0, ret = 0, sale = 0, disc = 0, cash = 0;
+    let issue = 0, ret = 0, sale = 0, disc = 0, cash = 0, bonus = 0;
     stmtRows.forEach((l: any) => {
       const tv = Number(l.total_value || 0);
       if (l.line_type === "issue") issue += tv;
       else if (l.line_type === "return") ret += tv;
       else if (l.line_type === "sale") { sale += tv; disc += Number(l.discount_amount || 0); }
+      else if (l.line_type === "bonus") { if (l.bonus_status !== "rejected") bonus += tv; }
       else if (l.line_type === "cash_collect") cash += Number(l.cash_collected || 0);
     });
-    return { issue, ret, sale, disc, cash, remainingGoods: issue - ret - sale, remainingCash: sale - cash };
+    return { issue, ret, sale, disc, cash, bonus, remainingGoods: issue - ret - sale - bonus, remainingCash: sale - cash };
   }, [stmtRows]);
 
   const exportStatementExcel = () => {
     if (!stmtCustody) return;
     const data = stmtRows.map((l: any) => ({
       "التاريخ": fmtDate(l.performed_at),
-      "النوع": l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : "تحصيل نقدية",
+      "النوع": l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : l.line_type === "bonus" ? "مجاني/بونص" : "تحصيل نقدية",
       "الصنف": l.product_name || "",
       "الكمية": Number(l.quantity || 0),
       "الوحدة": l.unit || "",
@@ -918,7 +1009,7 @@ export default function MainWarehouseTreasuryTab() {
     const rowsHtml = stmtRows.map((l: any) => `
       <tr>
         <td>${escapeHtml(fmtDate(l.performed_at))}</td>
-        <td>${l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : "تحصيل نقدية"}</td>
+        <td>${l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : l.line_type === "bonus" ? "مجاني/بونص" : "تحصيل نقدية"}</td>
         <td>${escapeHtml(l.product_name || "—")}</td>
         <td class="num">${fmtNum(Number(l.quantity || 0), 2)}</td>
         <td class="num">${fmtNum(Number(l.unit_price || 0), 2)}</td>
@@ -949,6 +1040,7 @@ export default function MainWarehouseTreasuryTab() {
           <tr><td colspan="6">إجمالي المرتجعات</td><td class="num"><b>${fmtNum(stmtTotals.ret, 2)}</b></td><td></td></tr>
           <tr><td colspan="6">إجمالي المبيعات</td><td class="num"><b>${fmtNum(stmtTotals.sale, 2)}</b></td><td></td></tr>
           <tr><td colspan="6">إجمالي الخصومات</td><td class="num"><b>${fmtNum(stmtTotals.disc, 2)}</b></td><td></td></tr>
+          <tr><td colspan="6">إجمالي المجانيات / البونصات</td><td class="num"><b>${fmtNum(stmtTotals.bonus, 2)}</b></td><td></td></tr>
           <tr><td colspan="6">إجمالي النقدية الموردة</td><td class="num"><b>${fmtNum(stmtTotals.cash, 2)}</b></td><td></td></tr>
           <tr><td colspan="6"><b>المتبقي بضاعة مع المندوب</b></td><td class="num"><b>${fmtNum(stmtTotals.remainingGoods, 2)}</b></td><td></td></tr>
           <tr><td colspan="6"><b>المتبقي نقدية على المندوب</b></td><td class="num"><b>${fmtNum(stmtTotals.remainingCash, 2)}</b></td><td></td></tr>
@@ -959,6 +1051,7 @@ export default function MainWarehouseTreasuryTab() {
   };
 
   const DISCOUNT_REASONS = ["عميل جملة", "تصفية صنف", "قرب انتهاء", "عرض خاص", "أخرى"];
+  const BONUS_REASONS = ["عرض ترويجي", "بونص على كمية", "تعويض عميل", "تشجيع عميل جديد", "موافقة مدير", "أخرى"];
 
 
 
@@ -982,7 +1075,7 @@ export default function MainWarehouseTreasuryTab() {
   const custodySummary = useMemo(() => {
     return custodies.map((c) => {
       const lines = custodyLines.filter((l) => l.custody_id === c.id);
-      let goodsOutValue = 0, goodsReturnedValue = 0, salesValue = 0, cashCollected = 0, discountsValue = 0;
+      let goodsOutValue = 0, goodsReturnedValue = 0, salesValue = 0, cashCollected = 0, discountsValue = 0, bonusValue = 0;
       let salesQtyKg = 0, salesItems = 0;
       lines.forEach((l) => {
         const tv = Number(l.total_value || 0);
@@ -997,9 +1090,12 @@ export default function MainWarehouseTreasuryTab() {
             salesItems += 1;
           }
         }
+        else if (l.line_type === "bonus") {
+          if (l.bonus_status !== "rejected") bonusValue += tv;
+        }
         else if (l.line_type === "cash_collect") cashCollected += Number(l.cash_collected || 0);
       });
-      const remainingGoods = goodsOutValue - goodsReturnedValue - salesValue;
+      const remainingGoods = goodsOutValue - goodsReturnedValue - salesValue - bonusValue;
       const remainingCash = salesValue - cashCollected;
 
       const profile = profiles.find((p) => p.courier_name === c.courier_name);
@@ -1016,9 +1112,10 @@ export default function MainWarehouseTreasuryTab() {
       const creditLimit = profile?.credit_limit ? Number(profile.credit_limit) : null;
       const creditUsedPct = creditLimit ? Math.min(100, (remainingGoods / creditLimit) * 100) : null;
       const creditAvailable = creditLimit != null ? Math.max(0, creditLimit - remainingGoods) : null;
+      const bonusPct = salesValue > 0 ? (bonusValue / salesValue) * 100 : 0;
 
       return {
-        ...c, lines, goodsOutValue, goodsReturnedValue, salesValue, discountsValue, cashCollected,
+        ...c, lines, goodsOutValue, goodsReturnedValue, salesValue, discountsValue, bonusValue, bonusPct, cashCollected,
         remainingGoods, remainingCash, profile, paidCommission, dueCommission, remainingCommission,
         closures: myClosures, lastClosure, creditLimit, creditUsedPct, creditAvailable,
       };
@@ -1304,7 +1401,8 @@ export default function MainWarehouseTreasuryTab() {
               returns: a.returns + c.goodsReturnedValue,
               collected: a.collected + c.cashCollected,
               discounts: a.discounts + (c.discountsValue || 0),
-            }), { goods: 0, cash: 0, sales: 0, returns: 0, collected: 0, discounts: 0 });
+              bonuses: a.bonuses + (c.bonusValue || 0),
+            }), { goods: 0, cash: 0, sales: 0, returns: 0, collected: 0, discounts: 0, bonuses: 0 });
             const topBy = (key: string) => {
               const sorted = [...custodySummary].sort((a: any, b: any) => Number(b[key] || 0) - Number(a[key] || 0));
               return sorted[0];
@@ -1312,22 +1410,35 @@ export default function MainWarehouseTreasuryTab() {
             const topSales = topBy("salesValue");
             const topDisc = topBy("discountsValue");
             const topCash = topBy("cashCollected");
+            const topBonus = topBy("bonusValue");
             const topDef = [...custodySummary].sort((a, b) => b.remainingCash - a.remainingCash)[0];
+            // Top customer bonuses
+            const customerBonus: Record<string, number> = {};
+            custodySummary.forEach((c: any) => (c.lines || []).forEach((l: any) => {
+              if (l.line_type === "bonus" && l.bonus_status !== "rejected") {
+                const k = l.customer_name || "—";
+                customerBonus[k] = (customerBonus[k] || 0) + Number(l.total_value || 0);
+              }
+            }));
+            const topCustomerBonus = Object.entries(customerBonus).sort((a, b) => b[1] - a[1])[0];
+            const bonusPct = tot.sales > 0 ? (tot.bonuses / tot.sales) * 100 : 0;
             return (
               <div className="border rounded-lg p-3 bg-gradient-to-br from-slate-50 to-white space-y-2">
                 <div className="text-xs font-semibold text-slate-700">لوحة المندوبين</div>
-                <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+                <div className="grid grid-cols-2 md:grid-cols-7 gap-2 text-xs">
                   <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">إجمالي البضاعة لدى المندوبين</div><div className="font-bold font-mono">{fmt(tot.goods)}</div></div>
                   <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">إجمالي المبيعات</div><div className="font-bold font-mono text-emerald-700">{fmt(tot.sales)}</div></div>
                   <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">إجمالي المرتجعات</div><div className="font-bold font-mono">{fmt(tot.returns)}</div></div>
                   <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">إجمالي التحصيلات</div><div className="font-bold font-mono text-sky-700">{fmt(tot.collected)}</div></div>
                   <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">إجمالي الخصومات</div><div className="font-bold font-mono text-rose-700">{fmt(tot.discounts)}</div></div>
+                  <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">🎁 إجمالي المجانيات</div><div className="font-bold font-mono text-fuchsia-700">{fmt(tot.bonuses)} <span className="text-[10px] text-muted-foreground">({bonusPct.toFixed(1)}%)</span></div></div>
                   <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">المتبقي نقدية</div><div className="font-bold font-mono text-amber-700">{fmt(tot.cash)}</div></div>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
                   <div className="rounded p-2 bg-emerald-50 border border-emerald-200"><div className="text-muted-foreground">أعلى مبيعات</div><div className="font-bold">{topSales?.courier_name || "—"} • {fmt(topSales?.salesValue || 0)}</div></div>
                   <div className="rounded p-2 bg-rose-50 border border-rose-200"><div className="text-muted-foreground">أعلى خصومات</div><div className="font-bold">{topDisc?.courier_name || "—"} • {fmt(topDisc?.discountsValue || 0)}</div></div>
                   <div className="rounded p-2 bg-sky-50 border border-sky-200"><div className="text-muted-foreground">أعلى تحصيل</div><div className="font-bold">{topCash?.courier_name || "—"} • {fmt(topCash?.cashCollected || 0)}</div></div>
+                  <div className="rounded p-2 bg-fuchsia-50 border border-fuchsia-200"><div className="text-muted-foreground">🎁 أعلى مجانيات</div><div className="font-bold">{topBonus?.courier_name || "—"} • {fmt(topBonus?.bonusValue || 0)}</div><div className="text-[10px] text-muted-foreground">أعلى عميل: {topCustomerBonus?.[0] || "—"} ({fmt(topCustomerBonus?.[1] || 0)})</div></div>
                   <div className="rounded p-2 bg-amber-50 border border-amber-200"><div className="text-muted-foreground">أعلى عجز/متبقي</div><div className="font-bold">{topDef?.courier_name || "—"} • {fmt(topDef?.remainingCash || 0)}</div></div>
                 </div>
               </div>
@@ -1350,10 +1461,11 @@ export default function MainWarehouseTreasuryTab() {
                 </div>
                 {c.status === "open" && canRecord && (
                   <div className="flex flex-wrap gap-1">
-                    <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "issue")}>صرف بضاعة</Button>
-                    <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "return")}>استرجاع</Button>
-                    <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "sale")}>تسجيل بيع</Button>
-                    <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "cash_collect")}>تحصيل نقدية</Button>
+                   <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "issue")}>صرف بضاعة</Button>
+                   <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "return")}>استرجاع</Button>
+                   <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "sale")}>تسجيل بيع</Button>
+                   <Button size="sm" variant="outline" className="h-7 border-fuchsia-300 text-fuchsia-700 hover:bg-fuchsia-50" onClick={() => openLineDialog(c.id, "bonus")}>🎁 مجاني / بونص</Button>
+                   <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "cash_collect")}>تحصيل نقدية</Button>
                     <Button size="sm" variant="outline" className="h-7" onClick={() => openStatement(c)}>كشف حساب</Button>
                     {(isGeneralManager || isExecutiveManager || canRecord) && (
                       <Button size="sm" variant="outline" className="h-7" onClick={() => closeDay(c.id)}>إغلاق اليوم</Button>
@@ -1385,11 +1497,12 @@ export default function MainWarehouseTreasuryTab() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
                 <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمة المصروف</div><div className="font-bold font-mono">{fmt(c.goodsOutValue)}</div></div>
                 <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمة المرتجع</div><div className="font-bold font-mono">{fmt(c.goodsReturnedValue)}</div></div>
                 <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمة المبيعات</div><div className="font-bold font-mono text-emerald-700">{fmt(c.salesValue)}</div></div>
                 <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">نقدية محصّلة</div><div className="font-bold font-mono text-sky-700">{fmt(c.cashCollected)}</div></div>
+                <div className="bg-fuchsia-50 rounded p-2 border border-fuchsia-100"><div className="text-muted-foreground">🎁 مجانيات</div><div className="font-bold font-mono text-fuchsia-700">{fmt(c.bonusValue || 0)} <span className="text-[10px]">({(c.bonusPct || 0).toFixed(1)}%)</span></div></div>
                 <div className={`rounded p-2 ${Math.abs(c.remainingCash) < 0.01 && Math.abs(c.remainingGoods) < 0.01 ? "bg-emerald-50" : "bg-amber-50"}`}>
                   <div className="text-muted-foreground">المتبقي (بضائع / نقدية)</div>
                   <div className="font-bold font-mono">{fmt(c.remainingGoods)} / {fmt(c.remainingCash)}</div>
@@ -1513,6 +1626,37 @@ export default function MainWarehouseTreasuryTab() {
                 );
               })()}
 
+              {/* Pending bonus approvals banner */}
+              {(() => {
+                const pendingB = c.lines.filter((l: any) => l.line_type === "bonus" && l.bonus_status === "pending");
+                if (pendingB.length === 0) return null;
+                return (
+                  <div className="border border-fuchsia-300 bg-fuchsia-50 rounded p-2 space-y-1">
+                    <div className="text-xs font-semibold text-fuchsia-800">🎁 مجانيات بانتظار الاعتماد ({pendingB.length})</div>
+                    {pendingB.map((l: any) => (
+                      <div key={l.id} className="flex flex-wrap items-center justify-between gap-2 text-xs bg-background rounded p-2 border">
+                        <div>
+                          <b>{l.product_name}</b> — كمية {l.quantity} {l.unit} • قيمة <b className="text-fuchsia-700">{fmt(Number(l.total_value || 0))}</b>
+                          {l.customer_name ? <> • عميل: <b>{l.customer_name}</b></> : null}
+                          {l.bonus_reason ? <> • السبب: {l.bonus_reason}</> : null}
+                        </div>
+                        {(isGeneralManager || isExecutiveManager) && (
+                          <div className="flex gap-1">
+                            <Button size="sm" className="h-7 px-2 bg-emerald-600 hover:bg-emerald-700" onClick={() => approveBonus(l.id)}>
+                              <CheckCircle2 className="w-3 h-3" />
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-rose-600 border-rose-300" onClick={() => rejectBonus(l.id)}>
+                              <XCircle className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+
               {c.lines.length > 0 && (
                 <details className="text-xs">
                   <summary className="cursor-pointer text-muted-foreground">عرض الحركات ({c.lines.length})</summary>
@@ -1535,12 +1679,19 @@ export default function MainWarehouseTreasuryTab() {
                       </thead>
                       <tbody>
                         {c.lines.map((l: any) => (
-                          <tr key={l.id} className="border-t">
+                          <tr key={l.id} className={`border-t ${l.line_type === "bonus" ? "bg-fuchsia-50/40" : ""}`}>
                             <td className="p-1 whitespace-nowrap">{fmtDate(l.performed_at)}</td>
                             <td className="p-1">
-                              {l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "استرجاع" : l.line_type === "sale" ? "بيع" : "تحصيل نقدية"}
+                              {l.line_type === "issue" ? "صرف" :
+                               l.line_type === "return" ? "استرجاع" :
+                               l.line_type === "sale" ? "بيع" :
+                               l.line_type === "bonus" ? <span className="text-fuchsia-700">🎁 مجاني</span> :
+                               "تحصيل نقدية"}
                             </td>
-                            <td className="p-1">{l.product_name || "—"}</td>
+                            <td className="p-1">
+                              {l.product_name || "—"}
+                              {l.line_type === "bonus" && l.customer_name ? <div className="text-[10px] text-muted-foreground">عميل: {l.customer_name}</div> : null}
+                            </td>
                             <td className="p-1 font-mono">{l.quantity ? `${l.quantity} ${l.unit || ""}` : "—"}</td>
                             <td className="p-1 font-mono">{l.original_price ? fmt(Number(l.original_price)) : (l.line_type === "sale" ? "—" : (l.unit_price ? fmt(Number(l.unit_price)) : "—"))}</td>
                             <td className="p-1 font-mono">{l.line_type === "sale" && l.unit_price ? fmt(Number(l.unit_price)) : "—"}</td>
@@ -1550,12 +1701,20 @@ export default function MainWarehouseTreasuryTab() {
                             <td className="p-1 font-mono">{l.total_value ? fmt(Number(l.total_value)) : "—"}</td>
                             <td className="p-1 font-mono">{l.cash_collected ? fmt(Number(l.cash_collected)) : "—"}</td>
                             <td className="p-1">
-                              {l.line_type !== "sale" || !l.discount_status || l.discount_status === "none" ? "—" :
+                              {l.line_type === "bonus" ? (
+                                <>
+                                  {l.bonus_status === "auto_approved" ? <Badge variant="outline" className="bg-emerald-100 text-emerald-700">تلقائي</Badge> :
+                                   l.bonus_status === "approved" ? <Badge variant="outline" className="bg-emerald-100 text-emerald-700">معتمد</Badge> :
+                                   l.bonus_status === "rejected" ? <Badge variant="outline" className="bg-rose-100 text-rose-700">مرفوض</Badge> :
+                                   <Badge variant="outline" className="bg-amber-100 text-amber-700">بانتظار اعتماد</Badge>}
+                                  {l.bonus_reason ? <div className="text-[10px] text-muted-foreground">{l.bonus_reason}</div> : null}
+                                </>
+                              ) : l.line_type !== "sale" || !l.discount_status || l.discount_status === "none" ? "—" :
                                l.discount_status === "auto_approved" ? <Badge variant="outline" className="bg-emerald-100 text-emerald-700">تلقائي</Badge> :
                                l.discount_status === "approved" ? <Badge variant="outline" className="bg-emerald-100 text-emerald-700">معتمد</Badge> :
                                l.discount_status === "rejected" ? <Badge variant="outline" className="bg-rose-100 text-rose-700">مرفوض</Badge> :
                                <Badge variant="outline" className="bg-amber-100 text-amber-700">بانتظار اعتماد</Badge>}
-                              {l.discount_reason ? <div className="text-[10px] text-muted-foreground">{l.discount_reason}</div> : null}
+                              {l.line_type === "sale" && l.discount_reason ? <div className="text-[10px] text-muted-foreground">{l.discount_reason}</div> : null}
                             </td>
                             <td className="p-1 text-muted-foreground">{l.notes || "—"}</td>
                           </tr>
@@ -1570,6 +1729,73 @@ export default function MainWarehouseTreasuryTab() {
           ))}
         </CardContent>
       </Card>
+
+      {/* Bonus / Free items report */}
+      {(() => {
+        const bonusLines: any[] = [];
+        custodySummary.forEach((c: any) => (c.lines || []).forEach((l: any) => {
+          if (l.line_type === "bonus") bonusLines.push({ ...l, courier_name: c.courier_name });
+        }));
+        if (bonusLines.length === 0) return null;
+        const totalQty = bonusLines.reduce((s, l) => s + Number(l.quantity || 0), 0);
+        const totalVal = bonusLines.filter((l) => l.bonus_status !== "rejected").reduce((s, l) => s + Number(l.total_value || 0), 0);
+        return (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                🎁 تقرير المجانيات / البونصات
+                <Badge variant="outline" className="bg-fuchsia-50 text-fuchsia-700">{bonusLines.length} حركة</Badge>
+                <Badge variant="outline" className="bg-fuchsia-100 text-fuchsia-800">قيمة: {fmt(totalVal)} ج.م</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead className="bg-muted/40">
+                    <tr>
+                      <th className="p-2">التاريخ</th>
+                      <th className="p-2">المندوب</th>
+                      <th className="p-2">العميل</th>
+                      <th className="p-2">الصنف</th>
+                      <th className="p-2">الكمية</th>
+                      <th className="p-2">قيمة التكلفة</th>
+                      <th className="p-2">السبب</th>
+                      <th className="p-2">الحالة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bonusLines.map((l) => (
+                      <tr key={l.id} className="border-t">
+                        <td className="p-2 whitespace-nowrap">{fmtDate(l.performed_at)}</td>
+                        <td className="p-2 font-semibold text-sky-700">{l.courier_name}</td>
+                        <td className="p-2">{l.customer_name || "—"}</td>
+                        <td className="p-2">{l.product_name || "—"}</td>
+                        <td className="p-2 font-mono">{l.quantity} {l.unit || ""}</td>
+                        <td className="p-2 font-mono text-fuchsia-700">{fmt(Number(l.total_value || 0))}</td>
+                        <td className="p-2">{l.bonus_reason || "—"}</td>
+                        <td className="p-2">
+                          {l.bonus_status === "auto_approved" ? <Badge variant="outline" className="bg-emerald-100 text-emerald-700">تلقائي</Badge> :
+                           l.bonus_status === "approved" ? <Badge variant="outline" className="bg-emerald-100 text-emerald-700">معتمد</Badge> :
+                           l.bonus_status === "rejected" ? <Badge variant="outline" className="bg-rose-100 text-rose-700">مرفوض</Badge> :
+                           <Badge variant="outline" className="bg-amber-100 text-amber-700">بانتظار اعتماد</Badge>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-muted/30 font-semibold">
+                    <tr>
+                      <td className="p-2" colSpan={4}>الإجمالي</td>
+                      <td className="p-2 font-mono">{fmt(totalQty)}</td>
+                      <td className="p-2 font-mono text-fuchsia-700">{fmt(totalVal)}</td>
+                      <td className="p-2" colSpan={2}></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Movements table */}
 
@@ -1766,16 +1992,20 @@ export default function MainWarehouseTreasuryTab() {
             <DialogTitle>
               {lineType === "issue" ? "صرف بضاعة للمندوب" :
                lineType === "return" ? "استرجاع بضاعة من المندوب" :
-               lineType === "sale" ? "تسجيل بيع من بضاعة العهدة" : "تحصيل نقدية من المندوب"}
+               lineType === "sale" ? "تسجيل بيع من بضاعة العهدة" :
+               lineType === "bonus" ? "🎁 مجاني / بونص عميل" :
+               "تحصيل نقدية من المندوب"}
             </DialogTitle>
             <DialogDescription>
-              {lineType === "cash_collect" ? "سيتم إضافة المبلغ تلقائيًا كتوريد نقدية بخزينة المخزن الرئيسي." : "تُسجَّل الحركة على عهدة المندوب لحساب المتبقي والعجز/الزيادة."}
+              {lineType === "cash_collect" ? "سيتم إضافة المبلغ تلقائيًا كتوريد نقدية بخزينة المخزن الرئيسي." :
+               lineType === "bonus" ? "لا تُسجَّل كبيع بسعر صفر، ولا تُضاف نقدية. تُخصم من عهدة المندوب وتظهر في تقرير المجانيات." :
+               "تُسجَّل الحركة على عهدة المندوب لحساب المتبقي والعجز/الزيادة."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             {lineType !== "cash_collect" && (
               <>
-                {lineType === "issue" ? (
+                {(lineType === "issue" || lineType === "bonus") ? (
                   <div>
                     <Label>المنتج من المخزن الرئيسي</Label>
                     <Select
@@ -1799,9 +2029,6 @@ export default function MainWarehouseTreasuryTab() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <div className="mt-1 text-[11px] text-muted-foreground">
-                      نفس مصدر القائمة والتحقق: inventory_items للمخزن الرئيسي + active فقط، بدون شرط product_id.
-                    </div>
                   </div>
                 ) : (
                   <div><Label>المنتج</Label><Input value={lineProduct} onChange={(e) => setLineProduct(e.target.value)} placeholder="مثال: سجق نعام" /></div>
@@ -1809,8 +2036,44 @@ export default function MainWarehouseTreasuryTab() {
                 <div className="grid grid-cols-3 gap-2">
                   <div><Label>الكمية</Label><Input type="number" min="0" step="0.001" value={lineQty} onChange={(e) => setLineQty(e.target.value)} /></div>
                   <div><Label>الوحدة</Label><Input value={lineUnit} onChange={(e) => setLineUnit(e.target.value)} /></div>
-                  <div><Label>{lineType === "sale" ? "السعر الأصلي" : "سعر الوحدة"}</Label><Input type="number" min="0" step="0.01" value={linePrice} onChange={(e) => setLinePrice(e.target.value)} /></div>
+                  <div><Label>{lineType === "sale" ? "السعر الأصلي" : lineType === "bonus" ? "تكلفة الوحدة" : "سعر الوحدة"}</Label><Input type="number" min="0" step="0.01" value={linePrice} onChange={(e) => setLinePrice(e.target.value)} /></div>
                 </div>
+                {lineType === "bonus" && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><Label>العميل</Label><Input value={lineCustomerName} onChange={(e) => setLineCustomerName(e.target.value)} placeholder="اسم العميل" /></div>
+                      <div>
+                        <Label>سبب المجاني</Label>
+                        <Select value={lineBonusReason} onValueChange={setLineBonusReason}>
+                          <SelectTrigger><SelectValue placeholder="اختر السبب" /></SelectTrigger>
+                          <SelectContent>
+                            {BONUS_REASONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    {(() => {
+                      const q = Number(lineQty || 0), p = Number(linePrice || 0);
+                      const bv = q * p;
+                      const sum = custodySummary.find((s) => s.id === lineCustodyId);
+                      const salesBase = Number(sum?.salesValue || 0);
+                      const existing = Number((sum as any)?.bonusValue || 0);
+                      const pct = salesBase > 0 ? ((existing + bv) / salesBase) * 100 : 100;
+                      const status = pct <= 3 ? "auto" : pct <= 5 ? "executive" : "general";
+                      return (
+                        <div className={`text-xs rounded p-2 border ${status === "auto" ? "bg-emerald-50 border-emerald-200" : status === "executive" ? "bg-amber-50 border-amber-300" : "bg-rose-50 border-rose-300"}`}>
+                          <div>قيمة المجاني (تكلفة): <b className="font-mono">{fmt(bv)}</b> ج.م</div>
+                          <div>إجمالي المجانيات / المبيعات بعد الإضافة: <b>{pct.toFixed(2)}%</b></div>
+                          <div className="font-semibold mt-1">
+                            {status === "auto" ? "✓ اعتماد تلقائي (حتى 3%)" :
+                             status === "executive" ? "⚠️ يتطلب اعتماد المدير التنفيذي (> 3% وحتى 5%)" :
+                             "⛔ يتطلب اعتماد المدير العام (> 5%)"}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
                 {lineType === "sale" && (
                   <>
                     <div><Label>سعر البيع الفعلي للوحدة</Label><Input type="number" min="0" step="0.01" value={lineSalePrice} onChange={(e) => setLineSalePrice(e.target.value)} /></div>
@@ -1963,6 +2226,7 @@ export default function MainWarehouseTreasuryTab() {
               <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">مرتجع</div><div className="font-bold font-mono">{fmt(stmtTotals.ret)}</div></div>
               <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">مبيعات</div><div className="font-bold font-mono text-emerald-700">{fmt(stmtTotals.sale)}</div></div>
               <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">خصومات</div><div className="font-bold font-mono text-rose-700">{fmt(stmtTotals.disc)}</div></div>
+              <div className="bg-fuchsia-50 rounded p-2"><div className="text-muted-foreground">🎁 مجانيات</div><div className="font-bold font-mono text-fuchsia-700">{fmt(stmtTotals.bonus)}</div></div>
               <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">نقدية</div><div className="font-bold font-mono text-sky-700">{fmt(stmtTotals.cash)}</div></div>
               <div className="bg-amber-50 rounded p-2"><div className="text-muted-foreground">متبقي بضاعة</div><div className="font-bold font-mono">{fmt(stmtTotals.remainingGoods)}</div></div>
               <div className="bg-amber-50 rounded p-2"><div className="text-muted-foreground">متبقي نقدية</div><div className="font-bold font-mono">{fmt(stmtTotals.remainingCash)}</div></div>
@@ -1982,7 +2246,7 @@ export default function MainWarehouseTreasuryTab() {
                   ) : stmtRows.map((l: any) => (
                     <tr key={l.id} className="border-t">
                       <td className="p-1 whitespace-nowrap">{fmtDate(l.performed_at)}</td>
-                      <td className="p-1">{l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : "تحصيل"}</td>
+                      <td className="p-1">{l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : l.line_type === "bonus" ? "🎁 مجاني" : "تحصيل"}</td>
                       <td className="p-1">{l.product_name || "—"}</td>
                       <td className="p-1 font-mono">{l.quantity ? `${l.quantity} ${l.unit || ""}` : "—"}</td>
                       <td className="p-1 font-mono">{l.unit_price ? fmt(Number(l.unit_price)) : "—"}</td>
