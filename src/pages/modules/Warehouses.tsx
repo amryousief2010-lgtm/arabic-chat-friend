@@ -33,7 +33,7 @@ import WarehouseOpeningBalance from "@/pages/modules/WarehouseOpeningBalance";
 import WarehouseOperationalDates from "@/pages/modules/WarehouseOperationalDates";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import WarehousesDashboardPanel from "@/components/warehouses/WarehousesDashboardPanel";
-import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, isAllowedWarehouseDropdownItem } from "@/lib/warehouseItemFilters";
+import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow, isAllowedWarehouseDropdownItem } from "@/lib/warehouseItemFilters";
 
 
 const qualityLabelText: Record<string, string> = {
@@ -700,25 +700,15 @@ const Warehouses = () => {
     ? warehouses.find((w) => w.id === editManualWarehouseId)
     : undefined;
   const isEditManualMainWarehouse = !!editManualWarehouse && isMainWarehouseName(editManualWarehouse.name);
-  const editManualVisibleProductIds = useMemo(() => {
-    if (!isEditManualMainWarehouse) return undefined;
-    const visible = new Set<string>();
-    items.forEach((item) => {
-      if (item.warehouse_id === editManualWarehouseId && item.product_id && !isMainWarehouseExcludedCategory((item as any).category)) {
-        visible.add(item.product_id);
-      }
-    });
-    return visible;
-  }, [items, editManualWarehouseId, isEditManualMainWarehouse]);
   const editManualDropdownItems = useMemo(
-    () => getAllowedWarehouseDropdownItems(items, editManualWarehouseId, isEditManualMainWarehouse, editManualVisibleProductIds),
-    [items, editManualWarehouseId, isEditManualMainWarehouse, editManualVisibleProductIds]
+    () => getAllowedWarehouseDropdownItems(items, editManualWarehouseId, isEditManualMainWarehouse),
+    [items, editManualWarehouseId, isEditManualMainWarehouse]
   );
 
   useEffect(() => {
     if (!import.meta.env.DEV || !editManualOpen) return;
-    console.table(editManualDropdownItems.map(getWarehouseItemDebugRow));
-  }, [editManualOpen, editManualDropdownItems]);
+    console.table(editManualDropdownItems.map((item) => getWarehouseItemDebugRow(item, editManualWarehouseId, editManualWarehouse?.name)));
+  }, [editManualOpen, editManualDropdownItems, editManualWarehouseId, editManualWarehouse?.name]);
 
   const lowStockItems = items.filter(i => i.stock <= i.low_stock_threshold);
   const pendingSlaughter = slaughterOutputs.filter(o => o.received_status !== 'received');
