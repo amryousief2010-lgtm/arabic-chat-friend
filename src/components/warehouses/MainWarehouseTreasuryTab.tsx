@@ -29,15 +29,19 @@ interface Txn {
   performed_by_name?: string;
   status: "posted" | "pending_approval" | "rejected";
   transfer_id: string | null;
+  courier_name?: string | null;
+  rejection_reason?: string | null;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
   direct_sale_cash: "تحصيل بيع مباشر",
+  courier_deposit: "توريد نقدية من مندوب",
   transfer_to_main_treasury: "تحويل للخزينة الرئيسية",
   manual_adjust: "تسوية يدوية",
   opening_balance: "رصيد افتتاحي",
   other: "أخرى",
 };
+
 
 const STATUS_LABELS: Record<string, { txt: string; cls: string; Icon: typeof CheckCircle2 }> = {
   posted: { txt: "مرحّل", cls: "bg-emerald-100 text-emerald-700", Icon: CheckCircle2 },
