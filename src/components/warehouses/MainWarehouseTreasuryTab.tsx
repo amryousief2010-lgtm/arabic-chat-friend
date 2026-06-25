@@ -29,15 +29,19 @@ interface Txn {
   performed_by_name?: string;
   status: "posted" | "pending_approval" | "rejected";
   transfer_id: string | null;
+  courier_name?: string | null;
+  rejection_reason?: string | null;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
   direct_sale_cash: "تحصيل بيع مباشر",
+  courier_deposit: "توريد نقدية من مندوب",
   transfer_to_main_treasury: "تحويل للخزينة الرئيسية",
   manual_adjust: "تسوية يدوية",
   opening_balance: "رصيد افتتاحي",
   other: "أخرى",
 };
+
 
 const STATUS_LABELS: Record<string, { txt: string; cls: string; Icon: typeof CheckCircle2 }> = {
   posted: { txt: "مرحّل", cls: "bg-emerald-100 text-emerald-700", Icon: CheckCircle2 },
@@ -70,11 +74,18 @@ export default function MainWarehouseTreasuryTab() {
   const [collectRef, setCollectRef] = useState("");
   const [collectNotes, setCollectNotes] = useState("");
 
+  const [courierOpen, setCourierOpen] = useState(false);
+  const [courierName, setCourierName] = useState("");
+  const [courierAmt, setCourierAmt] = useState("");
+  const [courierDate, setCourierDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [courierNotes, setCourierNotes] = useState("");
+
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferAmt, setTransferAmt] = useState("");
   const [transferNotes, setTransferNotes] = useState("");
 
   const [busy, setBusy] = useState(false);
+
 
   const fetchAll = async () => {
     setLoading(true);
@@ -169,6 +180,33 @@ export default function MainWarehouseTreasuryTab() {
     } finally { setBusy(false); }
   };
 
+  const submitCourier = async () => {
+    const amt = Number(courierAmt);
+    if (!courierName.trim()) { toast({ title: "أدخل اسم المندوب", variant: "destructive" }); return; }
+    if (!amt || amt <= 0) { toast({ title: "أدخل مبلغًا صحيحًا", variant: "destructive" }); return; }
+    setBusy(true);
+    try {
+      const performedAt = courierDate ? new Date(`${courierDate}T12:00:00`).toISOString() : new Date().toISOString();
+      const { error } = await (supabase as any).from("main_warehouse_treasury_txns").insert({
+        direction: "in",
+        category: "courier_deposit",
+        amount: amt,
+        courier_name: courierName.trim(),
+        notes: courierNotes.trim() || null,
+        performed_at: performedAt,
+        performed_by: user?.id,
+        status: "posted",
+      });
+      if (error) throw error;
+      toast({ title: "تم تسجيل التوريد", description: `+ ${fmt(amt)} ج.م من ${courierName.trim()}` });
+      setCourierOpen(false); setCourierName(""); setCourierAmt(""); setCourierNotes("");
+      setCourierDate(new Date().toISOString().slice(0, 10));
+      await fetchAll();
+    } catch (e: any) {
+      toast({ title: "تعذّر التسجيل", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
   const submitTransfer = async () => {
     const amt = Number(transferAmt);
     if (!amt || amt <= 0) {
@@ -219,13 +257,12 @@ export default function MainWarehouseTreasuryTab() {
 
   const approveTransfer = async (t: Txn) => {
     if (!canApprove) return;
-    if (!window.confirm(`اعتماد التحويل ${fmt(t.amount)} ج.م؟`)) return;
+    if (!window.confirm(`اعتماد التحويل ${fmt(t.amount)} ج.م؟ سيتم إضافة المبلغ للخزينة الرئيسية.`)) return;
     setBusy(true);
     try {
-      const { error } = await (supabase as any).from("main_warehouse_treasury_txns")
-        .update({ status: "posted" }).eq("id", t.id);
+      const { error } = await (supabase as any).rpc("approve_main_warehouse_transfer", { _txn_id: t.id });
       if (error) throw error;
-      toast({ title: "تم اعتماد التحويل" });
+      toast({ title: "تم اعتماد التحويل", description: "تمت إضافة المبلغ للخزينة الرئيسية" });
       await fetchAll();
     } catch (e: any) {
       toast({ title: "تعذّر الاعتماد", description: e?.message || "", variant: "destructive" });
@@ -234,13 +271,12 @@ export default function MainWarehouseTreasuryTab() {
 
   const rejectTransfer = async (t: Txn) => {
     if (!canApprove) return;
-    const reason = window.prompt("سبب الرفض (اختياري):", "") || "";
+    const reason = window.prompt("سبب الرفض:", "") || "";
+    if (!reason.trim()) { toast({ title: "أدخل سبب الرفض", variant: "destructive" }); return; }
     if (!window.confirm(`رفض التحويل ${fmt(t.amount)} ج.م؟`)) return;
     setBusy(true);
     try {
-      const newNotes = `${t.notes || ""}${reason ? `\nسبب الرفض: ${reason}` : ""}`.trim();
-      const { error } = await (supabase as any).from("main_warehouse_treasury_txns")
-        .update({ status: "rejected", notes: newNotes }).eq("id", t.id);
+      const { error } = await (supabase as any).rpc("reject_main_warehouse_transfer", { _txn_id: t.id, _reason: reason });
       if (error) throw error;
       toast({ title: "تم رفض التحويل" });
       await fetchAll();
@@ -248,6 +284,7 @@ export default function MainWarehouseTreasuryTab() {
       toast({ title: "تعذّر الرفض", description: e?.message || "", variant: "destructive" });
     } finally { setBusy(false); }
   };
+
 
   // === Export & Print ===
   const exportExcel = () => {
@@ -329,9 +366,13 @@ export default function MainWarehouseTreasuryTab() {
               <Button size="sm" onClick={() => setCollectOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
                 <Plus className="w-4 h-4 ml-1" /> تسجيل تحصيل
               </Button>
+              <Button size="sm" onClick={() => setCourierOpen(true)} className="bg-sky-600 hover:bg-sky-700">
+                <ArrowDownLeft className="w-4 h-4 ml-1" /> توريد نقدية من مندوب
+              </Button>
               <Button size="sm" onClick={() => setTransferOpen(true)} variant="outline">
                 <Send className="w-4 h-4 ml-1" /> تحويل للخزينة الرئيسية
               </Button>
+
             </>
           )}
           <Button size="sm" variant="outline" onClick={printAll}><Printer className="w-4 h-4 ml-1" /> طباعة</Button>
@@ -467,7 +508,13 @@ export default function MainWarehouseTreasuryTab() {
                       </td>
                       <td className="p-2 text-xs">{r.reference || "—"}</td>
                       <td className="p-2 text-xs">{r.performed_by_name || "—"}</td>
-                      <td className="p-2 text-xs text-muted-foreground max-w-[260px] truncate" title={r.notes || ""}>{r.notes || "—"}</td>
+                      <td className="p-2 text-xs text-muted-foreground max-w-[260px] truncate" title={[r.courier_name ? `المندوب: ${r.courier_name}` : "", r.notes || "", r.rejection_reason ? `سبب الرفض: ${r.rejection_reason}` : ""].filter(Boolean).join(" • ")}>
+                        {r.courier_name ? <span className="font-semibold text-sky-700">{r.courier_name}</span> : null}
+                        {r.courier_name && r.notes ? " • " : ""}
+                        {r.notes || (!r.courier_name ? "—" : "")}
+                        {r.rejection_reason ? <span className="text-rose-600"> • {r.rejection_reason}</span> : null}
+                      </td>
+
                       <td className="p-2">
                         <Badge variant="outline" className={`gap-1 ${st?.cls || ""}`}>
                           <StIcon className="w-3 h-3" /> {st?.txt || r.status}
@@ -500,6 +547,28 @@ export default function MainWarehouseTreasuryTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Courier deposit dialog */}
+      <Dialog open={courierOpen} onOpenChange={setCourierOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>توريد نقدية من مندوب</DialogTitle>
+            <DialogDescription>تسجيل مبلغ مستلم من مندوب (مثال: كيمو) داخل خزينة المخزن الرئيسي.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div><Label>اسم المندوب</Label><Input value={courierName} onChange={(e) => setCourierName(e.target.value)} placeholder="مثال: كيمو" /></div>
+            <div><Label>المبلغ (ج.م)</Label><Input type="number" min="0" step="0.01" value={courierAmt} onChange={(e) => setCourierAmt(e.target.value)} /></div>
+            <div><Label>التاريخ</Label><Input type="date" value={courierDate} onChange={(e) => setCourierDate(e.target.value)} /></div>
+            <div><Label>ملاحظات</Label><Textarea rows={2} value={courierNotes} onChange={(e) => setCourierNotes(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCourierOpen(false)}>إلغاء</Button>
+            <Button disabled={busy} onClick={submitCourier} className="bg-sky-600 hover:bg-sky-700">تسجيل التوريد</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
 
       {/* Transfer dialog */}
       <Dialog open={transferOpen} onOpenChange={setTransferOpen}>

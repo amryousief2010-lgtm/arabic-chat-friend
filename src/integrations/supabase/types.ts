@@ -8952,42 +8952,57 @@ export type Database = {
       main_warehouse_treasury_txns: {
         Row: {
           amount: number
+          approved_at: string | null
+          approved_by: string | null
           category: string
+          courier_name: string | null
           created_at: string
           direction: string
           id: string
+          main_treasury_txn_id: string | null
           notes: string | null
           performed_at: string
           performed_by: string | null
           reference: string | null
+          rejection_reason: string | null
           status: string
           transfer_id: string | null
           updated_at: string
         }
         Insert: {
           amount: number
+          approved_at?: string | null
+          approved_by?: string | null
           category: string
+          courier_name?: string | null
           created_at?: string
           direction: string
           id?: string
+          main_treasury_txn_id?: string | null
           notes?: string | null
           performed_at?: string
           performed_by?: string | null
           reference?: string | null
+          rejection_reason?: string | null
           status?: string
           transfer_id?: string | null
           updated_at?: string
         }
         Update: {
           amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
           category?: string
+          courier_name?: string | null
           created_at?: string
           direction?: string
           id?: string
+          main_treasury_txn_id?: string | null
           notes?: string | null
           performed_at?: string
           performed_by?: string | null
           reference?: string | null
+          rejection_reason?: string | null
           status?: string
           transfer_id?: string | null
           updated_at?: string
@@ -17326,6 +17341,10 @@ export type Database = {
         Args: { p_batch_id: string; p_note?: string; p_warehouse_id: string }
         Returns: Json
       }
+      approve_main_warehouse_transfer: {
+        Args: { _txn_id: string }
+        Returns: string
+      }
       approve_meat_batch_cost: {
         Args: { p_batch_id: string; p_notes?: string; p_warehouse_id: string }
         Returns: Json
@@ -18904,6 +18923,10 @@ export type Database = {
       reject_low_yield_transfer: {
         Args: { p_batch_id: string; p_reason: string }
         Returns: Json
+      }
+      reject_main_warehouse_transfer: {
+        Args: { _reason: string; _txn_id: string }
+        Returns: undefined
       }
       reject_meat_purchase: {
         Args: { p_purchase_id: string; p_reason?: string }
