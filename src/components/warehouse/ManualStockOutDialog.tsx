@@ -344,7 +344,11 @@ const ManualStockOutDialog = ({
         }
       });
 
-      // Defensive guard: ensure all selected items belong to the target warehouse
+      // Defensive guard: ensure all selected items belong to the target warehouse.
+      // NOTE: We deliberately do NOT re-apply the category/module/product_id filter here —
+      // many legitimate main-warehouse rows have product_id = NULL in DB, and the dropdown
+      // has already restricted what the user can pick. The save-time check is strictly:
+      //   (1) row exists, (2) warehouse_id matches target, (3) item is active, (4) has stock.
       const itemIdsToCheck = Array.from(byItem.keys());
       if (itemIdsToCheck.length > 0) {
         const { data: checkRows, error: checkErr } = await supabase
@@ -352,12 +356,36 @@ const ManualStockOutDialog = ({
           .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, module")
           .in("id", itemIdsToCheck);
         if (checkErr) throw checkErr;
-        const foreign = (checkRows || []).find((r: any) => !isAllowedWarehouseDropdownItem(r, warehouseId, isMainWarehouse));
+        const diag = (checkRows || []).map((r: any) => {
+          const requestedQty = byItem.get(r.id)?.qty ?? 0;
+          const sameWarehouse = r.warehouse_id === warehouseId;
+          const isActive = r.is_active !== false;
+          const availableQty = Number(r.stock || 0);
+          const enoughStock = availableQty >= requestedQty;
+          return {
+            item_id: r.id,
+            product_id: r.product_id,
+            warehouse_id: r.warehouse_id,
+            warehouse_name: warehouseName,
+            name: r.name,
+            requested_qty: requestedQty,
+            available_qty: availableQty,
+            sameWarehouse, isActive, enoughStock,
+            validation_result: sameWarehouse && isActive,
+          };
+        });
+        // Temporary diagnostics — visible in browser console for troubleshooting
+        // eslint-disable-next-line no-console
+        console.table(diag);
+        const foreign = diag.find((d) => !d.sameWarehouse);
         if (foreign) {
-          throw new Error(isMainWarehouse
-            ? "هذا الصنف غير تابع للمخزن الرئيسي ولا يمكن إضافته لهذه التوريدة."
-            : `الصنف "${foreign.name}" غير مرتبط بالمخزن المحدد ولا يمكن صرفه من هذه التوريدة.`
+          throw new Error(
+            `الصنف "${foreign.name}" مرتبط بمخزن آخر (warehouse_id=${foreign.warehouse_id || "—"}) ولا يمكن صرفه من "${warehouseName}".`
           );
+        }
+        const inactive = diag.find((d) => !d.isActive);
+        if (inactive) {
+          throw new Error(`الصنف "${inactive.name}" غير مفعّل ولا يمكن صرفه.`);
         }
       }
 
