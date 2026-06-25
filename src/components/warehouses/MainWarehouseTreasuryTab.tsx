@@ -588,6 +588,15 @@ export default function MainWarehouseTreasuryTab() {
         }
       }
 
+      if (lineType === "issue" && creditOverrideStatus !== "none") {
+        insertPayload.credit_override_status = creditOverrideStatus;
+        if (creditOverrideStatus === "approved") {
+          insertPayload.credit_override_by = user?.id;
+          insertPayload.credit_override_at = new Date().toISOString();
+        }
+      }
+
+
       const { error } = await (supabase as any).from("courier_goods_custody_lines").insert(insertPayload);
       if (error) throw error;
 
