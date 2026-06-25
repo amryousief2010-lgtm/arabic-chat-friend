@@ -4479,6 +4479,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "feed_production_invoice_expenses_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "v_feed_production_orphan_invoices"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "feed_production_invoice_expenses_reverse_treasury_txn_id_fkey"
             columns: ["reverse_treasury_txn_id"]
             isOneToOne: false
@@ -4525,6 +4532,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "feed_production_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_production_invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "v_feed_production_orphan_invoices"
             referencedColumns: ["id"]
           },
           {
@@ -17247,6 +17261,62 @@ export type Database = {
         }
         Relationships: []
       }
+      v_feed_production_orphan_invoices: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          has_labor_txn: boolean | null
+          id: string | null
+          issue: string | null
+          items_count: number | null
+          labor_cost: number | null
+          prod_date: string | null
+          prod_no: string | null
+          product_id: string | null
+          qty_produced: number | null
+          total_cost: number | null
+          unit_cost: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          has_labor_txn?: never
+          id?: string | null
+          issue?: never
+          items_count?: never
+          labor_cost?: number | null
+          prod_date?: string | null
+          prod_no?: string | null
+          product_id?: string | null
+          qty_produced?: number | null
+          total_cost?: number | null
+          unit_cost?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          has_labor_txn?: never
+          id?: string | null
+          issue?: never
+          items_count?: never
+          labor_cost?: number | null
+          prod_date?: string | null
+          prod_no?: string | null
+          product_id?: string | null
+          qty_produced?: number | null
+          total_cost?: number | null
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_production_invoices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "feed_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_hatchery_batches_full: {
         Row: {
           batch_number: string | null
@@ -18389,6 +18459,19 @@ export type Database = {
           p_source_warehouse_id: string
         }
         Returns: Json
+      }
+      create_feed_production_invoice_atomic: {
+        Args: {
+          p_bags: number
+          p_client_request_id: string
+          p_items: Json
+          p_labor_cost: number
+          p_notes: string
+          p_prod_date: string
+          p_product_id: string
+          p_qty_produced: number
+        }
+        Returns: string
       }
       create_lab_to_custody_transfer: {
         Args: {
