@@ -369,11 +369,31 @@ export default function RouteDistributionPreparationTab() {
           <Button size="sm" variant="outline" onClick={loadData} disabled={loading}>
             <RefreshCw className={`h-3 w-3 ml-1 ${loading ? "animate-spin" : ""}`} />تحديث
           </Button>
-          <div className="mr-auto flex items-center gap-2">
-            <Badge variant="outline" className="bg-white">{selectedOrders.length} طلب محدد</Badge>
-            <Badge variant="outline" className="bg-white">{customerGroups.length} عميل</Badge>
-            <Badge variant="outline" className="bg-white">{productTotals.length} صنف</Badge>
+          <div className="mr-auto flex items-center gap-2 flex-wrap">
+            <Badge className="bg-purple-600">متاح: {orders.length} طلب</Badge>
+            <Badge className="bg-orange-500">{new Set(orders.map(o => o.customer_id || o.customer_name)).size} عميل</Badge>
+            <Badge className="bg-blue-600">{new Set(items.map(i => i.product_id || i.product_name)).size} صنف</Badge>
+            <span className="w-px h-5 bg-border mx-1" />
+            <Badge variant="outline" className="bg-white">{selectedOrders.length} محدد</Badge>
+            <Badge variant="outline" className="bg-white">{customerGroups.length} عميل محدد</Badge>
+            <Badge variant="outline" className="bg-white">{productTotals.length} صنف محدد</Badge>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Debug panel */}
+      <Card className="border-dashed border-amber-300 bg-amber-50/40">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            🛠️ تشخيص (Debug) — لقراءة الطلبات من قاعدة البيانات
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-xs space-y-1">
+          <div>الجدول المستخدم: <code>orders</code> + <code>order_items</code> + <code>customers</code> + <code>courier_order_assignments</code></div>
+          <div>الفلتر: <code>status IN (pending, processing, shipped, confirmed)</code></div>
+          <div>إجمالي مقروء من DB: <b>{debug.raw}</b> — بعد استبعاد المسلَّم لمندوب: <b>{debug.filtered}</b> — مستبعد بسبب assignment: <b>{debug.assignedExcluded}</b></div>
+          <div>توزيع الحالات: {Object.entries(debug.statuses).map(([s, n]) => <Badge key={s} variant="outline" className="ml-1">{s}: {n}</Badge>)}</div>
+          {debug.error && <div className="text-red-600 font-bold">خطأ: {debug.error}</div>}
         </CardContent>
       </Card>
 
