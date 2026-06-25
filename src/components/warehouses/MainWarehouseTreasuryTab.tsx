@@ -106,9 +106,14 @@ export default function MainWarehouseTreasuryTab() {
   const [lineProduct, setLineProduct] = useState("");
   const [lineQty, setLineQty] = useState("");
   const [lineUnit, setLineUnit] = useState("كجم");
-  const [linePrice, setLinePrice] = useState("");
+  const [linePrice, setLinePrice] = useState(""); // original/list price
+  const [lineSalePrice, setLineSalePrice] = useState(""); // sale: actual price
+  const [lineDiscountReason, setLineDiscountReason] = useState("");
   const [lineCash, setLineCash] = useState("");
   const [lineNotes, setLineNotes] = useState("");
+  const [discountThresholdPct, setDiscountThresholdPct] = useState<number>(5);
+
+
 
 
 
