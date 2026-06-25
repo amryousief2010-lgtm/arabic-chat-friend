@@ -1009,7 +1009,7 @@ export default function MainWarehouseTreasuryTab() {
     const rowsHtml = stmtRows.map((l: any) => `
       <tr>
         <td>${escapeHtml(fmtDate(l.performed_at))}</td>
-        <td>${l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : "تحصيل نقدية"}</td>
+        <td>${l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : l.line_type === "bonus" ? "مجاني/بونص" : "تحصيل نقدية"}</td>
         <td>${escapeHtml(l.product_name || "—")}</td>
         <td class="num">${fmtNum(Number(l.quantity || 0), 2)}</td>
         <td class="num">${fmtNum(Number(l.unit_price || 0), 2)}</td>
