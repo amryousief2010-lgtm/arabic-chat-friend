@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Wallet, ArrowDownLeft, ArrowUpRight, Plus, Send, Printer, FileSpreadsheet,
-  CheckCircle2, XCircle, Clock, RefreshCw, Search
+  CheckCircle2, XCircle, Clock, RefreshCw, Search, ClipboardCheck, AlertTriangle, Package, Truck
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
