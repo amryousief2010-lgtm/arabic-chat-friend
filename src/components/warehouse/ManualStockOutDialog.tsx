@@ -30,7 +30,7 @@ import AddAdjustmentReasonDialog from "@/components/warehouse/AddAdjustmentReaso
 // Plus already imported above
 import { useStocktakingLock } from "@/hooks/useStocktakingLock";
 import { useReservedQuantities } from "@/hooks/useReservedQuantities";
-import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, isAllowedWarehouseDropdownItem } from "@/lib/warehouseItemFilters";
+import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow } from "@/lib/warehouseItemFilters";
 import { isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
 
 interface InventoryItem {
@@ -362,16 +362,18 @@ const ManualStockOutDialog = ({
           const isActive = r.is_active !== false;
           const availableQty = Number(r.stock || 0);
           const enoughStock = availableQty >= requestedQty;
+          const rejectionReason = !sameWarehouse ? "WAREHOUSE_ID_MISMATCH" : !isActive ? "ITEM_NOT_ACTIVE" : "";
           return {
             item_id: r.id,
-            product_id: r.product_id,
             warehouse_id: r.warehouse_id,
             warehouse_name: warehouseName,
-            name: r.name,
+            product_id: r.product_id,
+            item_name: r.name,
+            validation_result: !rejectionReason,
+            rejection_reason: rejectionReason,
             requested_qty: requestedQty,
             available_qty: availableQty,
             sameWarehouse, isActive, enoughStock,
-            validation_result: sameWarehouse && isActive,
           };
         });
         // Temporary diagnostics — visible in browser console for troubleshooting
@@ -380,12 +382,12 @@ const ManualStockOutDialog = ({
         const foreign = diag.find((d) => !d.sameWarehouse);
         if (foreign) {
           throw new Error(
-            `الصنف "${foreign.name}" مرتبط بمخزن آخر (warehouse_id=${foreign.warehouse_id || "—"}) ولا يمكن صرفه من "${warehouseName}".`
+            `الصنف "${foreign.item_name}" مرتبط بمخزن آخر (warehouse_id=${foreign.warehouse_id || "—"}) ولا يمكن صرفه من "${warehouseName}".`
           );
         }
         const inactive = diag.find((d) => !d.isActive);
         if (inactive) {
-          throw new Error(`الصنف "${inactive.name}" غير مفعّل ولا يمكن صرفه.`);
+          throw new Error(`الصنف "${inactive.item_name}" غير مفعّل ولا يمكن صرفه.`);
         }
       }
 
