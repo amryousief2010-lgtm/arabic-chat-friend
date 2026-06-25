@@ -798,8 +798,99 @@ export default function MainWarehouseTreasuryTab() {
   };
 
 
+  const stmtRows = useMemo(() => {
+    if (!stmtCustody) return [] as any[];
+    const fromT = stmtFrom ? new Date(stmtFrom + "T00:00:00").getTime() : -Infinity;
+    const toT = stmtTo ? new Date(stmtTo + "T23:59:59").getTime() : Infinity;
+    return (stmtCustody.lines || [])
+      .filter((l: any) => {
+        const t = new Date(l.performed_at).getTime();
+        return t >= fromT && t <= toT;
+      })
+      .sort((a: any, b: any) => new Date(a.performed_at).getTime() - new Date(b.performed_at).getTime());
+  }, [stmtCustody, stmtFrom, stmtTo]);
+
+  const stmtTotals = useMemo(() => {
+    let issue = 0, ret = 0, sale = 0, disc = 0, cash = 0;
+    stmtRows.forEach((l: any) => {
+      const tv = Number(l.total_value || 0);
+      if (l.line_type === "issue") issue += tv;
+      else if (l.line_type === "return") ret += tv;
+      else if (l.line_type === "sale") { sale += tv; disc += Number(l.discount_amount || 0); }
+      else if (l.line_type === "cash_collect") cash += Number(l.cash_collected || 0);
+    });
+    return { issue, ret, sale, disc, cash, remainingGoods: issue - ret - sale, remainingCash: sale - cash };
+  }, [stmtRows]);
+
+  const exportStatementExcel = () => {
+    if (!stmtCustody) return;
+    const data = stmtRows.map((l: any) => ({
+      "التاريخ": fmtDate(l.performed_at),
+      "النوع": l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : "تحصيل نقدية",
+      "الصنف": l.product_name || "",
+      "الكمية": Number(l.quantity || 0),
+      "الوحدة": l.unit || "",
+      "سعر الوحدة": Number(l.unit_price || 0),
+      "السعر الأصلي": Number(l.original_price || 0),
+      "قيمة الخصم": Number(l.discount_amount || 0),
+      "إجمالي القيمة": Number(l.total_value || 0),
+      "النقدية": Number(l.cash_collected || 0),
+      "ملاحظات": l.notes || "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "كشف حساب");
+    XLSX.writeFile(wb, `كشف-حساب-${stmtCustody.courier_name}-${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
+  const printStatement = () => {
+    if (!stmtCustody) return;
+    const rowsHtml = stmtRows.map((l: any) => `
+      <tr>
+        <td>${escapeHtml(fmtDate(l.performed_at))}</td>
+        <td>${l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : "تحصيل نقدية"}</td>
+        <td>${escapeHtml(l.product_name || "—")}</td>
+        <td class="num">${fmtNum(Number(l.quantity || 0), 2)}</td>
+        <td class="num">${fmtNum(Number(l.unit_price || 0), 2)}</td>
+        <td class="num">${fmtNum(Number(l.discount_amount || 0), 2)}</td>
+        <td class="num"><b>${fmtNum(Number(l.total_value || 0), 2)}</b></td>
+        <td class="num">${fmtNum(Number(l.cash_collected || 0), 2)}</td>
+      </tr>
+    `).join("");
+    const body = `
+      <header>
+        <div>
+          <h1>كشف حساب المندوب — ${escapeHtml(stmtCustody.courier_name)}</h1>
+          <div class="en">${escapeHtml(COMPANY_AR)}</div>
+        </div>
+        <div class="meta">
+          <div>الفترة: <b>${escapeHtml(stmtFrom || "—")} → ${escapeHtml(stmtTo || "—")}</b></div>
+          <div>تاريخ الطباعة: <b>${escapeHtml(new Date().toLocaleString("ar-EG-u-nu-latn"))}</b></div>
+        </div>
+      </header>
+      <table>
+        <thead><tr>
+          <th>التاريخ</th><th>النوع</th><th>الصنف</th><th>الكمية</th>
+          <th>سعر</th><th>خصم</th><th>إجمالي</th><th>نقدية</th>
+        </tr></thead>
+        <tbody>${rowsHtml || `<tr><td colspan="8" style="text-align:center">لا توجد حركات</td></tr>`}</tbody>
+        <tfoot>
+          <tr><td colspan="6">إجمالي البضاعة المصروفة</td><td class="num"><b>${fmtNum(stmtTotals.issue, 2)}</b></td><td></td></tr>
+          <tr><td colspan="6">إجمالي المرتجعات</td><td class="num"><b>${fmtNum(stmtTotals.ret, 2)}</b></td><td></td></tr>
+          <tr><td colspan="6">إجمالي المبيعات</td><td class="num"><b>${fmtNum(stmtTotals.sale, 2)}</b></td><td></td></tr>
+          <tr><td colspan="6">إجمالي الخصومات</td><td class="num"><b>${fmtNum(stmtTotals.disc, 2)}</b></td><td></td></tr>
+          <tr><td colspan="6">إجمالي النقدية الموردة</td><td class="num"><b>${fmtNum(stmtTotals.cash, 2)}</b></td><td></td></tr>
+          <tr><td colspan="6"><b>المتبقي بضاعة مع المندوب</b></td><td class="num"><b>${fmtNum(stmtTotals.remainingGoods, 2)}</b></td><td></td></tr>
+          <tr><td colspan="6"><b>المتبقي نقدية على المندوب</b></td><td class="num"><b>${fmtNum(stmtTotals.remainingCash, 2)}</b></td><td></td></tr>
+        </tfoot>
+      </table>
+    `;
+    openPrintWindow(body, `كشف حساب ${stmtCustody.courier_name}`);
+  };
 
   const DISCOUNT_REASONS = ["عميل جملة", "تصفية صنف", "قرب انتهاء", "عرض خاص", "أخرى"];
+
+
 
 
   const closeCustody = async (id: string) => {
