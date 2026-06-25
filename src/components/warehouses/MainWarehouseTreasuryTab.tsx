@@ -735,9 +735,31 @@ export default function MainWarehouseTreasuryTab() {
         } catch {}
       }
 
+      // notify approvers if pending bonus
+      if (lineType === "bonus" && insertPayload.bonus_status === "pending") {
+        try {
+          const roles = bonusStatus === "pending_executive" ? ["executive_manager", "general_manager"] : ["general_manager"];
+          const { data: approvers } = await (supabase as any)
+            .from("user_roles").select("user_id").in("role", roles);
+          const ids = Array.from(new Set((approvers || []).map((a: any) => a.user_id))) as string[];
+          if (ids.length) {
+            await (supabase as any).from("notifications").insert(
+              ids.map((uid) => ({
+                user_id: uid, type: "courier_bonus_pending", read: false,
+                title: "مجاني مندوب بانتظار الاعتماد",
+                message: `مجاني ${qty} ${selectedIssueItem?.unit || ""} — ${selectedIssueItem?.name || ""} للعميل ${lineCustomerName.trim()}`,
+              }))
+            );
+          }
+        } catch {}
+      }
+
       toast({
         title: "تم التسجيل",
-        description: discountStatus === "pending" ? "الخصم بانتظار اعتماد المدير العام/التنفيذي" : undefined,
+        description:
+          lineType === "bonus" && bonusStatus !== "auto_approved"
+            ? (bonusStatus === "pending_executive" ? "المجاني بانتظار اعتماد المدير التنفيذي" : "المجاني بانتظار اعتماد المدير العام")
+            : (discountStatus === "pending" ? "الخصم بانتظار اعتماد المدير العام/التنفيذي" : undefined),
       });
       setLineOpen(false);
       await fetchCustodies();
