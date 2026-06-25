@@ -1225,9 +1225,49 @@ export default function MainWarehouseTreasuryTab() {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
+          {/* Dashboard */}
+          {custodySummary.length > 0 && (() => {
+            const tot = custodySummary.reduce((a, c) => ({
+              goods: a.goods + c.remainingGoods,
+              cash: a.cash + c.remainingCash,
+              sales: a.sales + c.salesValue,
+              returns: a.returns + c.goodsReturnedValue,
+              collected: a.collected + c.cashCollected,
+              discounts: a.discounts + (c.discountsValue || 0),
+            }), { goods: 0, cash: 0, sales: 0, returns: 0, collected: 0, discounts: 0 });
+            const topBy = (key: string) => {
+              const sorted = [...custodySummary].sort((a: any, b: any) => Number(b[key] || 0) - Number(a[key] || 0));
+              return sorted[0];
+            };
+            const topSales = topBy("salesValue");
+            const topDisc = topBy("discountsValue");
+            const topCash = topBy("cashCollected");
+            const topDef = [...custodySummary].sort((a, b) => b.remainingCash - a.remainingCash)[0];
+            return (
+              <div className="border rounded-lg p-3 bg-gradient-to-br from-slate-50 to-white space-y-2">
+                <div className="text-xs font-semibold text-slate-700">لوحة المندوبين</div>
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+                  <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">إجمالي البضاعة لدى المندوبين</div><div className="font-bold font-mono">{fmt(tot.goods)}</div></div>
+                  <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">إجمالي المبيعات</div><div className="font-bold font-mono text-emerald-700">{fmt(tot.sales)}</div></div>
+                  <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">إجمالي المرتجعات</div><div className="font-bold font-mono">{fmt(tot.returns)}</div></div>
+                  <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">إجمالي التحصيلات</div><div className="font-bold font-mono text-sky-700">{fmt(tot.collected)}</div></div>
+                  <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">إجمالي الخصومات</div><div className="font-bold font-mono text-rose-700">{fmt(tot.discounts)}</div></div>
+                  <div className="bg-white rounded p-2 border"><div className="text-muted-foreground">المتبقي نقدية</div><div className="font-bold font-mono text-amber-700">{fmt(tot.cash)}</div></div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  <div className="rounded p-2 bg-emerald-50 border border-emerald-200"><div className="text-muted-foreground">أعلى مبيعات</div><div className="font-bold">{topSales?.courier_name || "—"} • {fmt(topSales?.salesValue || 0)}</div></div>
+                  <div className="rounded p-2 bg-rose-50 border border-rose-200"><div className="text-muted-foreground">أعلى خصومات</div><div className="font-bold">{topDisc?.courier_name || "—"} • {fmt(topDisc?.discountsValue || 0)}</div></div>
+                  <div className="rounded p-2 bg-sky-50 border border-sky-200"><div className="text-muted-foreground">أعلى تحصيل</div><div className="font-bold">{topCash?.courier_name || "—"} • {fmt(topCash?.cashCollected || 0)}</div></div>
+                  <div className="rounded p-2 bg-amber-50 border border-amber-200"><div className="text-muted-foreground">أعلى عجز/متبقي</div><div className="font-bold">{topDef?.courier_name || "—"} • {fmt(topDef?.remainingCash || 0)}</div></div>
+                </div>
+              </div>
+            );
+          })()}
+
           {custodySummary.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">لا توجد عهد مفتوحة</p>
           ) : custodySummary.map((c) => (
+
             <div key={c.id} className="border rounded-lg p-3 space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
