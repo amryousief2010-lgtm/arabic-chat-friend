@@ -190,8 +190,8 @@ const ManualStockOutDialog = ({
 
   useEffect(() => {
     if (!import.meta.env.DEV || !open) return;
-    console.table(allowedItems.map(getWarehouseItemDebugRow));
-  }, [open, allowedItems]);
+    console.table(allowedItems.map((item) => getWarehouseItemDebugRow(item, warehouseId, warehouseName)));
+  }, [open, allowedItems, warehouseId, warehouseName]);
 
   const selectedItemIds = useMemo(
     () => Array.from(new Set(rows.map((r) => r.itemId).filter(Boolean))),

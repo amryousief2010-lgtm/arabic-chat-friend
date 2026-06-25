@@ -450,7 +450,12 @@ const Warehouses = () => {
           throw new Error("تأكد من اختيار الصنف وإدخال كمية صحيحة لكل صنف");
         }
         const item = items.find(i => i.id === L.item_id);
-        if (!item || !isAllowedWarehouseDropdownItem(item, sampleWh, isEditManualMainWarehouse, editManualVisibleProductIds)) {
+        const rejectionReason = getWarehouseItemRejectionReason(item, sampleWh);
+        const debugRow = item
+          ? getWarehouseItemDebugRow(item, sampleWh, editManualWarehouse?.name)
+          : getWarehouseMissingItemDebugRow(L.item_id, sampleWh, editManualWarehouse?.name);
+        console.table([debugRow]);
+        if (rejectionReason) {
           throw new Error(isEditManualMainWarehouse
             ? "هذا الصنف غير تابع للمخزن الرئيسي ولا يمكن إضافته لهذه التوريدة."
             : "هذا الصنف غير مرتبط بالمخزن المحدد ولا يمكن إضافته لهذه التوريدة."
