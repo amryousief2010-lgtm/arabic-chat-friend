@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import OrdersAnalytics from "@/components/dashboard/OrdersAnalytics";
 import ModeratorQuickAccessCards from "@/components/sales/ModeratorQuickAccessCards";
@@ -183,6 +183,17 @@ const Orders = () => {
  const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
   const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
   const [orders, setOrders] = useState<Order[]>([]);
+  // Overrides for optimistic status changes — re-applied after every background
+  // pagination batch so that a user's status change does not get visually
+  // "reverted" by a later batch arriving from the still-running fetch loop.
+  const statusOverridesRef = useRef<Map<string, { status: OrderStatus; delivered_at: string | null }>>(new Map());
+  const applyStatusOverrides = useCallback((list: Order[]): Order[] => {
+    if (statusOverridesRef.current.size === 0) return list;
+    return list.map((o) => {
+      const ov = statusOverridesRef.current.get(o.id);
+      return ov ? { ...o, status: ov.status, delivered_at: ov.delivered_at } : o;
+    });
+  }, []);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -499,7 +510,7 @@ const Orders = () => {
         items.forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
         const formatted = formatBatch(ords, byOrder);
         items.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
-        setOrders(formatted);
+        setOrders(applyStatusOverrides(formatted));
         setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
         setLoading(false);
         return;
@@ -546,7 +557,7 @@ const Orders = () => {
       firstBatch.forEach((o: any) => { itemsByOrder1[o.id] = (o.order_items as any[]) || []; });
       accumulated = formatBatch(firstBatch, itemsByOrder1);
       firstItems.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
-      setOrders(accumulated);
+      setOrders(applyStatusOverrides(accumulated));
       setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
       setLoading(false);
 
@@ -565,7 +576,7 @@ const Orders = () => {
           const formatted = formatBatch(batch, itemsByOrder);
           batchItems.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
           accumulated = accumulated.concat(formatted);
-          setOrders([...accumulated]);
+          setOrders(applyStatusOverrides([...accumulated]));
           setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
           if (batch.length < ORDERS_PAGE) break;
           oPage++;
@@ -804,8 +815,8 @@ const Orders = () => {
 
       if (error) throw error;
 
-      setOrders(
-        orders.map((order) => {
+      setOrders((prev) =>
+        prev.map((order) => {
           if (order.id !== orderId) return order;
           let delivered_at = order.delivered_at;
           if (newStatus === 'delivered' && !delivered_at) delivered_at = new Date().toISOString();
@@ -813,6 +824,11 @@ const Orders = () => {
           return { ...order, status: newStatus, delivered_at };
         })
       );
+      // Persist the change so any background pagination batch that arrives
+      // afterwards does not overwrite it with the stale value from the server snapshot.
+      const deliveredAtForOverride =
+        newStatus === 'delivered' ? new Date().toISOString() : null;
+      statusOverridesRef.current.set(orderId, { status: newStatus, delivered_at: deliveredAtForOverride });
       toast.success(`تم تحديث حالة الطلب إلى "${statusLabels[newStatus]}"`);
     } catch (error) {
       console.error('Error updating order status:', error);
