@@ -1583,6 +1583,11 @@ const Warehouses = () => {
             <MainWarehouseTreasuryTab />
           </TabsContent>
 
+          <TabsContent value="wh-courier-orders" className="space-y-4">
+            <CourierOrderCustodyTab />
+          </TabsContent>
+
+
           <TabsContent value="reports" className="space-y-4">
             <div className="grid gap-3 md:grid-cols-2">
               <Link to="/modules/warehouses/daily-report" className="block">
