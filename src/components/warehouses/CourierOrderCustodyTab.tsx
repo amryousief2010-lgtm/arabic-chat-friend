@@ -1,0 +1,641 @@
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Truck, Package2, Coins, RotateCcw, CheckCircle2, Eye, ClipboardList, Trophy } from "lucide-react";
+
+/**
+ * Order-based custody layer (طبقة عهدة الأوردرات للمندوب) — built on top of:
+ *  - public.orders                      (المصدر — الأوردر نفسه)
+ *  - public.courier_goods_custodies     (عهدة المندوب المفتوحة)
+ *  - public.courier_order_assignments   (الربط بين الأوردر والعهدة)
+ *  - public.pc_order_tracking           (حالة دورة المندوب لكل أوردر)
+ *  - public.pc_collections              (التحصيلات المرتبطة بالأوردر)
+ *  - public.pc_failed_attempts          (المرتجعات/الفشل المرتبطة بالأوردر)
+ *
+ * لا يلغي طبقة "صرف أصناف" الحالية — يضيف فوقها واجهة تعتمد على الأوردرات.
+ */
+
+const COURIER_STATUS_LABEL: Record<string, string> = {
+  approved_by_marketing: "معتمد من التسويق",
+  prepared_by_warehouse: "مجهز بالمخزن",
+  ready_for_pickup_from_main_warehouse: "جاهز للاستلام",
+  assigned_to_courier: "مُعيَّن لمندوب",
+  picked_up_by_courier: "تم تسليمه للمندوب",
+  out_for_delivery: "قيد التوزيع",
+  delivered: "تم التسليم للعميل",
+  collected: "تم التحصيل",
+  completed: "مكتمل",
+  failed_delivery: "فشل توصيل",
+  partially_returned: "مرتجع جزئي",
+  fully_returned: "مرتجع كامل",
+  returned_to_warehouse: "عاد للمخزن",
+  cancelled: "ملغي",
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  approved_by_marketing: "bg-blue-100 text-blue-800",
+  prepared_by_warehouse: "bg-indigo-100 text-indigo-800",
+  picked_up_by_courier: "bg-purple-100 text-purple-800",
+  out_for_delivery: "bg-amber-100 text-amber-800",
+  delivered: "bg-teal-100 text-teal-800",
+  collected: "bg-emerald-100 text-emerald-800",
+  completed: "bg-emerald-200 text-emerald-900",
+  partially_returned: "bg-orange-100 text-orange-800",
+  fully_returned: "bg-rose-100 text-rose-800",
+  failed_delivery: "bg-rose-100 text-rose-800",
+};
+
+const fmt = (n: number) => new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 2 }).format(n || 0);
+
+type Custody = { id: string; courier_name: string; status: string; opened_at: string };
+type Assignment = {
+  id: string; custody_id: string; order_id: string; courier_name: string;
+  status: string; assigned_at: string; delivered_at: string | null;
+  collected_at: string | null; returned_at: string | null; notes: string | null;
+};
+type Order = {
+  id: string; order_number: string; status: string; total: number;
+  customer_name?: string | null; created_at: string;
+};
+type Tracking = { order_id: string; courier_status: string | null };
+type Collection = { id: string; order_id: string; amount_due: number; amount_collected: number; status: string; collected_at: string };
+type FailedAttempt = { id: string; order_id: string; reason: string; notes: string | null; created_at: string };
+
+export default function CourierOrderCustodyTab() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [custodies, setCustodies] = useState<Custody[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [tracking, setTracking] = useState<Record<string, string>>({});
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [failures, setFailures] = useState<FailedAttempt[]>([]);
+
+  const [selectedCustody, setSelectedCustody] = useState<string>("");
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignOrderIds, setAssignOrderIds] = useState<string[]>([]);
+
+  const [detailsOrder, setDetailsOrder] = useState<Order | null>(null);
+  const [collectOpen, setCollectOpen] = useState<Order | null>(null);
+  const [returnOpen, setReturnOpen] = useState<Order | null>(null);
+  const [collectAmt, setCollectAmt] = useState("");
+  const [collectNotes, setCollectNotes] = useState("");
+  const [returnReason, setReturnReason] = useState("customer_refused");
+  const [returnNotes, setReturnNotes] = useState("");
+  const [returnKind, setReturnKind] = useState<"partial" | "full">("partial");
+
+  const load = async () => {
+    setLoading(true);
+    const [cstRes, asnRes] = await Promise.all([
+      (supabase as any).from("courier_goods_custodies").select("*").eq("status", "open").order("opened_at", { ascending: false }),
+      (supabase as any).from("courier_order_assignments").select("*").order("assigned_at", { ascending: false }).limit(2000),
+    ]);
+    const cst: Custody[] = cstRes.data || [];
+    const asn: Assignment[] = asnRes.data || [];
+    setCustodies(cst);
+    setAssignments(asn);
+    if (!selectedCustody && cst.length) setSelectedCustody(cst[0].id);
+
+    // Pull orders that are: (a) prepared/ready for assignment, (b) currently assigned
+    const assignedOrderIds = asn.map((a) => a.order_id);
+    const [readyOrdersRes, assignedOrdersRes] = await Promise.all([
+      (supabase as any).from("orders")
+        .select("id, order_number, status, total, customer_name, created_at")
+        .in("status", ["pending", "processing", "shipped"])
+        .order("created_at", { ascending: false })
+        .limit(500),
+      assignedOrderIds.length
+        ? (supabase as any).from("orders")
+            .select("id, order_number, status, total, customer_name, created_at")
+            .in("id", assignedOrderIds)
+        : Promise.resolve({ data: [] as Order[] }),
+    ]);
+    const mergedMap = new Map<string, Order>();
+    (readyOrdersRes.data || []).forEach((o: Order) => mergedMap.set(o.id, o));
+    (assignedOrdersRes.data || []).forEach((o: Order) => mergedMap.set(o.id, o));
+    setOrders(Array.from(mergedMap.values()));
+
+    const ids = Array.from(mergedMap.keys());
+    if (ids.length) {
+      const [trkRes, colRes, failRes] = await Promise.all([
+        (supabase as any).from("pc_order_tracking").select("order_id, courier_status").in("order_id", ids),
+        (supabase as any).from("pc_collections").select("*").in("order_id", ids),
+        (supabase as any).from("pc_failed_attempts").select("*").in("order_id", ids),
+      ]);
+      const trkMap: Record<string, string> = {};
+      (trkRes.data || []).forEach((t: Tracking) => { if (t.courier_status) trkMap[t.order_id] = t.courier_status; });
+      setTracking(trkMap);
+      setCollections(colRes.data || []);
+      setFailures(failRes.data || []);
+    } else {
+      setTracking({}); setCollections([]); setFailures([]);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+
+  // ── Eligible orders for assignment: prepared/ready and not already assigned
+  const assignedOrderIdSet = useMemo(() => new Set(assignments.map((a) => a.order_id)), [assignments]);
+  const eligibleOrders = useMemo(() =>
+    orders.filter((o) => !assignedOrderIdSet.has(o.id) && !["delivered", "cancelled", "completed"].includes(o.status)),
+  [orders, assignedOrderIdSet]);
+
+  // ── Per-custody analytics (this courier)
+  const custodyAnalytics = useMemo(() => {
+    return custodies.map((c) => {
+      const myAsn = assignments.filter((a) => a.custody_id === c.id);
+      const myOrderIds = new Set(myAsn.map((a) => a.order_id));
+      const myOrders = orders.filter((o) => myOrderIds.has(o.id));
+      const totalValue = myOrders.reduce((s, o) => s + Number(o.total || 0), 0);
+      const myCols = collections.filter((cl) => myOrderIds.has(cl.order_id));
+      const collected = myCols.reduce((s, cl) => s + Number(cl.amount_collected || 0), 0);
+      const delivered = myAsn.filter((a) => ["delivered", "collected", "completed"].includes(a.status)).length;
+      const undelivered = myAsn.filter((a) => a.status === "with_courier").length;
+      const uncollected = myOrders.filter((o) => !myCols.find((cl) => cl.order_id === o.id)).length;
+      const returns = myAsn.filter((a) => ["partially_returned", "fully_returned"].includes(a.status)).length;
+      return {
+        ...c,
+        ordersCount: myAsn.length,
+        totalValue,
+        collected,
+        remaining: Math.max(0, totalValue - collected),
+        delivered,
+        undelivered,
+        uncollected,
+        returns,
+      };
+    });
+  }, [custodies, assignments, orders, collections]);
+
+  const dashboard = useMemo(() => {
+    const totals = custodyAnalytics.reduce(
+      (acc, c) => ({
+        orders: acc.orders + c.ordersCount,
+        value: acc.value + c.totalValue,
+        collected: acc.collected + c.collected,
+        returns: acc.returns + c.returns,
+        remaining: acc.remaining + c.remaining,
+      }),
+      { orders: 0, value: 0, collected: 0, returns: 0, remaining: 0 }
+    );
+    const topDelivery = [...custodyAnalytics].sort((a, b) => b.delivered - a.delivered)[0];
+    const topCollect = [...custodyAnalytics].sort((a, b) => b.collected - a.collected)[0];
+    return { ...totals, topDelivery, topCollect };
+  }, [custodyAnalytics]);
+
+  const current = custodyAnalytics.find((c) => c.id === selectedCustody);
+  const currentAssignments = useMemo(
+    () => assignments.filter((a) => a.custody_id === selectedCustody),
+    [assignments, selectedCustody]
+  );
+
+  // ── Actions ─────────────────────────────────────────────────────────────
+  const handleAssign = async () => {
+    if (!selectedCustody || assignOrderIds.length === 0) return;
+    const courier = custodies.find((c) => c.id === selectedCustody)?.courier_name || "";
+    try {
+      const rows = assignOrderIds.map((order_id) => ({
+        custody_id: selectedCustody,
+        order_id,
+        courier_name: courier,
+        assigned_by: user?.id ?? null,
+        status: "with_courier",
+      }));
+      const { error: asnErr } = await (supabase as any).from("courier_order_assignments").insert(rows);
+      if (asnErr) throw asnErr;
+      // Set tracking status to picked_up_by_courier
+      for (const order_id of assignOrderIds) {
+        await (supabase as any)
+          .from("pc_order_tracking")
+          .upsert(
+            { order_id, courier_status: "picked_up_by_courier", last_updated_by: user?.id },
+            { onConflict: "order_id" }
+          );
+      }
+      toast({ title: "تم تسليم الأوردرات للمندوب", description: `${assignOrderIds.length} أوردر إلى ${courier}` });
+      setAssignOpen(false);
+      setAssignOrderIds([]);
+      load();
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const updateAssignmentStatus = async (assignmentId: string, orderId: string, status: string, trackingStatus?: string) => {
+    const patch: any = { status };
+    if (status === "delivered") patch.delivered_at = new Date().toISOString();
+    if (status === "collected" || status === "completed") patch.collected_at = new Date().toISOString();
+    if (status === "partially_returned" || status === "fully_returned") patch.returned_at = new Date().toISOString();
+    const { error } = await (supabase as any).from("courier_order_assignments").update(patch).eq("id", assignmentId);
+    if (error) { toast({ title: "خطأ", description: error.message, variant: "destructive" }); return; }
+    if (trackingStatus) {
+      await (supabase as any).from("pc_order_tracking").upsert(
+        { order_id: orderId, courier_status: trackingStatus, last_updated_by: user?.id },
+        { onConflict: "order_id" }
+      );
+    }
+    toast({ title: "تم تحديث الحالة" });
+    load();
+  };
+
+  const saveCollection = async () => {
+    if (!collectOpen) return;
+    const amt = Number(collectAmt || 0);
+    if (Number.isNaN(amt) || amt < 0) { toast({ title: "مبلغ غير صالح", variant: "destructive" }); return; }
+    const due = Number(collectOpen.total || 0);
+    const status = amt >= due ? "cash_collected" : amt > 0 ? "partial_collected" : "not_collected";
+    const { error } = await (supabase as any).from("pc_collections").upsert({
+      order_id: collectOpen.id,
+      amount_due: due,
+      amount_collected: amt,
+      status,
+      notes: collectNotes || null,
+      collected_at: new Date().toISOString(),
+      collected_by: user?.id,
+    }, { onConflict: "order_id" });
+    if (error) { toast({ title: "خطأ", description: error.message, variant: "destructive" }); return; }
+    // Auto-flip assignment status when fully collected
+    const asn = assignments.find((a) => a.order_id === collectOpen.id);
+    if (asn && amt >= due) {
+      await updateAssignmentStatus(asn.id, collectOpen.id, "completed", "collected");
+    } else {
+      load();
+    }
+    toast({ title: "تم تسجيل التحصيل", description: `${fmt(amt)} ج.م` });
+    setCollectOpen(null); setCollectAmt(""); setCollectNotes("");
+  };
+
+  const saveReturn = async () => {
+    if (!returnOpen) return;
+    if (!returnNotes.trim()) { toast({ title: "الملاحظات مطلوبة", variant: "destructive" }); return; }
+    const { error } = await (supabase as any).from("pc_failed_attempts").insert({
+      order_id: returnOpen.id,
+      reason: returnReason,
+      notes: returnNotes,
+      next_action: returnKind === "full" ? "return_to_warehouse" : "manager_review",
+      created_by: user?.id,
+    });
+    if (error) { toast({ title: "خطأ", description: error.message, variant: "destructive" }); return; }
+    const asn = assignments.find((a) => a.order_id === returnOpen.id);
+    if (asn) {
+      await updateAssignmentStatus(asn.id, returnOpen.id, returnKind === "full" ? "fully_returned" : "partially_returned",
+        returnKind === "full" ? "fully_returned" : "partially_returned");
+    } else {
+      load();
+    }
+    toast({ title: "تم تسجيل المرتجع" });
+    setReturnOpen(null); setReturnNotes(""); setReturnReason("customer_refused");
+  };
+
+  // ── Render ──────────────────────────────────────────────────────────────
+  return (
+    <div className="space-y-4" dir="rtl">
+      {/* Dashboard */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Card><CardContent className="p-3 text-center">
+          <div className="text-xs text-muted-foreground">أوردرات لدى المندوبين</div>
+          <div className="text-2xl font-bold text-primary">{dashboard.orders}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-3 text-center">
+          <div className="text-xs text-muted-foreground">قيمة الأوردرات</div>
+          <div className="text-xl font-bold font-mono">{fmt(dashboard.value)}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-3 text-center">
+          <div className="text-xs text-muted-foreground">إجمالي التحصيلات</div>
+          <div className="text-xl font-bold font-mono text-emerald-700">{fmt(dashboard.collected)}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-3 text-center">
+          <div className="text-xs text-muted-foreground">متبقي للتحصيل</div>
+          <div className="text-xl font-bold font-mono text-amber-700">{fmt(dashboard.remaining)}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-3 text-center">
+          <div className="text-xs text-muted-foreground">مرتجعات</div>
+          <div className="text-xl font-bold font-mono text-rose-700">{dashboard.returns}</div>
+        </CardContent></Card>
+      </div>
+
+      {(dashboard.topDelivery || dashboard.topCollect) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {dashboard.topDelivery && (
+            <Card className="bg-purple-50/40 border-purple-200">
+              <CardContent className="p-3 flex items-center gap-3">
+                <Trophy className="w-7 h-7 text-purple-600" />
+                <div>
+                  <div className="text-xs text-muted-foreground">أعلى مندوب تسليم</div>
+                  <div className="font-bold">{dashboard.topDelivery.courier_name}</div>
+                  <div className="text-xs">{dashboard.topDelivery.delivered} أوردر مُسلَّم</div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {dashboard.topCollect && (
+            <Card className="bg-emerald-50/40 border-emerald-200">
+              <CardContent className="p-3 flex items-center gap-3">
+                <Coins className="w-7 h-7 text-emerald-600" />
+                <div>
+                  <div className="text-xs text-muted-foreground">أعلى مندوب تحصيل</div>
+                  <div className="font-bold">{dashboard.topCollect.courier_name}</div>
+                  <div className="text-xs font-mono">{fmt(dashboard.topCollect.collected)} ج.م</div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Custody selector + assignment */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Truck className="w-5 h-5 text-primary" />
+            عهدة أوردرات المندوب
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loading ? <div className="text-center py-6 text-muted-foreground">جاري التحميل…</div> :
+           custodies.length === 0 ? <div className="text-center py-6 text-muted-foreground">لا توجد عهدة مفتوحة. افتح عهدة من تبويب «خزينة المخزن الرئيسي» أولاً.</div> : (
+            <>
+              <div className="flex items-center gap-3 flex-wrap">
+                <Label className="text-sm">المندوب:</Label>
+                <Select value={selectedCustody} onValueChange={setSelectedCustody}>
+                  <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {custodies.map((c) => <SelectItem key={c.id} value={c.id}>{c.courier_name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button onClick={() => setAssignOpen(true)} disabled={!selectedCustody}>
+                  <Package2 className="w-4 h-4 ml-1" /> تسليم أوردرات للمندوب
+                </Button>
+              </div>
+
+              {current && (
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+                  <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">عدد الأوردرات</div><div className="font-bold">{current.ordersCount}</div></div>
+                  <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمتها</div><div className="font-bold font-mono">{fmt(current.totalValue)}</div></div>
+                  <div className="bg-emerald-50 rounded p-2"><div className="text-muted-foreground">المُحصَّل</div><div className="font-bold font-mono text-emerald-700">{fmt(current.collected)}</div></div>
+                  <div className="bg-amber-50 rounded p-2"><div className="text-muted-foreground">المتبقي</div><div className="font-bold font-mono text-amber-700">{fmt(current.remaining)}</div></div>
+                  <div className="bg-blue-50 rounded p-2"><div className="text-muted-foreground">غير المسلمة</div><div className="font-bold">{current.undelivered}</div></div>
+                  <div className="bg-rose-50 rounded p-2"><div className="text-muted-foreground">مرتجعات</div><div className="font-bold text-rose-700">{current.returns}</div></div>
+                </div>
+              )}
+
+              {/* Assignments table */}
+              <div className="border rounded-md overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>رقم الأوردر</TableHead>
+                      <TableHead>العميل</TableHead>
+                      <TableHead>القيمة</TableHead>
+                      <TableHead>الحالة</TableHead>
+                      <TableHead>التحصيل</TableHead>
+                      <TableHead>تاريخ التسليم للمندوب</TableHead>
+                      <TableHead>إجراءات</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {currentAssignments.length === 0 ? (
+                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا توجد أوردرات في عهدة هذا المندوب بعد.</TableCell></TableRow>
+                    ) : currentAssignments.map((a) => {
+                      const o = orders.find((x) => x.id === a.order_id);
+                      const trk = tracking[a.order_id];
+                      const col = collections.find((c) => c.order_id === a.order_id);
+                      const dueAmt = Number(o?.total || 0);
+                      const colAmt = Number(col?.amount_collected || 0);
+                      const remain = Math.max(0, dueAmt - colAmt);
+                      const stClass = STATUS_COLOR[a.status] || STATUS_COLOR[trk || ""] || "bg-gray-100 text-gray-800";
+                      return (
+                        <TableRow key={a.id}>
+                          <TableCell className="font-mono">{o?.order_number ?? a.order_id.slice(0, 8)}</TableCell>
+                          <TableCell>{o?.customer_name ?? "—"}</TableCell>
+                          <TableCell className="font-mono">{fmt(dueAmt)}</TableCell>
+                          <TableCell>
+                            <Badge className={stClass}>{COURIER_STATUS_LABEL[trk || a.status] || a.status}</Badge>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {col ? <>
+                              <span className="text-emerald-700">{fmt(colAmt)}</span>
+                              {remain > 0 && <span className="text-amber-700"> / متبقي {fmt(remain)}</span>}
+                            </> : <span className="text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell className="text-xs">{new Date(a.assigned_at).toLocaleDateString("ar-EG")}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1 flex-wrap">
+                              <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => setDetailsOrder(o ?? null)} disabled={!o}>
+                                <Eye className="w-3 h-3" />
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-7 px-2" title="قيد التوزيع"
+                                onClick={() => updateAssignmentStatus(a.id, a.order_id, "with_courier", "out_for_delivery")}>
+                                <Truck className="w-3 h-3" />
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-7 px-2" title="تم التسليم للعميل"
+                                onClick={() => updateAssignmentStatus(a.id, a.order_id, "delivered", "delivered")}>
+                                <CheckCircle2 className="w-3 h-3 text-teal-600" />
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-7 px-2" title="تحصيل"
+                                onClick={() => { if (o) { setCollectOpen(o); setCollectAmt(String(dueAmt - colAmt)); } }}
+                                disabled={!o}>
+                                <Coins className="w-3 h-3 text-emerald-600" />
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-7 px-2" title="مرتجع"
+                                onClick={() => { if (o) setReturnOpen(o); }} disabled={!o}>
+                                <RotateCcw className="w-3 h-3 text-rose-600" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Assignment dialog — pick from eligible orders */}
+      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+        <DialogContent dir="rtl" className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardList className="w-5 h-5" /> تسليم أوردرات جاهزة للمندوب
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <div className="text-xs text-muted-foreground">يظهر هنا الأوردرات الجاهزة (pending / processing / shipped) غير المُعيَّنة لمندوب آخر.</div>
+            <div className="border rounded-md max-h-[55vh] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-8"></TableHead>
+                    <TableHead>رقم الأوردر</TableHead>
+                    <TableHead>العميل</TableHead>
+                    <TableHead>الحالة</TableHead>
+                    <TableHead>القيمة</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {eligibleOrders.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">لا توجد أوردرات جاهزة للتسليم.</TableCell></TableRow>
+                  ) : eligibleOrders.map((o) => (
+                    <TableRow key={o.id}>
+                      <TableCell>
+                        <input type="checkbox" checked={assignOrderIds.includes(o.id)}
+                          onChange={(e) => setAssignOrderIds((cur) => e.target.checked ? [...cur, o.id] : cur.filter((x) => x !== o.id))} />
+                      </TableCell>
+                      <TableCell className="font-mono">{o.order_number}</TableCell>
+                      <TableCell>{o.customer_name ?? "—"}</TableCell>
+                      <TableCell><Badge variant="outline">{o.status}</Badge></TableCell>
+                      <TableCell className="font-mono">{fmt(Number(o.total || 0))}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignOpen(false)}>إلغاء</Button>
+            <Button onClick={handleAssign} disabled={assignOrderIds.length === 0}>
+              تسليم {assignOrderIds.length > 0 ? `(${assignOrderIds.length})` : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Order details dialog */}
+      <Dialog open={!!detailsOrder} onOpenChange={(v) => !v && setDetailsOrder(null)}>
+        <DialogContent dir="rtl" className="max-w-2xl">
+          <DialogHeader><DialogTitle>تفاصيل {detailsOrder?.order_number}</DialogTitle></DialogHeader>
+          <OrderDetailsBody order={detailsOrder} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Collection dialog */}
+      <Dialog open={!!collectOpen} onOpenChange={(v) => !v && setCollectOpen(null)}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>تسجيل تحصيل — {collectOpen?.order_number}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">قيمة الأوردر: <span className="font-mono">{fmt(Number(collectOpen?.total || 0))}</span> ج.م</div>
+            <div><Label>المبلغ المُحصَّل</Label><Input type="number" value={collectAmt} onChange={(e) => setCollectAmt(e.target.value)} /></div>
+            <div><Label>ملاحظات</Label><Textarea value={collectNotes} onChange={(e) => setCollectNotes(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCollectOpen(null)}>إلغاء</Button>
+            <Button onClick={saveCollection}>حفظ التحصيل</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Return dialog */}
+      <Dialog open={!!returnOpen} onOpenChange={(v) => !v && setReturnOpen(null)}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>تسجيل مرتجع — {returnOpen?.order_number}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>نوع المرتجع</Label>
+              <Select value={returnKind} onValueChange={(v: "partial" | "full") => setReturnKind(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="partial">مرتجع جزئي</SelectItem>
+                  <SelectItem value="full">مرتجع كامل</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>السبب</Label>
+              <Select value={returnReason} onValueChange={setReturnReason}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="customer_refused">العميل رفض</SelectItem>
+                  <SelectItem value="customer_unavailable">العميل غير متاح</SelectItem>
+                  <SelectItem value="product_unsuitable">المنتج غير مناسب</SelectItem>
+                  <SelectItem value="address_unclear">العنوان غير واضح</SelectItem>
+                  <SelectItem value="other">أخرى</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>الملاحظات (إجباري)</Label><Textarea value={returnNotes} onChange={(e) => setReturnNotes(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReturnOpen(null)}>إلغاء</Button>
+            <Button variant="destructive" onClick={saveReturn}>حفظ المرتجع</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function OrderDetailsBody({ order }: { order: Order | null }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [bonuses, setBonuses] = useState<any[]>([]);
+  useEffect(() => {
+    if (!order) return;
+    (async () => {
+      const [itRes, bonRes] = await Promise.all([
+        (supabase as any).from("order_items").select("*").eq("order_id", order.id),
+        (supabase as any).from("courier_goods_custody_lines").select("*").eq("order_id", order.id).in("line_type", ["bonus", "sale"]),
+      ]);
+      setItems(itRes.data || []);
+      setBonuses(bonRes.data || []);
+    })();
+  }, [order]);
+  if (!order) return null;
+  return (
+    <div className="space-y-3 text-sm">
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div><span className="text-muted-foreground">رقم الأوردر:</span> <span className="font-mono">{order.order_number}</span></div>
+        <div><span className="text-muted-foreground">العميل:</span> {order.customer_name ?? "—"}</div>
+        <div><span className="text-muted-foreground">القيمة:</span> <span className="font-mono">{fmt(Number(order.total || 0))} ج.م</span></div>
+        <div><span className="text-muted-foreground">التاريخ:</span> {new Date(order.created_at).toLocaleString("ar-EG")}</div>
+      </div>
+      <div>
+        <div className="font-semibold mb-1">الأصناف</div>
+        <Table>
+          <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>الكمية</TableHead><TableHead>السعر</TableHead></TableRow></TableHeader>
+          <TableBody>
+            {items.length === 0 ? <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">—</TableCell></TableRow> :
+             items.map((it) => (
+              <TableRow key={it.id}>
+                <TableCell>{it.product_name}</TableCell>
+                <TableCell className="font-mono">{fmt(Number(it.quantity || 0))}</TableCell>
+                <TableCell className="font-mono">{fmt(Number(it.price || 0))}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      {bonuses.length > 0 && (
+        <div>
+          <div className="font-semibold mb-1">🎁 مجانيات/خصومات مرتبطة بالأوردر</div>
+          <Table>
+            <TableHeader><TableRow><TableHead>النوع</TableHead><TableHead>الصنف</TableHead><TableHead>الكمية</TableHead><TableHead>السبب</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {bonuses.map((b) => (
+                <TableRow key={b.id}>
+                  <TableCell>{b.line_type === "bonus" ? "مجاني" : b.discount_amount ? "خصم" : "بيع"}</TableCell>
+                  <TableCell>{b.product_name}</TableCell>
+                  <TableCell className="font-mono">{fmt(Number(b.quantity || 0))}</TableCell>
+                  <TableCell className="text-xs">{b.bonus_reason || b.discount_reason || "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}

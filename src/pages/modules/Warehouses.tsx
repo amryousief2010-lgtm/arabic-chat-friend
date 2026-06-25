@@ -11,9 +11,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet, FileText, MapPin, Menu, BookOpen, Calendar, Scale, UtensilsCrossed, Inbox, ClipboardCheck, Eye, Wallet } from "lucide-react";
+import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet, FileText, MapPin, Menu, BookOpen, Calendar, Scale, UtensilsCrossed, Inbox, ClipboardCheck, Eye, Wallet, Truck } from "lucide-react";
 import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
 import MainWarehouseTreasuryTab from "@/components/warehouses/MainWarehouseTreasuryTab";
+import CourierOrderCustodyTab from "@/components/warehouses/CourierOrderCustodyTab";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -1051,6 +1052,7 @@ const Warehouses = () => {
               <TabsTrigger value="wh-packaging"><Package />التغليف والتعبئة</TabsTrigger>
               <TabsTrigger value="wh-activity"><BarChart3 />سجل حركات المخزن الرئيسي</TabsTrigger>
               <TabsTrigger value="wh-treasury"><Wallet />خزينة المخزن الرئيسي</TabsTrigger>
+              <TabsTrigger value="wh-courier-orders"><Truck />عهدة أوردرات المندوب</TabsTrigger>
               <TabsTrigger value="reports"><FileText />التقارير</TabsTrigger>
               <TabsTrigger value="menu"><UtensilsCrossed />المنيو</TabsTrigger>
               <TabsTrigger value="more"><Menu />المزيد</TabsTrigger>
@@ -1580,6 +1582,11 @@ const Warehouses = () => {
           <TabsContent value="wh-treasury" className="space-y-4">
             <MainWarehouseTreasuryTab />
           </TabsContent>
+
+          <TabsContent value="wh-courier-orders" className="space-y-4">
+            <CourierOrderCustodyTab />
+          </TabsContent>
+
 
           <TabsContent value="reports" className="space-y-4">
             <div className="grid gap-3 md:grid-cols-2">
