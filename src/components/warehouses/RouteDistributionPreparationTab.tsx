@@ -81,13 +81,15 @@ export default function RouteDistributionPreparationTab() {
   const [selectedCustodyId, setSelectedCustodyId] = useState<string>("");
   const [search, setSearch] = useState("");
 
+  const [debug, setDebug] = useState<{ raw: number; filtered: number; statuses: Record<string, number>; assignedExcluded: number; error?: string }>({ raw: 0, filtered: 0, statuses: {}, assignedExcluded: 0 });
+
   const loadData = async () => {
     setLoading(true);
     try {
-      const [ordersRes, custodiesRes] = await Promise.all([
+      const [ordersRes, custodiesRes, assignmentsRes] = await Promise.all([
         (supabase as any)
           .from("orders")
-          .select("id, order_number, status, total, customer_id, customer_name, customer_phone, delivery_address, created_at")
+          .select("id, order_number, status, total, customer_id, delivery_address, created_at, customers(name, phone)")
           .in("status", ["pending", "processing", "shipped", "confirmed"])
           .order("created_at", { ascending: false })
           .limit(500),
@@ -96,9 +98,46 @@ export default function RouteDistributionPreparationTab() {
           .select("id, courier_name, status, opened_at")
           .eq("status", "open")
           .order("opened_at", { ascending: false }),
+        (supabase as any)
+          .from("courier_order_assignments")
+          .select("order_id, status"),
       ]);
 
-      const ordersData: OrderRow[] = ordersRes.data ?? [];
+      if (ordersRes.error) {
+        toast.error("خطأ قراءة الطلبات: " + ordersRes.error.message);
+      }
+
+      const rawOrders: any[] = ordersRes.data ?? [];
+      const assignedIds = new Set<string>(
+        (assignmentsRes.data ?? [])
+          .filter((a: any) => a.status !== "returned" && a.status !== "cancelled")
+          .map((a: any) => a.order_id)
+      );
+
+      const ordersData: OrderRow[] = rawOrders
+        .filter(o => !assignedIds.has(o.id))
+        .map(o => ({
+          id: o.id,
+          order_number: o.order_number,
+          status: o.status,
+          total: o.total,
+          customer_id: o.customer_id,
+          customer_name: o.customers?.name ?? null,
+          customer_phone: o.customers?.phone ?? null,
+          delivery_address: o.delivery_address,
+          created_at: o.created_at,
+        }));
+
+      const statusCounts: Record<string, number> = {};
+      for (const o of rawOrders) statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
+      setDebug({
+        raw: rawOrders.length,
+        filtered: ordersData.length,
+        statuses: statusCounts,
+        assignedExcluded: rawOrders.length - ordersData.length,
+        error: ordersRes.error?.message,
+      });
+
       setOrders(ordersData);
       setCustodies(custodiesRes.data ?? []);
 
@@ -117,6 +156,7 @@ export default function RouteDistributionPreparationTab() {
       }
     } catch (e: any) {
       toast.error(e.message || "خطأ في التحميل");
+      setDebug(d => ({ ...d, error: e.message }));
     } finally {
       setLoading(false);
     }
