@@ -815,8 +815,8 @@ const Orders = () => {
 
       if (error) throw error;
 
-      setOrders(
-        orders.map((order) => {
+      setOrders((prev) =>
+        prev.map((order) => {
           if (order.id !== orderId) return order;
           let delivered_at = order.delivered_at;
           if (newStatus === 'delivered' && !delivered_at) delivered_at = new Date().toISOString();
@@ -824,6 +824,11 @@ const Orders = () => {
           return { ...order, status: newStatus, delivered_at };
         })
       );
+      // Persist the change so any background pagination batch that arrives
+      // afterwards does not overwrite it with the stale value from the server snapshot.
+      const deliveredAtForOverride =
+        newStatus === 'delivered' ? new Date().toISOString() : null;
+      statusOverridesRef.current.set(orderId, { status: newStatus, delivered_at: deliveredAtForOverride });
       toast.success(`تم تحديث حالة الطلب إلى "${statusLabels[newStatus]}"`);
     } catch (error) {
       console.error('Error updating order status:', error);
