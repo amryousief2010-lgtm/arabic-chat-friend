@@ -15,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { openPrintWindow, escapeHtml, fmtNum, COMPANY_AR } from "@/lib/printPdf";
+import { isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
+import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow } from "@/lib/warehouseItemFilters";
 import * as XLSX from "xlsx";
 
 interface Txn {
@@ -31,6 +33,23 @@ interface Txn {
   transfer_id: string | null;
   courier_name?: string | null;
   rejection_reason?: string | null;
+}
+
+interface WarehouseStockItem {
+  id: string;
+  warehouse_id: string | null;
+  product_id?: string | null;
+  name?: string | null;
+  category?: string | null;
+  unit?: string | null;
+  stock?: number | null;
+  is_active?: boolean | null;
+  archived?: boolean | null;
+  archived_at?: string | null;
+  module?: string | null;
+  item_type?: string | null;
+  source_module?: string | null;
+  unit_cost?: number | null;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -103,6 +122,7 @@ export default function MainWarehouseTreasuryTab() {
   const [lineOpen, setLineOpen] = useState(false);
   const [lineCustodyId, setLineCustodyId] = useState<string | null>(null);
   const [lineType, setLineType] = useState<"issue" | "return" | "sale" | "cash_collect">("issue");
+  const [lineInventoryItemId, setLineInventoryItemId] = useState("");
   const [lineProduct, setLineProduct] = useState("");
   const [lineQty, setLineQty] = useState("");
   const [lineUnit, setLineUnit] = useState("كجم");
@@ -138,6 +158,9 @@ export default function MainWarehouseTreasuryTab() {
   const [payCommCourier, setPayCommCourier] = useState("");
   const [payCommAmt, setPayCommAmt] = useState("");
   const [payCommNotes, setPayCommNotes] = useState("");
+
+  const [mainWarehouse, setMainWarehouse] = useState<{ id: string; name: string } | null>(null);
+  const [mainWarehouseItems, setMainWarehouseItems] = useState<WarehouseStockItem[]>([]);
 
 
 
@@ -177,7 +200,7 @@ export default function MainWarehouseTreasuryTab() {
   };
 
   useEffect(() => {
-    fetchAll(); fetchRecons(); fetchCustodies(); fetchCourierExtras();
+    fetchAll(); fetchRecons(); fetchCustodies(); fetchCourierExtras(); fetchMainWarehouseItems();
     (async () => {
       const { data } = await (supabase as any).from("courier_custody_settings").select("auto_approve_discount_pct").eq("id", 1).maybeSingle();
       if (data?.auto_approve_discount_pct != null) setDiscountThresholdPct(Number(data.auto_approve_discount_pct));
@@ -193,6 +216,29 @@ export default function MainWarehouseTreasuryTab() {
       .limit(100);
     setRecons(data || []);
   };
+
+  const fetchMainWarehouseItems = async () => {
+    const { data: whs } = await (supabase as any).from("warehouses").select("id,name").order("name");
+    const wh = ((whs || []) as Array<{ id: string; name: string }>).find((w) => isMainWarehouseName(w.name));
+    setMainWarehouse(wh || null);
+    if (!wh) { setMainWarehouseItems([]); return; }
+    const { data } = await (supabase as any)
+      .from("inventory_items")
+      .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, archived, archived_at, module, item_type, source_module, unit_cost")
+      .eq("warehouse_id", wh.id)
+      .order("name");
+    setMainWarehouseItems((data || []) as WarehouseStockItem[]);
+  };
+
+  const allowedMainWarehouseItems = useMemo(
+    () => getAllowedWarehouseDropdownItems(mainWarehouseItems, mainWarehouse?.id, true),
+    [mainWarehouseItems, mainWarehouse?.id]
+  );
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !lineOpen || lineType !== "issue") return;
+    console.table(allowedMainWarehouseItems.map((item) => getWarehouseItemDebugRow(item, mainWarehouse?.id, mainWarehouse?.name)));
+  }, [lineOpen, lineType, allowedMainWarehouseItems, mainWarehouse?.id, mainWarehouse?.name]);
 
   const fetchCustodies = async () => {
     const { data: c } = await (supabase as any)
@@ -489,6 +535,7 @@ export default function MainWarehouseTreasuryTab() {
 
   const openLineDialog = (custodyId: string, type: typeof lineType) => {
     setLineCustodyId(custodyId); setLineType(type);
+    setLineInventoryItemId("");
     setLineProduct(""); setLineQty(""); setLinePrice(""); setLineSalePrice("");
     setLineDiscountReason(""); setLineCash(""); setLineNotes(""); setLineUnit("كجم");
     setRequestCreditOverride(false);
@@ -506,7 +553,9 @@ export default function MainWarehouseTreasuryTab() {
     if (lineType === "cash_collect") {
       if (!cash || cash <= 0) { toast({ title: "أدخل مبلغ نقدية صحيح", variant: "destructive" }); return; }
     } else {
-      if (!lineProduct.trim()) { toast({ title: "أدخل اسم المنتج", variant: "destructive" }); return; }
+      if (lineType === "issue") {
+        if (!lineInventoryItemId) { toast({ title: "اختر المنتج من أصناف المخزن الرئيسي", variant: "destructive" }); return; }
+      } else if (!lineProduct.trim()) { toast({ title: "أدخل اسم المنتج", variant: "destructive" }); return; }
       if (!qty || qty <= 0) { toast({ title: "أدخل كمية صحيحة", variant: "destructive" }); return; }
       if (lineType === "sale") {
         if (!price || price <= 0) { toast({ title: "أدخل السعر الأصلي", variant: "destructive" }); return; }
@@ -557,6 +606,26 @@ export default function MainWarehouseTreasuryTab() {
 
     setBusy(true);
     try {
+      let selectedIssueItem: WarehouseStockItem | null = null;
+      if (lineType === "issue") {
+        if (!mainWarehouse?.id) throw new Error("تعذّر تحديد المخزن الرئيسي");
+        const { data: dbItem, error: dbItemErr } = await (supabase as any)
+          .from("inventory_items")
+          .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, archived, archived_at, module, item_type, source_module, unit_cost")
+          .eq("id", lineInventoryItemId)
+          .maybeSingle();
+        if (dbItemErr) throw dbItemErr;
+        const rejectionReason = getWarehouseItemRejectionReason(dbItem as WarehouseStockItem | null, mainWarehouse.id);
+        const debugRow = dbItem
+          ? getWarehouseItemDebugRow(dbItem as WarehouseStockItem, mainWarehouse.id, mainWarehouse.name)
+          : getWarehouseMissingItemDebugRow(lineInventoryItemId, mainWarehouse.id, mainWarehouse.name);
+        console.table([debugRow]);
+        if (rejectionReason) {
+          throw new Error(`الصنف "${(dbItem as any)?.name || lineProduct || "—"}" غير تابع/غير مفعّل بالمخزن الرئيسي (${rejectionReason}).`);
+        }
+        selectedIssueItem = dbItem as WarehouseStockItem;
+      }
+
       // For sale: total_value = qty * actual sale price. For issue/return: qty * price.
       const totalValue =
         lineType === "sale" ? qty * salePrice :
@@ -566,9 +635,10 @@ export default function MainWarehouseTreasuryTab() {
       const insertPayload: any = {
         custody_id: lineCustodyId,
         line_type: lineType,
-        product_name: lineType === "cash_collect" ? null : lineProduct.trim(),
+        product_name: lineType === "cash_collect" ? null : (selectedIssueItem?.name || lineProduct.trim()),
+        inventory_item_id: lineType === "issue" ? lineInventoryItemId : null,
         quantity: lineType === "cash_collect" ? null : qty,
-        unit: lineType === "cash_collect" ? null : lineUnit,
+        unit: lineType === "cash_collect" ? null : (selectedIssueItem?.unit || lineUnit),
         unit_price: lineType === "sale" ? salePrice : (lineType === "cash_collect" ? null : (price || null)),
         total_value: totalValue,
         cash_collected: lineType === "cash_collect" ? cash : null,
@@ -1705,7 +1775,37 @@ export default function MainWarehouseTreasuryTab() {
           <div className="space-y-3">
             {lineType !== "cash_collect" && (
               <>
-                <div><Label>المنتج</Label><Input value={lineProduct} onChange={(e) => setLineProduct(e.target.value)} placeholder="مثال: سجق نعام" /></div>
+                {lineType === "issue" ? (
+                  <div>
+                    <Label>المنتج من المخزن الرئيسي</Label>
+                    <Select
+                      value={lineInventoryItemId}
+                      onValueChange={(value) => {
+                        setLineInventoryItemId(value);
+                        const item = allowedMainWarehouseItems.find((x) => x.id === value);
+                        setLineProduct(item?.name || "");
+                        setLineUnit(item?.unit || "كجم");
+                        if (item?.unit_cost != null) setLinePrice(String(item.unit_cost));
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر صنفًا من أصناف المخزن الرئيسي" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allowedMainWarehouseItems.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>
+                            {(item.name || "بدون اسم")} — رصيد: {fmt(Number(item.stock || 0))} {item.unit || ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      نفس مصدر القائمة والتحقق: inventory_items للمخزن الرئيسي + active فقط، بدون شرط product_id.
+                    </div>
+                  </div>
+                ) : (
+                  <div><Label>المنتج</Label><Input value={lineProduct} onChange={(e) => setLineProduct(e.target.value)} placeholder="مثال: سجق نعام" /></div>
+                )}
                 <div className="grid grid-cols-3 gap-2">
                   <div><Label>الكمية</Label><Input type="number" min="0" step="0.001" value={lineQty} onChange={(e) => setLineQty(e.target.value)} /></div>
                   <div><Label>الوحدة</Label><Input value={lineUnit} onChange={(e) => setLineUnit(e.target.value)} /></div>

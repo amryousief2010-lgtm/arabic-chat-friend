@@ -174,8 +174,8 @@ const ManualStockAdditionDialog = ({
 
   useEffect(() => {
     if (!import.meta.env.DEV || !open) return;
-    console.table(allowedItems.map(getWarehouseItemDebugRow));
-  }, [open, allowedItems]);
+    console.table(allowedItems.map((item) => getWarehouseItemDebugRow(item, warehouseId, warehouseName)));
+  }, [open, allowedItems, warehouseId, warehouseName]);
 
   useEffect(() => {
     if (!open) {

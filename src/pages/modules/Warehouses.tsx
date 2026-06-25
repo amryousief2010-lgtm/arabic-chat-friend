@@ -33,7 +33,7 @@ import WarehouseOpeningBalance from "@/pages/modules/WarehouseOpeningBalance";
 import WarehouseOperationalDates from "@/pages/modules/WarehouseOperationalDates";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import WarehousesDashboardPanel from "@/components/warehouses/WarehousesDashboardPanel";
-import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, isAllowedWarehouseDropdownItem } from "@/lib/warehouseItemFilters";
+import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow, isAllowedWarehouseDropdownItem } from "@/lib/warehouseItemFilters";
 
 
 const qualityLabelText: Record<string, string> = {
@@ -450,7 +450,12 @@ const Warehouses = () => {
           throw new Error("تأكد من اختيار الصنف وإدخال كمية صحيحة لكل صنف");
         }
         const item = items.find(i => i.id === L.item_id);
-        if (!item || !isAllowedWarehouseDropdownItem(item, sampleWh, isEditManualMainWarehouse, editManualVisibleProductIds)) {
+        const rejectionReason = getWarehouseItemRejectionReason(item, sampleWh);
+        const debugRow = item
+          ? getWarehouseItemDebugRow(item, sampleWh, editManualWarehouse?.name)
+          : getWarehouseMissingItemDebugRow(L.item_id, sampleWh, editManualWarehouse?.name);
+        console.table([debugRow]);
+        if (rejectionReason) {
           throw new Error(isEditManualMainWarehouse
             ? "هذا الصنف غير تابع للمخزن الرئيسي ولا يمكن إضافته لهذه التوريدة."
             : "هذا الصنف غير مرتبط بالمخزن المحدد ولا يمكن إضافته لهذه التوريدة."
@@ -700,25 +705,15 @@ const Warehouses = () => {
     ? warehouses.find((w) => w.id === editManualWarehouseId)
     : undefined;
   const isEditManualMainWarehouse = !!editManualWarehouse && isMainWarehouseName(editManualWarehouse.name);
-  const editManualVisibleProductIds = useMemo(() => {
-    if (!isEditManualMainWarehouse) return undefined;
-    const visible = new Set<string>();
-    items.forEach((item) => {
-      if (item.warehouse_id === editManualWarehouseId && item.product_id && !isMainWarehouseExcludedCategory((item as any).category)) {
-        visible.add(item.product_id);
-      }
-    });
-    return visible;
-  }, [items, editManualWarehouseId, isEditManualMainWarehouse]);
   const editManualDropdownItems = useMemo(
-    () => getAllowedWarehouseDropdownItems(items, editManualWarehouseId, isEditManualMainWarehouse, editManualVisibleProductIds),
-    [items, editManualWarehouseId, isEditManualMainWarehouse, editManualVisibleProductIds]
+    () => getAllowedWarehouseDropdownItems(items, editManualWarehouseId, isEditManualMainWarehouse),
+    [items, editManualWarehouseId, isEditManualMainWarehouse]
   );
 
   useEffect(() => {
     if (!import.meta.env.DEV || !editManualOpen) return;
-    console.table(editManualDropdownItems.map(getWarehouseItemDebugRow));
-  }, [editManualOpen, editManualDropdownItems]);
+    console.table(editManualDropdownItems.map((item) => getWarehouseItemDebugRow(item, editManualWarehouseId, editManualWarehouse?.name)));
+  }, [editManualOpen, editManualDropdownItems, editManualWarehouseId, editManualWarehouse?.name]);
 
   const lowStockItems = items.filter(i => i.stock <= i.low_stock_threshold);
   const pendingSlaughter = slaughterOutputs.filter(o => o.received_status !== 'received');
