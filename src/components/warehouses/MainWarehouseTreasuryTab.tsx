@@ -180,6 +180,33 @@ export default function MainWarehouseTreasuryTab() {
     } finally { setBusy(false); }
   };
 
+  const submitCourier = async () => {
+    const amt = Number(courierAmt);
+    if (!courierName.trim()) { toast({ title: "أدخل اسم المندوب", variant: "destructive" }); return; }
+    if (!amt || amt <= 0) { toast({ title: "أدخل مبلغًا صحيحًا", variant: "destructive" }); return; }
+    setBusy(true);
+    try {
+      const performedAt = courierDate ? new Date(`${courierDate}T12:00:00`).toISOString() : new Date().toISOString();
+      const { error } = await (supabase as any).from("main_warehouse_treasury_txns").insert({
+        direction: "in",
+        category: "courier_deposit",
+        amount: amt,
+        courier_name: courierName.trim(),
+        notes: courierNotes.trim() || null,
+        performed_at: performedAt,
+        performed_by: user?.id,
+        status: "posted",
+      });
+      if (error) throw error;
+      toast({ title: "تم تسجيل التوريد", description: `+ ${fmt(amt)} ج.م من ${courierName.trim()}` });
+      setCourierOpen(false); setCourierName(""); setCourierAmt(""); setCourierNotes("");
+      setCourierDate(new Date().toISOString().slice(0, 10));
+      await fetchAll();
+    } catch (e: any) {
+      toast({ title: "تعذّر التسجيل", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
   const submitTransfer = async () => {
     const amt = Number(transferAmt);
     if (!amt || amt <= 0) {
@@ -230,13 +257,12 @@ export default function MainWarehouseTreasuryTab() {
 
   const approveTransfer = async (t: Txn) => {
     if (!canApprove) return;
-    if (!window.confirm(`اعتماد التحويل ${fmt(t.amount)} ج.م؟`)) return;
+    if (!window.confirm(`اعتماد التحويل ${fmt(t.amount)} ج.م؟ سيتم إضافة المبلغ للخزينة الرئيسية.`)) return;
     setBusy(true);
     try {
-      const { error } = await (supabase as any).from("main_warehouse_treasury_txns")
-        .update({ status: "posted" }).eq("id", t.id);
+      const { error } = await (supabase as any).rpc("approve_main_warehouse_transfer", { _txn_id: t.id });
       if (error) throw error;
-      toast({ title: "تم اعتماد التحويل" });
+      toast({ title: "تم اعتماد التحويل", description: "تمت إضافة المبلغ للخزينة الرئيسية" });
       await fetchAll();
     } catch (e: any) {
       toast({ title: "تعذّر الاعتماد", description: e?.message || "", variant: "destructive" });
@@ -245,13 +271,12 @@ export default function MainWarehouseTreasuryTab() {
 
   const rejectTransfer = async (t: Txn) => {
     if (!canApprove) return;
-    const reason = window.prompt("سبب الرفض (اختياري):", "") || "";
+    const reason = window.prompt("سبب الرفض:", "") || "";
+    if (!reason.trim()) { toast({ title: "أدخل سبب الرفض", variant: "destructive" }); return; }
     if (!window.confirm(`رفض التحويل ${fmt(t.amount)} ج.م؟`)) return;
     setBusy(true);
     try {
-      const newNotes = `${t.notes || ""}${reason ? `\nسبب الرفض: ${reason}` : ""}`.trim();
-      const { error } = await (supabase as any).from("main_warehouse_treasury_txns")
-        .update({ status: "rejected", notes: newNotes }).eq("id", t.id);
+      const { error } = await (supabase as any).rpc("reject_main_warehouse_transfer", { _txn_id: t.id, _reason: reason });
       if (error) throw error;
       toast({ title: "تم رفض التحويل" });
       await fetchAll();
@@ -259,6 +284,7 @@ export default function MainWarehouseTreasuryTab() {
       toast({ title: "تعذّر الرفض", description: e?.message || "", variant: "destructive" });
     } finally { setBusy(false); }
   };
+
 
   // === Export & Print ===
   const exportExcel = () => {
