@@ -795,6 +795,39 @@ export default function MainWarehouseTreasuryTab() {
     } finally { setBusy(false); }
   };
 
+  const approveBonus = async (lineId: string) => {
+    if (!(isGeneralManager || isExecutiveManager)) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("courier_goods_custody_lines")
+        .update({ bonus_status: "approved", bonus_approved_by: user?.id, bonus_approved_at: new Date().toISOString() })
+        .eq("id", lineId);
+      if (error) throw error;
+      toast({ title: "تم اعتماد المجاني" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الاعتماد", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+  const rejectBonus = async (lineId: string) => {
+    if (!(isGeneralManager || isExecutiveManager)) return;
+    const reason = window.prompt("سبب الرفض:", "") || "";
+    if (!reason.trim()) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("courier_goods_custody_lines")
+        .update({ bonus_status: "rejected", notes: `[رفض: ${reason}]` })
+        .eq("id", lineId);
+      if (error) throw error;
+      toast({ title: "تم رفض المجاني" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الرفض", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
   // === Credit override approve/reject ===
   const approveCreditOverride = async (lineId: string) => {
     if (!(isGeneralManager || isExecutiveManager)) return;
