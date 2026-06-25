@@ -1040,6 +1040,7 @@ export default function MainWarehouseTreasuryTab() {
           <tr><td colspan="6">إجمالي المرتجعات</td><td class="num"><b>${fmtNum(stmtTotals.ret, 2)}</b></td><td></td></tr>
           <tr><td colspan="6">إجمالي المبيعات</td><td class="num"><b>${fmtNum(stmtTotals.sale, 2)}</b></td><td></td></tr>
           <tr><td colspan="6">إجمالي الخصومات</td><td class="num"><b>${fmtNum(stmtTotals.disc, 2)}</b></td><td></td></tr>
+          <tr><td colspan="6">إجمالي المجانيات / البونصات</td><td class="num"><b>${fmtNum(stmtTotals.bonus, 2)}</b></td><td></td></tr>
           <tr><td colspan="6">إجمالي النقدية الموردة</td><td class="num"><b>${fmtNum(stmtTotals.cash, 2)}</b></td><td></td></tr>
           <tr><td colspan="6"><b>المتبقي بضاعة مع المندوب</b></td><td class="num"><b>${fmtNum(stmtTotals.remainingGoods, 2)}</b></td><td></td></tr>
           <tr><td colspan="6"><b>المتبقي نقدية على المندوب</b></td><td class="num"><b>${fmtNum(stmtTotals.remainingCash, 2)}</b></td><td></td></tr>
