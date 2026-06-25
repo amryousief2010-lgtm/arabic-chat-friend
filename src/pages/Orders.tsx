@@ -576,7 +576,7 @@ const Orders = () => {
           const formatted = formatBatch(batch, itemsByOrder);
           batchItems.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
           accumulated = accumulated.concat(formatted);
-          setOrders([...accumulated]);
+          setOrders(applyStatusOverrides([...accumulated]));
           setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
           if (batch.length < ORDERS_PAGE) break;
           oPage++;
