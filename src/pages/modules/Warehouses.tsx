@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet, FileText, MapPin, Menu, BookOpen, Calendar, Scale, UtensilsCrossed, Inbox, ClipboardCheck, Eye, Wallet } from "lucide-react";
 import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
 import MainWarehouseTreasuryTab from "@/components/warehouses/MainWarehouseTreasuryTab";
+import CourierOrderCustodyTab from "@/components/warehouses/CourierOrderCustodyTab";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
