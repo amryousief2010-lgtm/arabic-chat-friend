@@ -121,16 +121,18 @@ export default function MainWarehouseTreasuryTab() {
   const [newCustodyNotes, setNewCustodyNotes] = useState("");
   const [lineOpen, setLineOpen] = useState(false);
   const [lineCustodyId, setLineCustodyId] = useState<string | null>(null);
-  const [lineType, setLineType] = useState<"issue" | "return" | "sale" | "cash_collect">("issue");
+  const [lineType, setLineType] = useState<"issue" | "return" | "sale" | "cash_collect" | "bonus">("issue");
   const [lineInventoryItemId, setLineInventoryItemId] = useState("");
   const [lineProduct, setLineProduct] = useState("");
   const [lineQty, setLineQty] = useState("");
   const [lineUnit, setLineUnit] = useState("كجم");
-  const [linePrice, setLinePrice] = useState(""); // original/list price
+  const [linePrice, setLinePrice] = useState(""); // original/list price (or cost for bonus)
   const [lineSalePrice, setLineSalePrice] = useState(""); // sale: actual price
   const [lineDiscountReason, setLineDiscountReason] = useState("");
   const [lineCash, setLineCash] = useState("");
   const [lineNotes, setLineNotes] = useState("");
+  const [lineCustomerName, setLineCustomerName] = useState("");
+  const [lineBonusReason, setLineBonusReason] = useState("");
   const [discountThresholdPct, setDiscountThresholdPct] = useState<number>(5);
   const [requestCreditOverride, setRequestCreditOverride] = useState(false);
 
