@@ -148,7 +148,14 @@ export default function MainWarehouseTreasuryTab() {
     }
   };
 
-  useEffect(() => { fetchAll(); fetchRecons(); fetchCustodies(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => {
+    fetchAll(); fetchRecons(); fetchCustodies();
+    (async () => {
+      const { data } = await (supabase as any).from("courier_custody_settings").select("auto_approve_discount_pct").eq("id", 1).maybeSingle();
+      if (data?.auto_approve_discount_pct != null) setDiscountThresholdPct(Number(data.auto_approve_discount_pct));
+    })();
+    /* eslint-disable-next-line */
+  }, []);
 
   const fetchRecons = async () => {
     const { data } = await (supabase as any)
