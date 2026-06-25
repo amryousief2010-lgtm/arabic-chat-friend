@@ -106,9 +106,14 @@ export default function MainWarehouseTreasuryTab() {
   const [lineProduct, setLineProduct] = useState("");
   const [lineQty, setLineQty] = useState("");
   const [lineUnit, setLineUnit] = useState("كجم");
-  const [linePrice, setLinePrice] = useState("");
+  const [linePrice, setLinePrice] = useState(""); // original/list price
+  const [lineSalePrice, setLineSalePrice] = useState(""); // sale: actual price
+  const [lineDiscountReason, setLineDiscountReason] = useState("");
   const [lineCash, setLineCash] = useState("");
   const [lineNotes, setLineNotes] = useState("");
+  const [discountThresholdPct, setDiscountThresholdPct] = useState<number>(5);
+
+
 
 
 
@@ -143,7 +148,14 @@ export default function MainWarehouseTreasuryTab() {
     }
   };
 
-  useEffect(() => { fetchAll(); fetchRecons(); fetchCustodies(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => {
+    fetchAll(); fetchRecons(); fetchCustodies();
+    (async () => {
+      const { data } = await (supabase as any).from("courier_custody_settings").select("auto_approve_discount_pct").eq("id", 1).maybeSingle();
+      if (data?.auto_approve_discount_pct != null) setDiscountThresholdPct(Number(data.auto_approve_discount_pct));
+    })();
+    /* eslint-disable-next-line */
+  }, []);
 
   const fetchRecons = async () => {
     const { data } = await (supabase as any)
@@ -433,38 +445,81 @@ export default function MainWarehouseTreasuryTab() {
 
   const openLineDialog = (custodyId: string, type: typeof lineType) => {
     setLineCustodyId(custodyId); setLineType(type);
-    setLineProduct(""); setLineQty(""); setLinePrice(""); setLineCash(""); setLineNotes(""); setLineUnit("كجم");
+    setLineProduct(""); setLineQty(""); setLinePrice(""); setLineSalePrice("");
+    setLineDiscountReason(""); setLineCash(""); setLineNotes(""); setLineUnit("كجم");
     setLineOpen(true);
   };
 
   const submitLine = async () => {
     if (!lineCustodyId) return;
     const qty = Number(lineQty || 0);
-    const price = Number(linePrice || 0);
+    const price = Number(linePrice || 0); // original/list price
+    const salePrice = Number(lineSalePrice || 0);
     const cash = Number(lineCash || 0);
-    if (lineType !== "cash_collect") {
+
+    if (lineType === "cash_collect") {
+      if (!cash || cash <= 0) { toast({ title: "أدخل مبلغ نقدية صحيح", variant: "destructive" }); return; }
+    } else {
       if (!lineProduct.trim()) { toast({ title: "أدخل اسم المنتج", variant: "destructive" }); return; }
       if (!qty || qty <= 0) { toast({ title: "أدخل كمية صحيحة", variant: "destructive" }); return; }
-    } else {
-      if (!cash || cash <= 0) { toast({ title: "أدخل مبلغ نقدية صحيح", variant: "destructive" }); return; }
+      if (lineType === "sale") {
+        if (!price || price <= 0) { toast({ title: "أدخل السعر الأصلي", variant: "destructive" }); return; }
+        if (!salePrice || salePrice <= 0) { toast({ title: "أدخل سعر البيع الفعلي", variant: "destructive" }); return; }
+      }
     }
+
+    // Sale discount logic
+    let discountAmt = 0, discountPct = 0, discountStatus: string = "none";
+    if (lineType === "sale") {
+      discountAmt = Math.max(0, (price - salePrice) * qty);
+      discountPct = price > 0 ? Math.max(0, ((price - salePrice) / price) * 100) : 0;
+      if (discountAmt > 0) {
+        if (discountPct > discountThresholdPct && !(isGeneralManager || isExecutiveManager)) {
+          discountStatus = "pending";
+          if (!lineDiscountReason.trim()) { toast({ title: "اختر سبب الخصم", variant: "destructive" }); return; }
+        } else {
+          discountStatus = "auto_approved";
+        }
+      }
+    }
+
     setBusy(true);
     try {
-      const total = qty * price;
-      const { error } = await (supabase as any).from("courier_goods_custody_lines").insert({
+      // For sale: total_value = qty * actual sale price. For issue/return: qty * price.
+      const totalValue =
+        lineType === "sale" ? qty * salePrice :
+        lineType === "cash_collect" ? null :
+        qty * price;
+
+      const insertPayload: any = {
         custody_id: lineCustodyId,
         line_type: lineType,
         product_name: lineType === "cash_collect" ? null : lineProduct.trim(),
         quantity: lineType === "cash_collect" ? null : qty,
         unit: lineType === "cash_collect" ? null : lineUnit,
-        unit_price: lineType === "cash_collect" ? null : (price || null),
-        total_value: lineType === "cash_collect" ? null : (total || null),
+        unit_price: lineType === "sale" ? salePrice : (lineType === "cash_collect" ? null : (price || null)),
+        total_value: totalValue,
         cash_collected: lineType === "cash_collect" ? cash : null,
         notes: lineNotes.trim() || null,
         performed_by: user?.id,
-      });
+      };
+
+      if (lineType === "sale") {
+        insertPayload.original_price = price;
+        insertPayload.discount_amount = discountAmt || null;
+        insertPayload.discount_pct = discountAmt > 0 ? Number(discountPct.toFixed(2)) : null;
+        insertPayload.discount_reason = discountAmt > 0 ? (lineDiscountReason || null) : null;
+        insertPayload.discount_status = discountStatus;
+        if (discountStatus === "auto_approved") {
+          insertPayload.discount_approved_by = user?.id;
+          insertPayload.discount_approved_at = new Date().toISOString();
+        }
+      }
+
+      const { error } = await (supabase as any).from("courier_goods_custody_lines").insert(insertPayload);
       if (error) throw error;
-      // If it's cash_collect, also push into treasury as courier deposit
+
+      // cash collect → treasury deposit
       if (lineType === "cash_collect") {
         const courier = custodies.find((c) => c.id === lineCustodyId)?.courier_name || "مندوب";
         await (supabase as any).from("main_warehouse_treasury_txns").insert({
@@ -474,13 +529,66 @@ export default function MainWarehouseTreasuryTab() {
         });
         await fetchAll();
       }
-      toast({ title: "تم التسجيل" });
+
+      // notify approvers if pending discount
+      if (lineType === "sale" && discountStatus === "pending") {
+        try {
+          const { data: approvers } = await (supabase as any)
+            .from("user_roles").select("user_id")
+            .in("role", ["general_manager", "executive_manager"]);
+          const ids = Array.from(new Set((approvers || []).map((a: any) => a.user_id))) as string[];
+          if (ids.length) {
+            await (supabase as any).from("notifications").insert(
+              ids.map((uid) => ({
+                user_id: uid, type: "courier_discount_pending", read: false,
+                title: "خصم مندوب بانتظار الاعتماد",
+                message: `خصم ${discountPct.toFixed(1)}% (${fmt(discountAmt)} ج.م) — ${lineProduct.trim()}`,
+              }))
+            );
+          }
+        } catch {}
+      }
+
+      toast({
+        title: "تم التسجيل",
+        description: discountStatus === "pending" ? "الخصم بانتظار اعتماد المدير العام/التنفيذي" : undefined,
+      });
       setLineOpen(false);
       await fetchCustodies();
     } catch (e: any) {
       toast({ title: "تعذّر التسجيل", description: e?.message || "", variant: "destructive" });
     } finally { setBusy(false); }
   };
+
+  const approveDiscount = async (lineId: string) => {
+    if (!(isGeneralManager || isExecutiveManager)) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("approve_courier_discount", { _line_id: lineId });
+      if (error) throw error;
+      toast({ title: "تم اعتماد الخصم" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الاعتماد", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+  const rejectDiscount = async (lineId: string) => {
+    if (!(isGeneralManager || isExecutiveManager)) return;
+    const reason = window.prompt("سبب الرفض:", "") || "";
+    if (!reason.trim()) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("reject_courier_discount", { _line_id: lineId, _reason: reason });
+      if (error) throw error;
+      toast({ title: "تم رفض الخصم" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الرفض", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  const DISCOUNT_REASONS = ["عميل جملة", "تصفية صنف", "قرب انتهاء", "عرض خاص", "أخرى"];
+
 
   const closeCustody = async (id: string) => {
     if (!window.confirm("إغلاق العهدة؟ لن يمكن إضافة حركات بعد الإغلاق.")) return;
@@ -816,6 +924,36 @@ export default function MainWarehouseTreasuryTab() {
                   <div className="font-bold font-mono">{fmt(c.remainingGoods)} / {fmt(c.remainingCash)}</div>
                 </div>
               </div>
+
+              {/* Pending discount approvals banner */}
+              {(() => {
+                const pendingD = c.lines.filter((l: any) => l.line_type === "sale" && l.discount_status === "pending");
+                if (pendingD.length === 0) return null;
+                return (
+                  <div className="border border-amber-300 bg-amber-50 rounded p-2 space-y-1">
+                    <div className="text-xs font-semibold text-amber-800">خصومات بانتظار اعتماد المدير العام/التنفيذي ({pendingD.length})</div>
+                    {pendingD.map((l: any) => (
+                      <div key={l.id} className="flex flex-wrap items-center justify-between gap-2 text-xs bg-background rounded p-2 border">
+                        <div>
+                          <b>{l.product_name}</b> — كمية {l.quantity} {l.unit} • سعر أصلي {fmt(Number(l.original_price))} → بيع {fmt(Number(l.unit_price))} •
+                          خصم <b className="text-rose-700">{fmt(Number(l.discount_amount || 0))}</b> ({Number(l.discount_pct || 0).toFixed(1)}%) — {l.discount_reason}
+                        </div>
+                        {(isGeneralManager || isExecutiveManager) && (
+                          <div className="flex gap-1">
+                            <Button size="sm" className="h-7 px-2 bg-emerald-600 hover:bg-emerald-700" onClick={() => approveDiscount(l.id)}>
+                              <CheckCircle2 className="w-3 h-3" />
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-rose-600 border-rose-300" onClick={() => rejectDiscount(l.id)}>
+                              <XCircle className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
               {c.lines.length > 0 && (
                 <details className="text-xs">
                   <summary className="cursor-pointer text-muted-foreground">عرض الحركات ({c.lines.length})</summary>
@@ -827,9 +965,12 @@ export default function MainWarehouseTreasuryTab() {
                           <th className="p-1">النوع</th>
                           <th className="p-1">المنتج</th>
                           <th className="p-1">كمية</th>
-                          <th className="p-1">سعر</th>
+                          <th className="p-1">سعر أصلي</th>
+                          <th className="p-1">سعر فعلي</th>
+                          <th className="p-1">خصم</th>
                           <th className="p-1">قيمة</th>
                           <th className="p-1">نقدية</th>
+                          <th className="p-1">حالة الخصم</th>
                           <th className="p-1">ملاحظات</th>
                         </tr>
                       </thead>
@@ -842,14 +983,27 @@ export default function MainWarehouseTreasuryTab() {
                             </td>
                             <td className="p-1">{l.product_name || "—"}</td>
                             <td className="p-1 font-mono">{l.quantity ? `${l.quantity} ${l.unit || ""}` : "—"}</td>
-                            <td className="p-1 font-mono">{l.unit_price ? fmt(Number(l.unit_price)) : "—"}</td>
+                            <td className="p-1 font-mono">{l.original_price ? fmt(Number(l.original_price)) : (l.line_type === "sale" ? "—" : (l.unit_price ? fmt(Number(l.unit_price)) : "—"))}</td>
+                            <td className="p-1 font-mono">{l.line_type === "sale" && l.unit_price ? fmt(Number(l.unit_price)) : "—"}</td>
+                            <td className="p-1 font-mono text-rose-700">
+                              {l.discount_amount ? `${fmt(Number(l.discount_amount))} (${Number(l.discount_pct || 0).toFixed(1)}%)` : "—"}
+                            </td>
                             <td className="p-1 font-mono">{l.total_value ? fmt(Number(l.total_value)) : "—"}</td>
                             <td className="p-1 font-mono">{l.cash_collected ? fmt(Number(l.cash_collected)) : "—"}</td>
+                            <td className="p-1">
+                              {l.line_type !== "sale" || !l.discount_status || l.discount_status === "none" ? "—" :
+                               l.discount_status === "auto_approved" ? <Badge variant="outline" className="bg-emerald-100 text-emerald-700">تلقائي</Badge> :
+                               l.discount_status === "approved" ? <Badge variant="outline" className="bg-emerald-100 text-emerald-700">معتمد</Badge> :
+                               l.discount_status === "rejected" ? <Badge variant="outline" className="bg-rose-100 text-rose-700">مرفوض</Badge> :
+                               <Badge variant="outline" className="bg-amber-100 text-amber-700">بانتظار اعتماد</Badge>}
+                              {l.discount_reason ? <div className="text-[10px] text-muted-foreground">{l.discount_reason}</div> : null}
+                            </td>
                             <td className="p-1 text-muted-foreground">{l.notes || "—"}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
+
                   </div>
                 </details>
               )}
@@ -1066,9 +1220,42 @@ export default function MainWarehouseTreasuryTab() {
                 <div className="grid grid-cols-3 gap-2">
                   <div><Label>الكمية</Label><Input type="number" min="0" step="0.001" value={lineQty} onChange={(e) => setLineQty(e.target.value)} /></div>
                   <div><Label>الوحدة</Label><Input value={lineUnit} onChange={(e) => setLineUnit(e.target.value)} /></div>
-                  <div><Label>سعر الوحدة</Label><Input type="number" min="0" step="0.01" value={linePrice} onChange={(e) => setLinePrice(e.target.value)} /></div>
+                  <div><Label>{lineType === "sale" ? "السعر الأصلي" : "سعر الوحدة"}</Label><Input type="number" min="0" step="0.01" value={linePrice} onChange={(e) => setLinePrice(e.target.value)} /></div>
                 </div>
-                {Number(lineQty) > 0 && Number(linePrice) > 0 && (
+                {lineType === "sale" && (
+                  <>
+                    <div><Label>سعر البيع الفعلي للوحدة</Label><Input type="number" min="0" step="0.01" value={lineSalePrice} onChange={(e) => setLineSalePrice(e.target.value)} /></div>
+                    {Number(lineQty) > 0 && Number(linePrice) > 0 && Number(lineSalePrice) > 0 && (() => {
+                      const q = Number(lineQty), p = Number(linePrice), sp = Number(lineSalePrice);
+                      const dAmt = Math.max(0, (p - sp) * q);
+                      const dPct = p > 0 ? Math.max(0, ((p - sp) / p) * 100) : 0;
+                      const needsApproval = dPct > discountThresholdPct && !(isGeneralManager || isExecutiveManager);
+                      return (
+                        <div className={`text-xs rounded p-2 ${dAmt > 0 ? (needsApproval ? "bg-amber-50 border border-amber-300" : "bg-muted/40") : "bg-muted/40"}`}>
+                          <div>قيمة البيع: <b>{fmt(q * sp)}</b> ج.م</div>
+                          {dAmt > 0 && (
+                            <div>
+                              قيمة الخصم: <b className="text-rose-700">{fmt(dAmt)}</b> ج.م ({dPct.toFixed(1)}%)
+                              {needsApproval && <span className="text-amber-700 mr-2">— يتجاوز الحد المسموح ({discountThresholdPct}%)، يتطلب اعتماد المدير العام/التنفيذي.</span>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    {Number(linePrice) > 0 && Number(lineSalePrice) > 0 && Number(linePrice) > Number(lineSalePrice) && (
+                      <div>
+                        <Label>سبب الخصم</Label>
+                        <Select value={lineDiscountReason} onValueChange={setLineDiscountReason}>
+                          <SelectTrigger><SelectValue placeholder="اختر السبب" /></SelectTrigger>
+                          <SelectContent>
+                            {DISCOUNT_REASONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </>
+                )}
+                {lineType !== "sale" && Number(lineQty) > 0 && Number(linePrice) > 0 && (
                   <div className="text-sm bg-muted/40 rounded p-2">القيمة: <b>{fmt(Number(lineQty) * Number(linePrice))}</b> ج.م</div>
                 )}
               </>
@@ -1078,6 +1265,7 @@ export default function MainWarehouseTreasuryTab() {
             )}
             <div><Label>ملاحظات</Label><Textarea rows={2} value={lineNotes} onChange={(e) => setLineNotes(e.target.value)} /></div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setLineOpen(false)}>إلغاء</Button>
             <Button disabled={busy} onClick={submitLine}>تسجيل</Button>

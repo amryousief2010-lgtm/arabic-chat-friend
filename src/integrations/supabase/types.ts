@@ -2182,6 +2182,27 @@ export type Database = {
         }
         Relationships: []
       }
+      courier_custody_settings: {
+        Row: {
+          auto_approve_discount_pct: number
+          id: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          auto_approve_discount_pct?: number
+          id?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          auto_approve_discount_pct?: number
+          id?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       courier_goods_custodies: {
         Row: {
           closed_at: string | null
@@ -2226,11 +2247,18 @@ export type Database = {
           cash_collected: number | null
           created_at: string
           custody_id: string
+          discount_amount: number | null
+          discount_approved_at: string | null
+          discount_approved_by: string | null
+          discount_pct: number | null
+          discount_reason: string | null
+          discount_status: string | null
           id: string
           inventory_item_id: string | null
           inventory_movement_id: string | null
           line_type: string
           notes: string | null
+          original_price: number | null
           performed_at: string
           performed_by: string | null
           product_name: string | null
@@ -2243,11 +2271,18 @@ export type Database = {
           cash_collected?: number | null
           created_at?: string
           custody_id: string
+          discount_amount?: number | null
+          discount_approved_at?: string | null
+          discount_approved_by?: string | null
+          discount_pct?: number | null
+          discount_reason?: string | null
+          discount_status?: string | null
           id?: string
           inventory_item_id?: string | null
           inventory_movement_id?: string | null
           line_type: string
           notes?: string | null
+          original_price?: number | null
           performed_at?: string
           performed_by?: string | null
           product_name?: string | null
@@ -2260,11 +2295,18 @@ export type Database = {
           cash_collected?: number | null
           created_at?: string
           custody_id?: string
+          discount_amount?: number | null
+          discount_approved_at?: string | null
+          discount_approved_by?: string | null
+          discount_pct?: number | null
+          discount_reason?: string | null
+          discount_status?: string | null
           id?: string
           inventory_item_id?: string | null
           inventory_movement_id?: string | null
           line_type?: string
           notes?: string | null
+          original_price?: number | null
           performed_at?: string
           performed_by?: string | null
           product_name?: string | null
@@ -17447,6 +17489,7 @@ export type Database = {
         Args: { p_slaughter_batch_id: string }
         Returns: Json
       }
+      approve_courier_discount: { Args: { _line_id: string }; Returns: string }
       approve_feed_batch_cost: {
         Args: {
           p_batch: string
@@ -19078,6 +19121,10 @@ export type Database = {
       recompute_slaughter_batch_cost: {
         Args: { p_slaughter_batch_id: string }
         Returns: Json
+      }
+      reject_courier_discount: {
+        Args: { _line_id: string; _reason: string }
+        Returns: string
       }
       reject_low_yield_transfer: {
         Args: { p_batch_id: string; p_reason: string }
