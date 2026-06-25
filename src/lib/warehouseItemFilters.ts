@@ -1,5 +1,3 @@
-import { isMainWarehouseExcludedCategory } from "@/constants/warehouseCategoryFilters";
-
 export interface WarehouseDropdownItem {
   id: string;
   warehouse_id?: string | null;
@@ -17,42 +15,14 @@ export interface WarehouseDropdownItem {
   updated_at?: string | null;
 }
 
-const norm = (v?: string | null) => String(v || "").trim().toLowerCase();
-
-const BLOCKED_MAIN_ITEM_TYPES = new Set([
-  "raw_material",
-  "raw_materials",
-  "feed_raw",
-  "feed_raw_material",
-  "feed_raw_materials",
-  "meat_factory_raw",
-  "meat_raw",
-  "packaging",
-  "packing",
-]);
-
-const BLOCKED_MAIN_MODULES = new Set([
-  "feed",
-  "feed_factory",
-  "feed_raw",
-  "feed_raw_materials",
-  "meat_factory",
-  "meat_factory_raw",
-  "meat_raw",
-  "packaging",
-  "meat_packaging",
-]);
-
 export const isWarehouseItemActive = (item: WarehouseDropdownItem): boolean =>
   item.is_active !== false && item.archived !== true && !item.archived_at;
 
 export const isMainWarehouseStockItemAllowed = (item: WarehouseDropdownItem): boolean => {
-  const itemType = norm(item.item_type) || norm(item.category);
-  const sourceModule = norm(item.source_module) || norm(item.module);
-  return Boolean(item.product_id)
-    && !isMainWarehouseExcludedCategory(item.category)
-    && !BLOCKED_MAIN_ITEM_TYPES.has(itemType)
-    && !BLOCKED_MAIN_MODULES.has(sourceModule);
+  // For main-warehouse dispatches, the only item-level rule is that the
+  // inventory_items row itself is active. Do not require product_id/category/module:
+  // legitimate main-warehouse products can exist with product_id = NULL.
+  return isWarehouseItemActive(item);
 };
 
 export const isAllowedWarehouseDropdownItem = (
@@ -65,7 +35,8 @@ export const isAllowedWarehouseDropdownItem = (
   if (item.warehouse_id !== warehouseId) return false;
   if (!isWarehouseItemActive(item)) return false;
   if (isMainWarehouse && !isMainWarehouseStockItemAllowed(item)) return false;
-  if (isMainWarehouse && visibleProductIds && (!item.product_id || !visibleProductIds.has(item.product_id))) return false;
+  // visibleProductIds is kept only for backward compatibility with older callers.
+  // It must not be used for main-warehouse validation because product_id may be NULL.
   return true;
 };
 
@@ -102,11 +73,45 @@ export const getAllowedWarehouseDropdownItems = <T extends WarehouseDropdownItem
   );
 };
 
-export const getWarehouseItemDebugRow = (item: WarehouseDropdownItem) => ({
-  item_id: item.id,
-  product_id: item.product_id || null,
-  warehouse_id: item.warehouse_id || null,
-  item_type: item.item_type || item.category || null,
-  source_module: item.source_module || item.module || null,
-  name: item.name || null,
+export const getWarehouseItemRejectionReason = (
+  item: WarehouseDropdownItem | undefined | null,
+  expectedWarehouseId?: string | null,
+): string => {
+  if (!item) return "ITEM_NOT_FOUND_IN_INVENTORY_ITEMS";
+  if (expectedWarehouseId && item.warehouse_id !== expectedWarehouseId) return "WAREHOUSE_ID_MISMATCH";
+  if (!isWarehouseItemActive(item)) return "ITEM_NOT_ACTIVE";
+  return "";
+};
+
+export const getWarehouseItemDebugRow = (
+  item: WarehouseDropdownItem,
+  expectedWarehouseId?: string | null,
+  warehouseName?: string | null,
+) => {
+  const rejectionReason = getWarehouseItemRejectionReason(item, expectedWarehouseId);
+  return {
+    item_id: item.id,
+    warehouse_id: item.warehouse_id || null,
+    warehouse_name: warehouseName || null,
+    product_id: item.product_id || null,
+    item_name: item.name || null,
+    validation_result: !rejectionReason,
+    rejection_reason: rejectionReason,
+    active: isWarehouseItemActive(item),
+  };
+};
+
+export const getWarehouseMissingItemDebugRow = (
+  itemId: string,
+  expectedWarehouseId?: string | null,
+  warehouseName?: string | null,
+) => ({
+  item_id: itemId,
+  warehouse_id: null,
+  warehouse_name: warehouseName || null,
+  product_id: null,
+  item_name: null,
+  validation_result: false,
+  rejection_reason: "ITEM_NOT_FOUND_IN_INVENTORY_ITEMS",
+  active: false,
 });
