@@ -21,6 +21,7 @@ import { openPrintWindow } from "@/lib/printPdf";
 import { kpi as lvKpi, LV_PERIOD, lvTotalSalesValue, lvInternalSalesValue } from "@/data/feedFactoryLV";
 import FeedInvoiceDetailsDialog, { printInvoice as printFeedInvoice } from "@/components/feed/FeedInvoiceDetailsDialog";
 import FeedFactoryTreasuryPanel from "@/components/feed/FeedFactoryTreasuryPanel";
+import ProductionOrphanChecker from "@/components/feed/ProductionOrphanChecker";
 
 type Line = { id: string; ref_id: string; qty: number; price: number };
 const newLine = (): Line => ({ id: crypto.randomUUID(), ref_id: "", qty: 0, price: 0 });
@@ -856,7 +857,9 @@ export default function FeedWarehouses() {
           </TabsContent>
 
           {/* PRODUCTION INVOICES */}
-          <TabsContent value="production">
+          <TabsContent value="production" className="space-y-4">
+            <ProductionOrphanChecker />
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <div><CardTitle>فواتير تصنيع العلف</CardTitle><CardDescription>تصنيع علف بادي / تسمين / بياض — يخصم الخامات تلقائياً ويضيف الناتج للجاهز بمتوسط التكلفة</CardDescription></div>
@@ -1879,42 +1882,46 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
     const validExp = expenses.filter((e) => e.amount > 0);
 
     setSaving(true);
-    let createdHeadId: string | null = null;
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data: head, error: e1 } = await (supabase as any).from("feed_production_invoices").insert({
-        prod_date: date, product_id: productId, qty_produced: qtyProduced,
-        bags, labor_cost: Number(laborCost || 0), notes, created_by: user?.id,
-        client_request_id: requestIdRef.current,
-      }).select("id").single();
-      if (e1) {
-        const msg = (e1.message || "").toLowerCase();
-        if (msg.includes("duplicate") || msg.includes("unique") || (e1 as any).code === "23505") {
+      const itemsPayload = resolved.map(({ l, uc }) => ({
+        raw_material_id: l.raw_id,
+        quantity: Number(l.qty),
+        unit_cost: uc,
+        line_cost: Number((uc * Number(l.qty)).toFixed(4)),
+      }));
+
+      // Atomic RPC: header + items + finalize + labor treasury in ONE transaction.
+      // If any step fails → full ROLLBACK (no invoice, no stock deduction, no treasury txn).
+      const { data: newInvoiceId, error: eRpc } = await (supabase as any).rpc(
+        "create_feed_production_invoice_atomic",
+        {
+          p_prod_date: date,
+          p_product_id: productId,
+          p_qty_produced: qtyProduced,
+          p_bags: bags,
+          p_labor_cost: Number(laborCost || 0),
+          p_notes: notes,
+          p_client_request_id: requestIdRef.current,
+          p_items: itemsPayload,
+        }
+      );
+      if (eRpc) {
+        const msg = (eRpc.message || "").toLowerCase();
+        if (msg.includes("duplicate") || msg.includes("unique") || (eRpc as any).code === "23505") {
           throw new Error("تم تسجيل هذه عملية التصنيع بالفعل، لا يمكن تكرارها.");
         }
-        throw e1;
+        throw eRpc;
       }
-      createdHeadId = head.id;
-      const { error: e2 } = await (supabase as any).from("feed_production_invoice_items").insert(
-        resolved.map(({ l, uc }) => ({
-          invoice_id: head.id,
-          raw_material_id: l.raw_id,
-          quantity: l.qty,
-          unit_cost: uc,
-          line_cost: Number((uc * Number(l.qty)).toFixed(4)),
-        }))
-      );
-      if (e2) throw e2;
-      const { error: e3 } = await (supabase as any).rpc("finalize_feed_production", { _invoice_id: head.id });
-      if (e3) throw e3;
+      const headId = newInvoiceId as string;
 
-      // Save expenses after invoice is created — trigger recalculates totals
+      // Expenses (post-creation, independent operations)
       for (let i = 0; i < validExp.length; i++) {
         const exp = validExp[i];
         const kind = EXPENSE_TYPES_FORM.find(t => t.v === exp.expense_type)?.k || "general_expense";
-        const refId = `feed_invoice_expense_${head.id}_${exp.expense_type}_${i}`;
+        const refId = `feed_invoice_expense_${headId}_${exp.expense_type}_${i}`;
         const { error: eExp } = await (supabase as any).rpc("add_feed_invoice_expense", {
-          p_invoice_id: head.id,
+          p_invoice_id: headId,
           p_expense_type: exp.expense_type,
           p_description: exp.description || null,
           p_amount: exp.amount,
@@ -1926,21 +1933,19 @@ function ProductionDialog({ open, onOpenChange, rawMaterials, products, onSaved 
           p_notes: exp.notes || null,
           p_reference_id: refId,
         });
-        if (eExp) throw new Error(`فشل حفظ مصروف "${EXPENSE_TYPES_FORM.find(t=>t.v===exp.expense_type)?.l}": ${eExp.message}`);
+        if (eExp) {
+          toast.error(`تم حفظ الفاتورة لكن فشل حفظ مصروف "${EXPENSE_TYPES_FORM.find(t=>t.v===exp.expense_type)?.l}": ${eExp.message}`);
+        }
       }
 
-      createdHeadId = null; // success — skip rollback
       toast.success(`تم تسجيل فاتورة التصنيع${validExp.length ? ` مع ${validExp.length} مصروف` : ""}`);
       onOpenChange(false); onSaved();
     } catch (err: any) {
-      // Roll back the orphan head invoice if a later step failed, to avoid empty/duplicate rows.
-      if (createdHeadId) {
-        try { await (supabase as any).from("feed_production_invoices").delete().eq("id", createdHeadId); } catch {}
-      }
       toast.error(err.message || "فشل الحفظ");
     }
     finally { setSaving(false); }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
