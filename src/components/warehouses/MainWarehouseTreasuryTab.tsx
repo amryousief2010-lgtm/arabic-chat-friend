@@ -15,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { openPrintWindow, escapeHtml, fmtNum, COMPANY_AR } from "@/lib/printPdf";
+import { isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
+import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow } from "@/lib/warehouseItemFilters";
 import * as XLSX from "xlsx";
 
 interface Txn {
@@ -31,6 +33,23 @@ interface Txn {
   transfer_id: string | null;
   courier_name?: string | null;
   rejection_reason?: string | null;
+}
+
+interface WarehouseStockItem {
+  id: string;
+  warehouse_id: string | null;
+  product_id?: string | null;
+  name?: string | null;
+  category?: string | null;
+  unit?: string | null;
+  stock?: number | null;
+  is_active?: boolean | null;
+  archived?: boolean | null;
+  archived_at?: string | null;
+  module?: string | null;
+  item_type?: string | null;
+  source_module?: string | null;
+  unit_cost?: number | null;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -103,6 +122,7 @@ export default function MainWarehouseTreasuryTab() {
   const [lineOpen, setLineOpen] = useState(false);
   const [lineCustodyId, setLineCustodyId] = useState<string | null>(null);
   const [lineType, setLineType] = useState<"issue" | "return" | "sale" | "cash_collect">("issue");
+  const [lineInventoryItemId, setLineInventoryItemId] = useState("");
   const [lineProduct, setLineProduct] = useState("");
   const [lineQty, setLineQty] = useState("");
   const [lineUnit, setLineUnit] = useState("كجم");
@@ -138,6 +158,9 @@ export default function MainWarehouseTreasuryTab() {
   const [payCommCourier, setPayCommCourier] = useState("");
   const [payCommAmt, setPayCommAmt] = useState("");
   const [payCommNotes, setPayCommNotes] = useState("");
+
+  const [mainWarehouse, setMainWarehouse] = useState<{ id: string; name: string } | null>(null);
+  const [mainWarehouseItems, setMainWarehouseItems] = useState<WarehouseStockItem[]>([]);
 
 
 
@@ -177,7 +200,7 @@ export default function MainWarehouseTreasuryTab() {
   };
 
   useEffect(() => {
-    fetchAll(); fetchRecons(); fetchCustodies(); fetchCourierExtras();
+    fetchAll(); fetchRecons(); fetchCustodies(); fetchCourierExtras(); fetchMainWarehouseItems();
     (async () => {
       const { data } = await (supabase as any).from("courier_custody_settings").select("auto_approve_discount_pct").eq("id", 1).maybeSingle();
       if (data?.auto_approve_discount_pct != null) setDiscountThresholdPct(Number(data.auto_approve_discount_pct));
@@ -193,6 +216,29 @@ export default function MainWarehouseTreasuryTab() {
       .limit(100);
     setRecons(data || []);
   };
+
+  const fetchMainWarehouseItems = async () => {
+    const { data: whs } = await (supabase as any).from("warehouses").select("id,name").order("name");
+    const wh = ((whs || []) as Array<{ id: string; name: string }>).find((w) => isMainWarehouseName(w.name));
+    setMainWarehouse(wh || null);
+    if (!wh) { setMainWarehouseItems([]); return; }
+    const { data } = await (supabase as any)
+      .from("inventory_items")
+      .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, archived, archived_at, module, item_type, source_module, unit_cost")
+      .eq("warehouse_id", wh.id)
+      .order("name");
+    setMainWarehouseItems((data || []) as WarehouseStockItem[]);
+  };
+
+  const allowedMainWarehouseItems = useMemo(
+    () => getAllowedWarehouseDropdownItems(mainWarehouseItems, mainWarehouse?.id, true),
+    [mainWarehouseItems, mainWarehouse?.id]
+  );
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !lineOpen || lineType !== "issue") return;
+    console.table(allowedMainWarehouseItems.map((item) => getWarehouseItemDebugRow(item, mainWarehouse?.id, mainWarehouse?.name)));
+  }, [lineOpen, lineType, allowedMainWarehouseItems, mainWarehouse?.id, mainWarehouse?.name]);
 
   const fetchCustodies = async () => {
     const { data: c } = await (supabase as any)
@@ -489,6 +535,7 @@ export default function MainWarehouseTreasuryTab() {
 
   const openLineDialog = (custodyId: string, type: typeof lineType) => {
     setLineCustodyId(custodyId); setLineType(type);
+    setLineInventoryItemId("");
     setLineProduct(""); setLineQty(""); setLinePrice(""); setLineSalePrice("");
     setLineDiscountReason(""); setLineCash(""); setLineNotes(""); setLineUnit("كجم");
     setRequestCreditOverride(false);
