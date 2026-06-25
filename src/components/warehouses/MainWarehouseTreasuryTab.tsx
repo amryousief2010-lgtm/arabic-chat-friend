@@ -1497,11 +1497,12 @@ export default function MainWarehouseTreasuryTab() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
                 <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمة المصروف</div><div className="font-bold font-mono">{fmt(c.goodsOutValue)}</div></div>
                 <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمة المرتجع</div><div className="font-bold font-mono">{fmt(c.goodsReturnedValue)}</div></div>
                 <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمة المبيعات</div><div className="font-bold font-mono text-emerald-700">{fmt(c.salesValue)}</div></div>
                 <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">نقدية محصّلة</div><div className="font-bold font-mono text-sky-700">{fmt(c.cashCollected)}</div></div>
+                <div className="bg-fuchsia-50 rounded p-2 border border-fuchsia-100"><div className="text-muted-foreground">🎁 مجانيات</div><div className="font-bold font-mono text-fuchsia-700">{fmt(c.bonusValue || 0)} <span className="text-[10px]">({(c.bonusPct || 0).toFixed(1)}%)</span></div></div>
                 <div className={`rounded p-2 ${Math.abs(c.remainingCash) < 0.01 && Math.abs(c.remainingGoods) < 0.01 ? "bg-emerald-50" : "bg-amber-50"}`}>
                   <div className="text-muted-foreground">المتبقي (بضائع / نقدية)</div>
                   <div className="font-bold font-mono">{fmt(c.remainingGoods)} / {fmt(c.remainingCash)}</div>
