@@ -339,8 +339,185 @@ export default function MainWarehouseTreasuryTab() {
     } finally { setBusy(false); }
   };
 
+  // === Reconciliation actions ===
+  const submitRecon = async () => {
+    const phys = Number(reconPhysical);
+    if (isNaN(phys) || phys < 0) { toast({ title: "أدخل نقدية فعلية صحيحة", variant: "destructive" }); return; }
+    const diff = phys - kpis.balance;
+    if (Math.abs(diff) > 0.009 && !reconReason.trim()) {
+      toast({ title: "أدخل سبب الفرق", description: `الفرق = ${fmt(diff)} ج.م`, variant: "destructive" }); return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).from("main_warehouse_reconciliations").insert({
+        book_balance: kpis.balance,
+        physical_cash: phys,
+        reason: reconReason.trim() || null,
+        notes: reconNotes.trim() || null,
+        performed_by: user?.id,
+        status: "pending",
+      });
+      if (error) throw error;
+      // notify approvers
+      try {
+        const { data: approvers } = await (supabase as any)
+          .from("user_roles").select("user_id")
+          .in("role", ["general_manager", "executive_manager", "financial_manager"]);
+        const ids = Array.from(new Set((approvers || []).map((a: any) => a.user_id))) as string[];
+        if (ids.length) {
+          await (supabase as any).from("notifications").insert(
+            ids.map((uid) => ({
+              user_id: uid, type: "warehouse_recon_pending", read: false,
+              title: "جرد جديد لخزينة المخزن الرئيسي",
+              message: `الرصيد الدفتري: ${fmt(kpis.balance)} • النقدية: ${fmt(phys)} • الفرق: ${fmt(diff)}`,
+            }))
+          );
+        }
+      } catch {}
+      toast({ title: "تم إرسال الجرد للاعتماد", description: `الفرق: ${fmt(diff)} ج.م` });
+      setReconOpen(false); setReconPhysical(""); setReconReason(""); setReconNotes("");
+      await fetchRecons();
+    } catch (e: any) {
+      toast({ title: "تعذّر التسجيل", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
 
-  // === Export & Print ===
+  const canApproveRecon = isGeneralManager || isExecutiveManager || isFinancialManager;
+  const approveRecon = async (r: any) => {
+    if (!canApproveRecon) return;
+    if (!window.confirm(`اعتماد الجرد؟ الفرق ${fmt(Number(r.difference))} ج.م ${Math.abs(Number(r.difference)) > 0.009 ? "سيتم تسجيل تسوية تلقائية بالخزينة" : ""}`)) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("approve_warehouse_reconciliation", { _id: r.id });
+      if (error) throw error;
+      toast({ title: "تم اعتماد الجرد" });
+      await Promise.all([fetchRecons(), fetchAll()]);
+    } catch (e: any) {
+      toast({ title: "تعذّر الاعتماد", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+  const rejectRecon = async (r: any) => {
+    if (!canApproveRecon) return;
+    const reason = window.prompt("سبب الرفض:", "") || "";
+    if (!reason.trim()) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("reject_warehouse_reconciliation", { _id: r.id, _reason: reason });
+      if (error) throw error;
+      toast({ title: "تم رفض الجرد" });
+      await fetchRecons();
+    } catch (e: any) {
+      toast({ title: "تعذّر الرفض", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  // === Courier custody actions ===
+  const submitNewCustody = async () => {
+    if (!newCustodyName.trim()) { toast({ title: "أدخل اسم المندوب", variant: "destructive" }); return; }
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).from("courier_goods_custodies").insert({
+        courier_name: newCustodyName.trim(),
+        notes: newCustodyNotes.trim() || null,
+        opened_by: user?.id,
+        status: "open",
+      });
+      if (error) throw error;
+      toast({ title: "تم فتح عهدة جديدة" });
+      setNewCustodyOpen(false); setNewCustodyName(""); setNewCustodyNotes("");
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الفتح", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  const openLineDialog = (custodyId: string, type: typeof lineType) => {
+    setLineCustodyId(custodyId); setLineType(type);
+    setLineProduct(""); setLineQty(""); setLinePrice(""); setLineCash(""); setLineNotes(""); setLineUnit("كجم");
+    setLineOpen(true);
+  };
+
+  const submitLine = async () => {
+    if (!lineCustodyId) return;
+    const qty = Number(lineQty || 0);
+    const price = Number(linePrice || 0);
+    const cash = Number(lineCash || 0);
+    if (lineType !== "cash_collect") {
+      if (!lineProduct.trim()) { toast({ title: "أدخل اسم المنتج", variant: "destructive" }); return; }
+      if (!qty || qty <= 0) { toast({ title: "أدخل كمية صحيحة", variant: "destructive" }); return; }
+    } else {
+      if (!cash || cash <= 0) { toast({ title: "أدخل مبلغ نقدية صحيح", variant: "destructive" }); return; }
+    }
+    setBusy(true);
+    try {
+      const total = qty * price;
+      const { error } = await (supabase as any).from("courier_goods_custody_lines").insert({
+        custody_id: lineCustodyId,
+        line_type: lineType,
+        product_name: lineType === "cash_collect" ? null : lineProduct.trim(),
+        quantity: lineType === "cash_collect" ? null : qty,
+        unit: lineType === "cash_collect" ? null : lineUnit,
+        unit_price: lineType === "cash_collect" ? null : (price || null),
+        total_value: lineType === "cash_collect" ? null : (total || null),
+        cash_collected: lineType === "cash_collect" ? cash : null,
+        notes: lineNotes.trim() || null,
+        performed_by: user?.id,
+      });
+      if (error) throw error;
+      // If it's cash_collect, also push into treasury as courier deposit
+      if (lineType === "cash_collect") {
+        const courier = custodies.find((c) => c.id === lineCustodyId)?.courier_name || "مندوب";
+        await (supabase as any).from("main_warehouse_treasury_txns").insert({
+          direction: "in", category: "courier_deposit", amount: cash,
+          courier_name: courier, notes: `تحصيل من عهدة بضائع — ${lineNotes.trim() || ""}`.trim(),
+          performed_by: user?.id, status: "posted",
+        });
+        await fetchAll();
+      }
+      toast({ title: "تم التسجيل" });
+      setLineOpen(false);
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر التسجيل", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  const closeCustody = async (id: string) => {
+    if (!window.confirm("إغلاق العهدة؟ لن يمكن إضافة حركات بعد الإغلاق.")) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).from("courier_goods_custodies")
+        .update({ status: "closed", closed_at: new Date().toISOString(), closed_by: user?.id })
+        .eq("id", id);
+      if (error) throw error;
+      toast({ title: "تم إغلاق العهدة" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الإغلاق", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  // Per-courier custody summary
+  const custodySummary = useMemo(() => {
+    return custodies.map((c) => {
+      const lines = custodyLines.filter((l) => l.custody_id === c.id);
+      let goodsOutValue = 0, goodsReturnedValue = 0, salesValue = 0, cashCollected = 0;
+      lines.forEach((l) => {
+        const tv = Number(l.total_value || 0);
+        if (l.line_type === "issue") goodsOutValue += tv;
+        else if (l.line_type === "return") goodsReturnedValue += tv;
+        else if (l.line_type === "sale") salesValue += tv;
+        else if (l.line_type === "cash_collect") cashCollected += Number(l.cash_collected || 0);
+      });
+      const remainingGoods = goodsOutValue - goodsReturnedValue - salesValue;
+      const remainingCash = salesValue - cashCollected;
+      return { ...c, lines, goodsOutValue, goodsReturnedValue, salesValue, cashCollected, remainingGoods, remainingCash };
+    });
+  }, [custodies, custodyLines]);
+
+  const pendingRecons = recons.filter((r) => r.status === "pending");
+
+
   const exportExcel = () => {
     const data = filtered.map((r) => ({
       "التاريخ": fmtDate(r.performed_at),
