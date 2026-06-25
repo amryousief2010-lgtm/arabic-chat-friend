@@ -705,14 +705,8 @@ export default function MainWarehouseTreasuryTab() {
       const { error } = await (supabase as any).from("courier_goods_custody_lines").insert(insertPayload);
       if (error) throw error;
 
-      // cash collect → treasury deposit
+      // cash collect → treasury deposit (auto-created via DB trigger on courier_goods_custody_lines)
       if (lineType === "cash_collect") {
-        const courier = custodies.find((c) => c.id === lineCustodyId)?.courier_name || "مندوب";
-        await (supabase as any).from("main_warehouse_treasury_txns").insert({
-          direction: "in", category: "courier_deposit", amount: cash,
-          courier_name: courier, notes: `تحصيل من عهدة بضائع — ${lineNotes.trim() || ""}`.trim(),
-          performed_by: user?.id, status: "posted",
-        });
         await fetchAll();
       }
 
