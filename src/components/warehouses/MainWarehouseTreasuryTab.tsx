@@ -668,6 +668,137 @@ export default function MainWarehouseTreasuryTab() {
     } finally { setBusy(false); }
   };
 
+  // === Credit override approve/reject ===
+  const approveCreditOverride = async (lineId: string) => {
+    if (!(isGeneralManager || isExecutiveManager)) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("approve_courier_credit_override", { _line_id: lineId });
+      if (error) throw error;
+      toast({ title: "تم اعتماد تجاوز الحد" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الاعتماد", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+  const rejectCreditOverride = async (lineId: string) => {
+    if (!(isGeneralManager || isExecutiveManager)) return;
+    const reason = window.prompt("سبب الرفض:", "") || "";
+    if (!reason.trim()) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("reject_courier_credit_override", { _line_id: lineId, _reason: reason });
+      if (error) throw error;
+      toast({ title: "تم رفض التجاوز" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الرفض", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  // === Profile (limit + commission) save ===
+  const openProfileDialog = (courierName: string) => {
+    const p = profiles.find((x) => x.courier_name === courierName);
+    setProfileCourier(courierName);
+    setProfileLimit(p?.credit_limit != null ? String(p.credit_limit) : "");
+    setProfileCommType(p?.commission_type || "none");
+    setProfileCommValue(p?.commission_value != null ? String(p.commission_value) : "");
+    setProfileNotes(p?.notes || "");
+    setProfileOpen(true);
+  };
+  const saveProfile = async () => {
+    if (!(isGeneralManager || isExecutiveManager)) {
+      toast({ title: "غير مصرح", variant: "destructive" }); return;
+    }
+    setBusy(true);
+    try {
+      const payload: any = {
+        courier_name: profileCourier,
+        credit_limit: profileLimit ? Number(profileLimit) : null,
+        commission_type: profileCommType,
+        commission_value: profileCommValue ? Number(profileCommValue) : 0,
+        notes: profileNotes || null,
+        updated_by: user?.id,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await (supabase as any)
+        .from("courier_profiles")
+        .upsert(payload, { onConflict: "courier_name" });
+      if (error) throw error;
+      toast({ title: "تم حفظ إعدادات المندوب" });
+      setProfileOpen(false);
+      await fetchCourierExtras();
+    } catch (e: any) {
+      toast({ title: "تعذّر الحفظ", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  // === Close day ===
+  const closeDay = async (custodyId: string) => {
+    const dateStr = window.prompt("تاريخ الإغلاق (YYYY-MM-DD):", new Date().toISOString().slice(0, 10));
+    if (!dateStr) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("close_courier_day", { _custody_id: custodyId, _date: dateStr });
+      if (error) throw error;
+      toast({ title: "تم إغلاق اليوم" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الإغلاق", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+  const reopenDay = async (closureId: string) => {
+    if (!(isGeneralManager || isExecutiveManager)) {
+      toast({ title: "إعادة الفتح للمدير العام/التنفيذي فقط", variant: "destructive" }); return;
+    }
+    const reason = window.prompt("سبب إعادة الفتح:", "") || "";
+    if (!reason.trim()) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("reopen_courier_day", { _closure_id: closureId, _reason: reason });
+      if (error) throw error;
+      toast({ title: "تم إعادة الفتح" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر إعادة الفتح", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  // === Pay commission ===
+  const openPayCommission = (courierName: string, suggested: number) => {
+    setPayCommCourier(courierName);
+    setPayCommAmt(suggested > 0 ? suggested.toFixed(2) : "");
+    setPayCommNotes("");
+    setPayCommOpen(true);
+  };
+  const submitPayCommission = async () => {
+    const amt = Number(payCommAmt || 0);
+    if (!amt || amt <= 0) { toast({ title: "أدخل مبلغ صحيح", variant: "destructive" }); return; }
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("pay_courier_commission", {
+        _courier_name: payCommCourier, _amount: amt, _notes: payCommNotes || null,
+      });
+      if (error) throw error;
+      toast({ title: "تم صرف العمولة" });
+      setPayCommOpen(false);
+      await fetchCourierExtras();
+      await fetchAll();
+    } catch (e: any) {
+      toast({ title: "تعذّر الصرف", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  // === Statement helpers ===
+  const openStatement = (sum: any) => {
+    setStmtCustody(sum);
+    setStmtFrom("");
+    setStmtTo(new Date().toISOString().slice(0, 10));
+    setStmtOpen(true);
+  };
+
+
+
   const DISCOUNT_REASONS = ["عميل جملة", "تصفية صنف", "قرب انتهاء", "عرض خاص", "أخرى"];
 
 
