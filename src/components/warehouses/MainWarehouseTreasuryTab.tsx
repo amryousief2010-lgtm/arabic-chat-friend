@@ -529,6 +529,32 @@ export default function MainWarehouseTreasuryTab() {
       }
     }
 
+    // Credit-limit enforcement for issue
+    let creditOverrideStatus: "none" | "pending" | "approved" = "none";
+    if (lineType === "issue") {
+      const sum = custodySummary.find((s) => s.id === lineCustodyId);
+      const limit = sum?.creditLimit;
+      const addValue = qty * price;
+      if (limit != null && sum) {
+        const projected = (sum.remainingGoods || 0) + addValue;
+        if (projected > limit) {
+          if (isGeneralManager || isExecutiveManager) {
+            creditOverrideStatus = "approved";
+          } else if (requestCreditOverride) {
+            creditOverrideStatus = "pending";
+          } else {
+            toast({
+              title: "تجاوز الحد الائتماني",
+              description: `العهدة الحالية ${fmt(sum.remainingGoods)} + قيمة الصرف ${fmt(addValue)} = ${fmt(projected)} > الحد ${fmt(limit)}. فعّل خيار "طلب اعتماد تجاوز" أو اطلب من المدير.`,
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+      }
+    }
+
+
     setBusy(true);
     try {
       // For sale: total_value = qty * actual sale price. For issue/return: qty * price.
