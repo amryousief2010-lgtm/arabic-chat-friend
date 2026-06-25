@@ -878,7 +878,12 @@ export default function FeedWarehouses() {
                       <TableRow key={p.id}>
                         <TableCell className="font-mono text-xs">{p.prod_no}</TableCell>
                         <TableCell>{p.prod_date}</TableCell>
-                        <TableCell className="font-medium">{p.feed_products?.name} <Badge variant="outline" className="text-[10px] mr-1">{p.feed_products?.stage}</Badge></TableCell>
+                        <TableCell className="font-medium">
+                          {p.feed_products?.name} <Badge variant="outline" className="text-[10px] mr-1">{p.feed_products?.stage}</Badge>
+                          {p.status === 'pending_approval' && <Badge className="mr-1 bg-amber-100 text-amber-800 border-amber-300" variant="outline">بانتظار الاعتماد</Badge>}
+                          {p.status === 'rejected' && <Badge className="mr-1" variant="destructive">مرفوضة</Badge>}
+                          {p.status === 'approved' && <Badge className="mr-1 bg-green-100 text-green-800 border-green-300" variant="outline">معتمدة</Badge>}
+                        </TableCell>
                         <TableCell>{fmt(p.qty_produced)} كجم</TableCell>
                         <TableCell>{fmt(p.bags)}</TableCell>
                         <TableCell className="font-bold">{fmt(p.total_cost)} ج.م</TableCell>
