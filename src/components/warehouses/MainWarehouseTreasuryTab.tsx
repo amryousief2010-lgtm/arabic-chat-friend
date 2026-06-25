@@ -1648,12 +1648,19 @@ export default function MainWarehouseTreasuryTab() {
                       </thead>
                       <tbody>
                         {c.lines.map((l: any) => (
-                          <tr key={l.id} className="border-t">
+                          <tr key={l.id} className={`border-t ${l.line_type === "bonus" ? "bg-fuchsia-50/40" : ""}`}>
                             <td className="p-1 whitespace-nowrap">{fmtDate(l.performed_at)}</td>
                             <td className="p-1">
-                              {l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "استرجاع" : l.line_type === "sale" ? "بيع" : "تحصيل نقدية"}
+                              {l.line_type === "issue" ? "صرف" :
+                               l.line_type === "return" ? "استرجاع" :
+                               l.line_type === "sale" ? "بيع" :
+                               l.line_type === "bonus" ? <span className="text-fuchsia-700">🎁 مجاني</span> :
+                               "تحصيل نقدية"}
                             </td>
-                            <td className="p-1">{l.product_name || "—"}</td>
+                            <td className="p-1">
+                              {l.product_name || "—"}
+                              {l.line_type === "bonus" && l.customer_name ? <div className="text-[10px] text-muted-foreground">عميل: {l.customer_name}</div> : null}
+                            </td>
                             <td className="p-1 font-mono">{l.quantity ? `${l.quantity} ${l.unit || ""}` : "—"}</td>
                             <td className="p-1 font-mono">{l.original_price ? fmt(Number(l.original_price)) : (l.line_type === "sale" ? "—" : (l.unit_price ? fmt(Number(l.unit_price)) : "—"))}</td>
                             <td className="p-1 font-mono">{l.line_type === "sale" && l.unit_price ? fmt(Number(l.unit_price)) : "—"}</td>
@@ -1663,12 +1670,20 @@ export default function MainWarehouseTreasuryTab() {
                             <td className="p-1 font-mono">{l.total_value ? fmt(Number(l.total_value)) : "—"}</td>
                             <td className="p-1 font-mono">{l.cash_collected ? fmt(Number(l.cash_collected)) : "—"}</td>
                             <td className="p-1">
-                              {l.line_type !== "sale" || !l.discount_status || l.discount_status === "none" ? "—" :
+                              {l.line_type === "bonus" ? (
+                                <>
+                                  {l.bonus_status === "auto_approved" ? <Badge variant="outline" className="bg-emerald-100 text-emerald-700">تلقائي</Badge> :
+                                   l.bonus_status === "approved" ? <Badge variant="outline" className="bg-emerald-100 text-emerald-700">معتمد</Badge> :
+                                   l.bonus_status === "rejected" ? <Badge variant="outline" className="bg-rose-100 text-rose-700">مرفوض</Badge> :
+                                   <Badge variant="outline" className="bg-amber-100 text-amber-700">بانتظار اعتماد</Badge>}
+                                  {l.bonus_reason ? <div className="text-[10px] text-muted-foreground">{l.bonus_reason}</div> : null}
+                                </>
+                              ) : l.line_type !== "sale" || !l.discount_status || l.discount_status === "none" ? "—" :
                                l.discount_status === "auto_approved" ? <Badge variant="outline" className="bg-emerald-100 text-emerald-700">تلقائي</Badge> :
                                l.discount_status === "approved" ? <Badge variant="outline" className="bg-emerald-100 text-emerald-700">معتمد</Badge> :
                                l.discount_status === "rejected" ? <Badge variant="outline" className="bg-rose-100 text-rose-700">مرفوض</Badge> :
                                <Badge variant="outline" className="bg-amber-100 text-amber-700">بانتظار اعتماد</Badge>}
-                              {l.discount_reason ? <div className="text-[10px] text-muted-foreground">{l.discount_reason}</div> : null}
+                              {l.line_type === "sale" && l.discount_reason ? <div className="text-[10px] text-muted-foreground">{l.discount_reason}</div> : null}
                             </td>
                             <td className="p-1 text-muted-foreground">{l.notes || "—"}</td>
                           </tr>
