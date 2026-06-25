@@ -510,7 +510,7 @@ const Orders = () => {
         items.forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
         const formatted = formatBatch(ords, byOrder);
         items.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
-        setOrders(formatted);
+        setOrders(applyStatusOverrides(formatted));
         setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
         setLoading(false);
         return;
