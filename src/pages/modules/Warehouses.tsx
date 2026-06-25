@@ -1052,6 +1052,7 @@ const Warehouses = () => {
               <TabsTrigger value="wh-packaging"><Package />التغليف والتعبئة</TabsTrigger>
               <TabsTrigger value="wh-activity"><BarChart3 />سجل حركات المخزن الرئيسي</TabsTrigger>
               <TabsTrigger value="wh-treasury"><Wallet />خزينة المخزن الرئيسي</TabsTrigger>
+              <TabsTrigger value="wh-courier-orders"><Truck />عهدة أوردرات المندوب</TabsTrigger>
               <TabsTrigger value="reports"><FileText />التقارير</TabsTrigger>
               <TabsTrigger value="menu"><UtensilsCrossed />المنيو</TabsTrigger>
               <TabsTrigger value="more"><Menu />المزيد</TabsTrigger>
