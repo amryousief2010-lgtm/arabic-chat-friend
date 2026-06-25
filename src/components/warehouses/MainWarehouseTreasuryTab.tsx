@@ -1185,7 +1185,7 @@ export default function MainWarehouseTreasuryTab() {
     openPrintWindow("كشف خزينة المخزن الرئيسي", body);
   };
 
-  const pendingTransfers = rows.filter(r => r.status === "pending_approval" && r.category === "transfer_to_main_treasury");
+  const pendingTransfers = rows.filter(r => r.status === "pending_approval" && TRANSFER_OUT_CATEGORIES.has(r.category));
 
   return (
     <div className="space-y-4">
