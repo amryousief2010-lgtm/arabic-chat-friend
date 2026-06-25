@@ -2348,12 +2348,17 @@ export type Database = {
       }
       courier_goods_custody_lines: {
         Row: {
+          bonus_approved_at: string | null
+          bonus_approved_by: string | null
+          bonus_reason: string | null
+          bonus_status: string | null
           cash_collected: number | null
           created_at: string
           credit_override_at: string | null
           credit_override_by: string | null
           credit_override_status: string | null
           custody_id: string
+          customer_name: string | null
           discount_amount: number | null
           discount_approved_at: string | null
           discount_approved_by: string | null
@@ -2375,12 +2380,17 @@ export type Database = {
           unit_price: number | null
         }
         Insert: {
+          bonus_approved_at?: string | null
+          bonus_approved_by?: string | null
+          bonus_reason?: string | null
+          bonus_status?: string | null
           cash_collected?: number | null
           created_at?: string
           credit_override_at?: string | null
           credit_override_by?: string | null
           credit_override_status?: string | null
           custody_id: string
+          customer_name?: string | null
           discount_amount?: number | null
           discount_approved_at?: string | null
           discount_approved_by?: string | null
@@ -2402,12 +2412,17 @@ export type Database = {
           unit_price?: number | null
         }
         Update: {
+          bonus_approved_at?: string | null
+          bonus_approved_by?: string | null
+          bonus_reason?: string | null
+          bonus_status?: string | null
           cash_collected?: number | null
           created_at?: string
           credit_override_at?: string | null
           credit_override_by?: string | null
           credit_override_status?: string | null
           custody_id?: string
+          customer_name?: string | null
           discount_amount?: number | null
           discount_approved_at?: string | null
           discount_approved_by?: string | null
