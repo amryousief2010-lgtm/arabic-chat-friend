@@ -55,11 +55,15 @@ interface WarehouseStockItem {
 const CATEGORY_LABELS: Record<string, string> = {
   direct_sale_cash: "تحصيل بيع مباشر",
   courier_deposit: "توريد نقدية من مندوب",
-  transfer_to_main_treasury: "تحويل للخزينة الرئيسية",
+  transfer_to_main_treasury: "تحويل للخزينة الرئيسية (قديم)",
+  transfer_from_main_warehouse_treasury: "تحويل من خزينة المخزن للخزينة الرئيسية",
   manual_adjust: "تسوية يدوية",
   opening_balance: "رصيد افتتاحي",
   other: "أخرى",
 };
+
+const TRANSFER_OUT_CATEGORIES = new Set(["transfer_to_main_treasury", "transfer_from_main_warehouse_treasury"]);
+
 
 
 const STATUS_LABELS: Record<string, { txt: string; cls: string; Icon: typeof CheckCircle2 }> = {
