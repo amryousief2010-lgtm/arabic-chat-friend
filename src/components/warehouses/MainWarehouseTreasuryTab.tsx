@@ -1730,6 +1730,73 @@ export default function MainWarehouseTreasuryTab() {
         </CardContent>
       </Card>
 
+      {/* Bonus / Free items report */}
+      {(() => {
+        const bonusLines: any[] = [];
+        custodySummary.forEach((c: any) => (c.lines || []).forEach((l: any) => {
+          if (l.line_type === "bonus") bonusLines.push({ ...l, courier_name: c.courier_name });
+        }));
+        if (bonusLines.length === 0) return null;
+        const totalQty = bonusLines.reduce((s, l) => s + Number(l.quantity || 0), 0);
+        const totalVal = bonusLines.filter((l) => l.bonus_status !== "rejected").reduce((s, l) => s + Number(l.total_value || 0), 0);
+        return (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                🎁 تقرير المجانيات / البونصات
+                <Badge variant="outline" className="bg-fuchsia-50 text-fuchsia-700">{bonusLines.length} حركة</Badge>
+                <Badge variant="outline" className="bg-fuchsia-100 text-fuchsia-800">قيمة: {fmt(totalVal)} ج.م</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead className="bg-muted/40">
+                    <tr>
+                      <th className="p-2">التاريخ</th>
+                      <th className="p-2">المندوب</th>
+                      <th className="p-2">العميل</th>
+                      <th className="p-2">الصنف</th>
+                      <th className="p-2">الكمية</th>
+                      <th className="p-2">قيمة التكلفة</th>
+                      <th className="p-2">السبب</th>
+                      <th className="p-2">الحالة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bonusLines.map((l) => (
+                      <tr key={l.id} className="border-t">
+                        <td className="p-2 whitespace-nowrap">{fmtDate(l.performed_at)}</td>
+                        <td className="p-2 font-semibold text-sky-700">{l.courier_name}</td>
+                        <td className="p-2">{l.customer_name || "—"}</td>
+                        <td className="p-2">{l.product_name || "—"}</td>
+                        <td className="p-2 font-mono">{l.quantity} {l.unit || ""}</td>
+                        <td className="p-2 font-mono text-fuchsia-700">{fmt(Number(l.total_value || 0))}</td>
+                        <td className="p-2">{l.bonus_reason || "—"}</td>
+                        <td className="p-2">
+                          {l.bonus_status === "auto_approved" ? <Badge variant="outline" className="bg-emerald-100 text-emerald-700">تلقائي</Badge> :
+                           l.bonus_status === "approved" ? <Badge variant="outline" className="bg-emerald-100 text-emerald-700">معتمد</Badge> :
+                           l.bonus_status === "rejected" ? <Badge variant="outline" className="bg-rose-100 text-rose-700">مرفوض</Badge> :
+                           <Badge variant="outline" className="bg-amber-100 text-amber-700">بانتظار اعتماد</Badge>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-muted/30 font-semibold">
+                    <tr>
+                      <td className="p-2" colSpan={4}>الإجمالي</td>
+                      <td className="p-2 font-mono">{fmt(totalQty)}</td>
+                      <td className="p-2 font-mono text-fuchsia-700">{fmt(totalVal)}</td>
+                      <td className="p-2" colSpan={2}></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {/* Movements table */}
 
       <Card>
