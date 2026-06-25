@@ -16,7 +16,10 @@ export interface WarehouseDropdownItem {
 }
 
 export const isWarehouseItemActive = (item: WarehouseDropdownItem): boolean =>
-  item.is_active !== false && item.archived !== true && !item.archived_at;
+  // The agreed validation rule for main warehouse dispatch is ONLY:
+  // warehouse_id matches + inventory_items.is_active is not false.
+  // Do not block by product_id/category/module/archive flags here.
+  item.is_active !== false;
 
 export const isMainWarehouseStockItemAllowed = (item: WarehouseDropdownItem): boolean => {
   // For main-warehouse dispatches, the only item-level rule is that the
