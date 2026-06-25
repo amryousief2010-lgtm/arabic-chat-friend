@@ -555,6 +555,11 @@ export default function MainWarehouseTreasuryTab() {
 
     if (lineType === "cash_collect") {
       if (!cash || cash <= 0) { toast({ title: "أدخل مبلغ نقدية صحيح", variant: "destructive" }); return; }
+    } else if (lineType === "bonus") {
+      if (!lineInventoryItemId) { toast({ title: "اختر صنف المجاني من المخزن الرئيسي", variant: "destructive" }); return; }
+      if (!qty || qty <= 0) { toast({ title: "أدخل كمية صحيحة للمجاني", variant: "destructive" }); return; }
+      if (!lineCustomerName.trim()) { toast({ title: "أدخل اسم العميل", variant: "destructive" }); return; }
+      if (!lineBonusReason.trim()) { toast({ title: "اختر سبب المجاني", variant: "destructive" }); return; }
     } else {
       if (lineType === "issue") {
         if (!lineInventoryItemId) { toast({ title: "اختر المنتج من أصناف المخزن الرئيسي", variant: "destructive" }); return; }
