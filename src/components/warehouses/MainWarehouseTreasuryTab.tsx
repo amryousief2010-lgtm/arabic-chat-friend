@@ -1626,6 +1626,37 @@ export default function MainWarehouseTreasuryTab() {
                 );
               })()}
 
+              {/* Pending bonus approvals banner */}
+              {(() => {
+                const pendingB = c.lines.filter((l: any) => l.line_type === "bonus" && l.bonus_status === "pending");
+                if (pendingB.length === 0) return null;
+                return (
+                  <div className="border border-fuchsia-300 bg-fuchsia-50 rounded p-2 space-y-1">
+                    <div className="text-xs font-semibold text-fuchsia-800">🎁 مجانيات بانتظار الاعتماد ({pendingB.length})</div>
+                    {pendingB.map((l: any) => (
+                      <div key={l.id} className="flex flex-wrap items-center justify-between gap-2 text-xs bg-background rounded p-2 border">
+                        <div>
+                          <b>{l.product_name}</b> — كمية {l.quantity} {l.unit} • قيمة <b className="text-fuchsia-700">{fmt(Number(l.total_value || 0))}</b>
+                          {l.customer_name ? <> • عميل: <b>{l.customer_name}</b></> : null}
+                          {l.bonus_reason ? <> • السبب: {l.bonus_reason}</> : null}
+                        </div>
+                        {(isGeneralManager || isExecutiveManager) && (
+                          <div className="flex gap-1">
+                            <Button size="sm" className="h-7 px-2 bg-emerald-600 hover:bg-emerald-700" onClick={() => approveBonus(l.id)}>
+                              <CheckCircle2 className="w-3 h-3" />
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-rose-600 border-rose-300" onClick={() => rejectBonus(l.id)}>
+                              <XCircle className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+
               {c.lines.length > 0 && (
                 <details className="text-xs">
                   <summary className="cursor-pointer text-muted-foreground">عرض الحركات ({c.lines.length})</summary>
