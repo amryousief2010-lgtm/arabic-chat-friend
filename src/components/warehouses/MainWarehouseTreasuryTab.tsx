@@ -2159,6 +2159,7 @@ export default function MainWarehouseTreasuryTab() {
               <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">مرتجع</div><div className="font-bold font-mono">{fmt(stmtTotals.ret)}</div></div>
               <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">مبيعات</div><div className="font-bold font-mono text-emerald-700">{fmt(stmtTotals.sale)}</div></div>
               <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">خصومات</div><div className="font-bold font-mono text-rose-700">{fmt(stmtTotals.disc)}</div></div>
+              <div className="bg-fuchsia-50 rounded p-2"><div className="text-muted-foreground">🎁 مجانيات</div><div className="font-bold font-mono text-fuchsia-700">{fmt(stmtTotals.bonus)}</div></div>
               <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">نقدية</div><div className="font-bold font-mono text-sky-700">{fmt(stmtTotals.cash)}</div></div>
               <div className="bg-amber-50 rounded p-2"><div className="text-muted-foreground">متبقي بضاعة</div><div className="font-bold font-mono">{fmt(stmtTotals.remainingGoods)}</div></div>
               <div className="bg-amber-50 rounded p-2"><div className="text-muted-foreground">متبقي نقدية</div><div className="font-bold font-mono">{fmt(stmtTotals.remainingCash)}</div></div>
