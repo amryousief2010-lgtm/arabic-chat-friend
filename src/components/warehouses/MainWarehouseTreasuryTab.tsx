@@ -1786,7 +1786,122 @@ export default function MainWarehouseTreasuryTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* === Profile dialog: credit limit + commission === */}
+      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>إعدادات المندوب — {profileCourier}</DialogTitle>
+            <DialogDescription>الحد الائتماني وعمولة المندوب (المدير العام/التنفيذي فقط).</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>الحد الائتماني (ج.م)</Label>
+              <Input type="number" min="0" step="0.01" value={profileLimit} onChange={(e) => setProfileLimit(e.target.value)} placeholder="اتركه فارغًا بدون حد" />
+            </div>
+            <div>
+              <Label>نوع العمولة</Label>
+              <Select value={profileCommType} onValueChange={(v) => setProfileCommType(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">بدون عمولة</SelectItem>
+                  <SelectItem value="percent_of_sales">نسبة من المبيعات (%)</SelectItem>
+                  <SelectItem value="per_kg">مبلغ ثابت لكل كيلو</SelectItem>
+                  <SelectItem value="per_item">مبلغ ثابت لكل صنف</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {profileCommType !== "none" && (
+              <div>
+                <Label>{profileCommType === "percent_of_sales" ? "النسبة %" : profileCommType === "per_kg" ? "ج / كجم" : "ج / صنف"}</Label>
+                <Input type="number" min="0" step="0.0001" value={profileCommValue} onChange={(e) => setProfileCommValue(e.target.value)} />
+              </div>
+            )}
+            <div><Label>ملاحظات</Label><Textarea rows={2} value={profileNotes} onChange={(e) => setProfileNotes(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProfileOpen(false)}>إلغاء</Button>
+            <Button disabled={busy || !(isGeneralManager || isExecutiveManager)} onClick={saveProfile}>حفظ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* === Pay commission dialog === */}
+      <Dialog open={payCommOpen} onOpenChange={setPayCommOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>صرف عمولة — {payCommCourier}</DialogTitle>
+            <DialogDescription>سيتم خصم المبلغ من خزينة المخزن الرئيسي.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div><Label>المبلغ (ج.م)</Label><Input type="number" min="0" step="0.01" value={payCommAmt} onChange={(e) => setPayCommAmt(e.target.value)} /></div>
+            <div><Label>ملاحظات</Label><Textarea rows={2} value={payCommNotes} onChange={(e) => setPayCommNotes(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPayCommOpen(false)}>إلغاء</Button>
+            <Button disabled={busy} onClick={submitPayCommission}>صرف</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* === Statement dialog === */}
+      <Dialog open={stmtOpen} onOpenChange={setStmtOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>كشف حساب المندوب — {stmtCustody?.courier_name}</DialogTitle>
+            <DialogDescription>عرض/طباعة/تصدير حركات المندوب خلال فترة محددة.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
+              <div><Label>من تاريخ</Label><Input type="date" value={stmtFrom} onChange={(e) => setStmtFrom(e.target.value)} /></div>
+              <div><Label>إلى تاريخ</Label><Input type="date" value={stmtTo} onChange={(e) => setStmtTo(e.target.value)} /></div>
+              <Button variant="outline" onClick={exportStatementExcel}>تصدير Excel</Button>
+              <Button variant="outline" onClick={printStatement}>طباعة / PDF</Button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-7 gap-2 text-xs">
+              <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">مصروف</div><div className="font-bold font-mono">{fmt(stmtTotals.issue)}</div></div>
+              <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">مرتجع</div><div className="font-bold font-mono">{fmt(stmtTotals.ret)}</div></div>
+              <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">مبيعات</div><div className="font-bold font-mono text-emerald-700">{fmt(stmtTotals.sale)}</div></div>
+              <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">خصومات</div><div className="font-bold font-mono text-rose-700">{fmt(stmtTotals.disc)}</div></div>
+              <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">نقدية</div><div className="font-bold font-mono text-sky-700">{fmt(stmtTotals.cash)}</div></div>
+              <div className="bg-amber-50 rounded p-2"><div className="text-muted-foreground">متبقي بضاعة</div><div className="font-bold font-mono">{fmt(stmtTotals.remainingGoods)}</div></div>
+              <div className="bg-amber-50 rounded p-2"><div className="text-muted-foreground">متبقي نقدية</div><div className="font-bold font-mono">{fmt(stmtTotals.remainingCash)}</div></div>
+            </div>
+            <div className="max-h-[400px] overflow-auto border rounded">
+              <table className="w-full text-xs text-right">
+                <thead className="bg-muted/40 sticky top-0">
+                  <tr>
+                    <th className="p-1">التاريخ</th><th className="p-1">النوع</th><th className="p-1">الصنف</th>
+                    <th className="p-1">كمية</th><th className="p-1">سعر</th><th className="p-1">خصم</th>
+                    <th className="p-1">قيمة</th><th className="p-1">نقدية</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stmtRows.length === 0 ? (
+                    <tr><td colSpan={8} className="p-4 text-center text-muted-foreground">لا توجد حركات</td></tr>
+                  ) : stmtRows.map((l: any) => (
+                    <tr key={l.id} className="border-t">
+                      <td className="p-1 whitespace-nowrap">{fmtDate(l.performed_at)}</td>
+                      <td className="p-1">{l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : "تحصيل"}</td>
+                      <td className="p-1">{l.product_name || "—"}</td>
+                      <td className="p-1 font-mono">{l.quantity ? `${l.quantity} ${l.unit || ""}` : "—"}</td>
+                      <td className="p-1 font-mono">{l.unit_price ? fmt(Number(l.unit_price)) : "—"}</td>
+                      <td className="p-1 font-mono">{l.discount_amount ? fmt(Number(l.discount_amount)) : "—"}</td>
+                      <td className="p-1 font-mono font-bold">{l.total_value ? fmt(Number(l.total_value)) : "—"}</td>
+                      <td className="p-1 font-mono">{l.cash_collected ? fmt(Number(l.cash_collected)) : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStmtOpen(false)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+
 
   );
 }
