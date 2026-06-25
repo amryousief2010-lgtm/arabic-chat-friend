@@ -1,110 +1,101 @@
-## الهدف
-إنشاء **خزينة مستقلة للمخزن الرئيسي** يديرها عبدالمنعم عثمان، تظهر كتبويب واضح في شريط تبويبات صفحة `/modules/warehouses` (بجانب "سجل حركات المخزن الرئيسي")، مع دورة اعتماد للتحويلات إلى الخزينة الرئيسية (محمد شعلة).
+# تطوير نظام عهدة المندوبين
 
-> ملاحظة: لا توجد أي جداول/مكونات حالية باسم "خزينة المخزن الرئيسي" في الكود — سيتم إنشاء كل شيء من الصفر بنفس نمط `feed_factory_treasury_txns` و `treasury_transfers`.
+## نظرة عامة
 
----
-
-## 1) قاعدة البيانات (Migration)
-
-### جدول `main_warehouse_treasury_txns`
-حركات خزينة المخزن الرئيسي (إيداع/سحب/تحصيل بيع مباشر/تحويل صادر):
-- `id`, `created_at`, `performed_at`
-- `direction` (`in` | `out`)
-- `category` (`direct_sale_cash` | `transfer_to_main_treasury` | `manual_adjust` | `opening_balance` | `other`)
-- `amount` (numeric)
-- `reference` (نص اختياري — رقم طلب/فاتورة)
-- `notes`
-- `performed_by` (uuid)
-- `transfer_id` (FK اختياري لـ `treasury_transfers`)
-- `status` (`posted` | `pending_approval` | `rejected`)
-
-### استخدام `treasury_transfers` الحالي
-لتحويل المبالغ إلى الخزينة الرئيسية، نُدخل صفًا في `treasury_transfers` بـ:
-- `source_type = 'main_warehouse'`
-- `destination_type = 'main_treasury'`
-- `status = 'pending_approval'`
-- `requested_by = عبدالمنعم`
-- ويُرسل إشعار `notifications` تلقائيًا لمحمد شعلة وفق نمط الإشعارات الموجود في المشروع.
-
-### RLS و GRANTs
-- `SELECT` للجميع الذين لديهم صلاحية مشاهدة المخازن.
-- `INSERT/UPDATE` لـ عبدالمنعم عثمان (warehouse keeper المخصص) + المدير العام + المدير التنفيذي.
-- اعتماد/رفض التحويل = محمد شعلة (المدير المالي/الخزينة الرئيسية) + المدير العام عبر `treasury_transfers` policies الموجودة.
-- `GRANT` كامل على الجدول لـ `authenticated` و `service_role`.
+البناء فوق الجداول الموجودة (`courier_goods_custodies`, `courier_goods_custody_lines`) داخل تبويب «خزينة المخزن الرئيسي» مع جداول وإعدادات جديدة لإغلاق الدورة المحاسبية بالكامل.
 
 ---
 
-## 2) مكون `MainWarehouseTreasuryTab.tsx`
-ملف جديد في `src/components/warehouses/`، يعرض داشبورد بنفس ستايل خزينة مصنع الأعلاف:
+## 1) الحد الائتماني (Credit Limit)
 
+- جدول جديد `courier_profiles`: `courier_name` (مفتاح فريد), `credit_limit`, `commission_type`, `commission_value`, `notes`. صلاحية التعديل: المدير العام + التنفيذي فقط.
+- عند فتح نافذة «صرف بضاعة»: حساب العهدة الحالية للمندوب (مصروف − مرتجع − مبيعات). إذا (الحالي + قيمة الصرف الجديد) > الحد:
+  - مستخدم عادي → منع الصرف مع تحذير أحمر، أو اختيار «طلب اعتماد» يحفظ السطر بحالة `pending_credit_override` ويرسل إشعار للمديرين.
+  - مدير عام/تنفيذي → السماح المباشر مع تأكيد.
+- إظهار في رأس كل عهدة: «الحد المسموح / العهدة الحالية / المتبقي» مع شريط تقدّم.
+
+## 2) كشف حساب المندوب
+
+- زر «كشف حساب» على كل عهدة + اختيار فترة (من/إلى أو شهر).
+- يعرض: رصيد افتتاحي بداية الفترة (مجموع الحركات قبلها)، ثم بنود مفصّلة بالترتيب: صرف / مرتجع / مبيعات / خصومات / تحصيل / عجز أو زيادة / رصيد ختامي.
+- طباعة عربية عبر `openPrintWindow` (نمط الموجود في الملف)، وExcel عبر `xlsx`.
+
+## 3) العمولات
+
+- في `courier_profiles`: `commission_type` ∈ (`percent_of_sales`, `per_kg`, `per_item`) و`commission_value`.
+- جدول `courier_commission_payouts`: مبلغ مصروف، تاريخ، ملاحظات، performed_by.
+- حساب العمولة المستحقة من سطور البيع المعتمدة (auto_approved + approved) داخل ملخّص العهدة، وعرض: المستحق / المصروف / المتبقي.
+- صرف العمولة يخصم نقدًا من خزينة المخزن الرئيسي تلقائيًا (حركة `manual_adjust` صادرة بوصف «عمولة مندوب»).
+
+## 4) إغلاق يوم المندوب
+
+- جدول `courier_daily_closures`: `custody_id`, `closure_date`, snapshot للقيم (مصروف/مرتجع/مبيعات/خصومات/تحصيل/متبقي/عجز)، `closed_by`, `reopened_by`, `reopened_at`, `status` ∈ (`closed`, `reopened`).
+- زر «إغلاق اليوم» يحسب الأرقام ويثبّتها ويمنع إضافة/تعديل سطور بتاريخ ≤ تاريخ الإغلاق (عبر trigger يقرأ آخر إغلاق لكل عهدة).
+- زر «إعادة فتح» يظهر فقط للمدير العام/التنفيذي، يسجّل سبب الفتح في `audit_log` الموجود.
+
+## 5) لوحة معلومات المندوبين
+
+كرت داخل نفس التبويب يجمع:
+- إجمالي البضاعة الحالية لدى جميع المندوبين.
+- إجمالي تحصيلات/مرتجعات/مبيعات الفترة (آخر 30 يوم افتراضيًا).
+- ترتيب أعلى مندوب في: مبيعات، خصومات، عجز، تحصيل.
+
+## 6) الصلاحيات (RLS)
+
+- `warehouse_supervisor` (عبدالمنعم): إنشاء حركات صرف/مرتجع/تحصيل، لا يعدّل حدود ولا عمولات ولا يعيد فتح إغلاق.
+- `financial_manager` (محمد شعلة): قراءة، اعتماد التحصيلات (موجود).
+- `general_manager` / `executive_manager`: كل شيء + اعتماد تجاوز الحد + إعادة فتح + تعديل حدود/عمولات.
+- (مستقبلًا) دور `courier`: يرى فقط `custody_id` الخاص به عبر mapping `auth.uid()` ↔ `courier_name`. **حاليًا**: لا يوجد مستخدم مندوب في النظام، سيُترك hook جاهز للربط لاحقًا.
+
+---
+
+## تفاصيل تقنية
+
+### جداول جديدة
+
+```text
+courier_profiles
+  id, courier_name UNIQUE, credit_limit NUMERIC,
+  commission_type TEXT CHECK IN (none|percent_of_sales|per_kg|per_item),
+  commission_value NUMERIC, notes, updated_by, timestamps
+
+courier_commission_payouts
+  id, courier_name, amount, paid_at, notes, performed_by, treasury_txn_id
+
+courier_daily_closures
+  id, custody_id FK, closure_date DATE,
+  goods_out, goods_returned, sales_value, discounts_value,
+  cash_collected, remaining_goods, remaining_cash, deficit_or_surplus,
+  closed_by, closed_at, reopened_by, reopened_at, reopen_reason,
+  status CHECK IN (closed|reopened)
+  UNIQUE(custody_id, closure_date)
 ```
-+------------------------------------------------------+
-| الرصيد الحالي | إيرادات اليوم | تحويلات معلّقة | المحوّل |
-+------------------------------------------------------+
-| [+ تسجيل تحصيل]  [→ تحويل للخزينة الرئيسية]         |
-| [طباعة]  [Excel]  [PDF]                              |
-+------------------------------------------------------+
-| الحركات (جدول قابل للفلترة + بحث + تاريخ)            |
-+------------------------------------------------------+
-| التحويلات بانتظار اعتماد محمد شعلة (قسم منفصل)       |
-+------------------------------------------------------+
-```
 
-### الحوارات (Dialogs)
-1. **تسجيل تحصيل بيع مباشر**: مبلغ + رقم طلب (اختياري) + ملاحظات → `direction=in, category=direct_sale_cash`.
-2. **تحويل إلى الخزينة الرئيسية**: مبلغ + ملاحظات + تأكيد → ينشئ `treasury_transfers` (pending) + حركة `out` بحالة `pending_approval` + إشعار لمحمد شعلة.
-3. **تأكيد/رفض التحويل** (لمحمد شعلة فقط): يعدّل `treasury_transfers.status` و يثبّت/يلغي حركة الخزينة المقابلة.
+### إضافات على `courier_goods_custody_lines`
 
-### التصدير والطباعة
-استخدام `openPrintWindow` من `@/lib/printPdf` (ضمن قواعد الذاكرة لطباعة العربي بشكل صحيح) + `xlsx` للإكسل بنفس النمط المستخدم في `WarehousesDashboardPanel.tsx`.
+- `credit_override_status` TEXT ∈ (`none`, `pending`, `approved`, `rejected`) لتجاوز الحد.
+- `credit_override_by`, `credit_override_at`.
 
----
+### Triggers / RPCs
 
-## 3) دمج التبويب في `Warehouses.tsx`
+- `enforce_courier_closure_lock()`: يمنع INSERT/UPDATE/DELETE على سطور بتاريخ ≤ آخر إغلاق غير معاد فتحه.
+- `approve_courier_credit_override(_line_id)` / `reject_courier_credit_override`.
+- `close_courier_day(_custody_id, _date)` / `reopen_courier_day(_id, _reason)` — security definer.
+- `pay_courier_commission(_courier_name, _amount, _notes)` — ينشئ صف payout + حركة `manual_adjust` صادرة في خزينة المخزن.
 
-إضافة TabsTrigger بعد "سجل حركات المخزن الرئيسي" (السطر ~1001):
+### واجهة (داخل `MainWarehouseTreasuryTab.tsx`)
 
-```tsx
-<TabsTrigger value="wh-treasury" className="gap-1">
-  <Wallet className="w-4 h-4" />خزينة المخزن الرئيسي
-</TabsTrigger>
-```
+- إضافة قسم «إعدادات المندوب» (حد + عمولة) قابل للتعديل بالـ inline edit للمدير.
+- توسعة كرت كل عهدة: شريط الحد، أزرار «كشف حساب»، «إغلاق اليوم»، «صرف عمولة».
+- Dialogs جديدة: كشف الحساب (مع طباعة/Excel)، إعدادات المندوب، تأكيد إغلاق اليوم، صرف عمولة، طلب اعتماد تجاوز الحد.
+- كرت Dashboard للمندوبين أعلى قائمة العهدات.
 
-و `TabsContent` يحمل المكون الجديد، مع شرط ظهور: المدير العام/التنفيذي/المالي + عبدالمنعم عثمان (warehouse keeper المخزن الرئيسي). إذا لم تكن لديه صلاحية → التبويب مخفي.
+### اختبار
 
-كذلك إضافة بند موازٍ داخل قائمة "المزيد" حتى تظهر في حالة ضيق الشاشة (نفس النمط الموجود للتبويبات الأخرى في السطور 1429-1431).
+1. ضبط حد كيمو = 30,000 → محاولة صرف يتجاوز الحد → يجب أن يمنع/يطلب اعتماد.
+2. اعتماد التجاوز من المدير → الحركة تصبح مرحّلة.
+3. تسجيل بيع بخصم → احتساب العمولة (2%) ضمن الملخّص.
+4. زر «كشف حساب» → طباعة + Excel.
+5. «إغلاق اليوم» → محاولة تعديل سطر بتاريخ مغلق → ترفض من الـ trigger.
+6. «إعادة فتح» من مستخدم عادي → ترفض. من المدير → تنجح وتُسجَّل.
 
----
-
-## 4) الصلاحيات (RBAC)
-استخدام `useAuth`:
-- `canManageMainWarehouseTreasury = isGeneralManager || isExecutiveManager || isFinancialManager || (isWarehouseKeeper && warehouse === 'main')`
-- `canApproveMainTreasuryTransfer = isGeneralManager || isFinancialManager` (محمد شعلة لديه دور `financial_manager`).
-
----
-
-## 5) الإشعارات
-عند إنشاء تحويل: `notifications.insert({ type: 'main_warehouse_transfer_pending', title, message, user_id: <محمد شعلة> })` — نفس النمط الموجود في `treasury_transfers` و `feed_internal_payments`.
-
----
-
-## ضمانات
-- **لا يتم تعديل أي جدول حالي** غير إضافة FK اختياري في الـ migration الجديد.
-- **لا يتم حذف أي تبويب** قديم.
-- **لا تتأثر الأرصدة الحالية** للمخازن أو الخزينة الرئيسية إلا عند اعتماد محمد شعلة للتحويل.
-- جميع الـ GRANTs و RLS مكتوبة في نفس الـ migration.
-
----
-
-## التسليم بعد التنفيذ
-1. تبويب "خزينة المخزن الرئيسي" ظاهر في شريط التبويبات العلوي.
-2. عبدالمنعم يرى الخزينة ويستطيع التسجيل والتحويل.
-3. محمد شعلة يرى إشعار التحويل ويعتمده/يرفضه.
-4. التصدير والطباعة يعملان (عربي صحيح).
-
----
-
-**هل أبدأ التنفيذ بهذا الشكل؟** ولديّ سؤالان قبل الانطلاق:
-1. هل لـ عبدالمنعم عثمان دور موجود فعلًا في `user_roles` (مثل `warehouse_keeper` أو دور مخصص)؟ أم نعتمد على `profiles.full_name` للتمييز؟
-2. هل تريد رصيد افتتاحي للخزينة عند الإنشاء (مثلاً 0 أم مبلغ محدد تدخله أنت)؟

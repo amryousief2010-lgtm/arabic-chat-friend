@@ -2182,6 +2182,39 @@ export type Database = {
         }
         Relationships: []
       }
+      courier_commission_payouts: {
+        Row: {
+          amount: number
+          courier_name: string
+          created_at: string
+          id: string
+          notes: string | null
+          paid_at: string
+          performed_by: string | null
+          treasury_txn_id: string | null
+        }
+        Insert: {
+          amount: number
+          courier_name: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string
+          performed_by?: string | null
+          treasury_txn_id?: string | null
+        }
+        Update: {
+          amount?: number
+          courier_name?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string
+          performed_by?: string | null
+          treasury_txn_id?: string | null
+        }
+        Relationships: []
+      }
       courier_custody_settings: {
         Row: {
           auto_approve_discount_pct: number
@@ -2202,6 +2235,77 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      courier_daily_closures: {
+        Row: {
+          cash_collected: number
+          closed_at: string
+          closed_by: string | null
+          closure_date: string
+          created_at: string
+          custody_id: string
+          deficit_or_surplus: number
+          discounts_value: number
+          goods_out: number
+          goods_returned: number
+          id: string
+          remaining_cash: number
+          remaining_goods: number
+          reopen_reason: string | null
+          reopened_at: string | null
+          reopened_by: string | null
+          sales_value: number
+          status: string
+        }
+        Insert: {
+          cash_collected?: number
+          closed_at?: string
+          closed_by?: string | null
+          closure_date: string
+          created_at?: string
+          custody_id: string
+          deficit_or_surplus?: number
+          discounts_value?: number
+          goods_out?: number
+          goods_returned?: number
+          id?: string
+          remaining_cash?: number
+          remaining_goods?: number
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          sales_value?: number
+          status?: string
+        }
+        Update: {
+          cash_collected?: number
+          closed_at?: string
+          closed_by?: string | null
+          closure_date?: string
+          created_at?: string
+          custody_id?: string
+          deficit_or_surplus?: number
+          discounts_value?: number
+          goods_out?: number
+          goods_returned?: number
+          id?: string
+          remaining_cash?: number
+          remaining_goods?: number
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          sales_value?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_daily_closures_custody_id_fkey"
+            columns: ["custody_id"]
+            isOneToOne: false
+            referencedRelation: "courier_goods_custodies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       courier_goods_custodies: {
         Row: {
@@ -2246,6 +2350,9 @@ export type Database = {
         Row: {
           cash_collected: number | null
           created_at: string
+          credit_override_at: string | null
+          credit_override_by: string | null
+          credit_override_status: string | null
           custody_id: string
           discount_amount: number | null
           discount_approved_at: string | null
@@ -2270,6 +2377,9 @@ export type Database = {
         Insert: {
           cash_collected?: number | null
           created_at?: string
+          credit_override_at?: string | null
+          credit_override_by?: string | null
+          credit_override_status?: string | null
           custody_id: string
           discount_amount?: number | null
           discount_approved_at?: string | null
@@ -2294,6 +2404,9 @@ export type Database = {
         Update: {
           cash_collected?: number | null
           created_at?: string
+          credit_override_at?: string | null
+          credit_override_by?: string | null
+          credit_override_status?: string | null
           custody_id?: string
           discount_amount?: number | null
           discount_approved_at?: string | null
@@ -2324,6 +2437,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      courier_profiles: {
+        Row: {
+          commission_type: string
+          commission_value: number | null
+          courier_name: string
+          created_at: string
+          credit_limit: number | null
+          id: string
+          notes: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          commission_type?: string
+          commission_value?: number | null
+          courier_name: string
+          created_at?: string
+          credit_limit?: number | null
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          commission_type?: string
+          commission_value?: number | null
+          courier_name?: string
+          created_at?: string
+          credit_limit?: number | null
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       customers: {
         Row: {
@@ -17489,6 +17638,10 @@ export type Database = {
         Args: { p_slaughter_batch_id: string }
         Returns: Json
       }
+      approve_courier_credit_override: {
+        Args: { _line_id: string }
+        Returns: string
+      }
       approve_courier_discount: { Args: { _line_id: string }; Returns: string }
       approve_feed_batch_cost: {
         Args: {
@@ -18108,6 +18261,10 @@ export type Database = {
           _unit_price: number
         }
         Returns: undefined
+      }
+      close_courier_day: {
+        Args: { _custody_id: string; _date: string }
+        Returns: string
       }
       compare_period_to_snapshot: {
         Args: { p_raise_alert?: boolean; p_snapshot_id: string }
@@ -19020,6 +19177,10 @@ export type Database = {
         Args: { _moderator_text: string; _user_id: string }
         Returns: boolean
       }
+      pay_courier_commission: {
+        Args: { _amount: number; _courier_name: string; _notes: string }
+        Returns: string
+      }
       pc_assign_order_to_route: {
         Args: {
           p_expected_at?: string
@@ -19122,6 +19283,10 @@ export type Database = {
         Args: { p_slaughter_batch_id: string }
         Returns: Json
       }
+      reject_courier_credit_override: {
+        Args: { _line_id: string; _reason: string }
+        Returns: string
+      }
       reject_courier_discount: {
         Args: { _line_id: string; _reason: string }
         Returns: string
@@ -19198,6 +19363,10 @@ export type Database = {
         Returns: Json
       }
       release_order_reservation: { Args: { p_order_id: string }; Returns: Json }
+      reopen_courier_day: {
+        Args: { _closure_id: string; _reason: string }
+        Returns: string
+      }
       request_duplicate_order_approval:
         | { Args: { p_customer_id: string; p_note?: string }; Returns: string }
         | {
