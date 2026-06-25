@@ -2182,6 +2182,107 @@ export type Database = {
         }
         Relationships: []
       }
+      courier_goods_custodies: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          courier_name: string
+          created_at: string
+          id: string
+          notes: string | null
+          opened_at: string
+          opened_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          courier_name: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          courier_name?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      courier_goods_custody_lines: {
+        Row: {
+          cash_collected: number | null
+          created_at: string
+          custody_id: string
+          id: string
+          inventory_item_id: string | null
+          inventory_movement_id: string | null
+          line_type: string
+          notes: string | null
+          performed_at: string
+          performed_by: string | null
+          product_name: string | null
+          quantity: number | null
+          total_value: number | null
+          unit: string | null
+          unit_price: number | null
+        }
+        Insert: {
+          cash_collected?: number | null
+          created_at?: string
+          custody_id: string
+          id?: string
+          inventory_item_id?: string | null
+          inventory_movement_id?: string | null
+          line_type: string
+          notes?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          product_name?: string | null
+          quantity?: number | null
+          total_value?: number | null
+          unit?: string | null
+          unit_price?: number | null
+        }
+        Update: {
+          cash_collected?: number | null
+          created_at?: string
+          custody_id?: string
+          id?: string
+          inventory_item_id?: string | null
+          inventory_movement_id?: string | null
+          line_type?: string
+          notes?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          product_name?: string | null
+          quantity?: number | null
+          total_value?: number | null
+          unit?: string | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_goods_custody_lines_custody_id_fkey"
+            columns: ["custody_id"]
+            isOneToOne: false
+            referencedRelation: "courier_goods_custodies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
@@ -8948,6 +9049,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      main_warehouse_reconciliations: {
+        Row: {
+          adjustment_txn_id: string | null
+          approved_at: string | null
+          approved_by: string | null
+          book_balance: number
+          created_at: string
+          difference: number | null
+          id: string
+          notes: string | null
+          performed_at: string
+          performed_by: string | null
+          physical_cash: number
+          reason: string | null
+          rejection_reason: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          adjustment_txn_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          book_balance: number
+          created_at?: string
+          difference?: number | null
+          id?: string
+          notes?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          physical_cash: number
+          reason?: string | null
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          adjustment_txn_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          book_balance?: number
+          created_at?: string
+          difference?: number | null
+          id?: string
+          notes?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          physical_cash?: number
+          reason?: string | null
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       main_warehouse_treasury_txns: {
         Row: {
@@ -17415,6 +17570,10 @@ export type Database = {
         Args: { p_id: string }
         Returns: string
       }
+      approve_warehouse_reconciliation: {
+        Args: { _id: string }
+        Returns: string
+      }
       approve_warehouse_transfer: {
         Args: { p_approved_lines?: Json; p_transfer_id: string }
         Returns: Json
@@ -18982,6 +19141,10 @@ export type Database = {
       reject_transfer_line: {
         Args: { p_line_id: string; p_reason: string }
         Returns: Json
+      }
+      reject_warehouse_reconciliation: {
+        Args: { _id: string; _reason: string }
+        Returns: string
       }
       reject_warehouse_transfer: {
         Args: { p_reason: string; p_transfer_id: string }
