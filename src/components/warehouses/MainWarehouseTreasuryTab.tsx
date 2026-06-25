@@ -640,6 +640,23 @@ export default function MainWarehouseTreasuryTab() {
         </CardContent></Card>
       </div>
 
+      {/* High balance alert */}
+      {kpis.balance > HIGH_BALANCE_THRESHOLD && (
+        <div className="border border-amber-400 bg-amber-50 text-amber-900 rounded-md p-3 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="text-sm">
+            <div className="font-semibold">يوجد مبلغ كبير بخزينة المخزن الرئيسي</div>
+            <div className="text-xs">الرصيد الحالي {fmt(kpis.balance)} ج.م تجاوز الحد ({fmt(HIGH_BALANCE_THRESHOLD)} ج.م). يفضّل تحويله للخزينة الرئيسية.</div>
+          </div>
+          {canRecord && (
+            <Button size="sm" variant="outline" className="ms-auto" onClick={() => { setTransferAmt(String(kpis.balance)); setTransferOpen(true); }}>
+              <Send className="w-3 h-3 ml-1" /> تحويل الآن
+            </Button>
+          )}
+        </div>
+      )}
+
+
       {/* Pending approvals block */}
       {pendingTransfers.length > 0 && (
         <Card className="border-amber-400 bg-amber-50/40">
