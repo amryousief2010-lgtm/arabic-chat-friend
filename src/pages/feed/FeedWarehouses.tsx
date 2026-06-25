@@ -856,7 +856,9 @@ export default function FeedWarehouses() {
           </TabsContent>
 
           {/* PRODUCTION INVOICES */}
-          <TabsContent value="production">
+          <TabsContent value="production" className="space-y-4">
+            <ProductionOrphanChecker />
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                 <div><CardTitle>فواتير تصنيع العلف</CardTitle><CardDescription>تصنيع علف بادي / تسمين / بياض — يخصم الخامات تلقائياً ويضيف الناتج للجاهز بمتوسط التكلفة</CardDescription></div>
