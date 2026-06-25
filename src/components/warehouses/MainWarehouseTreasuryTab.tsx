@@ -1461,10 +1461,11 @@ export default function MainWarehouseTreasuryTab() {
                 </div>
                 {c.status === "open" && canRecord && (
                   <div className="flex flex-wrap gap-1">
-                    <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "issue")}>صرف بضاعة</Button>
-                    <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "return")}>استرجاع</Button>
-                    <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "sale")}>تسجيل بيع</Button>
-                    <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "cash_collect")}>تحصيل نقدية</Button>
+                   <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "issue")}>صرف بضاعة</Button>
+                   <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "return")}>استرجاع</Button>
+                   <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "sale")}>تسجيل بيع</Button>
+                   <Button size="sm" variant="outline" className="h-7 border-fuchsia-300 text-fuchsia-700 hover:bg-fuchsia-50" onClick={() => openLineDialog(c.id, "bonus")}>🎁 مجاني / بونص</Button>
+                   <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "cash_collect")}>تحصيل نقدية</Button>
                     <Button size="sm" variant="outline" className="h-7" onClick={() => openStatement(c)}>كشف حساب</Button>
                     {(isGeneralManager || isExecutiveManager || canRecord) && (
                       <Button size="sm" variant="outline" className="h-7" onClick={() => closeDay(c.id)}>إغلاق اليوم</Button>
