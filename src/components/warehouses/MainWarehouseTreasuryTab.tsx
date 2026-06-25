@@ -1925,16 +1925,20 @@ export default function MainWarehouseTreasuryTab() {
             <DialogTitle>
               {lineType === "issue" ? "صرف بضاعة للمندوب" :
                lineType === "return" ? "استرجاع بضاعة من المندوب" :
-               lineType === "sale" ? "تسجيل بيع من بضاعة العهدة" : "تحصيل نقدية من المندوب"}
+               lineType === "sale" ? "تسجيل بيع من بضاعة العهدة" :
+               lineType === "bonus" ? "🎁 مجاني / بونص عميل" :
+               "تحصيل نقدية من المندوب"}
             </DialogTitle>
             <DialogDescription>
-              {lineType === "cash_collect" ? "سيتم إضافة المبلغ تلقائيًا كتوريد نقدية بخزينة المخزن الرئيسي." : "تُسجَّل الحركة على عهدة المندوب لحساب المتبقي والعجز/الزيادة."}
+              {lineType === "cash_collect" ? "سيتم إضافة المبلغ تلقائيًا كتوريد نقدية بخزينة المخزن الرئيسي." :
+               lineType === "bonus" ? "لا تُسجَّل كبيع بسعر صفر، ولا تُضاف نقدية. تُخصم من عهدة المندوب وتظهر في تقرير المجانيات." :
+               "تُسجَّل الحركة على عهدة المندوب لحساب المتبقي والعجز/الزيادة."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             {lineType !== "cash_collect" && (
               <>
-                {lineType === "issue" ? (
+                {(lineType === "issue" || lineType === "bonus") ? (
                   <div>
                     <Label>المنتج من المخزن الرئيسي</Label>
                     <Select
@@ -1958,9 +1962,6 @@ export default function MainWarehouseTreasuryTab() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <div className="mt-1 text-[11px] text-muted-foreground">
-                      نفس مصدر القائمة والتحقق: inventory_items للمخزن الرئيسي + active فقط، بدون شرط product_id.
-                    </div>
                   </div>
                 ) : (
                   <div><Label>المنتج</Label><Input value={lineProduct} onChange={(e) => setLineProduct(e.target.value)} placeholder="مثال: سجق نعام" /></div>
@@ -1968,8 +1969,44 @@ export default function MainWarehouseTreasuryTab() {
                 <div className="grid grid-cols-3 gap-2">
                   <div><Label>الكمية</Label><Input type="number" min="0" step="0.001" value={lineQty} onChange={(e) => setLineQty(e.target.value)} /></div>
                   <div><Label>الوحدة</Label><Input value={lineUnit} onChange={(e) => setLineUnit(e.target.value)} /></div>
-                  <div><Label>{lineType === "sale" ? "السعر الأصلي" : "سعر الوحدة"}</Label><Input type="number" min="0" step="0.01" value={linePrice} onChange={(e) => setLinePrice(e.target.value)} /></div>
+                  <div><Label>{lineType === "sale" ? "السعر الأصلي" : lineType === "bonus" ? "تكلفة الوحدة" : "سعر الوحدة"}</Label><Input type="number" min="0" step="0.01" value={linePrice} onChange={(e) => setLinePrice(e.target.value)} /></div>
                 </div>
+                {lineType === "bonus" && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><Label>العميل</Label><Input value={lineCustomerName} onChange={(e) => setLineCustomerName(e.target.value)} placeholder="اسم العميل" /></div>
+                      <div>
+                        <Label>سبب المجاني</Label>
+                        <Select value={lineBonusReason} onValueChange={setLineBonusReason}>
+                          <SelectTrigger><SelectValue placeholder="اختر السبب" /></SelectTrigger>
+                          <SelectContent>
+                            {BONUS_REASONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    {(() => {
+                      const q = Number(lineQty || 0), p = Number(linePrice || 0);
+                      const bv = q * p;
+                      const sum = custodySummary.find((s) => s.id === lineCustodyId);
+                      const salesBase = Number(sum?.salesValue || 0);
+                      const existing = Number((sum as any)?.bonusValue || 0);
+                      const pct = salesBase > 0 ? ((existing + bv) / salesBase) * 100 : 100;
+                      const status = pct <= 3 ? "auto" : pct <= 5 ? "executive" : "general";
+                      return (
+                        <div className={`text-xs rounded p-2 border ${status === "auto" ? "bg-emerald-50 border-emerald-200" : status === "executive" ? "bg-amber-50 border-amber-300" : "bg-rose-50 border-rose-300"}`}>
+                          <div>قيمة المجاني (تكلفة): <b className="font-mono">{fmt(bv)}</b> ج.م</div>
+                          <div>إجمالي المجانيات / المبيعات بعد الإضافة: <b>{pct.toFixed(2)}%</b></div>
+                          <div className="font-semibold mt-1">
+                            {status === "auto" ? "✓ اعتماد تلقائي (حتى 3%)" :
+                             status === "executive" ? "⚠️ يتطلب اعتماد المدير التنفيذي (> 3% وحتى 5%)" :
+                             "⛔ يتطلب اعتماد المدير العام (> 5%)"}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
                 {lineType === "sale" && (
                   <>
                     <div><Label>سعر البيع الفعلي للوحدة</Label><Input type="number" min="0" step="0.01" value={lineSalePrice} onChange={(e) => setLineSalePrice(e.target.value)} /></div>
