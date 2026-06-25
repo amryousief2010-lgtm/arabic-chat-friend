@@ -86,6 +86,32 @@ export default function MainWarehouseTreasuryTab() {
 
   const [busy, setBusy] = useState(false);
 
+  // === Reconciliation (cash count) ===
+  const HIGH_BALANCE_THRESHOLD = 20000;
+  const [recons, setRecons] = useState<any[]>([]);
+  const [reconOpen, setReconOpen] = useState(false);
+  const [reconPhysical, setReconPhysical] = useState("");
+  const [reconReason, setReconReason] = useState("");
+  const [reconNotes, setReconNotes] = useState("");
+
+  // === Courier goods custody ===
+  const [custodies, setCustodies] = useState<any[]>([]);
+  const [custodyLines, setCustodyLines] = useState<any[]>([]);
+  const [newCustodyOpen, setNewCustodyOpen] = useState(false);
+  const [newCustodyName, setNewCustodyName] = useState("");
+  const [newCustodyNotes, setNewCustodyNotes] = useState("");
+  const [lineOpen, setLineOpen] = useState(false);
+  const [lineCustodyId, setLineCustodyId] = useState<string | null>(null);
+  const [lineType, setLineType] = useState<"issue" | "return" | "sale" | "cash_collect">("issue");
+  const [lineProduct, setLineProduct] = useState("");
+  const [lineQty, setLineQty] = useState("");
+  const [lineUnit, setLineUnit] = useState("كجم");
+  const [linePrice, setLinePrice] = useState("");
+  const [lineCash, setLineCash] = useState("");
+  const [lineNotes, setLineNotes] = useState("");
+
+
+
 
   const fetchAll = async () => {
     setLoading(true);
