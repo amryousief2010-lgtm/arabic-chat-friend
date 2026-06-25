@@ -2358,6 +2358,7 @@ export type Database = {
           credit_override_by: string | null
           credit_override_status: string | null
           custody_id: string
+          customer_id: string | null
           customer_name: string | null
           discount_amount: number | null
           discount_approved_at: string | null
@@ -2391,6 +2392,7 @@ export type Database = {
           credit_override_by?: string | null
           credit_override_status?: string | null
           custody_id: string
+          customer_id?: string | null
           customer_name?: string | null
           discount_amount?: number | null
           discount_approved_at?: string | null
@@ -2424,6 +2426,7 @@ export type Database = {
           credit_override_by?: string | null
           credit_override_status?: string | null
           custody_id?: string
+          customer_id?: string | null
           customer_name?: string | null
           discount_amount?: number | null
           discount_approved_at?: string | null
@@ -2452,6 +2455,13 @@ export type Database = {
             columns: ["custody_id"]
             isOneToOne: false
             referencedRelation: "courier_goods_custodies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_goods_custody_lines_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
           {
