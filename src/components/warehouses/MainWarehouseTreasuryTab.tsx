@@ -445,38 +445,81 @@ export default function MainWarehouseTreasuryTab() {
 
   const openLineDialog = (custodyId: string, type: typeof lineType) => {
     setLineCustodyId(custodyId); setLineType(type);
-    setLineProduct(""); setLineQty(""); setLinePrice(""); setLineCash(""); setLineNotes(""); setLineUnit("كجم");
+    setLineProduct(""); setLineQty(""); setLinePrice(""); setLineSalePrice("");
+    setLineDiscountReason(""); setLineCash(""); setLineNotes(""); setLineUnit("كجم");
     setLineOpen(true);
   };
 
   const submitLine = async () => {
     if (!lineCustodyId) return;
     const qty = Number(lineQty || 0);
-    const price = Number(linePrice || 0);
+    const price = Number(linePrice || 0); // original/list price
+    const salePrice = Number(lineSalePrice || 0);
     const cash = Number(lineCash || 0);
-    if (lineType !== "cash_collect") {
+
+    if (lineType === "cash_collect") {
+      if (!cash || cash <= 0) { toast({ title: "أدخل مبلغ نقدية صحيح", variant: "destructive" }); return; }
+    } else {
       if (!lineProduct.trim()) { toast({ title: "أدخل اسم المنتج", variant: "destructive" }); return; }
       if (!qty || qty <= 0) { toast({ title: "أدخل كمية صحيحة", variant: "destructive" }); return; }
-    } else {
-      if (!cash || cash <= 0) { toast({ title: "أدخل مبلغ نقدية صحيح", variant: "destructive" }); return; }
+      if (lineType === "sale") {
+        if (!price || price <= 0) { toast({ title: "أدخل السعر الأصلي", variant: "destructive" }); return; }
+        if (!salePrice || salePrice <= 0) { toast({ title: "أدخل سعر البيع الفعلي", variant: "destructive" }); return; }
+      }
     }
+
+    // Sale discount logic
+    let discountAmt = 0, discountPct = 0, discountStatus: string = "none";
+    if (lineType === "sale") {
+      discountAmt = Math.max(0, (price - salePrice) * qty);
+      discountPct = price > 0 ? Math.max(0, ((price - salePrice) / price) * 100) : 0;
+      if (discountAmt > 0) {
+        if (discountPct > discountThresholdPct && !(isGeneralManager || isExecutiveManager)) {
+          discountStatus = "pending";
+          if (!lineDiscountReason.trim()) { toast({ title: "اختر سبب الخصم", variant: "destructive" }); return; }
+        } else {
+          discountStatus = "auto_approved";
+        }
+      }
+    }
+
     setBusy(true);
     try {
-      const total = qty * price;
-      const { error } = await (supabase as any).from("courier_goods_custody_lines").insert({
+      // For sale: total_value = qty * actual sale price. For issue/return: qty * price.
+      const totalValue =
+        lineType === "sale" ? qty * salePrice :
+        lineType === "cash_collect" ? null :
+        qty * price;
+
+      const insertPayload: any = {
         custody_id: lineCustodyId,
         line_type: lineType,
         product_name: lineType === "cash_collect" ? null : lineProduct.trim(),
         quantity: lineType === "cash_collect" ? null : qty,
         unit: lineType === "cash_collect" ? null : lineUnit,
-        unit_price: lineType === "cash_collect" ? null : (price || null),
-        total_value: lineType === "cash_collect" ? null : (total || null),
+        unit_price: lineType === "sale" ? salePrice : (lineType === "cash_collect" ? null : (price || null)),
+        total_value: totalValue,
         cash_collected: lineType === "cash_collect" ? cash : null,
         notes: lineNotes.trim() || null,
         performed_by: user?.id,
-      });
+      };
+
+      if (lineType === "sale") {
+        insertPayload.original_price = price;
+        insertPayload.discount_amount = discountAmt || null;
+        insertPayload.discount_pct = discountAmt > 0 ? Number(discountPct.toFixed(2)) : null;
+        insertPayload.discount_reason = discountAmt > 0 ? (lineDiscountReason || null) : null;
+        insertPayload.discount_status = discountStatus;
+        if (discountStatus === "auto_approved") {
+          insertPayload.discount_approved_by = user?.id;
+          insertPayload.discount_approved_at = new Date().toISOString();
+        }
+      }
+
+      const { error } = await (supabase as any).from("courier_goods_custody_lines").insert(insertPayload);
       if (error) throw error;
-      // If it's cash_collect, also push into treasury as courier deposit
+
+      // cash collect → treasury deposit
       if (lineType === "cash_collect") {
         const courier = custodies.find((c) => c.id === lineCustodyId)?.courier_name || "مندوب";
         await (supabase as any).from("main_warehouse_treasury_txns").insert({
@@ -486,13 +529,66 @@ export default function MainWarehouseTreasuryTab() {
         });
         await fetchAll();
       }
-      toast({ title: "تم التسجيل" });
+
+      // notify approvers if pending discount
+      if (lineType === "sale" && discountStatus === "pending") {
+        try {
+          const { data: approvers } = await (supabase as any)
+            .from("user_roles").select("user_id")
+            .in("role", ["general_manager", "executive_manager"]);
+          const ids = Array.from(new Set((approvers || []).map((a: any) => a.user_id))) as string[];
+          if (ids.length) {
+            await (supabase as any).from("notifications").insert(
+              ids.map((uid) => ({
+                user_id: uid, type: "courier_discount_pending", read: false,
+                title: "خصم مندوب بانتظار الاعتماد",
+                message: `خصم ${discountPct.toFixed(1)}% (${fmt(discountAmt)} ج.م) — ${lineProduct.trim()}`,
+              }))
+            );
+          }
+        } catch {}
+      }
+
+      toast({
+        title: "تم التسجيل",
+        description: discountStatus === "pending" ? "الخصم بانتظار اعتماد المدير العام/التنفيذي" : undefined,
+      });
       setLineOpen(false);
       await fetchCustodies();
     } catch (e: any) {
       toast({ title: "تعذّر التسجيل", description: e?.message || "", variant: "destructive" });
     } finally { setBusy(false); }
   };
+
+  const approveDiscount = async (lineId: string) => {
+    if (!(isGeneralManager || isExecutiveManager)) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("approve_courier_discount", { _line_id: lineId });
+      if (error) throw error;
+      toast({ title: "تم اعتماد الخصم" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الاعتماد", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+  const rejectDiscount = async (lineId: string) => {
+    if (!(isGeneralManager || isExecutiveManager)) return;
+    const reason = window.prompt("سبب الرفض:", "") || "";
+    if (!reason.trim()) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("reject_courier_discount", { _line_id: lineId, _reason: reason });
+      if (error) throw error;
+      toast({ title: "تم رفض الخصم" });
+      await fetchCustodies();
+    } catch (e: any) {
+      toast({ title: "تعذّر الرفض", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  const DISCOUNT_REASONS = ["عميل جملة", "تصفية صنف", "قرب انتهاء", "عرض خاص", "أخرى"];
+
 
   const closeCustody = async (id: string) => {
     if (!window.confirm("إغلاق العهدة؟ لن يمكن إضافة حركات بعد الإغلاق.")) return;
