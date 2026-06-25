@@ -381,7 +381,7 @@ export default function MainWarehouseTreasuryTab() {
     try {
       const { error } = await (supabase as any).from("main_warehouse_treasury_txns").insert({
         direction: "out",
-        category: "transfer_to_main_treasury",
+        category: "transfer_from_main_warehouse_treasury",
         amount: amt,
         notes: transferNotes.trim() || null,
         performed_by: user?.id,
