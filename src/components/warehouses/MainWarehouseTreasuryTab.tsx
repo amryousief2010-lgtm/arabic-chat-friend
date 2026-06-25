@@ -615,7 +615,7 @@ export default function MainWarehouseTreasuryTab() {
     setBusy(true);
     try {
       let selectedIssueItem: WarehouseStockItem | null = null;
-      if (lineType === "issue") {
+      if (lineType === "issue" || lineType === "bonus") {
         if (!mainWarehouse?.id) throw new Error("تعذّر تحديد المخزن الرئيسي");
         const { data: dbItem, error: dbItemErr } = await (supabase as any)
           .from("inventory_items")
@@ -634,25 +634,52 @@ export default function MainWarehouseTreasuryTab() {
         selectedIssueItem = dbItem as WarehouseStockItem;
       }
 
+      // Bonus: compute cost value & approval status based on % of sales for this custody
+      let bonusStatus: "auto_approved" | "pending_executive" | "pending_general" = "auto_approved";
+      let bonusUnitCost = 0;
+      if (lineType === "bonus") {
+        bonusUnitCost = Number((selectedIssueItem as any)?.unit_cost || 0);
+        const bonusValueNew = qty * bonusUnitCost;
+        const sum = custodySummary.find((s) => s.id === lineCustodyId);
+        const salesBase = Number(sum?.salesValue || 0);
+        const existingBonus = Number((sum as any)?.bonusValue || 0);
+        const pct = salesBase > 0 ? ((existingBonus + bonusValueNew) / salesBase) * 100 : 100;
+        if (pct <= 3) bonusStatus = "auto_approved";
+        else if (pct <= 5) bonusStatus = "pending_executive";
+        else bonusStatus = "pending_general";
+      }
+
       // For sale: total_value = qty * actual sale price. For issue/return: qty * price.
       const totalValue =
         lineType === "sale" ? qty * salePrice :
         lineType === "cash_collect" ? null :
+        lineType === "bonus" ? qty * bonusUnitCost :
         qty * price;
 
       const insertPayload: any = {
         custody_id: lineCustodyId,
         line_type: lineType,
         product_name: lineType === "cash_collect" ? null : (selectedIssueItem?.name || lineProduct.trim()),
-        inventory_item_id: lineType === "issue" ? lineInventoryItemId : null,
+        inventory_item_id: (lineType === "issue" || lineType === "bonus") ? lineInventoryItemId : null,
         quantity: lineType === "cash_collect" ? null : qty,
         unit: lineType === "cash_collect" ? null : (selectedIssueItem?.unit || lineUnit),
-        unit_price: lineType === "sale" ? salePrice : (lineType === "cash_collect" ? null : (price || null)),
+        unit_price: lineType === "sale" ? salePrice : (lineType === "cash_collect" ? null : (lineType === "bonus" ? bonusUnitCost : (price || null))),
         total_value: totalValue,
         cash_collected: lineType === "cash_collect" ? cash : null,
         notes: lineNotes.trim() || null,
         performed_by: user?.id,
       };
+
+      if (lineType === "bonus") {
+        insertPayload.customer_name = lineCustomerName.trim();
+        insertPayload.bonus_reason = lineBonusReason;
+        insertPayload.bonus_status = bonusStatus === "auto_approved" ? "auto_approved" : "pending";
+        if (bonusStatus === "auto_approved") {
+          insertPayload.bonus_approved_by = user?.id;
+          insertPayload.bonus_approved_at = new Date().toISOString();
+        }
+      }
+
 
       if (lineType === "sale") {
         insertPayload.original_price = price;
