@@ -295,9 +295,9 @@ export default function MainWarehouseTreasuryTab() {
           if (t.direction === "in") todayIn += amt;
           else todayOut += amt;
         }
-        if (t.category === "transfer_to_main_treasury") transferred += amt;
+        if (TRANSFER_OUT_CATEGORIES.has(t.category)) transferred += amt;
       }
-      if (isPending && t.category === "transfer_to_main_treasury") pending += amt;
+      if (isPending && TRANSFER_OUT_CATEGORIES.has(t.category)) pending += amt;
     });
     return { balance, todayIn, todayOut, pending, transferred };
   }, [rows]);
