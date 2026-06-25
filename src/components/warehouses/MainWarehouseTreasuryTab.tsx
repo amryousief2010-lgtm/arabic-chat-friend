@@ -2179,7 +2179,7 @@ export default function MainWarehouseTreasuryTab() {
                   ) : stmtRows.map((l: any) => (
                     <tr key={l.id} className="border-t">
                       <td className="p-1 whitespace-nowrap">{fmtDate(l.performed_at)}</td>
-                      <td className="p-1">{l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : "تحصيل"}</td>
+                      <td className="p-1">{l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "مرتجع" : l.line_type === "sale" ? "بيع" : l.line_type === "bonus" ? "🎁 مجاني" : "تحصيل"}</td>
                       <td className="p-1">{l.product_name || "—"}</td>
                       <td className="p-1 font-mono">{l.quantity ? `${l.quantity} ${l.unit || ""}` : "—"}</td>
                       <td className="p-1 font-mono">{l.unit_price ? fmt(Number(l.unit_price)) : "—"}</td>
