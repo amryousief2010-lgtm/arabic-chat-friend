@@ -1051,6 +1051,7 @@ export default function MainWarehouseTreasuryTab() {
   };
 
   const DISCOUNT_REASONS = ["عميل جملة", "تصفية صنف", "قرب انتهاء", "عرض خاص", "أخرى"];
+  const BONUS_REASONS = ["عرض ترويجي", "بونص على كمية", "تعويض عميل", "تشجيع عميل جديد", "موافقة مدير", "أخرى"];
 
 
 
