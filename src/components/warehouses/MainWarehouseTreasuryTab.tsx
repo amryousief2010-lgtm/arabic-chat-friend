@@ -971,15 +971,16 @@ export default function MainWarehouseTreasuryTab() {
   }, [stmtCustody, stmtFrom, stmtTo]);
 
   const stmtTotals = useMemo(() => {
-    let issue = 0, ret = 0, sale = 0, disc = 0, cash = 0;
+    let issue = 0, ret = 0, sale = 0, disc = 0, cash = 0, bonus = 0;
     stmtRows.forEach((l: any) => {
       const tv = Number(l.total_value || 0);
       if (l.line_type === "issue") issue += tv;
       else if (l.line_type === "return") ret += tv;
       else if (l.line_type === "sale") { sale += tv; disc += Number(l.discount_amount || 0); }
+      else if (l.line_type === "bonus") { if (l.bonus_status !== "rejected") bonus += tv; }
       else if (l.line_type === "cash_collect") cash += Number(l.cash_collected || 0);
     });
-    return { issue, ret, sale, disc, cash, remainingGoods: issue - ret - sale, remainingCash: sale - cash };
+    return { issue, ret, sale, disc, cash, bonus, remainingGoods: issue - ret - sale - bonus, remainingCash: sale - cash };
   }, [stmtRows]);
 
   const exportStatementExcel = () => {
