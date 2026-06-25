@@ -1752,7 +1752,32 @@ export default function MainWarehouseTreasuryTab() {
             {lineType === "cash_collect" && (
               <div><Label>المبلغ المحصّل (ج.م)</Label><Input type="number" min="0" step="0.01" value={lineCash} onChange={(e) => setLineCash(e.target.value)} /></div>
             )}
+            {lineType === "issue" && lineCustodyId && (() => {
+              const sum = custodySummary.find((s) => s.id === lineCustodyId);
+              if (!sum?.creditLimit) return null;
+              const q = Number(lineQty || 0), p = Number(linePrice || 0);
+              const add = q * p;
+              const projected = (sum.remainingGoods || 0) + add;
+              const over = projected > sum.creditLimit;
+              return (
+                <div className={`rounded p-2 text-xs ${over ? "bg-rose-50 border border-rose-300" : "bg-slate-50 border"}`}>
+                  <div>الحد: <b className="font-mono">{fmt(sum.creditLimit)}</b> • العهدة بعد الصرف: <b className={`font-mono ${over ? "text-rose-700" : ""}`}>{fmt(projected)}</b></div>
+                  {over && (
+                    <>
+                      <div className="text-rose-700 font-bold mt-1">⚠️ هذا الصرف يتجاوز الحد الائتماني للمندوب.</div>
+                      {!(isGeneralManager || isExecutiveManager) && (
+                        <label className="flex items-center gap-2 mt-1">
+                          <input type="checkbox" checked={requestCreditOverride} onChange={(e) => setRequestCreditOverride(e.target.checked)} />
+                          <span>طلب اعتماد تجاوز من المدير العام/التنفيذي</span>
+                        </label>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
             <div><Label>ملاحظات</Label><Textarea rows={2} value={lineNotes} onChange={(e) => setLineNotes(e.target.value)} /></div>
+
           </div>
 
           <DialogFooter>
