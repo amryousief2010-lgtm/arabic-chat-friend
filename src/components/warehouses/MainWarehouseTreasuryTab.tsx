@@ -695,7 +695,171 @@ export default function MainWarehouseTreasuryTab() {
         </Card>
       )}
 
+      {/* Reconciliation */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ClipboardCheck className="w-4 h-4 text-primary" /> مطابقة (جرد) خزينة المخزن الرئيسي
+            </CardTitle>
+            {canRecord && (
+              <Button size="sm" onClick={() => { setReconPhysical(""); setReconReason(""); setReconNotes(""); setReconOpen(true); }}>
+                <Plus className="w-4 h-4 ml-1" /> تسجيل جرد جديد
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {recons.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">لا يوجد جرد مسجل بعد</p>
+          ) : (
+            <div className="border rounded-lg overflow-x-auto">
+              <table className="w-full text-right text-sm">
+                <thead className="bg-muted/60 text-xs">
+                  <tr>
+                    <th className="p-2">التاريخ</th>
+                    <th className="p-2">الرصيد الدفتري</th>
+                    <th className="p-2">النقدية الفعلية</th>
+                    <th className="p-2">الفرق</th>
+                    <th className="p-2">السبب</th>
+                    <th className="p-2">الحالة</th>
+                    <th className="p-2">إجراء</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recons.map((r) => {
+                    const diff = Number(r.difference || 0);
+                    return (
+                      <tr key={r.id} className="border-t">
+                        <td className="p-2 text-xs whitespace-nowrap">{fmtDate(r.performed_at)}</td>
+                        <td className="p-2 font-mono">{fmt(Number(r.book_balance))}</td>
+                        <td className="p-2 font-mono">{fmt(Number(r.physical_cash))}</td>
+                        <td className={`p-2 font-mono font-bold ${diff === 0 ? "text-emerald-700" : diff > 0 ? "text-sky-700" : "text-rose-700"}`}>
+                          {diff > 0 ? "+" : ""}{fmt(diff)}
+                        </td>
+                        <td className="p-2 text-xs max-w-[220px] truncate" title={r.reason || ""}>{r.reason || "—"}</td>
+                        <td className="p-2">
+                          <Badge variant="outline" className={
+                            r.status === "approved" ? "bg-emerald-100 text-emerald-700" :
+                            r.status === "rejected" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"
+                          }>
+                            {r.status === "approved" ? "معتمد" : r.status === "rejected" ? "مرفوض" : "بانتظار اعتماد"}
+                          </Badge>
+                        </td>
+                        <td className="p-2">
+                          {r.status === "pending" && canApproveRecon ? (
+                            <div className="flex gap-1">
+                              <Button size="sm" disabled={busy} className="bg-emerald-600 hover:bg-emerald-700 h-7 px-2" onClick={() => approveRecon(r)}>
+                                <CheckCircle2 className="w-3 h-3" />
+                              </Button>
+                              <Button size="sm" disabled={busy} variant="outline" className="h-7 px-2 text-rose-600 border-rose-300" onClick={() => rejectRecon(r)}>
+                                <XCircle className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Courier goods custody */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Truck className="w-4 h-4 text-primary" /> عهدة بضائع المندوبين
+            </CardTitle>
+            {canRecord && (
+              <Button size="sm" onClick={() => { setNewCustodyName(""); setNewCustodyNotes(""); setNewCustodyOpen(true); }}>
+                <Plus className="w-4 h-4 ml-1" /> فتح عهدة جديدة
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {custodySummary.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">لا توجد عهد مفتوحة</p>
+          ) : custodySummary.map((c) => (
+            <div key={c.id} className="border rounded-lg p-3 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-primary" />
+                  <span className="font-bold">{c.courier_name}</span>
+                  <Badge variant="outline" className={c.status === "open" ? "bg-emerald-100 text-emerald-700" : "bg-muted"}>
+                    {c.status === "open" ? "مفتوحة" : "مغلقة"}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">منذ {fmtDate(c.opened_at)}</span>
+                </div>
+                {c.status === "open" && canRecord && (
+                  <div className="flex flex-wrap gap-1">
+                    <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "issue")}>صرف بضاعة</Button>
+                    <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "return")}>استرجاع</Button>
+                    <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "sale")}>تسجيل بيع</Button>
+                    <Button size="sm" variant="outline" className="h-7" onClick={() => openLineDialog(c.id, "cash_collect")}>تحصيل نقدية</Button>
+                    <Button size="sm" variant="outline" className="h-7 text-rose-600 border-rose-300" onClick={() => closeCustody(c.id)}>إغلاق</Button>
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمة المصروف</div><div className="font-bold font-mono">{fmt(c.goodsOutValue)}</div></div>
+                <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمة المرتجع</div><div className="font-bold font-mono">{fmt(c.goodsReturnedValue)}</div></div>
+                <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">قيمة المبيعات</div><div className="font-bold font-mono text-emerald-700">{fmt(c.salesValue)}</div></div>
+                <div className="bg-muted/40 rounded p-2"><div className="text-muted-foreground">نقدية محصّلة</div><div className="font-bold font-mono text-sky-700">{fmt(c.cashCollected)}</div></div>
+                <div className={`rounded p-2 ${Math.abs(c.remainingCash) < 0.01 && Math.abs(c.remainingGoods) < 0.01 ? "bg-emerald-50" : "bg-amber-50"}`}>
+                  <div className="text-muted-foreground">المتبقي (بضائع / نقدية)</div>
+                  <div className="font-bold font-mono">{fmt(c.remainingGoods)} / {fmt(c.remainingCash)}</div>
+                </div>
+              </div>
+              {c.lines.length > 0 && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground">عرض الحركات ({c.lines.length})</summary>
+                  <div className="mt-2 border rounded overflow-x-auto">
+                    <table className="w-full text-right">
+                      <thead className="bg-muted/40">
+                        <tr>
+                          <th className="p-1">التاريخ</th>
+                          <th className="p-1">النوع</th>
+                          <th className="p-1">المنتج</th>
+                          <th className="p-1">كمية</th>
+                          <th className="p-1">سعر</th>
+                          <th className="p-1">قيمة</th>
+                          <th className="p-1">نقدية</th>
+                          <th className="p-1">ملاحظات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {c.lines.map((l: any) => (
+                          <tr key={l.id} className="border-t">
+                            <td className="p-1 whitespace-nowrap">{fmtDate(l.performed_at)}</td>
+                            <td className="p-1">
+                              {l.line_type === "issue" ? "صرف" : l.line_type === "return" ? "استرجاع" : l.line_type === "sale" ? "بيع" : "تحصيل نقدية"}
+                            </td>
+                            <td className="p-1">{l.product_name || "—"}</td>
+                            <td className="p-1 font-mono">{l.quantity ? `${l.quantity} ${l.unit || ""}` : "—"}</td>
+                            <td className="p-1 font-mono">{l.unit_price ? fmt(Number(l.unit_price)) : "—"}</td>
+                            <td className="p-1 font-mono">{l.total_value ? fmt(Number(l.total_value)) : "—"}</td>
+                            <td className="p-1 font-mono">{l.cash_collected ? fmt(Number(l.cash_collected)) : "—"}</td>
+                            <td className="p-1 text-muted-foreground">{l.notes || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              )}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
       {/* Movements table */}
+
       <Card>
         <CardHeader className="pb-2">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
