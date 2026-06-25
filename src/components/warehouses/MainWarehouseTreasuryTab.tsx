@@ -540,6 +540,7 @@ export default function MainWarehouseTreasuryTab() {
     setLineInventoryItemId("");
     setLineProduct(""); setLineQty(""); setLinePrice(""); setLineSalePrice("");
     setLineDiscountReason(""); setLineCash(""); setLineNotes(""); setLineUnit("كجم");
+    setLineCustomerName(""); setLineBonusReason("");
     setRequestCreditOverride(false);
     setLineOpen(true);
   };
