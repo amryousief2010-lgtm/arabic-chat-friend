@@ -112,6 +112,34 @@ export default function MainWarehouseTreasuryTab() {
   const [lineCash, setLineCash] = useState("");
   const [lineNotes, setLineNotes] = useState("");
   const [discountThresholdPct, setDiscountThresholdPct] = useState<number>(5);
+  const [requestCreditOverride, setRequestCreditOverride] = useState(false);
+
+  // === Profiles / payouts / closures (new) ===
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [payouts, setPayouts] = useState<any[]>([]);
+  const [closures, setClosures] = useState<any[]>([]);
+
+  // Profile dialog
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileCourier, setProfileCourier] = useState("");
+  const [profileLimit, setProfileLimit] = useState("");
+  const [profileCommType, setProfileCommType] = useState<"none" | "percent_of_sales" | "per_kg" | "per_item">("none");
+  const [profileCommValue, setProfileCommValue] = useState("");
+  const [profileNotes, setProfileNotes] = useState("");
+
+  // Statement dialog
+  const [stmtOpen, setStmtOpen] = useState(false);
+  const [stmtCustody, setStmtCustody] = useState<any | null>(null);
+  const [stmtFrom, setStmtFrom] = useState<string>("");
+  const [stmtTo, setStmtTo] = useState<string>(new Date().toISOString().slice(0, 10));
+
+  // Commission payout dialog
+  const [payCommOpen, setPayCommOpen] = useState(false);
+  const [payCommCourier, setPayCommCourier] = useState("");
+  const [payCommAmt, setPayCommAmt] = useState("");
+  const [payCommNotes, setPayCommNotes] = useState("");
+
+
 
 
 
