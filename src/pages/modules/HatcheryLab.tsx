@@ -850,7 +850,7 @@ const HatchBatchDetailDialog = ({ row, onClose }: { row: any; onClose: () => voi
             <Row label="أيام داخل الماكينة" value={row.daysIn} />
           </Card>
 
-          <Card className="p-3 space-y-1">
+          <Card className="p-3 space-y-1 border border-border/60 shadow-sm bg-card">
             <h4 className="font-semibold mb-2 text-primary">المواعيد</h4>
             <Row label="الكشف الأول (فعلي)" value={b.candle1_date} />
             <Row label="الكشف الأول (متوقع)" value={row.expCandle1} />
