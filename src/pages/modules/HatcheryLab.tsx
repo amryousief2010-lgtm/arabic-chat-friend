@@ -1840,7 +1840,7 @@ const InvoicesTab = ({ invoices, canBill, onRefresh }: any) => {
         </div>
         <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" />Excel</Button>
       </div>
-      <Card className="overflow-x-auto">
+      <Card className="overflow-x-auto border border-border/60 shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
