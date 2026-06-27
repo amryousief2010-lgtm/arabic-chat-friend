@@ -2244,6 +2244,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
 
   // Persist: split each user row into 1-3 outputs by quality_status so warehouse receipt sees them correctly.
   const persist = async () => {
+    if (readOnly) { toast.error("التقييم معتمد — التعديل يتطلب صلاحية مدير"); return; }
     const toUpsert: any[] = [];
     for (const r of rows) {
       const accepted = acceptedOf(r);
@@ -2254,7 +2255,6 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
       const base = {
         batch_id: batchId,
         yield_standard_id: r.yield_standard_id,
-        cut_name_ar: r.cut_name_ar,
         barcode: r.barcode || null,
         standard_weight_kg: Number(r.standard_weight_kg) || 0,
         unit_cost: Number(r.unit_cost) || 0,
@@ -2266,6 +2266,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
       if (accepted > 0) {
         toUpsert.push({
           ...base,
+          cut_name_ar: r.cut_name_ar,
           actual_weight_kg: accepted,
           damaged_weight_kg: 0,
           quarantined_weight_kg: 0,
@@ -2273,39 +2274,100 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
           quality_status: "accepted",
         });
       }
+      // Rejected/Quarantined رؤوس منفصلة باسم "تالف/فاقد تقطيع" — لا تدخل المخزون كمنتج صالح
       if (damaged > 0) {
         toUpsert.push({
           ...base,
+          cut_name_ar: `تالف/فاقد تقطيع - ${r.cut_name_ar}`,
           actual_weight_kg: damaged,
           damaged_weight_kg: damaged,
           quarantined_weight_kg: 0,
           package_count: 0,
           quality_status: "rejected",
+          unit_price: 0,
         });
       }
       if (quarantined > 0) {
         toUpsert.push({
           ...base,
+          cut_name_ar: `محجور - ${r.cut_name_ar}`,
           actual_weight_kg: quarantined,
           damaged_weight_kg: 0,
           quarantined_weight_kg: quarantined,
           package_count: 0,
           quality_status: "quarantine",
+          unit_price: 0,
         });
       }
     }
+
+    // Build snapshot (مرتبط بنفس الأرقام المعروضة في كروت التقييم)
+    const snapshot = {
+      saved_at: new Date().toISOString(),
+      birds_slaughtered: Number(batch.birds_slaughtered) || 0,
+      slaughtered_cost: financials.slaughteredCost,
+      total_expected_sale: financials.tSale,
+      expected_profit: financials.tProfit,
+      profit_margin_pct: financials.profitMargin,
+      cost_return_pct: financials.costReturnPct,
+      allocated_cost_on_accepted: financials.tAllocated,
+      cost_distribution_diff: financials.costDiff,
+      total_accepted_kg: totalActual,
+      total_damaged_kg: totalDamaged,
+      total_quarantined_kg: totalQuarantined,
+      total_produced_kg: totalProduced,
+      yield_pct: 0, // filled in render scope; safe default
+    };
 
     await supabase.from("slaughter_batch_outputs" as any).delete().eq("batch_id", batchId);
     if (toUpsert.length) {
       const { error } = await supabase.from("slaughter_batch_outputs" as any).insert(toUpsert);
       if (error) { toast.error(error.message); return; }
     }
-    toast.success(`تم حفظ ${toUpsert.length} صف من التقسيمة (مقسّمة حسب حالة الجودة)`);
+
+    const { data: userRes } = await supabase.auth.getUser();
+    const uid = userRes?.user?.id || null;
+    const { error: upErr } = await supabase
+      .from("slaughter_batches" as any)
+      .update({
+        evaluation_status: "saved",
+        evaluation_snapshot: snapshot,
+        evaluation_saved_at: new Date().toISOString(),
+        evaluation_saved_by: uid,
+      } as any)
+      .eq("id", batchId);
+    if (upErr) { toast.error(upErr.message); return; }
+
+    toast.success(`تم حفظ التقييم — ${toUpsert.length} صف (محفوظ، بانتظار الاعتماد)`);
     onClose();
     onUpdate();
   };
 
+  const approveEvaluation = async () => {
+    if (!canApprove) { toast.error("الاعتماد يتطلب صلاحية المدير العام أو التنفيذي"); return; }
+    setApproving(true);
+    try {
+      const { data: userRes } = await supabase.auth.getUser();
+      const uid = userRes?.user?.id || null;
+      const { error } = await supabase
+        .from("slaughter_batches" as any)
+        .update({
+          evaluation_status: "approved",
+          evaluation_approved_at: new Date().toISOString(),
+          evaluation_approved_by: uid,
+        } as any)
+        .eq("id", batchId);
+      if (error) { toast.error(error.message); return; }
+      toast.success("تم اعتماد التقييم — تم قفل التعديل المباشر");
+      onClose();
+      onUpdate();
+    } finally {
+      setApproving(false);
+    }
+  };
+
   const save = () => {
+    if (readOnly) { toast.error("التقييم معتمد — التعديل يتطلب صلاحية مدير"); return; }
     // Check mismatch: damaged + quarantined > produced (would yield clamped accepted)
     const mismatch: { name: string; produced: number; sum: number }[] = [];
     for (const r of rows) {
@@ -2325,8 +2387,10 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
       setPendingConfirm({ mismatchRows: mismatch });
       return;
     }
-    persist();
+    setPendingFinancialConfirm(true);
   };
+
+
 
   // Available yields not yet added (allow duplicates only via "+ فرع") + search filter
   const usedCuts = new Set(rows.map(r => r.cut_name_ar));
