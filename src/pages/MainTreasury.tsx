@@ -98,6 +98,7 @@ export default function MainTreasury() {
   const [detailsDlg, setDetailsDlg] = useState<{ open: boolean; txn: Txn | null }>({ open: false, txn: null });
   const [cancelDlg, setCancelDlg] = useState<{ open: boolean; txn: Txn | null; reason: string }>({ open: false, txn: null, reason: "" });
   const [creatorNames, setCreatorNames] = useState<Record<string,string>>({});
+  const [activeTab, setActiveTab] = useState<string>("dashboard");
 
   async function fetchAll() {
     setLoading(true);
