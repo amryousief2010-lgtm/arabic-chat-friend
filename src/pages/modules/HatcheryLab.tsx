@@ -878,7 +878,7 @@ const HatchBatchDetailDialog = ({ row, onClose }: { row: any; onClose: () => voi
             <Row label="عدد الكتاكيت" value={fmtNum(b.hatched_chicks)} />
           </Card>
 
-          <Card className="p-3 space-y-1">
+          <Card className="p-3 space-y-1 border border-border/60 shadow-sm bg-card">
             <h4 className="font-semibold mb-2 text-primary">النسب</h4>
             <Row label="نسبة الخصوبة" value={fertility} />
             <Row label="نسبة الفقس" value={hatchRate} />
