@@ -2826,7 +2826,8 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
           // Real slaughtered-birds cost = snapshot of the slaughter batch (independent of cut weights).
           const slaughteredCost = batchTotalCost;
           const tProfit = tSale - slaughteredCost;
-          const avgMargin = slaughteredCost > 0 ? (tProfit / slaughteredCost) * 100 : 0;
+          const profitMargin = tSale > 0 ? (tProfit / tSale) * 100 : null;
+          const costReturnPct = slaughteredCost > 0 ? (tProfit / slaughteredCost) * 100 : null;
           return (
             <>
               {/* Birds count clarification: purchased vs slaughtered in this evaluation */}
@@ -2877,9 +2878,28 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                   <div className={"font-bold text-lg " + (tProfit >= 0 ? "text-emerald-700" : "text-red-600")}>{tProfit.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
                   <div className="text-[10px] text-muted-foreground mt-1">البيع − تكلفة النعام المذبوح</div>
                 </div>
-                <div className={"p-3 rounded-lg border " + (avgMargin >= 0 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-red-50 dark:bg-red-950/40")}>
-                  <div className="text-xs text-muted-foreground">متوسط هامش الربح</div>
-                  <div className={"font-bold text-lg " + (avgMargin >= 0 ? "text-emerald-700" : "text-red-600")}>{slaughteredCost > 0 ? avgMargin.toFixed(1) + "%" : "—"}</div>
+                <div
+                  className={"p-3 rounded-lg border " + ((profitMargin ?? 0) >= 0 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-red-50 dark:bg-red-950/40")}
+                  title="هامش الربح يقيس الربح كنسبة من البيع، أما نسبة الربح على التكلفة فتقيس العائد مقارنة بتكلفة النعام المذبوح."
+                >
+                  <div className="text-xs text-muted-foreground">هامش الربح</div>
+                  <div className={"font-bold text-lg " + ((profitMargin ?? 0) >= 0 ? "text-emerald-700" : "text-red-600")}>
+                    {profitMargin !== null ? profitMargin.toFixed(1) + "%" : "غير قابل للحساب"}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-1">الربح ÷ إجمالي البيع</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-2 text-sm">
+                <div
+                  className={"p-3 rounded-lg border md:col-start-5 " + ((costReturnPct ?? 0) >= 0 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-red-50 dark:bg-red-950/40")}
+                  title="هامش الربح يقيس الربح كنسبة من البيع، أما نسبة الربح على التكلفة فتقيس العائد مقارنة بتكلفة النعام المذبوح."
+                >
+                  <div className="text-xs text-muted-foreground">نسبة الربح/الخسارة على التكلفة</div>
+                  <div className={"font-bold text-lg " + ((costReturnPct ?? 0) >= 0 ? "text-emerald-700" : "text-red-600")}>
+                    {costReturnPct !== null ? costReturnPct.toFixed(1) + "%" : "غير قابل للحساب"}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-1">الربح ÷ تكلفة النعام المذبوح</div>
                 </div>
               </div>
             </>
