@@ -302,18 +302,18 @@ const HatcheryLab = () => {
 // Dashboard Tab
 // ============================================================
 const KCard = ({ label, value, sub, color = "from-primary to-accent", icon: Icon = FlaskConical }: any) => (
-  <Card className="relative overflow-hidden border border-white/20 shadow-lg shadow-black/5">
+  <Card className="relative overflow-hidden border border-white/25 shadow-md shadow-black/10">
     <div className={`absolute inset-0 bg-gradient-to-br ${color}`} />
-    <div className="absolute inset-0 bg-white/10 backdrop-blur-[1px]" />
+    <div className="absolute inset-0 bg-black/25 backdrop-blur-[2px]" />
     <div className="relative p-5 text-white">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] font-medium opacity-90 tracking-wide">{label}</span>
-        <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center">
-          <Icon className="w-3.5 h-3.5 opacity-90" />
+        <span className="text-[11px] font-medium opacity-95 tracking-wide drop-shadow">{label}</span>
+        <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center shadow-sm">
+          <Icon className="w-3.5 h-3.5 opacity-95" />
         </div>
       </div>
-      <p className="text-2xl font-extrabold font-mono tabular-nums tracking-tight">{value}</p>
-      {sub && <p className="text-[11px] opacity-80 mt-1.5 font-medium">{sub}</p>}
+      <p className="text-2xl font-extrabold font-mono tabular-nums tracking-tight drop-shadow-md">{value}</p>
+      {sub && <p className="text-[11px] opacity-90 mt-1.5 font-medium drop-shadow">{sub}</p>}
     </div>
   </Card>
 );
@@ -1606,46 +1606,48 @@ const BatchDetailDialog = ({ batch, lots, clients, settings, canManage, onClose,
             <Badge variant="outline">هاتشر: {batch.hatcher_due_date}</Badge>
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>المالك</TableHead>
-                <TableHead>العميل</TableHead>
-                <TableHead>بيض</TableHead>
-                <TableHead>لايح</TableHead>
-                <TableHead>مخصب</TableHead>
-                <TableHead>منقول هاتشر</TableHead>
-                <TableHead>كتاكيت</TableHead>
-                <TableHead>أكمل بدون فقس</TableHead>
-                <TableHead>إجراءات</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {lots.map((l: any) => (
-                <TableRow key={l.id} className={l.cancelled ? "opacity-50" : ""}>
-                  <TableCell>{l.owner_type === "capital_ostrich" ? "عاصمة" : "عميل"}</TableCell>
-                  <TableCell className="text-xs">{l.client_name_snapshot || "—"}</TableCell>
-                  <TableCell>{fmtNum(l.eggs_in)}</TableCell>
-                  <TableCell>{l.infertile_eggs != null ? fmtNum(l.infertile_eggs) : "—"}</TableCell>
-                  <TableCell>{l.fertile_eggs != null ? fmtNum(l.fertile_eggs) : "—"}</TableCell>
-                  <TableCell>{l.transferred_count != null ? fmtNum(l.transferred_count) : "—"}</TableCell>
-                  <TableCell>{l.chicks_hatched != null ? fmtNum(l.chicks_hatched) : "—"}</TableCell>
-                  <TableCell>{l.completed_unhatched != null ? fmtNum(l.completed_unhatched) : "—"}</TableCell>
-                  <TableCell className="space-x-1 space-x-reverse">
-                    {canManage && !l.cancelled && (
-                      <>
-                        {!l.candling_recorded_at && <Button size="sm" variant="outline" onClick={() => openAction(l, "candling")}>كشف</Button>}
-                        {l.candling_recorded_at && !l.transferred_to_hatcher_at && <Button size="sm" variant="outline" onClick={() => openAction(l, "hatcher")}>هاتشر</Button>}
-                        {l.transferred_to_hatcher_at && !l.hatcher_out_at && <Button size="sm" variant="outline" onClick={() => openAction(l, "hatch")}>فقس</Button>}
-                        {l.hatcher_out_at && !l.brooding_in_at && !l.brooding_out_at && <Button size="sm" variant="outline" onClick={() => openAction(l, "brooding_in")}>حضانة</Button>}
-                        {l.hatcher_out_at && !l.brooding_out_at && <Button size="sm" variant="default" onClick={() => openAction(l, "deliver")}>تسليم للعميل</Button>}
-                      </>
-                    )}
-                  </TableCell>
+          <Card className="overflow-x-auto border border-border/60 shadow-sm">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>المالك</TableHead>
+                  <TableHead>العميل</TableHead>
+                  <TableHead>بيض</TableHead>
+                  <TableHead>لايح</TableHead>
+                  <TableHead>مخصب</TableHead>
+                  <TableHead>منقول هاتشر</TableHead>
+                  <TableHead>كتاكيت</TableHead>
+                  <TableHead>أكمل بدون فقس</TableHead>
+                  <TableHead>إجراءات</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {lots.map((l: any) => (
+                  <TableRow key={l.id} className={l.cancelled ? "opacity-50" : ""}>
+                    <TableCell>{l.owner_type === "capital_ostrich" ? "عاصمة" : "عميل"}</TableCell>
+                    <TableCell className="text-xs">{l.client_name_snapshot || "—"}</TableCell>
+                    <TableCell>{fmtNum(l.eggs_in)}</TableCell>
+                    <TableCell>{l.infertile_eggs != null ? fmtNum(l.infertile_eggs) : "—"}</TableCell>
+                    <TableCell>{l.fertile_eggs != null ? fmtNum(l.fertile_eggs) : "—"}</TableCell>
+                    <TableCell>{l.transferred_count != null ? fmtNum(l.transferred_count) : "—"}</TableCell>
+                    <TableCell>{l.chicks_hatched != null ? fmtNum(l.chicks_hatched) : "—"}</TableCell>
+                    <TableCell>{l.completed_unhatched != null ? fmtNum(l.completed_unhatched) : "—"}</TableCell>
+                    <TableCell className="flex flex-wrap gap-1">
+                      {canManage && !l.cancelled && (
+                        <>
+                          {!l.candling_recorded_at && <Button size="sm" variant="outline" className="rounded-md border-border/60 hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-colors" onClick={() => openAction(l, "candling")}>كشف</Button>}
+                          {l.candling_recorded_at && !l.transferred_to_hatcher_at && <Button size="sm" variant="outline" className="rounded-md border-border/60 hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-colors" onClick={() => openAction(l, "hatcher")}>هاتشر</Button>}
+                          {l.transferred_to_hatcher_at && !l.hatcher_out_at && <Button size="sm" variant="outline" className="rounded-md border-border/60 hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-colors" onClick={() => openAction(l, "hatch")}>فقس</Button>}
+                          {l.hatcher_out_at && !l.brooding_in_at && !l.brooding_out_at && <Button size="sm" variant="outline" className="rounded-md border-border/60 hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-colors" onClick={() => openAction(l, "brooding_in")}>حضانة</Button>}
+                          {l.hatcher_out_at && !l.brooding_out_at && <Button size="sm" variant="default" className="rounded-md shadow-sm" onClick={() => openAction(l, "deliver")}>تسليم للعميل</Button>}
+                        </>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
         </div>
 
         <DialogFooter>
