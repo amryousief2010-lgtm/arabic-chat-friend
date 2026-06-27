@@ -2825,24 +2825,47 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
           const tProfit = tSale - tCost;
           const avgMargin = tCost > 0 ? (tProfit / tCost) * 100 : 0;
           return (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-sm">
-              <div className="p-3 rounded-lg border bg-slate-50 dark:bg-slate-900/40">
-                <div className="text-xs text-muted-foreground">إجمالي تكلفة الدفعة</div>
-                <div className="font-bold text-lg text-slate-700">{tCost.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+            <>
+              {/* Birds count clarification: purchased vs slaughtered in this evaluation */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3 text-sm">
+                <div className="p-3 rounded-lg border bg-muted/40">
+                  <div className="text-xs text-muted-foreground">عدد النعام المُشتراه (إجمالي دفعات الاستلام)</div>
+                  <div className="font-bold text-lg">{birdsPurchased || "—"}</div>
+                </div>
+                <div className="p-3 rounded-lg border bg-amber-50 dark:bg-amber-950/30">
+                  <div className="text-xs text-muted-foreground">عدد النعام المذبوح في هذا التقييم</div>
+                  <div className="font-bold text-lg text-amber-700">{batch.birds_slaughtered}</div>
+                </div>
+                <div className="p-3 rounded-lg border bg-emerald-50 dark:bg-emerald-950/30">
+                  <div className="text-xs text-muted-foreground">تكلفة النعام المذبوح فقط (snapshot الدفعة)</div>
+                  <div className="font-bold text-lg text-emerald-700">{batchTotalCost.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                  <div className="text-[10px] text-muted-foreground mt-1">snapshot وقت الذبح — لا يشمل باقي دفعة الشراء</div>
+                </div>
               </div>
-              <div className="p-3 rounded-lg border bg-blue-50 dark:bg-blue-950/40">
-                <div className="text-xs text-muted-foreground">إجمالي البيع المتوقع</div>
-                <div className="font-bold text-lg text-blue-700">{tSale.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-sm">
+                <div
+                  className="p-3 rounded-lg border bg-slate-50 dark:bg-slate-900/40"
+                  title="تكلفة الطيور المذبوحة في هذا التقييم فقط (مجموع وزن مقبول لكل صنف × تكلفة الكيلو). لا تشمل باقي دفعة الشراء إن لم تُذبح بالكامل."
+                >
+                  <div className="text-xs text-muted-foreground">تكلفة النعام المذبوح (محسوبة من الأصناف)</div>
+                  <div className="font-bold text-lg text-slate-700">{tCost.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                  <div className="text-[10px] text-muted-foreground mt-1">هذه التكلفة تخص الطيور المذبوحة في هذا التقييم فقط، ولا تشمل كامل دفعة الشراء إلا إذا كانت كلها مذبوحة.</div>
+                </div>
+                <div className="p-3 rounded-lg border bg-blue-50 dark:bg-blue-950/40">
+                  <div className="text-xs text-muted-foreground">إجمالي البيع المتوقع</div>
+                  <div className="font-bold text-lg text-blue-700">{tSale.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                </div>
+                <div className={"p-3 rounded-lg border " + (tProfit >= 0 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-red-50 dark:bg-red-950/40")}>
+                  <div className="text-xs text-muted-foreground">الربح المتوقع</div>
+                  <div className={"font-bold text-lg " + (tProfit >= 0 ? "text-emerald-700" : "text-red-600")}>{tProfit.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                </div>
+                <div className={"p-3 rounded-lg border " + (avgMargin >= 0 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-red-50 dark:bg-red-950/40")}>
+                  <div className="text-xs text-muted-foreground">متوسط هامش الربح</div>
+                  <div className={"font-bold text-lg " + (avgMargin >= 0 ? "text-emerald-700" : "text-red-600")}>{tCost > 0 ? avgMargin.toFixed(1) + "%" : "—"}</div>
+                </div>
               </div>
-              <div className={"p-3 rounded-lg border " + (tProfit >= 0 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-red-50 dark:bg-red-950/40")}>
-                <div className="text-xs text-muted-foreground">الربح المتوقع</div>
-                <div className={"font-bold text-lg " + (tProfit >= 0 ? "text-emerald-700" : "text-red-600")}>{tProfit.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
-              </div>
-              <div className={"p-3 rounded-lg border " + (avgMargin >= 0 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-red-50 dark:bg-red-950/40")}>
-                <div className="text-xs text-muted-foreground">متوسط هامش الربح</div>
-                <div className={"font-bold text-lg " + (avgMargin >= 0 ? "text-emerald-700" : "text-red-600")}>{tCost > 0 ? avgMargin.toFixed(1) + "%" : "—"}</div>
-              </div>
-            </div>
+            </>
           );
         })()}
 
