@@ -2087,6 +2087,8 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
         });
       }
       setCostBreakdown({ purchase, feed, mortality, other, total, sources: sourceRows });
+      const totalPurchased = ((receipts as any[]) || []).reduce((s, r) => s + (Number(r.bird_count) || 0), 0);
+      setBirdsPurchased(totalPurchased);
     })();
   }, [batchId, batch]);
 
