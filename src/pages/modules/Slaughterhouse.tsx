@@ -783,11 +783,19 @@ const Slaughterhouse = () => {
 
     const esc = (s: unknown) =>
       String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+    let totalFinancialImpact = 0;
     const rowsHtml = items.map((o, i) => {
       const branch = branches.find(br => br.id === o.branch_id);
-      const variance = Number(o.variance_pct || 0);
-      const varColor = variance < -5 ? "color:#b91c1c;font-weight:700" : variance > 5 ? "color:#15803d;font-weight:700" : "";
       const actual = Number(o.actual_weight_kg || 0);
+      const standard = Number(o.standard_weight_kg || 0);
+      const weightDiff = actual - standard;
+      const diffColor = weightDiff < 0 ? "color:#b45309;font-weight:700" : weightDiff > 0 ? "color:#15803d;font-weight:700" : "";
+      const diffText = weightDiff < 0 ? `نقص ${Math.abs(weightDiff).toFixed(2)} كجم` : weightDiff > 0 ? `زيادة ${weightDiff.toFixed(2)} كجم` : "مطابق";
+      const devType = weightDiff < 0 ? '<span style="color:#b45309">نقص عن القياسي</span>' : weightDiff > 0 ? '<span style="color:#15803d">زيادة عن القياسي</span>' : '<span style="color:#6b7280">مطابق</span>';
+      const unitPrice = Number(o.unit_price || 0);
+      const financialImpact = weightDiff * unitPrice;
+      totalFinancialImpact += financialImpact;
+      const impactColor = financialImpact < 0 ? "color:#b91c1c;font-weight:700" : financialImpact > 0 ? "color:#15803d;font-weight:700" : "";
       const pctOfLive = liveW > 0 ? (actual / liveW) * 100 : 0;
       const isMeat = meatSet.has(normalizeCutName(o.cut_name_ar));
       return `<tr>
@@ -795,8 +803,11 @@ const Slaughterhouse = () => {
         <td style="font-weight:600">${esc(o.cut_name_ar)}${isMeat ? ' <span style="color:#15803d;font-size:9px">●لحم</span>' : ''}</td>
         <td style="font-family:monospace;font-size:11px">${esc(o.barcode || "-")}</td>
         <td>${actual.toFixed(2)}</td>
-        <td>${Number(o.standard_weight_kg || 0).toFixed(2)}</td>
-        <td style="${varColor}">${variance.toFixed(1)}%</td>
+        <td>${standard.toFixed(2)}</td>
+        <td style="${diffColor}">${diffText}</td>
+        <td>${devType}</td>
+        <td>${unitPrice.toFixed(2)}</td>
+        <td style="${impactColor}">${financialImpact.toFixed(2)}</td>
         <td style="font-weight:700;color:#7c3aed">${pctOfLive.toFixed(2)}%</td>
         <td>${o.package_count}</td>
         <td>${Number(o.damaged_weight_kg || 0).toFixed(2)}</td>
@@ -805,6 +816,7 @@ const Slaughterhouse = () => {
         <td>${esc(branch?.name_ar || o.destination || "-")}</td>
       </tr>`;
     }).join("");
+    const impactTotalColor = totalFinancialImpact < 0 ? "color:#b91c1c" : totalFinancialImpact > 0 ? "color:#15803d" : "color:#374151";
 
     const html = `<!DOCTYPE html>
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
