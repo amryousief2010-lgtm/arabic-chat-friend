@@ -576,7 +576,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
       >
         {label}
         <span className={cn(
-          "mr-2 text-[10px] px-1.5 py-0.5 rounded-md font-mono tabular-nums",
+          "ms-2 text-[10px] px-1.5 py-0.5 rounded-md font-mono tabular-nums",
           active ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
         )}>
           {count}
@@ -1414,7 +1414,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
           <DialogTitle>
             دفعة تفريخ جديدة
             {nextOpNo != null && (
-              <Badge variant="secondary" className="mr-2">رقم الدفعة التلقائي: {nextOpNo}</Badge>
+          <Badge variant="secondary" className="ms-2">رقم الدفعة التلقائي: {nextOpNo}</Badge>
             )}
           </DialogTitle>
         </DialogHeader>
@@ -1450,7 +1450,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
                   <span className="mx-1">·</span>
                   <span className="text-amber-700">وارد من المزرعة / غير مستلم في دفعة</span>
                   {availableTransferBatches.length > 1 && (
-                    <span className="mr-2 text-muted-foreground">
+                    <span className="ms-2 text-muted-foreground">
                       (+{availableTransferBatches.length - 1} دفعة نقل سابقة متاحة في القائمة)
                     </span>
                   )}
