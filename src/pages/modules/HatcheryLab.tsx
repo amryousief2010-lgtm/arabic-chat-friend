@@ -1493,7 +1493,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
                       )?.key || ""
                     : "";
                 return (
-                <Card key={i} className="p-3">
+                <Card key={i} className="p-3 border border-border/60 shadow-sm bg-card">
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
                     <div><Label>المالك</Label>
                       <Select value={l.owner_type} onValueChange={v => updateLot(i, { owner_type: v, source: v === "capital_ostrich" ? "mother_farm" : "external", from_shipment_ids: v === "capital_ostrich" ? l.from_shipment_ids : [], from_farm_transfer_ids: v === "capital_ostrich" ? l.from_farm_transfer_ids : [], max_eggs: v === "capital_ostrich" ? l.max_eggs : null, shipment_label: v === "capital_ostrich" ? l.shipment_label : "" })}>
