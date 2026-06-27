@@ -751,7 +751,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button size="sm" variant="outline" onClick={() => setDetailBatch(b)}>تفاصيل</Button>
+                      <Button size="sm" variant="outline" onClick={() => setDetailBatch(b)} className="rounded-md border-border/60 hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-colors">تفاصيل</Button>
                       <Button size="sm" variant="ghost" onClick={() => printBatchStatement({
                         id: b.id,
                         batch_number: b.batch_number,
