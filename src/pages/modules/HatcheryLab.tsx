@@ -1968,7 +1968,7 @@ const InvoiceDialog = ({ invoice, canBill, onClose, onChanged }: any) => {
 // Balances Tab
 // ============================================================
 const BalancesTab = ({ balances }: any) => (
-  <Card className="overflow-x-auto">
+  <Card className="overflow-x-auto border border-border/60 shadow-sm">
     <Table>
       <TableHeader>
         <TableRow>
