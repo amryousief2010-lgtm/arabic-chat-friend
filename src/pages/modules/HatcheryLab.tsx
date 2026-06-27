@@ -17,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   FlaskConical, Egg, Bird, Plus, Search, AlertTriangle, FileText, Wallet,
   Settings as SettingsIcon, Printer, FileSpreadsheet, X, Activity, TrendingUp, ClipboardCheck, Tag,
+  Users, Archive, Warehouse, Receipt, BarChart3, Truck, ChevronLeft, Sparkles,
 } from "lucide-react";
 import ChickTradingTab from "@/components/chick-trading/ChickTradingTab";
 import { useAuth } from "@/hooks/useAuth";
@@ -143,57 +144,151 @@ const HatcheryLab = () => {
     qc.invalidateQueries({ queryKey: ["hatch_next_op_no"] });
   };
 
+  const quickLinks: { href: string; label: string; desc: string; icon: any; tone: "primary" | "muted" }[] = [
+    { href: "/hatchery/import-batches", label: "استيراد دفعات المعمل", desc: "رفع ملف Excel للدفعات", icon: FileSpreadsheet, tone: "primary" },
+    { href: "/hatchery/import-batches/review", label: "مراجعة الدفعات المستوردة", desc: "تدقيق قبل الاعتماد", icon: ClipboardCheck, tone: "primary" },
+    { href: "/hatchery/customer-reconciliation", label: "تسوية حسابات العملاء", desc: "مطابقة الكميات والمبالغ", icon: ClipboardCheck, tone: "primary" },
+    { href: "/hatchery/operational-statement", label: "كشف حساب تشغيل العملاء", desc: "حركة التشغيل التفصيلية", icon: FileText, tone: "primary" },
+    { href: "/lab-treasury", label: "خزنة المعمل والحضانات", desc: "النقدية والحركات", icon: Wallet, tone: "primary" },
+    { href: "/lab-treasury/customer-statement", label: "كشف حساب عملاء المعمل", desc: "كشف مالي مفصل", icon: Receipt, tone: "primary" },
+    { href: "/lab-treasury/customer-balances", label: "أرصدة العملاء", desc: "إجمالي المستحقات", icon: Users, tone: "primary" },
+    { href: "/hatchery/payments", label: "دفعات العملاء (أرشيف)", desc: "سجل الدفعات السابقة", icon: Archive, tone: "muted" },
+    { href: "/modules/farm-hatchery-dashboard", label: "لوحة المزرعة والمعمل", desc: "مؤشرات تشغيلية", icon: BarChart3, tone: "muted" },
+    { href: "/farm-shipments-log", label: "سجل وارد المزرعة", desc: "حركة الوارد من المزرعة", icon: Truck, tone: "muted" },
+  ];
+
+  const tabsConfig = [
+    { value: "dashboard", label: "الداشبورد", icon: Activity },
+    { value: "batches", label: "الدفعات", icon: FlaskConical },
+    { value: "invoices", label: "الفواتير", icon: FileText },
+    { value: "balances", label: "مديونية العملاء", icon: Wallet },
+    { value: "chick_trading", label: "تجارة كتاكيت", icon: Tag },
+    { value: "settings", label: "الإعدادات", icon: SettingsIcon },
+  ];
+
   return (
     <DashboardLayout>
       <Header title="معمل التفريخ والحضانات" subtitle="نظام كامل: دفعات • كشف • هاتشر • حضانات • فواتير" />
-      <div className="p-4 max-w-7xl mx-auto space-y-4">
-        <Card className="p-3">
-          <div className="text-sm font-semibold mb-2 text-muted-foreground">روابط سريعة لكل وظائف المعمل</div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm"><a href="/hatchery/import-batches"><FileSpreadsheet className="w-4 h-4 ml-1" />استيراد دفعات المعمل</a></Button>
-            <Button asChild variant="outline" size="sm"><a href="/hatchery/import-batches/review"><ClipboardCheck className="w-4 h-4 ml-1" />مراجعة الدفعات المستوردة</a></Button>
-            <Button asChild variant="outline" size="sm"><a href="/hatchery/customer-reconciliation"><ClipboardCheck className="w-4 h-4 ml-1" />تسوية حسابات العملاء</a></Button>
-            <Button asChild variant="outline" size="sm"><a href="/hatchery/operational-statement"><FileText className="w-4 h-4 ml-1" />كشف حساب تشغيل العملاء</a></Button>
-            <Button asChild variant="outline" size="sm"><a href="/lab-treasury"><Wallet className="w-4 h-4 ml-1" />خزنة المعمل والحضانات</a></Button>
-            <Button asChild variant="outline" size="sm"><a href="/lab-treasury/customer-statement"><Wallet className="w-4 h-4 ml-1" />كشف حساب عملاء المعمل</a></Button>
-            <Button asChild variant="outline" size="sm"><a href="/lab-treasury/customer-balances"><Wallet className="w-4 h-4 ml-1" />أرصدة العملاء</a></Button>
-            <Button asChild variant="ghost" size="sm"><a href="/hatchery/payments"><Wallet className="w-4 h-4 ml-1" />دفعات العملاء (أرشيف)</a></Button>
-            <Button asChild variant="ghost" size="sm"><a href="/modules/farm-hatchery-dashboard"><TrendingUp className="w-4 h-4 ml-1" />لوحة المزرعة والمعمل</a></Button>
-            <Button asChild variant="ghost" size="sm"><a href="/farm-shipments-log"><TrendingUp className="w-4 h-4 ml-1" />سجل وارد المزرعة</a></Button>
+      <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6" dir="rtl">
+
+        {/* ===== Premium Page Header ===== */}
+        <Card className="relative overflow-hidden border border-border/60 shadow-sm">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-l from-primary via-fuchsia-500 to-orange-500" />
+          <div className="absolute -top-16 -left-16 w-56 h-56 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-16 -right-16 w-56 h-56 rounded-full bg-orange-500/5 blur-3xl pointer-events-none" />
+          <div className="relative p-5 sm:p-7 bg-gradient-to-bl from-background via-background to-muted/30">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-start gap-4 min-w-0">
+                <div className="shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-fuchsia-600 text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/25">
+                  <FlaskConical className="w-7 h-7" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight">دفعات معمل التفريخ</h1>
+                    <span className="hidden sm:inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                      <Sparkles className="w-3 h-3" /> Premium
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                    إدارة دفعات التفريخ، متابعة الماكينات، الكشف، الفقس والخروج
+                  </p>
+                </div>
+              </div>
+              {canManage && (
+                <Button
+                  onClick={() => setTab("batches")}
+                  className="h-10 px-5 bg-gradient-to-l from-primary to-fuchsia-600 hover:from-primary/90 hover:to-fuchsia-600/90 text-primary-foreground shadow-md shadow-primary/20"
+                >
+                  <Plus className="w-4 h-4 ml-1.5" /> دفعة جديدة
+                </Button>
+              )}
+            </div>
           </div>
         </Card>
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="flex flex-wrap h-auto">
-            <TabsTrigger value="dashboard"><Activity className="w-4 h-4 ml-1" />الداشبورد</TabsTrigger>
-            <TabsTrigger value="batches"><FlaskConical className="w-4 h-4 ml-1" />الدفعات</TabsTrigger>
-            <TabsTrigger value="invoices"><FileText className="w-4 h-4 ml-1" />الفواتير</TabsTrigger>
-            <TabsTrigger value="balances"><Wallet className="w-4 h-4 ml-1" />مديونية العملاء</TabsTrigger>
-            <TabsTrigger value="chick_trading"><Tag className="w-4 h-4 ml-1" />تجارة كتاكيت</TabsTrigger>
-            <TabsTrigger value="settings"><SettingsIcon className="w-4 h-4 ml-1" />الإعدادات</TabsTrigger>
-          </TabsList>
 
-          <TabsContent value="dashboard">
+        {/* ===== Quick Access Grid ===== */}
+        <section className="space-y-3">
+          <div className="flex items-end justify-between px-1">
+            <div>
+              <h2 className="text-sm font-bold text-foreground">روابط سريعة</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">الوصول المباشر لكل وظائف المعمل</p>
+            </div>
+            <span className="text-[11px] text-muted-foreground">{quickLinks.length} وظيفة</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+            {quickLinks.map((q) => {
+              const Icon = q.icon;
+              const isPrimary = q.tone === "primary";
+              return (
+                <a
+                  key={q.href}
+                  href={q.href}
+                  className="group relative flex flex-col gap-2 p-4 rounded-xl bg-card border border-border/60 hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
+                      isPrimary
+                        ? "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"
+                        : "bg-muted text-muted-foreground group-hover:bg-orange-500/10 group-hover:text-orange-600"
+                    }`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <ChevronLeft className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary group-hover:-translate-x-0.5 transition-all" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-foreground leading-snug line-clamp-2">{q.label}</div>
+                    <div className="text-[11px] text-muted-foreground mt-1 line-clamp-1">{q.desc}</div>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ===== Premium Tabs ===== */}
+        <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+          <div className="relative">
+            <div className="overflow-x-auto -mx-1 px-1 pb-1 scrollbar-thin">
+              <TabsList className="inline-flex w-auto h-auto p-1.5 bg-card border border-border/60 rounded-xl shadow-sm gap-1">
+                {tabsConfig.map((t) => {
+                  const Icon = t.icon;
+                  return (
+                    <TabsTrigger
+                      key={t.value}
+                      value={t.value}
+                      className="h-9 px-4 rounded-lg text-sm font-medium text-muted-foreground data-[state=active]:bg-gradient-to-l data-[state=active]:from-primary data-[state=active]:to-fuchsia-600 data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all whitespace-nowrap"
+                    >
+                      <Icon className="w-4 h-4 ml-1.5" />
+                      {t.label}
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </div>
+          </div>
+
+          <TabsContent value="dashboard" className="mt-0">
             <DashboardTab kpis={kpis} batches={batches} settings={settings} setTab={setTab} />
           </TabsContent>
 
-          <TabsContent value="batches">
+          <TabsContent value="batches" className="mt-0">
             <BatchesTab lots={lots} clients={clients} settings={settings}
               canManage={canManage} onRefresh={refresh} />
           </TabsContent>
 
-          <TabsContent value="invoices">
+          <TabsContent value="invoices" className="mt-0">
             <InvoicesTab invoices={invoices} canBill={canBill} onRefresh={refresh} />
           </TabsContent>
 
-          <TabsContent value="balances">
+          <TabsContent value="balances" className="mt-0">
             <BalancesTab balances={balances} />
           </TabsContent>
 
-          <TabsContent value="chick_trading">
+          <TabsContent value="chick_trading" className="mt-0">
             <ChickTradingTab />
           </TabsContent>
 
-          <TabsContent value="settings">
+          <TabsContent value="settings" className="mt-0">
             <SettingsTab settings={settings} canManage={canManage} onRefresh={refresh} />
           </TabsContent>
         </Tabs>
