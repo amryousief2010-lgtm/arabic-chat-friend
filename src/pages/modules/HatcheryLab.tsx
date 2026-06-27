@@ -231,7 +231,7 @@ const HatcheryLab = () => {
                         ? "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"
                         : "bg-muted text-muted-foreground group-hover:bg-orange-500/10 group-hover:text-orange-600"
                     }`}>
-                      <Icon className="w-4.5 h-4.5" />
+                      <Icon className="w-5 h-5" />
                     </div>
                     <ChevronLeft className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary group-hover:-translate-x-0.5 transition-all" />
                   </div>
