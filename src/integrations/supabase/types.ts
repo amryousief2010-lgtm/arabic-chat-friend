@@ -14476,6 +14476,13 @@ export type Database = {
           created_by: string | null
           direct_slaughter_expenses: number
           end_time: string | null
+          evaluation_approval_note: string | null
+          evaluation_approved_at: string | null
+          evaluation_approved_by: string | null
+          evaluation_saved_at: string | null
+          evaluation_saved_by: string | null
+          evaluation_snapshot: Json | null
+          evaluation_status: string
           id: string
           live_receipt_id: string | null
           low_yield_approval_at: string | null
@@ -14521,6 +14528,13 @@ export type Database = {
           created_by?: string | null
           direct_slaughter_expenses?: number
           end_time?: string | null
+          evaluation_approval_note?: string | null
+          evaluation_approved_at?: string | null
+          evaluation_approved_by?: string | null
+          evaluation_saved_at?: string | null
+          evaluation_saved_by?: string | null
+          evaluation_snapshot?: Json | null
+          evaluation_status?: string
           id?: string
           live_receipt_id?: string | null
           low_yield_approval_at?: string | null
@@ -14566,6 +14580,13 @@ export type Database = {
           created_by?: string | null
           direct_slaughter_expenses?: number
           end_time?: string | null
+          evaluation_approval_note?: string | null
+          evaluation_approved_at?: string | null
+          evaluation_approved_by?: string | null
+          evaluation_saved_at?: string | null
+          evaluation_saved_by?: string | null
+          evaluation_snapshot?: Json | null
+          evaluation_status?: string
           id?: string
           live_receipt_id?: string | null
           low_yield_approval_at?: string | null
