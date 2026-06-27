@@ -2994,7 +2994,31 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
           );
         })()}
 
-        <DialogFooter><Button onClick={save} className="bg-gradient-to-r from-primary to-accent">حفظ التقسيمة</Button></DialogFooter>
+        <DialogFooter className="gap-2 flex-row-reverse">
+          {isApproved ? (
+            <div className="flex-1 text-sm p-2 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 text-emerald-800">
+              ✓ التقييم معتمد — التعديل المباشر مقفول. للتصحيح يتطلب صلاحية مدير.
+            </div>
+          ) : evalStatus === "saved" ? (
+            <div className="flex-1 text-sm p-2 rounded bg-amber-50 dark:bg-amber-950/40 border border-amber-300 text-amber-800">
+              💾 محفوظ — بانتظار اعتماد المدير العام / التنفيذي.
+            </div>
+          ) : (
+            <div className="flex-1 text-sm p-2 rounded bg-muted/40 border text-muted-foreground">
+              مسودة — لم يتم حفظ التقييم بعد.
+            </div>
+          )}
+          {evalStatus === "saved" && canApprove && (
+            <Button onClick={approveEvaluation} disabled={approving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              {approving ? "جارٍ الاعتماد…" : "اعتماد التقييم"}
+            </Button>
+          )}
+          {!readOnly && (
+            <Button onClick={save} className="bg-gradient-to-r from-primary to-accent">
+              {evalStatus === "saved" ? "إعادة الحفظ" : "حفظ التقييم"}
+            </Button>
+          )}
+        </DialogFooter>
 
         <AlertDialog open={!!pendingConfirm} onOpenChange={(o) => !o && setPendingConfirm(null)}>
           <AlertDialogContent dir="rtl">
@@ -3013,18 +3037,71 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                       </li>
                     ))}
                   </ul>
-                  <div className="text-muted-foreground">هل تريد المتابعة وحفظ التقسيمة كما هي؟</div>
+                  <div className="text-muted-foreground">هل تريد المتابعة وعرض الملخص المالي للحفظ؟</div>
                 </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="flex-row-reverse gap-2">
               <AlertDialogCancel>مراجعة الأرقام</AlertDialogCancel>
-              <AlertDialogAction onClick={() => { setPendingConfirm(null); persist(); }}>
-                تأكيد والحفظ
+              <AlertDialogAction onClick={() => { setPendingConfirm(null); setPendingFinancialConfirm(true); }}>
+                متابعة
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* === Financial confirmation before saving the evaluation === */}
+        <AlertDialog open={pendingFinancialConfirm} onOpenChange={(o) => !o && setPendingFinancialConfirm(false)}>
+          <AlertDialogContent dir="rtl" className="max-w-lg">
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد حفظ التقييم — الملخص المالي</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-2 text-sm">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2 rounded bg-emerald-50 dark:bg-emerald-950/40 border">
+                      <div className="text-xs text-muted-foreground">تكلفة النعام المذبوح</div>
+                      <div className="font-bold">{financials.slaughteredCost.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                    </div>
+                    <div className="p-2 rounded bg-blue-50 dark:bg-blue-950/40 border">
+                      <div className="text-xs text-muted-foreground">إجمالي البيع المتوقع</div>
+                      <div className="font-bold">{financials.tSale.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                    </div>
+                    <div className={"p-2 rounded border col-span-2 " + (financials.tProfit >= 0 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-red-50 dark:bg-red-950/40")}>
+                      <div className="text-xs text-muted-foreground">{financials.tProfit >= 0 ? "الربح المتوقع" : "الخسارة المتوقعة"}</div>
+                      <div className={"font-bold " + (financials.tProfit >= 0 ? "text-emerald-700" : "text-red-600")}>
+                        {financials.tProfit.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م
+                        {financials.profitMargin !== null && (
+                          <span className="text-xs font-normal mr-2">({financials.profitMargin.toFixed(1)}% من البيع)</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className={"p-2 rounded border col-span-2 " + (financials.costDiffMaterial ? "bg-amber-50 dark:bg-amber-950/40" : "bg-muted/40")}>
+                      <div className="text-xs text-muted-foreground">فرق توزيع التكلفة على القطع</div>
+                      {financials.costDiffMaterial ? (
+                        <div className="font-bold text-amber-700">
+                          يوجد فرق: {financials.costDiff.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م
+                          <div className="text-xs font-normal">راجع unit_cost على الأصناف قبل الاعتماد.</div>
+                        </div>
+                      ) : (
+                        <div className="font-bold text-emerald-700">لا يوجد فرق جوهري ✓</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground border-t pt-2">
+                    سيتم حفظ snapshot كامل للأرقام أعلاه، وحركات المخزون ستُسجَّل للقطع المقبولة فقط. التالف/المحجور يُسجَّل ببند "تالف/فاقد تقطيع" ولا يدخل المخزون كمنتج صالح.
+                  </div>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { setPendingFinancialConfirm(false); persist(); }}>
+                تأكيد وحفظ التقييم
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
       </DialogContent>
     </Dialog>
   );
