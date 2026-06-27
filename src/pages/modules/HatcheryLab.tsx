@@ -1836,7 +1836,7 @@ const InvoicesTab = ({ invoices, canBill, onRefresh }: any) => {
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث..." className="pr-9" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث..." className="pr-9 bg-card border-border/60 shadow-sm rounded-lg focus-visible:ring-primary/20" />
         </div>
         <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" />Excel</Button>
       </div>
