@@ -873,7 +873,9 @@ const Slaughterhouse = () => {
   <table>
     <thead><tr>
       <th>م</th><th>اسم القطعية</th><th>الباركود</th>
-      <th>الوزن الفعلي</th><th>الوزن القياسي</th><th>الانحراف %</th>
+      <th>الوزن الفعلي</th><th>الوزن القياسي</th>
+      <th>فرق الوزن</th><th>نوع الانحراف</th>
+      <th>سعر بيع القطعية</th><th>الأثر المالي</th>
       <th>% من الوزن الحي</th>
       <th>العبوات</th><th>تالف</th><th>تكلفة الوحدة</th><th>إجمالي التكلفة</th><th>الوجهة</th>
     </tr></thead>
@@ -881,7 +883,9 @@ const Slaughterhouse = () => {
     <tfoot><tr>
       <td colspan="3">الإجمالي</td>
       <td>${totalActual.toFixed(2)}</td>
-      <td>-</td><td>-</td>
+      <td>-</td>
+      <td>-</td><td>-</td><td>-</td>
+      <td style="${impactTotalColor};font-weight:700">${totalFinancialImpact.toFixed(2)} ج.م</td>
       <td style="color:#7c3aed;font-weight:700">${totalPctOfLive.toFixed(2)}%</td>
       <td>${totalPackages}</td>
       <td>${totalDamaged.toFixed(2)}</td>
@@ -890,11 +894,17 @@ const Slaughterhouse = () => {
       <td>محجوز: ${totalQuarantined.toFixed(2)}</td>
     </tr></tfoot>
   </table>
+  <div style="margin-top:10px;padding:10px 12px;border:1px dashed #f97316;background:#fff7ed;border-radius:6px;font-size:11px;color:#7c2d12;line-height:1.6">
+    <strong>ملاحظة:</strong> السالب في "فرق الوزن" يعني أن الوزن الفعلي للقطعية أقل من الوزن القياسي، وليس بالضرورة خسارة مالية.
+    الخسارة المالية تُحسب بناءً على سعر بيع القطعية وإجمالي العائد (عمود "الأثر المالي").
+    <div style="margin-top:6px"><strong>إجمالي الأثر المالي:</strong> <span style="${impactTotalColor};font-weight:700">${totalFinancialImpact.toFixed(2)} ج.م</span></div>
+  </div>
   <div class="sig">
     <div>مسؤول المجزر</div>
     <div>الطبيب البيطري</div>
     <div>مدير الإنتاج</div>
   </div>
+
   <div class="footer">
     <span>تاريخ الطباعة: ${new Date().toLocaleString("ar-EG")}</span>
     <span>شركة نعام العاصمة © ${new Date().getFullYear()}</span>
