@@ -863,7 +863,7 @@ const HatchBatchDetailDialog = ({ row, onClose }: { row: any; onClose: () => voi
             )}
           </Card>
 
-          <Card className="p-3 space-y-1">
+          <Card className="p-3 space-y-1 border border-border/60 shadow-sm bg-card">
             <h4 className="font-semibold mb-2 text-primary">البيض والإنتاج</h4>
             <Row label="إجمالي البيض" value={fmtNum(b.received_eggs)} />
             <Row label="المستبعد" value={fmtNum(damaged)} />
