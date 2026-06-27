@@ -547,8 +547,29 @@ export default function MainTreasury() {
         <Button size="sm" variant="outline" onClick={() => setActiveTab("bank")} className="gap-1"><Send className="h-4 w-4"/>تحويل بين الخزن</Button>
         <Button size="sm" variant="outline" onClick={() => setActiveTab("transfer")} className="gap-1"><Wallet className="h-4 w-4"/>توريد إلى عهدة</Button>
         <div className="flex-1" />
-        <Button size="sm" variant="ghost" onClick={() => exportTxnsExcel(filteredLogTxns)} className="gap-1"><FileDown className="h-4 w-4"/>تصدير Excel</Button>
-        <Button size="sm" variant="ghost" onClick={() => exportTxnsPdf(filteredLogTxns)} className="gap-1"><Printer className="h-4 w-4"/>تصدير PDF</Button>
+        <Button size="sm" variant="ghost" onClick={() => {
+          const rows = filteredLogTxns.map(t => ({
+            "المرجع": t.reference_no, "التاريخ": t.txn_date,
+            "النوع": TYPE_LBL[t.txn_type] || t.txn_type,
+            "الحساب": accounts.find(a=>a.id===t.account_id)?.name || "",
+            "المبلغ": Number(t.amount),
+            "البند": cats.find(c=>c.id===t.category_id)?.label || "",
+            "المستفيد": t.counterparty || "", "الوصف": t.description,
+            "الحالة": STATUS_LBL[t.status] || t.status,
+          }));
+          const ws = XLSX.utils.json_to_sheet(rows);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, "حركات الخزنة");
+          XLSX.writeFile(wb, `main-treasury-${today()}.xlsx`);
+        }} className="gap-1"><FileDown className="h-4 w-4"/>تصدير Excel</Button>
+        <Button size="sm" variant="ghost" onClick={() => {
+          const body = `
+            <h2>سجل حركات الخزنة الرئيسية للشركة</h2>
+            <table><thead><tr><th>المرجع</th><th>التاريخ</th><th>النوع</th><th>الوصف</th><th>المبلغ</th><th>الحالة</th></tr></thead>
+            <tbody>${filteredLogTxns.map(t => `<tr><td>${escapeHtml(t.reference_no)}</td><td>${t.txn_date}</td><td>${escapeHtml(TYPE_LBL[t.txn_type]||t.txn_type)}</td><td>${escapeHtml(t.description||"")}</td><td>${fmtNum(Number(t.amount),2)}</td><td>${escapeHtml(STATUS_LBL[t.status]||t.status)}</td></tr>`).join("")}</tbody></table>`;
+          openPrintWindow(`الخزنة الرئيسية للشركة - ${today()}`, body);
+        }} className="gap-1"><Printer className="h-4 w-4"/>تصدير PDF</Button>
+
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
