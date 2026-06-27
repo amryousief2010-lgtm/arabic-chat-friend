@@ -2820,10 +2820,13 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
         </div>
 
         {rows.length > 0 && (() => {
-          const tCost = rows.reduce((s, r) => s + acceptedOf(r) * (Number(r.unit_cost) || 0), 0);
+          // Internally allocated cost (distributed onto accepted cuts).
+          const tAllocated = rows.reduce((s, r) => s + acceptedOf(r) * (Number(r.unit_cost) || 0), 0);
           const tSale = rows.reduce((s, r) => s + acceptedOf(r) * (Number(r.unit_price) || 0), 0);
-          const tProfit = tSale - tCost;
-          const avgMargin = tCost > 0 ? (tProfit / tCost) * 100 : 0;
+          // Real slaughtered-birds cost = snapshot of the slaughter batch (independent of cut weights).
+          const slaughteredCost = batchTotalCost;
+          const tProfit = tSale - slaughteredCost;
+          const avgMargin = slaughteredCost > 0 ? (tProfit / slaughteredCost) * 100 : 0;
           return (
             <>
               {/* Birds count clarification: purchased vs slaughtered in this evaluation */}
@@ -2838,31 +2841,45 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                 </div>
                 <div className="p-3 rounded-lg border bg-emerald-50 dark:bg-emerald-950/30">
                   <div className="text-xs text-muted-foreground">تكلفة النعام المذبوح فقط (snapshot الدفعة)</div>
-                  <div className="font-bold text-lg text-emerald-700">{batchTotalCost.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
-                  <div className="text-[10px] text-muted-foreground mt-1">snapshot وقت الذبح — لا يشمل باقي دفعة الشراء</div>
+                  <div className="font-bold text-lg text-emerald-700">{slaughteredCost.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                  <div className="text-[10px] text-muted-foreground mt-1">snapshot وقت الذبح — لا يتغير عند تعديل أوزان/قبول القطع</div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-3 text-sm">
+                <div
+                  className="p-3 rounded-lg border bg-emerald-50 dark:bg-emerald-950/40"
+                  title="تكلفة النعام المذبوح هي تكلفة الطيور التي تم ذبحها من دفعة الشراء (snapshot). أما التكلفة المحملة على القطع فهي توزيع داخلي للتكلفة على المنتجات الناتجة من التقطيع."
+                >
+                  <div className="text-xs text-muted-foreground">تكلفة النعام المذبوح</div>
+                  <div className="font-bold text-lg text-emerald-700">{slaughteredCost.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                  <div className="text-[10px] text-muted-foreground mt-1">من snapshot دفعة الذبح — ثابتة بغض النظر عن أوزان القطع.</div>
+                </div>
                 <div
                   className="p-3 rounded-lg border bg-slate-50 dark:bg-slate-900/40"
-                  title="تكلفة الطيور المذبوحة في هذا التقييم فقط (مجموع وزن مقبول لكل صنف × تكلفة الكيلو). لا تشمل باقي دفعة الشراء إن لم تُذبح بالكامل."
+                  title="مجموع وزن المقبول × تكلفة الكيلو المحملة على كل صنف. هذا توزيع داخلي للتكلفة على المنتجات الناتجة، وقد يختلف عن تكلفة النعام المذبوح."
                 >
-                  <div className="text-xs text-muted-foreground">تكلفة النعام المذبوح (محسوبة من الأصناف)</div>
-                  <div className="font-bold text-lg text-slate-700">{tCost.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
-                  <div className="text-[10px] text-muted-foreground mt-1">هذه التكلفة تخص الطيور المذبوحة في هذا التقييم فقط، ولا تشمل كامل دفعة الشراء إلا إذا كانت كلها مذبوحة.</div>
+                  <div className="text-xs text-muted-foreground">التكلفة المحملة على القطع المقبولة</div>
+                  <div className="font-bold text-lg text-slate-700">{tAllocated.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                  {slaughteredCost > 0 && Math.abs(tAllocated - slaughteredCost) > Math.max(1, slaughteredCost * 0.01) && (
+                    <div className="text-[10px] text-amber-600 mt-1">فرق التوزيع: {(tAllocated - slaughteredCost).toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                  )}
                 </div>
                 <div className="p-3 rounded-lg border bg-blue-50 dark:bg-blue-950/40">
                   <div className="text-xs text-muted-foreground">إجمالي البيع المتوقع</div>
                   <div className="font-bold text-lg text-blue-700">{tSale.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
                 </div>
-                <div className={"p-3 rounded-lg border " + (tProfit >= 0 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-red-50 dark:bg-red-950/40")}>
+                <div
+                  className={"p-3 rounded-lg border " + (tProfit >= 0 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-red-50 dark:bg-red-950/40")}
+                  title="الربح المتوقع = إجمالي البيع المتوقع − تكلفة النعام المذبوح."
+                >
                   <div className="text-xs text-muted-foreground">الربح المتوقع</div>
                   <div className={"font-bold text-lg " + (tProfit >= 0 ? "text-emerald-700" : "text-red-600")}>{tProfit.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                  <div className="text-[10px] text-muted-foreground mt-1">البيع − تكلفة النعام المذبوح</div>
                 </div>
                 <div className={"p-3 rounded-lg border " + (avgMargin >= 0 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-red-50 dark:bg-red-950/40")}>
                   <div className="text-xs text-muted-foreground">متوسط هامش الربح</div>
-                  <div className={"font-bold text-lg " + (avgMargin >= 0 ? "text-emerald-700" : "text-red-600")}>{tCost > 0 ? avgMargin.toFixed(1) + "%" : "—"}</div>
+                  <div className={"font-bold text-lg " + (avgMargin >= 0 ? "text-emerald-700" : "text-red-600")}>{slaughteredCost > 0 ? avgMargin.toFixed(1) + "%" : "—"}</div>
                 </div>
               </div>
             </>
