@@ -2194,6 +2194,27 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
     };
   }, [rows, yieldSet, batch.total_live_weight_kg, customItems]);
 
+  // === Financial snapshot (lifted out so save() can capture identical numbers) ===
+  const financials = useMemo(() => {
+    const tAllocated = rows.reduce((s, r) => s + acceptedOf(r) * (Number(r.unit_cost) || 0), 0);
+    const tSale = rows.reduce((s, r) => s + acceptedOf(r) * (Number(r.unit_price) || 0), 0);
+    const slaughteredCost = batchTotalCost;
+    const tProfit = tSale - slaughteredCost;
+    const profitMargin = tSale > 0 ? (tProfit / tSale) * 100 : null;
+    const costReturnPct = slaughteredCost > 0 ? (tProfit / slaughteredCost) * 100 : null;
+    const costDiff = tAllocated - slaughteredCost;
+    const costDiffMaterial = slaughteredCost > 0 && Math.abs(costDiff) > Math.max(1, slaughteredCost * 0.01);
+    return { tAllocated, tSale, slaughteredCost, tProfit, profitMargin, costReturnPct, costDiff, costDiffMaterial };
+  }, [rows, batchTotalCost]);
+
+  // === Evaluation lifecycle ===
+  const evalStatus: "draft" | "saved" | "approved" = (b.evaluation_status as any) || "draft";
+  const isApproved = evalStatus === "approved";
+  const canApprove = (roles || []).some((r: string) => r === "general_manager" || r === "executive_manager");
+  const readOnly = isApproved && !canApprove;
+
+
+
   const updateRow = (i: number, patch: Partial<any>) => {
     setRows(prev => {
       const v = [...prev];
