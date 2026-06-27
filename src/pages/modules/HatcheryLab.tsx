@@ -839,7 +839,7 @@ const HatchBatchDetailDialog = ({ row, onClose }: { row: any; onClose: () => voi
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="p-3 space-y-1">
+          <Card className="p-3 space-y-1 border border-border/60 shadow-sm bg-card">
             <h4 className="font-semibold mb-2 text-primary">بيانات أساسية</h4>
             <Row label="العميل" value={row.customer_name} />
             <Row label="النوع" value={row.type === "internal" ? "عاصمة (داخلي)" : "عميل خارجي"} />
