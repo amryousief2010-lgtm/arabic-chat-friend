@@ -539,19 +539,33 @@ export default function MainTreasury() {
       })()}
 
 
-      <Tabs defaultValue="dashboard">
-        <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="dashboard">لوحة الرصيد</TabsTrigger>
-          <TabsTrigger value="bank">الحساب البنكي</TabsTrigger>
-          <TabsTrigger value="new">معاملة جديدة</TabsTrigger>
-          <TabsTrigger value="transfer">توريد لخزنة العهدة</TabsTrigger>
-          {isApprover && <TabsTrigger value="approve">بانتظار الاعتماد {pendingTxns.length>0 && <Badge className="mr-2">{pendingTxns.length}</Badge>}</TabsTrigger>}
-          <TabsTrigger value="log">سجل الحركات</TabsTrigger>
-          <TabsTrigger value="transfers">سجل التحويلات</TabsTrigger>
-          <TabsTrigger value="analytics">تحليل المصروفات</TabsTrigger>
-          <TabsTrigger value="audit">Audit Log</TabsTrigger>
-          <TabsTrigger value="settings">إعدادات</TabsTrigger>
-        </TabsList>
+      {/* Quick actions toolbar */}
+      <div className="flex flex-wrap items-center gap-2 mb-3" dir="rtl">
+        <Button size="sm" variant="default" onClick={() => setActiveTab("new")} className="gap-1"><ArrowDownToLine className="h-4 w-4"/>إضافة إيداع</Button>
+        <Button size="sm" variant="outline" onClick={() => setActiveTab("new")} className="gap-1"><ArrowUpFromLine className="h-4 w-4"/>إضافة سحب</Button>
+        <Button size="sm" variant="outline" onClick={() => setActiveTab("bank")} className="gap-1"><Send className="h-4 w-4"/>تحويل بين الخزن</Button>
+        <Button size="sm" variant="outline" onClick={() => setActiveTab("transfer")} className="gap-1"><Wallet className="h-4 w-4"/>توريد إلى عهدة</Button>
+        <div className="flex-1" />
+        <Button size="sm" variant="ghost" onClick={() => exportTxnsExcel(filteredLogTxns)} className="gap-1"><FileDown className="h-4 w-4"/>تصدير Excel</Button>
+        <Button size="sm" variant="ghost" onClick={() => exportTxnsPdf(filteredLogTxns)} className="gap-1"><Printer className="h-4 w-4"/>تصدير PDF</Button>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
+        <div className="overflow-x-auto -mx-1 px-1 mb-2 scrollbar-thin">
+          <TabsList className="inline-flex w-max">
+            <TabsTrigger value="dashboard">لوحة الرصيد</TabsTrigger>
+            <TabsTrigger value="bank">الحساب البنكي</TabsTrigger>
+            <TabsTrigger value="new">معاملة جديدة</TabsTrigger>
+            <TabsTrigger value="transfer">توريد لخزنة العهدة</TabsTrigger>
+            {isApprover && <TabsTrigger value="approve">بانتظار الاعتماد {pendingTxns.length>0 && <Badge className="mr-2">{pendingTxns.length}</Badge>}</TabsTrigger>}
+            <TabsTrigger value="log">سجل الحركات</TabsTrigger>
+            <TabsTrigger value="transfers">سجل التحويلات</TabsTrigger>
+            <TabsTrigger value="analytics">تحليل المصروفات</TabsTrigger>
+            <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>
+            <TabsTrigger value="settings">إعدادات</TabsTrigger>
+          </TabsList>
+        </div>
+
 
         <TabsContent value="bank" className="mt-4">
           <BankAccountPanel />
