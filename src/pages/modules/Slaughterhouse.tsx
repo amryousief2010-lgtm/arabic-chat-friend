@@ -2138,6 +2138,9 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
   const [pickCut, setPickCut] = useState<string>("");
   const [searchCut, setSearchCut] = useState<string>("");
   const [pendingConfirm, setPendingConfirm] = useState<null | { mismatchRows: { name: string; produced: number; sum: number }[] }>(null);
+  const [pendingFinancialConfirm, setPendingFinancialConfirm] = useState(false);
+  const [approving, setApproving] = useState(false);
+
   // Custom (unregistered) cuts that count toward yield % only
   const CUSTOM_KEY = `slaughter_custom_yield_${batchId}`;
   const [customItems, setCustomItems] = useState<Array<{ name: string; weight: number }>>(() => {
@@ -2194,6 +2197,27 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
     };
   }, [rows, yieldSet, batch.total_live_weight_kg, customItems]);
 
+  // === Financial snapshot (lifted out so save() can capture identical numbers) ===
+  const financials = useMemo(() => {
+    const tAllocated = rows.reduce((s, r) => s + acceptedOf(r) * (Number(r.unit_cost) || 0), 0);
+    const tSale = rows.reduce((s, r) => s + acceptedOf(r) * (Number(r.unit_price) || 0), 0);
+    const slaughteredCost = batchTotalCost;
+    const tProfit = tSale - slaughteredCost;
+    const profitMargin = tSale > 0 ? (tProfit / tSale) * 100 : null;
+    const costReturnPct = slaughteredCost > 0 ? (tProfit / slaughteredCost) * 100 : null;
+    const costDiff = tAllocated - slaughteredCost;
+    const costDiffMaterial = slaughteredCost > 0 && Math.abs(costDiff) > Math.max(1, slaughteredCost * 0.01);
+    return { tAllocated, tSale, slaughteredCost, tProfit, profitMargin, costReturnPct, costDiff, costDiffMaterial };
+  }, [rows, batchTotalCost]);
+
+  // === Evaluation lifecycle ===
+  const evalStatus: "draft" | "saved" | "approved" = (b.evaluation_status as any) || "draft";
+  const isApproved = evalStatus === "approved";
+  const canApprove = (roles || []).some((r: string) => r === "general_manager" || r === "executive_manager");
+  const readOnly = isApproved && !canApprove;
+
+
+
   const updateRow = (i: number, patch: Partial<any>) => {
     setRows(prev => {
       const v = [...prev];
@@ -2220,6 +2244,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
 
   // Persist: split each user row into 1-3 outputs by quality_status so warehouse receipt sees them correctly.
   const persist = async () => {
+    if (readOnly) { toast.error("التقييم معتمد — التعديل يتطلب صلاحية مدير"); return; }
     const toUpsert: any[] = [];
     for (const r of rows) {
       const accepted = acceptedOf(r);
@@ -2230,7 +2255,6 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
       const base = {
         batch_id: batchId,
         yield_standard_id: r.yield_standard_id,
-        cut_name_ar: r.cut_name_ar,
         barcode: r.barcode || null,
         standard_weight_kg: Number(r.standard_weight_kg) || 0,
         unit_cost: Number(r.unit_cost) || 0,
@@ -2242,6 +2266,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
       if (accepted > 0) {
         toUpsert.push({
           ...base,
+          cut_name_ar: r.cut_name_ar,
           actual_weight_kg: accepted,
           damaged_weight_kg: 0,
           quarantined_weight_kg: 0,
@@ -2249,39 +2274,100 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
           quality_status: "accepted",
         });
       }
+      // Rejected/Quarantined رؤوس منفصلة باسم "تالف/فاقد تقطيع" — لا تدخل المخزون كمنتج صالح
       if (damaged > 0) {
         toUpsert.push({
           ...base,
+          cut_name_ar: `تالف/فاقد تقطيع - ${r.cut_name_ar}`,
           actual_weight_kg: damaged,
           damaged_weight_kg: damaged,
           quarantined_weight_kg: 0,
           package_count: 0,
           quality_status: "rejected",
+          unit_price: 0,
         });
       }
       if (quarantined > 0) {
         toUpsert.push({
           ...base,
+          cut_name_ar: `محجور - ${r.cut_name_ar}`,
           actual_weight_kg: quarantined,
           damaged_weight_kg: 0,
           quarantined_weight_kg: quarantined,
           package_count: 0,
           quality_status: "quarantine",
+          unit_price: 0,
         });
       }
     }
+
+    // Build snapshot (مرتبط بنفس الأرقام المعروضة في كروت التقييم)
+    const snapshot = {
+      saved_at: new Date().toISOString(),
+      birds_slaughtered: Number(batch.birds_slaughtered) || 0,
+      slaughtered_cost: financials.slaughteredCost,
+      total_expected_sale: financials.tSale,
+      expected_profit: financials.tProfit,
+      profit_margin_pct: financials.profitMargin,
+      cost_return_pct: financials.costReturnPct,
+      allocated_cost_on_accepted: financials.tAllocated,
+      cost_distribution_diff: financials.costDiff,
+      total_accepted_kg: totalActual,
+      total_damaged_kg: totalDamaged,
+      total_quarantined_kg: totalQuarantined,
+      total_produced_kg: totalProduced,
+      yield_pct: 0, // filled in render scope; safe default
+    };
 
     await supabase.from("slaughter_batch_outputs" as any).delete().eq("batch_id", batchId);
     if (toUpsert.length) {
       const { error } = await supabase.from("slaughter_batch_outputs" as any).insert(toUpsert);
       if (error) { toast.error(error.message); return; }
     }
-    toast.success(`تم حفظ ${toUpsert.length} صف من التقسيمة (مقسّمة حسب حالة الجودة)`);
+
+    const { data: userRes } = await supabase.auth.getUser();
+    const uid = userRes?.user?.id || null;
+    const { error: upErr } = await supabase
+      .from("slaughter_batches" as any)
+      .update({
+        evaluation_status: "saved",
+        evaluation_snapshot: snapshot,
+        evaluation_saved_at: new Date().toISOString(),
+        evaluation_saved_by: uid,
+      } as any)
+      .eq("id", batchId);
+    if (upErr) { toast.error(upErr.message); return; }
+
+    toast.success(`تم حفظ التقييم — ${toUpsert.length} صف (محفوظ، بانتظار الاعتماد)`);
     onClose();
     onUpdate();
   };
 
+  const approveEvaluation = async () => {
+    if (!canApprove) { toast.error("الاعتماد يتطلب صلاحية المدير العام أو التنفيذي"); return; }
+    setApproving(true);
+    try {
+      const { data: userRes } = await supabase.auth.getUser();
+      const uid = userRes?.user?.id || null;
+      const { error } = await supabase
+        .from("slaughter_batches" as any)
+        .update({
+          evaluation_status: "approved",
+          evaluation_approved_at: new Date().toISOString(),
+          evaluation_approved_by: uid,
+        } as any)
+        .eq("id", batchId);
+      if (error) { toast.error(error.message); return; }
+      toast.success("تم اعتماد التقييم — تم قفل التعديل المباشر");
+      onClose();
+      onUpdate();
+    } finally {
+      setApproving(false);
+    }
+  };
+
   const save = () => {
+    if (readOnly) { toast.error("التقييم معتمد — التعديل يتطلب صلاحية مدير"); return; }
     // Check mismatch: damaged + quarantined > produced (would yield clamped accepted)
     const mismatch: { name: string; produced: number; sum: number }[] = [];
     for (const r of rows) {
@@ -2301,8 +2387,10 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
       setPendingConfirm({ mismatchRows: mismatch });
       return;
     }
-    persist();
+    setPendingFinancialConfirm(true);
   };
+
+
 
   // Available yields not yet added (allow duplicates only via "+ فرع") + search filter
   const usedCuts = new Set(rows.map(r => r.cut_name_ar));
@@ -2906,7 +2994,31 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
           );
         })()}
 
-        <DialogFooter><Button onClick={save} className="bg-gradient-to-r from-primary to-accent">حفظ التقسيمة</Button></DialogFooter>
+        <DialogFooter className="gap-2 flex-row-reverse">
+          {isApproved ? (
+            <div className="flex-1 text-sm p-2 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 text-emerald-800">
+              ✓ التقييم معتمد — التعديل المباشر مقفول. للتصحيح يتطلب صلاحية مدير.
+            </div>
+          ) : evalStatus === "saved" ? (
+            <div className="flex-1 text-sm p-2 rounded bg-amber-50 dark:bg-amber-950/40 border border-amber-300 text-amber-800">
+              💾 محفوظ — بانتظار اعتماد المدير العام / التنفيذي.
+            </div>
+          ) : (
+            <div className="flex-1 text-sm p-2 rounded bg-muted/40 border text-muted-foreground">
+              مسودة — لم يتم حفظ التقييم بعد.
+            </div>
+          )}
+          {evalStatus === "saved" && canApprove && (
+            <Button onClick={approveEvaluation} disabled={approving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              {approving ? "جارٍ الاعتماد…" : "اعتماد التقييم"}
+            </Button>
+          )}
+          {!readOnly && (
+            <Button onClick={save} className="bg-gradient-to-r from-primary to-accent">
+              {evalStatus === "saved" ? "إعادة الحفظ" : "حفظ التقييم"}
+            </Button>
+          )}
+        </DialogFooter>
 
         <AlertDialog open={!!pendingConfirm} onOpenChange={(o) => !o && setPendingConfirm(null)}>
           <AlertDialogContent dir="rtl">
@@ -2925,18 +3037,71 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                       </li>
                     ))}
                   </ul>
-                  <div className="text-muted-foreground">هل تريد المتابعة وحفظ التقسيمة كما هي؟</div>
+                  <div className="text-muted-foreground">هل تريد المتابعة وعرض الملخص المالي للحفظ؟</div>
                 </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="flex-row-reverse gap-2">
               <AlertDialogCancel>مراجعة الأرقام</AlertDialogCancel>
-              <AlertDialogAction onClick={() => { setPendingConfirm(null); persist(); }}>
-                تأكيد والحفظ
+              <AlertDialogAction onClick={() => { setPendingConfirm(null); setPendingFinancialConfirm(true); }}>
+                متابعة
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* === Financial confirmation before saving the evaluation === */}
+        <AlertDialog open={pendingFinancialConfirm} onOpenChange={(o) => !o && setPendingFinancialConfirm(false)}>
+          <AlertDialogContent dir="rtl" className="max-w-lg">
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد حفظ التقييم — الملخص المالي</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-2 text-sm">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2 rounded bg-emerald-50 dark:bg-emerald-950/40 border">
+                      <div className="text-xs text-muted-foreground">تكلفة النعام المذبوح</div>
+                      <div className="font-bold">{financials.slaughteredCost.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                    </div>
+                    <div className="p-2 rounded bg-blue-50 dark:bg-blue-950/40 border">
+                      <div className="text-xs text-muted-foreground">إجمالي البيع المتوقع</div>
+                      <div className="font-bold">{financials.tSale.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م</div>
+                    </div>
+                    <div className={"p-2 rounded border col-span-2 " + (financials.tProfit >= 0 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-red-50 dark:bg-red-950/40")}>
+                      <div className="text-xs text-muted-foreground">{financials.tProfit >= 0 ? "الربح المتوقع" : "الخسارة المتوقعة"}</div>
+                      <div className={"font-bold " + (financials.tProfit >= 0 ? "text-emerald-700" : "text-red-600")}>
+                        {financials.tProfit.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م
+                        {financials.profitMargin !== null && (
+                          <span className="text-xs font-normal mr-2">({financials.profitMargin.toFixed(1)}% من البيع)</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className={"p-2 rounded border col-span-2 " + (financials.costDiffMaterial ? "bg-amber-50 dark:bg-amber-950/40" : "bg-muted/40")}>
+                      <div className="text-xs text-muted-foreground">فرق توزيع التكلفة على القطع</div>
+                      {financials.costDiffMaterial ? (
+                        <div className="font-bold text-amber-700">
+                          يوجد فرق: {financials.costDiff.toLocaleString("ar-EG", { maximumFractionDigits: 0 })} ج.م
+                          <div className="text-xs font-normal">راجع unit_cost على الأصناف قبل الاعتماد.</div>
+                        </div>
+                      ) : (
+                        <div className="font-bold text-emerald-700">لا يوجد فرق جوهري ✓</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground border-t pt-2">
+                    سيتم حفظ snapshot كامل للأرقام أعلاه، وحركات المخزون ستُسجَّل للقطع المقبولة فقط. التالف/المحجور يُسجَّل ببند "تالف/فاقد تقطيع" ولا يدخل المخزون كمنتج صالح.
+                  </div>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { setPendingFinancialConfirm(false); persist(); }}>
+                تأكيد وحفظ التقييم
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
       </DialogContent>
     </Dialog>
   );
