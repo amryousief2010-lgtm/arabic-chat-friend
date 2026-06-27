@@ -98,6 +98,7 @@ export default function MainTreasury() {
   const [detailsDlg, setDetailsDlg] = useState<{ open: boolean; txn: Txn | null }>({ open: false, txn: null });
   const [cancelDlg, setCancelDlg] = useState<{ open: boolean; txn: Txn | null; reason: string }>({ open: false, txn: null, reason: "" });
   const [creatorNames, setCreatorNames] = useState<Record<string,string>>({});
+  const [activeTab, setActiveTab] = useState<string>("dashboard");
 
   async function fetchAll() {
     setLoading(true);
@@ -539,19 +540,54 @@ export default function MainTreasury() {
       })()}
 
 
-      <Tabs defaultValue="dashboard">
-        <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="dashboard">لوحة الرصيد</TabsTrigger>
-          <TabsTrigger value="bank">الحساب البنكي</TabsTrigger>
-          <TabsTrigger value="new">معاملة جديدة</TabsTrigger>
-          <TabsTrigger value="transfer">توريد لخزنة العهدة</TabsTrigger>
-          {isApprover && <TabsTrigger value="approve">بانتظار الاعتماد {pendingTxns.length>0 && <Badge className="mr-2">{pendingTxns.length}</Badge>}</TabsTrigger>}
-          <TabsTrigger value="log">سجل الحركات</TabsTrigger>
-          <TabsTrigger value="transfers">سجل التحويلات</TabsTrigger>
-          <TabsTrigger value="analytics">تحليل المصروفات</TabsTrigger>
-          <TabsTrigger value="audit">Audit Log</TabsTrigger>
-          <TabsTrigger value="settings">إعدادات</TabsTrigger>
-        </TabsList>
+      {/* Quick actions toolbar */}
+      <div className="flex flex-wrap items-center gap-2 mb-3" dir="rtl">
+        <Button size="sm" variant="default" onClick={() => setActiveTab("new")} className="gap-1"><ArrowDownToLine className="h-4 w-4"/>إضافة إيداع</Button>
+        <Button size="sm" variant="outline" onClick={() => setActiveTab("new")} className="gap-1"><ArrowUpFromLine className="h-4 w-4"/>إضافة سحب</Button>
+        <Button size="sm" variant="outline" onClick={() => setActiveTab("bank")} className="gap-1"><Send className="h-4 w-4"/>تحويل بين الخزن</Button>
+        <Button size="sm" variant="outline" onClick={() => setActiveTab("transfer")} className="gap-1"><Wallet className="h-4 w-4"/>توريد إلى عهدة</Button>
+        <div className="flex-1" />
+        <Button size="sm" variant="ghost" onClick={() => {
+          const rows = filteredLogTxns.map(t => ({
+            "المرجع": t.reference_no, "التاريخ": t.txn_date,
+            "النوع": TYPE_LBL[t.txn_type] || t.txn_type,
+            "الحساب": accounts.find(a=>a.id===t.account_id)?.name || "",
+            "المبلغ": Number(t.amount),
+            "البند": cats.find(c=>c.id===t.category_id)?.label || "",
+            "المستفيد": t.counterparty || "", "الوصف": t.description,
+            "الحالة": STATUS_LBL[t.status] || t.status,
+          }));
+          const ws = XLSX.utils.json_to_sheet(rows);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, "حركات الخزنة");
+          XLSX.writeFile(wb, `main-treasury-${today()}.xlsx`);
+        }} className="gap-1"><FileDown className="h-4 w-4"/>تصدير Excel</Button>
+        <Button size="sm" variant="ghost" onClick={() => {
+          const body = `
+            <h2>سجل حركات الخزنة الرئيسية للشركة</h2>
+            <table><thead><tr><th>المرجع</th><th>التاريخ</th><th>النوع</th><th>الوصف</th><th>المبلغ</th><th>الحالة</th></tr></thead>
+            <tbody>${filteredLogTxns.map(t => `<tr><td>${escapeHtml(t.reference_no)}</td><td>${t.txn_date}</td><td>${escapeHtml(TYPE_LBL[t.txn_type]||t.txn_type)}</td><td>${escapeHtml(t.description||"")}</td><td>${fmtNum(Number(t.amount),2)}</td><td>${escapeHtml(STATUS_LBL[t.status]||t.status)}</td></tr>`).join("")}</tbody></table>`;
+          openPrintWindow(`الخزنة الرئيسية للشركة - ${today()}`, body);
+        }} className="gap-1"><Printer className="h-4 w-4"/>تصدير PDF</Button>
+
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
+        <div className="overflow-x-auto -mx-1 px-1 mb-2 scrollbar-thin">
+          <TabsList className="inline-flex w-max">
+            <TabsTrigger value="dashboard">لوحة الرصيد</TabsTrigger>
+            <TabsTrigger value="bank">الحساب البنكي</TabsTrigger>
+            <TabsTrigger value="new">معاملة جديدة</TabsTrigger>
+            <TabsTrigger value="transfer">توريد لخزنة العهدة</TabsTrigger>
+            {isApprover && <TabsTrigger value="approve">بانتظار الاعتماد {pendingTxns.length>0 && <Badge className="mr-2">{pendingTxns.length}</Badge>}</TabsTrigger>}
+            <TabsTrigger value="log">سجل الحركات</TabsTrigger>
+            <TabsTrigger value="transfers">سجل التحويلات</TabsTrigger>
+            <TabsTrigger value="analytics">تحليل المصروفات</TabsTrigger>
+            <TabsTrigger value="audit">سجل التدقيق</TabsTrigger>
+            <TabsTrigger value="settings">إعدادات</TabsTrigger>
+          </TabsList>
+        </div>
+
 
         <TabsContent value="bank" className="mt-4">
           <BankAccountPanel />
@@ -560,7 +596,7 @@ export default function MainTreasury() {
 
         {/* Dashboard */}
         <TabsContent value="dashboard" className="mt-4 space-y-3">
-          <IncomingLabCustodyTransfers onReceived={fetchAll} />
+          <IncomingLabCustodyTransfers onReceived={fetchAll} treasuryLabel="الخزنة الرئيسية للشركة" />
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
             {balances.length === 0 ? <Card><CardContent className="p-8 text-center text-muted-foreground">لا توجد حسابات بعد — أضف من تبويب "إعدادات"</CardContent></Card> :
               balances.map(b => (
@@ -570,18 +606,64 @@ export default function MainTreasury() {
                     <Badge variant="outline">{b.account_type === "cash"?"نقدي":b.account_type==="bank"?"بنك":"محفظة"}</Badge>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold font-mono text-primary">{fmtNum(b.current_balance, 2)}</div>
-                    <div className="text-xs text-muted-foreground">ج.م — رصيد حالي</div>
+                    <div className="text-3xl font-bold font-mono text-primary tabular-nums">
+                      {fmtNum(b.current_balance, 2)} <span className="text-base font-semibold text-muted-foreground">ج.م</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">الرصيد الحالي</div>
                     <div className="mt-2 text-xs flex justify-between border-t pt-2">
-                      <span>افتتاحي: <b>{fmtNum(b.opening_balance,0)}</b></span>
-                      {b.pending_count > 0 && <span className="text-[hsl(var(--warning,38_92%_50%))]">بانتظار: {fmtNum(b.pending_amount,0)}</span>}
+                      <span>الرصيد الافتتاحي: <b className="font-mono tabular-nums">{fmtNum(b.opening_balance, 2)} ج.م</b></span>
+                      {b.pending_count > 0 && <span className="text-[hsl(var(--warning,38_92%_50%))]">بانتظار: {fmtNum(b.pending_amount, 2)} ج.م</span>}
                     </div>
                     {b.bank_name && <div className="text-xs text-muted-foreground mt-1">{b.bank_name}</div>}
                   </CardContent>
                 </Card>
               ))}
           </div>
+
+          {/* آخر الحركات */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base"><History className="h-4 w-4"/>آخر الحركات</CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead className="text-right">التاريخ</TableHead>
+                  <TableHead className="text-right">نوع العملية</TableHead>
+                  <TableHead className="text-right">الوصف</TableHead>
+                  <TableHead className="text-right">المبلغ</TableHead>
+                  <TableHead className="text-right">المستخدم</TableHead>
+                  <TableHead className="text-right">الحالة</TableHead>
+                  <TableHead className="text-right">إجراء</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {txns.slice(0, 10).map(t => (
+                    <TableRow key={t.id}>
+                      <TableCell className="whitespace-nowrap">{t.txn_date}</TableCell>
+                      <TableCell>{TYPE_LBL[t.txn_type] || t.txn_type}</TableCell>
+                      <TableCell className="max-w-[280px] truncate">{t.description || t.counterparty || "—"}</TableCell>
+                      <TableCell className="font-mono tabular-nums">{fmtNum(Number(t.amount), 2)} ج.م</TableCell>
+                      <TableCell className="text-xs">{creatorNames[t.created_by] || (t.created_by ? t.created_by.slice(0, 8) : "—")}</TableCell>
+                      <TableCell><Badge variant={STATUS_TONE[t.status] || "outline"}>{STATUS_LBL[t.status] || t.status}</Badge></TableCell>
+                      <TableCell>
+                        <Button size="sm" variant="ghost" onClick={() => setDetailsDlg({ open: true, txn: t })}><Eye className="h-4 w-4"/></Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {txns.length === 0 && (
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا توجد حركات بعد</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+              {txns.length > 10 && (
+                <div className="mt-2 text-end">
+                  <Button size="sm" variant="link" onClick={() => setActiveTab("log")}>عرض كل الحركات في سجل الحركات →</Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
+
 
         {/* New Txn */}
         <TabsContent value="new" className="mt-4">
