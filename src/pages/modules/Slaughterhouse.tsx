@@ -2361,7 +2361,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                 </Button>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div className="p-2 bg-background/60 rounded">إجمالي تكلفة الدفعة: <b>{batchTotalCost.toFixed(2)} ج.م</b></div>
+                <div className="p-2 bg-background/60 rounded" title="تكلفة الطيور المذبوحة في هذه الدفعة فقط (snapshot وقت الذبح) — لا تشمل باقي دفعة الشراء إن لم تُذبح بالكامل.">تكلفة النعام المذبوح: <b>{batchTotalCost.toFixed(2)} ج.م</b></div>
                 <div className="p-2 bg-background/60 rounded">إجمالي كيلو الناتج: <b>{totalProduced.toFixed(2)} كجم</b></div>
                 <div className="p-2 bg-background/60 rounded">تكلفة الكيلو المحسوبة: <b className="text-primary">{computedCostPerKg.toFixed(2)} ج.م/كجم</b></div>
                 <div className="p-2 bg-background/60 rounded">تكلفة الكيلو المخزَّنة: <b>{storedCostPerKg.toFixed(2)} ج.م/كجم</b></div>
