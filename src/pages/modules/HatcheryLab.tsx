@@ -2023,7 +2023,7 @@ const SettingsTab = ({ settings, canManage, onRefresh }: any) => {
   const upd = (k: string, v: any) => setForm({ ...form, [k]: v });
 
   return (
-    <Card className="p-4 max-w-3xl">
+    <Card className="p-4 max-w-3xl border border-border/60 shadow-sm bg-card">
       <h3 className="font-bold mb-3">إعدادات الأسعار والمدد</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div><Label>سعر البيضة اللايح (ج.م)</Label><Input type="number" disabled={!canManage} value={form.infertile_egg_price ?? ""} onChange={e => upd("infertile_egg_price", e.target.value)} /></div>
