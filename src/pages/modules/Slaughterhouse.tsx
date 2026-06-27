@@ -2041,6 +2041,8 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
     purchase: number; feed: number; mortality: number; other: number; total: number;
     sources: Array<{ receipt_number: string; birds: number; per_bird: number; purchase: number; feed: number; mortality: number; other: number; total: number; }>;
   }>({ purchase: 0, feed: 0, mortality: 0, other: 0, total: 0, sources: [] });
+  // Total birds in the purchase receipts that contributed to this slaughter batch (NOT what was slaughtered).
+  const [birdsPurchased, setBirdsPurchased] = useState<number>(0);
 
   useEffect(() => {
     (async () => {
