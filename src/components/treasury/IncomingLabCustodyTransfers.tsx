@@ -55,7 +55,6 @@ export default function IncomingLabCustodyTransfers({ onReceived, treasuryLabel 
   };
 
   const reject = async (r: Row) => {
-    if (!confirm) return;
     const reason = window.prompt("سبب الرفض:");
     if (!reason) return;
     setBusy(r.id);
