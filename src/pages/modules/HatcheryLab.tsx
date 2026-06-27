@@ -24,6 +24,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from "@/lib/printPdf";
+import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import HatcheryClientMetrics from "@/components/hatchery/HatcheryClientMetrics";
 import { printBatchStatement } from "@/lib/hatcheryStatements";
@@ -301,15 +302,18 @@ const HatcheryLab = () => {
 // Dashboard Tab
 // ============================================================
 const KCard = ({ label, value, sub, color = "from-primary to-accent", icon: Icon = FlaskConical }: any) => (
-  <Card className="relative overflow-hidden border-0 shadow-md">
+  <Card className="relative overflow-hidden border border-white/20 shadow-lg shadow-black/5">
     <div className={`absolute inset-0 bg-gradient-to-br ${color}`} />
-    <div className="relative p-4 text-white">
+    <div className="absolute inset-0 bg-white/10 backdrop-blur-[1px]" />
+    <div className="relative p-5 text-white">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs opacity-90">{label}</span>
-        <Icon className="w-4 h-4 opacity-80" />
+        <span className="text-[11px] font-medium opacity-90 tracking-wide">{label}</span>
+        <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center">
+          <Icon className="w-3.5 h-3.5 opacity-90" />
+        </div>
       </div>
-      <p className="text-2xl font-bold">{value}</p>
-      {sub && <p className="text-[11px] opacity-80 mt-1">{sub}</p>}
+      <p className="text-2xl font-extrabold font-mono tabular-nums tracking-tight">{value}</p>
+      {sub && <p className="text-[11px] opacity-80 mt-1.5 font-medium">{sub}</p>}
     </div>
   </Card>
 );
@@ -554,17 +558,32 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
     });
   }, [rows, search, filter, todayStr, sortOrder]);
 
-  const filterBtn = (key: QuickFilter, label: string, count: number, tone?: string) => (
-    <Button
-      key={key}
-      size="sm"
-      variant={filter === key ? "default" : "outline"}
-      onClick={() => setFilter(key)}
-      className={tone}
-    >
-      {label} <Badge variant="secondary" className="mr-2 text-[10px]">{count}</Badge>
-    </Button>
-  );
+  const filterBtn = (key: QuickFilter, label: string, count: number, tone?: string) => {
+    const active = filter === key;
+    return (
+      <Button
+        key={key}
+        size="sm"
+        variant={active ? "default" : "outline"}
+        onClick={() => setFilter(key)}
+        className={cn(
+          "h-8 px-3 text-xs font-semibold rounded-lg transition-all duration-200",
+          active
+            ? "bg-gradient-to-l from-primary to-fuchsia-600 text-white shadow-md shadow-primary/20 border-0"
+            : "bg-card border-border/60 text-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary",
+          tone
+        )}
+      >
+        {label}
+        <span className={cn(
+          "mr-2 text-[10px] px-1.5 py-0.5 rounded-md font-mono tabular-nums",
+          active ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+        )}>
+          {count}
+        </span>
+      </Button>
+    );
+  };
 
   const dateCell = (date?: string | null, expected?: string | null, status?: string) => {
     if (date) return <span className="text-xs">{date}</span>;
@@ -664,7 +683,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث برقم الدفعة أو اسم العميل..." className="pr-9" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث برقم الدفعة أو اسم العميل..." className="pr-9 bg-card border-border/60 shadow-sm rounded-lg focus-visible:ring-primary/20" />
         </div>
       </div>
 
@@ -685,7 +704,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
         {filterBtn("overdue", "متأخرة", counts.overdue)}
       </div>
 
-      <Card className="overflow-x-auto">
+      <Card className="overflow-x-auto border border-border/60 shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
@@ -732,8 +751,8 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button size="sm" variant="outline" onClick={() => setDetailBatch(b)}>تفاصيل</Button>
-                      <Button size="sm" variant="ghost" onClick={() => printBatchStatement({
+                      <Button size="sm" variant="outline" onClick={() => setDetailBatch(b)} className="rounded-md border-border/60 hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-colors">تفاصيل</Button>
+                      <Button size="sm" variant="ghost" className="rounded-md hover:bg-muted transition-colors" onClick={() => printBatchStatement({
                         id: b.id,
                         batch_number: b.batch_number,
                         customer_name: b.customer_name,
@@ -820,7 +839,7 @@ const HatchBatchDetailDialog = ({ row, onClose }: { row: any; onClose: () => voi
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="p-3 space-y-1">
+          <Card className="p-3 space-y-1 border border-border/60 shadow-sm bg-card">
             <h4 className="font-semibold mb-2 text-primary">بيانات أساسية</h4>
             <Row label="العميل" value={row.customer_name} />
             <Row label="النوع" value={row.type === "internal" ? "عاصمة (داخلي)" : "عميل خارجي"} />
@@ -831,7 +850,7 @@ const HatchBatchDetailDialog = ({ row, onClose }: { row: any; onClose: () => voi
             <Row label="أيام داخل الماكينة" value={row.daysIn} />
           </Card>
 
-          <Card className="p-3 space-y-1">
+          <Card className="p-3 space-y-1 border border-border/60 shadow-sm bg-card">
             <h4 className="font-semibold mb-2 text-primary">المواعيد</h4>
             <Row label="الكشف الأول (فعلي)" value={b.candle1_date} />
             <Row label="الكشف الأول (متوقع)" value={row.expCandle1} />
@@ -844,7 +863,7 @@ const HatchBatchDetailDialog = ({ row, onClose }: { row: any; onClose: () => voi
             )}
           </Card>
 
-          <Card className="p-3 space-y-1">
+          <Card className="p-3 space-y-1 border border-border/60 shadow-sm bg-card">
             <h4 className="font-semibold mb-2 text-primary">البيض والإنتاج</h4>
             <Row label="إجمالي البيض" value={fmtNum(b.received_eggs)} />
             <Row label="المستبعد" value={fmtNum(damaged)} />
@@ -859,7 +878,7 @@ const HatchBatchDetailDialog = ({ row, onClose }: { row: any; onClose: () => voi
             <Row label="عدد الكتاكيت" value={fmtNum(b.hatched_chicks)} />
           </Card>
 
-          <Card className="p-3 space-y-1">
+          <Card className="p-3 space-y-1 border border-border/60 shadow-sm bg-card">
             <h4 className="font-semibold mb-2 text-primary">النسب</h4>
             <Row label="نسبة الخصوبة" value={fertility} />
             <Row label="نسبة الفقس" value={hatchRate} />
@@ -1474,7 +1493,7 @@ const NewBatchDialog = ({ open, onClose, clients, onSaved }: any) => {
                       )?.key || ""
                     : "";
                 return (
-                <Card key={i} className="p-3">
+                <Card key={i} className="p-3 border border-border/60 shadow-sm bg-card">
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
                     <div><Label>المالك</Label>
                       <Select value={l.owner_type} onValueChange={v => updateLot(i, { owner_type: v, source: v === "capital_ostrich" ? "mother_farm" : "external", from_shipment_ids: v === "capital_ostrich" ? l.from_shipment_ids : [], from_farm_transfer_ids: v === "capital_ostrich" ? l.from_farm_transfer_ids : [], max_eggs: v === "capital_ostrich" ? l.max_eggs : null, shipment_label: v === "capital_ostrich" ? l.shipment_label : "" })}>
@@ -1817,11 +1836,11 @@ const InvoicesTab = ({ invoices, canBill, onRefresh }: any) => {
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث..." className="pr-9" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث..." className="pr-9 bg-card border-border/60 shadow-sm rounded-lg focus-visible:ring-primary/20" />
         </div>
         <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" />Excel</Button>
       </div>
-      <Card className="overflow-x-auto">
+      <Card className="overflow-x-auto border border-border/60 shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
@@ -1949,7 +1968,7 @@ const InvoiceDialog = ({ invoice, canBill, onClose, onChanged }: any) => {
 // Balances Tab
 // ============================================================
 const BalancesTab = ({ balances }: any) => (
-  <Card className="overflow-x-auto">
+  <Card className="overflow-x-auto border border-border/60 shadow-sm">
     <Table>
       <TableHeader>
         <TableRow>
@@ -2004,7 +2023,7 @@ const SettingsTab = ({ settings, canManage, onRefresh }: any) => {
   const upd = (k: string, v: any) => setForm({ ...form, [k]: v });
 
   return (
-    <Card className="p-4 max-w-3xl">
+    <Card className="p-4 max-w-3xl border border-border/60 shadow-sm bg-card">
       <h3 className="font-bold mb-3">إعدادات الأسعار والمدد</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div><Label>سعر البيضة اللايح (ج.م)</Label><Input type="number" disabled={!canManage} value={form.infertile_egg_price ?? ""} onChange={e => upd("infertile_egg_price", e.target.value)} /></div>
