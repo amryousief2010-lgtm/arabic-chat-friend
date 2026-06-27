@@ -17,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   FlaskConical, Egg, Bird, Plus, Search, AlertTriangle, FileText, Wallet,
   Settings as SettingsIcon, Printer, FileSpreadsheet, X, Activity, TrendingUp, ClipboardCheck, Tag,
+  Users, Archive, Warehouse, Receipt, BarChart3, Truck, ChevronLeft, Sparkles,
 } from "lucide-react";
 import ChickTradingTab from "@/components/chick-trading/ChickTradingTab";
 import { useAuth } from "@/hooks/useAuth";
