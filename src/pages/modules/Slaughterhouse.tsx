@@ -2138,6 +2138,9 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
   const [pickCut, setPickCut] = useState<string>("");
   const [searchCut, setSearchCut] = useState<string>("");
   const [pendingConfirm, setPendingConfirm] = useState<null | { mismatchRows: { name: string; produced: number; sum: number }[] }>(null);
+  const [pendingFinancialConfirm, setPendingFinancialConfirm] = useState(false);
+  const [approving, setApproving] = useState(false);
+
   // Custom (unregistered) cuts that count toward yield % only
   const CUSTOM_KEY = `slaughter_custom_yield_${batchId}`;
   const [customItems, setCustomItems] = useState<Array<{ name: string; weight: number }>>(() => {
