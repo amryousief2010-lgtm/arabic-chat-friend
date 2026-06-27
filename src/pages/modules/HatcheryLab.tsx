@@ -301,15 +301,18 @@ const HatcheryLab = () => {
 // Dashboard Tab
 // ============================================================
 const KCard = ({ label, value, sub, color = "from-primary to-accent", icon: Icon = FlaskConical }: any) => (
-  <Card className="relative overflow-hidden border-0 shadow-md">
+  <Card className="relative overflow-hidden border border-white/20 shadow-lg shadow-black/5">
     <div className={`absolute inset-0 bg-gradient-to-br ${color}`} />
-    <div className="relative p-4 text-white">
+    <div className="absolute inset-0 bg-white/10 backdrop-blur-[1px]" />
+    <div className="relative p-5 text-white">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs opacity-90">{label}</span>
-        <Icon className="w-4 h-4 opacity-80" />
+        <span className="text-[11px] font-medium opacity-90 tracking-wide">{label}</span>
+        <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center">
+          <Icon className="w-3.5 h-3.5 opacity-90" />
+        </div>
       </div>
-      <p className="text-2xl font-bold">{value}</p>
-      {sub && <p className="text-[11px] opacity-80 mt-1">{sub}</p>}
+      <p className="text-2xl font-extrabold font-mono tabular-nums tracking-tight">{value}</p>
+      {sub && <p className="text-[11px] opacity-80 mt-1.5 font-medium">{sub}</p>}
     </div>
   </Card>
 );
