@@ -557,17 +557,32 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
     });
   }, [rows, search, filter, todayStr, sortOrder]);
 
-  const filterBtn = (key: QuickFilter, label: string, count: number, tone?: string) => (
-    <Button
-      key={key}
-      size="sm"
-      variant={filter === key ? "default" : "outline"}
-      onClick={() => setFilter(key)}
-      className={tone}
-    >
-      {label} <Badge variant="secondary" className="mr-2 text-[10px]">{count}</Badge>
-    </Button>
-  );
+  const filterBtn = (key: QuickFilter, label: string, count: number, tone?: string) => {
+    const active = filter === key;
+    return (
+      <Button
+        key={key}
+        size="sm"
+        variant={active ? "default" : "outline"}
+        onClick={() => setFilter(key)}
+        className={cn(
+          "h-8 px-3 text-xs font-semibold rounded-lg transition-all duration-200",
+          active
+            ? "bg-gradient-to-l from-primary to-fuchsia-600 text-white shadow-md shadow-primary/20 border-0"
+            : "bg-card border-border/60 text-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary",
+          tone
+        )}
+      >
+        {label}
+        <span className={cn(
+          "mr-2 text-[10px] px-1.5 py-0.5 rounded-md font-mono tabular-nums",
+          active ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+        )}>
+          {count}
+        </span>
+      </Button>
+    );
+  };
 
   const dateCell = (date?: string | null, expected?: string | null, status?: string) => {
     if (date) return <span className="text-xs">{date}</span>;
