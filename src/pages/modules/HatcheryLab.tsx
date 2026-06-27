@@ -704,7 +704,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
         {filterBtn("overdue", "متأخرة", counts.overdue)}
       </div>
 
-      <Card className="overflow-x-auto">
+      <Card className="overflow-x-auto border border-border/60 shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
