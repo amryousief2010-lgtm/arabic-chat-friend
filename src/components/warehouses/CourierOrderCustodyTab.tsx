@@ -346,6 +346,30 @@ export default function CourierOrderCustodyTab() {
     setReturnOpen(null); setReturnNotes(""); setReturnReason("customer_refused");
   };
 
+  const submitHandover = async () => {
+    if (!selectedCustody) return;
+    const amt = Number(handoverAmt);
+    if (Number.isNaN(amt) || amt <= 0) { toast({ title: "أدخل مبلغ صالح", variant: "destructive" }); return; }
+    setHandoverBusy(true);
+    try {
+      const idem = `${selectedCustody}-${Date.now()}`;
+      const { data, error } = await (supabase as any).rpc("submit_courier_cash_handover", {
+        p_custody_id: selectedCustody,
+        p_amount: amt,
+        p_notes: handoverNotes.trim() || null,
+        p_idempotency_key: idem,
+      });
+      if (error) throw error;
+      toast({
+        title: "تم إرسال التوريد للاعتماد",
+        description: `بانتظار محمد شعلة — ${data?.reference || ""}`,
+      });
+      setHandoverOpen(false); setHandoverAmt(""); setHandoverNotes("");
+      await load();
+    } catch (e: any) {
+      toast({ title: "تعذّر إرسال التوريد", description: e?.message || "", variant: "destructive" });
+    } finally { setHandoverBusy(false); }
+  };
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
