@@ -481,6 +481,80 @@ export default function RouteDistributionPreparationTab() {
 
         {/* Prepare tab */}
         <TabsContent value="prepare" className="space-y-3">
+          {/* Workflow guide */}
+          <Card className="border-purple-200 bg-white">
+            <CardContent className="py-3">
+              <div className="flex items-start gap-2 mb-2">
+                <ListChecks className="h-4 w-4 text-purple-600 mt-0.5" />
+                <div className="text-sm font-bold">سير العمل</div>
+              </div>
+              <ol className="grid md:grid-cols-5 gap-2 text-xs">
+                {[
+                  { n: 1, t: "اختر عهدة مفتوحة", done: !!selectedCustodyId },
+                  { n: 2, t: "حدّد الطلبات", done: selectedOrders.length > 0 },
+                  { n: 3, t: "راجع الأصناف والكميات", done: productTotals.length > 0 },
+                  { n: 4, t: "اعتمد الصرف للعهدة", done: !!lastDispatch },
+                  { n: 5, t: "طباعة + متابعة عودة المندوب", done: false },
+                ].map(s => (
+                  <li key={s.n} className={`rounded-md border p-2 flex items-center gap-2 ${s.done ? "bg-emerald-50 border-emerald-300" : "bg-muted/40"}`}>
+                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${s.done ? "bg-emerald-600 text-white" : "bg-white border"}`}>
+                      {s.done ? "✓" : s.n}
+                    </span>
+                    <span>{s.t}</span>
+                  </li>
+                ))}
+              </ol>
+            </CardContent>
+          </Card>
+
+          {/* Alerts */}
+          {!selectedCustodyId && (
+            <Alert variant="destructive" className="border-orange-300 bg-orange-50 text-orange-900">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>اختر عهدة مفتوحة أولًا</AlertTitle>
+              <AlertDescription>
+                لا يمكن اعتماد الصرف قبل اختيار عهدة مندوب مفتوحة. استخدم زر «فتح عهدة جديدة» في الأعلى أو اختر من القائمة.
+              </AlertDescription>
+            </Alert>
+          )}
+          {selectedCustodyId && selectedOrders.length === 0 && (
+            <Alert className="border-purple-200 bg-purple-50 text-purple-900">
+              <Package className="h-4 w-4" />
+              <AlertTitle>حدّد طلبًا واحدًا على الأقل</AlertTitle>
+              <AlertDescription>
+                العهدة المختارة: <b>{selectedCustody?.courier_name}</b>. اختر الطلبات من الجدول لتجميع الكميات تلقائيًا.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Selection summary banner */}
+          {selectedOrders.length > 0 && (
+            <Card className="border-purple-300 bg-gradient-to-l from-purple-50 to-orange-50">
+              <CardContent className="py-3 grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
+                <div><div className="text-2xl font-bold text-purple-700">{selectedOrders.length}</div><div className="text-xs text-muted-foreground">طلب محدد</div></div>
+                <div><div className="text-2xl font-bold text-purple-700">{customerGroups.length}</div><div className="text-xs text-muted-foreground">عميل</div></div>
+                <div><div className="text-2xl font-bold text-orange-700">{productTotals.length}</div><div className="text-xs text-muted-foreground">صنف مختلف</div></div>
+                <div><div className="text-2xl font-bold text-orange-700">{productTotals.reduce((s, p) => s + p.quantity, 0).toLocaleString("ar-EG")}</div><div className="text-xs text-muted-foreground">إجمالي الكميات</div></div>
+                <div><div className="text-sm font-bold text-emerald-700 truncate">{selectedCustody?.courier_name || "—"}</div><div className="text-xs text-muted-foreground">العهدة المختارة</div></div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Success banner after dispatch */}
+          {lastDispatch && (
+            <Alert className="border-emerald-300 bg-emerald-50 text-emerald-900">
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertTitle>تم تجهيز خط التوزيع بنجاح</AlertTitle>
+              <AlertDescription className="flex flex-wrap items-center gap-2 mt-1">
+                <span>المندوب: <b>{lastDispatch.courierName}</b> — {lastDispatch.ordersCount} طلب / {lastDispatch.customersCount} عميل / {lastDispatch.itemsCount} صنف.</span>
+                <Button size="sm" variant="outline" onClick={() => window.print()}>
+                  <Printer className="h-3 w-3 ml-1" /> طباعة خط التوزيع
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setLastDispatch(null)}>إغلاق</Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="grid lg:grid-cols-3 gap-3">
             {/* Orders list */}
             <Card className="lg:col-span-2">
