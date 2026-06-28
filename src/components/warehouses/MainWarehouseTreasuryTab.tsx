@@ -419,12 +419,18 @@ export default function MainWarehouseTreasuryTab() {
 
   const approveTransfer = async (t: Txn) => {
     if (!canApprove) return;
-    if (!window.confirm(`اعتماد التحويل ${fmt(t.amount)} ج.م؟ سيتم إضافة المبلغ للخزينة الرئيسية.`)) return;
+    const isCourierDeposit = t.category === "courier_deposit";
+    const label = isCourierDeposit
+      ? `اعتماد توريد نقدية المندوب "${(t as any).courier_name || ""}" بمبلغ ${fmt(t.amount)} ج.م؟ سيُضاف لخزينة المخزن الرئيسي.`
+      : `اعتماد التحويل ${fmt(t.amount)} ج.م؟ سيتم إضافة المبلغ للخزينة الرئيسية.`;
+    if (!window.confirm(label)) return;
     setBusy(true);
     try {
-      const { error } = await (supabase as any).rpc("approve_main_warehouse_transfer", { _txn_id: t.id });
+      const rpcName = isCourierDeposit ? "approve_courier_cash_handover" : "approve_main_warehouse_transfer";
+      const params: any = isCourierDeposit ? { p_txn_id: t.id, p_note: null } : { _txn_id: t.id };
+      const { error } = await (supabase as any).rpc(rpcName, params);
       if (error) throw error;
-      toast({ title: "تم اعتماد التحويل", description: "تمت إضافة المبلغ للخزينة الرئيسية" });
+      toast({ title: "تم الاعتماد", description: isCourierDeposit ? "تم اعتماد توريد المندوب" : "تمت إضافة المبلغ للخزينة الرئيسية" });
       await fetchAll();
     } catch (e: any) {
       toast({ title: "تعذّر الاعتماد", description: e?.message || "", variant: "destructive" });
@@ -433,14 +439,17 @@ export default function MainWarehouseTreasuryTab() {
 
   const rejectTransfer = async (t: Txn) => {
     if (!canApprove) return;
+    const isCourierDeposit = t.category === "courier_deposit";
     const reason = window.prompt("سبب الرفض:", "") || "";
     if (!reason.trim()) { toast({ title: "أدخل سبب الرفض", variant: "destructive" }); return; }
-    if (!window.confirm(`رفض التحويل ${fmt(t.amount)} ج.م؟`)) return;
+    if (!window.confirm(`رفض ${isCourierDeposit ? "توريد المندوب" : "التحويل"} ${fmt(t.amount)} ج.م؟${isCourierDeposit ? " سيتم إعادة المبلغ لعهدة المندوب." : ""}`)) return;
     setBusy(true);
     try {
-      const { error } = await (supabase as any).rpc("reject_main_warehouse_transfer", { _txn_id: t.id, _reason: reason });
+      const rpcName = isCourierDeposit ? "reject_courier_cash_handover" : "reject_main_warehouse_transfer";
+      const params: any = isCourierDeposit ? { p_txn_id: t.id, p_reason: reason } : { _txn_id: t.id, _reason: reason };
+      const { error } = await (supabase as any).rpc(rpcName, params);
       if (error) throw error;
-      toast({ title: "تم رفض التحويل" });
+      toast({ title: "تم الرفض", description: isCourierDeposit ? "تمت إعادة المبلغ لعهدة المندوب" : undefined });
       await fetchAll();
     } catch (e: any) {
       toast({ title: "تعذّر الرفض", description: e?.message || "", variant: "destructive" });
