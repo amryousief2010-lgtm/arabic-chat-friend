@@ -9,8 +9,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Truck, Package, Users, CheckCircle2, Loader2, FileText, RefreshCw, Gift, Percent, Coins, Undo2 } from "lucide-react";
+import { Truck, Package, Users, CheckCircle2, Loader2, FileText, RefreshCw, Gift, Percent, Coins, Undo2, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface OrderRow {
   id: string;
@@ -80,6 +82,34 @@ export default function RouteDistributionPreparationTab() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [selectedCustodyId, setSelectedCustodyId] = useState<string>("");
   const [search, setSearch] = useState("");
+  const [openNewCustody, setOpenNewCustody] = useState(false);
+  const [newCourierName, setNewCourierName] = useState("");
+  const [newCustodyNotes, setNewCustodyNotes] = useState("");
+  const [creatingCustody, setCreatingCustody] = useState(false);
+
+  const createCustody = async () => {
+    const name = newCourierName.trim();
+    if (!name) { toast.error("اكتب اسم المندوب"); return; }
+    setCreatingCustody(true);
+    try {
+      const { data, error } = await (supabase as any)
+        .from("courier_goods_custodies")
+        .insert({ courier_name: name, notes: newCustodyNotes.trim() || null, opened_by: user?.id ?? null, status: "open" })
+        .select("id, courier_name, status, opened_at")
+        .single();
+      if (error) throw error;
+      toast.success("تم فتح عهدة جديدة لـ " + name);
+      setCustodies(prev => [data, ...prev]);
+      setSelectedCustodyId(data.id);
+      setOpenNewCustody(false);
+      setNewCourierName("");
+      setNewCustodyNotes("");
+    } catch (e: any) {
+      toast.error(e.message || "تعذر فتح العهدة");
+    } finally {
+      setCreatingCustody(false);
+    }
+  };
 
   const [debug, setDebug] = useState<{ raw: number; filtered: number; statuses: Record<string, number>; assignedExcluded: number; error?: string }>({ raw: 0, filtered: 0, statuses: {}, assignedExcluded: 0 });
 
@@ -369,6 +399,35 @@ export default function RouteDistributionPreparationTab() {
           <Button size="sm" variant="outline" onClick={loadData} disabled={loading}>
             <RefreshCw className={`h-3 w-3 ml-1 ${loading ? "animate-spin" : ""}`} />تحديث
           </Button>
+          <Dialog open={openNewCustody} onOpenChange={setOpenNewCustody}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white">
+                <Plus className="h-3 w-3 ml-1" /> فتح عهدة جديدة
+              </Button>
+            </DialogTrigger>
+            <DialogContent dir="rtl">
+              <DialogHeader>
+                <DialogTitle>فتح عهدة مندوب جديدة</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div>
+                  <Label>اسم المندوب *</Label>
+                  <Input value={newCourierName} onChange={(e) => setNewCourierName(e.target.value)} placeholder="مثال: كيمو" />
+                </div>
+                <div>
+                  <Label>ملاحظات (اختياري)</Label>
+                  <Input value={newCustodyNotes} onChange={(e) => setNewCustodyNotes(e.target.value)} placeholder="خط التوزيع / المنطقة..." />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOpenNewCustody(false)}>إلغاء</Button>
+                <Button onClick={createCustody} disabled={creatingCustody} className="bg-purple-600 hover:bg-purple-700 text-white">
+                  {creatingCustody ? <Loader2 className="h-3 w-3 ml-1 animate-spin" /> : <Plus className="h-3 w-3 ml-1" />}
+                  فتح العهدة
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <div className="mr-auto flex items-center gap-2 flex-wrap">
             <Badge className="bg-purple-600">متاح: {orders.length} طلب</Badge>
             <Badge className="bg-orange-500">{new Set(orders.map(o => o.customer_id || o.customer_name)).size} عميل</Badge>
