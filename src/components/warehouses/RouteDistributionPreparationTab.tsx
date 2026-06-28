@@ -88,7 +88,9 @@ export default function RouteDistributionPreparationTab() {
   const [newCustodyNotes, setNewCustodyNotes] = useState("");
   const [creatingCustody, setCreatingCustody] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [lastDispatch, setLastDispatch] = useState<{ courierName: string; ordersCount: number; customersCount: number; itemsCount: number; at: string } | null>(null);
+  const [lastDispatch, setLastDispatch] = useState<{ courierName: string; ordersCount: number; customersCount: number; itemsCount: number; at: string; reference: string; movementsCreated: number; unresolved: string[] } | null>(null);
+
+const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
 
   const createCustody = async () => {
     const name = newCourierName.trim();
@@ -298,16 +300,75 @@ export default function RouteDistributionPreparationTab() {
     if (selectedItems.length === 0) { toast.error("اختر طلبات أولاً"); return; }
     setSaving(true);
     try {
-      // Build custody lines (one per order_item) + assignments per order
+      const courierName = custodies.find(c => c.id === selectedCustodyId)?.courier_name || "المندوب";
+      const reference = `DIST-${new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14)}-${selectedCustodyId.slice(0, 6)}`;
+
+      // 1) Resolve inventory_item_id per product from the main warehouse
+      const productIds = Array.from(new Set(selectedItems.map(it => it.product_id).filter(Boolean))) as string[];
+      const invMap = new Map<string, { id: string; unit_cost: number | null }>();
+      if (productIds.length > 0) {
+        const { data: invRows, error: invErr } = await (supabase as any)
+          .from("inventory_items")
+          .select("id, product_id, unit_cost")
+          .eq("warehouse_id", MAIN_WAREHOUSE_ID)
+          .eq("is_active", true)
+          .in("product_id", productIds);
+        if (invErr) throw invErr;
+        for (const r of (invRows ?? [])) invMap.set(r.product_id, { id: r.id, unit_cost: r.unit_cost });
+      }
+
+      // 2) Insert real inventory_movements (type=out) — DB trigger decrements stock & assigns movement_no
+      const unresolved: string[] = [];
+      const movementsPayload = selectedItems
+        .map(it => {
+          const inv = it.product_id ? invMap.get(it.product_id) : undefined;
+          if (!inv) { unresolved.push(it.product_name); return null; }
+          const ord = orders.find(o => o.id === it.order_id)!;
+          return {
+            item_id: inv.id,
+            warehouse_id: MAIN_WAREHOUSE_ID,
+            source_warehouse_id: MAIN_WAREHOUSE_ID,
+            movement_type: "out",
+            quantity: Number(it.quantity || 0),
+            unit_cost: inv.unit_cost ?? 0,
+            party: `عهدة المندوب — ${courierName}`,
+            reference,
+            reference_type: "courier_custody",
+            reference_id: selectedCustodyId,
+            module: "courier_distribution",
+            reason: "صرف خط توزيع",
+            notes: `${ord.order_number} — ${ord.customer_name || ""}`.trim(),
+            performed_by: user?.id ?? null,
+            performed_at: new Date().toISOString(),
+            product_id: it.product_id,
+            order_item_id: it.id,
+            approval_status: "approved",
+          };
+        })
+        .filter(Boolean) as any[];
+
+      const movementByOrderItem = new Map<string, string>();
+      if (movementsPayload.length > 0) {
+        const { data: movRows, error: movErr } = await (supabase as any)
+          .from("inventory_movements")
+          .insert(movementsPayload)
+          .select("id, order_item_id");
+        if (movErr) throw movErr;
+        for (const m of (movRows ?? [])) if (m.order_item_id) movementByOrderItem.set(m.order_item_id, m.id);
+      }
+
+      // 3) Insert custody lines (linked to the inventory_movement when resolved)
       const linesPayload = selectedItems.map(it => {
         const ord = orders.find(o => o.id === it.order_id)!;
+        const inv = it.product_id ? invMap.get(it.product_id) : undefined;
         return {
           custody_id: selectedCustodyId,
           line_type: "out",
           customer_id: ord.customer_id,
           customer_name: ord.customer_name,
           order_id: it.order_id,
-          inventory_item_id: null,
+          inventory_item_id: inv?.id ?? null,
+          inventory_movement_id: movementByOrderItem.get(it.id) ?? null,
           product_name: it.product_name,
           quantity: Number(it.quantity || 0),
           unit: it.unit || "وحدة",
@@ -316,7 +377,7 @@ export default function RouteDistributionPreparationTab() {
           cash_collected: 0,
           performed_at: new Date().toISOString(),
           performed_by: user?.id ?? null,
-          notes: `صرف خط — ${ord.order_number}`,
+          notes: `صرف خط ${reference} — ${ord.order_number}`,
         };
       });
 
@@ -325,7 +386,7 @@ export default function RouteDistributionPreparationTab() {
         .insert(linesPayload);
       if (linesErr) throw linesErr;
 
-      const courierName = custodies.find(c => c.id === selectedCustodyId)?.courier_name || "كيمو";
+      // 4) Link orders to custody (assignments) — upsert prevents duplicate dispatch
       const assignPayload = selectedOrders.map(ord => ({
         custody_id: selectedCustodyId,
         order_id: ord.id,
@@ -334,20 +395,34 @@ export default function RouteDistributionPreparationTab() {
         assigned_by: user?.id ?? null,
         status: "assigned",
       }));
-      // upsert per order_id to avoid duplicates if re-dispatch
       await (supabase as any)
         .from("courier_order_assignments")
         .upsert(assignPayload, { onConflict: "order_id" });
 
-      const courierLabel = custodies.find(c => c.id === selectedCustodyId)?.courier_name || courierName;
+      // 5) Move order status forward (pending -> processing) so it leaves the prep list
+      const pendingIds = selectedOrders.filter(o => o.status === "pending").map(o => o.id);
+      if (pendingIds.length > 0) {
+        await (supabase as any)
+          .from("orders")
+          .update({ status: "processing" })
+          .in("id", pendingIds);
+      }
+
       setLastDispatch({
-        courierName: courierLabel,
+        courierName,
         ordersCount: selectedOrders.length,
         customersCount: customerGroups.length,
         itemsCount: selectedItems.length,
         at: new Date().toISOString(),
+        reference,
+        movementsCreated: movementsPayload.length,
+        unresolved,
       });
-      toast.success(`تم تجهيز خط التوزيع بنجاح — ${selectedItems.length} صنف لـ ${customerGroups.length} عميل`);
+      if (unresolved.length > 0) {
+        toast.warning(`تم التجهيز مع ${unresolved.length} صنف بدون حركة مخزون (غير مرتبط بالمخزن الرئيسي)`);
+      } else {
+        toast.success(`تم تجهيز خط التوزيع ${reference} — ${selectedItems.length} صنف`);
+      }
       setSelectedOrderIds(new Set());
       setConfirmOpen(false);
       await loadCustodyLines(selectedCustodyId);
@@ -403,8 +478,10 @@ export default function RouteDistributionPreparationTab() {
             <span className="text-sm font-medium">العهدة المفتوحة:</span>
             <Select value={selectedCustodyId} onValueChange={setSelectedCustodyId}>
               <SelectTrigger className="w-60"><SelectValue placeholder="اختر عهدة" /></SelectTrigger>
-              <SelectContent>
-                {custodies.map(c => (
+              <SelectContent className="z-[60]">
+                {custodies.length === 0 ? (
+                  <div className="px-2 py-3 text-xs text-muted-foreground text-center">لا توجد عهد مفتوحة — استخدم «فتح عهدة جديدة»</div>
+                ) : custodies.map(c => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.courier_name} — {new Date(c.opened_at).toLocaleDateString("ar-EG")}
                   </SelectItem>
@@ -544,13 +621,28 @@ export default function RouteDistributionPreparationTab() {
           {lastDispatch && (
             <Alert className="border-emerald-300 bg-emerald-50 text-emerald-900">
               <CheckCircle2 className="h-4 w-4" />
-              <AlertTitle>تم تجهيز خط التوزيع بنجاح</AlertTitle>
-              <AlertDescription className="flex flex-wrap items-center gap-2 mt-1">
-                <span>المندوب: <b>{lastDispatch.courierName}</b> — {lastDispatch.ordersCount} طلب / {lastDispatch.customersCount} عميل / {lastDispatch.itemsCount} صنف.</span>
-                <Button size="sm" variant="outline" onClick={() => window.print()}>
-                  <Printer className="h-3 w-3 ml-1" /> طباعة خط التوزيع
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setLastDispatch(null)}>إغلاق</Button>
+              <AlertTitle>تم تجهيز خط التوزيع بنجاح — رقم الحركة: <span className="font-mono">{lastDispatch.reference}</span></AlertTitle>
+              <AlertDescription className="space-y-2 mt-1">
+                <div>
+                  المندوب: <b>{lastDispatch.courierName}</b> — {lastDispatch.ordersCount} طلب / {lastDispatch.customersCount} عميل / {lastDispatch.itemsCount} صنف.
+                  {" "}تم خصم <b>{lastDispatch.movementsCreated}</b> صنف من المخزن الرئيسي تلقائيًا.
+                </div>
+                {lastDispatch.unresolved.length > 0 && (
+                  <div className="text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 text-xs">
+                    تنبيه: لم يتم خصم الأصناف التالية (غير مرتبطة بالمخزن الرئيسي): {lastDispatch.unresolved.join("، ")}
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => window.print()}>
+                    <Printer className="h-3 w-3 ml-1" /> طباعة خط التوزيع
+                  </Button>
+                  <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white" onClick={() => {
+                    window.dispatchEvent(new CustomEvent("warehouses:switch-tab", { detail: "wh-daily-recon" }));
+                  }}>
+                    <Truck className="h-3 w-3 ml-1" /> متابعة عودة المندوب
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setLastDispatch(null)}>إغلاق</Button>
+                </div>
               </AlertDescription>
             </Alert>
           )}

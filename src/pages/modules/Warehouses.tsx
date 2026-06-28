@@ -252,6 +252,15 @@ const Warehouses = () => {
   const [activeTab, setActiveTab] = useState("items");
   const [menuSubview, setMenuSubview] = useState<string | null>(null);
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (typeof detail === "string") setActiveTab(detail);
+    };
+    window.addEventListener("warehouses:switch-tab", handler);
+    return () => window.removeEventListener("warehouses:switch-tab", handler);
+  }, []);
+
   // Grouped manual supply/issuance dialog
   const [manualGroupRef, setManualGroupRef] = useState<string | null>(null);
   const [manualBusy, setManualBusy] = useState(false);
