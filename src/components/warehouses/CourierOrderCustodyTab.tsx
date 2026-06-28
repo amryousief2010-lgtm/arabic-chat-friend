@@ -464,6 +464,7 @@ export default function CourierOrderCustodyTab() {
                 </Button>
                 <Button variant="outline" disabled={!selectedCustody} onClick={() => printStatement("xlsx")} title="تصدير كشف حساب المندوب Excel">
                   <FileSpreadsheet className="w-4 h-4 ml-1" /> Excel
+                </Button>
               </div>
 
               {current && (
