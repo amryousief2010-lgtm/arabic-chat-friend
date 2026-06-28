@@ -651,9 +651,13 @@ const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
                 )}
                 <Button
                   className="w-full mt-3 bg-purple-600 hover:bg-purple-700"
-                  disabled={saving || !canApprove}
-                  onClick={() => setConfirmOpen(true)}
-                  title={!selectedCustodyId ? "اختر عهدة أولًا" : selectedItems.length === 0 ? "حدّد طلبًا أولًا" : ""}
+                  disabled={saving}
+                  onClick={() => {
+                    if (!selectedCustodyId) { toast.error("اختر عهدة مفتوحة أولًا (أو افتح عهدة جديدة من الأعلى)"); return; }
+                    if (selectedItems.length === 0) { toast.error("حدّد طلبًا واحدًا على الأقل من قائمة طلبات قسم التسويق"); return; }
+                    if (!productTotals.every(p => p.quantity > 0)) { toast.error("بعض الأصناف بكمية صفر — راجع الكميات"); return; }
+                    setConfirmOpen(true);
+                  }}
                 >
                   <CheckCircle2 className="h-4 w-4 ml-1" />
                   {selectedCustodyId && selectedItems.length > 0 ? "تجهيز خط التوزيع / اعتماد الصرف" : "اعتماد الصرف للمندوب"}
