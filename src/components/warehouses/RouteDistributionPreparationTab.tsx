@@ -145,7 +145,7 @@ const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
       const rawOrders: any[] = ordersRes.data ?? [];
       const assignedIds = new Set<string>(
         (assignmentsRes.data ?? [])
-          .filter((a: any) => a.status !== "returned" && a.status !== "cancelled")
+          .filter((a: any) => !["fully_returned", "cancelled"].includes(a.status))
           .map((a: any) => a.order_id)
       );
 
