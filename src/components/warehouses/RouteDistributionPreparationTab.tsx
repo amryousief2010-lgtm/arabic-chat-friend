@@ -82,6 +82,34 @@ export default function RouteDistributionPreparationTab() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [selectedCustodyId, setSelectedCustodyId] = useState<string>("");
   const [search, setSearch] = useState("");
+  const [openNewCustody, setOpenNewCustody] = useState(false);
+  const [newCourierName, setNewCourierName] = useState("");
+  const [newCustodyNotes, setNewCustodyNotes] = useState("");
+  const [creatingCustody, setCreatingCustody] = useState(false);
+
+  const createCustody = async () => {
+    const name = newCourierName.trim();
+    if (!name) { toast.error("اكتب اسم المندوب"); return; }
+    setCreatingCustody(true);
+    try {
+      const { data, error } = await (supabase as any)
+        .from("courier_goods_custodies")
+        .insert({ courier_name: name, notes: newCustodyNotes.trim() || null, opened_by: user?.id ?? null, status: "open" })
+        .select("id, courier_name, status, opened_at")
+        .single();
+      if (error) throw error;
+      toast.success("تم فتح عهدة جديدة لـ " + name);
+      setCustodies(prev => [data, ...prev]);
+      setSelectedCustodyId(data.id);
+      setOpenNewCustody(false);
+      setNewCourierName("");
+      setNewCustodyNotes("");
+    } catch (e: any) {
+      toast.error(e.message || "تعذر فتح العهدة");
+    } finally {
+      setCreatingCustody(false);
+    }
+  };
 
   const [debug, setDebug] = useState<{ raw: number; filtered: number; statuses: Record<string, number>; assignedExcluded: number; error?: string }>({ raw: 0, filtered: 0, statuses: {}, assignedExcluded: 0 });
 
