@@ -579,13 +579,23 @@ export default function CourierOrderCustodyTab() {
                                   onClick={async () => { if (await recordDeliveryAndCollection(a.order_id, 0)) { toast({ title: "تم التسليم (آجل)" }); load(); } }}>
                                   <CheckCircle2 className="w-3 h-3 text-teal-600" />
                                 </Button>
-                                <Button size="sm" variant="outline" className="h-7 px-2" title="تحصيل"
-                                  onClick={() => { if (o) { setCollectOpen(o); setCollectAmt(String(dueAmt - colAmt)); } }}
-                                  disabled={!o}>
+                                <Button size="sm" variant="outline" className="h-7 px-2 border-emerald-300 hover:bg-emerald-50" title="تحصيل نقدي"
+                                  onClick={() => {
+                                    const ord = o ?? ({ id: a.order_id, order_number: a.order_id.slice(0, 8), total: dueAmt, customer_name: "—", status: a.status, created_at: a.assigned_at } as Order);
+                                    setCollectOpen(ord);
+                                    setCollectAmt(String(Math.max(0, dueAmt - colAmt)));
+                                    setCollectNotes("");
+                                  }}>
                                   <Coins className="w-3 h-3 text-emerald-600" />
                                 </Button>
-                                <Button size="sm" variant="outline" className="h-7 px-2" title="مرتجع"
-                                  onClick={() => { if (o) setReturnOpen(o); }} disabled={!o}>
+                                <Button size="sm" variant="outline" className="h-7 px-2 border-rose-300 hover:bg-rose-50" title="تسجيل مرتجع"
+                                  onClick={() => {
+                                    const ord = o ?? ({ id: a.order_id, order_number: a.order_id.slice(0, 8), total: dueAmt, customer_name: "—", status: a.status, created_at: a.assigned_at } as Order);
+                                    setReturnOpen(ord);
+                                    setReturnReason("customer_refused");
+                                    setReturnNotes("");
+                                    setReturnKind("partial");
+                                  }}>
                                   <RotateCcw className="w-3 h-3 text-rose-600" />
                                 </Button>
                                 <Button size="sm" variant="outline" className="h-7 px-2 border-amber-300 hover:bg-amber-50" title="تصحيح/تعديل"
