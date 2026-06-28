@@ -393,11 +393,12 @@ const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
         courier_name: courierName,
         assigned_at: new Date().toISOString(),
         assigned_by: user?.id ?? null,
-        status: "assigned",
+        status: "with_courier",
       }));
-      await (supabase as any)
+      const { error: assignErr } = await (supabase as any)
         .from("courier_order_assignments")
         .upsert(assignPayload, { onConflict: "order_id" });
+      if (assignErr) throw assignErr;
 
       // 5) Move order status forward (pending -> processing) so it leaves the prep list
       const pendingIds = selectedOrders.filter(o => o.status === "pending").map(o => o.id);
