@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Truck, Package2, Coins, RotateCcw, CheckCircle2, Eye, ClipboardList, Trophy, ChevronDown, ChevronLeft, Printer, FileSpreadsheet, Wrench } from "lucide-react";
 import { fetchCourierStatementLines, printCourierStatement, exportCourierStatementExcel } from "@/lib/courierStatement";
+import { openPrintWindow } from "@/lib/printPdf";
 import { Switch } from "@/components/ui/switch";
 
 /**
@@ -606,6 +607,56 @@ export default function CourierOrderCustodyTab() {
 
                       return groupedByDay.flatMap((grp) => {
                         const isOpen = expandedDays[grp.day] ?? false;
+                        const courierName = custodies.find((c) => c.id === selectedCustody)?.courier_name || "—";
+                        const printDay = (e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          const dayLabel = new Date(grp.day).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+                          const rows = grp.items.map((a, i) => {
+                            const o = orders.find((x) => x.id === a.order_id);
+                            const col = collections.find((c) => c.order_id === a.order_id);
+                            const due = Number(o?.total || 0);
+                            const colAmt = Number(col?.amount_collected || 0);
+                            const trk = tracking[a.order_id];
+                            const statusLabel = COURIER_STATUS_LABEL[trk || a.status] || a.status;
+                            return `<tr>
+                              <td>${i + 1}</td>
+                              <td>${o?.order_number ?? a.order_id.slice(0, 8)}</td>
+                              <td>${o?.customer_name ?? "—"}</td>
+                              <td>${statusLabel}</td>
+                              <td style="text-align:left;font-family:monospace">${fmt(due)}</td>
+                              <td style="text-align:left;font-family:monospace">${fmt(colAmt)}</td>
+                              <td style="text-align:left;font-family:monospace">${fmt(Math.max(0, due - colAmt))}</td>
+                            </tr>`;
+                          }).join("");
+                          const body = `
+                            <div class="meta">
+                              <div><strong>المندوب:</strong> ${courierName}</div>
+                              <div><strong>اليوم:</strong> ${dayLabel}</div>
+                              <div><strong>عدد الأوردرات:</strong> ${grp.items.length}</div>
+                            </div>
+                            <table>
+                              <thead>
+                                <tr><th>#</th><th>رقم الأوردر</th><th>العميل</th><th>الحالة</th><th>القيمة</th><th>المُحصَّل</th><th>المتبقي</th></tr>
+                              </thead>
+                              <tbody>${rows}</tbody>
+                              <tfoot>
+                                <tr>
+                                  <th colspan="4">الإجمالي</th>
+                                  <th style="text-align:left;font-family:monospace">${fmt(grp.totalValue)}</th>
+                                  <th style="text-align:left;font-family:monospace">${fmt(grp.collected)}</th>
+                                  <th style="text-align:left;font-family:monospace">${fmt(grp.remaining)}</th>
+                                </tr>
+                              </tfoot>
+                            </table>`;
+                          const css = `
+                            .meta { display:flex; gap:24px; margin-bottom:12px; font-size:13px; }
+                            table { width:100%; border-collapse:collapse; font-size:12px; }
+                            th, td { border:1px solid #ccc; padding:6px 8px; text-align:right; }
+                            thead th { background:#f3f4f6; }
+                            tfoot th { background:#fef3c7; }
+                          `;
+                          openPrintWindow(`عهدة ${courierName} — ${dayLabel}`, body, css);
+                        };
                         const rows: JSX.Element[] = [
                           <TableRow key={`day-${grp.day}`} className="bg-primary/5 hover:bg-primary/10 cursor-pointer font-medium"
                             onClick={() => setExpandedDays((s) => ({ ...s, [grp.day]: !isOpen }))}>
@@ -627,7 +678,14 @@ export default function CourierOrderCustodyTab() {
                               {grp.remaining > 0 && <span className="text-amber-700"> / متبقي {fmt(grp.remaining)}</span>}
                             </TableCell>
                             <TableCell className="text-xs">{new Date(grp.day).toLocaleDateString("ar-EG")}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{isOpen ? "إخفاء" : "عرض الأوردرات"}</TableCell>
+                            <TableCell className="text-xs">
+                              <div className="flex items-center gap-2">
+                                <Button size="sm" variant="outline" className="h-7 px-2 gap-1" onClick={printDay} title="طباعة أوردرات اليوم">
+                                  <Printer className="w-3 h-3" /> <span className="text-xs">طباعة</span>
+                                </Button>
+                                <span className="text-muted-foreground">{isOpen ? "إخفاء" : "عرض الأوردرات"}</span>
+                              </div>
+                            </TableCell>
                           </TableRow>
                         ];
                         if (isOpen) grp.items.forEach((a) => rows.push(renderOrderRow(a, true)));
