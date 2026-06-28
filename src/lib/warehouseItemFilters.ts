@@ -82,8 +82,18 @@ export const getAllowedWarehouseDropdownItems = <T extends WarehouseDropdownItem
   visibleProductIds?: Set<string>,
 ): T[] => {
   const byKey = new Map<string, T>();
-  items
-    .filter((item) => isAllowedWarehouseDropdownItem(item, warehouseId, isMainWarehouse, visibleProductIds))
+  const allowed = items.filter((item) => isAllowedWarehouseDropdownItem(item, warehouseId, isMainWarehouse, visibleProductIds));
+  const linkedNames = new Set(
+    allowed
+      .filter((item) => !!item.product_id)
+      .map((item) => normalizeIdentityPart(item.name))
+      .filter(Boolean),
+  );
+
+  allowed
+    // If an old orphan row has the same display name as a valid product-linked row,
+    // hide the orphan from dropdowns to avoid choosing the wrong duplicate.
+    .filter((item) => !!item.product_id || !linkedNames.has(normalizeIdentityPart(item.name)))
     .forEach((item) => {
       const key = item.product_id || item.id;
       const current = byKey.get(key);
