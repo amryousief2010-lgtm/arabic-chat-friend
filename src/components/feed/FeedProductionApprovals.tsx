@@ -119,19 +119,27 @@ export default function FeedProductionApprovals({ onChanged }: { onChanged?: () 
     return warns;
   };
 
+  const [reviewFor, setReviewFor] = useState<{ p: any; warns: WarnDetail[] } | null>(null);
+  const [reviewNote, setReviewNote] = useState("");
+
   const handleApprove = async (p: any) => {
     const warns = flag(p);
     if (warns.length) {
-      const ok = window.confirm(
-        "⚠️ يحتاج مراجعة — قيم خارج المعدل المعتاد:\n\n" + warns.map((w) => w.text).join("\n\n") + "\n\nهل تريد الاعتماد رغم ذلك؟",
-      );
-      if (!ok) return;
-    } else if (!window.confirm(`اعتماد فاتورة ${p.prod_no}؟\nسيتم خصم الخامات وإضافة الإنتاج وحركة الخزنة.`)) {
+      setReviewNote("");
+      setReviewFor({ p, warns });
       return;
     }
+    if (!window.confirm(`اعتماد فاتورة ${p.prod_no}؟\nسيتم خصم الخامات وإضافة الإنتاج وحركة الخزنة.`)) return;
+    await doApprove(p, { note: null, warns: [] });
+  };
+
+  const doApprove = async (p: any, opts: { note: string | null; warns: WarnDetail[] }) => {
     setBusy(true);
     const { error } = await (supabase as any).rpc("approve_feed_production_invoice", {
       p_invoice_id: p.id,
+      p_review_note: opts.note,
+      p_was_flagged: opts.warns.length > 0,
+      p_flag_reasons: opts.warns.length ? opts.warns : null,
     });
     setBusy(false);
     if (error) return toast.error(error.message || "فشل الاعتماد");
