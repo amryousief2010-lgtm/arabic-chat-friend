@@ -347,15 +347,16 @@ const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
         })
         .filter(Boolean) as any[];
 
-      const movementByOrderItem = new Map<string, string>();
-      if (movementsPayload.length > 0) {
-        const { data: movRows, error: movErr } = await (supabase as any)
-          .from("inventory_movements")
-          .insert(movementsPayload)
-          .select("id, order_item_id");
-        if (movErr) throw movErr;
-        for (const m of (movRows ?? [])) if (m.order_item_id) movementByOrderItem.set(m.order_item_id, m.id);
+      if (movementsPayload.length === 0) {
+        throw new Error(`لا يوجد أي صنف مرتبط بالمخزن الرئيسي. تعذر التجهيز. الأصناف: ${unresolved.join("، ")}`);
       }
+      const movementByOrderItem = new Map<string, string>();
+      const { data: movRows, error: movErr } = await (supabase as any)
+        .from("inventory_movements")
+        .insert(movementsPayload)
+        .select("id, order_item_id");
+      if (movErr) throw movErr;
+      for (const m of (movRows ?? [])) if (m.order_item_id) movementByOrderItem.set(m.order_item_id, m.id);
 
       // 3) Insert custody lines (linked to the inventory_movement when resolved)
       const linesPayload = selectedItems.map(it => {
