@@ -6,6 +6,9 @@ export interface WarehouseDropdownItem {
   category?: string | null;
   unit?: string | null;
   stock?: number | null;
+  sku?: string | null;
+  item_code?: string | null;
+  barcode?: string | null;
   is_active?: boolean | null;
   archived?: boolean | null;
   archived_at?: string | null;
@@ -46,7 +49,31 @@ export const isAllowedWarehouseDropdownItem = (
 const itemSortValue = (item: WarehouseDropdownItem) => ({
   stock: Number(item.stock || 0),
   updatedAt: item.updated_at ? new Date(item.updated_at).getTime() : 0,
+  linked: item.product_id ? 1 : 0,
 });
+
+const normalizeIdentityPart = (value: unknown) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[أإآا]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/\s+/g, " ");
+
+const identityKey = (item: WarehouseDropdownItem) => [
+  normalizeIdentityPart(item.name),
+  normalizeIdentityPart(item.unit),
+  normalizeIdentityPart(item.category),
+].join("|");
+
+const preferItem = <T extends WarehouseDropdownItem>(candidate: T, current: T): T => {
+  const a = itemSortValue(candidate);
+  const b = itemSortValue(current);
+  if (a.linked !== b.linked) return a.linked > b.linked ? candidate : current;
+  if (a.stock !== b.stock) return a.stock > b.stock ? candidate : current;
+  return a.updatedAt > b.updatedAt ? candidate : current;
+};
 
 export const getAllowedWarehouseDropdownItems = <T extends WarehouseDropdownItem>(
   items: T[],
@@ -55,8 +82,18 @@ export const getAllowedWarehouseDropdownItems = <T extends WarehouseDropdownItem
   visibleProductIds?: Set<string>,
 ): T[] => {
   const byKey = new Map<string, T>();
-  items
-    .filter((item) => isAllowedWarehouseDropdownItem(item, warehouseId, isMainWarehouse, visibleProductIds))
+  const allowed = items.filter((item) => isAllowedWarehouseDropdownItem(item, warehouseId, isMainWarehouse, visibleProductIds));
+  const linkedNames = new Set(
+    allowed
+      .filter((item) => !!item.product_id)
+      .map((item) => normalizeIdentityPart(item.name))
+      .filter(Boolean),
+  );
+
+  allowed
+    // If an old orphan row has the same display name as a valid product-linked row,
+    // hide the orphan from dropdowns to avoid choosing the wrong duplicate.
+    .filter((item) => !!item.product_id || !linkedNames.has(normalizeIdentityPart(item.name)))
     .forEach((item) => {
       const key = item.product_id || item.id;
       const current = byKey.get(key);
@@ -64,14 +101,21 @@ export const getAllowedWarehouseDropdownItems = <T extends WarehouseDropdownItem
         byKey.set(key, item);
         return;
       }
-      const a = itemSortValue(item);
-      const b = itemSortValue(current);
-      if (a.stock > b.stock || (a.stock === b.stock && a.updatedAt > b.updatedAt)) {
-        byKey.set(key, item);
-      }
+      byKey.set(key, preferItem(item, current));
     });
 
-  return Array.from(byKey.values()).sort((a, b) =>
+  const byIdentity = new Map<string, T>();
+  Array.from(byKey.values()).forEach((item) => {
+    const key = identityKey(item);
+    if (!key || key === "||") {
+      byIdentity.set(item.product_id || item.id, item);
+      return;
+    }
+    const current = byIdentity.get(key);
+    byIdentity.set(key, current ? preferItem(item, current) : item);
+  });
+
+  return Array.from(byIdentity.values()).sort((a, b) =>
     String(a.name || "").localeCompare(String(b.name || ""), "ar"),
   );
 };

@@ -21,9 +21,25 @@ import MainCardDialog from "@/components/warehouse/MainCardDialog";
 import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
 import companyLogo from "@/assets/company-logo.jpg";
 
-interface Product { id: string; name: string; unit: string; category?: string | null; }
+interface Product { id: string; name: string; unit: string; category?: string | null; barcode?: string | null; }
+
+interface WarehouseDialogItem {
+  id: string;
+  warehouse_id: string | null;
+  product_id: string | null;
+  name: string;
+  category?: string | null;
+  unit?: string | null;
+  stock?: number | null;
+  sku?: string | null;
+  item_code?: string | null;
+  barcode?: string | null;
+  is_active?: boolean | null;
+  module?: string | null;
+}
 
 export type StockScope = "both" | "agouza" | "main" | "carrefour" | "healthy";
+type SingleWh = "agouza" | "main" | "carrefour" | "healthy";
 
 interface Props { scope?: StockScope; embedded?: boolean }
 
@@ -57,6 +73,15 @@ const formatPackages = (kg: number, name: string): string => {
   return `${rounded} عبوة`;
 };
 
+const normalizeSearch = (value: unknown) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[أإآا]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/\s+/g, " ");
+
 const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const { isExecutiveManager, isGeneralManager, canManageAgouzaStock, isAgouzaWarehouseKeeper } = useAuth();
   const navigate = useNavigate();
@@ -82,6 +107,12 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const [extraSku, setExtraSku] = useState<Record<string, Record<string, string>>>({ carrefour: {}, healthy: {} });
   const [extraLastMove, setExtraLastMove] = useState<Record<string, Record<string, string>>>({ carrefour: {}, healthy: {} });
   const [extraLowThreshold, setExtraLowThreshold] = useState<Record<string, Record<string, number>>>({ carrefour: {}, healthy: {} });
+  const [dialogItemsByWh, setDialogItemsByWh] = useState<Record<SingleWh, WarehouseDialogItem[]>>({
+    main: [],
+    agouza: [],
+    carrefour: [],
+    healthy: [],
+  });
 
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -113,7 +144,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
     setLoading(true);
     try {
       const [pRes, wRes] = await Promise.all([
-        supabase.from("products").select("id, name, unit, category").eq("is_active", true).order("name"),
+        supabase.from("products").select("id, name, unit, category, barcode").eq("is_active", true).order("name"),
         supabase.from("warehouses").select("id, name").eq("is_active", true),
       ]);
       setProducts((pRes.data || []) as Product[]);
@@ -130,9 +161,10 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
       if (whIds.length > 0) {
         const { data: invRows } = await supabase
           .from("inventory_items")
-          .select("id, warehouse_id, product_id, stock, reserved_qty, blocked_qty, unit_cost, sku, low_stock_threshold")
-          .in("warehouse_id", whIds)
-          .not("product_id", "is", null);
+          .select("id, warehouse_id, product_id, name, category, unit, stock, reserved_qty, blocked_qty, unit_cost, sku, item_code, low_stock_threshold, is_active, module")
+          .in("warehouse_id", whIds);
+
+        const productById = new Map<string, Product>((pRes.data || []).map((p: any) => [p.id, p as Product]));
 
         const ag: Record<string, number> = {};
         const mn: Record<string, number> = {};
@@ -149,38 +181,70 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         const exCost: Record<string, Record<string, number>> = { carrefour: {}, healthy: {} };
         const exSku: Record<string, Record<string, string>> = { carrefour: {}, healthy: {} };
         const exLow: Record<string, Record<string, number>> = { carrefour: {}, healthy: {} };
+        const dialogItems: Record<SingleWh, WarehouseDialogItem[]> = { main: [], agouza: [], carrefour: [], healthy: [] };
+
+        const pushDialogItem = (whKey: SingleWh, r: any) => {
+          const product = r.product_id ? productById.get(r.product_id) : null;
+          dialogItems[whKey].push({
+            id: r.id,
+            warehouse_id: r.warehouse_id,
+            product_id: r.product_id || null,
+            name: r.name || product?.name || "صنف بدون اسم",
+            category: r.category || product?.category || null,
+            unit: r.unit || product?.unit || "كجم",
+            stock: Number(r.stock || 0) - Number(r.blocked_qty || 0),
+            sku: r.sku || null,
+            item_code: r.item_code || null,
+            barcode: product?.barcode || null,
+            is_active: r.is_active,
+            module: r.module || "warehouse",
+          });
+        };
 
         (invRows || []).forEach((r: any) => {
           const actual = Number(r.stock || 0) - Number(r.blocked_qty || 0);
           if (r.warehouse_id === agouza?.id) {
-            ag[r.product_id] = (ag[r.product_id] || 0) + actual;
-            agIds[r.product_id] = r.id;
-            agCost[r.product_id] = Number(r.unit_cost || 0);
-            if (r.sku) agSku[r.product_id] = r.sku;
-            agLow[r.product_id] = Number(r.low_stock_threshold || 0);
+            pushDialogItem("agouza", r);
+            if (r.product_id) {
+              ag[r.product_id] = (ag[r.product_id] || 0) + actual;
+              agIds[r.product_id] = r.id;
+              agCost[r.product_id] = Number(r.unit_cost || 0);
+              if (r.sku) agSku[r.product_id] = r.sku;
+              agLow[r.product_id] = Number(r.low_stock_threshold || 0);
+            }
           }
           if (r.warehouse_id === main?.id) {
-            mn[r.product_id] = (mn[r.product_id] || 0) + actual;
-            mnIds[r.product_id] = r.id;
-            mnCost[r.product_id] = Number(r.unit_cost || 0);
-            if (r.sku) mnSku[r.product_id] = r.sku;
-            mnLow[r.product_id] = Number(r.low_stock_threshold || 0);
+            pushDialogItem("main", r);
+            if (r.product_id) {
+              mn[r.product_id] = (mn[r.product_id] || 0) + actual;
+              mnIds[r.product_id] = r.id;
+              mnCost[r.product_id] = Number(r.unit_cost || 0);
+              if (r.sku) mnSku[r.product_id] = r.sku;
+              mnLow[r.product_id] = Number(r.low_stock_threshold || 0);
+            }
           }
           if (carrefour?.id && r.warehouse_id === carrefour.id) {
-            exStock.carrefour[r.product_id] = (exStock.carrefour[r.product_id] || 0) + actual;
-            exIds.carrefour[r.product_id] = r.id;
-            exCost.carrefour[r.product_id] = Number(r.unit_cost || 0);
-            if (r.sku) exSku.carrefour[r.product_id] = r.sku;
-            exLow.carrefour[r.product_id] = Number(r.low_stock_threshold || 0);
+            pushDialogItem("carrefour", r);
+            if (r.product_id) {
+              exStock.carrefour[r.product_id] = (exStock.carrefour[r.product_id] || 0) + actual;
+              exIds.carrefour[r.product_id] = r.id;
+              exCost.carrefour[r.product_id] = Number(r.unit_cost || 0);
+              if (r.sku) exSku.carrefour[r.product_id] = r.sku;
+              exLow.carrefour[r.product_id] = Number(r.low_stock_threshold || 0);
+            }
           }
           if (healthy?.id && r.warehouse_id === healthy.id) {
-            exStock.healthy[r.product_id] = (exStock.healthy[r.product_id] || 0) + actual;
-            exIds.healthy[r.product_id] = r.id;
-            exCost.healthy[r.product_id] = Number(r.unit_cost || 0);
-            if (r.sku) exSku.healthy[r.product_id] = r.sku;
-            exLow.healthy[r.product_id] = Number(r.low_stock_threshold || 0);
+            pushDialogItem("healthy", r);
+            if (r.product_id) {
+              exStock.healthy[r.product_id] = (exStock.healthy[r.product_id] || 0) + actual;
+              exIds.healthy[r.product_id] = r.id;
+              exCost.healthy[r.product_id] = Number(r.unit_cost || 0);
+              if (r.sku) exSku.healthy[r.product_id] = r.sku;
+              exLow.healthy[r.product_id] = Number(r.low_stock_threshold || 0);
+            }
           }
         });
+        setDialogItemsByWh(dialogItems);
         setAgouzaStock(ag);
         setMainStock(mn);
         setAgouzaItemIds(agIds);
@@ -295,8 +359,6 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
 
   useEffect(() => { fetchAll(); }, []);
-
-  type SingleWh = "agouza" | "main" | "carrefour" | "healthy";
 
   const getStockMap = (wh: SingleWh): Record<string, number> =>
     wh === "agouza" ? agouzaStock : wh === "main" ? mainStock : extraStock[wh] || {};
@@ -482,10 +544,22 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   };
 
   const filtered = useMemo(() => {
-    const q = search.trim();
-    const list = q ? products.filter(p => p.name?.includes(q) || p.category?.includes(q)) : products;
+    const q = normalizeSearch(search);
+    const list = q ? products.filter((p) => {
+      const codes = [
+        p.name,
+        p.category,
+        p.unit,
+        p.barcode,
+        mainSku[p.id],
+        agouzaSku[p.id],
+        extraSku.carrefour?.[p.id],
+        extraSku.healthy?.[p.id],
+      ];
+      return codes.some((v) => normalizeSearch(v).includes(q));
+    }) : products;
     return list;
-  }, [products, search]);
+  }, [products, search, mainSku, agouzaSku, extraSku]);
 
   // ملخص أعلى الشاشة (يُحسب على الـ scope الحالي)
   const summary = useMemo(() => {
@@ -549,25 +623,12 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const currentWhLabel = currentSingleScope ? getWhLabel(currentSingleScope) : "";
   const currentStock = currentSingleScope ? getStockMap(currentSingleScope) : {};
   const currentPending = currentSingleScope ? getPendingMap(currentSingleScope) : {};
-  const currentItemIds = currentSingleScope ? getItemIdsMap(currentSingleScope) : {};
   const currentCost = currentSingleScope ? getCostMap(currentSingleScope) : {};
   const currentSku = currentSingleScope ? getSkuMap(currentSingleScope) : {};
   const currentLastMove = currentSingleScope ? getLastMoveMap(currentSingleScope) : {};
   const currentDialogItems = useMemo(
-    () => products
-      .filter((p) => currentItemIds[p.id])
-      .map((p) => ({
-        id: currentItemIds[p.id],
-        warehouse_id: currentWhId,
-        product_id: p.id,
-        name: p.name,
-        category: p.category,
-        unit: p.unit,
-        stock: currentStock[p.id] || 0,
-        is_active: true,
-        module: "warehouse",
-      })),
-    [products, currentItemIds, currentWhId, currentStock]
+    () => (currentSingleScope ? dialogItemsByWh[currentSingleScope] || [] : []),
+    [currentSingleScope, dialogItemsByWh]
   );
 
 
