@@ -596,6 +596,7 @@ export default function CourierOrderCustodyTab() {
                                   }}>
                                   <Wrench className="w-3 h-3 text-amber-600" />
                                 </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
