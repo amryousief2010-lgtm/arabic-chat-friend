@@ -19552,6 +19552,15 @@ export type Database = {
         }
         Returns: Json
       }
+      record_courier_return: {
+        Args: {
+          p_assignment_id: string
+          p_idempotency_key?: string
+          p_notes?: string
+          p_reason?: string
+        }
+        Returns: Json
+      }
       reject_courier_credit_override: {
         Args: { _line_id: string; _reason: string }
         Returns: string
