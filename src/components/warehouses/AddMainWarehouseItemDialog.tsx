@@ -252,9 +252,10 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
       onOpenChange(false);
       onCreated?.();
     } catch (e: any) {
-      // Manual rollback in order: item then product
+      // Manual rollback in order: all product-linked inventory rows then product.
       try {
-        if (createdItemId) await supabase.from("inventory_items").delete().eq("id", createdItemId);
+        if (createdProductId) await supabase.from("inventory_items").delete().eq("product_id", createdProductId);
+        else if (createdItemId) await supabase.from("inventory_items").delete().eq("id", createdItemId);
         if (createdProductId) await supabase.from("products").delete().eq("id", createdProductId);
       } catch {
         /* ignore rollback errors */
