@@ -97,6 +97,10 @@ export default function CourierOrderCustodyTab() {
   const [returnKind, setReturnKind] = useState<"partial" | "full">("partial");
   const [groupByDay, setGroupByDay] = useState(true);
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
+  const [handoverOpen, setHandoverOpen] = useState(false);
+  const [handoverAmt, setHandoverAmt] = useState("");
+  const [handoverNotes, setHandoverNotes] = useState("");
+  const [handoverBusy, setHandoverBusy] = useState(false);
 
   const load = async () => {
     setLoading(true);
