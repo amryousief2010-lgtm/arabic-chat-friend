@@ -587,7 +587,15 @@ export default function CourierOrderCustodyTab() {
                                   onClick={() => { if (o) setReturnOpen(o); }} disabled={!o}>
                                   <RotateCcw className="w-3 h-3 text-rose-600" />
                                 </Button>
-                              </div>
+                                <Button size="sm" variant="outline" className="h-7 px-2 border-amber-300 hover:bg-amber-50" title="تصحيح/تعديل"
+                                  onClick={() => {
+                                    setCorrectOpen({ assignment: a, order: o });
+                                    setCorrectAction(col ? "edit_collection_amount" : a.returned_at ? "reverse_return" : "reverse_collection");
+                                    setCorrectReason("");
+                                    setCorrectAmount(col ? String(colAmt) : "");
+                                  }}>
+                                  <Wrench className="w-3 h-3 text-amber-600" />
+                                </Button>
                             </TableCell>
                           </TableRow>
                         );
