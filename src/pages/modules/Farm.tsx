@@ -645,6 +645,7 @@ const EggsTab = ({ eggs, families, qc }: any) => {
             <TableHeader>
               <TableRow>
                 <TableHead>التاريخ</TableHead>
+                <TableHead>نقل المعمل</TableHead>
                 <TableHead>عدد الأسر المنتجة</TableHead>
                 <TableHead>إجمالي البيض</TableHead>
                 <TableHead>الأسر المنتجة</TableHead>
@@ -654,9 +655,57 @@ const EggsTab = ({ eggs, families, qc }: any) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {dailySummary.map((d) => (
+              {dailySummary.map((d) => {
+                const ships = shipmentsByDate[d.date] || [];
+                const sentTotal = ships.reduce((s: number, x: any) => s + (Number(x.egg_count) || 0), 0);
+                const transferState: "none" | "partial" | "full" =
+                  ships.length === 0 ? "none" : sentTotal >= d.total ? "full" : "partial";
+                const latestShipDate = ships.reduce((acc: string, x: any) => {
+                  const v = (x.created_at || "").slice(0, 10);
+                  return v > acc ? v : acc;
+                }, "");
+                return (
                 <TableRow key={d.date}>
                   <TableCell className="font-medium">{d.date}</TableCell>
+                  <TableCell className="text-right align-top min-w-[180px]">
+                    {transferState === "none" && (
+                      <Badge variant="outline" className="text-muted-foreground border-dashed">لم يتم النقل</Badge>
+                    )}
+                    {transferState === "full" && (
+                      <div className="space-y-1">
+                        <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border border-emerald-300">
+                          تم نقله للمعمل
+                        </Badge>
+                        <div className="text-[11px] text-muted-foreground">
+                          {sentTotal} بيضة{latestShipDate ? ` — ${latestShipDate}` : ""}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setTransferDetailDate(d.date)}
+                          className="text-[11px] text-primary underline hover:opacity-80"
+                        >
+                          تفاصيل النقل
+                        </button>
+                      </div>
+                    )}
+                    {transferState === "partial" && (
+                      <div className="space-y-1">
+                        <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100 border border-orange-300">
+                          نقل جزئي
+                        </Badge>
+                        <div className="text-[11px] text-muted-foreground">
+                          المنقول: {sentTotal} من {d.total}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setTransferDetailDate(d.date)}
+                          className="text-[11px] text-primary underline hover:opacity-80"
+                        >
+                          تفاصيل النقل
+                        </button>
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell>{d.familiesCount}</TableCell>
                   <TableCell className="font-bold text-orange-600">{d.total}</TableCell>
                   <TableCell className="text-xs">{d.familyNumbers}</TableCell>
@@ -673,9 +722,10 @@ const EggsTab = ({ eggs, families, qc }: any) => {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
               {dailySummary.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا يوجد إنتاج مطابق</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">لا يوجد إنتاج مطابق</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
