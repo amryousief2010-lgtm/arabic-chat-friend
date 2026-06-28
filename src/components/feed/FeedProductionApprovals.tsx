@@ -338,6 +338,57 @@ export default function FeedProductionApprovals({ onChanged }: { onChanged?: () 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!reviewFor} onOpenChange={(o) => { if (!o) { setReviewFor(null); setReviewNote(""); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-800">
+              <AlertTriangle className="h-5 w-5" />
+              تأكيد اعتماد فاتورة عليها تنبيه "يحتاج مراجعة"
+            </DialogTitle>
+            <DialogDescription>
+              هذه الفاتورة عليها تنبيه يحتاج مراجعة بسبب اختلاف بعض القيم عن متوسط الفواتير السابقة. هل تمت مراجعة السبب وتأكيد أن الفاتورة صحيحة؟
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 max-h-64 overflow-auto">
+            {(reviewFor?.warns || []).map((w, i) => (
+              <div key={i} className="border-r-2 border-amber-400 pr-2 bg-amber-50/60 rounded p-2 text-sm space-y-1">
+                <div className="font-medium">{w.label} ({w.direction} من المعتاد)</div>
+                <div className="grid grid-cols-2 gap-1 text-xs">
+                  <div>القيمة الحالية: <b>{fmt(w.current)} ج/كجم</b></div>
+                  <div>متوسط 30 يوم: <b>{fmt(w.average)} ج/كجم</b></div>
+                  <div>نسبة الانحراف: <b>{fmt(w.deviationPct)}%</b></div>
+                  <div>عدد الفواتير: <b>{w.sampleCount}</b></div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">ملاحظة المراجع / سبب الاعتماد رغم التنبيه <span className="text-red-600">*</span></label>
+            <Textarea
+              placeholder="مثال: تمت مراجعة أجرة التصنيع وهي صحيحة حسب الاتفاق."
+              value={reviewNote}
+              onChange={(e) => setReviewNote(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setReviewFor(null); setReviewNote(""); }} disabled={busy}>
+              إلغاء والعودة للمراجعة
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              disabled={busy || reviewNote.trim().length < 3}
+              onClick={() => reviewFor && doApprove(reviewFor.p, { note: reviewNote.trim(), warns: reviewFor.warns })}
+            >
+              <ShieldCheck className="h-4 w-4 ml-1" /> تمت المراجعة واعتماد الفاتورة
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
