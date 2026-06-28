@@ -28,6 +28,7 @@ import WarehouseKpisBlock from "@/components/warehouses/WarehouseKpisBlock";
 import RestaurantMenuTab from "@/components/warehouses/RestaurantMenuTab";
 import WarehouseStockView from "@/pages/WarehouseStockView";
 import WarehouseReceiptsTab from "@/components/warehouses/WarehouseReceiptsTab";
+import AddMainWarehouseItemDialog from "@/components/warehouses/AddMainWarehouseItemDialog";
 import { isMainWarehouseExcludedCategory, isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
 import MainWarehouseActivity from "@/pages/MainWarehouseActivity";
 import WarehouseReports from "@/pages/modules/WarehouseReports";
@@ -240,6 +241,7 @@ const Warehouses = () => {
   const [whForm, setWhForm] = useState({ name: "", type: "general", location: "", description: "" });
 
   const [itemDialog, setItemDialog] = useState(false);
+  const [addMainItemDialog, setAddMainItemDialog] = useState(false);
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
   const [itemForm, setItemForm] = useState({ warehouse_id: "", name: "", category: "", sku: "", unit: "قطعة", stock: 0, low_stock_threshold: 10, unit_cost: 0, expiry_date: "" });
 
@@ -1517,7 +1519,7 @@ const Warehouses = () => {
                 <TabsContent key={t.value} value={t.value} className="space-y-4">
                   {t.value === "wh-main" && canManageWarehouses && t.wh && (
                     <div className="flex justify-end">
-                      <Button onClick={() => openItemDialog(undefined, t.wh!.id)}>
+                      <Button onClick={() => setAddMainItemDialog(true)}>
                         <Plus className="w-4 h-4 ml-2" />
                         إضافة صنف جديد للمخزن الرئيسي
                       </Button>
@@ -1754,6 +1756,21 @@ const Warehouses = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add Main Warehouse Item Dialog (premium, dedicated) */}
+      {(() => {
+        const mainWh = warehouses.find((w) => isMainWarehouseName(w.name));
+        if (!mainWh) return null;
+        return (
+          <AddMainWarehouseItemDialog
+            open={addMainItemDialog}
+            onOpenChange={setAddMainItemDialog}
+            mainWarehouseId={mainWh.id}
+            mainWarehouseName={mainWh.name}
+            onCreated={fetchAll}
+          />
+        );
+      })()}
 
       {/* Item Dialog */}
       <Dialog open={itemDialog} onOpenChange={setItemDialog}>
