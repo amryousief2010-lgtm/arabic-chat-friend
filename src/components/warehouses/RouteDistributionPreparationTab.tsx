@@ -621,13 +621,28 @@ const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
           {lastDispatch && (
             <Alert className="border-emerald-300 bg-emerald-50 text-emerald-900">
               <CheckCircle2 className="h-4 w-4" />
-              <AlertTitle>تم تجهيز خط التوزيع بنجاح</AlertTitle>
-              <AlertDescription className="flex flex-wrap items-center gap-2 mt-1">
-                <span>المندوب: <b>{lastDispatch.courierName}</b> — {lastDispatch.ordersCount} طلب / {lastDispatch.customersCount} عميل / {lastDispatch.itemsCount} صنف.</span>
-                <Button size="sm" variant="outline" onClick={() => window.print()}>
-                  <Printer className="h-3 w-3 ml-1" /> طباعة خط التوزيع
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setLastDispatch(null)}>إغلاق</Button>
+              <AlertTitle>تم تجهيز خط التوزيع بنجاح — رقم الحركة: <span className="font-mono">{lastDispatch.reference}</span></AlertTitle>
+              <AlertDescription className="space-y-2 mt-1">
+                <div>
+                  المندوب: <b>{lastDispatch.courierName}</b> — {lastDispatch.ordersCount} طلب / {lastDispatch.customersCount} عميل / {lastDispatch.itemsCount} صنف.
+                  {" "}تم خصم <b>{lastDispatch.movementsCreated}</b> صنف من المخزن الرئيسي تلقائيًا.
+                </div>
+                {lastDispatch.unresolved.length > 0 && (
+                  <div className="text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 text-xs">
+                    تنبيه: لم يتم خصم الأصناف التالية (غير مرتبطة بالمخزن الرئيسي): {lastDispatch.unresolved.join("، ")}
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => window.print()}>
+                    <Printer className="h-3 w-3 ml-1" /> طباعة خط التوزيع
+                  </Button>
+                  <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white" onClick={() => {
+                    window.dispatchEvent(new CustomEvent("warehouses:switch-tab", { detail: "wh-daily-recon" }));
+                  }}>
+                    <Truck className="h-3 w-3 ml-1" /> متابعة عودة المندوب
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setLastDispatch(null)}>إغلاق</Button>
+                </div>
               </AlertDescription>
             </Alert>
           )}
