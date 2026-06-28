@@ -97,6 +97,10 @@ export default function CourierOrderCustodyTab() {
   const [returnKind, setReturnKind] = useState<"partial" | "full">("partial");
   const [groupByDay, setGroupByDay] = useState(true);
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
+  const [handoverOpen, setHandoverOpen] = useState(false);
+  const [handoverAmt, setHandoverAmt] = useState("");
+  const [handoverNotes, setHandoverNotes] = useState("");
+  const [handoverBusy, setHandoverBusy] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -342,6 +346,30 @@ export default function CourierOrderCustodyTab() {
     setReturnOpen(null); setReturnNotes(""); setReturnReason("customer_refused");
   };
 
+  const submitHandover = async () => {
+    if (!selectedCustody) return;
+    const amt = Number(handoverAmt);
+    if (Number.isNaN(amt) || amt <= 0) { toast({ title: "أدخل مبلغ صالح", variant: "destructive" }); return; }
+    setHandoverBusy(true);
+    try {
+      const idem = `${selectedCustody}-${Date.now()}`;
+      const { data, error } = await (supabase as any).rpc("submit_courier_cash_handover", {
+        p_custody_id: selectedCustody,
+        p_amount: amt,
+        p_notes: handoverNotes.trim() || null,
+        p_idempotency_key: idem,
+      });
+      if (error) throw error;
+      toast({
+        title: "تم إرسال التوريد للاعتماد",
+        description: `بانتظار محمد شعلة — ${data?.reference || ""}`,
+      });
+      setHandoverOpen(false); setHandoverAmt(""); setHandoverNotes("");
+      await load();
+    } catch (e: any) {
+      toast({ title: "تعذّر إرسال التوريد", description: e?.message || "", variant: "destructive" });
+    } finally { setHandoverBusy(false); }
+  };
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
@@ -421,6 +449,15 @@ export default function CourierOrderCustodyTab() {
                 </Select>
                 <Button onClick={() => setAssignOpen(true)} disabled={!selectedCustody}>
                   <Package2 className="w-4 h-4 ml-1" /> تسليم أوردرات للمندوب
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                  onClick={() => setHandoverOpen(true)}
+                  disabled={!selectedCustody || !current || current.collected <= 0}
+                  title="توريد نقدية المندوب للخزينة الرئيسية بانتظار الاعتماد"
+                >
+                  <Coins className="w-4 h-4 ml-1" /> توريد نقدية ({fmt(current?.collected || 0)} ج.م)
                 </Button>
               </div>
 
@@ -657,6 +694,40 @@ export default function CourierOrderCustodyTab() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setReturnOpen(null)}>إلغاء</Button>
             <Button variant="destructive" onClick={saveReturn}>حفظ المرتجع</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cash handover dialog */}
+      <Dialog open={handoverOpen} onOpenChange={(o) => !o && setHandoverOpen(false)}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle>توريد نقدية المندوب للخزينة الرئيسية</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {current && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded p-3 text-sm">
+                <div className="flex justify-between"><span>المندوب:</span><span className="font-bold">{current.courier_name}</span></div>
+                <div className="flex justify-between mt-1"><span>إجمالي المُحصَّل في العهدة:</span><span className="font-mono font-bold text-emerald-700">{fmt(current.collected)} ج.م</span></div>
+              </div>
+            )}
+            <div>
+              <Label>المبلغ المطلوب توريده (ج.م)</Label>
+              <Input type="number" inputMode="decimal" value={handoverAmt} onChange={(e) => setHandoverAmt(e.target.value)} placeholder="0.00" />
+            </div>
+            <div>
+              <Label>ملاحظة (اختياري)</Label>
+              <Textarea value={handoverNotes} onChange={(e) => setHandoverNotes(e.target.value)} placeholder="مثال: توريد دفعة الصباح" />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              سيتم إرسال التوريد إلى خزينة المخزن الرئيسي بحالة «بانتظار الاعتماد» ويتم خصمه من صافي نقدية العهدة فور إرساله. الاعتماد النهائي يتم من محمد شعلة.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHandoverOpen(false)} disabled={handoverBusy}>إلغاء</Button>
+            <Button onClick={submitHandover} disabled={handoverBusy} className="bg-emerald-600 hover:bg-emerald-700">
+              {handoverBusy ? "جاري الإرسال…" : "إرسال للاعتماد"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

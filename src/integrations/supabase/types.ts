@@ -19754,6 +19754,15 @@ export type Database = {
       }
       slaughter_daily_summary: { Args: { p_date: string }; Returns: Json }
       slaughter_outputs_backfill_product_ids: { Args: never; Returns: number }
+      submit_courier_cash_handover: {
+        Args: {
+          p_amount: number
+          p_custody_id: string
+          p_idempotency_key?: string
+          p_notes?: string
+        }
+        Returns: Json
+      }
       submit_proposal_for_review: {
         Args: { p_id: string; p_note?: string }
         Returns: {
