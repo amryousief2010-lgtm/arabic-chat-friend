@@ -786,6 +786,49 @@ export default function CourierOrderCustodyTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Correction dialog */}
+      <Dialog open={!!correctOpen} onOpenChange={(o) => !o && setCorrectOpen(null)}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wrench className="w-5 h-5 text-amber-600" /> تصحيح/تعديل أوردر — {correctOpen?.order?.order_number}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="bg-amber-50 border border-amber-200 rounded p-2 text-xs text-amber-900">
+              يُسجَّل التصحيح في سجل تدقيق دائم (اسم المستخدم، الوقت، السبب، قبل/بعد) ولا يُسمح به بعد إقفال يوم العهدة.
+            </div>
+            <div>
+              <Label>نوع التصحيح</Label>
+              <Select value={correctAction} onValueChange={(v: any) => setCorrectAction(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="edit_collection_amount">تعديل قيمة التحصيل</SelectItem>
+                  <SelectItem value="reverse_collection">إلغاء التحصيل (إرجاع الأوردر لحالة «مُسلَّم»)</SelectItem>
+                  <SelectItem value="reverse_return">إلغاء المرتجع (إعادة فتح للتوزيع)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {correctAction === "edit_collection_amount" && (
+              <div>
+                <Label>القيمة الجديدة (ج.م)</Label>
+                <Input type="number" inputMode="decimal" value={correctAmount} onChange={(e) => setCorrectAmount(e.target.value)} />
+              </div>
+            )}
+            <div>
+              <Label>سبب التصحيح (إجباري)</Label>
+              <Textarea value={correctReason} onChange={(e) => setCorrectReason(e.target.value)} placeholder="مثال: خطأ إدخال — المبلغ الفعلي كان مختلفًا" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCorrectOpen(null)} disabled={correctBusy}>إلغاء</Button>
+            <Button onClick={submitCorrection} disabled={correctBusy} className="bg-amber-600 hover:bg-amber-700">
+              {correctBusy ? "جاري الحفظ…" : "حفظ التصحيح"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
