@@ -478,8 +478,10 @@ const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
             <span className="text-sm font-medium">العهدة المفتوحة:</span>
             <Select value={selectedCustodyId} onValueChange={setSelectedCustodyId}>
               <SelectTrigger className="w-60"><SelectValue placeholder="اختر عهدة" /></SelectTrigger>
-              <SelectContent>
-                {custodies.map(c => (
+              <SelectContent className="z-[60]">
+                {custodies.length === 0 ? (
+                  <div className="px-2 py-3 text-xs text-muted-foreground text-center">لا توجد عهد مفتوحة — استخدم «فتح عهدة جديدة»</div>
+                ) : custodies.map(c => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.courier_name} — {new Date(c.opened_at).toLocaleDateString("ar-EG")}
                   </SelectItem>
