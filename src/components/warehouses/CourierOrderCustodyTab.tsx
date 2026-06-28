@@ -697,6 +697,40 @@ export default function CourierOrderCustodyTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Cash handover dialog */}
+      <Dialog open={handoverOpen} onOpenChange={(o) => !o && setHandoverOpen(false)}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle>توريد نقدية المندوب للخزينة الرئيسية</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {current && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded p-3 text-sm">
+                <div className="flex justify-between"><span>المندوب:</span><span className="font-bold">{current.courier_name}</span></div>
+                <div className="flex justify-between mt-1"><span>إجمالي المُحصَّل في العهدة:</span><span className="font-mono font-bold text-emerald-700">{fmt(current.collected)} ج.م</span></div>
+              </div>
+            )}
+            <div>
+              <Label>المبلغ المطلوب توريده (ج.م)</Label>
+              <Input type="number" inputMode="decimal" value={handoverAmt} onChange={(e) => setHandoverAmt(e.target.value)} placeholder="0.00" />
+            </div>
+            <div>
+              <Label>ملاحظة (اختياري)</Label>
+              <Textarea value={handoverNotes} onChange={(e) => setHandoverNotes(e.target.value)} placeholder="مثال: توريد دفعة الصباح" />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              سيتم إرسال التوريد إلى خزينة المخزن الرئيسي بحالة «بانتظار الاعتماد» ويتم خصمه من صافي نقدية العهدة فور إرساله. الاعتماد النهائي يتم من محمد شعلة.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHandoverOpen(false)} disabled={handoverBusy}>إلغاء</Button>
+            <Button onClick={submitHandover} disabled={handoverBusy} className="bg-emerald-600 hover:bg-emerald-700">
+              {handoverBusy ? "جاري الإرسال…" : "إرسال للاعتماد"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
