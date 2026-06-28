@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Truck, Package2, Coins, RotateCcw, CheckCircle2, Eye, ClipboardList, Trophy, ChevronDown, ChevronLeft } from "lucide-react";
+import { Truck, Package2, Coins, RotateCcw, CheckCircle2, Eye, ClipboardList, Trophy, ChevronDown, ChevronLeft, Printer, FileSpreadsheet } from "lucide-react";
+import { fetchCourierStatementLines, printCourierStatement, exportCourierStatementExcel } from "@/lib/courierStatement";
 import { Switch } from "@/components/ui/switch";
 
 /**
@@ -101,6 +102,20 @@ export default function CourierOrderCustodyTab() {
   const [handoverAmt, setHandoverAmt] = useState("");
   const [handoverNotes, setHandoverNotes] = useState("");
   const [handoverBusy, setHandoverBusy] = useState(false);
+
+  const printStatement = async (fmt: "pdf" | "xlsx") => {
+    if (!selectedCustody) return;
+    const cust = custodies.find((c) => c.id === selectedCustody);
+    const name = cust?.courier_name || "—";
+    try {
+      const lines = await fetchCourierStatementLines(selectedCustody);
+      if (fmt === "pdf") printCourierStatement(name, selectedCustody, lines);
+      else exportCourierStatementExcel(name, lines);
+    } catch (e: any) {
+      toast({ title: "تعذّر إعداد الكشف", description: e?.message || "", variant: "destructive" });
+    }
+  };
+
 
   const load = async () => {
     setLoading(true);
@@ -458,6 +473,12 @@ export default function CourierOrderCustodyTab() {
                   title="توريد نقدية المندوب للخزينة الرئيسية بانتظار الاعتماد"
                 >
                   <Coins className="w-4 h-4 ml-1" /> توريد نقدية ({fmt(current?.collected || 0)} ج.م)
+                </Button>
+                <Button variant="outline" disabled={!selectedCustody} onClick={() => printStatement("pdf")} title="طباعة كشف حساب المندوب (PDF/A4)">
+                  <Printer className="w-4 h-4 ml-1" /> طباعة كشف
+                </Button>
+                <Button variant="outline" disabled={!selectedCustody} onClick={() => printStatement("xlsx")} title="تصدير كشف حساب المندوب Excel">
+                  <FileSpreadsheet className="w-4 h-4 ml-1" /> Excel
                 </Button>
               </div>
 
