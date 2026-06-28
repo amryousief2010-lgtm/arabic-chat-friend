@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Truck, Package2, Coins, RotateCcw, CheckCircle2, Eye, ClipboardList, Trophy, ChevronDown, ChevronLeft, Printer, FileSpreadsheet } from "lucide-react";
+import { Truck, Package2, Coins, RotateCcw, CheckCircle2, Eye, ClipboardList, Trophy, ChevronDown, ChevronLeft, Printer, FileSpreadsheet, Wrench } from "lucide-react";
 import { fetchCourierStatementLines, printCourierStatement, exportCourierStatementExcel } from "@/lib/courierStatement";
 import { Switch } from "@/components/ui/switch";
 
@@ -98,6 +98,11 @@ export default function CourierOrderCustodyTab() {
   const [returnKind, setReturnKind] = useState<"partial" | "full">("partial");
   const [groupByDay, setGroupByDay] = useState(true);
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
+  const [correctOpen, setCorrectOpen] = useState<{ assignment: Assignment; order?: Order } | null>(null);
+  const [correctAction, setCorrectAction] = useState<"edit_collection_amount" | "reverse_collection" | "reverse_return">("edit_collection_amount");
+  const [correctReason, setCorrectReason] = useState("");
+  const [correctAmount, setCorrectAmount] = useState("");
+  const [correctBusy, setCorrectBusy] = useState(false);
   const [handoverOpen, setHandoverOpen] = useState(false);
   const [handoverAmt, setHandoverAmt] = useState("");
   const [handoverNotes, setHandoverNotes] = useState("");
@@ -386,6 +391,26 @@ export default function CourierOrderCustodyTab() {
     } finally { setHandoverBusy(false); }
   };
 
+  const submitCorrection = async () => {
+    if (!correctOpen) return;
+    if (!correctReason.trim()) { toast({ title: "السبب مطلوب", variant: "destructive" }); return; }
+    setCorrectBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("correct_courier_assignment", {
+        p_assignment_id: correctOpen.assignment.id,
+        p_action: correctAction,
+        p_reason: correctReason.trim(),
+        p_new_amount: correctAction === "edit_collection_amount" ? Number(correctAmount || 0) : null,
+      });
+      if (error) throw error;
+      toast({ title: "تم التصحيح وتسجيله في السجل" });
+      setCorrectOpen(null); setCorrectReason(""); setCorrectAmount("");
+      await load();
+    } catch (e: any) {
+      toast({ title: "تعذّر التصحيح", description: e?.message || "", variant: "destructive" });
+    } finally { setCorrectBusy(false); }
+  };
+
   // ── Render ──────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4" dir="rtl">
@@ -561,6 +586,15 @@ export default function CourierOrderCustodyTab() {
                                 <Button size="sm" variant="outline" className="h-7 px-2" title="مرتجع"
                                   onClick={() => { if (o) setReturnOpen(o); }} disabled={!o}>
                                   <RotateCcw className="w-3 h-3 text-rose-600" />
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 px-2 border-amber-300 hover:bg-amber-50" title="تصحيح/تعديل"
+                                  onClick={() => {
+                                    setCorrectOpen({ assignment: a, order: o });
+                                    setCorrectAction(col ? "edit_collection_amount" : a.returned_at ? "reverse_return" : "reverse_collection");
+                                    setCorrectReason("");
+                                    setCorrectAmount(col ? String(colAmt) : "");
+                                  }}>
+                                  <Wrench className="w-3 h-3 text-amber-600" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -748,6 +782,49 @@ export default function CourierOrderCustodyTab() {
             <Button variant="outline" onClick={() => setHandoverOpen(false)} disabled={handoverBusy}>إلغاء</Button>
             <Button onClick={submitHandover} disabled={handoverBusy} className="bg-emerald-600 hover:bg-emerald-700">
               {handoverBusy ? "جاري الإرسال…" : "إرسال للاعتماد"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Correction dialog */}
+      <Dialog open={!!correctOpen} onOpenChange={(o) => !o && setCorrectOpen(null)}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wrench className="w-5 h-5 text-amber-600" /> تصحيح/تعديل أوردر — {correctOpen?.order?.order_number}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="bg-amber-50 border border-amber-200 rounded p-2 text-xs text-amber-900">
+              يُسجَّل التصحيح في سجل تدقيق دائم (اسم المستخدم، الوقت، السبب، قبل/بعد) ولا يُسمح به بعد إقفال يوم العهدة.
+            </div>
+            <div>
+              <Label>نوع التصحيح</Label>
+              <Select value={correctAction} onValueChange={(v: any) => setCorrectAction(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="edit_collection_amount">تعديل قيمة التحصيل</SelectItem>
+                  <SelectItem value="reverse_collection">إلغاء التحصيل (إرجاع الأوردر لحالة «مُسلَّم»)</SelectItem>
+                  <SelectItem value="reverse_return">إلغاء المرتجع (إعادة فتح للتوزيع)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {correctAction === "edit_collection_amount" && (
+              <div>
+                <Label>القيمة الجديدة (ج.م)</Label>
+                <Input type="number" inputMode="decimal" value={correctAmount} onChange={(e) => setCorrectAmount(e.target.value)} />
+              </div>
+            )}
+            <div>
+              <Label>سبب التصحيح (إجباري)</Label>
+              <Textarea value={correctReason} onChange={(e) => setCorrectReason(e.target.value)} placeholder="مثال: خطأ إدخال — المبلغ الفعلي كان مختلفًا" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCorrectOpen(null)} disabled={correctBusy}>إلغاء</Button>
+            <Button onClick={submitCorrection} disabled={correctBusy} className="bg-amber-600 hover:bg-amber-700">
+              {correctBusy ? "جاري الحفظ…" : "حفظ التصحيح"}
             </Button>
           </DialogFooter>
         </DialogContent>
