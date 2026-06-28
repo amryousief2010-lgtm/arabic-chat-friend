@@ -9,10 +9,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Truck, Package, Users, CheckCircle2, Loader2, FileText, RefreshCw, Gift, Percent, Coins, Undo2, Plus } from "lucide-react";
+import { Truck, Package, Users, CheckCircle2, Loader2, FileText, RefreshCw, Gift, Percent, Coins, Undo2, Plus, AlertTriangle, ListChecks, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface OrderRow {
   id: string;
@@ -86,6 +87,8 @@ export default function RouteDistributionPreparationTab() {
   const [newCourierName, setNewCourierName] = useState("");
   const [newCustodyNotes, setNewCustodyNotes] = useState("");
   const [creatingCustody, setCreatingCustody] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [lastDispatch, setLastDispatch] = useState<{ courierName: string; ordersCount: number; customersCount: number; itemsCount: number; at: string } | null>(null);
 
   const createCustody = async () => {
     const name = newCourierName.trim();
@@ -336,15 +339,28 @@ export default function RouteDistributionPreparationTab() {
         .from("courier_order_assignments")
         .upsert(assignPayload, { onConflict: "order_id" });
 
-      toast.success(`تم اعتماد صرف ${selectedItems.length} صنف لـ ${customerGroups.length} عميل`);
+      const courierLabel = custodies.find(c => c.id === selectedCustodyId)?.courier_name || courierName;
+      setLastDispatch({
+        courierName: courierLabel,
+        ordersCount: selectedOrders.length,
+        customersCount: customerGroups.length,
+        itemsCount: selectedItems.length,
+        at: new Date().toISOString(),
+      });
+      toast.success(`تم تجهيز خط التوزيع بنجاح — ${selectedItems.length} صنف لـ ${customerGroups.length} عميل`);
       setSelectedOrderIds(new Set());
+      setConfirmOpen(false);
       await loadCustodyLines(selectedCustodyId);
+      await loadData();
     } catch (e: any) {
       toast.error(e.message || "تعذر اعتماد الصرف");
     } finally {
       setSaving(false);
     }
   };
+
+  const selectedCustody = custodies.find(c => c.id === selectedCustodyId) || null;
+  const canApprove = !!selectedCustodyId && selectedItems.length > 0 && productTotals.every(p => p.quantity > 0);
 
   // Kimo statement grouped by customer (from custody lines)
   const customerStatement = useMemo(() => {
@@ -465,6 +481,80 @@ export default function RouteDistributionPreparationTab() {
 
         {/* Prepare tab */}
         <TabsContent value="prepare" className="space-y-3">
+          {/* Workflow guide */}
+          <Card className="border-purple-200 bg-white">
+            <CardContent className="py-3">
+              <div className="flex items-start gap-2 mb-2">
+                <ListChecks className="h-4 w-4 text-purple-600 mt-0.5" />
+                <div className="text-sm font-bold">سير العمل</div>
+              </div>
+              <ol className="grid md:grid-cols-5 gap-2 text-xs">
+                {[
+                  { n: 1, t: "اختر عهدة مفتوحة", done: !!selectedCustodyId },
+                  { n: 2, t: "حدّد الطلبات", done: selectedOrders.length > 0 },
+                  { n: 3, t: "راجع الأصناف والكميات", done: productTotals.length > 0 },
+                  { n: 4, t: "اعتمد الصرف للعهدة", done: !!lastDispatch },
+                  { n: 5, t: "طباعة + متابعة عودة المندوب", done: false },
+                ].map(s => (
+                  <li key={s.n} className={`rounded-md border p-2 flex items-center gap-2 ${s.done ? "bg-emerald-50 border-emerald-300" : "bg-muted/40"}`}>
+                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${s.done ? "bg-emerald-600 text-white" : "bg-white border"}`}>
+                      {s.done ? "✓" : s.n}
+                    </span>
+                    <span>{s.t}</span>
+                  </li>
+                ))}
+              </ol>
+            </CardContent>
+          </Card>
+
+          {/* Alerts */}
+          {!selectedCustodyId && (
+            <Alert variant="destructive" className="border-orange-300 bg-orange-50 text-orange-900">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>اختر عهدة مفتوحة أولًا</AlertTitle>
+              <AlertDescription>
+                لا يمكن اعتماد الصرف قبل اختيار عهدة مندوب مفتوحة. استخدم زر «فتح عهدة جديدة» في الأعلى أو اختر من القائمة.
+              </AlertDescription>
+            </Alert>
+          )}
+          {selectedCustodyId && selectedOrders.length === 0 && (
+            <Alert className="border-purple-200 bg-purple-50 text-purple-900">
+              <Package className="h-4 w-4" />
+              <AlertTitle>حدّد طلبًا واحدًا على الأقل</AlertTitle>
+              <AlertDescription>
+                العهدة المختارة: <b>{selectedCustody?.courier_name}</b>. اختر الطلبات من الجدول لتجميع الكميات تلقائيًا.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Selection summary banner */}
+          {selectedOrders.length > 0 && (
+            <Card className="border-purple-300 bg-gradient-to-l from-purple-50 to-orange-50">
+              <CardContent className="py-3 grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
+                <div><div className="text-2xl font-bold text-purple-700">{selectedOrders.length}</div><div className="text-xs text-muted-foreground">طلب محدد</div></div>
+                <div><div className="text-2xl font-bold text-purple-700">{customerGroups.length}</div><div className="text-xs text-muted-foreground">عميل</div></div>
+                <div><div className="text-2xl font-bold text-orange-700">{productTotals.length}</div><div className="text-xs text-muted-foreground">صنف مختلف</div></div>
+                <div><div className="text-2xl font-bold text-orange-700">{productTotals.reduce((s, p) => s + p.quantity, 0).toLocaleString("ar-EG")}</div><div className="text-xs text-muted-foreground">إجمالي الكميات</div></div>
+                <div><div className="text-sm font-bold text-emerald-700 truncate">{selectedCustody?.courier_name || "—"}</div><div className="text-xs text-muted-foreground">العهدة المختارة</div></div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Success banner after dispatch */}
+          {lastDispatch && (
+            <Alert className="border-emerald-300 bg-emerald-50 text-emerald-900">
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertTitle>تم تجهيز خط التوزيع بنجاح</AlertTitle>
+              <AlertDescription className="flex flex-wrap items-center gap-2 mt-1">
+                <span>المندوب: <b>{lastDispatch.courierName}</b> — {lastDispatch.ordersCount} طلب / {lastDispatch.customersCount} عميل / {lastDispatch.itemsCount} صنف.</span>
+                <Button size="sm" variant="outline" onClick={() => window.print()}>
+                  <Printer className="h-3 w-3 ml-1" /> طباعة خط التوزيع
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setLastDispatch(null)}>إغلاق</Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="grid lg:grid-cols-3 gap-3">
             {/* Orders list */}
             <Card className="lg:col-span-2">
@@ -554,11 +644,18 @@ export default function RouteDistributionPreparationTab() {
                 )}
                 <Button
                   className="w-full mt-3 bg-purple-600 hover:bg-purple-700"
-                  disabled={saving || selectedItems.length === 0 || !selectedCustodyId}
-                  onClick={approveDispatch}
+                  disabled={saving || !canApprove}
+                  onClick={() => setConfirmOpen(true)}
+                  title={!selectedCustodyId ? "اختر عهدة أولًا" : selectedItems.length === 0 ? "حدّد طلبًا أولًا" : ""}
                 >
-                  {saving ? <><Loader2 className="h-4 w-4 ml-1 animate-spin" />جاري الاعتماد…</> : <><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد الصرف للمندوب</>}
+                  <CheckCircle2 className="h-4 w-4 ml-1" />
+                  {selectedCustodyId && selectedItems.length > 0 ? "تجهيز خط التوزيع / اعتماد الصرف" : "اعتماد الصرف للمندوب"}
                 </Button>
+                {!canApprove && (
+                  <div className="text-[11px] text-muted-foreground mt-2 text-center">
+                    {!selectedCustodyId ? "اختر عهدة مفتوحة" : "حدّد طلبًا واحدًا على الأقل"}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -669,6 +766,60 @@ export default function RouteDistributionPreparationTab() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Confirmation dialog */}
+      <Dialog open={confirmOpen} onOpenChange={(o) => !saving && setConfirmOpen(o)}>
+        <DialogContent dir="rtl" className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-purple-600" /> تأكيد اعتماد الصرف للعهدة
+            </DialogTitle>
+            <DialogDescription>
+              سيتم صرف هذه الكميات على عهدة المندوب وربطها بالطلبات المحددة. هل تريد المتابعة؟
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="rounded-md border bg-purple-50/60 p-2">
+              <div className="text-xs text-muted-foreground">المندوب / العهدة</div>
+              <div className="font-bold">{selectedCustody?.courier_name || "—"}</div>
+            </div>
+            <div className="rounded-md border bg-orange-50/60 p-2">
+              <div className="text-xs text-muted-foreground">المخزن المصدر</div>
+              <div className="font-bold">المخزن الرئيسي</div>
+            </div>
+            <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">عدد الطلبات</div><div className="font-bold">{selectedOrders.length}</div></div>
+            <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">عدد العملاء</div><div className="font-bold">{customerGroups.length}</div></div>
+            <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">عدد الأصناف</div><div className="font-bold">{productTotals.length}</div></div>
+            <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">إجمالي الكميات</div><div className="font-bold">{productTotals.reduce((s, p) => s + p.quantity, 0).toLocaleString("ar-EG")}</div></div>
+          </div>
+          <div className="max-h-56 overflow-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>الصنف</TableHead>
+                  <TableHead>الكمية</TableHead>
+                  <TableHead>عملاء</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {productTotals.map((p, i) => (
+                  <TableRow key={i}>
+                    <TableCell>{p.product_name}</TableCell>
+                    <TableCell className="font-mono">{p.quantity} {p.unit}</TableCell>
+                    <TableCell>{p.customers}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={saving}>إلغاء</Button>
+            <Button onClick={approveDispatch} disabled={saving || !canApprove} className="bg-purple-600 hover:bg-purple-700">
+              {saving ? <><Loader2 className="h-4 w-4 ml-1 animate-spin" />جاري التنفيذ…</> : <><CheckCircle2 className="h-4 w-4 ml-1" />نعم، اعتمد الصرف</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
