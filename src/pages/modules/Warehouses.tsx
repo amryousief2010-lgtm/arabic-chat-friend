@@ -28,6 +28,7 @@ import WarehouseKpisBlock from "@/components/warehouses/WarehouseKpisBlock";
 import RestaurantMenuTab from "@/components/warehouses/RestaurantMenuTab";
 import WarehouseStockView from "@/pages/WarehouseStockView";
 import WarehouseReceiptsTab from "@/components/warehouses/WarehouseReceiptsTab";
+import AddMainWarehouseItemDialog from "@/components/warehouses/AddMainWarehouseItemDialog";
 import { isMainWarehouseExcludedCategory, isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
 import MainWarehouseActivity from "@/pages/MainWarehouseActivity";
 import WarehouseReports from "@/pages/modules/WarehouseReports";
