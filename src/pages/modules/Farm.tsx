@@ -321,6 +321,66 @@ const EggsTab = ({ eggs, families, qc }: any) => {
   const [fMonth, setFMonth] = useState("all");
   const [fYear, setFYear] = useState("all");
   const [detailDate, setDetailDate] = useState<string | null>(null);
+  const [transferDetailDate, setTransferDetailDate] = useState<string | null>(null);
+
+  // Fetch lab shipments for transfer status column
+  const { data: labShipments = [] } = useQuery({
+    queryKey: ["farm-shipments-for-eggs-tab"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("farm_to_hatchery_shipments")
+        .select("id, production_date, family_id, family_number, egg_count, received_egg_count, damaged_count, status, received_at, received_by, hatch_batch_id, created_at, transfer_batch_id, farm_transfer_id, receipt_notes, rejection_reason")
+        .order("production_date", { ascending: false })
+        .limit(5000);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  // Fetch hatch batch numbers for display
+  const labBatchIds = useMemo(
+    () => Array.from(new Set(labShipments.map((s: any) => s.hatch_batch_id).filter(Boolean))) as string[],
+    [labShipments]
+  );
+  const { data: hatchBatchMap = {} } = useQuery({
+    queryKey: ["hatch-batches-by-id", labBatchIds.join(",")],
+    queryFn: async () => {
+      if (!labBatchIds.length) return {};
+      const { data } = await supabase.from("hatch_batches").select("id, batch_number").in("id", labBatchIds);
+      const m: Record<string, string> = {};
+      (data || []).forEach((b: any) => { m[b.id] = b.batch_number; });
+      return m;
+    },
+    enabled: labBatchIds.length > 0,
+  });
+
+  // Fetch receiver names
+  const receiverIds = useMemo(
+    () => Array.from(new Set(labShipments.map((s: any) => s.received_by).filter(Boolean))) as string[],
+    [labShipments]
+  );
+  const { data: receiverMap = {} } = useQuery({
+    queryKey: ["farm-receivers", receiverIds.join(",")],
+    queryFn: async () => {
+      if (!receiverIds.length) return {};
+      const { data } = await supabase.from("profile_directory").select("id, full_name").in("id", receiverIds);
+      const m: Record<string, string> = {};
+      (data || []).forEach((p: any) => { m[p.id] = p.full_name || p.id; });
+      return m;
+    },
+    enabled: receiverIds.length > 0,
+  });
+
+  // Group shipments by production_date
+  const shipmentsByDate = useMemo(() => {
+    const m: Record<string, any[]> = {};
+    labShipments.forEach((s: any) => {
+      if (!s.production_date) return;
+      (m[s.production_date] = m[s.production_date] || []).push(s);
+    });
+    return m;
+  }, [labShipments]);
+
 
   const filtered = useMemo(() => eggs.filter((e: any) => {
     if (fFamily !== "all" && e.family_id !== fFamily) return false;
@@ -585,6 +645,7 @@ const EggsTab = ({ eggs, families, qc }: any) => {
             <TableHeader>
               <TableRow>
                 <TableHead>التاريخ</TableHead>
+                <TableHead>نقل المعمل</TableHead>
                 <TableHead>عدد الأسر المنتجة</TableHead>
                 <TableHead>إجمالي البيض</TableHead>
                 <TableHead>الأسر المنتجة</TableHead>
@@ -594,9 +655,57 @@ const EggsTab = ({ eggs, families, qc }: any) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {dailySummary.map((d) => (
+              {dailySummary.map((d) => {
+                const ships = shipmentsByDate[d.date] || [];
+                const sentTotal = ships.reduce((s: number, x: any) => s + (Number(x.egg_count) || 0), 0);
+                const transferState: "none" | "partial" | "full" =
+                  ships.length === 0 ? "none" : sentTotal >= d.total ? "full" : "partial";
+                const latestShipDate = ships.reduce((acc: string, x: any) => {
+                  const v = (x.created_at || "").slice(0, 10);
+                  return v > acc ? v : acc;
+                }, "");
+                return (
                 <TableRow key={d.date}>
                   <TableCell className="font-medium">{d.date}</TableCell>
+                  <TableCell className="text-right align-top min-w-[180px]">
+                    {transferState === "none" && (
+                      <Badge variant="outline" className="text-muted-foreground border-dashed">لم يتم النقل</Badge>
+                    )}
+                    {transferState === "full" && (
+                      <div className="space-y-1">
+                        <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border border-emerald-300">
+                          تم نقله للمعمل
+                        </Badge>
+                        <div className="text-[11px] text-muted-foreground">
+                          {sentTotal} بيضة{latestShipDate ? ` — ${latestShipDate}` : ""}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setTransferDetailDate(d.date)}
+                          className="text-[11px] text-primary underline hover:opacity-80"
+                        >
+                          تفاصيل النقل
+                        </button>
+                      </div>
+                    )}
+                    {transferState === "partial" && (
+                      <div className="space-y-1">
+                        <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100 border border-orange-300">
+                          نقل جزئي
+                        </Badge>
+                        <div className="text-[11px] text-muted-foreground">
+                          المنقول: {sentTotal} من {d.total}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setTransferDetailDate(d.date)}
+                          className="text-[11px] text-primary underline hover:opacity-80"
+                        >
+                          تفاصيل النقل
+                        </button>
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell>{d.familiesCount}</TableCell>
                   <TableCell className="font-bold text-orange-600">{d.total}</TableCell>
                   <TableCell className="text-xs">{d.familyNumbers}</TableCell>
@@ -613,9 +722,10 @@ const EggsTab = ({ eggs, families, qc }: any) => {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
               {dailySummary.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا يوجد إنتاج مطابق</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">لا يوجد إنتاج مطابق</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -674,6 +784,77 @@ const EggsTab = ({ eggs, families, qc }: any) => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Details Dialog */}
+      <Dialog open={!!transferDetailDate} onOpenChange={(v) => !v && setTransferDetailDate(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>تفاصيل النقل للمعمل — {transferDetailDate}</DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const ships = (transferDetailDate && shipmentsByDate[transferDetailDate]) || [];
+            if (!ships.length) return <div className="text-center text-muted-foreground py-6">لا توجد بيانات نقل لهذا اليوم</div>;
+            const sentTotal = ships.reduce((s: number, x: any) => s + (Number(x.egg_count) || 0), 0);
+            const recvTotal = ships.reduce((s: number, x: any) => s + (Number(x.received_egg_count) || 0), 0);
+            const damagedTotal = ships.reduce((s: number, x: any) => s + (Number(x.damaged_count) || 0), 0);
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <Card className="p-3"><div className="text-xs text-muted-foreground">عدد الشحنات</div><div className="font-bold">{ships.length}</div></Card>
+                  <Card className="p-3"><div className="text-xs text-muted-foreground">إجمالي المرسل</div><div className="font-bold text-emerald-700">{sentTotal}</div></Card>
+                  <Card className="p-3"><div className="text-xs text-muted-foreground">إجمالي المستلم</div><div className="font-bold text-blue-700">{recvTotal || "—"}</div></Card>
+                  <Card className="p-3"><div className="text-xs text-muted-foreground">تالف عند الاستلام</div><div className="font-bold text-red-600">{damagedTotal || 0}</div></Card>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>تاريخ النقل</TableHead>
+                      <TableHead>الأسرة</TableHead>
+                      <TableHead>العدد المرسل</TableHead>
+                      <TableHead>المستلم</TableHead>
+                      <TableHead>التالف</TableHead>
+                      <TableHead>الحالة</TableHead>
+                      <TableHead>دفعة التفقيس</TableHead>
+                      <TableHead>المستلم بواسطة</TableHead>
+                      <TableHead>رقم الحركة</TableHead>
+                      <TableHead>ملاحظات</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {ships.map((s: any) => {
+                      const statusLabel: Record<string, { t: string; cls: string }> = {
+                        pending: { t: "قيد الاستلام", cls: "bg-amber-100 text-amber-800 border-amber-300" },
+                        received: { t: "تم الاستلام", cls: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+                        partial: { t: "استلام جزئي", cls: "bg-orange-100 text-orange-800 border-orange-300" },
+                        rejected: { t: "مرفوض", cls: "bg-red-100 text-red-800 border-red-300" },
+                      };
+                      const st = statusLabel[s.status] || { t: s.status, cls: "" };
+                      const ref = s.transfer_batch_id || s.farm_transfer_id || s.id;
+                      return (
+                        <TableRow key={s.id}>
+                          <TableCell className="whitespace-nowrap">{(s.created_at || "").slice(0, 10) || "—"}</TableCell>
+                          <TableCell>{s.family_number || familyName(s.family_id) || "—"}</TableCell>
+                          <TableCell className="font-semibold">{s.egg_count}</TableCell>
+                          <TableCell>{s.received_egg_count ?? "—"}</TableCell>
+                          <TableCell>{s.damaged_count || 0}</TableCell>
+                          <TableCell><Badge variant="outline" className={st.cls}>{st.t}</Badge></TableCell>
+                          <TableCell className="text-xs">{s.hatch_batch_id ? ((hatchBatchMap as any)[s.hatch_batch_id] || "—") : "—"}</TableCell>
+                          <TableCell className="text-xs">{s.received_by ? ((receiverMap as any)[s.received_by] || "—") : "—"}</TableCell>
+                          <TableCell className="text-[10px] font-mono">{String(ref).slice(0, 8)}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{s.receipt_notes || s.rejection_reason || "—"}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                <div className="text-[11px] text-muted-foreground border-t pt-2">
+                  ملاحظة: البيانات أعلاه مستخرجة من شحنات النقل للمعمل (farm_to_hatchery_shipments). الحقول غير المتوفرة تظهر بـ "—" دون افتراض أي قيم.
+                </div>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
