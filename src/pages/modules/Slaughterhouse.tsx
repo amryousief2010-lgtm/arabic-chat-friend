@@ -999,6 +999,21 @@ const Slaughterhouse = () => {
           <div>
             <p className="text-xs text-muted-foreground">النعام القائم 🐦</p>
             <p className="text-2xl font-bold text-primary">{liveBalance}</p>
+            <p
+              className="mt-0.5 text-[11px] font-semibold text-violet-700 dark:text-violet-300"
+              title={
+                liveValueInfo.hasMissing
+                  ? `توجد دفعات بدون تكلفة شراء مسجلة (${liveValueInfo.missingCount} طائر)، لذلك لا يمكن حساب قيمة القائم بدقة.`
+                  : "هذه القيمة تمثل التكلفة المحاسبية للنعام القائم الموجود حاليًا، وليست قيمة البيع السوقية."
+              }
+            >
+              قيمة القائم:{" "}
+              {liveValueInfo.total > 0
+                ? `${liveValueInfo.total.toLocaleString("en-US", { maximumFractionDigits: 0 })} ج.م${liveValueInfo.hasMissing ? " *" : ""}`
+                : liveValueInfo.hasMissing
+                  ? "غير محسوبة"
+                  : "—"}
+            </p>
             {isExecManager && (
               <button
                 type="button"
