@@ -95,6 +95,8 @@ export default function CourierOrderCustodyTab() {
   const [returnReason, setReturnReason] = useState("customer_refused");
   const [returnNotes, setReturnNotes] = useState("");
   const [returnKind, setReturnKind] = useState<"partial" | "full">("partial");
+  const [groupByDay, setGroupByDay] = useState(true);
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
 
   const load = async () => {
     setLoading(true);
