@@ -56,7 +56,6 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
   const [saving, setSaving] = useState(false);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((p) => ({ ...p, [k]: v }));
-
   const reset = () => setForm(initial);
 
   const validate = (): string | null => {
@@ -80,23 +79,29 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
       return;
     }
     setSaving(true);
+    let createdProductId: string | null = null;
+    let createdItemId: string | null = null;
     try {
       const name = form.name.trim();
       const sku = (form.sku.trim() || genSku()).toUpperCase();
       const category = form.category;
       const unit = form.unit;
+      const barcode = form.barcode.trim() || null;
+      const openQty = Number(form.opening_qty) || 0;
+      const unitCost = Number(form.unit_cost) || 0;
+      const salePrice = Number(form.sale_price) || 0;
+      const lowStock = Number(form.low_stock_threshold) || 0;
 
-      // 1) Duplicate check inside main warehouse (same name+unit+category)
+      // 1) Duplicate check: same name+unit+category inside main warehouse
       const dup = await supabase
         .from("inventory_items")
-        .select("id,name,unit,category")
+        .select("id,category")
         .eq("warehouse_id", mainWarehouseId)
         .eq("name", name)
         .eq("unit", unit)
-        .limit(5);
+        .limit(20);
       if (dup.error) throw dup.error;
-      const sameCat = (dup.data || []).find((r: any) => (r.category || "") === category);
-      if (sameCat) {
+      if ((dup.data || []).some((r: any) => (r.category || "") === category)) {
         toast({
           title: "الصنف موجود بالفعل",
           description: "الصنف موجود بالفعل في المخزن الرئيسي. لإضافة كمية استخدم حركة توريد أو رصيد افتتاحي.",
@@ -106,62 +111,72 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
         return;
       }
 
-      // 2) SKU unique check (globally)
-      if (form.sku.trim()) {
-        const skuCheck = await supabase.from("inventory_items").select("id").eq("sku", sku).limit(1);
-        if (skuCheck.error) throw skuCheck.error;
-        if ((skuCheck.data || []).length > 0) {
-          toast({ title: "SKU مكرر", description: "كود الصنف مستخدم بالفعل", variant: "destructive" });
-          setSaving(false);
-          return;
-        }
+      // 2) SKU unique in inventory_items.item_code (per identity index uses warehouse+module+category+item_code; we enforce global uniqueness for clarity)
+      const skuCheck = await supabase.from("inventory_items").select("id").eq("item_code", sku).limit(1);
+      if (skuCheck.error) throw skuCheck.error;
+      if ((skuCheck.data || []).length > 0) {
+        toast({ title: "SKU مكرر", description: "كود الصنف مستخدم بالفعل", variant: "destructive" });
+        setSaving(false);
+        return;
       }
 
-      // 3) Barcode unique check (if provided) — stored inside notes prefix if no column.
-      // inventory_items has no barcode column; we embed it in notes safely.
-      let notesValue = form.notes.trim();
-      if (form.barcode.trim()) {
-        const code = form.barcode.trim();
-        const bc = await supabase
-          .from("inventory_items")
-          .select("id,notes")
-          .ilike("notes", `%[BARCODE:${code}]%`)
-          .limit(1);
+      // 3) Barcode unique in products
+      if (barcode) {
+        const bc = await supabase.from("products").select("id").eq("barcode", barcode).limit(1);
         if (bc.error) throw bc.error;
         if ((bc.data || []).length > 0) {
           toast({ title: "الباركود مكرر", description: "الباركود مستخدم لصنف آخر", variant: "destructive" });
           setSaving(false);
           return;
         }
-        notesValue = `[BARCODE:${code}] ${notesValue}`.trim();
       }
 
-      // 4) Insert item with stock = 0 (opening balance handled via movement)
+      // 4) Create product (master record)
+      const prod = await supabase
+        .from("products")
+        .insert({
+          name,
+          description: form.notes.trim() || null,
+          price: salePrice,
+          unit,
+          stock: 0,
+          category,
+          cost_price: unitCost,
+          low_stock_threshold: Math.round(lowStock) || 10,
+          barcode,
+          is_active: true,
+        })
+        .select("id")
+        .single();
+      if (prod.error) throw prod.error;
+      createdProductId = prod.data!.id;
+
+      // 5) Create inventory_item in main warehouse linked to product
       const insertItem = await supabase
         .from("inventory_items")
         .insert({
           warehouse_id: mainWarehouseId,
+          product_id: createdProductId,
           name,
           category,
           sku,
+          item_code: sku,
           unit,
           stock: 0,
-          unit_cost: Number(form.unit_cost) || 0,
-          low_stock_threshold: Number(form.low_stock_threshold) || 0,
-          notes: notesValue || null,
+          unit_cost: unitCost,
+          low_stock_threshold: lowStock,
+          notes: form.notes.trim() || null,
           is_active: true,
         })
         .select("id")
         .single();
       if (insertItem.error) throw insertItem.error;
-      const itemId = insertItem.data!.id;
+      createdItemId = insertItem.data!.id;
 
-      // 5) Opening balance movement (only if > 0). Trigger will update stock.
-      const openQty = Number(form.opening_qty) || 0;
+      // 6) Opening balance movement (only if > 0). Trigger will update stock.
       if (openQty > 0) {
-        const unitCost = Number(form.unit_cost) || 0;
         const mv = await supabase.from("inventory_movements").insert({
-          item_id: itemId,
+          item_id: createdItemId,
           warehouse_id: mainWarehouseId,
           movement_type: "opening_balance",
           quantity: openQty,
@@ -174,11 +189,7 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
           performed_by: user?.id ?? null,
           approval_status: "posted",
         });
-        if (mv.error) {
-          // Rollback the item to avoid orphan with no movement
-          await supabase.from("inventory_items").delete().eq("id", itemId);
-          throw mv.error;
-        }
+        if (mv.error) throw mv.error;
       }
 
       toast({ title: "تمت الإضافة", description: "تم إضافة الصنف للمخزن الرئيسي بنجاح" });
@@ -186,6 +197,13 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
       onOpenChange(false);
       onCreated?.();
     } catch (e: any) {
+      // Manual rollback in order: item then product
+      try {
+        if (createdItemId) await supabase.from("inventory_items").delete().eq("id", createdItemId);
+        if (createdProductId) await supabase.from("products").delete().eq("id", createdProductId);
+      } catch {
+        /* ignore rollback errors */
+      }
       toast({ title: "خطأ", description: e?.message || "تعذّر حفظ الصنف", variant: "destructive" });
     } finally {
       setSaving(false);
@@ -201,7 +219,7 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
             إضافة صنف جديد للمخزن الرئيسي
           </DialogTitle>
           <DialogDescription>
-            الصنف سيُربط بالمخزن الرئيسي. الرصيد الافتتاحي (إن وُجد) يُسجَّل كحركة <b>رصيد افتتاحي</b> في سجل الحركات.
+            سيتم إنشاء الصنف في كتالوج المنتجات وربطه بالمخزن الرئيسي. الرصيد الافتتاحي (إن وُجد) يُسجَّل كحركة <b>رصيد افتتاحي</b>.
           </DialogDescription>
         </DialogHeader>
 
