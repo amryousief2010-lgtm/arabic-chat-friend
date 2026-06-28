@@ -98,6 +98,11 @@ export default function CourierOrderCustodyTab() {
   const [returnKind, setReturnKind] = useState<"partial" | "full">("partial");
   const [groupByDay, setGroupByDay] = useState(true);
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
+  const [correctOpen, setCorrectOpen] = useState<{ assignment: Assignment; order?: Order } | null>(null);
+  const [correctAction, setCorrectAction] = useState<"edit_collection_amount" | "reverse_collection" | "reverse_return">("edit_collection_amount");
+  const [correctReason, setCorrectReason] = useState("");
+  const [correctAmount, setCorrectAmount] = useState("");
+  const [correctBusy, setCorrectBusy] = useState(false);
   const [handoverOpen, setHandoverOpen] = useState(false);
   const [handoverAmt, setHandoverAmt] = useState("");
   const [handoverNotes, setHandoverNotes] = useState("");
