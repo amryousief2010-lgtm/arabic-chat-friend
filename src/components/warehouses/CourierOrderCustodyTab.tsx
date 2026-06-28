@@ -317,22 +317,28 @@ export default function CourierOrderCustodyTab() {
   const saveReturn = async () => {
     if (!returnOpen) return;
     if (!returnNotes.trim()) { toast({ title: "الملاحظات مطلوبة", variant: "destructive" }); return; }
-    const { error } = await (supabase as any).from("pc_failed_attempts").insert({
+    await (supabase as any).from("pc_failed_attempts").insert({
       order_id: returnOpen.id,
       reason: returnReason,
       notes: returnNotes,
       next_action: returnKind === "full" ? "return_to_warehouse" : "manager_review",
       created_by: user?.id,
     });
-    if (error) { toast({ title: "خطأ", description: error.message, variant: "destructive" }); return; }
     const asn = assignments.find((a) => a.order_id === returnOpen.id);
-    if (asn) {
-      await updateAssignmentStatus(asn.id, returnOpen.id, returnKind === "full" ? "fully_returned" : "partially_returned",
-        returnKind === "full" ? "fully_returned" : "partially_returned");
-    } else {
-      load();
+    if (returnKind === "full" && asn) {
+      const idem = `${asn.id}-${Date.now()}`;
+      const { error } = await (supabase as any).rpc("record_courier_return", {
+        p_assignment_id: asn.id,
+        p_reason: returnReason,
+        p_notes: returnNotes,
+        p_idempotency_key: idem,
+      });
+      if (error) { toast({ title: "تعذّر تسجيل المرتجع", description: error.message, variant: "destructive" }); return; }
+    } else if (asn) {
+      await updateAssignmentStatus(asn.id, returnOpen.id, "partially_returned", "partially_returned");
     }
-    toast({ title: "تم تسجيل المرتجع" });
+    await load();
+    toast({ title: "تم تسجيل المرتجع وإرجاع البضاعة للمخزن" });
     setReturnOpen(null); setReturnNotes(""); setReturnReason("customer_refused");
   };
 
