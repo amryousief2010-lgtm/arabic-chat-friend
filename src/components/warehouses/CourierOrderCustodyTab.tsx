@@ -450,8 +450,8 @@ export default function CourierOrderCustodyTab() {
                                 onClick={() => updateAssignmentStatus(a.id, a.order_id, "with_courier", "out_for_delivery")}>
                                 <Truck className="w-3 h-3" />
                               </Button>
-                              <Button size="sm" variant="outline" className="h-7 px-2" title="تم التسليم للعميل"
-                                onClick={() => updateAssignmentStatus(a.id, a.order_id, "delivered", "delivered")}>
+                              <Button size="sm" variant="outline" className="h-7 px-2" title="تم التسليم للعميل (آجل بدون تحصيل)"
+                                onClick={async () => { if (await recordDeliveryAndCollection(a.order_id, 0)) { toast({ title: "تم التسليم (آجل)" }); load(); } }}>
                                 <CheckCircle2 className="w-3 h-3 text-teal-600" />
                               </Button>
                               <Button size="sm" variant="outline" className="h-7 px-2" title="تحصيل"
