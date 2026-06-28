@@ -429,6 +429,12 @@ export default function CourierOrderCustodyTab() {
                 </div>
               )}
 
+              {/* Group toggle */}
+              <div className="flex items-center justify-end gap-2 text-xs">
+                <Label className="text-xs cursor-pointer">تجميع حسب اليوم</Label>
+                <Switch checked={groupByDay} onCheckedChange={setGroupByDay} />
+              </div>
+
               {/* Assignments table */}
               <div className="border rounded-md overflow-x-auto">
                 <Table>
@@ -446,58 +452,93 @@ export default function CourierOrderCustodyTab() {
                   <TableBody>
                     {currentAssignments.length === 0 ? (
                       <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا توجد أوردرات في عهدة هذا المندوب بعد.</TableCell></TableRow>
-                    ) : currentAssignments.map((a) => {
-                      const o = orders.find((x) => x.id === a.order_id);
-                      const trk = tracking[a.order_id];
-                      const col = collections.find((c) => c.order_id === a.order_id);
-                      const dueAmt = Number(o?.total || 0);
-                      const colAmt = Number(col?.amount_collected || 0);
-                      const remain = Math.max(0, dueAmt - colAmt);
-                      const stClass = STATUS_COLOR[a.status] || STATUS_COLOR[trk || ""] || "bg-gray-100 text-gray-800";
-                      return (
-                        <TableRow key={a.id}>
-                          <TableCell className="font-mono">{o?.order_number ?? a.order_id.slice(0, 8)}</TableCell>
-                          <TableCell>{o?.customer_name ?? "—"}</TableCell>
-                          <TableCell className="font-mono">{fmt(dueAmt)}</TableCell>
-                          <TableCell>
-                            <Badge className={stClass}>{COURIER_STATUS_LABEL[trk || a.status] || a.status}</Badge>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">
-                            {col ? <>
-                              <span className="text-emerald-700">{fmt(colAmt)}</span>
-                              {remain > 0 && <span className="text-amber-700"> / متبقي {fmt(remain)}</span>}
-                            </> : <span className="text-muted-foreground">—</span>}
-                          </TableCell>
-                          <TableCell className="text-xs">{new Date(a.assigned_at).toLocaleDateString("ar-EG")}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-1 flex-wrap">
-                              <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => setDetailsOrder(o ?? null)} disabled={!o}>
-                                <Eye className="w-3 h-3" />
-                              </Button>
-                              <Button size="sm" variant="outline" className="h-7 px-2" title="قيد التوزيع"
-                                onClick={() => updateAssignmentStatus(a.id, a.order_id, "with_courier", "out_for_delivery")}>
-                                <Truck className="w-3 h-3" />
-                              </Button>
-                              <Button size="sm" variant="outline" className="h-7 px-2" title="تم التسليم للعميل (آجل بدون تحصيل)"
-                                onClick={async () => { if (await recordDeliveryAndCollection(a.order_id, 0)) { toast({ title: "تم التسليم (آجل)" }); load(); } }}>
-                                <CheckCircle2 className="w-3 h-3 text-teal-600" />
-                              </Button>
-                              <Button size="sm" variant="outline" className="h-7 px-2" title="تحصيل"
-                                onClick={() => { if (o) { setCollectOpen(o); setCollectAmt(String(dueAmt - colAmt)); } }}
-                                disabled={!o}>
-                                <Coins className="w-3 h-3 text-emerald-600" />
-                              </Button>
-                              <Button size="sm" variant="outline" className="h-7 px-2" title="مرتجع"
-                                onClick={() => { if (o) setReturnOpen(o); }} disabled={!o}>
-                                <RotateCcw className="w-3 h-3 text-rose-600" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    ) : (() => {
+                      const renderOrderRow = (a: Assignment, indent = false) => {
+                        const o = orders.find((x) => x.id === a.order_id);
+                        const trk = tracking[a.order_id];
+                        const col = collections.find((c) => c.order_id === a.order_id);
+                        const dueAmt = Number(o?.total || 0);
+                        const colAmt = Number(col?.amount_collected || 0);
+                        const remain = Math.max(0, dueAmt - colAmt);
+                        const stClass = STATUS_COLOR[a.status] || STATUS_COLOR[trk || ""] || "bg-gray-100 text-gray-800";
+                        return (
+                          <TableRow key={a.id} className={indent ? "bg-muted/20" : ""}>
+                            <TableCell className={`font-mono ${indent ? "pr-8" : ""}`}>{o?.order_number ?? a.order_id.slice(0, 8)}</TableCell>
+                            <TableCell>{o?.customer_name ?? "—"}</TableCell>
+                            <TableCell className="font-mono">{fmt(dueAmt)}</TableCell>
+                            <TableCell>
+                              <Badge className={stClass}>{COURIER_STATUS_LABEL[trk || a.status] || a.status}</Badge>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {col ? <>
+                                <span className="text-emerald-700">{fmt(colAmt)}</span>
+                                {remain > 0 && <span className="text-amber-700"> / متبقي {fmt(remain)}</span>}
+                              </> : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="text-xs">{new Date(a.assigned_at).toLocaleDateString("ar-EG")}</TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 flex-wrap">
+                                <Button size="sm" variant="outline" className="h-7 px-2 gap-1" onClick={() => setDetailsOrder(o ?? null)} disabled={!o} title="تفاصيل الأوردر">
+                                  <Eye className="w-3 h-3" /> <span className="text-xs">تفاصيل</span>
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 px-2" title="قيد التوزيع"
+                                  onClick={() => updateAssignmentStatus(a.id, a.order_id, "with_courier", "out_for_delivery")}>
+                                  <Truck className="w-3 h-3" />
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 px-2" title="تم التسليم للعميل (آجل بدون تحصيل)"
+                                  onClick={async () => { if (await recordDeliveryAndCollection(a.order_id, 0)) { toast({ title: "تم التسليم (آجل)" }); load(); } }}>
+                                  <CheckCircle2 className="w-3 h-3 text-teal-600" />
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 px-2" title="تحصيل"
+                                  onClick={() => { if (o) { setCollectOpen(o); setCollectAmt(String(dueAmt - colAmt)); } }}
+                                  disabled={!o}>
+                                  <Coins className="w-3 h-3 text-emerald-600" />
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 px-2" title="مرتجع"
+                                  onClick={() => { if (o) setReturnOpen(o); }} disabled={!o}>
+                                  <RotateCcw className="w-3 h-3 text-rose-600" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      };
+
+                      if (!groupByDay) return currentAssignments.map((a) => renderOrderRow(a));
+
+                      return groupedByDay.flatMap((grp) => {
+                        const isOpen = expandedDays[grp.day] ?? false;
+                        const rows: JSX.Element[] = [
+                          <TableRow key={`day-${grp.day}`} className="bg-primary/5 hover:bg-primary/10 cursor-pointer font-medium"
+                            onClick={() => setExpandedDays((s) => ({ ...s, [grp.day]: !isOpen }))}>
+                            <TableCell className="font-bold">
+                              <div className="flex items-center gap-2">
+                                {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                                <span>{new Date(grp.day).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })}</span>
+                                <Badge variant="secondary" className="text-xs">{grp.items.length} أوردر</Badge>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">—</TableCell>
+                            <TableCell className="font-mono font-bold">{fmt(grp.totalValue)}</TableCell>
+                            <TableCell className="text-xs">
+                              <span className="text-emerald-700">مُسلَّم: {grp.delivered}</span>
+                              {grp.returns > 0 && <span className="text-rose-700"> · مرتجع: {grp.returns}</span>}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              <span className="text-emerald-700">{fmt(grp.collected)}</span>
+                              {grp.remaining > 0 && <span className="text-amber-700"> / متبقي {fmt(grp.remaining)}</span>}
+                            </TableCell>
+                            <TableCell className="text-xs">{new Date(grp.day).toLocaleDateString("ar-EG")}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{isOpen ? "إخفاء" : "عرض الأوردرات"}</TableCell>
+                          </TableRow>
+                        ];
+                        if (isOpen) grp.items.forEach((a) => rows.push(renderOrderRow(a, true)));
+                        return rows;
+                      });
+                    })()}
                   </TableBody>
                 </Table>
+
               </div>
             </>
           )}
