@@ -241,6 +241,7 @@ const Warehouses = () => {
   const [whForm, setWhForm] = useState({ name: "", type: "general", location: "", description: "" });
 
   const [itemDialog, setItemDialog] = useState(false);
+  const [addMainItemDialog, setAddMainItemDialog] = useState(false);
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
   const [itemForm, setItemForm] = useState({ warehouse_id: "", name: "", category: "", sku: "", unit: "قطعة", stock: 0, low_stock_threshold: 10, unit_cost: 0, expiry_date: "" });
 
