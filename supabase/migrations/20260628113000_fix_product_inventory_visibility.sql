@@ -22,7 +22,7 @@ WHERE orphan.product_id IS NULL
      AND linked.warehouse_id = orphan.warehouse_id
     WHERE p.is_active = true
       AND linked.is_active = true
-      AND btrim(lower(regexp_replace(p.name, '\\s+', ' ', 'g'))) = btrim(lower(regexp_replace(orphan.name, '\\s+', ' ', 'g')))
+      AND btrim(lower(regexp_replace(p.name, '[[:space:]]+', ' ', 'g'))) = btrim(lower(regexp_replace(orphan.name, '[[:space:]]+', ' ', 'g')))
   );
 
 CREATE OR REPLACE FUNCTION public.auto_link_product_to_customer_warehouses()
