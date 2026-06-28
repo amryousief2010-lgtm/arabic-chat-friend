@@ -598,16 +598,17 @@ const Warehouses = () => {
   };
 
   // ============ Item CRUD ============
-  const openItemDialog = (it?: InventoryItem) => {
+  const openItemDialog = (it?: InventoryItem, prefilledWarehouseId?: string) => {
     if (it) {
       setEditItem(it);
       setItemForm({ warehouse_id: it.warehouse_id, name: it.name, category: it.category || "", sku: it.sku || "", unit: it.unit, stock: it.stock, low_stock_threshold: it.low_stock_threshold, unit_cost: it.unit_cost, expiry_date: it.expiry_date || "" });
     } else {
       setEditItem(null);
-      setItemForm({ warehouse_id: warehouses[0]?.id || "", name: "", category: "", sku: "", unit: "قطعة", stock: 0, low_stock_threshold: 10, unit_cost: 0, expiry_date: "" });
+      setItemForm({ warehouse_id: prefilledWarehouseId || warehouses[0]?.id || "", name: "", category: "", sku: "", unit: "قطعة", stock: 0, low_stock_threshold: 10, unit_cost: 0, expiry_date: "" });
     }
     setItemDialog(true);
   };
+
 
   const saveItem = async () => {
     if (!itemForm.name.trim() || !itemForm.warehouse_id) {
@@ -1514,6 +1515,14 @@ const Warehouses = () => {
                 : [];
               return (
                 <TabsContent key={t.value} value={t.value} className="space-y-4">
+                  {t.value === "wh-main" && canManageWarehouses && t.wh && (
+                    <div className="flex justify-end">
+                      <Button onClick={() => openItemDialog(undefined, t.wh!.id)}>
+                        <Plus className="w-4 h-4 ml-2" />
+                        إضافة صنف جديد للمخزن الرئيسي
+                      </Button>
+                    </div>
+                  )}
                   {t.value !== "wh-activity" && (
                     <WarehouseKpisBlock
                       warehouseId={t.wh?.id}
@@ -1522,6 +1531,7 @@ const Warehouses = () => {
                       movements={movements}
                     />
                   )}
+
                   {t.value !== "wh-activity" && t.wh && (
                     <details className="group rounded-2xl border border-primary/20 bg-card overflow-hidden">
                       <summary className="cursor-pointer select-none px-4 py-3 flex items-center gap-2 bg-gradient-to-l from-primary/5 to-transparent hover:bg-primary/10 transition-colors">
