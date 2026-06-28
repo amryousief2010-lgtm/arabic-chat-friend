@@ -88,6 +88,7 @@ export default function RouteDistributionPreparationTab() {
   const [newCustodyNotes, setNewCustodyNotes] = useState("");
   const [creatingCustody, setCreatingCustody] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [idempotencyKey, setIdempotencyKey] = useState<string>("");
   const [lastDispatch, setLastDispatch] = useState<{ courierName: string; ordersCount: number; customersCount: number; itemsCount: number; at: string; reference: string; movementsCreated: number; unresolved: string[] } | null>(null);
 
 const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
@@ -296,136 +297,47 @@ const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
   };
 
   const approveDispatch = async () => {
+    if (saving) return; // hard guard against double-click
     if (!selectedCustodyId) { toast.error("اختر عهدة مفتوحة أولاً"); return; }
     if (selectedItems.length === 0) { toast.error("اختر طلبات أولاً"); return; }
     setSaving(true);
+    // Stable idempotency key: generated once per confirm-dialog open; survives retries within the same click cycle.
+    const idem = idempotencyKey || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}-${selectedCustodyId.slice(0, 6)}`;
+    if (!idempotencyKey) setIdempotencyKey(idem);
     try {
       const courierName = custodies.find(c => c.id === selectedCustodyId)?.courier_name || "المندوب";
-      const reference = `DIST-${new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14)}-${selectedCustodyId.slice(0, 6)}`;
+      const orderIds = Array.from(new Set(selectedOrders.map(o => o.id)));
 
-      // 1) Resolve inventory_item_id per product from the main warehouse
-      const productIds = Array.from(new Set(selectedItems.map(it => it.product_id).filter(Boolean))) as string[];
-      const invMap = new Map<string, { id: string; unit_cost: number | null }>();
-      if (productIds.length > 0) {
-        const { data: invRows, error: invErr } = await (supabase as any)
-          .from("inventory_items")
-          .select("id, product_id, unit_cost")
-          .eq("warehouse_id", MAIN_WAREHOUSE_ID)
-          .eq("is_active", true)
-          .in("product_id", productIds);
-        if (invErr) throw invErr;
-        for (const r of (invRows ?? [])) invMap.set(r.product_id, { id: r.id, unit_cost: r.unit_cost });
-      }
-
-      // 2) Insert real inventory_movements (type=out) — DB trigger decrements stock & assigns movement_no
-      const unresolved: string[] = [];
-      const movementsPayload = selectedItems
-        .map(it => {
-          const inv = it.product_id ? invMap.get(it.product_id) : undefined;
-          if (!inv) { unresolved.push(it.product_name); return null; }
-          const ord = orders.find(o => o.id === it.order_id)!;
-          return {
-            item_id: inv.id,
-            warehouse_id: MAIN_WAREHOUSE_ID,
-            source_warehouse_id: MAIN_WAREHOUSE_ID,
-            movement_type: "out",
-            quantity: Number(it.quantity || 0),
-            unit_cost: inv.unit_cost ?? 0,
-            party: `عهدة المندوب — ${courierName}`,
-            reference,
-            reference_type: "courier_custody",
-            reference_id: selectedCustodyId,
-            module: "courier_distribution",
-            reason: "صرف خط توزيع",
-            notes: `${ord.order_number} — ${ord.customer_name || ""}`.trim(),
-            performed_by: user?.id ?? null,
-            performed_at: new Date().toISOString(),
-            product_id: it.product_id,
-            order_item_id: it.id,
-            approval_status: "posted",
-          };
-        })
-        .filter(Boolean) as any[];
-
-      if (movementsPayload.length === 0) {
-        throw new Error(`لا يوجد أي صنف مرتبط بالمخزن الرئيسي. تعذر التجهيز. الأصناف: ${unresolved.join("، ")}`);
-      }
-      const movementByOrderItem = new Map<string, string>();
-      const { data: movRows, error: movErr } = await (supabase as any)
-        .from("inventory_movements")
-        .insert(movementsPayload)
-        .select("id, order_item_id");
-      if (movErr) throw movErr;
-      for (const m of (movRows ?? [])) if (m.order_item_id) movementByOrderItem.set(m.order_item_id, m.id);
-
-      // 3) Insert custody lines (linked to the inventory_movement when resolved)
-      const linesPayload = selectedItems.map(it => {
-        const ord = orders.find(o => o.id === it.order_id)!;
-        const inv = it.product_id ? invMap.get(it.product_id) : undefined;
-        return {
-          custody_id: selectedCustodyId,
-          line_type: "out",
-          customer_id: ord.customer_id,
-          customer_name: ord.customer_name,
-          order_id: it.order_id,
-          inventory_item_id: inv?.id ?? null,
-          inventory_movement_id: movementByOrderItem.get(it.id) ?? null,
-          product_name: it.product_name,
-          quantity: Number(it.quantity || 0),
-          unit: it.unit || "وحدة",
-          unit_price: Number(it.unit_price || 0),
-          total_value: Number(it.quantity || 0) * Number(it.unit_price || 0),
-          cash_collected: 0,
-          performed_at: new Date().toISOString(),
-          performed_by: user?.id ?? null,
-          notes: `صرف خط ${reference} — ${ord.order_number}`,
-        };
+      const { data, error } = await (supabase as any).rpc("approve_distribution_dispatch", {
+        p_custody_id: selectedCustodyId,
+        p_warehouse_id: MAIN_WAREHOUSE_ID,
+        p_order_ids: orderIds,
+        p_idempotency_key: idem,
       });
+      if (error) throw error;
 
-      const { error: linesErr } = await (supabase as any)
-        .from("courier_goods_custody_lines")
-        .insert(linesPayload);
-      if (linesErr) throw linesErr;
-
-      // 4) Link orders to custody (assignments) — upsert prevents duplicate dispatch
-      const assignPayload = selectedOrders.map(ord => ({
-        custody_id: selectedCustodyId,
-        order_id: ord.id,
-        courier_name: courierName,
-        assigned_at: new Date().toISOString(),
-        assigned_by: user?.id ?? null,
-        status: "with_courier",
-      }));
-      const { error: assignErr } = await (supabase as any)
-        .from("courier_order_assignments")
-        .upsert(assignPayload, { onConflict: "order_id" });
-      if (assignErr) throw assignErr;
-
-      // 5) Move order status forward (pending -> processing) so it leaves the prep list
-      const pendingIds = selectedOrders.filter(o => o.status === "pending").map(o => o.id);
-      if (pendingIds.length > 0) {
-        await (supabase as any)
-          .from("orders")
-          .update({ status: "processing" })
-          .in("id", pendingIds);
-      }
+      const result = data as { reference: string; movement_ids: string[]; orders_count: number; items_count: number; unresolved: string[]; idempotent_hit: boolean };
+      const unresolved: string[] = Array.isArray(result?.unresolved) ? result.unresolved : [];
 
       setLastDispatch({
         courierName,
         ordersCount: selectedOrders.length,
         customersCount: customerGroups.length,
-        itemsCount: selectedItems.length,
+        itemsCount: result?.items_count ?? selectedItems.length,
         at: new Date().toISOString(),
-        reference,
-        movementsCreated: movementsPayload.length,
+        reference: result?.reference,
+        movementsCreated: Array.isArray(result?.movement_ids) ? result.movement_ids.length : (result?.items_count ?? 0),
         unresolved,
       });
-      if (unresolved.length > 0) {
+      if (result?.idempotent_hit) {
+        toast.info(`تم استدعاء التجهيز السابق نفسه (${result.reference}) — لم يتم تكرار الصرف`);
+      } else if (unresolved.length > 0) {
         toast.warning(`تم التجهيز مع ${unresolved.length} صنف بدون حركة مخزون (غير مرتبط بالمخزن الرئيسي)`);
       } else {
-        toast.success(`تم تجهيز خط التوزيع ${reference} — ${selectedItems.length} صنف`);
+        toast.success(`تم تجهيز خط التوزيع ${result?.reference} — ${result?.items_count ?? 0} صنف`);
       }
       setSelectedOrderIds(new Set());
+      setIdempotencyKey(""); // reset for next dispatch
       setConfirmOpen(false);
       await loadCustodyLines(selectedCustodyId);
       await loadData();
@@ -435,6 +347,7 @@ const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
       setSaving(false);
     }
   };
+
 
   const selectedCustody = custodies.find(c => c.id === selectedCustodyId) || null;
   const canApprove = !!selectedCustodyId && selectedItems.length > 0 && productTotals.every(p => p.quantity > 0);
