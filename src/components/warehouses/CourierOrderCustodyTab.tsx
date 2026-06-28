@@ -450,6 +450,15 @@ export default function CourierOrderCustodyTab() {
                 <Button onClick={() => setAssignOpen(true)} disabled={!selectedCustody}>
                   <Package2 className="w-4 h-4 ml-1" /> تسليم أوردرات للمندوب
                 </Button>
+                <Button
+                  variant="outline"
+                  className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                  onClick={() => setHandoverOpen(true)}
+                  disabled={!selectedCustody || !current || current.collected <= 0}
+                  title="توريد نقدية المندوب للخزينة الرئيسية بانتظار الاعتماد"
+                >
+                  <Coins className="w-4 h-4 ml-1" /> توريد نقدية ({fmt(current?.collected || 0)} ج.م)
+                </Button>
               </div>
 
               {current && (
