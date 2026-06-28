@@ -321,6 +321,66 @@ const EggsTab = ({ eggs, families, qc }: any) => {
   const [fMonth, setFMonth] = useState("all");
   const [fYear, setFYear] = useState("all");
   const [detailDate, setDetailDate] = useState<string | null>(null);
+  const [transferDetailDate, setTransferDetailDate] = useState<string | null>(null);
+
+  // Fetch lab shipments for transfer status column
+  const { data: labShipments = [] } = useQuery({
+    queryKey: ["farm-shipments-for-eggs-tab"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("farm_to_hatchery_shipments")
+        .select("id, production_date, family_id, family_number, egg_count, received_egg_count, damaged_count, status, received_at, received_by, hatch_batch_id, created_at, transfer_batch_id, farm_transfer_id, receipt_notes, rejection_reason")
+        .order("production_date", { ascending: false })
+        .limit(5000);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  // Fetch hatch batch numbers for display
+  const labBatchIds = useMemo(
+    () => Array.from(new Set(labShipments.map((s: any) => s.hatch_batch_id).filter(Boolean))) as string[],
+    [labShipments]
+  );
+  const { data: hatchBatchMap = {} } = useQuery({
+    queryKey: ["hatch-batches-by-id", labBatchIds.join(",")],
+    queryFn: async () => {
+      if (!labBatchIds.length) return {};
+      const { data } = await supabase.from("hatch_batches").select("id, batch_number").in("id", labBatchIds);
+      const m: Record<string, string> = {};
+      (data || []).forEach((b: any) => { m[b.id] = b.batch_number; });
+      return m;
+    },
+    enabled: labBatchIds.length > 0,
+  });
+
+  // Fetch receiver names
+  const receiverIds = useMemo(
+    () => Array.from(new Set(labShipments.map((s: any) => s.received_by).filter(Boolean))) as string[],
+    [labShipments]
+  );
+  const { data: receiverMap = {} } = useQuery({
+    queryKey: ["farm-receivers", receiverIds.join(",")],
+    queryFn: async () => {
+      if (!receiverIds.length) return {};
+      const { data } = await supabase.from("profile_directory").select("id, full_name").in("id", receiverIds);
+      const m: Record<string, string> = {};
+      (data || []).forEach((p: any) => { m[p.id] = p.full_name || p.id; });
+      return m;
+    },
+    enabled: receiverIds.length > 0,
+  });
+
+  // Group shipments by production_date
+  const shipmentsByDate = useMemo(() => {
+    const m: Record<string, any[]> = {};
+    labShipments.forEach((s: any) => {
+      if (!s.production_date) return;
+      (m[s.production_date] = m[s.production_date] || []).push(s);
+    });
+    return m;
+  }, [labShipments]);
+
 
   const filtered = useMemo(() => eggs.filter((e: any) => {
     if (fFamily !== "all" && e.family_id !== fFamily) return false;
