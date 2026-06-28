@@ -391,6 +391,26 @@ export default function CourierOrderCustodyTab() {
     } finally { setHandoverBusy(false); }
   };
 
+  const submitCorrection = async () => {
+    if (!correctOpen) return;
+    if (!correctReason.trim()) { toast({ title: "السبب مطلوب", variant: "destructive" }); return; }
+    setCorrectBusy(true);
+    try {
+      const { error } = await (supabase as any).rpc("correct_courier_assignment", {
+        p_assignment_id: correctOpen.assignment.id,
+        p_action: correctAction,
+        p_reason: correctReason.trim(),
+        p_new_amount: correctAction === "edit_collection_amount" ? Number(correctAmount || 0) : null,
+      });
+      if (error) throw error;
+      toast({ title: "تم التصحيح وتسجيله في السجل" });
+      setCorrectOpen(null); setCorrectReason(""); setCorrectAmount("");
+      await load();
+    } catch (e: any) {
+      toast({ title: "تعذّر التصحيح", description: e?.message || "", variant: "destructive" });
+    } finally { setCorrectBusy(false); }
+  };
+
   // ── Render ──────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4" dir="rtl">
