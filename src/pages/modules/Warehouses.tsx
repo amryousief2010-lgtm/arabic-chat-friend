@@ -1757,6 +1757,21 @@ const Warehouses = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Add Main Warehouse Item Dialog (premium, dedicated) */}
+      {(() => {
+        const mainWh = warehouses.find((w) => isMainWarehouseName(w.name));
+        if (!mainWh) return null;
+        return (
+          <AddMainWarehouseItemDialog
+            open={addMainItemDialog}
+            onOpenChange={setAddMainItemDialog}
+            mainWarehouseId={mainWh.id}
+            mainWarehouseName={mainWh.name}
+            onCreated={fetchAll}
+          />
+        );
+      })()}
+
       {/* Item Dialog */}
       <Dialog open={itemDialog} onOpenChange={setItemDialog}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
