@@ -204,6 +204,31 @@ export default function CourierOrderCustodyTab() {
     [assignments, selectedCustody]
   );
 
+  // Group by assignment date (YYYY-MM-DD)
+  const groupedByDay = useMemo(() => {
+    const map = new Map<string, Assignment[]>();
+    currentAssignments.forEach((a) => {
+      const day = (a.assigned_at || "").slice(0, 10);
+      if (!map.has(day)) map.set(day, []);
+      map.get(day)!.push(a);
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+      .map(([day, items]) => {
+        const totalValue = items.reduce((s, a) => {
+          const o = orders.find((x) => x.id === a.order_id);
+          return s + Number(o?.total || 0);
+        }, 0);
+        const collected = items.reduce((s, a) => {
+          const c = collections.find((cl) => cl.order_id === a.order_id);
+          return s + Number(c?.amount_collected || 0);
+        }, 0);
+        const delivered = items.filter((a) => ["delivered", "collected", "completed"].includes(a.status)).length;
+        const returns = items.filter((a) => ["partially_returned", "fully_returned"].includes(a.status)).length;
+        return { day, items, totalValue, collected, delivered, returns, remaining: Math.max(0, totalValue - collected) };
+      });
+  }, [currentAssignments, orders, collections]);
+
   // ── Actions ─────────────────────────────────────────────────────────────
   const handleAssign = async () => {
     if (!selectedCustody || assignOrderIds.length === 0) return;
