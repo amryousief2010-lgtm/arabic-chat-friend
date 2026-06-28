@@ -175,6 +175,22 @@ const Slaughterhouse = () => {
     const rejected = active.reduce((s, b) => s + (b.rejected_birds || 0), 0);
     return Math.max(received - doa - slaughtered - preDead - rejected + adjustmentsSum, 0);
   })();
+  // قيمة النعام القائم (تكلفة محاسبية فقط — ليست سعر بيع)
+  // لكل دفعة استلام غير مؤرشفة وغير مستبعدة من التكلفة:
+  //   value = current_alive_count × cost_per_bird_current (snapshot per receipt)
+  const liveValueInfo = (() => {
+    let total = 0;
+    let missingCount = 0;
+    for (const r of receipts as any[]) {
+      if (r.archived || r.excluded_from_costing) continue;
+      const alive = Number(r.current_alive_count || 0);
+      if (alive <= 0) continue;
+      const cpb = Number(r.cost_per_bird_current || 0);
+      if (cpb <= 0) { missingCount += alive; continue; }
+      total += alive * cpb;
+    }
+    return { total, missingCount, hasMissing: missingCount > 0 };
+  })();
   const yieldToday = (() => {
     const todays = batches.filter(b => b.slaughter_date === today && b.actual_yield_pct > 0);
     if (!todays.length) return 0;
