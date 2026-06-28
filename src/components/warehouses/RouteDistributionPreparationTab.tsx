@@ -644,11 +644,18 @@ export default function RouteDistributionPreparationTab() {
                 )}
                 <Button
                   className="w-full mt-3 bg-purple-600 hover:bg-purple-700"
-                  disabled={saving || selectedItems.length === 0 || !selectedCustodyId}
-                  onClick={approveDispatch}
+                  disabled={saving || !canApprove}
+                  onClick={() => setConfirmOpen(true)}
+                  title={!selectedCustodyId ? "اختر عهدة أولًا" : selectedItems.length === 0 ? "حدّد طلبًا أولًا" : ""}
                 >
-                  {saving ? <><Loader2 className="h-4 w-4 ml-1 animate-spin" />جاري الاعتماد…</> : <><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد الصرف للمندوب</>}
+                  <CheckCircle2 className="h-4 w-4 ml-1" />
+                  {selectedCustodyId && selectedItems.length > 0 ? "تجهيز خط التوزيع / اعتماد الصرف" : "اعتماد الصرف للمندوب"}
                 </Button>
+                {!canApprove && (
+                  <div className="text-[11px] text-muted-foreground mt-2 text-center">
+                    {!selectedCustodyId ? "اختر عهدة مفتوحة" : "حدّد طلبًا واحدًا على الأقل"}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
