@@ -149,6 +149,8 @@ export default function FeedProductionApprovals({ onChanged }: { onChanged?: () 
     qc.invalidateQueries({ queryKey: ["feed-raw-materials"] });
     qc.invalidateQueries({ queryKey: ["feed-products"] });
     qc.invalidateQueries({ queryKey: ["feed-treasury"] });
+    setReviewFor(null);
+    setReviewNote("");
     onChanged?.();
   };
 
