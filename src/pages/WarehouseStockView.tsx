@@ -623,7 +623,6 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const currentWhLabel = currentSingleScope ? getWhLabel(currentSingleScope) : "";
   const currentStock = currentSingleScope ? getStockMap(currentSingleScope) : {};
   const currentPending = currentSingleScope ? getPendingMap(currentSingleScope) : {};
-  const currentItemIds = currentSingleScope ? getItemIdsMap(currentSingleScope) : {};
   const currentCost = currentSingleScope ? getCostMap(currentSingleScope) : {};
   const currentSku = currentSingleScope ? getSkuMap(currentSingleScope) : {};
   const currentLastMove = currentSingleScope ? getLastMoveMap(currentSingleScope) : {};
