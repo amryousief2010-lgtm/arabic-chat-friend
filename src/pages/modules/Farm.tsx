@@ -786,6 +786,77 @@ const EggsTab = ({ eggs, families, qc }: any) => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Transfer Details Dialog */}
+      <Dialog open={!!transferDetailDate} onOpenChange={(v) => !v && setTransferDetailDate(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>تفاصيل النقل للمعمل — {transferDetailDate}</DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const ships = (transferDetailDate && shipmentsByDate[transferDetailDate]) || [];
+            if (!ships.length) return <div className="text-center text-muted-foreground py-6">لا توجد بيانات نقل لهذا اليوم</div>;
+            const sentTotal = ships.reduce((s: number, x: any) => s + (Number(x.egg_count) || 0), 0);
+            const recvTotal = ships.reduce((s: number, x: any) => s + (Number(x.received_egg_count) || 0), 0);
+            const damagedTotal = ships.reduce((s: number, x: any) => s + (Number(x.damaged_count) || 0), 0);
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <Card className="p-3"><div className="text-xs text-muted-foreground">عدد الشحنات</div><div className="font-bold">{ships.length}</div></Card>
+                  <Card className="p-3"><div className="text-xs text-muted-foreground">إجمالي المرسل</div><div className="font-bold text-emerald-700">{sentTotal}</div></Card>
+                  <Card className="p-3"><div className="text-xs text-muted-foreground">إجمالي المستلم</div><div className="font-bold text-blue-700">{recvTotal || "—"}</div></Card>
+                  <Card className="p-3"><div className="text-xs text-muted-foreground">تالف عند الاستلام</div><div className="font-bold text-red-600">{damagedTotal || 0}</div></Card>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>تاريخ النقل</TableHead>
+                      <TableHead>الأسرة</TableHead>
+                      <TableHead>العدد المرسل</TableHead>
+                      <TableHead>المستلم</TableHead>
+                      <TableHead>التالف</TableHead>
+                      <TableHead>الحالة</TableHead>
+                      <TableHead>دفعة التفقيس</TableHead>
+                      <TableHead>المستلم بواسطة</TableHead>
+                      <TableHead>رقم الحركة</TableHead>
+                      <TableHead>ملاحظات</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {ships.map((s: any) => {
+                      const statusLabel: Record<string, { t: string; cls: string }> = {
+                        pending: { t: "قيد الاستلام", cls: "bg-amber-100 text-amber-800 border-amber-300" },
+                        received: { t: "تم الاستلام", cls: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+                        partial: { t: "استلام جزئي", cls: "bg-orange-100 text-orange-800 border-orange-300" },
+                        rejected: { t: "مرفوض", cls: "bg-red-100 text-red-800 border-red-300" },
+                      };
+                      const st = statusLabel[s.status] || { t: s.status, cls: "" };
+                      const ref = s.transfer_batch_id || s.farm_transfer_id || s.id;
+                      return (
+                        <TableRow key={s.id}>
+                          <TableCell className="whitespace-nowrap">{(s.created_at || "").slice(0, 10) || "—"}</TableCell>
+                          <TableCell>{s.family_number || familyName(s.family_id) || "—"}</TableCell>
+                          <TableCell className="font-semibold">{s.egg_count}</TableCell>
+                          <TableCell>{s.received_egg_count ?? "—"}</TableCell>
+                          <TableCell>{s.damaged_count || 0}</TableCell>
+                          <TableCell><Badge variant="outline" className={st.cls}>{st.t}</Badge></TableCell>
+                          <TableCell className="text-xs">{s.hatch_batch_id ? ((hatchBatchMap as any)[s.hatch_batch_id] || "—") : "—"}</TableCell>
+                          <TableCell className="text-xs">{s.received_by ? ((receiverMap as any)[s.received_by] || "—") : "—"}</TableCell>
+                          <TableCell className="text-[10px] font-mono">{String(ref).slice(0, 8)}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{s.receipt_notes || s.rejection_reason || "—"}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                <div className="text-[11px] text-muted-foreground border-t pt-2">
+                  ملاحظة: البيانات أعلاه مستخرجة من شحنات النقل للمعمل (farm_to_hatchery_shipments). الحقول غير المتوفرة تظهر بـ "—" دون افتراض أي قيم.
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
