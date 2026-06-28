@@ -17854,6 +17854,10 @@ export type Database = {
         Args: { p_slaughter_batch_id: string }
         Returns: Json
       }
+      approve_courier_cash_handover: {
+        Args: { p_note?: string; p_txn_id: string }
+        Returns: Json
+      }
       approve_courier_credit_override: {
         Args: { _line_id: string }
         Returns: string
@@ -19559,6 +19563,10 @@ export type Database = {
           p_notes?: string
           p_reason?: string
         }
+        Returns: Json
+      }
+      reject_courier_cash_handover: {
+        Args: { p_reason: string; p_txn_id: string }
         Returns: Json
       }
       reject_courier_credit_override: {
