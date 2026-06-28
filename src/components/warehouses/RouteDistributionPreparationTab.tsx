@@ -339,15 +339,28 @@ export default function RouteDistributionPreparationTab() {
         .from("courier_order_assignments")
         .upsert(assignPayload, { onConflict: "order_id" });
 
-      toast.success(`تم اعتماد صرف ${selectedItems.length} صنف لـ ${customerGroups.length} عميل`);
+      const courierLabel = custodies.find(c => c.id === selectedCustodyId)?.courier_name || courierName;
+      setLastDispatch({
+        courierName: courierLabel,
+        ordersCount: selectedOrders.length,
+        customersCount: customerGroups.length,
+        itemsCount: selectedItems.length,
+        at: new Date().toISOString(),
+      });
+      toast.success(`تم تجهيز خط التوزيع بنجاح — ${selectedItems.length} صنف لـ ${customerGroups.length} عميل`);
       setSelectedOrderIds(new Set());
+      setConfirmOpen(false);
       await loadCustodyLines(selectedCustodyId);
+      await loadData();
     } catch (e: any) {
       toast.error(e.message || "تعذر اعتماد الصرف");
     } finally {
       setSaving(false);
     }
   };
+
+  const selectedCustody = custodies.find(c => c.id === selectedCustodyId) || null;
+  const canApprove = !!selectedCustodyId && selectedItems.length > 0 && productTotals.every(p => p.quantity > 0);
 
   // Kimo statement grouped by customer (from custody lines)
   const customerStatement = useMemo(() => {
