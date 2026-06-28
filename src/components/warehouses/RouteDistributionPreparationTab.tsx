@@ -34,7 +34,7 @@ interface OrderItemRow {
   product_name: string;
   quantity: number;
   unit_price: number;
-  unit: string | null;
+  unit?: string | null;
 }
 
 interface CustodyRow {
@@ -91,13 +91,13 @@ export default function RouteDistributionPreparationTab() {
   const [idempotencyKey, setIdempotencyKey] = useState<string>("");
   const [lastDispatch, setLastDispatch] = useState<{ courierName: string; ordersCount: number; customersCount: number; itemsCount: number; at: string; reference: string; movementsCreated: number; unresolved: string[] } | null>(null);
 
-const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
+  const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
 
-const chunkArray = <T,>(arr: T[], size: number) => {
-  const chunks: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
-  return chunks;
-};
+  const chunkArray = <T,>(arr: T[], size: number) => {
+    const chunks: T[][] = [];
+    for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
+    return chunks;
+  };
 
   const createCustody = async () => {
     const name = newCourierName.trim();
@@ -193,13 +193,13 @@ const chunkArray = <T,>(arr: T[], size: number) => {
           chunkArray(orderIds, 80).map(ids =>
             (supabase as any)
               .from("order_items")
-              .select("id, order_id, product_id, product_name, quantity, unit_price, unit")
+              .select("id, order_id, product_id, product_name, quantity, unit_price")
               .in("order_id", ids)
           )
         );
         const itemError = itemChunks.find(res => res.error)?.error;
         if (itemError) throw new Error("خطأ قراءة أصناف الطلبات: " + itemError.message);
-        setItems(itemChunks.flatMap(res => res.data ?? []));
+        setItems(itemChunks.flatMap(res => res.data ?? []).map((it: any) => ({ ...it, unit: it.unit ?? null })));
       } else {
         setItems([]);
       }
@@ -363,7 +363,7 @@ const chunkArray = <T,>(arr: T[], size: number) => {
 
 
   const selectedCustody = custodies.find(c => c.id === selectedCustodyId) || null;
-  const canApprove = !!selectedCustodyId && selectedOrders.length > 0 && productTotals.every(p => p.quantity > 0);
+  const canApprove = !!selectedCustodyId && selectedOrders.length > 0 && productTotals.length > 0 && productTotals.every(p => p.quantity > 0);
 
   // Kimo statement grouped by customer (from custody lines)
   const customerStatement = useMemo(() => {
@@ -668,7 +668,7 @@ const chunkArray = <T,>(arr: T[], size: number) => {
                   onClick={() => {
                     if (!selectedCustodyId) { toast.error("اختر عهدة مفتوحة أولًا (أو افتح عهدة جديدة من الأعلى)"); return; }
                     if (selectedOrders.length === 0) { toast.error("حدّد طلبًا واحدًا على الأقل من قائمة طلبات قسم التسويق"); return; }
-                    if (selectedItems.length === 0) { toast.warning("تم تحديد الطلب، لكن أصنافه لم تظهر في المعاينة بعد. اضغط تحديث أو انتظر لحظة ثم أعد المحاولة."); return; }
+                    if (selectedItems.length === 0) { toast.warning("الطلب محدد فعلاً، لكن أصنافه لم تتحمّل بعد. اضغط تحديث أو انتظر لحظة ثم أعد المحاولة."); return; }
                     if (!productTotals.every(p => p.quantity > 0)) { toast.error("بعض الأصناف بكمية صفر — راجع الكميات"); return; }
                     setConfirmOpen(true);
                   }}
@@ -678,7 +678,13 @@ const chunkArray = <T,>(arr: T[], size: number) => {
                 </Button>
                 {!canApprove && (
                   <div className="text-[11px] text-muted-foreground mt-2 text-center">
-                    {!selectedCustodyId ? "اختر عهدة مفتوحة" : "حدّد طلبًا واحدًا على الأقل"}
+                    {!selectedCustodyId
+                      ? "اختر عهدة مفتوحة"
+                      : selectedOrders.length === 0
+                        ? "حدّد طلبًا واحدًا على الأقل"
+                        : productTotals.length === 0
+                          ? "الطلب محدد — جاري/تعذر تحميل الأصناف، اضغط تحديث"
+                          : "راجع كميات الأصناف"}
                   </div>
                 )}
               </CardContent>
