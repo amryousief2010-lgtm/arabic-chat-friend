@@ -1515,6 +1515,14 @@ const Warehouses = () => {
                 : [];
               return (
                 <TabsContent key={t.value} value={t.value} className="space-y-4">
+                  {t.value === "wh-main" && canManageWarehouses && t.wh && (
+                    <div className="flex justify-end">
+                      <Button onClick={() => openItemDialog(undefined, t.wh!.id)}>
+                        <Plus className="w-4 h-4 ml-2" />
+                        إضافة صنف جديد للمخزن الرئيسي
+                      </Button>
+                    </div>
+                  )}
                   {t.value !== "wh-activity" && (
                     <WarehouseKpisBlock
                       warehouseId={t.wh?.id}
@@ -1523,6 +1531,7 @@ const Warehouses = () => {
                       movements={movements}
                     />
                   )}
+
                   {t.value !== "wh-activity" && t.wh && (
                     <details className="group rounded-2xl border border-primary/20 bg-card overflow-hidden">
                       <summary className="cursor-pointer select-none px-4 py-3 flex items-center gap-2 bg-gradient-to-l from-primary/5 to-transparent hover:bg-primary/10 transition-colors">
