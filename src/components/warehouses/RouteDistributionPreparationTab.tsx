@@ -766,6 +766,60 @@ export default function RouteDistributionPreparationTab() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Confirmation dialog */}
+      <Dialog open={confirmOpen} onOpenChange={(o) => !saving && setConfirmOpen(o)}>
+        <DialogContent dir="rtl" className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-purple-600" /> تأكيد اعتماد الصرف للعهدة
+            </DialogTitle>
+            <DialogDescription>
+              سيتم صرف هذه الكميات على عهدة المندوب وربطها بالطلبات المحددة. هل تريد المتابعة؟
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="rounded-md border bg-purple-50/60 p-2">
+              <div className="text-xs text-muted-foreground">المندوب / العهدة</div>
+              <div className="font-bold">{selectedCustody?.courier_name || "—"}</div>
+            </div>
+            <div className="rounded-md border bg-orange-50/60 p-2">
+              <div className="text-xs text-muted-foreground">المخزن المصدر</div>
+              <div className="font-bold">المخزن الرئيسي</div>
+            </div>
+            <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">عدد الطلبات</div><div className="font-bold">{selectedOrders.length}</div></div>
+            <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">عدد العملاء</div><div className="font-bold">{customerGroups.length}</div></div>
+            <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">عدد الأصناف</div><div className="font-bold">{productTotals.length}</div></div>
+            <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">إجمالي الكميات</div><div className="font-bold">{productTotals.reduce((s, p) => s + p.quantity, 0).toLocaleString("ar-EG")}</div></div>
+          </div>
+          <div className="max-h-56 overflow-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>الصنف</TableHead>
+                  <TableHead>الكمية</TableHead>
+                  <TableHead>عملاء</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {productTotals.map((p, i) => (
+                  <TableRow key={i}>
+                    <TableCell>{p.product_name}</TableCell>
+                    <TableCell className="font-mono">{p.quantity} {p.unit}</TableCell>
+                    <TableCell>{p.customers}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={saving}>إلغاء</Button>
+            <Button onClick={approveDispatch} disabled={saving || !canApprove} className="bg-purple-600 hover:bg-purple-700">
+              {saving ? <><Loader2 className="h-4 w-4 ml-1 animate-spin" />جاري التنفيذ…</> : <><CheckCircle2 className="h-4 w-4 ml-1" />نعم، اعتمد الصرف</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
