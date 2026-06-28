@@ -226,11 +226,36 @@ export default function FeedProductionApprovals({ onChanged }: { onChanged?: () 
                       <TableCell>{fmt(p.unit_cost)} ج/كجم</TableCell>
                       <TableCell>
                         {warns.length > 0 ? (
-                          <div title={warns.join("\n")}>
-                            <Badge variant="destructive" className="gap-1">
-                              <AlertTriangle className="h-3 w-3" /> غير طبيعي
-                            </Badge>
-                          </div>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button type="button" className="inline-flex items-center gap-1 focus:outline-none">
+                                <Badge variant="destructive" className="gap-1 cursor-pointer">
+                                  <AlertTriangle className="h-3 w-3" /> يحتاج مراجعة
+                                </Badge>
+                                <Info className="h-3.5 w-3.5 text-amber-700" aria-label="عرض سبب المراجعة" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-96 text-sm space-y-3" align="end">
+                              <div className="font-semibold text-amber-800 flex items-center gap-1">
+                                <AlertTriangle className="h-4 w-4" /> سبب المراجعة
+                              </div>
+                              {warns.map((w, idx) => (
+                                <div key={idx} className="border-r-2 border-amber-400 pr-2 space-y-1">
+                                  <div className="font-medium">{w.label} ({w.direction} من المعتاد)</div>
+                                  <div className="text-xs text-muted-foreground leading-relaxed">{w.text}</div>
+                                  <div className="grid grid-cols-2 gap-1 text-xs pt-1">
+                                    <div>القيمة الحالية: <b>{fmt(w.current)} ج/كجم</b></div>
+                                    <div>متوسط 30 يوم: <b>{fmt(w.average)} ج/كجم</b></div>
+                                    <div>نسبة الانحراف: <b>{fmt(w.deviationPct)}%</b></div>
+                                    <div>عدد الفواتير: <b>{w.sampleCount}</b></div>
+                                  </div>
+                                </div>
+                              ))}
+                              <div className="text-[11px] text-muted-foreground pt-1 border-t">
+                                ⓘ هذا تنبيه إعلامي فقط ولا يمنع الاعتماد.
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         ) : (
                           <Badge variant="secondary">طبيعي</Badge>
                         )}
