@@ -459,6 +459,11 @@ export default function CourierOrderCustodyTab() {
                 >
                   <Coins className="w-4 h-4 ml-1" /> توريد نقدية ({fmt(current?.collected || 0)} ج.م)
                 </Button>
+                <Button variant="outline" disabled={!selectedCustody} onClick={() => printStatement("pdf")} title="طباعة كشف حساب المندوب (PDF/A4)">
+                  <Printer className="w-4 h-4 ml-1" /> طباعة كشف
+                </Button>
+                <Button variant="outline" disabled={!selectedCustody} onClick={() => printStatement("xlsx")} title="تصدير كشف حساب المندوب Excel">
+                  <FileSpreadsheet className="w-4 h-4 ml-1" /> Excel
               </div>
 
               {current && (
