@@ -103,6 +103,20 @@ export default function CourierOrderCustodyTab() {
   const [handoverNotes, setHandoverNotes] = useState("");
   const [handoverBusy, setHandoverBusy] = useState(false);
 
+  const printStatement = async (fmt: "pdf" | "xlsx") => {
+    if (!selectedCustody) return;
+    const cust = custodies.find((c) => c.id === selectedCustody);
+    const name = cust?.courier_name || "—";
+    try {
+      const lines = await fetchCourierStatementLines(selectedCustody);
+      if (fmt === "pdf") printCourierStatement(name, selectedCustody, lines);
+      else exportCourierStatementExcel(name, lines);
+    } catch (e: any) {
+      toast({ title: "تعذّر إعداد الكشف", description: e?.message || "", variant: "destructive" });
+    }
+  };
+
+
   const load = async () => {
     setLoading(true);
     const [cstRes, asnRes] = await Promise.all([
