@@ -58,7 +58,7 @@ export default function FeedProductionApprovals({ onChanged }: { onChanged?: () 
 
   const baseline = useMemo(() => {
     const rows = baselineQ.data || [];
-    if (!rows.length) return { avgUnit: 0, avgLaborPerKg: 0 };
+    if (!rows.length) return { avgUnit: 0, avgLaborPerKg: 0, count: 0 };
     const u = rows.reduce((s: number, r: any) => s + Number(r.unit_cost || 0), 0) / rows.length;
     const lpk =
       rows.reduce(
@@ -66,21 +66,55 @@ export default function FeedProductionApprovals({ onChanged }: { onChanged?: () 
           s + (Number(r.qty_produced) > 0 ? Number(r.labor_cost || 0) / Number(r.qty_produced) : 0),
         0,
       ) / rows.length;
-    return { avgUnit: u, avgLaborPerKg: lpk };
+    return { avgUnit: u, avgLaborPerKg: lpk, count: rows.length };
   }, [baselineQ.data]);
 
-  const flag = (p: any) => {
+  type WarnDetail = {
+    metric: "unit_cost" | "labor_per_kg";
+    label: string;
+    current: number;
+    average: number;
+    deviationPct: number;
+    direction: "أعلى" | "أقل";
+    sampleCount: number;
+    text: string;
+  };
+
+  const flag = (p: any): WarnDetail[] => {
     const lpk = Number(p.qty_produced) > 0 ? Number(p.labor_cost || 0) / Number(p.qty_produced) : 0;
-    const warns: string[] = [];
-    if (baseline.avgUnit > 0 && Math.abs(Number(p.unit_cost) - baseline.avgUnit) / baseline.avgUnit > 0.25) {
-      warns.push(
-        `تكلفة الكيلو (${fmt(p.unit_cost)}) ${Number(p.unit_cost) > baseline.avgUnit ? "أعلى" : "أقل"} من متوسط 30 يوم (${fmt(baseline.avgUnit)}) بأكثر من 25%`,
-      );
+    const warns: WarnDetail[] = [];
+    if (baseline.avgUnit > 0) {
+      const cur = Number(p.unit_cost);
+      const dev = ((cur - baseline.avgUnit) / baseline.avgUnit) * 100;
+      if (Math.abs(dev) > 25) {
+        const direction: "أعلى" | "أقل" = cur > baseline.avgUnit ? "أعلى" : "أقل";
+        warns.push({
+          metric: "unit_cost",
+          label: "تكلفة الكيلو",
+          current: cur,
+          average: baseline.avgUnit,
+          deviationPct: Math.abs(dev),
+          direction,
+          sampleCount: baseline.count,
+          text: `سبب المراجعة: تكلفة الكيلو ${direction} عن المعتاد. القيمة الحالية = ${fmt(cur)} ج/كجم، متوسط آخر 30 يوم = ${fmt(baseline.avgUnit)} ج/كجم، نسبة الانحراف = ${fmt(Math.abs(dev))}%. تم حساب المتوسط من ${baseline.count} فواتير معتمدة.`,
+        });
+      }
     }
-    if (baseline.avgLaborPerKg > 0 && Math.abs(lpk - baseline.avgLaborPerKg) / baseline.avgLaborPerKg > 0.25) {
-      warns.push(
-        `أجرة التصنيع/كجم (${fmt(lpk)}) خارج متوسط 30 يوم (${fmt(baseline.avgLaborPerKg)}) بأكثر من 25%`,
-      );
+    if (baseline.avgLaborPerKg > 0) {
+      const dev = ((lpk - baseline.avgLaborPerKg) / baseline.avgLaborPerKg) * 100;
+      if (Math.abs(dev) > 25) {
+        const direction: "أعلى" | "أقل" = lpk > baseline.avgLaborPerKg ? "أعلى" : "أقل";
+        warns.push({
+          metric: "labor_per_kg",
+          label: "أجرة التصنيع لكل كجم",
+          current: lpk,
+          average: baseline.avgLaborPerKg,
+          deviationPct: Math.abs(dev),
+          direction,
+          sampleCount: baseline.count,
+          text: `سبب المراجعة: أجرة التصنيع لكل كجم ${direction === "أقل" ? "منخفضة" : "مرتفعة"} عن المعتاد. القيمة الحالية = ${fmt(lpk)} ج/كجم، متوسط آخر 30 يوم = ${fmt(baseline.avgLaborPerKg)} ج/كجم، نسبة الانحراف = ${fmt(Math.abs(dev))}%. تم حساب المتوسط من ${baseline.count} فواتير معتمدة.`,
+        });
+      }
     }
     return warns;
   };
