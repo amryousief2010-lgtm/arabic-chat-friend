@@ -342,7 +342,7 @@ const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
             performed_at: new Date().toISOString(),
             product_id: it.product_id,
             order_item_id: it.id,
-            approval_status: "approved",
+            approval_status: "posted",
           };
         })
         .filter(Boolean) as any[];
