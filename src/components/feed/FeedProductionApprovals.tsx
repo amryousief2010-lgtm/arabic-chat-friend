@@ -123,7 +123,7 @@ export default function FeedProductionApprovals({ onChanged }: { onChanged?: () 
     const warns = flag(p);
     if (warns.length) {
       const ok = window.confirm(
-        "⚠️ تحذير: قيم خارج المعدل الطبيعي:\n\n" + warns.join("\n\n") + "\n\nهل تريد الاعتماد رغم ذلك؟",
+        "⚠️ يحتاج مراجعة — قيم خارج المعدل المعتاد:\n\n" + warns.map((w) => w.text).join("\n\n") + "\n\nهل تريد الاعتماد رغم ذلك؟",
       );
       if (!ok) return;
     } else if (!window.confirm(`اعتماد فاتورة ${p.prod_no}؟\nسيتم خصم الخامات وإضافة الإنتاج وحركة الخزنة.`)) {
