@@ -250,31 +250,40 @@ export default function CourierOrderCustodyTab() {
     load();
   };
 
+  // Atomic RPC: تسليم + تحصيل (ينشئ سطر sale + يحدث pc_collections + assignment + tracking + orders.status)
+  const recordDeliveryAndCollection = async (
+    orderId: string,
+    amount: number | null,
+    notes?: string
+  ): Promise<boolean> => {
+    const asn = assignments.find((a) => a.order_id === orderId);
+    if (!asn) {
+      toast({ title: "لا يوجد تعيين لهذا الأوردر", variant: "destructive" });
+      return false;
+    }
+    const idem = `${asn.id}-${Date.now()}`;
+    const { error } = await (supabase as any).rpc("record_courier_delivery_and_collection", {
+      p_assignment_id: asn.id,
+      p_amount_collected: amount,
+      p_notes: notes || null,
+      p_idempotency_key: idem,
+    });
+    if (error) {
+      toast({ title: "تعذّر حفظ التسليم", description: error.message, variant: "destructive" });
+      return false;
+    }
+    return true;
+  };
+
   const saveCollection = async () => {
     if (!collectOpen) return;
     const amt = Number(collectAmt || 0);
     if (Number.isNaN(amt) || amt < 0) { toast({ title: "مبلغ غير صالح", variant: "destructive" }); return; }
-    const due = Number(collectOpen.total || 0);
-    const status = amt >= due ? "cash_collected" : amt > 0 ? "partial_collected" : "not_collected";
-    const { error } = await (supabase as any).from("pc_collections").upsert({
-      order_id: collectOpen.id,
-      amount_due: due,
-      amount_collected: amt,
-      status,
-      notes: collectNotes || null,
-      collected_at: new Date().toISOString(),
-      collected_by: user?.id,
-    }, { onConflict: "order_id" });
-    if (error) { toast({ title: "خطأ", description: error.message, variant: "destructive" }); return; }
-    // Auto-flip assignment status when fully collected
-    const asn = assignments.find((a) => a.order_id === collectOpen.id);
-    if (asn && amt >= due) {
-      await updateAssignmentStatus(asn.id, collectOpen.id, "completed", "collected");
-    } else {
-      load();
-    }
-    toast({ title: "تم تسجيل التحصيل", description: `${fmt(amt)} ج.م` });
+    const ok = await recordDeliveryAndCollection(collectOpen.id, amt, collectNotes);
+    if (!ok) return;
+    toast({ title: "تم تسجيل التسليم والتحصيل", description: `${fmt(amt)} ج.م` });
     setCollectOpen(null); setCollectAmt(""); setCollectNotes("");
+    load();
   };
 
   const saveReturn = async () => {
@@ -298,6 +307,7 @@ export default function CourierOrderCustodyTab() {
     toast({ title: "تم تسجيل المرتجع" });
     setReturnOpen(null); setReturnNotes(""); setReturnReason("customer_refused");
   };
+
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
