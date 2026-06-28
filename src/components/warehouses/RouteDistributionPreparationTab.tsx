@@ -87,6 +87,8 @@ export default function RouteDistributionPreparationTab() {
   const [newCourierName, setNewCourierName] = useState("");
   const [newCustodyNotes, setNewCustodyNotes] = useState("");
   const [creatingCustody, setCreatingCustody] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [lastDispatch, setLastDispatch] = useState<{ courierName: string; ordersCount: number; customersCount: number; itemsCount: number; at: string } | null>(null);
 
   const createCustody = async () => {
     const name = newCourierName.trim();
