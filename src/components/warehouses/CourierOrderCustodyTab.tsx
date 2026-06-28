@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Truck, Package2, Coins, RotateCcw, CheckCircle2, Eye, ClipboardList, Trophy } from "lucide-react";
+import { Truck, Package2, Coins, RotateCcw, CheckCircle2, Eye, ClipboardList, Trophy, ChevronDown, ChevronLeft } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 /**
  * Order-based custody layer (طبقة عهدة الأوردرات للمندوب) — built on top of:
