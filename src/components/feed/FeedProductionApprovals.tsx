@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { ShieldCheck, X, Printer, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import { ShieldCheck, X, Printer, AlertTriangle, CheckCircle2, Clock, Info } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 
 const fmt = (n: any) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
@@ -57,7 +58,7 @@ export default function FeedProductionApprovals({ onChanged }: { onChanged?: () 
 
   const baseline = useMemo(() => {
     const rows = baselineQ.data || [];
-    if (!rows.length) return { avgUnit: 0, avgLaborPerKg: 0 };
+    if (!rows.length) return { avgUnit: 0, avgLaborPerKg: 0, count: 0 };
     const u = rows.reduce((s: number, r: any) => s + Number(r.unit_cost || 0), 0) / rows.length;
     const lpk =
       rows.reduce(
@@ -65,21 +66,55 @@ export default function FeedProductionApprovals({ onChanged }: { onChanged?: () 
           s + (Number(r.qty_produced) > 0 ? Number(r.labor_cost || 0) / Number(r.qty_produced) : 0),
         0,
       ) / rows.length;
-    return { avgUnit: u, avgLaborPerKg: lpk };
+    return { avgUnit: u, avgLaborPerKg: lpk, count: rows.length };
   }, [baselineQ.data]);
 
-  const flag = (p: any) => {
+  type WarnDetail = {
+    metric: "unit_cost" | "labor_per_kg";
+    label: string;
+    current: number;
+    average: number;
+    deviationPct: number;
+    direction: "أعلى" | "أقل";
+    sampleCount: number;
+    text: string;
+  };
+
+  const flag = (p: any): WarnDetail[] => {
     const lpk = Number(p.qty_produced) > 0 ? Number(p.labor_cost || 0) / Number(p.qty_produced) : 0;
-    const warns: string[] = [];
-    if (baseline.avgUnit > 0 && Math.abs(Number(p.unit_cost) - baseline.avgUnit) / baseline.avgUnit > 0.25) {
-      warns.push(
-        `تكلفة الكيلو (${fmt(p.unit_cost)}) ${Number(p.unit_cost) > baseline.avgUnit ? "أعلى" : "أقل"} من متوسط 30 يوم (${fmt(baseline.avgUnit)}) بأكثر من 25%`,
-      );
+    const warns: WarnDetail[] = [];
+    if (baseline.avgUnit > 0) {
+      const cur = Number(p.unit_cost);
+      const dev = ((cur - baseline.avgUnit) / baseline.avgUnit) * 100;
+      if (Math.abs(dev) > 25) {
+        const direction: "أعلى" | "أقل" = cur > baseline.avgUnit ? "أعلى" : "أقل";
+        warns.push({
+          metric: "unit_cost",
+          label: "تكلفة الكيلو",
+          current: cur,
+          average: baseline.avgUnit,
+          deviationPct: Math.abs(dev),
+          direction,
+          sampleCount: baseline.count,
+          text: `سبب المراجعة: تكلفة الكيلو ${direction} عن المعتاد. القيمة الحالية = ${fmt(cur)} ج/كجم، متوسط آخر 30 يوم = ${fmt(baseline.avgUnit)} ج/كجم، نسبة الانحراف = ${fmt(Math.abs(dev))}%. تم حساب المتوسط من ${baseline.count} فواتير معتمدة.`,
+        });
+      }
     }
-    if (baseline.avgLaborPerKg > 0 && Math.abs(lpk - baseline.avgLaborPerKg) / baseline.avgLaborPerKg > 0.25) {
-      warns.push(
-        `أجرة التصنيع/كجم (${fmt(lpk)}) خارج متوسط 30 يوم (${fmt(baseline.avgLaborPerKg)}) بأكثر من 25%`,
-      );
+    if (baseline.avgLaborPerKg > 0) {
+      const dev = ((lpk - baseline.avgLaborPerKg) / baseline.avgLaborPerKg) * 100;
+      if (Math.abs(dev) > 25) {
+        const direction: "أعلى" | "أقل" = lpk > baseline.avgLaborPerKg ? "أعلى" : "أقل";
+        warns.push({
+          metric: "labor_per_kg",
+          label: "أجرة التصنيع لكل كجم",
+          current: lpk,
+          average: baseline.avgLaborPerKg,
+          deviationPct: Math.abs(dev),
+          direction,
+          sampleCount: baseline.count,
+          text: `سبب المراجعة: أجرة التصنيع لكل كجم ${direction === "أقل" ? "منخفضة" : "مرتفعة"} عن المعتاد. القيمة الحالية = ${fmt(lpk)} ج/كجم، متوسط آخر 30 يوم = ${fmt(baseline.avgLaborPerKg)} ج/كجم، نسبة الانحراف = ${fmt(Math.abs(dev))}%. تم حساب المتوسط من ${baseline.count} فواتير معتمدة.`,
+        });
+      }
     }
     return warns;
   };
@@ -88,7 +123,7 @@ export default function FeedProductionApprovals({ onChanged }: { onChanged?: () 
     const warns = flag(p);
     if (warns.length) {
       const ok = window.confirm(
-        "⚠️ تحذير: قيم خارج المعدل الطبيعي:\n\n" + warns.join("\n\n") + "\n\nهل تريد الاعتماد رغم ذلك؟",
+        "⚠️ يحتاج مراجعة — قيم خارج المعدل المعتاد:\n\n" + warns.map((w) => w.text).join("\n\n") + "\n\nهل تريد الاعتماد رغم ذلك؟",
       );
       if (!ok) return;
     } else if (!window.confirm(`اعتماد فاتورة ${p.prod_no}؟\nسيتم خصم الخامات وإضافة الإنتاج وحركة الخزنة.`)) {
@@ -191,11 +226,36 @@ export default function FeedProductionApprovals({ onChanged }: { onChanged?: () 
                       <TableCell>{fmt(p.unit_cost)} ج/كجم</TableCell>
                       <TableCell>
                         {warns.length > 0 ? (
-                          <div title={warns.join("\n")}>
-                            <Badge variant="destructive" className="gap-1">
-                              <AlertTriangle className="h-3 w-3" /> غير طبيعي
-                            </Badge>
-                          </div>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button type="button" className="inline-flex items-center gap-1 focus:outline-none">
+                                <Badge variant="destructive" className="gap-1 cursor-pointer">
+                                  <AlertTriangle className="h-3 w-3" /> يحتاج مراجعة
+                                </Badge>
+                                <Info className="h-3.5 w-3.5 text-amber-700" aria-label="عرض سبب المراجعة" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-96 text-sm space-y-3" align="end">
+                              <div className="font-semibold text-amber-800 flex items-center gap-1">
+                                <AlertTriangle className="h-4 w-4" /> سبب المراجعة
+                              </div>
+                              {warns.map((w, idx) => (
+                                <div key={idx} className="border-r-2 border-amber-400 pr-2 space-y-1">
+                                  <div className="font-medium">{w.label} ({w.direction} من المعتاد)</div>
+                                  <div className="text-xs text-muted-foreground leading-relaxed">{w.text}</div>
+                                  <div className="grid grid-cols-2 gap-1 text-xs pt-1">
+                                    <div>القيمة الحالية: <b>{fmt(w.current)} ج/كجم</b></div>
+                                    <div>متوسط 30 يوم: <b>{fmt(w.average)} ج/كجم</b></div>
+                                    <div>نسبة الانحراف: <b>{fmt(w.deviationPct)}%</b></div>
+                                    <div>عدد الفواتير: <b>{w.sampleCount}</b></div>
+                                  </div>
+                                </div>
+                              ))}
+                              <div className="text-[11px] text-muted-foreground pt-1 border-t">
+                                ⓘ هذا تنبيه إعلامي فقط ولا يمنع الاعتماد.
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         ) : (
                           <Badge variant="secondary">طبيعي</Badge>
                         )}
