@@ -2182,6 +2182,53 @@ export type Database = {
         }
         Relationships: []
       }
+      courier_assignment_corrections: {
+        Row: {
+          action: string
+          after_snapshot: Json | null
+          assignment_id: string
+          before_snapshot: Json | null
+          courier_name: string | null
+          id: string
+          order_id: string
+          performed_at: string
+          performed_by: string | null
+          reason: string
+        }
+        Insert: {
+          action: string
+          after_snapshot?: Json | null
+          assignment_id: string
+          before_snapshot?: Json | null
+          courier_name?: string | null
+          id?: string
+          order_id: string
+          performed_at?: string
+          performed_by?: string | null
+          reason: string
+        }
+        Update: {
+          action?: string
+          after_snapshot?: Json | null
+          assignment_id?: string
+          before_snapshot?: Json | null
+          courier_name?: string | null
+          id?: string
+          order_id?: string
+          performed_at?: string
+          performed_by?: string | null
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_assignment_corrections_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "courier_order_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       courier_commission_payouts: {
         Row: {
           amount: number
@@ -18521,6 +18568,15 @@ export type Database = {
       }
       confirm_transfer_receipt: {
         Args: { p_lines: Json; p_notes?: string; p_transfer_id: string }
+        Returns: Json
+      }
+      correct_courier_assignment: {
+        Args: {
+          p_action: string
+          p_assignment_id: string
+          p_new_amount?: number
+          p_reason: string
+        }
         Returns: Json
       }
       create_and_send_transfer: {
