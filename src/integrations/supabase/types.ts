@@ -19527,6 +19527,15 @@ export type Database = {
         Args: { p_slaughter_batch_id: string }
         Returns: Json
       }
+      record_courier_delivery_and_collection: {
+        Args: {
+          p_amount_collected?: number
+          p_assignment_id: string
+          p_idempotency_key?: string
+          p_notes?: string
+        }
+        Returns: Json
+      }
       reject_courier_credit_override: {
         Args: { _line_id: string; _reason: string }
         Returns: string
