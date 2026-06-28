@@ -399,6 +399,35 @@ export default function RouteDistributionPreparationTab() {
           <Button size="sm" variant="outline" onClick={loadData} disabled={loading}>
             <RefreshCw className={`h-3 w-3 ml-1 ${loading ? "animate-spin" : ""}`} />تحديث
           </Button>
+          <Dialog open={openNewCustody} onOpenChange={setOpenNewCustody}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white">
+                <Plus className="h-3 w-3 ml-1" /> فتح عهدة جديدة
+              </Button>
+            </DialogTrigger>
+            <DialogContent dir="rtl">
+              <DialogHeader>
+                <DialogTitle>فتح عهدة مندوب جديدة</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div>
+                  <Label>اسم المندوب *</Label>
+                  <Input value={newCourierName} onChange={(e) => setNewCourierName(e.target.value)} placeholder="مثال: كيمو" />
+                </div>
+                <div>
+                  <Label>ملاحظات (اختياري)</Label>
+                  <Input value={newCustodyNotes} onChange={(e) => setNewCustodyNotes(e.target.value)} placeholder="خط التوزيع / المنطقة..." />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOpenNewCustody(false)}>إلغاء</Button>
+                <Button onClick={createCustody} disabled={creatingCustody} className="bg-purple-600 hover:bg-purple-700 text-white">
+                  {creatingCustody ? <Loader2 className="h-3 w-3 ml-1 animate-spin" /> : <Plus className="h-3 w-3 ml-1" />}
+                  فتح العهدة
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <div className="mr-auto flex items-center gap-2 flex-wrap">
             <Badge className="bg-purple-600">متاح: {orders.length} طلب</Badge>
             <Badge className="bg-orange-500">{new Set(orders.map(o => o.customer_id || o.customer_name)).size} عميل</Badge>
