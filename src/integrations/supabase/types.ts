@@ -4558,6 +4558,7 @@ export type Database = {
           client_request_id: string | null
           created_at: string
           created_by: string | null
+          flag_reasons: Json | null
           id: string
           labor_cost: number
           notes: string | null
@@ -4568,10 +4569,12 @@ export type Database = {
           rejected_at: string | null
           rejected_by: string | null
           rejection_reason: string | null
+          review_note: string | null
           status: string
           total_cost: number
           unit_cost: number
           updated_at: string
+          was_flagged_for_review: boolean
         }
         Insert: {
           approved_at?: string | null
@@ -4580,6 +4583,7 @@ export type Database = {
           client_request_id?: string | null
           created_at?: string
           created_by?: string | null
+          flag_reasons?: Json | null
           id?: string
           labor_cost?: number
           notes?: string | null
@@ -4590,10 +4594,12 @@ export type Database = {
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
+          review_note?: string | null
           status?: string
           total_cost?: number
           unit_cost?: number
           updated_at?: string
+          was_flagged_for_review?: boolean
         }
         Update: {
           approved_at?: string | null
@@ -4602,6 +4608,7 @@ export type Database = {
           client_request_id?: string | null
           created_at?: string
           created_by?: string | null
+          flag_reasons?: Json | null
           id?: string
           labor_cost?: number
           notes?: string | null
@@ -4612,10 +4619,12 @@ export type Database = {
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
+          review_note?: string | null
           status?: string
           total_cost?: number
           unit_cost?: number
           updated_at?: string
+          was_flagged_for_review?: boolean
         }
         Relationships: [
           {
@@ -17868,10 +17877,17 @@ export type Database = {
         }
         Returns: string
       }
-      approve_feed_production_invoice: {
-        Args: { p_invoice_id: string }
-        Returns: undefined
-      }
+      approve_feed_production_invoice:
+        | { Args: { p_invoice_id: string }; Returns: undefined }
+        | {
+            Args: {
+              p_flag_reasons?: Json
+              p_invoice_id: string
+              p_review_note?: string
+              p_was_flagged?: boolean
+            }
+            Returns: undefined
+          }
       approve_feed_sales_return: {
         Args: { p_return_id: string }
         Returns: {
