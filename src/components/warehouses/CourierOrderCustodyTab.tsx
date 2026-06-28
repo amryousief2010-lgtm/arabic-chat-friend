@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Truck, Package2, Coins, RotateCcw, CheckCircle2, Eye, ClipboardList, Trophy, ChevronDown, ChevronLeft, Printer, FileSpreadsheet, Wrench } from "lucide-react";
 import { fetchCourierStatementLines, printCourierStatement, exportCourierStatementExcel } from "@/lib/courierStatement";
+import { openPrintWindow } from "@/lib/printPdf";
 import { Switch } from "@/components/ui/switch";
 
 /**
