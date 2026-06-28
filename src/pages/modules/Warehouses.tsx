@@ -1519,7 +1519,7 @@ const Warehouses = () => {
                 <TabsContent key={t.value} value={t.value} className="space-y-4">
                   {t.value === "wh-main" && canManageWarehouses && t.wh && (
                     <div className="flex justify-end">
-                      <Button onClick={() => openItemDialog(undefined, t.wh!.id)}>
+                      <Button onClick={() => setAddMainItemDialog(true)}>
                         <Plus className="w-4 h-4 ml-2" />
                         إضافة صنف جديد للمخزن الرئيسي
                       </Button>
