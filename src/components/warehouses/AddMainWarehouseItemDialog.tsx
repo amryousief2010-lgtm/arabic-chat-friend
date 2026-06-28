@@ -92,13 +92,35 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
       const salePrice = Number(form.sale_price) || 0;
       const lowStock = Number(form.low_stock_threshold) || 0;
 
-      // 1) Duplicate check: same name+unit+category inside main warehouse
+      // 1) Duplicate check in product master first: this is the source of truth.
+      // If the product already exists, the correct action is adding stock via توريد,
+      // not creating another product record.
+      const productDup = await supabase
+        .from("products")
+        .select("id,name")
+        .eq("name", name)
+        .eq("is_active", true)
+        .limit(1);
+      if (productDup.error) throw productDup.error;
+      if ((productDup.data || []).length > 0) {
+        toast({
+          title: "الصنف موجود بالفعل",
+          description: "الصنف موجود في كتالوج المنتجات. استخدم حركة توريد لإضافة رصيد له داخل المخزن الرئيسي.",
+          variant: "destructive",
+        });
+        setSaving(false);
+        return;
+      }
+
+      // 2) Duplicate check: same name+unit+category inside main warehouse.
+      // Ignore inactive ghost rows so old zero-balance duplicates don't block new items.
       const dup = await supabase
         .from("inventory_items")
         .select("id,category")
         .eq("warehouse_id", mainWarehouseId)
         .eq("name", name)
         .eq("unit", unit)
+        .eq("is_active", true)
         .limit(20);
       if (dup.error) throw dup.error;
       if ((dup.data || []).some((r: any) => (r.category || "") === category)) {
@@ -111,7 +133,7 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
         return;
       }
 
-      // 2) SKU unique in inventory_items.item_code (per identity index uses warehouse+module+category+item_code; we enforce global uniqueness for clarity)
+      // 3) SKU unique in inventory_items.item_code (per identity index uses warehouse+module+category+item_code; we enforce global uniqueness for clarity)
       const skuCheck = await supabase.from("inventory_items").select("id").eq("item_code", sku).limit(1);
       if (skuCheck.error) throw skuCheck.error;
       if ((skuCheck.data || []).length > 0) {
@@ -120,7 +142,7 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
         return;
       }
 
-      // 3) Barcode unique in products
+      // 4) Barcode unique in products
       if (barcode) {
         const bc = await supabase.from("products").select("id").eq("barcode", barcode).limit(1);
         if (bc.error) throw bc.error;
@@ -131,7 +153,7 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
         }
       }
 
-      // 4) Create product (master record)
+      // 5) Create product (master record)
       const prod = await supabase
         .from("products")
         .insert({
@@ -151,29 +173,62 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
       if (prod.error) throw prod.error;
       createdProductId = prod.data!.id;
 
-      // 5) Create inventory_item in main warehouse linked to product
-      const insertItem = await supabase
+      // 6) Create or reuse inventory_item in main warehouse linked to product.
+      // A DB trigger auto-links newly inserted products to customer/main warehouses;
+      // therefore we reuse that row if it already exists to avoid duplicate/ghost rows.
+      const existingItem = await supabase
         .from("inventory_items")
-        .insert({
-          warehouse_id: mainWarehouseId,
-          product_id: createdProductId,
-          name,
-          category,
-          sku,
-          item_code: sku,
-          unit,
-          stock: 0,
-          unit_cost: unitCost,
-          low_stock_threshold: lowStock,
-          notes: form.notes.trim() || null,
-          is_active: true,
-        })
         .select("id")
-        .single();
-      if (insertItem.error) throw insertItem.error;
-      createdItemId = insertItem.data!.id;
+        .eq("warehouse_id", mainWarehouseId)
+        .eq("product_id", createdProductId)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (existingItem.error) throw existingItem.error;
 
-      // 6) Opening balance movement (only if > 0). Trigger will update stock.
+      if (existingItem.data?.id) {
+        createdItemId = existingItem.data.id;
+        const updateItem = await supabase
+          .from("inventory_items")
+          .update({
+            name,
+            category,
+            sku,
+            item_code: sku,
+            unit,
+            unit_cost: unitCost,
+            low_stock_threshold: lowStock,
+            notes: form.notes.trim() || null,
+            is_active: true,
+            module: "warehouse",
+          })
+          .eq("id", createdItemId);
+        if (updateItem.error) throw updateItem.error;
+      } else {
+        const insertItem = await supabase
+          .from("inventory_items")
+          .insert({
+            warehouse_id: mainWarehouseId,
+            product_id: createdProductId,
+            name,
+            category,
+            sku,
+            item_code: sku,
+            unit,
+            stock: 0,
+            unit_cost: unitCost,
+            low_stock_threshold: lowStock,
+            notes: form.notes.trim() || null,
+            is_active: true,
+            module: "warehouse",
+          })
+          .select("id")
+          .single();
+        if (insertItem.error) throw insertItem.error;
+        createdItemId = insertItem.data!.id;
+      }
+
+      // 7) Opening balance movement (only if > 0). Trigger will update stock.
       if (openQty > 0) {
         const mv = await supabase.from("inventory_movements").insert({
           item_id: createdItemId,
