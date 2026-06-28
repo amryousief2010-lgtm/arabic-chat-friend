@@ -119,19 +119,27 @@ export default function FeedProductionApprovals({ onChanged }: { onChanged?: () 
     return warns;
   };
 
+  const [reviewFor, setReviewFor] = useState<{ p: any; warns: WarnDetail[] } | null>(null);
+  const [reviewNote, setReviewNote] = useState("");
+
   const handleApprove = async (p: any) => {
     const warns = flag(p);
     if (warns.length) {
-      const ok = window.confirm(
-        "⚠️ يحتاج مراجعة — قيم خارج المعدل المعتاد:\n\n" + warns.map((w) => w.text).join("\n\n") + "\n\nهل تريد الاعتماد رغم ذلك؟",
-      );
-      if (!ok) return;
-    } else if (!window.confirm(`اعتماد فاتورة ${p.prod_no}؟\nسيتم خصم الخامات وإضافة الإنتاج وحركة الخزنة.`)) {
+      setReviewNote("");
+      setReviewFor({ p, warns });
       return;
     }
+    if (!window.confirm(`اعتماد فاتورة ${p.prod_no}؟\nسيتم خصم الخامات وإضافة الإنتاج وحركة الخزنة.`)) return;
+    await doApprove(p, { note: null, warns: [] });
+  };
+
+  const doApprove = async (p: any, opts: { note: string | null; warns: WarnDetail[] }) => {
     setBusy(true);
     const { error } = await (supabase as any).rpc("approve_feed_production_invoice", {
       p_invoice_id: p.id,
+      p_review_note: opts.note,
+      p_was_flagged: opts.warns.length > 0,
+      p_flag_reasons: opts.warns.length ? opts.warns : null,
     });
     setBusy(false);
     if (error) return toast.error(error.message || "فشل الاعتماد");
@@ -141,6 +149,8 @@ export default function FeedProductionApprovals({ onChanged }: { onChanged?: () 
     qc.invalidateQueries({ queryKey: ["feed-raw-materials"] });
     qc.invalidateQueries({ queryKey: ["feed-products"] });
     qc.invalidateQueries({ queryKey: ["feed-treasury"] });
+    setReviewFor(null);
+    setReviewNote("");
     onChanged?.();
   };
 
@@ -324,6 +334,57 @@ export default function FeedProductionApprovals({ onChanged }: { onChanged?: () 
             </Button>
             <Button variant="destructive" disabled={busy} onClick={submitReject}>
               تأكيد الرفض
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!reviewFor} onOpenChange={(o) => { if (!o) { setReviewFor(null); setReviewNote(""); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-800">
+              <AlertTriangle className="h-5 w-5" />
+              تأكيد اعتماد فاتورة عليها تنبيه "يحتاج مراجعة"
+            </DialogTitle>
+            <DialogDescription>
+              هذه الفاتورة عليها تنبيه يحتاج مراجعة بسبب اختلاف بعض القيم عن متوسط الفواتير السابقة. هل تمت مراجعة السبب وتأكيد أن الفاتورة صحيحة؟
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 max-h-64 overflow-auto">
+            {(reviewFor?.warns || []).map((w, i) => (
+              <div key={i} className="border-r-2 border-amber-400 pr-2 bg-amber-50/60 rounded p-2 text-sm space-y-1">
+                <div className="font-medium">{w.label} ({w.direction} من المعتاد)</div>
+                <div className="grid grid-cols-2 gap-1 text-xs">
+                  <div>القيمة الحالية: <b>{fmt(w.current)} ج/كجم</b></div>
+                  <div>متوسط 30 يوم: <b>{fmt(w.average)} ج/كجم</b></div>
+                  <div>نسبة الانحراف: <b>{fmt(w.deviationPct)}%</b></div>
+                  <div>عدد الفواتير: <b>{w.sampleCount}</b></div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">ملاحظة المراجع / سبب الاعتماد رغم التنبيه <span className="text-red-600">*</span></label>
+            <Textarea
+              placeholder="مثال: تمت مراجعة أجرة التصنيع وهي صحيحة حسب الاتفاق."
+              value={reviewNote}
+              onChange={(e) => setReviewNote(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setReviewFor(null); setReviewNote(""); }} disabled={busy}>
+              إلغاء والعودة للمراجعة
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              disabled={busy || reviewNote.trim().length < 3}
+              onClick={() => reviewFor && doApprove(reviewFor.p, { note: reviewNote.trim(), warns: reviewFor.warns })}
+            >
+              <ShieldCheck className="h-4 w-4 ml-1" /> تمت المراجعة واعتماد الفاتورة
             </Button>
           </DialogFooter>
         </DialogContent>
