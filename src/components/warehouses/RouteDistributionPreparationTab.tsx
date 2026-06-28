@@ -88,7 +88,9 @@ export default function RouteDistributionPreparationTab() {
   const [newCustodyNotes, setNewCustodyNotes] = useState("");
   const [creatingCustody, setCreatingCustody] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [lastDispatch, setLastDispatch] = useState<{ courierName: string; ordersCount: number; customersCount: number; itemsCount: number; at: string } | null>(null);
+  const [lastDispatch, setLastDispatch] = useState<{ courierName: string; ordersCount: number; customersCount: number; itemsCount: number; at: string; reference: string; movementsCreated: number; unresolved: string[] } | null>(null);
+
+const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
 
   const createCustody = async () => {
     const name = newCourierName.trim();
