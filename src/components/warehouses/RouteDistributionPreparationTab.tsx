@@ -300,16 +300,75 @@ const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
     if (selectedItems.length === 0) { toast.error("اختر طلبات أولاً"); return; }
     setSaving(true);
     try {
-      // Build custody lines (one per order_item) + assignments per order
+      const courierName = custodies.find(c => c.id === selectedCustodyId)?.courier_name || "المندوب";
+      const reference = `DIST-${new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14)}-${selectedCustodyId.slice(0, 6)}`;
+
+      // 1) Resolve inventory_item_id per product from the main warehouse
+      const productIds = Array.from(new Set(selectedItems.map(it => it.product_id).filter(Boolean))) as string[];
+      const invMap = new Map<string, { id: string; unit_cost: number | null }>();
+      if (productIds.length > 0) {
+        const { data: invRows, error: invErr } = await (supabase as any)
+          .from("inventory_items")
+          .select("id, product_id, unit_cost")
+          .eq("warehouse_id", MAIN_WAREHOUSE_ID)
+          .eq("is_active", true)
+          .in("product_id", productIds);
+        if (invErr) throw invErr;
+        for (const r of (invRows ?? [])) invMap.set(r.product_id, { id: r.id, unit_cost: r.unit_cost });
+      }
+
+      // 2) Insert real inventory_movements (type=out) — DB trigger decrements stock & assigns movement_no
+      const unresolved: string[] = [];
+      const movementsPayload = selectedItems
+        .map(it => {
+          const inv = it.product_id ? invMap.get(it.product_id) : undefined;
+          if (!inv) { unresolved.push(it.product_name); return null; }
+          const ord = orders.find(o => o.id === it.order_id)!;
+          return {
+            item_id: inv.id,
+            warehouse_id: MAIN_WAREHOUSE_ID,
+            source_warehouse_id: MAIN_WAREHOUSE_ID,
+            movement_type: "out",
+            quantity: Number(it.quantity || 0),
+            unit_cost: inv.unit_cost ?? 0,
+            party: `عهدة المندوب — ${courierName}`,
+            reference,
+            reference_type: "courier_custody",
+            reference_id: selectedCustodyId,
+            module: "courier_distribution",
+            reason: "صرف خط توزيع",
+            notes: `${ord.order_number} — ${ord.customer_name || ""}`.trim(),
+            performed_by: user?.id ?? null,
+            performed_at: new Date().toISOString(),
+            product_id: it.product_id,
+            order_item_id: it.id,
+            approval_status: "approved",
+          };
+        })
+        .filter(Boolean) as any[];
+
+      const movementByOrderItem = new Map<string, string>();
+      if (movementsPayload.length > 0) {
+        const { data: movRows, error: movErr } = await (supabase as any)
+          .from("inventory_movements")
+          .insert(movementsPayload)
+          .select("id, order_item_id");
+        if (movErr) throw movErr;
+        for (const m of (movRows ?? [])) if (m.order_item_id) movementByOrderItem.set(m.order_item_id, m.id);
+      }
+
+      // 3) Insert custody lines (linked to the inventory_movement when resolved)
       const linesPayload = selectedItems.map(it => {
         const ord = orders.find(o => o.id === it.order_id)!;
+        const inv = it.product_id ? invMap.get(it.product_id) : undefined;
         return {
           custody_id: selectedCustodyId,
           line_type: "out",
           customer_id: ord.customer_id,
           customer_name: ord.customer_name,
           order_id: it.order_id,
-          inventory_item_id: null,
+          inventory_item_id: inv?.id ?? null,
+          inventory_movement_id: movementByOrderItem.get(it.id) ?? null,
           product_name: it.product_name,
           quantity: Number(it.quantity || 0),
           unit: it.unit || "وحدة",
@@ -318,7 +377,7 @@ const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
           cash_collected: 0,
           performed_at: new Date().toISOString(),
           performed_by: user?.id ?? null,
-          notes: `صرف خط — ${ord.order_number}`,
+          notes: `صرف خط ${reference} — ${ord.order_number}`,
         };
       });
 
@@ -327,7 +386,7 @@ const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
         .insert(linesPayload);
       if (linesErr) throw linesErr;
 
-      const courierName = custodies.find(c => c.id === selectedCustodyId)?.courier_name || "كيمو";
+      // 4) Link orders to custody (assignments) — upsert prevents duplicate dispatch
       const assignPayload = selectedOrders.map(ord => ({
         custody_id: selectedCustodyId,
         order_id: ord.id,
@@ -336,20 +395,34 @@ const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
         assigned_by: user?.id ?? null,
         status: "assigned",
       }));
-      // upsert per order_id to avoid duplicates if re-dispatch
       await (supabase as any)
         .from("courier_order_assignments")
         .upsert(assignPayload, { onConflict: "order_id" });
 
-      const courierLabel = custodies.find(c => c.id === selectedCustodyId)?.courier_name || courierName;
+      // 5) Move order status forward (pending -> processing) so it leaves the prep list
+      const pendingIds = selectedOrders.filter(o => o.status === "pending").map(o => o.id);
+      if (pendingIds.length > 0) {
+        await (supabase as any)
+          .from("orders")
+          .update({ status: "processing" })
+          .in("id", pendingIds);
+      }
+
       setLastDispatch({
-        courierName: courierLabel,
+        courierName,
         ordersCount: selectedOrders.length,
         customersCount: customerGroups.length,
         itemsCount: selectedItems.length,
         at: new Date().toISOString(),
+        reference,
+        movementsCreated: movementsPayload.length,
+        unresolved,
       });
-      toast.success(`تم تجهيز خط التوزيع بنجاح — ${selectedItems.length} صنف لـ ${customerGroups.length} عميل`);
+      if (unresolved.length > 0) {
+        toast.warning(`تم التجهيز مع ${unresolved.length} صنف بدون حركة مخزون (غير مرتبط بالمخزن الرئيسي)`);
+      } else {
+        toast.success(`تم تجهيز خط التوزيع ${reference} — ${selectedItems.length} صنف`);
+      }
       setSelectedOrderIds(new Set());
       setConfirmOpen(false);
       await loadCustodyLines(selectedCustodyId);
