@@ -42,6 +42,9 @@ interface InventoryItem {
   category?: string | null;
   unit?: string | null;
   stock?: number | null;
+  sku?: string | null;
+  item_code?: string | null;
+  barcode?: string | null;
   is_active?: boolean | null;
   archived?: boolean | null;
   archived_at?: string | null;
@@ -87,6 +90,15 @@ const newRow = (): Row => ({
   packageWeightKg: "0.5",
   manualKg: "",
 });
+
+const normalizeSearch = (value: unknown) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[أإآا]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/\s+/g, " ");
 
 const rowQty = (r: Row): number => {
   if (r.manualKgMode) {
@@ -140,6 +152,7 @@ const ManualStockAdditionDialog = ({
   const [rows, setRows] = useState<Row[]>([newRow()]);
   const [saving, setSaving] = useState(false);
   const [customParties, setCustomParties] = useState<{ id: string; name: string }[]>([]);
+  const [itemSearch, setItemSearch] = useState("");
   const [addPartyOpen, setAddPartyOpen] = useState(false);
   const [addReasonOpen, setAddReasonOpen] = useState(false);
   const [reasonsTick, setReasonsTick] = useState(0);
@@ -172,6 +185,15 @@ const ManualStockAdditionDialog = ({
     [items, warehouseId, isMainWarehouse]
   );
 
+  const filteredAllowedItems = useMemo(() => {
+    const q = normalizeSearch(itemSearch);
+    if (!q) return allowedItems;
+    return allowedItems.filter((item) =>
+      [item.name, item.category, item.unit, item.sku, item.item_code, item.barcode]
+        .some((value) => normalizeSearch(value).includes(q))
+    );
+  }, [allowedItems, itemSearch]);
+
   useEffect(() => {
     if (!import.meta.env.DEV || !open) return;
     console.table(allowedItems.map((item) => getWarehouseItemDebugRow(item, warehouseId, warehouseName)));
@@ -180,6 +202,7 @@ const ManualStockAdditionDialog = ({
   useEffect(() => {
     if (!open) {
       setSourceKey(""); setSourceOther("");
+      setItemSearch("");
       setReason(""); setSupplier("");
       setDeliveryDate(new Date().toISOString().slice(0, 10));
       setNotes("");
@@ -575,11 +598,23 @@ const ManualStockAdditionDialog = ({
                           <Select value={r.itemId} onValueChange={(v) => updateRow(r.uid, { itemId: v })}>
                             <SelectTrigger className="h-8"><SelectValue placeholder="اختر الصنف" /></SelectTrigger>
                             <SelectContent className="max-h-72">
+                              <div className="sticky top-0 z-10 bg-popover p-2 border-b">
+                                <Input
+                                  value={itemSearch}
+                                  onChange={(e) => setItemSearch(e.target.value)}
+                                  onKeyDown={(e) => e.stopPropagation()}
+                                  placeholder="ابحث باسم الصنف أو SKU أو الباركود"
+                                  className="h-8 text-xs"
+                                />
+                              </div>
                               {allowedItems.length === 0 ? (
                                 <div className="px-3 py-2 text-xs text-muted-foreground">لا توجد أصناف</div>
-                              ) : allowedItems.map((i) => (
+                              ) : filteredAllowedItems.length === 0 ? (
+                                <div className="px-3 py-2 text-xs text-muted-foreground">لا توجد نتيجة مطابقة</div>
+                              ) : filteredAllowedItems.map((i) => (
                                 <SelectItem key={i.id} value={i.id}>
                                   {i.name} {i.unit ? `(${i.unit})` : ""} — {Number(i.stock || 0)}
+                                  {(i.sku || i.item_code || i.barcode) ? ` — ${i.sku || i.item_code || i.barcode}` : ""}
                                 </SelectItem>
                               ))}
                             </SelectContent>
