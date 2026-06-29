@@ -1,0 +1,1 @@
+UPDATE public.products SET is_active = true WHERE id IN ('793b2f55-1734-41f3-8b03-026db5a075bf','bdeae03a-ea56-4ef9-9d55-c370d426d43c');
