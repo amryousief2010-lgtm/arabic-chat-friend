@@ -1111,6 +1111,13 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
 
+          {/* TEMP DEV-ONLY — M4-A verification. Remove this Route + lazy import when M4-A is signed off. */}
+          <Route path="/dev/agouza-reservation-diagnostics" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager']}>
+              <PageTransition><AgouzaReservationDiagnostics /></PageTransition>
+            </ProtectedRoute>
+          } />
+
           <Route path="/unauthorized" element={
             <PageTransition><Unauthorized /></PageTransition>
           } />
