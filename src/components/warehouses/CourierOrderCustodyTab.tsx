@@ -827,6 +827,7 @@ export default function CourierOrderCustodyTab() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="customer_refused">العميل رفض</SelectItem>
+                  <SelectItem value="customer_cancelled">ألغى العميل الأوردر</SelectItem>
                   <SelectItem value="customer_unavailable">العميل غير متاح</SelectItem>
                   <SelectItem value="product_unsuitable">المنتج غير مناسب</SelectItem>
                   <SelectItem value="address_unclear">العنوان غير واضح</SelectItem>
