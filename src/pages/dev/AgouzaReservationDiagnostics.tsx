@@ -61,8 +61,19 @@ export default function AgouzaReservationDiagnostics() {
   const [dryOrderId, setDryOrderId] = useState("");
   const [dryRunResult, setDryRunResult] = useState<any>(null);
 
+  // ---- Commit (TEMP / DANGEROUS) ----
+  const [commitOrderId, setCommitOrderId] = useState("");
+  const [commitConfirm, setCommitConfirm] = useState("");
+  const [commitPreview, setCommitPreview] = useState<any>(null);
+  const [commitOrderMeta, setCommitOrderMeta] = useState<any>(null);
+  const [commitResult, setCommitResult] = useState<any>(null);
+  const [doubleCommitResult, setDoubleCommitResult] = useState<any>(null);
+  const [postCommitInfo, setPostCommitInfo] = useState<any>(null);
+  const [commitRunning, setCommitRunning] = useState(false);
+
   if (loading) return <div className="p-8">جارٍ التحميل…</div>;
   if (!allowed) return <Navigate to="/unauthorized" replace />;
+
 
   const runStatus = async () => {
     const { data, error } = await supabase.rpc("get_agouza_order_reservation_status", { p_order_id: statusOrderId });
