@@ -371,8 +371,38 @@ const Orders = () => {
       const { data } = await supabase.from('delivery_routes').select('id,name,color').order('name', { ascending: true });
       setAvailableRoutes((data as any[]) || []);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterMonth, filterYear, yearGroup, debouncedSearch]);
+
+  // M4-B: Reload Agouza reservation status whenever the visible orders set changes.
+  // Read-only; Agouza-only — other warehouses are skipped entirely.
+  useEffect(() => {
+    const agouzaIds = orders
+      .filter((o) => o.source_warehouse_id === AGOUZA_WAREHOUSE_ID)
+      .map((o) => o.id);
+    if (agouzaIds.length === 0) { setAgouzaResvMap({}); return; }
+    let cancelled = false;
+    (async () => {
+      const map: Record<string, AgouzaResvStatus> = {};
+      for (let i = 0; i < agouzaIds.length; i += 500) {
+        const chunk = agouzaIds.slice(i, i + 500);
+        const { data: resvs } = await supabase
+          .from('agouza_stock_reservations')
+          .select('order_id,status')
+          .in('order_id', chunk);
+        (resvs || []).forEach((r: any) => {
+          const prev = map[r.order_id];
+          if (r.status === 'committed') map[r.order_id] = 'committed';
+          else if (r.status === 'active' && prev !== 'committed') map[r.order_id] = 'active';
+          else if (!prev) map[r.order_id] = 'released';
+        });
+        chunk.forEach((id) => { if (!map[id]) map[id] = 'none'; });
+      }
+      if (!cancelled) setAgouzaResvMap(map);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders.length]);
+
 
   const fetchOrders = async () => {
     setLoading(true);
