@@ -20,6 +20,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { computeOrderTotals, isOfferShippingLine } from "@/lib/orderTotals";
 import { getOfferUnitPriceForReplacement, getOfferPriceGroup, type OfferPriceGroup } from "@/lib/offerPriceGroups";
+import {
+  AGOUZA_WAREHOUSE_ID,
+  fetchOrderSourceWarehouseId,
+  releaseAgouzaForOrder,
+  reserveAgouzaForOrder,
+} from "@/lib/agouzaReservations";
+
 
 interface Product {
   id: string;
