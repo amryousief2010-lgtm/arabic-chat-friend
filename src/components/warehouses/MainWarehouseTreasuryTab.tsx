@@ -679,7 +679,7 @@ export default function MainWarehouseTreasuryTab() {
         custody_id: lineCustodyId,
         line_type: lineType,
         product_name: lineType === "cash_collect" ? null : (selectedIssueItem?.name || lineProduct.trim()),
-        inventory_item_id: (lineType === "issue" || lineType === "bonus") ? lineInventoryItemId : null,
+        inventory_item_id: (lineType === "issue" || lineType === "bonus" || lineType === "sale") ? lineInventoryItemId : null,
         quantity: lineType === "cash_collect" ? null : qty,
         unit: lineType === "cash_collect" ? null : (selectedIssueItem?.unit || lineUnit),
         unit_price: lineType === "sale" ? salePrice : (lineType === "cash_collect" ? null : (lineType === "bonus" ? bonusUnitCost : (price || null))),
@@ -701,6 +701,8 @@ export default function MainWarehouseTreasuryTab() {
 
 
       if (lineType === "sale") {
+        insertPayload.customer_name = lineCustomerName.trim() || null;
+        insertPayload.customer_phone = lineCustomerPhone.trim() || null;
         insertPayload.original_price = price;
         insertPayload.discount_amount = discountAmt || null;
         insertPayload.discount_pct = discountAmt > 0 ? Number(discountPct.toFixed(2)) : null;
