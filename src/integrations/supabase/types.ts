@@ -173,6 +173,7 @@ export type Database = {
       agouza_stock_reservations: {
         Row: {
           committed_at: string | null
+          committed_by: string | null
           committed_movement_id: string | null
           created_at: string
           id: string
@@ -191,6 +192,7 @@ export type Database = {
         }
         Insert: {
           committed_at?: string | null
+          committed_by?: string | null
           committed_movement_id?: string | null
           created_at?: string
           id?: string
@@ -209,6 +211,7 @@ export type Database = {
         }
         Update: {
           committed_at?: string | null
+          committed_by?: string | null
           committed_movement_id?: string | null
           created_at?: string
           id?: string
