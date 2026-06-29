@@ -1990,7 +1990,7 @@ const Slaughterhouse = () => {
 
         {/* ========== LIVE BATCH COSTS ========== */}
         <TabsContent value="live-costs">
-          <LiveBatchCostsPanel />
+          <LiveBatchCostsPanel overrideLiveCount={liveBalance} />
         </TabsContent>
       </Tabs>
 
