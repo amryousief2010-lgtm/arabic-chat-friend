@@ -229,6 +229,7 @@ export default function LiveBatchCostsPanel({ overrideLiveCount }: { overrideLiv
         </Alert>
       )}
 
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
 
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs">عدد النعام الأصلي</CardTitle></CardHeader>
           <CardContent><div className="text-xl font-bold">{fmt(totals.original)}</div></CardContent></Card>
