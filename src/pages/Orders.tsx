@@ -189,6 +189,14 @@ const Orders = () => {
  const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
   const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
   const [orders, setOrders] = useState<Order[]>([]);
+  // M4-B: per-order Agouza reservation status. Drives the Agouza-only badge and
+  // blocks delivery confirmation when no active/committed reservation exists.
+  // 'active' = held, 'committed' = stock already deducted, 'released' = freed,
+  // 'shortage' = order saved but reservation refused due to insufficient stock,
+  // 'none' = no reservation row found.
+  type AgouzaResvStatus = 'active' | 'committed' | 'released' | 'shortage' | 'none';
+  const [agouzaResvMap, setAgouzaResvMap] = useState<Record<string, AgouzaResvStatus>>({});
+
   // Overrides for optimistic status changes — re-applied after every background
   // pagination batch so that a user's status change does not get visually
   // "reverted" by a later batch arriving from the still-running fetch loop.
