@@ -18467,6 +18467,10 @@ export type Database = {
       can_manage_lab_advances: { Args: { _uid: string }; Returns: boolean }
       can_manage_meat_batch: { Args: { _uid: string }; Returns: boolean }
       can_manage_review: { Args: { _uid: string }; Returns: boolean }
+      can_operate_agouza_order: {
+        Args: { p_op: string; p_order_id: string }
+        Returns: boolean
+      }
       can_post_inventory: { Args: { _uid: string }; Returns: boolean }
       can_record_hr_deductions: { Args: { _uid: string }; Returns: boolean }
       can_view_hr_deductions: { Args: { _uid: string }; Returns: boolean }
