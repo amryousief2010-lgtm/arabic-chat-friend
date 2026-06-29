@@ -1372,20 +1372,25 @@ const Orders = () => {
                         </Badge>
                       </div>
                     )}
-                    {order.source_warehouse_id === AGOUZA_WAREHOUSE_ID && (
-                      <div className="text-[11px]">
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] border-purple-400 text-purple-700 bg-purple-50"
-                        >
-                          {order.status === 'delivered'
-                            ? 'حجز عجوزة • تم الخصم'
-                            : order.status === 'cancelled'
-                            ? 'حجز عجوزة • تم فك الحجز'
-                            : 'حجز عجوزة • محجوز'}
-                        </Badge>
-                      </div>
-                    )}
+                    {order.source_warehouse_id === AGOUZA_WAREHOUSE_ID && (() => {
+                      const resv = agouzaResvMap[order.id] ?? 'none';
+                      // Shortage = order is still pending and the reservation
+                      // attempt did not produce an active/committed row.
+                      const isShortage = resv === 'none' && order.status !== 'delivered' && order.status !== 'cancelled';
+                      let label = 'حجز عجوزة • محجوز';
+                      let cls = 'border-purple-400 text-purple-700 bg-purple-50';
+                      if (resv === 'committed') { label = 'حجز عجوزة • تم الخصم'; cls = 'border-emerald-400 text-emerald-700 bg-emerald-50'; }
+                      else if (resv === 'released') { label = 'حجز عجوزة • تم فك الحجز'; cls = 'border-slate-400 text-slate-700 bg-slate-50'; }
+                      else if (resv === 'active') { label = 'حجز عجوزة • محجوز'; cls = 'border-purple-400 text-purple-700 bg-purple-50'; }
+                      else if (isShortage) { label = '⚠ عجز مخزون العجوزة'; cls = 'border-red-500 text-red-700 bg-red-50 font-semibold'; }
+                      else { label = 'حجز عجوزة • —'; cls = 'border-slate-300 text-slate-600 bg-slate-50'; }
+                      return (
+                        <div className="text-[11px]">
+                          <Badge variant="outline" className={`text-[10px] ${cls}`}>{label}</Badge>
+                        </div>
+                      );
+                    })()}
+
 
                     <div className="flex items-center justify-end gap-1 pt-1">
                        <Button variant="ghost" size="icon" asChild className="h-8 w-8">
