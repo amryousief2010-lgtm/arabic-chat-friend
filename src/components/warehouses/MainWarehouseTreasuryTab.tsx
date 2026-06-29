@@ -2098,6 +2098,10 @@ export default function MainWarehouseTreasuryTab() {
                 )}
                 {lineType === "sale" && (
                   <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><Label>اسم العميل</Label><Input value={lineCustomerName} onChange={(e) => setLineCustomerName(e.target.value)} placeholder="اسم العميل" /></div>
+                      <div><Label>رقم التليفون</Label><Input type="tel" inputMode="tel" value={lineCustomerPhone} onChange={(e) => setLineCustomerPhone(e.target.value)} placeholder="01xxxxxxxxx" /></div>
+                    </div>
                     <div><Label>سعر البيع الفعلي للوحدة</Label><Input type="number" min="0" step="0.01" value={lineSalePrice} onChange={(e) => setLineSalePrice(e.target.value)} /></div>
                     {Number(lineQty) > 0 && Number(linePrice) > 0 && Number(lineSalePrice) > 0 && (() => {
                       const q = Number(lineQty), p = Number(linePrice), sp = Number(lineSalePrice);
