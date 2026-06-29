@@ -814,12 +814,30 @@ const Orders = () => {
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     try {
+      // M4-B: detect Agouza-only orders BEFORE updating to drive reservation lifecycle.
+      // Non-Agouza orders keep the exact previous behaviour.
+      const targetOrder = orders.find((o) => o.id === orderId);
+      const isAgouza = targetOrder?.source_warehouse_id === AGOUZA_WAREHOUSE_ID;
+      const prevStatus = targetOrder?.status as OrderStatus | undefined;
+
       const { error } = await supabase
         .from('orders')
         .update({ status: newStatus })
         .eq('id', orderId);
 
       if (error) throw error;
+
+      // M4-B: Agouza reservation lifecycle — runs ONLY for Agouza orders.
+      // commit = real stock deduction (delivered). release = free hold (cancelled).
+      // Does not touch Main warehouse, Kimo, couriers, or warehouse_transfers.
+      if (isAgouza) {
+        if (newStatus === 'delivered' && prevStatus !== 'delivered') {
+          await commitAgouzaForOrder(orderId);
+        } else if (newStatus === 'cancelled' && prevStatus !== 'cancelled') {
+          await releaseAgouzaForOrder(orderId, 'order_cancelled');
+          toast.success('تم إلغاء الأوردر وفك الحجز من مخزن العجوزة.');
+        }
+      }
 
       setOrders((prev) =>
         prev.map((order) => {
@@ -841,6 +859,7 @@ const Orders = () => {
       toast.error('حدث خطأ أثناء تحديث الحالة');
     }
   };
+
 
   const applyCollectionUpdate = async (
     orderId: string,
