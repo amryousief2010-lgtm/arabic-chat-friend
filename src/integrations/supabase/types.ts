@@ -122,6 +122,51 @@ export type Database = {
         }
         Relationships: []
       }
+      agouza_reservation_audit_log: {
+        Row: {
+          acted_at: string
+          acted_by: string | null
+          action: string
+          details: Json | null
+          id: string
+          inventory_item_id: string | null
+          order_id: string
+          product_id: string | null
+          quantity: number | null
+          reason: string | null
+          status_after: string | null
+          status_before: string | null
+        }
+        Insert: {
+          acted_at?: string
+          acted_by?: string | null
+          action: string
+          details?: Json | null
+          id?: string
+          inventory_item_id?: string | null
+          order_id: string
+          product_id?: string | null
+          quantity?: number | null
+          reason?: string | null
+          status_after?: string | null
+          status_before?: string | null
+        }
+        Update: {
+          acted_at?: string
+          acted_by?: string | null
+          action?: string
+          details?: Json | null
+          id?: string
+          inventory_item_id?: string | null
+          order_id?: string
+          product_id?: string | null
+          quantity?: number | null
+          reason?: string | null
+          status_after?: string | null
+          status_before?: string | null
+        }
+        Relationships: []
+      }
       agouza_stock_reservations: {
         Row: {
           committed_at: string | null
@@ -18888,6 +18933,10 @@ export type Database = {
         Args: { _custody_id: string; _date: string }
         Returns: string
       }
+      commit_agouza_stock_on_delivery: {
+        Args: { p_order_id: string }
+        Returns: Json
+      }
       compare_period_to_snapshot: {
         Args: { p_raise_alert?: boolean; p_snapshot_id: string }
         Returns: Json
@@ -19321,6 +19370,19 @@ export type Database = {
         }[]
       }
       get_agouza_daily_summary: { Args: { p_date: string }; Returns: Json }
+      get_agouza_order_reservation_status: {
+        Args: { p_order_id: string }
+        Returns: {
+          available: number
+          inventory_item_id: string
+          product_id: string
+          requested: number
+          reservation_status: string
+          reserved: number
+          shortage: number
+          stock: number
+        }[]
+      }
       get_dashboard_overview: { Args: never; Returns: Json }
       get_hr_documents_status: {
         Args: never
@@ -20062,6 +20124,10 @@ export type Database = {
         Args: { p_reason: string; p_transfer_id: string }
         Returns: Json
       }
+      release_agouza_stock_reservation: {
+        Args: { p_order_id: string; p_reason?: string }
+        Returns: Json
+      }
       release_order_reservation: { Args: { p_order_id: string }; Returns: Json }
       reopen_courier_day: {
         Args: { _closure_id: string; _reason: string }
@@ -20135,6 +20201,10 @@ export type Database = {
           p_notes?: string
           p_source_warehouse_id: string
         }
+        Returns: Json
+      }
+      reserve_agouza_stock_for_order: {
+        Args: { p_order_id: string }
         Returns: Json
       }
       resolve_order_source_warehouse: {
