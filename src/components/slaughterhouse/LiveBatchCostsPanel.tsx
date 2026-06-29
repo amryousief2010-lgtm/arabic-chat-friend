@@ -167,7 +167,8 @@ export default function LiveBatchCostsPanel({ overrideLiveCount }: { overrideLiv
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs">عدد النعام الأصلي</CardTitle></CardHeader>
           <CardContent><div className="text-xl font-bold">{fmt(totals.original)}</div></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs">النعام الحي</CardTitle></CardHeader>
-          <CardContent><div className="text-xl font-bold text-emerald-700">{fmt(totals.alive)}</div></CardContent></Card>
+          <CardContent><div className="text-xl font-bold text-emerald-700">{fmt(overrideLiveCount ?? totals.alive)}</div></CardContent></Card>
+
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs">تم ذبحه</CardTitle></CardHeader>
           <CardContent><div className="text-xl font-bold text-blue-700">{fmt(totals.slaughtered)}</div></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs">إجمالي النافق</CardTitle>
