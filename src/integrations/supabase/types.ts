@@ -2407,6 +2407,7 @@ export type Database = {
           custody_id: string
           customer_id: string | null
           customer_name: string | null
+          customer_phone: string | null
           discount_amount: number | null
           discount_approved_at: string | null
           discount_approved_by: string | null
@@ -2441,6 +2442,7 @@ export type Database = {
           custody_id: string
           customer_id?: string | null
           customer_name?: string | null
+          customer_phone?: string | null
           discount_amount?: number | null
           discount_approved_at?: string | null
           discount_approved_by?: string | null
@@ -2475,6 +2477,7 @@ export type Database = {
           custody_id?: string
           customer_id?: string | null
           customer_name?: string | null
+          customer_phone?: string | null
           discount_amount?: number | null
           discount_approved_at?: string | null
           discount_approved_by?: string | null

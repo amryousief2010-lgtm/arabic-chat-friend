@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { openPrintWindow, escapeHtml, fmtNum, COMPANY_AR } from "@/lib/printPdf";
 import { isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
 import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow } from "@/lib/warehouseItemFilters";
+import AddMainWarehouseItemDialog from "@/components/warehouses/AddMainWarehouseItemDialog";
 import * as XLSX from "xlsx";
 
 interface Txn {
@@ -136,9 +137,11 @@ export default function MainWarehouseTreasuryTab() {
   const [lineCash, setLineCash] = useState("");
   const [lineNotes, setLineNotes] = useState("");
   const [lineCustomerName, setLineCustomerName] = useState("");
+  const [lineCustomerPhone, setLineCustomerPhone] = useState("");
   const [lineBonusReason, setLineBonusReason] = useState("");
   const [discountThresholdPct, setDiscountThresholdPct] = useState<number>(5);
   const [requestCreditOverride, setRequestCreditOverride] = useState(false);
+  const [addProductOpen, setAddProductOpen] = useState(false);
 
   // === Profiles / payouts / closures (new) ===
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -553,7 +556,7 @@ export default function MainWarehouseTreasuryTab() {
     setLineInventoryItemId("");
     setLineProduct(""); setLineQty(""); setLinePrice(""); setLineSalePrice("");
     setLineDiscountReason(""); setLineCash(""); setLineNotes(""); setLineUnit("كجم");
-    setLineCustomerName(""); setLineBonusReason("");
+    setLineCustomerName(""); setLineCustomerPhone(""); setLineBonusReason("");
     setRequestCreditOverride(false);
     setLineOpen(true);
   };
@@ -576,6 +579,9 @@ export default function MainWarehouseTreasuryTab() {
     } else {
       if (lineType === "issue") {
         if (!lineInventoryItemId) { toast({ title: "اختر المنتج من أصناف المخزن الرئيسي", variant: "destructive" }); return; }
+      } else if (lineType === "sale") {
+        if (!lineInventoryItemId) { toast({ title: "اختر المنتج من أصناف المخزن الرئيسي", variant: "destructive" }); return; }
+        if (!lineCustomerName.trim()) { toast({ title: "أدخل اسم العميل", variant: "destructive" }); return; }
       } else if (!lineProduct.trim()) { toast({ title: "أدخل اسم المنتج", variant: "destructive" }); return; }
       if (!qty || qty <= 0) { toast({ title: "أدخل كمية صحيحة", variant: "destructive" }); return; }
       if (lineType === "sale") {
@@ -628,7 +634,7 @@ export default function MainWarehouseTreasuryTab() {
     setBusy(true);
     try {
       let selectedIssueItem: WarehouseStockItem | null = null;
-      if (lineType === "issue" || lineType === "bonus") {
+      if (lineType === "issue" || lineType === "bonus" || lineType === "sale") {
         if (!mainWarehouse?.id) throw new Error("تعذّر تحديد المخزن الرئيسي");
         const { data: dbItem, error: dbItemErr } = await (supabase as any)
           .from("inventory_items")
@@ -673,7 +679,7 @@ export default function MainWarehouseTreasuryTab() {
         custody_id: lineCustodyId,
         line_type: lineType,
         product_name: lineType === "cash_collect" ? null : (selectedIssueItem?.name || lineProduct.trim()),
-        inventory_item_id: (lineType === "issue" || lineType === "bonus") ? lineInventoryItemId : null,
+        inventory_item_id: (lineType === "issue" || lineType === "bonus" || lineType === "sale") ? lineInventoryItemId : null,
         quantity: lineType === "cash_collect" ? null : qty,
         unit: lineType === "cash_collect" ? null : (selectedIssueItem?.unit || lineUnit),
         unit_price: lineType === "sale" ? salePrice : (lineType === "cash_collect" ? null : (lineType === "bonus" ? bonusUnitCost : (price || null))),
@@ -695,6 +701,8 @@ export default function MainWarehouseTreasuryTab() {
 
 
       if (lineType === "sale") {
+        insertPayload.customer_name = lineCustomerName.trim() || null;
+        insertPayload.customer_phone = lineCustomerPhone.trim() || null;
         insertPayload.original_price = price;
         insertPayload.discount_amount = discountAmt || null;
         insertPayload.discount_pct = discountAmt > 0 ? Number(discountPct.toFixed(2)) : null;
@@ -2012,9 +2020,16 @@ export default function MainWarehouseTreasuryTab() {
           <div className="space-y-3">
             {lineType !== "cash_collect" && (
               <>
-                {(lineType === "issue" || lineType === "bonus") ? (
+                {(lineType === "issue" || lineType === "bonus" || lineType === "sale") ? (
                   <div>
-                    <Label>المنتج من المخزن الرئيسي</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label>المنتج من المخزن الرئيسي</Label>
+                      {canRecord && (
+                        <Button type="button" size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setAddProductOpen(true)}>
+                          <Plus className="w-3 h-3" /> إضافة منتج جديد
+                        </Button>
+                      )}
+                    </div>
                     <Select
                       value={lineInventoryItemId}
                       onValueChange={(value) => {
@@ -2083,6 +2098,10 @@ export default function MainWarehouseTreasuryTab() {
                 )}
                 {lineType === "sale" && (
                   <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><Label>اسم العميل</Label><Input value={lineCustomerName} onChange={(e) => setLineCustomerName(e.target.value)} placeholder="اسم العميل" /></div>
+                      <div><Label>رقم التليفون</Label><Input type="tel" inputMode="tel" value={lineCustomerPhone} onChange={(e) => setLineCustomerPhone(e.target.value)} placeholder="01xxxxxxxxx" /></div>
+                    </div>
                     <div><Label>سعر البيع الفعلي للوحدة</Label><Input type="number" min="0" step="0.01" value={lineSalePrice} onChange={(e) => setLineSalePrice(e.target.value)} /></div>
                     {Number(lineQty) > 0 && Number(linePrice) > 0 && Number(lineSalePrice) > 0 && (() => {
                       const q = Number(lineQty), p = Number(linePrice), sp = Number(lineSalePrice);
@@ -2271,6 +2290,16 @@ export default function MainWarehouseTreasuryTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {mainWarehouse?.id && (
+        <AddMainWarehouseItemDialog
+          open={addProductOpen}
+          onOpenChange={setAddProductOpen}
+          mainWarehouseId={mainWarehouse.id}
+          mainWarehouseName={mainWarehouse.name}
+          onCreated={() => { fetchMainWarehouseItems(); }}
+        />
+      )}
     </div>
 
 

@@ -1,0 +1,1 @@
+ALTER TABLE public.courier_goods_custody_lines ADD COLUMN IF NOT EXISTS customer_phone text;
