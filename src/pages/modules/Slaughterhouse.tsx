@@ -165,17 +165,17 @@ const Slaughterhouse = () => {
   const birdsSlaughteredMonth = batches
     .filter(b => b.slaughter_date >= monthStartStr && b.status !== "cancelled")
     .reduce((s, b) => s + (b.birds_slaughtered || 0), 0);
-  // النعام القائم = المُستلم - النافق - المذبوح - النافق قبل الذبح - المرفوض
+  // النعام القائم = SUM(current_alive_count) للدفعات النشطة (نفس مصدر لوحة تكلفة الدفعات)
+  // ملاحظة: دالة recalc_live_batch_cost في قاعدة البيانات تتولى ضبط current_alive_count
+  // وفق المعادلة (المُستلم − النافق − المذبوح)، فلا داعي لإعادة الحساب يدويًا هنا
+  // لتجنّب الخصم المزدوج (slaughtered + adjustments) الذي كان يسبب عدم المطابقة مع اللوحة.
   const adjustmentsSum = adjustments.reduce((s, a) => s + (a.delta || 0), 0);
-  const liveBalance = (() => {
-    const received = receipts.reduce((s, r) => s + (r.bird_count || 0), 0);
-    const doa = receipts.reduce((s, r) => s + (r.dead_on_arrival || 0), 0);
-    const active = batches.filter(b => b.status !== "cancelled");
-    const slaughtered = active.reduce((s, b) => s + (b.birds_slaughtered || 0), 0);
-    const preDead = active.reduce((s, b) => s + (b.pre_slaughter_dead || 0), 0);
-    const rejected = active.reduce((s, b) => s + (b.rejected_birds || 0), 0);
-    return Math.max(received - doa - slaughtered - preDead - rejected + adjustmentsSum, 0);
-  })();
+  const liveBalance = Math.max(
+    (receipts as any[])
+      .filter(r => !r.archived && !r.excluded_from_costing)
+      .reduce((s, r) => s + Number(r.current_alive_count || 0), 0),
+    0
+  );
   // قيمة النعام القائم (تكلفة محاسبية فقط — ليست سعر بيع)
   // لكل دفعة استلام غير مؤرشفة وغير مستبعدة من التكلفة:
   //   value = current_alive_count × cost_per_bird_current (snapshot per receipt)
