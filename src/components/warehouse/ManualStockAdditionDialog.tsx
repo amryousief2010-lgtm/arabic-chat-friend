@@ -31,7 +31,7 @@ import AddAdjustmentReasonDialog from "@/components/warehouse/AddAdjustmentReaso
 // Plus already imported above
 import { useStocktakingLock } from "@/hooks/useStocktakingLock";
 import { Lock } from "lucide-react";
-import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow } from "@/lib/warehouseItemFilters";
+import { MAIN_WAREHOUSE_ID, getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason } from "@/lib/warehouseItemFilters";
 import { isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
 
 interface InventoryItem {
@@ -183,7 +183,7 @@ const ManualStockAdditionDialog = ({
 
   useEffect(() => { if (open) void loadCustom(); }, [open]);
 
-  const isMainWarehouse = isMainWarehouseName(warehouseName);
+  const isMainWarehouse = warehouseId === MAIN_WAREHOUSE_ID || isMainWarehouseName(warehouseName);
   const allowedItems = useMemo(
     () => getAllowedWarehouseDropdownItems(items, warehouseId, isMainWarehouse),
     [items, warehouseId, isMainWarehouse]
@@ -288,14 +288,24 @@ const ManualStockAdditionDialog = ({
         }
       });
 
-      // Defensive guard: ensure all selected items belong to the target warehouse.
-      // We only check warehouse_id + is_active here — the dropdown already restricts
-      // the visible items, and many legitimate main-warehouse rows have product_id = NULL.
+      // Defensive guard: validate every selected row against the same filtered source
+      // used to build the dropdown options before any stock updates/movements run.
       const itemIdsToCheck = Array.from(byItem.keys());
       const invalidSelection = itemIdsToCheck.find((itemId) => !itemsById.has(itemId));
       if (invalidSelection) {
         console.table([{ item_id: invalidSelection, validation_result: false, rejection_reason: "NOT_IN_FILTERED_MAIN_WAREHOUSE_OPTIONS" }]);
         throw new Error("هذا الصنف غير مسموح استخدامه في شاشة المخزن الرئيسي. برجاء اختيار صنف تابع للمخزن الرئيسي فقط.");
+      }
+      for (const itemId of itemIdsToCheck) {
+        const selected = itemsById.get(itemId);
+        const rejectionReason = getWarehouseItemRejectionReason(selected, warehouseId, isMainWarehouse);
+        if (rejectionReason) {
+          console.table([selected ? getWarehouseItemDebugRow(selected, warehouseId, warehouseName, isMainWarehouse) : { item_id: itemId, rejection_reason: rejectionReason }]);
+          throw new Error(isMainWarehouse
+            ? "هذا الصنف غير مسموح استخدامه في شاشة المخزن الرئيسي. برجاء اختيار صنف تابع للمخزن الرئيسي فقط."
+            : "هذا الصنف غير مرتبط بالمخزن المحدد ولا يمكن إضافته لهذه التوريدة."
+          );
+        }
       }
       if (itemIdsToCheck.length > 0) {
         const { data: checkRows, error: checkErr } = await supabase

@@ -40,7 +40,7 @@ import WarehouseOpeningBalance from "@/pages/modules/WarehouseOpeningBalance";
 import WarehouseOperationalDates from "@/pages/modules/WarehouseOperationalDates";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import WarehousesDashboardPanel from "@/components/warehouses/WarehousesDashboardPanel";
-import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow } from "@/lib/warehouseItemFilters";
+import { MAIN_WAREHOUSE_ID, getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow } from "@/lib/warehouseItemFilters";
 
 
 const qualityLabelText: Record<string, string> = {
@@ -723,7 +723,7 @@ const Warehouses = () => {
   const editManualWarehouse = editManualWarehouseId
     ? warehouses.find((w) => w.id === editManualWarehouseId)
     : undefined;
-  const isEditManualMainWarehouse = !!editManualWarehouse && isMainWarehouseName(editManualWarehouse.name);
+  const isEditManualMainWarehouse = editManualWarehouseId === MAIN_WAREHOUSE_ID || (!!editManualWarehouse && isMainWarehouseName(editManualWarehouse.name));
   const editManualDropdownItems = useMemo(
     () => getAllowedWarehouseDropdownItems(items, editManualWarehouseId, isEditManualMainWarehouse),
     [items, editManualWarehouseId, isEditManualMainWarehouse]
