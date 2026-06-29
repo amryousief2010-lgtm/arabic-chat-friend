@@ -1047,15 +1047,25 @@ const Slaughterhouse = () => {
                   ? "غير محسوبة"
                   : "—"}
             </p>
-            {isExecManager && (
+            <div className="mt-1 flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => { setAdjustForm({ new_balance: liveBalance, reason: "", adjustment_date: todayStr }); setAdjustOpen(true); }}
-                className="mt-1 text-[10px] text-primary underline hover:opacity-80"
+                onClick={() => setCostDetailOpen(true)}
+                className="inline-flex items-center gap-1 text-[10px] text-violet-700 dark:text-violet-300 underline hover:opacity-80"
               >
-                تعديل الرصيد
+                <Calculator className="w-3 h-3" />
+                تفاصيل تكلفة النعامة
               </button>
-            )}
+              {isExecManager && (
+                <button
+                  type="button"
+                  onClick={() => { setAdjustForm({ new_balance: liveBalance, reason: "", adjustment_date: todayStr }); setAdjustOpen(true); }}
+                  className="text-[10px] text-primary underline hover:opacity-80"
+                >
+                  تعديل الرصيد
+                </button>
+              )}
+            </div>
           </div>
           <Bird className="w-7 h-7 text-primary/60" />
         </CardContent></Card>
