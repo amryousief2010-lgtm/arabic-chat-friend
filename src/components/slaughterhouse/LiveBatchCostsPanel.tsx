@@ -14,7 +14,7 @@ import { OpeningCostDialog } from "@/components/slaughterhouse/OpeningCostDialog
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
-export default function LiveBatchCostsPanel() {
+export default function LiveBatchCostsPanel({ overrideLiveCount }: { overrideLiveCount?: number } = {}) {
   const qc = useQueryClient();
   const [feedOpen, setFeedOpen] = useState(false);
   const [mortOpen, setMortOpen] = useState(false);
