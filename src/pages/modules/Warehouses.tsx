@@ -1610,6 +1610,11 @@ const Warehouses = () => {
             <MainWarehouseTreasuryTab />
           </TabsContent>
 
+          <TabsContent value="wh-agouza-treasury" className="space-y-4">
+            <AgouzaTreasuryTab />
+          </TabsContent>
+
+
           <TabsContent value="wh-courier-orders" className="space-y-4">
             <CourierOrderCustodyTab />
           </TabsContent>
