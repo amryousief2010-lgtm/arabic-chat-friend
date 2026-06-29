@@ -193,7 +193,7 @@ const ManualStockAdditionDialog = ({
     const q = normalizeSearch(itemSearch);
     if (!q) return allowedItems;
     return allowedItems.filter((item) =>
-      [item.name, item.category, item.unit, item.sku, item.item_code, item.barcode]
+      [item.name, item.category, item.unit, item.sku, item.item_code, item.barcode, item.product_name, item.product_category, item.product?.barcode]
         .some((value) => normalizeSearch(value).includes(q))
     );
   }, [allowedItems, itemSearch]);
@@ -633,7 +633,7 @@ const ManualStockAdditionDialog = ({
                               ) : filteredAllowedItems.map((i) => (
                                 <SelectItem key={i.id} value={i.id}>
                                   {i.name} {i.unit ? `(${i.unit})` : ""} — {Number(i.stock || 0)}
-                                  {(i.sku || i.item_code || i.barcode) ? ` — ${i.sku || i.item_code || i.barcode}` : ""}
+                                  {(i.sku || i.item_code || i.barcode || i.product?.barcode) ? ` — ${i.sku || i.item_code || i.barcode || i.product?.barcode}` : ""}
                                 </SelectItem>
                               ))}
                             </SelectContent>
