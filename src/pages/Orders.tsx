@@ -189,6 +189,14 @@ const Orders = () => {
  const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
   const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
   const [orders, setOrders] = useState<Order[]>([]);
+  // M4-B: per-order Agouza reservation status. Drives the Agouza-only badge and
+  // blocks delivery confirmation when no active/committed reservation exists.
+  // 'active' = held, 'committed' = stock already deducted, 'released' = freed,
+  // 'shortage' = order saved but reservation refused due to insufficient stock,
+  // 'none' = no reservation row found.
+  type AgouzaResvStatus = 'active' | 'committed' | 'released' | 'shortage' | 'none';
+  const [agouzaResvMap, setAgouzaResvMap] = useState<Record<string, AgouzaResvStatus>>({});
+
   // Overrides for optimistic status changes — re-applied after every background
   // pagination batch so that a user's status change does not get visually
   // "reverted" by a later batch arriving from the still-running fetch loop.
@@ -331,12 +339,45 @@ const Orders = () => {
 
   useEffect(() => {
     fetchOrders();
+
+
+
     (async () => {
       const { data } = await supabase.from('delivery_routes').select('id,name,color').order('name', { ascending: true });
       setAvailableRoutes((data as any[]) || []);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterMonth, filterYear, yearGroup, debouncedSearch]);
+
+  // M4-B: Reload Agouza reservation status whenever the visible orders set changes.
+  // Read-only; Agouza-only — other warehouses are skipped entirely.
+  useEffect(() => {
+    const agouzaIds = orders
+      .filter((o) => o.source_warehouse_id === AGOUZA_WAREHOUSE_ID)
+      .map((o) => o.id);
+    if (agouzaIds.length === 0) { setAgouzaResvMap({}); return; }
+    let cancelled = false;
+    (async () => {
+      const map: Record<string, AgouzaResvStatus> = {};
+      for (let i = 0; i < agouzaIds.length; i += 500) {
+        const chunk = agouzaIds.slice(i, i + 500);
+        const { data: resvs } = await supabase
+          .from('agouza_stock_reservations')
+          .select('order_id,status')
+          .in('order_id', chunk);
+        (resvs || []).forEach((r: any) => {
+          const prev = map[r.order_id];
+          if (r.status === 'committed') map[r.order_id] = 'committed';
+          else if (r.status === 'active' && prev !== 'committed') map[r.order_id] = 'active';
+          else if (!prev) map[r.order_id] = 'released';
+        });
+        chunk.forEach((id) => { if (!map[id]) map[id] = 'none'; });
+      }
+      if (!cancelled) setAgouzaResvMap(map);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders.length]);
+
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -820,6 +861,17 @@ const Orders = () => {
       const isAgouza = targetOrder?.source_warehouse_id === AGOUZA_WAREHOUSE_ID;
       const prevStatus = targetOrder?.status as OrderStatus | undefined;
 
+      // M4-B: BLOCK delivery confirmation on Agouza orders that have no
+      // active/committed reservation (e.g. shortage at reservation time).
+      // Stops phantom deliveries before they hit the RPC.
+      if (isAgouza && newStatus === 'delivered') {
+        const resv = agouzaResvMap[orderId] ?? 'none';
+        if (resv !== 'active' && resv !== 'committed') {
+          toast.error('لا يمكن تأكيد التسليم: لا يوجد حجز نشط لمخزون العجوزة لهذا الأوردر. عدّل الأوردر لإعادة الحجز أو راجع توفر المخزون.');
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from('orders')
         .update({ status: newStatus })
@@ -827,17 +879,21 @@ const Orders = () => {
 
       if (error) throw error;
 
+
       // M4-B: Agouza reservation lifecycle — runs ONLY for Agouza orders.
       // commit = real stock deduction (delivered). release = free hold (cancelled).
       // Does not touch Main warehouse, Kimo, couriers, or warehouse_transfers.
       if (isAgouza) {
         if (newStatus === 'delivered' && prevStatus !== 'delivered') {
           await commitAgouzaForOrder(orderId);
+          setAgouzaResvMap((m) => ({ ...m, [orderId]: 'committed' }));
         } else if (newStatus === 'cancelled' && prevStatus !== 'cancelled') {
           await releaseAgouzaForOrder(orderId, 'order_cancelled');
+          setAgouzaResvMap((m) => ({ ...m, [orderId]: 'released' }));
           toast.success('تم إلغاء الأوردر وفك الحجز من مخزن العجوزة.');
         }
       }
+
 
       setOrders((prev) =>
         prev.map((order) => {
@@ -1316,20 +1372,25 @@ const Orders = () => {
                         </Badge>
                       </div>
                     )}
-                    {order.source_warehouse_id === AGOUZA_WAREHOUSE_ID && (
-                      <div className="text-[11px]">
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] border-purple-400 text-purple-700 bg-purple-50"
-                        >
-                          {order.status === 'delivered'
-                            ? 'حجز عجوزة • تم الخصم'
-                            : order.status === 'cancelled'
-                            ? 'حجز عجوزة • تم فك الحجز'
-                            : 'حجز عجوزة • محجوز'}
-                        </Badge>
-                      </div>
-                    )}
+                    {order.source_warehouse_id === AGOUZA_WAREHOUSE_ID && (() => {
+                      const resv = agouzaResvMap[order.id] ?? 'none';
+                      // Shortage = order is still pending and the reservation
+                      // attempt did not produce an active/committed row.
+                      const isShortage = resv === 'none' && order.status !== 'delivered' && order.status !== 'cancelled';
+                      let label = 'حجز عجوزة • محجوز';
+                      let cls = 'border-purple-400 text-purple-700 bg-purple-50';
+                      if (resv === 'committed') { label = 'حجز عجوزة • تم الخصم'; cls = 'border-emerald-400 text-emerald-700 bg-emerald-50'; }
+                      else if (resv === 'released') { label = 'حجز عجوزة • تم فك الحجز'; cls = 'border-slate-400 text-slate-700 bg-slate-50'; }
+                      else if (resv === 'active') { label = 'حجز عجوزة • محجوز'; cls = 'border-purple-400 text-purple-700 bg-purple-50'; }
+                      else if (isShortage) { label = '⚠ عجز مخزون العجوزة'; cls = 'border-red-500 text-red-700 bg-red-50 font-semibold'; }
+                      else { label = 'حجز عجوزة • —'; cls = 'border-slate-300 text-slate-600 bg-slate-50'; }
+                      return (
+                        <div className="text-[11px]">
+                          <Badge variant="outline" className={`text-[10px] ${cls}`}>{label}</Badge>
+                        </div>
+                      );
+                    })()}
+
 
                     <div className="flex items-center justify-end gap-1 pt-1">
                        <Button variant="ghost" size="icon" asChild className="h-8 w-8">
