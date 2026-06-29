@@ -112,6 +112,52 @@ export default function LiveBatchCostsPanel({ overrideLiveCount }: { overrideLiv
     return base as typeof base & { deadAll: number };
   }, [receipts, allReceipts, slaughteredByReceipt]);
 
+  // Persistent-diff detection: if SUM(current_alive_count) != overrideLiveCount
+  // for more than 24s after recalc, surface a UI warning + manual regenerate.
+  const liveDiff = useMemo(() => {
+    if (typeof overrideLiveCount !== 'number') return 0;
+    return Number(overrideLiveCount) - Number(totals.alive);
+  }, [overrideLiveCount, totals.alive]);
+  const [showDiffAlert, setShowDiffAlert] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const diffTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (diffTimerRef.current) {
+      clearTimeout(diffTimerRef.current);
+      diffTimerRef.current = null;
+    }
+    if (liveDiff !== 0) {
+      diffTimerRef.current = setTimeout(() => setShowDiffAlert(true), 24000);
+    } else {
+      setShowDiffAlert(false);
+    }
+    return () => {
+      if (diffTimerRef.current) clearTimeout(diffTimerRef.current);
+    };
+  }, [liveDiff]);
+
+  const regenerateAll = async () => {
+    setRegenerating(true);
+    try {
+      const ids = receipts.map((r) => r.id);
+      let ok = 0;
+      let fail = 0;
+      for (const id of ids) {
+        const { error } = await supabase.rpc("recalc_live_batch_cost" as any, {
+          p_receipt_id: id,
+        });
+        if (error) fail++; else ok++;
+      }
+      toast.success(`أعيد توليد ${ok} دفعة${fail ? ` (فشل ${fail})` : ''}`);
+      setShowDiffAlert(false);
+      refresh();
+    } catch (e: any) {
+      toast.error(e.message || "فشل إعادة التوليد");
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
   const allocate = async (batchId: string) => {
     try {
       const { data, error } = await supabase.rpc("recompute_slaughter_batch_cost" as any, {
