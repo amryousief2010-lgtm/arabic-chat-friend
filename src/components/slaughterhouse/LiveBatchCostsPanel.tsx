@@ -80,20 +80,36 @@ export default function LiveBatchCostsPanel() {
     [receipts, activeBatchId],
   );
 
+  const slaughteredByReceipt = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const b of slaughterBatches) {
+      if (b.status === 'cancelled' || !b.live_receipt_id) continue;
+      map[b.live_receipt_id] = (map[b.live_receipt_id] || 0) + Number(b.birds_slaughtered || 0);
+    }
+    return map;
+  }, [slaughterBatches]);
+
   const totals = useMemo(() => {
-    return receipts.reduce(
+    const base = receipts.reduce(
       (acc, r) => {
         acc.original += Number(r.bird_count || 0);
         acc.alive += Number(r.current_alive_count || 0);
         acc.dead += Number(r.mortality_count || 0);
+        acc.slaughtered += Number(slaughteredByReceipt[r.id] || 0);
         acc.feed += Number(r.feed_cost_loaded || 0);
         acc.mort += Number(r.mortality_cost_loaded || 0);
         acc.total += Number(r.total_batch_cost || 0);
         return acc;
       },
-      { original: 0, alive: 0, dead: 0, feed: 0, mort: 0, total: 0 },
+      { original: 0, alive: 0, dead: 0, slaughtered: 0, feed: 0, mort: 0, total: 0 },
     );
-  }, [receipts]);
+    // Real mortality across ALL receipts (including archived/opening) for visibility
+    base.deadAll = allReceipts.reduce(
+      (s, r) => s + Number(r.mortality_count || 0),
+      0,
+    );
+    return base as typeof base & { deadAll: number };
+  }, [receipts, allReceipts, slaughteredByReceipt]);
 
   const allocate = async (batchId: string) => {
     try {
@@ -147,12 +163,18 @@ export default function LiveBatchCostsPanel() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs">عدد النعام الأصلي</CardTitle></CardHeader>
           <CardContent><div className="text-xl font-bold">{fmt(totals.original)}</div></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs">النعام الحي</CardTitle></CardHeader>
           <CardContent><div className="text-xl font-bold text-emerald-700">{fmt(totals.alive)}</div></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-xs">إجمالي النافق</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-xs">تم ذبحه</CardTitle></CardHeader>
+          <CardContent><div className="text-xl font-bold text-blue-700">{fmt(totals.slaughtered)}</div></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-xs">إجمالي النافق</CardTitle>
+          {totals.deadAll > totals.dead && (
+            <p className="text-[10px] text-muted-foreground">شامل دفعات الأرشيف: {fmt(totals.deadAll)}</p>
+          )}
+        </CardHeader>
           <CardContent><div className="text-xl font-bold text-destructive">{fmt(totals.dead)}</div></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs">تكلفة العلف المحملة</CardTitle></CardHeader>
           <CardContent><div className="text-xl font-bold text-orange-700">{fmt(totals.feed)} ج.م</div></CardContent></Card>
