@@ -179,19 +179,51 @@ const Slaughterhouse = () => {
   // قيمة النعام القائم (تكلفة محاسبية فقط — ليست سعر بيع)
   // لكل دفعة استلام غير مؤرشفة وغير مستبعدة من التكلفة:
   //   value = current_alive_count × cost_per_bird_current (snapshot per receipt)
-  const liveValueInfo = (() => {
+  const liveValueBreakdown = (() => {
+    const rows: Array<{
+      id: string;
+      receipt_number: string;
+      receipt_date: string;
+      original_count: number;
+      remaining_count: number;
+      cost_per_bird: number;
+      remaining_value: number;
+      has_cost: boolean;
+      note?: string;
+    }> = [];
     let total = 0;
     let missingCount = 0;
+    let remainingTotal = 0;
     for (const r of receipts as any[]) {
       if (r.archived || r.excluded_from_costing) continue;
       const alive = Number(r.current_alive_count || 0);
       if (alive <= 0) continue;
       const cpb = Number(r.cost_per_bird_current || 0);
-      if (cpb <= 0) { missingCount += alive; continue; }
-      total += alive * cpb;
+      const hasCost = cpb > 0;
+      const value = hasCost ? alive * cpb : 0;
+      if (!hasCost) missingCount += alive;
+      total += value;
+      remainingTotal += alive;
+      rows.push({
+        id: r.id,
+        receipt_number: r.receipt_number || "—",
+        receipt_date: r.receipt_date || "",
+        original_count: Number(r.bird_count || 0),
+        remaining_count: alive,
+        cost_per_bird: cpb,
+        remaining_value: value,
+        has_cost: hasCost,
+        note: !hasCost ? "لا توجد تكلفة شراء مسجلة" : undefined,
+      });
     }
-    return { total, missingCount, hasMissing: missingCount > 0 };
+    rows.sort((a, b) => (b.receipt_date || "").localeCompare(a.receipt_date || ""));
+    return { rows, total, missingCount, remainingTotal, hasMissing: missingCount > 0 };
   })();
+  const liveValueInfo = {
+    total: liveValueBreakdown.total,
+    missingCount: liveValueBreakdown.missingCount,
+    hasMissing: liveValueBreakdown.hasMissing,
+  };
   const yieldToday = (() => {
     const todays = batches.filter(b => b.slaughter_date === today && b.actual_yield_pct > 0);
     if (!todays.length) return 0;
