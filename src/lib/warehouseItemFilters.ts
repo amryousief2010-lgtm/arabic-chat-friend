@@ -132,10 +132,15 @@ export const getAllowedWarehouseDropdownItems = <T extends WarehouseDropdownItem
 export const getWarehouseItemRejectionReason = (
   item: WarehouseDropdownItem | undefined | null,
   expectedWarehouseId?: string | null,
+  isMainWarehouse: boolean = false,
 ): string => {
   if (!item) return "ITEM_NOT_FOUND_IN_INVENTORY_ITEMS";
   if (expectedWarehouseId && item.warehouse_id !== expectedWarehouseId) return "WAREHOUSE_ID_MISMATCH";
   if (!isWarehouseItemActive(item)) return "ITEM_NOT_ACTIVE";
+  if (isMainWarehouse) {
+    const module = (item.module || "").toString().toLowerCase();
+    if (FACTORY_ONLY_MODULES.has(module)) return "FACTORY_OWNED_MODULE";
+  }
   return "";
 };
 
