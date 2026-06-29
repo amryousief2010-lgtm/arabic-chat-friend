@@ -136,6 +136,7 @@ export type Database = {
           reason: string | null
           status_after: string | null
           status_before: string | null
+          success: boolean
         }
         Insert: {
           acted_at?: string
@@ -150,6 +151,7 @@ export type Database = {
           reason?: string | null
           status_after?: string | null
           status_before?: string | null
+          success?: boolean
         }
         Update: {
           acted_at?: string
@@ -164,6 +166,7 @@ export type Database = {
           reason?: string | null
           status_after?: string | null
           status_before?: string | null
+          success?: boolean
         }
         Relationships: []
       }
