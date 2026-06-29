@@ -18478,7 +18478,15 @@ export type Database = {
         Returns: boolean
       }
       can_post_inventory: { Args: { _uid: string }; Returns: boolean }
+      can_receive_warehouse_transfer: {
+        Args: { _destination_warehouse_id: string; _uid: string }
+        Returns: boolean
+      }
       can_record_hr_deductions: { Args: { _uid: string }; Returns: boolean }
+      can_request_warehouse_transfer: {
+        Args: { _dest: string; _src: string; _uid: string }
+        Returns: boolean
+      }
       can_view_hr_deductions: { Args: { _uid: string }; Returns: boolean }
       can_view_hr_documents: { Args: { _uid: string }; Returns: boolean }
       can_view_treasury_transfer: {
