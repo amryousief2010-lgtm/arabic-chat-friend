@@ -861,14 +861,19 @@ const Orders = () => {
       const isAgouza = targetOrder?.source_warehouse_id === AGOUZA_WAREHOUSE_ID;
       const prevStatus = targetOrder?.status as OrderStatus | undefined;
 
-      // M4-B: BLOCK delivery confirmation on Agouza orders that have no
-      // active/committed reservation (e.g. shortage at reservation time).
-      // Stops phantom deliveries before they hit the RPC.
+      // M4-B: Agouza orders without an active/committed reservation (shortage).
+      // Allow override with explicit confirmation; skip commit since there's
+      // no reservation to commit. Stock movement is bypassed in that case.
+      let agouzaShortageOverride = false;
       if (isAgouza && newStatus === 'delivered') {
         const resv = agouzaResvMap[orderId] ?? 'none';
         if (resv !== 'active' && resv !== 'committed') {
-          toast.error('لا يمكن تأكيد التسليم: لا يوجد حجز نشط لمخزون العجوزة لهذا الأوردر. عدّل الأوردر لإعادة الحجز أو راجع توفر المخزون.');
-          return;
+          const ok = window.confirm(
+            'تنبيه: هذا الأوردر لا يوجد له حجز نشط في مخزن العجوزة (عجز مخزون).\n\n' +
+            'هل تريد تأكيد التسليم رغم العجز؟ (لن يتم خصم المخزون تلقائيًا، ويجب تسوية الفرق يدويًا لاحقًا)'
+          );
+          if (!ok) return;
+          agouzaShortageOverride = true;
         }
       }
 
@@ -882,11 +887,23 @@ const Orders = () => {
 
       // M4-B: Agouza reservation lifecycle — runs ONLY for Agouza orders.
       // commit = real stock deduction (delivered). release = free hold (cancelled).
-      // Does not touch Main warehouse, Kimo, couriers, or warehouse_transfers.
+      // Skip commit when overriding a shortage (no reservation exists).
       if (isAgouza) {
         if (newStatus === 'delivered' && prevStatus !== 'delivered') {
-          await commitAgouzaForOrder(orderId);
-          setAgouzaResvMap((m) => ({ ...m, [orderId]: 'committed' }));
+          if (!agouzaShortageOverride) {
+            await commitAgouzaForOrder(orderId);
+            setAgouzaResvMap((m) => ({ ...m, [orderId]: 'committed' }));
+          } else {
+            // Log the override for audit; non-blocking.
+            try {
+              await (supabase as any).from('agouza_override_audit_log').insert({
+                order_id: orderId,
+                action: 'deliver_without_reservation',
+                reason: 'shortage_override_by_user',
+              });
+            } catch (e) { /* audit best-effort */ }
+            toast.warning('تم تأكيد التسليم رغم العجز — يلزم تسوية مخزنية يدوية.');
+          }
         } else if (newStatus === 'cancelled' && prevStatus !== 'cancelled') {
           await releaseAgouzaForOrder(orderId, 'order_cancelled');
           setAgouzaResvMap((m) => ({ ...m, [orderId]: 'released' }));
