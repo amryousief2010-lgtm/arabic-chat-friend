@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { RefreshCw, Wheat, Beef, Coins, Skull, Calculator } from "lucide-react";
+import { RefreshCw, Wheat, Beef, Coins, Skull, Calculator, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -111,6 +112,52 @@ export default function LiveBatchCostsPanel({ overrideLiveCount }: { overrideLiv
     return base as typeof base & { deadAll: number };
   }, [receipts, allReceipts, slaughteredByReceipt]);
 
+  // Persistent-diff detection: if SUM(current_alive_count) != overrideLiveCount
+  // for more than 24s after recalc, surface a UI warning + manual regenerate.
+  const liveDiff = useMemo(() => {
+    if (typeof overrideLiveCount !== 'number') return 0;
+    return Number(overrideLiveCount) - Number(totals.alive);
+  }, [overrideLiveCount, totals.alive]);
+  const [showDiffAlert, setShowDiffAlert] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const diffTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (diffTimerRef.current) {
+      clearTimeout(diffTimerRef.current);
+      diffTimerRef.current = null;
+    }
+    if (liveDiff !== 0) {
+      diffTimerRef.current = setTimeout(() => setShowDiffAlert(true), 24000);
+    } else {
+      setShowDiffAlert(false);
+    }
+    return () => {
+      if (diffTimerRef.current) clearTimeout(diffTimerRef.current);
+    };
+  }, [liveDiff]);
+
+  const regenerateAll = async () => {
+    setRegenerating(true);
+    try {
+      const ids = receipts.map((r) => r.id);
+      let ok = 0;
+      let fail = 0;
+      for (const id of ids) {
+        const { error } = await supabase.rpc("recalc_live_batch_cost" as any, {
+          p_receipt_id: id,
+        });
+        if (error) fail++; else ok++;
+      }
+      toast.success(`أعيد توليد ${ok} دفعة${fail ? ` (فشل ${fail})` : ''}`);
+      setShowDiffAlert(false);
+      refresh();
+    } catch (e: any) {
+      toast.error(e.message || "فشل إعادة التوليد");
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
   const allocate = async (batchId: string) => {
     try {
       const { data, error } = await supabase.rpc("recompute_slaughter_batch_cost" as any, {
@@ -163,7 +210,27 @@ export default function LiveBatchCostsPanel({ overrideLiveCount }: { overrideLiv
         </div>
       </div>
 
+
+      {showDiffAlert && liveDiff !== 0 && (
+        <Alert variant="destructive" className="border-amber-500/60 bg-amber-50 text-amber-900 dark:bg-amber-950/30">
+          <AlertTriangle className="h-5 w-5" />
+          <AlertTitle>فرق مستمر في رصيد النعام الحي</AlertTitle>
+          <AlertDescription className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <span>
+              مرّ أكثر من 24 ثانية والفرق ما زال قائمًا: مجموع الدفعات = <b>{fmt(totals.alive)}</b> •
+              المعتمد في الداشبورد = <b>{fmt(overrideLiveCount ?? 0)}</b> •
+              الفرق = <b>{fmt(liveDiff)}</b>. قد يعود السبب لتسويات لم تنعكس على <code>current_alive_count</code>.
+            </span>
+            <Button size="sm" variant="outline" disabled={regenerating} onClick={regenerateAll} className="shrink-0">
+              <RefreshCw className={`h-4 w-4 ml-1 ${regenerating ? 'animate-spin' : ''}`} />
+              {regenerating ? 'جارٍ إعادة التوليد...' : 'إعادة توليد يدوية لكل الدفعات'}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
+
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs">عدد النعام الأصلي</CardTitle></CardHeader>
           <CardContent><div className="text-xl font-bold">{fmt(totals.original)}</div></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs flex items-center gap-1">
