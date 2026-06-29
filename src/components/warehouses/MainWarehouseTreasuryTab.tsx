@@ -137,9 +137,11 @@ export default function MainWarehouseTreasuryTab() {
   const [lineCash, setLineCash] = useState("");
   const [lineNotes, setLineNotes] = useState("");
   const [lineCustomerName, setLineCustomerName] = useState("");
+  const [lineCustomerPhone, setLineCustomerPhone] = useState("");
   const [lineBonusReason, setLineBonusReason] = useState("");
   const [discountThresholdPct, setDiscountThresholdPct] = useState<number>(5);
   const [requestCreditOverride, setRequestCreditOverride] = useState(false);
+  const [addProductOpen, setAddProductOpen] = useState(false);
 
   // === Profiles / payouts / closures (new) ===
   const [profiles, setProfiles] = useState<any[]>([]);
