@@ -17931,17 +17931,15 @@ export type Database = {
         }
         Returns: string
       }
-      approve_feed_production_invoice:
-        | { Args: { p_invoice_id: string }; Returns: undefined }
-        | {
-            Args: {
-              p_flag_reasons?: Json
-              p_invoice_id: string
-              p_review_note?: string
-              p_was_flagged?: boolean
-            }
-            Returns: undefined
-          }
+      approve_feed_production_invoice: {
+        Args: {
+          p_flag_reasons?: Json
+          p_invoice_id: string
+          p_review_note?: string
+          p_was_flagged?: boolean
+        }
+        Returns: undefined
+      }
       approve_feed_sales_return: {
         Args: { p_return_id: string }
         Returns: {

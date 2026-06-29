@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.approve_feed_production_invoice(uuid);
