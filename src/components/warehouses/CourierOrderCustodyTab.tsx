@@ -68,7 +68,9 @@ type Assignment = {
 };
 type Order = {
   id: string; order_number: string; status: string; total: number;
+  customer_id?: string | null;
   customer_name?: string | null; created_at: string;
+  customers?: { name: string | null; phone: string | null } | null;
 };
 type Tracking = { order_id: string; courier_status: string | null };
 type Collection = { id: string; order_id: string; amount_due: number; amount_collected: number; status: string; collected_at: string };
@@ -139,19 +141,20 @@ export default function CourierOrderCustodyTab() {
     const assignedOrderIds = asn.map((a) => a.order_id);
     const [readyOrdersRes, assignedOrdersRes] = await Promise.all([
       (supabase as any).from("orders")
-        .select("id, order_number, status, total, customer_name, created_at")
+        .select("id, order_number, status, total, customer_id, created_at, customers!orders_customer_id_fkey(name, phone)")
         .in("status", ["pending", "processing", "shipped"])
         .order("created_at", { ascending: false })
         .limit(500),
       assignedOrderIds.length
         ? (supabase as any).from("orders")
-            .select("id, order_number, status, total, customer_name, created_at")
+            .select("id, order_number, status, total, customer_id, created_at, customers!orders_customer_id_fkey(name, phone)")
             .in("id", assignedOrderIds)
         : Promise.resolve({ data: [] as Order[] }),
     ]);
+    const enrich = (o: any): Order => ({ ...o, customer_name: o?.customers?.name ?? null });
     const mergedMap = new Map<string, Order>();
-    (readyOrdersRes.data || []).forEach((o: Order) => mergedMap.set(o.id, o));
-    (assignedOrdersRes.data || []).forEach((o: Order) => mergedMap.set(o.id, o));
+    (readyOrdersRes.data || []).forEach((o: any) => mergedMap.set(o.id, enrich(o)));
+    (assignedOrdersRes.data || []).forEach((o: any) => mergedMap.set(o.id, enrich(o)));
     setOrders(Array.from(mergedMap.values()));
 
     const ids = Array.from(mergedMap.keys());
@@ -598,6 +601,25 @@ export default function CourierOrderCustodyTab() {
                                   }}>
                                   <RotateCcw className="w-3 h-3 text-rose-600" />
                                 </Button>
+                                <Button size="sm" variant="outline" className="h-7 px-2 border-pink-300 hover:bg-pink-50" title="هدية / مجاني (بدون تحصيل)"
+                                  onClick={async () => {
+                                    if (!confirm(`تأكيد: تسليم الأوردر ${o?.order_number ?? ""} كهدية مجانية بدون تحصيل؟`)) return;
+                                    if (await recordDeliveryAndCollection(a.order_id, 0, "هدية مجانية - تم التسليم بدون تحصيل")) {
+                                      toast({ title: "تم التسليم كهدية مجانية" }); load();
+                                    }
+                                  }}>
+                                  <span className="text-xs">🎁</span>
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 px-2 border-gray-400 hover:bg-gray-50" title="ألغاه العميل (إرجاع البضاعة)"
+                                  onClick={() => {
+                                    const ord = o ?? ({ id: a.order_id, order_number: a.order_id.slice(0, 8), total: dueAmt, customer_name: "—", status: a.status, created_at: a.assigned_at } as Order);
+                                    setReturnOpen(ord);
+                                    setReturnReason("customer_cancelled");
+                                    setReturnNotes("ألغى العميل الأوردر — إرجاع كامل");
+                                    setReturnKind("full");
+                                  }}>
+                                  <span className="text-xs">❌</span>
+                                </Button>
                                 <Button size="sm" variant="outline" className="h-7 px-2 border-amber-300 hover:bg-amber-50" title="تصحيح/تعديل"
                                   onClick={() => {
                                     setCorrectOpen({ assignment: a, order: o });
@@ -805,6 +827,7 @@ export default function CourierOrderCustodyTab() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="customer_refused">العميل رفض</SelectItem>
+                  <SelectItem value="customer_cancelled">ألغى العميل الأوردر</SelectItem>
                   <SelectItem value="customer_unavailable">العميل غير متاح</SelectItem>
                   <SelectItem value="product_unsuitable">المنتج غير مناسب</SelectItem>
                   <SelectItem value="address_unclear">العنوان غير واضح</SelectItem>
