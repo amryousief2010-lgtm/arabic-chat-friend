@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet, FileText, MapPin, Menu, BookOpen, Calendar, Scale, UtensilsCrossed, Inbox, ClipboardCheck, Eye, Wallet, Truck } from "lucide-react";
 import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
 import MainWarehouseTreasuryTab from "@/components/warehouses/MainWarehouseTreasuryTab";
+import AgouzaTreasuryTab from "@/components/warehouses/AgouzaTreasuryTab";
 import CourierOrderCustodyTab from "@/components/warehouses/CourierOrderCustodyTab";
 import DailyCustodyReconciliationTab from "@/components/warehouses/DailyCustodyReconciliationTab";
 import RouteDistributionPreparationTab from "@/components/warehouses/RouteDistributionPreparationTab";
@@ -1066,6 +1067,7 @@ const Warehouses = () => {
               <TabsTrigger value="wh-packaging"><Package />التغليف والتعبئة</TabsTrigger>
               <TabsTrigger value="wh-activity"><BarChart3 />سجل حركات المخزن الرئيسي</TabsTrigger>
               <TabsTrigger value="wh-treasury"><Wallet />خزينة المخزن الرئيسي</TabsTrigger>
+              <TabsTrigger value="wh-agouza-treasury"><Wallet />خزنة مخزن العجوزة</TabsTrigger>
               <TabsTrigger value="wh-courier-orders"><Truck />عهدة أوردرات المندوب</TabsTrigger>
               <TabsTrigger value="wh-route-prep"><Truck />تجهيز خط التوزيع</TabsTrigger>
               <TabsTrigger value="wh-daily-recon"><ClipboardCheck />تسوية عهدة اليوم</TabsTrigger>
@@ -1607,6 +1609,11 @@ const Warehouses = () => {
           <TabsContent value="wh-treasury" className="space-y-4">
             <MainWarehouseTreasuryTab />
           </TabsContent>
+
+          <TabsContent value="wh-agouza-treasury" className="space-y-4">
+            <AgouzaTreasuryTab />
+          </TabsContent>
+
 
           <TabsContent value="wh-courier-orders" className="space-y-4">
             <CourierOrderCustodyTab />
