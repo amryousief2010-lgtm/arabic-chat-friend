@@ -140,7 +140,7 @@ const WarehouseDetail = () => {
     const mvFilter = scopeIds.flatMap(w => [`warehouse_id.eq.${w}`, `destination_warehouse_id.eq.${w}`]).join(",");
     const trFilter = scopeIds.flatMap(w => [`source_warehouse_id.eq.${w}`, `destination_warehouse_id.eq.${w}`]).join(",");
     const [it, mv, oi, tr] = await Promise.all([
-      supabase.from("inventory_items").select("*").eq("warehouse_id", id).order("name"),
+      supabase.from("inventory_items").select("*, product:products(is_active, category, name, barcode)").eq("warehouse_id", id).order("name"),
       supabase.from("inventory_movements")
         .select("*, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)")
         .or(mvFilter)

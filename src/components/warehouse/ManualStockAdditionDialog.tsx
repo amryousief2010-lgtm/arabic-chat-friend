@@ -31,13 +31,16 @@ import AddAdjustmentReasonDialog from "@/components/warehouse/AddAdjustmentReaso
 // Plus already imported above
 import { useStocktakingLock } from "@/hooks/useStocktakingLock";
 import { Lock } from "lucide-react";
-import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, isAllowedWarehouseDropdownItem } from "@/lib/warehouseItemFilters";
+import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow } from "@/lib/warehouseItemFilters";
 import { isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
 
 interface InventoryItem {
   id: string;
   warehouse_id?: string | null;
   product_id?: string | null;
+  product_is_active?: boolean | null;
+  product_category?: string | null;
+  product_name?: string | null;
   name: string;
   category?: string | null;
   unit?: string | null;
@@ -51,6 +54,7 @@ interface InventoryItem {
   module?: string | null;
   item_type?: string | null;
   source_module?: string | null;
+  product?: { is_active?: boolean | null; category?: string | null; name?: string | null; barcode?: string | null } | null;
 }
 
 interface Props {
@@ -196,7 +200,7 @@ const ManualStockAdditionDialog = ({
 
   useEffect(() => {
     if (!import.meta.env.DEV || !open) return;
-    console.table(allowedItems.map((item) => getWarehouseItemDebugRow(item, warehouseId, warehouseName)));
+    console.table(allowedItems.map((item) => getWarehouseItemDebugRow(item, warehouseId, warehouseName, isMainWarehouse)));
   }, [open, allowedItems, warehouseId, warehouseName]);
 
   useEffect(() => {
@@ -288,6 +292,11 @@ const ManualStockAdditionDialog = ({
       // We only check warehouse_id + is_active here — the dropdown already restricts
       // the visible items, and many legitimate main-warehouse rows have product_id = NULL.
       const itemIdsToCheck = Array.from(byItem.keys());
+      const invalidSelection = itemIdsToCheck.find((itemId) => !itemsById.has(itemId));
+      if (invalidSelection) {
+        console.table([{ item_id: invalidSelection, validation_result: false, rejection_reason: "NOT_IN_FILTERED_MAIN_WAREHOUSE_OPTIONS" }]);
+        throw new Error("هذا الصنف غير مسموح استخدامه في شاشة المخزن الرئيسي. برجاء اختيار صنف تابع للمخزن الرئيسي فقط.");
+      }
       if (itemIdsToCheck.length > 0) {
         const { data: checkRows, error: checkErr } = await supabase
           .from("inventory_items")

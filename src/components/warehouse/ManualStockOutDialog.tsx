@@ -37,6 +37,9 @@ interface InventoryItem {
   id: string;
   warehouse_id?: string | null;
   product_id?: string | null;
+  product_is_active?: boolean | null;
+  product_category?: string | null;
+  product_name?: string | null;
   name: string;
   category?: string | null;
   unit?: string | null;
@@ -50,6 +53,7 @@ interface InventoryItem {
   module?: string | null;
   item_type?: string | null;
   source_module?: string | null;
+  product?: { is_active?: boolean | null; category?: string | null; name?: string | null; barcode?: string | null } | null;
 }
 
 interface Props {
@@ -213,7 +217,7 @@ const ManualStockOutDialog = ({
 
   useEffect(() => {
     if (!import.meta.env.DEV || !open) return;
-    console.table(allowedItems.map((item) => getWarehouseItemDebugRow(item, warehouseId, warehouseName)));
+    console.table(allowedItems.map((item) => getWarehouseItemDebugRow(item, warehouseId, warehouseName, isMainWarehouse)));
   }, [open, allowedItems, warehouseId, warehouseName]);
 
   const selectedItemIds = useMemo(
@@ -373,6 +377,11 @@ const ManualStockOutDialog = ({
       // has already restricted what the user can pick. The save-time check is strictly:
       //   (1) row exists, (2) warehouse_id matches target, (3) item is active, (4) has stock.
       const itemIdsToCheck = Array.from(byItem.keys());
+      const invalidSelection = itemIdsToCheck.find((itemId) => !itemsById.has(itemId));
+      if (invalidSelection) {
+        console.table([{ item_id: invalidSelection, validation_result: false, rejection_reason: "NOT_IN_FILTERED_MAIN_WAREHOUSE_OPTIONS" }]);
+        throw new Error("هذا الصنف غير مسموح استخدامه في شاشة المخزن الرئيسي. برجاء اختيار صنف تابع للمخزن الرئيسي فقط.");
+      }
       if (itemIdsToCheck.length > 0) {
         const { data: checkRows, error: checkErr } = await supabase
           .from("inventory_items")
