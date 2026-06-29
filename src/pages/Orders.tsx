@@ -886,11 +886,14 @@ const Orders = () => {
       if (isAgouza) {
         if (newStatus === 'delivered' && prevStatus !== 'delivered') {
           await commitAgouzaForOrder(orderId);
+          setAgouzaResvMap((m) => ({ ...m, [orderId]: 'committed' }));
         } else if (newStatus === 'cancelled' && prevStatus !== 'cancelled') {
           await releaseAgouzaForOrder(orderId, 'order_cancelled');
+          setAgouzaResvMap((m) => ({ ...m, [orderId]: 'released' }));
           toast.success('تم إلغاء الأوردر وفك الحجز من مخزن العجوزة.');
         }
       }
+
 
       setOrders((prev) =>
         prev.map((order) => {
