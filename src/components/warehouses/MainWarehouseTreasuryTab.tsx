@@ -2297,12 +2297,7 @@ export default function MainWarehouseTreasuryTab() {
           onOpenChange={setAddProductOpen}
           mainWarehouseId={mainWarehouse.id}
           mainWarehouseName={mainWarehouse.name}
-          onCreated={async (newItemId?: string) => {
-            await fetchMainWarehouseItems();
-            if (newItemId) {
-              setLineInventoryItemId(newItemId);
-            }
-          }}
+          onCreated={() => { fetchMainWarehouseItems(); }}
         />
       )}
     </div>
