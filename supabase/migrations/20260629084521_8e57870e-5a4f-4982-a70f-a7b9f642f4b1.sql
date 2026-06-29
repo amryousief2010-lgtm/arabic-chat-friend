@@ -1,0 +1,1 @@
+ALTER VIEW public.v_feed_production_orphan_invoices SET (security_invoker = on);
