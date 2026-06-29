@@ -57,6 +57,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { normalizePhone } from '@/lib/normalizePhone';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AGOUZA_WAREHOUSE_ID, reserveAgouzaForOrder } from '@/lib/agouzaReservations';
+
 
 interface Product {
   id: string;
