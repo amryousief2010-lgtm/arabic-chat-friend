@@ -166,8 +166,22 @@ export default function LiveBatchCostsPanel({ overrideLiveCount }: { overrideLiv
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs">عدد النعام الأصلي</CardTitle></CardHeader>
           <CardContent><div className="text-xl font-bold">{fmt(totals.original)}</div></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-xs">النعام الحي</CardTitle></CardHeader>
-          <CardContent><div className="text-xl font-bold text-emerald-700">{fmt(overrideLiveCount ?? totals.alive)}</div></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-xs flex items-center gap-1">
+            النعام الحي
+            {typeof overrideLiveCount === 'number' && overrideLiveCount !== totals.alive && (
+              <span
+                title={`تنبيه مطابقة: SUM(current_alive_count) = ${fmt(totals.alive)} بينما القيمة المعتمدة في الداشبورد = ${fmt(overrideLiveCount)}. الفرق ${fmt(overrideLiveCount - totals.alive)} يعود لتسويات يدوية / دفعات مستبعدة. راجع slaughter_live_stock_adjustments.`}
+                className="text-amber-600 text-[10px] cursor-help"
+              >⚠️</span>
+            )}
+          </CardTitle></CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold text-emerald-700">{fmt(overrideLiveCount ?? totals.alive)}</div>
+            {typeof overrideLiveCount === 'number' && overrideLiveCount !== totals.alive && (
+              <p className="text-[10px] text-amber-700 mt-1">خام الدفعات: {fmt(totals.alive)} • فرق: {fmt(overrideLiveCount - totals.alive)}</p>
+            )}
+          </CardContent></Card>
+
 
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs">تم ذبحه</CardTitle></CardHeader>
           <CardContent><div className="text-xl font-bold text-blue-700">{fmt(totals.slaughtered)}</div></CardContent></Card>
