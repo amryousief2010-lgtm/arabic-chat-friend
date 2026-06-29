@@ -56,6 +56,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/dateFormat";
+import {
+  AGOUZA_WAREHOUSE_ID,
+  commitAgouzaForOrder,
+  releaseAgouzaForOrder,
+} from "@/lib/agouzaReservations";
+
 
 type YearGroup = "all" | "2026" | "pre2026";
 
@@ -808,12 +814,30 @@ const Orders = () => {
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     try {
+      // M4-B: detect Agouza-only orders BEFORE updating to drive reservation lifecycle.
+      // Non-Agouza orders keep the exact previous behaviour.
+      const targetOrder = orders.find((o) => o.id === orderId);
+      const isAgouza = targetOrder?.source_warehouse_id === AGOUZA_WAREHOUSE_ID;
+      const prevStatus = targetOrder?.status as OrderStatus | undefined;
+
       const { error } = await supabase
         .from('orders')
         .update({ status: newStatus })
         .eq('id', orderId);
 
       if (error) throw error;
+
+      // M4-B: Agouza reservation lifecycle — runs ONLY for Agouza orders.
+      // commit = real stock deduction (delivered). release = free hold (cancelled).
+      // Does not touch Main warehouse, Kimo, couriers, or warehouse_transfers.
+      if (isAgouza) {
+        if (newStatus === 'delivered' && prevStatus !== 'delivered') {
+          await commitAgouzaForOrder(orderId);
+        } else if (newStatus === 'cancelled' && prevStatus !== 'cancelled') {
+          await releaseAgouzaForOrder(orderId, 'order_cancelled');
+          toast.success('تم إلغاء الأوردر وفك الحجز من مخزن العجوزة.');
+        }
+      }
 
       setOrders((prev) =>
         prev.map((order) => {
@@ -835,6 +859,7 @@ const Orders = () => {
       toast.error('حدث خطأ أثناء تحديث الحالة');
     }
   };
+
 
   const applyCollectionUpdate = async (
     orderId: string,
@@ -898,6 +923,11 @@ const Orders = () => {
 
   const handleDeleteOrder = async (orderId: string) => {
     try {
+      // M4-B: free any Agouza hold before delete (Agouza-only; no-op otherwise).
+      const target = orders.find((o) => o.id === orderId);
+      if (target?.source_warehouse_id === AGOUZA_WAREHOUSE_ID) {
+        await releaseAgouzaForOrder(orderId, 'order_deleted');
+      }
       const { error: itemsErr } = await supabase.from('order_items').delete().eq('order_id', orderId);
       if (itemsErr) throw itemsErr;
       const { error } = await supabase.from('orders').delete().eq('id', orderId);
@@ -909,6 +939,7 @@ const Orders = () => {
       toast.error('تعذّر حذف الطلب');
     }
   };
+
 
   const getStatusIcon = (status: OrderStatus) => {
     switch (status) {
@@ -1285,6 +1316,21 @@ const Orders = () => {
                         </Badge>
                       </div>
                     )}
+                    {order.source_warehouse_id === AGOUZA_WAREHOUSE_ID && (
+                      <div className="text-[11px]">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] border-purple-400 text-purple-700 bg-purple-50"
+                        >
+                          {order.status === 'delivered'
+                            ? 'حجز عجوزة • تم الخصم'
+                            : order.status === 'cancelled'
+                            ? 'حجز عجوزة • تم فك الحجز'
+                            : 'حجز عجوزة • محجوز'}
+                        </Badge>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-end gap-1 pt-1">
                        <Button variant="ghost" size="icon" asChild className="h-8 w-8">
                          <Link to={`/orders/${order.id}`}><Eye className="w-4 h-4" /></Link>

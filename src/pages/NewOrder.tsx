@@ -57,6 +57,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { normalizePhone } from '@/lib/normalizePhone';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AGOUZA_WAREHOUSE_ID, reserveAgouzaForOrder } from '@/lib/agouzaReservations';
+
 
 interface Product {
   id: string;
@@ -1136,6 +1138,14 @@ const NewOrder = () => {
         .insert(orderItems);
 
       if (itemsError) throw itemsError;
+
+      // M4-B: Agouza-only reservation (no stock mutation here).
+      // Affects ONLY orders whose source warehouse is Agouza. Other warehouses untouched.
+      if (sourceWh.id === AGOUZA_WAREHOUSE_ID) {
+        await reserveAgouzaForOrder(order.id);
+      }
+
+
 
       if (approvedDuplicateRequestId) {
         await supabase.rpc('mark_duplicate_order_approval_used', {
