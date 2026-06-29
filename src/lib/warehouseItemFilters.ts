@@ -19,14 +19,23 @@ export interface WarehouseDropdownItem {
 }
 
 export const isWarehouseItemActive = (item: WarehouseDropdownItem): boolean =>
-  // The agreed validation rule for main warehouse dispatch is ONLY:
-  // warehouse_id matches + inventory_items.is_active is not false.
-  // Do not block by product_id/category/module/archive flags here.
   item.is_active !== false;
 
+// Modules that physically live inside the main warehouse but represent
+// factory raw materials / packaging stocks. These must NEVER appear in
+// the main-warehouse dispatch/supply dropdowns even if their warehouse_id
+// matches — they are owned by the factories and have their own dedicated
+// inventory screens. Items whose module is NULL, "warehouse", "sales",
+// or "meat" are considered legitimate main-warehouse stock.
+const FACTORY_ONLY_MODULES = new Set(["meat_factory", "feed_factory", "packaging"]);
+
 export const isMainWarehouseStockItemAllowed = (item: WarehouseDropdownItem): boolean => {
+  if (!isWarehouseItemActive(item)) return false;
+  const module = (item.module || "").toString().toLowerCase();
+  if (FACTORY_ONLY_MODULES.has(module)) return false;
   // For main-warehouse dispatches, the only item-level rule is that the
-  // inventory_items row itself is active. Do not require product_id/category/module:
+  // inventory_items row itself is active and not a factory-owned module.
+  // Do not require product_id/category:
   // legitimate main-warehouse products can exist with product_id = NULL.
   return isWarehouseItemActive(item);
 };
