@@ -2020,9 +2020,16 @@ export default function MainWarehouseTreasuryTab() {
           <div className="space-y-3">
             {lineType !== "cash_collect" && (
               <>
-                {(lineType === "issue" || lineType === "bonus") ? (
+                {(lineType === "issue" || lineType === "bonus" || lineType === "sale") ? (
                   <div>
-                    <Label>المنتج من المخزن الرئيسي</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label>المنتج من المخزن الرئيسي</Label>
+                      {canRecord && (
+                        <Button type="button" size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setAddProductOpen(true)}>
+                          <Plus className="w-3 h-3" /> إضافة منتج جديد
+                        </Button>
+                      )}
+                    </div>
                     <Select
                       value={lineInventoryItemId}
                       onValueChange={(value) => {
