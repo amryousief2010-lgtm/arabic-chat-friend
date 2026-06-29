@@ -197,7 +197,7 @@ const LabTreasury = lazy(() => import("@/pages/LabTreasury"));
 const MyLabCollections = lazy(() => import("@/pages/MyLabCollections"));
 const SlaughterhouseCustody = lazy(() => import("@/pages/SlaughterhouseCustody"));
 const MainTreasury = lazy(() => import("@/pages/MainTreasury"));
-const AgouzaReservationDiagnostics = lazy(() => import("@/pages/dev/AgouzaReservationDiagnostics"));
+
 const LabHistoricalReceivables = lazy(() => import("@/pages/lab-treasury/HistoricalReceivables"));
 const LabExternalReceivables = lazy(() => import("@/pages/lab-treasury/ExternalReceivables"));
 const LabCustomerDebts = lazy(() => import("@/pages/lab-treasury/LabCustomerDebts"));
@@ -1111,12 +1111,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
 
-          {/* TEMP DEV-ONLY — M4-A verification. Remove this Route + lazy import when M4-A is signed off. */}
-          <Route path="/dev/agouza-reservation-diagnostics" element={
-            <ProtectedRoute allowedRoles={['general_manager','executive_manager']}>
-              <PageTransition><AgouzaReservationDiagnostics /></PageTransition>
-            </ProtectedRoute>
-          } />
+
 
           <Route path="/unauthorized" element={
             <PageTransition><Unauthorized /></PageTransition>
