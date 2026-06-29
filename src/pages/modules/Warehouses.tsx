@@ -15,6 +15,8 @@ import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Sett
 import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
 import MainWarehouseTreasuryTab from "@/components/warehouses/MainWarehouseTreasuryTab";
 import AgouzaTreasuryTab from "@/components/warehouses/AgouzaTreasuryTab";
+import AgouzaReconciliationTab from "@/components/warehouses/AgouzaReconciliationTab";
+import AgouzaDailyClosureTab from "@/components/warehouses/AgouzaDailyClosureTab";
 import CourierOrderCustodyTab from "@/components/warehouses/CourierOrderCustodyTab";
 import DailyCustodyReconciliationTab from "@/components/warehouses/DailyCustodyReconciliationTab";
 import RouteDistributionPreparationTab from "@/components/warehouses/RouteDistributionPreparationTab";
@@ -1068,6 +1070,8 @@ const Warehouses = () => {
               <TabsTrigger value="wh-activity"><BarChart3 />سجل حركات المخزن الرئيسي</TabsTrigger>
               <TabsTrigger value="wh-treasury"><Wallet />خزينة المخزن الرئيسي</TabsTrigger>
               <TabsTrigger value="wh-agouza-treasury"><Wallet />خزنة مخزن العجوزة</TabsTrigger>
+              <TabsTrigger value="wh-agouza-recon"><ClipboardCheck />مطابقة خزنة العجوزة</TabsTrigger>
+              <TabsTrigger value="wh-agouza-closure"><ClipboardCheck />إقفال يوم العجوزة</TabsTrigger>
               <TabsTrigger value="wh-courier-orders"><Truck />عهدة أوردرات المندوب</TabsTrigger>
               <TabsTrigger value="wh-route-prep"><Truck />تجهيز خط التوزيع</TabsTrigger>
               <TabsTrigger value="wh-daily-recon"><ClipboardCheck />تسوية عهدة اليوم</TabsTrigger>
@@ -1613,6 +1617,15 @@ const Warehouses = () => {
           <TabsContent value="wh-agouza-treasury" className="space-y-4">
             <AgouzaTreasuryTab />
           </TabsContent>
+
+          <TabsContent value="wh-agouza-recon" className="space-y-4">
+            <AgouzaReconciliationTab />
+          </TabsContent>
+
+          <TabsContent value="wh-agouza-closure" className="space-y-4">
+            <AgouzaDailyClosureTab />
+          </TabsContent>
+
 
 
           <TabsContent value="wh-courier-orders" className="space-y-4">
