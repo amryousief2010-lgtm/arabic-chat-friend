@@ -312,6 +312,69 @@ export default function AgouzaReservationDiagnostics() {
         </div>
         {dryRunResult && <ResultBox label="Dry-Run Preview" data={dryRunResult} />}
       </Section>
+
+      <Card className="mb-4 border-destructive">
+        <CardHeader>
+          <CardTitle className="text-lg text-destructive">5) اختبار Commit فعلي — مؤقت وخطر ⚠️</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Alert variant="destructive">
+            <AlertTriangle className="h-5 w-5" />
+            <AlertTitle>تحذير</AlertTitle>
+            <AlertDescription>
+              هذا الاختبار سيخصم فعلياً من مخزون <b>العجوزة</b> وينشئ inventory_movements.
+              استخدمه فقط على أوردر تجريبي صغير وبعد مراجعة Preview الخصم. الزر معطّل حتى تكتب التأكيد النصي.
+            </AlertDescription>
+          </Alert>
+
+          <div className="flex gap-2">
+            <Input
+              value={commitOrderId}
+              onChange={(e) => { setCommitOrderId(e.target.value); setCommitPreview(null); setCommitConfirm(""); }}
+              placeholder="order_id كامل (UUID) لأوردر تابع للعجوزة بحجوزات active"
+            />
+            <Button onClick={loadCommitPreview} variant="secondary">تحميل Preview الخصم</Button>
+          </div>
+
+          {commitPreview && <ResultBox label="Preview قبل التنفيذ" data={commitPreview} />}
+          {commitOrderMeta && <ResultBox label="بيانات الأوردر" data={commitOrderMeta} />}
+
+          {commitPreview && !commitPreview.error && (commitPreview.blockers?.length ?? 0) === 0 && (
+            <div className="space-y-2 rounded-md border border-destructive p-3">
+              <div className="text-sm">
+                اكتب <code className="rounded bg-destructive/10 px-1 font-bold">COMMIT-AGOUZA</code> للتأكيد:
+              </div>
+              <Input
+                value={commitConfirm}
+                onChange={(e) => setCommitConfirm(e.target.value)}
+                placeholder="COMMIT-AGOUZA"
+                dir="ltr"
+              />
+              <Button
+                onClick={runCommit}
+                variant="destructive"
+                disabled={commitConfirm !== "COMMIT-AGOUZA" || commitRunning}
+              >
+                تنفيذ Commit فعلي للاختبار
+              </Button>
+            </div>
+          )}
+
+          {commitResult && <ResultBox label="نتيجة Commit" data={commitResult} />}
+
+          {commitResult && !commitResult.error && (
+            <div className="space-y-2 rounded-md border p-3">
+              <div className="text-sm font-semibold">اختبار منع Commit مكرر:</div>
+              <Button onClick={runDoubleCommit} variant="outline" disabled={commitRunning}>
+                اختبار منع Commit مكرر
+              </Button>
+              {doubleCommitResult && <ResultBox label="نتيجة Commit الثانية (متوقع: لا خصم)" data={doubleCommitResult} />}
+            </div>
+          )}
+
+          {postCommitInfo && <ResultBox label="الحالة بعد Commit (stock_diff / movements / audit / reservations)" data={postCommitInfo} />}
+        </CardContent>
+      </Card>
     </div>
   );
 }
