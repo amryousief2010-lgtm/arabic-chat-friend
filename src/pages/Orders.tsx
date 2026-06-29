@@ -339,6 +339,34 @@ const Orders = () => {
 
   useEffect(() => {
     fetchOrders();
+    // M4-B: load Agouza reservation status for Agouza-sourced orders only.
+    // Strictly read-only; does not touch any other module.
+    const fetchAgouzaResv = async () => {
+      const agouzaIds = orders
+        .filter((o) => o.source_warehouse_id === AGOUZA_WAREHOUSE_ID)
+        .map((o) => o.id);
+      if (agouzaIds.length === 0) return;
+      const map: Record<string, AgouzaResvStatus> = {};
+      // batch in chunks of 500 to stay friendly to the API
+      for (let i = 0; i < agouzaIds.length; i += 500) {
+        const chunk = agouzaIds.slice(i, i + 500);
+        const { data: resvs } = await supabase
+          .from('agouza_stock_reservations')
+          .select('order_id,status')
+          .in('order_id', chunk);
+        (resvs || []).forEach((r: any) => {
+          const prev = map[r.order_id];
+          // priority: committed > active > released
+          if (r.status === 'committed') map[r.order_id] = 'committed';
+          else if (r.status === 'active' && prev !== 'committed') map[r.order_id] = 'active';
+          else if (!prev) map[r.order_id] = 'released';
+        });
+        chunk.forEach((id) => { if (!map[id]) map[id] = 'none'; });
+      }
+      setAgouzaResvMap(map);
+    };
+    fetchAgouzaResv();
+
     (async () => {
       const { data } = await supabase.from('delivery_routes').select('id,name,color').order('name', { ascending: true });
       setAvailableRoutes((data as any[]) || []);
