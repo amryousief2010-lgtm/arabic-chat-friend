@@ -210,7 +210,26 @@ export default function LiveBatchCostsPanel({ overrideLiveCount }: { overrideLiv
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
+
+      {showDiffAlert && liveDiff !== 0 && (
+        <Alert variant="destructive" className="border-amber-500/60 bg-amber-50 text-amber-900 dark:bg-amber-950/30">
+          <AlertTriangle className="h-5 w-5" />
+          <AlertTitle>فرق مستمر في رصيد النعام الحي</AlertTitle>
+          <AlertDescription className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <span>
+              مرّ أكثر من 24 ثانية والفرق ما زال قائمًا: مجموع الدفعات = <b>{fmt(totals.alive)}</b> •
+              المعتمد في الداشبورد = <b>{fmt(overrideLiveCount ?? 0)}</b> •
+              الفرق = <b>{fmt(liveDiff)}</b>. قد يعود السبب لتسويات لم تنعكس على <code>current_alive_count</code>.
+            </span>
+            <Button size="sm" variant="outline" disabled={regenerating} onClick={regenerateAll} className="shrink-0">
+              <RefreshCw className={`h-4 w-4 ml-1 ${regenerating ? 'animate-spin' : ''}`} />
+              {regenerating ? 'جارٍ إعادة التوليد...' : 'إعادة توليد يدوية لكل الدفعات'}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs">عدد النعام الأصلي</CardTitle></CardHeader>
           <CardContent><div className="text-xl font-bold">{fmt(totals.original)}</div></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs flex items-center gap-1">
