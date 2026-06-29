@@ -14,6 +14,261 @@ export type Database = {
   }
   public: {
     Tables: {
+      agouza_daily_closures: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          closing_treasury: number
+          closure_date: string
+          created_at: string
+          expected_treasury: number
+          id: string
+          notes: string | null
+          opening_treasury: number
+          reopen_reason: string | null
+          reopened_at: string | null
+          reopened_by: string | null
+          status: string
+          total_cash_in: number
+          total_cash_out: number
+          total_expenses: number
+          total_handover: number
+          total_sales: number
+          updated_at: string
+          variance: number
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closing_treasury?: number
+          closure_date: string
+          created_at?: string
+          expected_treasury?: number
+          id?: string
+          notes?: string | null
+          opening_treasury?: number
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          status?: string
+          total_cash_in?: number
+          total_cash_out?: number
+          total_expenses?: number
+          total_handover?: number
+          total_sales?: number
+          updated_at?: string
+          variance?: number
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closing_treasury?: number
+          closure_date?: string
+          created_at?: string
+          expected_treasury?: number
+          id?: string
+          notes?: string | null
+          opening_treasury?: number
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          status?: string
+          total_cash_in?: number
+          total_cash_out?: number
+          total_expenses?: number
+          total_handover?: number
+          total_sales?: number
+          updated_at?: string
+          variance?: number
+        }
+        Relationships: []
+      }
+      agouza_stock_reservations: {
+        Row: {
+          committed_at: string | null
+          committed_movement_id: string | null
+          created_at: string
+          id: string
+          inventory_item_id: string
+          notes: string | null
+          order_id: string
+          product_id: string | null
+          quantity: number
+          release_reason: string | null
+          released_at: string | null
+          released_by: string | null
+          reserved_at: string
+          reserved_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          committed_at?: string | null
+          committed_movement_id?: string | null
+          created_at?: string
+          id?: string
+          inventory_item_id: string
+          notes?: string | null
+          order_id: string
+          product_id?: string | null
+          quantity: number
+          release_reason?: string | null
+          released_at?: string | null
+          released_by?: string | null
+          reserved_at?: string
+          reserved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          committed_at?: string | null
+          committed_movement_id?: string | null
+          created_at?: string
+          id?: string
+          inventory_item_id?: string
+          notes?: string | null
+          order_id?: string
+          product_id?: string | null
+          quantity?: number
+          release_reason?: string | null
+          released_at?: string | null
+          released_by?: string | null
+          reserved_at?: string
+          reserved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      agouza_warehouse_reconciliations: {
+        Row: {
+          actual_balance: number | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          recon_date: string
+          recon_kind: string
+          recon_no: string | null
+          rejected_reason: string | null
+          status: string
+          stock_lines: Json | null
+          submitted_at: string | null
+          submitted_by: string | null
+          system_balance: number | null
+          updated_at: string
+          variance: number | null
+        }
+        Insert: {
+          actual_balance?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          recon_date?: string
+          recon_kind: string
+          recon_no?: string | null
+          rejected_reason?: string | null
+          status?: string
+          stock_lines?: Json | null
+          submitted_at?: string | null
+          submitted_by?: string | null
+          system_balance?: number | null
+          updated_at?: string
+          variance?: number | null
+        }
+        Update: {
+          actual_balance?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          recon_date?: string
+          recon_kind?: string
+          recon_no?: string | null
+          rejected_reason?: string | null
+          status?: string
+          stock_lines?: Json | null
+          submitted_at?: string | null
+          submitted_by?: string | null
+          system_balance?: number | null
+          updated_at?: string
+          variance?: number | null
+        }
+        Relationships: []
+      }
+      agouza_warehouse_treasury_txns: {
+        Row: {
+          amount: number
+          balance_after: number | null
+          closure_id: string | null
+          created_at: string
+          created_by: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          direction: string
+          id: string
+          inventory_item_id: string | null
+          notes: string | null
+          product_id: string | null
+          quantity: number | null
+          reference: string | null
+          related_handover_id: string | null
+          txn_date: string
+          txn_no: string | null
+          txn_type: string
+          unit_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          balance_after?: number | null
+          closure_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          direction: string
+          id?: string
+          inventory_item_id?: string | null
+          notes?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          reference?: string | null
+          related_handover_id?: string | null
+          txn_date?: string
+          txn_no?: string | null
+          txn_type: string
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number | null
+          closure_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          direction?: string
+          id?: string
+          inventory_item_id?: string | null
+          notes?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          reference?: string | null
+          related_handover_id?: string | null
+          txn_date?: string
+          txn_no?: string | null
+          txn_type?: string
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_assistant_query_log: {
         Row: {
           created_at: string
@@ -18064,6 +18319,7 @@ export type Database = {
       }
       can_activate_bom: { Args: { _uid: string }; Returns: boolean }
       can_add_products: { Args: { _user_id: string }; Returns: boolean }
+      can_approve_agouza: { Args: { _uid: string }; Returns: boolean }
       can_approve_batch: { Args: { _uid: string }; Returns: boolean }
       can_approve_feed_cost: { Args: { _user_id: string }; Returns: boolean }
       can_approve_feed_qc: { Args: { _user_id: string }; Returns: boolean }
@@ -18081,6 +18337,7 @@ export type Database = {
         | { Args: { _transfer_id: string; _uid: string }; Returns: boolean }
       can_edit_product_price: { Args: { _user_id: string }; Returns: boolean }
       can_issue_feed_materials: { Args: { _user_id: string }; Returns: boolean }
+      can_manage_agouza: { Args: { _uid: string }; Returns: boolean }
       can_manage_chick_orders: { Args: { _user_id: string }; Returns: boolean }
       can_manage_feed_batch: { Args: { _uid: string }; Returns: boolean }
       can_manage_feed_recipes: { Args: { _user_id: string }; Returns: boolean }
@@ -19112,6 +19369,7 @@ export type Database = {
         }
         Returns: Json
       }
+      is_agouza_keeper: { Args: { _uid: string }; Returns: boolean }
       is_feed_team: { Args: { _user_id: string }; Returns: boolean }
       is_main_treasury_accountant: {
         Args: { _user_id: string }
