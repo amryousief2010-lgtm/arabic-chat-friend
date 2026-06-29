@@ -317,10 +317,18 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         .eq("id", orderId);
       if (uerr) throw uerr;
 
+      // M4-B: re-reserve Agouza stock if this order is sourced from Agouza warehouse.
+      // No effect on Main warehouse, Kimo, couriers, or any other source.
+      const srcWh = await fetchOrderSourceWarehouseId(orderId);
+      if (srcWh === AGOUZA_WAREHOUSE_ID) {
+        await releaseAgouzaForOrder(orderId, "order_updated");
+        await reserveAgouzaForOrder(orderId);
+      }
 
       toast.success("تم تحديث منتجات الطلب وإعادة حساب المجموع");
       onOpenChange(false);
       onSaved();
+
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "حدث خطأ أثناء الحفظ");
