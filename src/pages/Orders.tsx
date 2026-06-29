@@ -861,12 +861,24 @@ const Orders = () => {
       const isAgouza = targetOrder?.source_warehouse_id === AGOUZA_WAREHOUSE_ID;
       const prevStatus = targetOrder?.status as OrderStatus | undefined;
 
+      // M4-B: BLOCK delivery confirmation on Agouza orders that have no
+      // active/committed reservation (e.g. shortage at reservation time).
+      // Stops phantom deliveries before they hit the RPC.
+      if (isAgouza && newStatus === 'delivered') {
+        const resv = agouzaResvMap[orderId] ?? 'none';
+        if (resv !== 'active' && resv !== 'committed') {
+          toast.error('لا يمكن تأكيد التسليم: لا يوجد حجز نشط لمخزون العجوزة لهذا الأوردر. عدّل الأوردر لإعادة الحجز أو راجع توفر المخزون.');
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from('orders')
         .update({ status: newStatus })
         .eq('id', orderId);
 
       if (error) throw error;
+
 
       // M4-B: Agouza reservation lifecycle — runs ONLY for Agouza orders.
       // commit = real stock deduction (delivered). release = free hold (cancelled).
