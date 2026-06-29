@@ -27,6 +27,9 @@ interface WarehouseDialogItem {
   id: string;
   warehouse_id: string | null;
   product_id: string | null;
+  product_is_active?: boolean | null;
+  product_category?: string | null;
+  product_name?: string | null;
   name: string;
   category?: string | null;
   unit?: string | null;
@@ -196,6 +199,9 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             sku: r.sku || null,
             item_code: r.item_code || null,
             barcode: product?.barcode || null,
+            product_is_active: r.product_id ? !!product : null,
+            product_category: product?.category || null,
+            product_name: product?.name || null,
             is_active: r.is_active,
             module: r.module || "warehouse",
           });

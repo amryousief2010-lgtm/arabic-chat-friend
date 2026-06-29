@@ -30,13 +30,16 @@ import AddAdjustmentReasonDialog from "@/components/warehouse/AddAdjustmentReaso
 // Plus already imported above
 import { useStocktakingLock } from "@/hooks/useStocktakingLock";
 import { useReservedQuantities } from "@/hooks/useReservedQuantities";
-import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow } from "@/lib/warehouseItemFilters";
+import { MAIN_WAREHOUSE_ID, getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason } from "@/lib/warehouseItemFilters";
 import { isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
 
 interface InventoryItem {
   id: string;
   warehouse_id?: string | null;
   product_id?: string | null;
+  product_is_active?: boolean | null;
+  product_category?: string | null;
+  product_name?: string | null;
   name: string;
   category?: string | null;
   unit?: string | null;
@@ -50,6 +53,7 @@ interface InventoryItem {
   module?: string | null;
   item_type?: string | null;
   source_module?: string | null;
+  product?: { is_active?: boolean | null; category?: string | null; name?: string | null; barcode?: string | null } | null;
 }
 
 interface Props {
@@ -196,7 +200,7 @@ const ManualStockOutDialog = ({
   }, [open]);
 
   const { lock } = useStocktakingLock(open ? warehouseId : null);
-  const isMainWarehouse = isMainWarehouseName(warehouseName);
+  const isMainWarehouse = warehouseId === MAIN_WAREHOUSE_ID || isMainWarehouseName(warehouseName);
   const allowedItems = useMemo(
     () => getAllowedWarehouseDropdownItems(items, warehouseId, isMainWarehouse),
     [items, warehouseId, isMainWarehouse]
@@ -206,15 +210,15 @@ const ManualStockOutDialog = ({
     const q = normalizeSearch(itemSearch);
     if (!q) return allowedItems;
     return allowedItems.filter((item) =>
-      [item.name, item.category, item.unit, item.sku, item.item_code, item.barcode]
+      [item.name, item.category, item.unit, item.sku, item.item_code, item.barcode, item.product_name, item.product_category, item.product?.barcode]
         .some((value) => normalizeSearch(value).includes(q))
     );
   }, [allowedItems, itemSearch]);
 
   useEffect(() => {
     if (!import.meta.env.DEV || !open) return;
-    console.table(allowedItems.map((item) => getWarehouseItemDebugRow(item, warehouseId, warehouseName)));
-  }, [open, allowedItems, warehouseId, warehouseName]);
+    console.table(allowedItems.map((item) => getWarehouseItemDebugRow(item, warehouseId, warehouseName, isMainWarehouse)));
+  }, [open, allowedItems, warehouseId, warehouseName, isMainWarehouse]);
 
   const selectedItemIds = useMemo(
     () => Array.from(new Set(rows.map((r) => r.itemId).filter(Boolean))),
@@ -367,16 +371,29 @@ const ManualStockOutDialog = ({
         }
       });
 
-      // Defensive guard: ensure all selected items belong to the target warehouse.
-      // NOTE: We deliberately do NOT re-apply the category/module/product_id filter here —
-      // many legitimate main-warehouse rows have product_id = NULL in DB, and the dropdown
-      // has already restricted what the user can pick. The save-time check is strictly:
-      //   (1) row exists, (2) warehouse_id matches target, (3) item is active, (4) has stock.
+      // Defensive guard: validate every selected row against the same filtered source
+      // used to build the dropdown options before any stock updates/movements run.
       const itemIdsToCheck = Array.from(byItem.keys());
+      const invalidSelection = itemIdsToCheck.find((itemId) => !itemsById.has(itemId));
+      if (invalidSelection) {
+        console.table([{ item_id: invalidSelection, validation_result: false, rejection_reason: "NOT_IN_FILTERED_MAIN_WAREHOUSE_OPTIONS" }]);
+        throw new Error("هذا الصنف غير مسموح استخدامه في شاشة المخزن الرئيسي. برجاء اختيار صنف تابع للمخزن الرئيسي فقط.");
+      }
+      for (const itemId of itemIdsToCheck) {
+        const selected = itemsById.get(itemId);
+        const rejectionReason = getWarehouseItemRejectionReason(selected, warehouseId, isMainWarehouse);
+        if (rejectionReason) {
+          console.table([selected ? getWarehouseItemDebugRow(selected, warehouseId, warehouseName, isMainWarehouse) : { item_id: itemId, rejection_reason: rejectionReason }]);
+          throw new Error(isMainWarehouse
+            ? "هذا الصنف غير مسموح استخدامه في شاشة المخزن الرئيسي. برجاء اختيار صنف تابع للمخزن الرئيسي فقط."
+            : "هذا الصنف غير مرتبط بالمخزن المحدد ولا يمكن صرفه من هذا المخزن."
+          );
+        }
+      }
       if (itemIdsToCheck.length > 0) {
         const { data: checkRows, error: checkErr } = await supabase
           .from("inventory_items")
-          .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, module")
+          .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, module, product:products(is_active, category, name, barcode)")
           .in("id", itemIdsToCheck);
         if (checkErr) throw checkErr;
         const diag = (checkRows || []).map((r: any) => {
@@ -385,7 +402,7 @@ const ManualStockOutDialog = ({
           const isActive = r.is_active !== false;
           const availableQty = Number(r.stock || 0);
           const enoughStock = availableQty >= requestedQty;
-          const rejectionReason = !sameWarehouse ? "WAREHOUSE_ID_MISMATCH" : !isActive ? "ITEM_NOT_ACTIVE" : "";
+          const rejectionReason = getWarehouseItemRejectionReason(r, warehouseId, isMainWarehouse);
           return {
             item_id: r.id,
             warehouse_id: r.warehouse_id,
@@ -411,6 +428,13 @@ const ManualStockOutDialog = ({
         const inactive = diag.find((d) => !d.isActive);
         if (inactive) {
           throw new Error(`الصنف "${inactive.item_name}" غير مفعّل ولا يمكن صرفه.`);
+        }
+        const rejected = diag.find((d) => d.rejection_reason);
+        if (rejected) {
+          throw new Error(isMainWarehouse
+            ? "هذا الصنف غير مسموح استخدامه في شاشة المخزن الرئيسي. برجاء اختيار صنف تابع للمخزن الرئيسي فقط."
+            : `الصنف "${rejected.item_name}" غير مسموح لهذا المخزن.`
+          );
         }
       }
 
@@ -797,7 +821,7 @@ const ManualStockOutDialog = ({
                               ) : filteredAllowedItems.map((i) => (
                                 <SelectItem key={i.id} value={i.id} disabled={Number(i.stock || 0) <= 0}>
                                   {i.name} {i.unit ? `(${i.unit})` : ""} — {Number(i.stock || 0)}
-                                  {(i.sku || i.item_code || i.barcode) ? ` — ${i.sku || i.item_code || i.barcode}` : ""}
+                                  {(i.sku || i.item_code || i.barcode || i.product?.barcode) ? ` — ${i.sku || i.item_code || i.barcode || i.product?.barcode}` : ""}
                                 </SelectItem>
                               ))}
                             </SelectContent>

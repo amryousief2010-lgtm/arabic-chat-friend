@@ -2,6 +2,9 @@ export interface WarehouseDropdownItem {
   id: string;
   warehouse_id?: string | null;
   product_id?: string | null;
+  product_is_active?: boolean | null;
+  product_category?: string | null;
+  product_name?: string | null;
   name?: string | null;
   category?: string | null;
   unit?: string | null;
@@ -18,26 +21,90 @@ export interface WarehouseDropdownItem {
   updated_at?: string | null;
 }
 
+export const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
+
 export const isWarehouseItemActive = (item: WarehouseDropdownItem): boolean =>
   item.is_active !== false;
 
-// Modules that physically live inside the main warehouse but represent
-// factory raw materials / packaging stocks. These must NEVER appear in
-// the main-warehouse dispatch/supply dropdowns even if their warehouse_id
-// matches — they are owned by the factories and have their own dedicated
-// inventory screens. Items whose module is NULL, "warehouse", "sales",
-// or "meat" are considered legitimate main-warehouse stock.
-const FACTORY_ONLY_MODULES = new Set(["meat_factory", "feed_factory", "packaging"]);
+// Markers that represent factory/raw/packaging-only stock. They must NEVER
+// appear in the main-warehouse dispatch/supply dropdown even if the physical
+// inventory_items.warehouse_id is the main warehouse id.
+const FACTORY_ONLY_MODULES = new Set([
+  "meat_factory",
+  "feed_factory",
+  "packaging",
+  "raw_materials",
+  "factory_raw",
+  "factory_packaging",
+  "production_only",
+]);
+
+const BLOCKED_CATEGORY_KEYWORDS = [
+  "خامة",
+  "خامات",
+  "خام",
+  "تغليف",
+  "تعبئة",
+  "packaging",
+  "feed",
+  "أعلاف",
+  "اعلاف",
+  "تصنيع",
+  "مدخلات",
+  "مجزر",
+  "مستلزمات",
+  "تشغيل/خدمة",
+];
+
+const BLOCKED_NAME_KEYWORDS = [
+  // Eggs belong to farm/hatchery flows, not the main warehouse dispatch/supply list.
+  "بيض",
+];
+
+const getProductIsActive = (item: WarehouseDropdownItem): boolean | null => {
+  const fromFlat = item.product_is_active;
+  if (typeof fromFlat === "boolean") return fromFlat;
+  const product = (item as any).product;
+  if (typeof product?.is_active === "boolean") return product.is_active;
+  return null;
+};
+
+const getProductCategory = (item: WarehouseDropdownItem): string | null => {
+  if (item.product_category !== undefined) return item.product_category || null;
+  return ((item as any).product?.category as string | null | undefined) || null;
+};
+
+const getProductName = (item: WarehouseDropdownItem): string | null => {
+  if (item.product_name !== undefined) return item.product_name || null;
+  return ((item as any).product?.name as string | null | undefined) || null;
+};
+
+const hasBlockedModule = (item: WarehouseDropdownItem): boolean => {
+  const markers = [item.module, item.source_module, item.item_type, (item as any).product_type]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean);
+  return markers.some((marker) => FACTORY_ONLY_MODULES.has(marker));
+};
+
+const hasBlockedCategory = (item: WarehouseDropdownItem): boolean => {
+  const categoryText = normalizeIdentityPart([item.category, getProductCategory(item)].filter(Boolean).join(" "));
+  return BLOCKED_CATEGORY_KEYWORDS.some((keyword) => categoryText.includes(normalizeIdentityPart(keyword)));
+};
+
+const hasBlockedName = (item: WarehouseDropdownItem): boolean => {
+  const nameText = normalizeIdentityPart([item.name, getProductName(item)].filter(Boolean).join(" "));
+  return BLOCKED_NAME_KEYWORDS.some((keyword) => nameText.includes(normalizeIdentityPart(keyword)));
+};
 
 export const isMainWarehouseStockItemAllowed = (item: WarehouseDropdownItem): boolean => {
   if (!isWarehouseItemActive(item)) return false;
-  const module = (item.module || "").toString().toLowerCase();
-  if (FACTORY_ONLY_MODULES.has(module)) return false;
-  // For main-warehouse dispatches, the only item-level rule is that the
-  // inventory_items row itself is active and not a factory-owned module.
-  // Do not require product_id/category:
-  // legitimate main-warehouse products can exist with product_id = NULL.
-  return isWarehouseItemActive(item);
+  if (item.warehouse_id !== MAIN_WAREHOUSE_ID) return false;
+  if (!item.product_id) return false;
+  if (getProductIsActive(item) !== true) return false;
+  if (hasBlockedModule(item)) return false;
+  if (hasBlockedCategory(item)) return false;
+  if (hasBlockedName(item)) return false;
+  return true;
 };
 
 export const isAllowedWarehouseDropdownItem = (
@@ -138,8 +205,12 @@ export const getWarehouseItemRejectionReason = (
   if (expectedWarehouseId && item.warehouse_id !== expectedWarehouseId) return "WAREHOUSE_ID_MISMATCH";
   if (!isWarehouseItemActive(item)) return "ITEM_NOT_ACTIVE";
   if (isMainWarehouse) {
-    const module = (item.module || "").toString().toLowerCase();
-    if (FACTORY_ONLY_MODULES.has(module)) return "FACTORY_OWNED_MODULE";
+    if (item.warehouse_id !== MAIN_WAREHOUSE_ID) return "MAIN_WAREHOUSE_ID_MISMATCH";
+    if (!item.product_id) return "MAIN_WAREHOUSE_REQUIRES_ACTIVE_PRODUCT_LINK";
+    if (getProductIsActive(item) !== true) return "PRODUCT_NOT_ACTIVE_OR_NOT_LOADED";
+    if (hasBlockedModule(item)) return "FACTORY_OWNED_MODULE";
+    if (hasBlockedCategory(item)) return "FACTORY_OR_RAW_OR_PACKAGING_CATEGORY";
+    if (hasBlockedName(item)) return "NON_OPERATIONAL_MAIN_WAREHOUSE_ITEM";
   }
   return "";
 };
@@ -148,14 +219,19 @@ export const getWarehouseItemDebugRow = (
   item: WarehouseDropdownItem,
   expectedWarehouseId?: string | null,
   warehouseName?: string | null,
+  isMainWarehouse: boolean = false,
 ) => {
-  const rejectionReason = getWarehouseItemRejectionReason(item, expectedWarehouseId);
+  const rejectionReason = getWarehouseItemRejectionReason(item, expectedWarehouseId, isMainWarehouse);
   return {
     item_id: item.id,
     warehouse_id: item.warehouse_id || null,
     warehouse_name: warehouseName || null,
     product_id: item.product_id || null,
+    product_is_active: getProductIsActive(item),
     item_name: item.name || null,
+    category: item.category || null,
+    product_category: getProductCategory(item),
+    module: item.module || null,
     validation_result: !rejectionReason,
     rejection_reason: rejectionReason,
     active: isWarehouseItemActive(item),

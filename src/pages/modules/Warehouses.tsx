@@ -40,7 +40,7 @@ import WarehouseOpeningBalance from "@/pages/modules/WarehouseOpeningBalance";
 import WarehouseOperationalDates from "@/pages/modules/WarehouseOperationalDates";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import WarehousesDashboardPanel from "@/components/warehouses/WarehousesDashboardPanel";
-import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow, isAllowedWarehouseDropdownItem } from "@/lib/warehouseItemFilters";
+import { MAIN_WAREHOUSE_ID, getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow } from "@/lib/warehouseItemFilters";
 
 
 const qualityLabelText: Record<string, string> = {
@@ -172,6 +172,7 @@ interface InventoryItem {
   id: string;
   warehouse_id: string;
   product_id?: string | null;
+  product?: { is_active?: boolean | null; category?: string | null; name?: string | null; barcode?: string | null } | null;
   name: string;
   category: string | null;
   sku: string | null;
@@ -467,14 +468,14 @@ const Warehouses = () => {
           throw new Error("تأكد من اختيار الصنف وإدخال كمية صحيحة لكل صنف");
         }
         const item = items.find(i => i.id === L.item_id);
-        const rejectionReason = getWarehouseItemRejectionReason(item, sampleWh);
+        const rejectionReason = getWarehouseItemRejectionReason(item, sampleWh, isEditManualMainWarehouse);
         const debugRow = item
-          ? getWarehouseItemDebugRow(item, sampleWh, editManualWarehouse?.name)
+          ? getWarehouseItemDebugRow(item, sampleWh, editManualWarehouse?.name, isEditManualMainWarehouse)
           : getWarehouseMissingItemDebugRow(L.item_id, sampleWh, editManualWarehouse?.name);
         console.table([debugRow]);
         if (rejectionReason) {
           throw new Error(isEditManualMainWarehouse
-            ? "هذا الصنف غير تابع للمخزن الرئيسي ولا يمكن إضافته لهذه التوريدة."
+            ? "هذا الصنف غير مسموح استخدامه في شاشة المخزن الرئيسي. برجاء اختيار صنف تابع للمخزن الرئيسي فقط."
             : "هذا الصنف غير مرتبط بالمخزن المحدد ولا يمكن إضافته لهذه التوريدة."
           );
         }
@@ -554,7 +555,7 @@ const Warehouses = () => {
     const sinceISO = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
     const [w, i, m, s, o] = await Promise.all([
       supabase.from("warehouses").select("*").order("name"),
-      supabase.from("inventory_items").select("*, warehouse:warehouses(name)").order("name"),
+      supabase.from("inventory_items").select("*, warehouse:warehouses(name), product:products(is_active, category, name, barcode)").order("name"),
       supabase.from("inventory_movements").select("*, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)").order("performed_at", { ascending: false }).limit(200),
       supabase.from("slaughter_batch_outputs")
         .select("id, batch_id, cut_name_ar, actual_weight_kg, unit_cost, quality_status, received_status, received_at, received_warehouse_id, batch:slaughter_batches(batch_number, slaughter_date, status)")
@@ -722,7 +723,7 @@ const Warehouses = () => {
   const editManualWarehouse = editManualWarehouseId
     ? warehouses.find((w) => w.id === editManualWarehouseId)
     : undefined;
-  const isEditManualMainWarehouse = !!editManualWarehouse && isMainWarehouseName(editManualWarehouse.name);
+  const isEditManualMainWarehouse = editManualWarehouseId === MAIN_WAREHOUSE_ID || (!!editManualWarehouse && isMainWarehouseName(editManualWarehouse.name));
   const editManualDropdownItems = useMemo(
     () => getAllowedWarehouseDropdownItems(items, editManualWarehouseId, isEditManualMainWarehouse),
     [items, editManualWarehouseId, isEditManualMainWarehouse]
@@ -730,8 +731,8 @@ const Warehouses = () => {
 
   useEffect(() => {
     if (!import.meta.env.DEV || !editManualOpen) return;
-    console.table(editManualDropdownItems.map((item) => getWarehouseItemDebugRow(item, editManualWarehouseId, editManualWarehouse?.name)));
-  }, [editManualOpen, editManualDropdownItems, editManualWarehouseId, editManualWarehouse?.name]);
+    console.table(editManualDropdownItems.map((item) => getWarehouseItemDebugRow(item, editManualWarehouseId, editManualWarehouse?.name, isEditManualMainWarehouse)));
+  }, [editManualOpen, editManualDropdownItems, editManualWarehouseId, editManualWarehouse?.name, isEditManualMainWarehouse]);
 
   const lowStockItems = items.filter(i => i.stock <= i.low_stock_threshold);
   const pendingSlaughter = slaughterOutputs.filter(o => o.received_status !== 'received');
