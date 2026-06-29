@@ -732,7 +732,7 @@ const Warehouses = () => {
   useEffect(() => {
     if (!import.meta.env.DEV || !editManualOpen) return;
     console.table(editManualDropdownItems.map((item) => getWarehouseItemDebugRow(item, editManualWarehouseId, editManualWarehouse?.name, isEditManualMainWarehouse)));
-  }, [editManualOpen, editManualDropdownItems, editManualWarehouseId, editManualWarehouse?.name]);
+  }, [editManualOpen, editManualDropdownItems, editManualWarehouseId, editManualWarehouse?.name, isEditManualMainWarehouse]);
 
   const lowStockItems = items.filter(i => i.stock <= i.low_stock_threshold);
   const pendingSlaughter = slaughterOutputs.filter(o => o.received_status !== 'received');
