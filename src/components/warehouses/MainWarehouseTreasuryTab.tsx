@@ -634,7 +634,7 @@ export default function MainWarehouseTreasuryTab() {
     setBusy(true);
     try {
       let selectedIssueItem: WarehouseStockItem | null = null;
-      if (lineType === "issue" || lineType === "bonus") {
+      if (lineType === "issue" || lineType === "bonus" || lineType === "sale") {
         if (!mainWarehouse?.id) throw new Error("تعذّر تحديد المخزن الرئيسي");
         const { data: dbItem, error: dbItemErr } = await (supabase as any)
           .from("inventory_items")
