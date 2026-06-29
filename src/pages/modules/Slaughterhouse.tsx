@@ -1928,7 +1928,139 @@ const Slaughterhouse = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Adjust Live Stock Dialog */}
+      {/* Live Cost Detail Dialog */}
+      <Dialog open={costDetailOpen} onOpenChange={setCostDetailOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calculator className="w-5 h-5 text-violet-600" />
+              تفاصيل قيمة النعام القائم وتكلفة النعامة
+            </DialogTitle>
+          </DialogHeader>
+          {liveBalance <= 0 ? (
+            <div className="p-4 rounded bg-muted/40 text-sm text-center text-muted-foreground">
+              لا يمكن حساب تكلفة النعامة الواحدة لعدم وجود نعام قائم حاليًا.
+            </div>
+          ) : (
+            <div className="space-y-4 text-sm">
+              {/* أولاً: ملخص الحساب */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div className="p-3 rounded border bg-card">
+                  <p className="text-xs text-muted-foreground">عدد النعام القائم</p>
+                  <p className="text-lg font-bold text-primary">{liveBalance} نعامة</p>
+                </div>
+                <div className="p-3 rounded border bg-card">
+                  <p className="text-xs text-muted-foreground">إجمالي قيمة النعام القائم</p>
+                  <p className="text-lg font-bold text-violet-700 dark:text-violet-300">
+                    {liveValueBreakdown.total.toLocaleString("en-US", { maximumFractionDigits: 0 })} ج.م
+                  </p>
+                </div>
+                <div className="p-3 rounded border bg-card">
+                  <p className="text-xs text-muted-foreground">متوسط تكلفة النعامة</p>
+                  <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
+                    {liveBalance > 0
+                      ? (liveValueBreakdown.total / liveBalance).toLocaleString("en-US", { maximumFractionDigits: 2 })
+                      : "—"} ج.م / نعامة
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-[11px] p-2 rounded bg-muted/40 leading-relaxed">
+                <b>المعادلة:</b> إجمالي قيمة النعام القائم ÷ عدد النعام القائم.
+                <br />
+                هذه تكلفة متوسطة تقديرية للنعامة القائمة حاليًا، وليست تكلفة بيع أو سعر بيع.
+              </div>
+
+              {/* ثانياً: مصدر رقم قيمة النعام القائم */}
+              <div>
+                <p className="font-semibold mb-2">مصدر رقم قيمة النعام القائم (دفعات الاستلام)</p>
+                {liveValueBreakdown.rows.length === 0 ? (
+                  <div className="p-3 rounded bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 text-xs">
+                    القيمة الحالية محسوبة كإجمالي فقط ولا توجد تفاصيل دفعات كافية، برجاء مراجعة مصدر الحساب.
+                  </div>
+                ) : (
+                  <div className="border rounded overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="p-2 text-right">رقم التوريد</th>
+                          <th className="p-2 text-right">التاريخ</th>
+                          <th className="p-2 text-right">نوع المصدر</th>
+                          <th className="p-2 text-right">العدد الأصلي</th>
+                          <th className="p-2 text-right">المتبقي حالياً</th>
+                          <th className="p-2 text-right">تكلفة النعامة</th>
+                          <th className="p-2 text-right">القيمة المتبقية</th>
+                          <th className="p-2 text-right">ملاحظات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {liveValueBreakdown.rows.map((row) => (
+                          <tr key={row.id} className="border-t">
+                            <td className="p-2 font-mono">{row.receipt_number}</td>
+                            <td className="p-2">{row.receipt_date}</td>
+                            <td className="p-2">استلام نعام حي</td>
+                            <td className="p-2">{row.original_count}</td>
+                            <td className="p-2 font-semibold text-primary">{row.remaining_count}</td>
+                            <td className="p-2">
+                              {row.has_cost
+                                ? `${row.cost_per_bird.toLocaleString("en-US", { maximumFractionDigits: 2 })} ج.م`
+                                : "—"}
+                            </td>
+                            <td className="p-2 font-semibold">
+                              {row.has_cost
+                                ? `${row.remaining_value.toLocaleString("en-US", { maximumFractionDigits: 0 })} ج.م`
+                                : "غير محسوبة"}
+                            </td>
+                            <td className="p-2 text-[10px] text-muted-foreground">{row.note || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-muted/30 font-bold">
+                        <tr className="border-t">
+                          <td className="p-2" colSpan={4}>الإجمالي</td>
+                          <td className="p-2 text-primary">{liveValueBreakdown.remainingTotal}</td>
+                          <td className="p-2">—</td>
+                          <td className="p-2 text-violet-700 dark:text-violet-300">
+                            {liveValueBreakdown.total.toLocaleString("en-US", { maximumFractionDigits: 0 })} ج.م
+                          </td>
+                          <td className="p-2"></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+                {liveValueBreakdown.hasMissing && (
+                  <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-300">
+                    ⚠ توجد {liveValueBreakdown.missingCount} نعامة بدون تكلفة شراء مسجلة، لذلك لا تدخل في حساب القيمة الإجمالية.
+                  </p>
+                )}
+                {liveValueBreakdown.remainingTotal !== liveBalance && (
+                  <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-300">
+                    ⚠ مجموع المتبقي في الدفعات ({liveValueBreakdown.remainingTotal}) لا يساوي رصيد القائم ({liveBalance})،
+                    والفرق ناتج عن تسويات يدوية أو دفعات مؤرشفة/مستبعدة.
+                  </p>
+                )}
+              </div>
+
+              {/* ثالثاً: مصدر الداتا */}
+              <div className="p-3 rounded border bg-muted/20 text-xs leading-relaxed">
+                <p className="font-semibold mb-1">من أين يتم جلب الرقم؟</p>
+                <ul className="list-disc pr-5 space-y-1">
+                  <li><b>الجدول:</b> <code>slaughter_live_receipts</code> (توريدات النعام الحي).</li>
+                  <li><b>حقل العدد المتبقي:</b> <code>current_alive_count</code> لكل دفعة استلام.</li>
+                  <li><b>حقل التكلفة:</b> <code>cost_per_bird_current</code> (snapshot لكل دفعة بعد توزيع تكاليف العلف والنفوق).</li>
+                  <li><b>عدد النعام القائم:</b> يُحسب من معادلة (المُستلم − النافق − المذبوح − النافق قبل الذبح − المرفوض + تسويات يدوية).</li>
+                  <li><b>قيمة النعام القائم:</b> مجموع (المتبقي × تكلفة النعامة) لكل دفعة غير مؤرشفة وغير مستبعدة من التكلفة.</li>
+                </ul>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCostDetailOpen(false)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
