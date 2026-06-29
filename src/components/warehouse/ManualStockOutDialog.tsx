@@ -393,7 +393,7 @@ const ManualStockOutDialog = ({
       if (itemIdsToCheck.length > 0) {
         const { data: checkRows, error: checkErr } = await supabase
           .from("inventory_items")
-          .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, module")
+          .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, module, product:products(is_active, category, name, barcode)")
           .in("id", itemIdsToCheck);
         if (checkErr) throw checkErr;
         const diag = (checkRows || []).map((r: any) => {
@@ -402,7 +402,7 @@ const ManualStockOutDialog = ({
           const isActive = r.is_active !== false;
           const availableQty = Number(r.stock || 0);
           const enoughStock = availableQty >= requestedQty;
-          const rejectionReason = !sameWarehouse ? "WAREHOUSE_ID_MISMATCH" : !isActive ? "ITEM_NOT_ACTIVE" : "";
+          const rejectionReason = getWarehouseItemRejectionReason(r, warehouseId, isMainWarehouse);
           return {
             item_id: r.id,
             warehouse_id: r.warehouse_id,
@@ -428,6 +428,13 @@ const ManualStockOutDialog = ({
         const inactive = diag.find((d) => !d.isActive);
         if (inactive) {
           throw new Error(`الصنف "${inactive.item_name}" غير مفعّل ولا يمكن صرفه.`);
+        }
+        const rejected = diag.find((d) => d.rejection_reason);
+        if (rejected) {
+          throw new Error(isMainWarehouse
+            ? "هذا الصنف غير مسموح استخدامه في شاشة المخزن الرئيسي. برجاء اختيار صنف تابع للمخزن الرئيسي فقط."
+            : `الصنف "${rejected.item_name}" غير مسموح لهذا المخزن.`
+          );
         }
       }
 
