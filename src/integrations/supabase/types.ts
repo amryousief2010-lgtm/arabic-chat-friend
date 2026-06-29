@@ -83,6 +83,45 @@ export type Database = {
         }
         Relationships: []
       }
+      agouza_override_audit_log: {
+        Row: {
+          acted_at: string
+          acted_by: string
+          closure_date: string
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          operation: string
+          reason: string | null
+          record_id: string | null
+          table_name: string
+        }
+        Insert: {
+          acted_at?: string
+          acted_by?: string
+          closure_date: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          operation: string
+          reason?: string | null
+          record_id?: string | null
+          table_name: string
+        }
+        Update: {
+          acted_at?: string
+          acted_by?: string
+          closure_date?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          operation?: string
+          reason?: string | null
+          record_id?: string | null
+          table_name?: string
+        }
+        Relationships: []
+      }
       agouza_stock_reservations: {
         Row: {
           committed_at: string | null
