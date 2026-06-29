@@ -18164,6 +18164,15 @@ export type Database = {
         Args: { p_item_id: string; p_new_qty: number; p_reason: string }
         Returns: Json
       }
+      agouza_daily_closure_close: {
+        Args: { p_actual_balance: number; p_date: string; p_notes?: string }
+        Returns: string
+      }
+      agouza_daily_closure_open: { Args: { p_date: string }; Returns: string }
+      agouza_daily_closure_reopen: {
+        Args: { p_date: string; p_reason: string }
+        Returns: undefined
+      }
       apply_feed_stock_count: {
         Args: { _count_id: string }
         Returns: undefined
@@ -18183,6 +18192,10 @@ export type Database = {
       approve_agouza_cash_handover: {
         Args: { p_handover_id: string }
         Returns: string
+      }
+      approve_agouza_reconciliation: {
+        Args: { p_id: string }
+        Returns: undefined
       }
       approve_courier_cash_handover: {
         Args: { p_note?: string; p_txn_id: string }
@@ -18862,6 +18875,15 @@ export type Database = {
         }
         Returns: Json
       }
+      create_agouza_reconciliation: {
+        Args: {
+          p_actual_balance: number
+          p_kind?: string
+          p_notes?: string
+          p_recon_date: string
+        }
+        Returns: string
+      }
       create_and_send_transfer: {
         Args: {
           p_destination_warehouse_id: string
@@ -19259,6 +19281,7 @@ export type Database = {
           updated: number
         }[]
       }
+      get_agouza_daily_summary: { Args: { p_date: string }; Returns: Json }
       get_dashboard_overview: { Args: never; Returns: Json }
       get_hr_documents_status: {
         Args: never
@@ -19907,6 +19930,10 @@ export type Database = {
       }
       reject_agouza_cash_handover: {
         Args: { p_handover_id: string; p_reason: string }
+        Returns: undefined
+      }
+      reject_agouza_reconciliation: {
+        Args: { p_id: string; p_reason: string }
         Returns: undefined
       }
       reject_courier_cash_handover: {
