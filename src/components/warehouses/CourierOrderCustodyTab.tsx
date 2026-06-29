@@ -601,6 +601,25 @@ export default function CourierOrderCustodyTab() {
                                   }}>
                                   <RotateCcw className="w-3 h-3 text-rose-600" />
                                 </Button>
+                                <Button size="sm" variant="outline" className="h-7 px-2 border-pink-300 hover:bg-pink-50" title="هدية / مجاني (بدون تحصيل)"
+                                  onClick={async () => {
+                                    if (!confirm(`تأكيد: تسليم الأوردر ${o?.order_number ?? ""} كهدية مجانية بدون تحصيل؟`)) return;
+                                    if (await recordDeliveryAndCollection(a.order_id, 0, "هدية مجانية - تم التسليم بدون تحصيل")) {
+                                      toast({ title: "تم التسليم كهدية مجانية" }); load();
+                                    }
+                                  }}>
+                                  <span className="text-xs">🎁</span>
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 px-2 border-gray-400 hover:bg-gray-50" title="ألغاه العميل (إرجاع البضاعة)"
+                                  onClick={() => {
+                                    const ord = o ?? ({ id: a.order_id, order_number: a.order_id.slice(0, 8), total: dueAmt, customer_name: "—", status: a.status, created_at: a.assigned_at } as Order);
+                                    setReturnOpen(ord);
+                                    setReturnReason("customer_cancelled");
+                                    setReturnNotes("ألغى العميل الأوردر — إرجاع كامل");
+                                    setReturnKind("full");
+                                  }}>
+                                  <span className="text-xs">❌</span>
+                                </Button>
                                 <Button size="sm" variant="outline" className="h-7 px-2 border-amber-300 hover:bg-amber-50" title="تصحيح/تعديل"
                                   onClick={() => {
                                     setCorrectOpen({ assignment: a, order: o });
