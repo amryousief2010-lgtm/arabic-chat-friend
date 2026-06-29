@@ -163,12 +163,18 @@ export default function LiveBatchCostsPanel() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs">عدد النعام الأصلي</CardTitle></CardHeader>
           <CardContent><div className="text-xl font-bold">{fmt(totals.original)}</div></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs">النعام الحي</CardTitle></CardHeader>
           <CardContent><div className="text-xl font-bold text-emerald-700">{fmt(totals.alive)}</div></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-xs">إجمالي النافق</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-xs">تم ذبحه</CardTitle></CardHeader>
+          <CardContent><div className="text-xl font-bold text-blue-700">{fmt(totals.slaughtered)}</div></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-xs">إجمالي النافق</CardTitle>
+          {totals.deadAll > totals.dead && (
+            <p className="text-[10px] text-muted-foreground">شامل دفعات الأرشيف: {fmt(totals.deadAll)}</p>
+          )}
+        </CardHeader>
           <CardContent><div className="text-xl font-bold text-destructive">{fmt(totals.dead)}</div></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs">تكلفة العلف المحملة</CardTitle></CardHeader>
           <CardContent><div className="text-xl font-bold text-orange-700">{fmt(totals.feed)} ج.م</div></CardContent></Card>
