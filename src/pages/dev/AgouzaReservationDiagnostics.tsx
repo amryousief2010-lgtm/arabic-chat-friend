@@ -142,6 +142,118 @@ export default function AgouzaReservationDiagnostics() {
     setDryRunResult({ preview, note: "Dry-run فقط — لم يتم تنفيذ أي خصم." });
   };
 
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const AGOUZA_WH_ID = AGOUZA_WH;
+
+  const loadCommitPreview = async () => {
+    setCommitResult(null); setDoubleCommitResult(null); setPostCommitInfo(null);
+    setCommitPreview(null); setCommitOrderMeta(null);
+    const oid = commitOrderId.trim();
+    if (!UUID_RE.test(oid)) { setCommitPreview({ error: "order_id غير صحيح — يجب UUID كامل." }); return; }
+
+    const { data: ord, error: oErr } = await supabase
+      .from("orders")
+      .select("id, order_number, status, source_warehouse_id, customer_id, total")
+      .eq("id", oid)
+      .maybeSingle();
+    if (oErr || !ord) { setCommitPreview({ error: oErr?.message || "الأوردر غير موجود." }); return; }
+    if (ord.source_warehouse_id !== AGOUZA_WH_ID) {
+      setCommitPreview({ error: "هذا الأوردر ليس تابعاً لمخزن العجوزة — Commit مرفوض.", source_warehouse_id: ord.source_warehouse_id });
+      return;
+    }
+    setCommitOrderMeta(ord);
+
+    const { data: status, error: sErr } = await supabase.rpc("get_agouza_order_reservation_status", { p_order_id: oid });
+    if (sErr) { setCommitPreview({ error: sErr.message }); return; }
+    const items = (status as AnyObj[]) || [];
+    const activeRes = items.filter((i) => i.reservation_status === "active");
+    const preview = items.map((i) => ({
+      product_id: i.product_id,
+      inventory_item_id: i.inventory_item_id,
+      requested_qty_to_deduct: Number(i.requested),
+      stock_before: Number(i.stock),
+      stock_after_expected: Number(i.stock) - Number(i.requested),
+      warehouse: "مخزن فرع العجوزة فقط",
+      reservation_status: i.reservation_status,
+    }));
+    setCommitPreview({
+      order_id: oid,
+      order_number: ord.order_number,
+      lines: preview,
+      total_lines: preview.length,
+      active_reservations_count: activeRes.length,
+      expected_inventory_movements: activeRes.length,
+      blockers: activeRes.length === 0 ? ["لا توجد حجوزات active — لازم تعمل Reserve أولاً قبل Commit."] : [],
+    });
+  };
+
+  const refreshPostCommit = async (oid: string, stockBeforeMap: Record<string, number>) => {
+    const { data: status } = await supabase.rpc("get_agouza_order_reservation_status", { p_order_id: oid });
+    const { data: res } = await supabase
+      .from("agouza_stock_reservations")
+      .select("inventory_item_id, product_id, quantity, status, reserved_at, released_at, committed_at")
+      .eq("order_id", oid);
+    const { data: movs } = await supabase
+      .from("inventory_movements")
+      .select("id, inventory_item_id, warehouse_id, movement_type, quantity, reference_id, reference_type, created_at, notes")
+      .eq("reference_id", oid)
+      .order("created_at", { ascending: false });
+    const { data: audit } = await supabase
+      .from("agouza_reservation_audit_log")
+      .select("*")
+      .eq("order_id", oid)
+      .order("acted_at", { ascending: false })
+      .limit(10);
+    const itemIds = (status as AnyObj[] || []).map((i) => i.inventory_item_id);
+    const { data: invNow } = await supabase
+      .from("inventory_items")
+      .select("id, warehouse_id, stock")
+      .in("id", itemIds.length ? itemIds : ["00000000-0000-0000-0000-000000000000"]);
+    const stockDiff = (invNow || []).map((row: any) => ({
+      inventory_item_id: row.id,
+      warehouse_id: row.warehouse_id,
+      is_agouza: row.warehouse_id === AGOUZA_WH_ID,
+      stock_before: stockBeforeMap[row.id] ?? null,
+      stock_after: Number(row.stock),
+      deducted: stockBeforeMap[row.id] != null ? Number(stockBeforeMap[row.id]) - Number(row.stock) : null,
+    }));
+    setPostCommitInfo({
+      reservations: res,
+      inventory_movements_for_order: movs,
+      audit_log: audit,
+      stock_diff: stockDiff,
+      affected_warehouses: Array.from(new Set((movs || []).map((m: any) => m.warehouse_id))),
+      main_warehouse_untouched: !(movs || []).some((m: any) => m.warehouse_id !== AGOUZA_WH_ID),
+    });
+  };
+
+  const runCommit = async () => {
+    if (commitConfirm !== "COMMIT-AGOUZA") return;
+    if (!commitPreview || commitPreview.error || (commitPreview.blockers?.length ?? 0) > 0) return;
+    const oid = commitOrderId.trim();
+    if (!UUID_RE.test(oid)) return;
+    setCommitRunning(true);
+    const stockBeforeMap: Record<string, number> = {};
+    (commitPreview.lines || []).forEach((l: any) => { stockBeforeMap[l.inventory_item_id] = l.stock_before; });
+    const { data, error } = await supabase.rpc("commit_agouza_stock_on_delivery", { p_order_id: oid });
+    setCommitResult(error ? { error: error.message } : data);
+    await refreshPostCommit(oid, stockBeforeMap);
+    setCommitRunning(false);
+  };
+
+  const runDoubleCommit = async () => {
+    const oid = commitOrderId.trim();
+    if (!UUID_RE.test(oid)) return;
+    setCommitRunning(true);
+    const { data, error } = await supabase.rpc("commit_agouza_stock_on_delivery", { p_order_id: oid });
+    setDoubleCommitResult(error ? { error: error.message } : data);
+    const stockBeforeMap: Record<string, number> = {};
+    (postCommitInfo?.stock_diff || []).forEach((l: any) => { stockBeforeMap[l.inventory_item_id] = l.stock_after; });
+    await refreshPostCommit(oid, stockBeforeMap);
+    setCommitRunning(false);
+  };
+
+
   return (
     <div className="container mx-auto max-w-5xl p-6" dir="rtl">
       <Alert variant="destructive" className="mb-6">
