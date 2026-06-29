@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { openPrintWindow, escapeHtml, fmtNum, COMPANY_AR } from "@/lib/printPdf";
 import { isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
 import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow } from "@/lib/warehouseItemFilters";
+import AddMainWarehouseItemDialog from "@/components/warehouses/AddMainWarehouseItemDialog";
 import * as XLSX from "xlsx";
 
 interface Txn {
