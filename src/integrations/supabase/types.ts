@@ -203,6 +203,8 @@ export type Database = {
       agouza_warehouse_treasury_txns: {
         Row: {
           amount: number
+          approved_at: string | null
+          approved_by: string | null
           balance_after: number | null
           closure_id: string | null
           created_at: string
@@ -212,11 +214,16 @@ export type Database = {
           direction: string
           id: string
           inventory_item_id: string | null
+          main_treasury_txn_id: string | null
           notes: string | null
           product_id: string | null
           quantity: number | null
           reference: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
           related_handover_id: string | null
+          status: string
           txn_date: string
           txn_no: string | null
           txn_type: string
@@ -225,6 +232,8 @@ export type Database = {
         }
         Insert: {
           amount: number
+          approved_at?: string | null
+          approved_by?: string | null
           balance_after?: number | null
           closure_id?: string | null
           created_at?: string
@@ -234,11 +243,16 @@ export type Database = {
           direction: string
           id?: string
           inventory_item_id?: string | null
+          main_treasury_txn_id?: string | null
           notes?: string | null
           product_id?: string | null
           quantity?: number | null
           reference?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           related_handover_id?: string | null
+          status?: string
           txn_date?: string
           txn_no?: string | null
           txn_type: string
@@ -247,6 +261,8 @@ export type Database = {
         }
         Update: {
           amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
           balance_after?: number | null
           closure_id?: string | null
           created_at?: string
@@ -256,11 +272,16 @@ export type Database = {
           direction?: string
           id?: string
           inventory_item_id?: string | null
+          main_treasury_txn_id?: string | null
           notes?: string | null
           product_id?: string | null
           quantity?: number | null
           reference?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           related_handover_id?: string | null
+          status?: string
           txn_date?: string
           txn_no?: string | null
           txn_type?: string
@@ -18159,6 +18180,10 @@ export type Database = {
         Args: { p_slaughter_batch_id: string }
         Returns: Json
       }
+      approve_agouza_cash_handover: {
+        Args: { p_handover_id: string }
+        Returns: string
+      }
       approve_courier_cash_handover: {
         Args: { p_note?: string; p_txn_id: string }
         Returns: Json
@@ -19880,6 +19905,10 @@ export type Database = {
         }
         Returns: Json
       }
+      reject_agouza_cash_handover: {
+        Args: { p_handover_id: string; p_reason: string }
+        Returns: undefined
+      }
       reject_courier_cash_handover: {
         Args: { p_reason: string; p_txn_id: string }
         Returns: Json
@@ -20077,6 +20106,10 @@ export type Database = {
       }
       slaughter_daily_summary: { Args: { p_date: string }; Returns: Json }
       slaughter_outputs_backfill_product_ids: { Args: never; Returns: number }
+      submit_agouza_cash_handover: {
+        Args: { p_amount: number; p_notes?: string }
+        Returns: string
+      }
       submit_courier_cash_handover: {
         Args: {
           p_amount: number
