@@ -1026,105 +1026,170 @@ const Slaughterhouse = () => {
         <ProductionDispatchInbox destination="slaughterhouse" />
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
-        <Card className="border-primary/40 bg-primary/5"><CardContent className="p-3 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground">النعام القائم 🐦</p>
-            <p className="text-2xl font-bold text-primary">{liveBalance}</p>
-            <p
-              className="mt-0.5 text-[11px] font-semibold text-violet-700 dark:text-violet-300"
-              title={
-                liveValueInfo.hasMissing
-                  ? `توجد دفعات بدون تكلفة شراء مسجلة (${liveValueInfo.missingCount} طائر)، لذلك لا يمكن حساب قيمة القائم بدقة.`
-                  : "هذه القيمة تمثل التكلفة المحاسبية للنعام القائم الموجود حاليًا، وليست قيمة البيع السوقية."
-              }
-            >
-              قيمة القائم:{" "}
-              {liveValueInfo.total > 0
-                ? `${liveValueInfo.total.toLocaleString("en-US", { maximumFractionDigits: 0 })} ج.م${liveValueInfo.hasMissing ? " *" : ""}`
-                : liveValueInfo.hasMissing
-                  ? "غير محسوبة"
-                  : "—"}
-            </p>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setCostDetailOpen(true)}
-                className="inline-flex items-center gap-1 text-[10px] text-violet-700 dark:text-violet-300 underline hover:opacity-80"
+      {/* KPIs — Luxury Soft Glass */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+        {/* النعام القائم — كارت رئيسي */}
+        <Card className="group relative overflow-hidden rounded-2xl border border-violet-200/60 dark:border-violet-400/20 bg-gradient-to-br from-violet-50/80 via-white/70 to-white/40 dark:from-violet-950/30 dark:via-background/60 dark:to-background/40 backdrop-blur-sm shadow-[0_2px_12px_-4px_rgba(124,58,237,0.15)] hover:shadow-[0_8px_24px_-6px_rgba(124,58,237,0.25)] transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-tl from-violet-100/0 via-transparent to-violet-100/30 dark:to-violet-500/5 pointer-events-none" />
+          <CardContent className="relative p-4 flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-medium text-violet-600/80 dark:text-violet-300/80 tracking-wide">النعام القائم 🐦</p>
+              <p className="mt-1 text-3xl font-extrabold text-violet-700 dark:text-violet-200 tabular-nums">{liveBalance}</p>
+              <div
+                className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-violet-100/70 dark:bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-700 dark:text-violet-200"
+                title={
+                  liveValueInfo.hasMissing
+                    ? `توجد دفعات بدون تكلفة شراء مسجلة (${liveValueInfo.missingCount} طائر)`
+                    : "التكلفة المحاسبية للنعام القائم"
+                }
               >
-                <Calculator className="w-3 h-3" />
-                تفاصيل تكلفة النعامة
-              </button>
-              {isExecManager && (
+                قيمة القائم:{" "}
+                {liveValueInfo.total > 0
+                  ? `${liveValueInfo.total.toLocaleString("en-US", { maximumFractionDigits: 0 })} ج.م${liveValueInfo.hasMissing ? " *" : ""}`
+                  : liveValueInfo.hasMissing ? "غير محسوبة" : "—"}
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => { setAdjustForm({ new_balance: liveBalance, reason: "", adjustment_date: todayStr }); setAdjustOpen(true); }}
-                  className="text-[10px] text-primary underline hover:opacity-80"
+                  onClick={() => setCostDetailOpen(true)}
+                  className="inline-flex items-center gap-1 rounded-md border border-violet-200/70 dark:border-violet-400/30 bg-white/60 dark:bg-violet-500/10 px-2 py-0.5 text-[10px] font-medium text-violet-700 dark:text-violet-200 hover:bg-violet-50 dark:hover:bg-violet-500/20 transition"
                 >
-                  تعديل الرصيد
+                  <Calculator className="w-3 h-3" />
+                  تفاصيل تكلفة النعامة
                 </button>
-              )}
+                {isExecManager && (
+                  <button
+                    type="button"
+                    onClick={() => { setAdjustForm({ new_balance: liveBalance, reason: "", adjustment_date: todayStr }); setAdjustOpen(true); }}
+                    className="rounded-md border border-violet-200/70 dark:border-violet-400/30 bg-white/60 dark:bg-violet-500/10 px-2 py-0.5 text-[10px] font-medium text-violet-700 dark:text-violet-200 hover:bg-violet-50 dark:hover:bg-violet-500/20 transition"
+                  >
+                    تعديل الرصيد
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-          <Bird className="w-7 h-7 text-primary/60" />
-        </CardContent></Card>
-        <Card className="border-orange-400/40 bg-orange-50/40 dark:bg-orange-950/10"><CardContent className="p-3 flex items-center justify-between">
-          <div><p className="text-xs text-muted-foreground">مذبوح هذا الشهر</p><p className="text-2xl font-bold text-orange-600">{birdsSlaughteredMonth}</p></div>
-          <Beef className="w-7 h-7 text-orange-500/60" />
-        </CardContent></Card>
-        <Card><CardContent className="p-3 flex items-center justify-between">
-          <div><p className="text-xs text-muted-foreground">طيور اليوم</p><p className="text-2xl font-bold">{birdsToday}</p></div>
-          <Beef className="w-7 h-7 text-primary/40" />
-        </CardContent></Card>
-        <Card><CardContent className="p-3 flex items-center justify-between">
-          <div><p className="text-xs text-muted-foreground">لحوم اليوم (كجم)</p><p className="text-2xl font-bold">{meatToday.toFixed(1)}</p></div>
-          <Scale className="w-7 h-7 text-accent/40" />
-        </CardContent></Card>
-        <Card><CardContent className="p-3 flex items-center justify-between">
-          <div><p className="text-xs text-muted-foreground">إنتاج الشهر (كجم)</p><p className="text-2xl font-bold">{meatMonth.toFixed(0)}</p></div>
-          <Package className="w-7 h-7 text-emerald-500/40" />
-        </CardContent></Card>
-        <Card><CardContent className="p-3 flex items-center justify-between">
-          <div><p className="text-xs text-muted-foreground">التصافي اليوم</p><p className={`text-2xl font-bold ${yieldToday < 40 ? "text-red-600" : "text-emerald-600"}`}>{yieldToday.toFixed(1)}%</p></div>
-          <TrendingUp className="w-7 h-7 text-blue-500/40" />
-        </CardContent></Card>
-        <Card><CardContent className="p-3 flex items-center justify-between">
-          <div><p className="text-xs text-muted-foreground">تكلفة الكيلو</p><p className="text-2xl font-bold">{avgCost.toFixed(0)} ر.س</p></div>
-          <ClipboardCheck className="w-7 h-7 text-amber-500/40" />
-        </CardContent></Card>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100/80 dark:bg-violet-500/15">
+              <Bird className="w-5 h-5 text-violet-600 dark:text-violet-300" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* مذبوح هذا الشهر */}
+        <Card className="group rounded-2xl border border-orange-200/60 dark:border-orange-400/20 bg-gradient-to-br from-orange-50/70 via-white/70 to-white/40 dark:from-orange-950/20 dark:via-background/60 dark:to-background/40 backdrop-blur-sm shadow-[0_2px_12px_-4px_rgba(249,115,22,0.12)] hover:shadow-[0_8px_24px_-6px_rgba(249,115,22,0.2)] transition-all duration-300">
+          <CardContent className="p-4 flex items-start justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-medium text-orange-700/80 dark:text-orange-300/80 tracking-wide">مذبوح هذا الشهر</p>
+              <p className="mt-1 text-3xl font-extrabold text-orange-600 dark:text-orange-300 tabular-nums">{birdsSlaughteredMonth}</p>
+            </div>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-100/80 dark:bg-orange-500/15">
+              <Beef className="w-5 h-5 text-orange-600 dark:text-orange-300" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* طيور اليوم */}
+        <Card className="rounded-2xl border border-slate-200/70 dark:border-slate-700/40 bg-white/70 dark:bg-background/60 backdrop-blur-sm shadow-[0_2px_10px_-4px_rgba(15,23,42,0.08)] hover:shadow-[0_8px_22px_-6px_rgba(15,23,42,0.12)] transition-all duration-300">
+          <CardContent className="p-4 flex items-start justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 tracking-wide">طيور اليوم</p>
+              <p className="mt-1 text-3xl font-extrabold text-slate-800 dark:text-slate-100 tabular-nums">{birdsToday}</p>
+            </div>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-500/10">
+              <Beef className="w-5 h-5 text-rose-500/80" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* لحوم اليوم */}
+        <Card className="rounded-2xl border border-slate-200/70 dark:border-slate-700/40 bg-white/70 dark:bg-background/60 backdrop-blur-sm shadow-[0_2px_10px_-4px_rgba(15,23,42,0.08)] hover:shadow-[0_8px_22px_-6px_rgba(15,23,42,0.12)] transition-all duration-300">
+          <CardContent className="p-4 flex items-start justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 tracking-wide">لحوم اليوم (كجم)</p>
+              <p className="mt-1 text-3xl font-extrabold text-slate-800 dark:text-slate-100 tabular-nums">{meatToday.toFixed(1)}</p>
+            </div>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-500/10">
+              <Scale className="w-5 h-5 text-teal-600/80" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* إنتاج الشهر */}
+        <Card className="rounded-2xl border border-emerald-200/60 dark:border-emerald-400/20 bg-gradient-to-br from-emerald-50/60 via-white/70 to-white/40 dark:from-emerald-950/15 dark:via-background/60 dark:to-background/40 backdrop-blur-sm shadow-[0_2px_12px_-4px_rgba(16,185,129,0.1)] hover:shadow-[0_8px_24px_-6px_rgba(16,185,129,0.18)] transition-all duration-300">
+          <CardContent className="p-4 flex items-start justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-medium text-emerald-700/80 dark:text-emerald-300/80 tracking-wide">إنتاج الشهر (كجم)</p>
+              <p className="mt-1 text-3xl font-extrabold text-emerald-700 dark:text-emerald-300 tabular-nums">{meatMonth.toFixed(0)}</p>
+            </div>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100/80 dark:bg-emerald-500/15">
+              <Package className="w-5 h-5 text-emerald-600 dark:text-emerald-300" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* التصافي اليوم */}
+        <Card className="rounded-2xl border border-slate-200/70 dark:border-slate-700/40 bg-white/70 dark:bg-background/60 backdrop-blur-sm shadow-[0_2px_10px_-4px_rgba(15,23,42,0.08)] hover:shadow-[0_8px_22px_-6px_rgba(15,23,42,0.12)] transition-all duration-300">
+          <CardContent className="p-4 flex items-start justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 tracking-wide">التصافي اليوم</p>
+              <p className={`mt-1 text-3xl font-extrabold tabular-nums ${yieldToday < 40 ? "text-red-600" : "text-emerald-600"}`}>{yieldToday.toFixed(1)}%</p>
+            </div>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 dark:bg-sky-500/10">
+              <TrendingUp className="w-5 h-5 text-sky-600/80" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* تكلفة الكيلو */}
+        <Card className="rounded-2xl border border-amber-200/60 dark:border-amber-400/20 bg-gradient-to-br from-amber-50/60 via-white/70 to-white/40 dark:from-amber-950/15 dark:via-background/60 dark:to-background/40 backdrop-blur-sm shadow-[0_2px_12px_-4px_rgba(245,158,11,0.12)] hover:shadow-[0_8px_24px_-6px_rgba(245,158,11,0.2)] transition-all duration-300">
+          <CardContent className="p-4 flex items-start justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-medium text-amber-700/80 dark:text-amber-300/80 tracking-wide">تكلفة الكيلو</p>
+              <p className="mt-1 text-3xl font-extrabold text-amber-700 dark:text-amber-300 tabular-nums">
+                {avgCost.toFixed(0)} <span className="text-xs font-semibold text-amber-600/70 dark:text-amber-300/70">ر.س</span>
+              </p>
+            </div>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100/80 dark:bg-amber-500/15">
+              <ClipboardCheck className="w-5 h-5 text-amber-600 dark:text-amber-300" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* اللحم المشفى — اللحم الذي وصل فعليًا للمخازن */}
-      <Card className="mb-6 border-emerald-400/40 bg-emerald-50/40 dark:bg-emerald-950/10">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Scale className="w-5 h-5 text-emerald-600" />
-            <h3 className="font-bold text-emerald-700 dark:text-emerald-400">اللحم المشفى (المُستلم في المخازن)</h3>
-            <span className="text-xs text-muted-foreground">— الكميات المقبولة جودة فقط، بعد استلامها في المخزن الرئيسي أو مخزن خامات مصنع اللحوم</span>
+      {/* اللحم المشفى — Premium Panel */}
+      <Card className="mb-6 rounded-2xl border border-emerald-200/60 dark:border-emerald-400/20 bg-gradient-to-br from-emerald-50/50 via-white/60 to-white/30 dark:from-emerald-950/15 dark:via-background/60 dark:to-background/40 backdrop-blur-sm shadow-[0_2px_14px_-6px_rgba(16,185,129,0.15)]">
+        <CardContent className="p-5">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100/80 dark:bg-emerald-500/15">
+              <Scale className="w-5 h-5 text-emerald-600 dark:text-emerald-300" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-base font-bold text-emerald-800 dark:text-emerald-200">اللحم المشفى (المُستلم في المخازن)</h3>
+              <p className="mt-0.5 text-[11px] text-emerald-700/70 dark:text-emerald-300/60">الكميات المقبولة جودة فقط، بعد استلامها في المخزن الرئيسي أو مخزن خامات مصنع اللحوم</p>
+            </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="rounded-lg border bg-background p-3">
-              <p className="text-xs text-muted-foreground">اللحم المشفى اليوم</p>
-              <p className="text-2xl font-bold text-emerald-700">{cleanMeatToday.toFixed(1)} <span className="text-sm">كجم</span></p>
+            <div className="rounded-xl border border-emerald-100/70 dark:border-emerald-400/15 bg-white/70 dark:bg-background/60 backdrop-blur-sm p-3 shadow-[0_1px_6px_-3px_rgba(16,185,129,0.15)]">
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">اللحم المشفى اليوم</p>
+              <p className="mt-1 text-2xl font-extrabold text-emerald-700 dark:text-emerald-300 tabular-nums">{cleanMeatToday.toFixed(1)} <span className="text-xs font-semibold text-emerald-600/70">كجم</span></p>
             </div>
-            <div className="rounded-lg border bg-background p-3">
-              <p className="text-xs text-muted-foreground">اللحم المشفى هذا الشهر</p>
-              <p className="text-2xl font-bold text-emerald-700">{cleanMeatMonth.toFixed(1)} <span className="text-sm">كجم</span></p>
+            <div className="rounded-xl border border-emerald-100/70 dark:border-emerald-400/15 bg-white/70 dark:bg-background/60 backdrop-blur-sm p-3 shadow-[0_1px_6px_-3px_rgba(16,185,129,0.15)]">
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">اللحم المشفى هذا الشهر</p>
+              <p className="mt-1 text-2xl font-extrabold text-emerald-700 dark:text-emerald-300 tabular-nums">{cleanMeatMonth.toFixed(1)} <span className="text-xs font-semibold text-emerald-600/70">كجم</span></p>
             </div>
-            <div className="rounded-lg border bg-background p-3">
-              <p className="text-xs text-muted-foreground">الوزن الحي اليوم</p>
-              <p className="text-2xl font-bold">{liveWeightToday.toFixed(1)} <span className="text-sm">كجم</span></p>
+            <div className="rounded-xl border border-slate-200/70 dark:border-slate-700/40 bg-white/70 dark:bg-background/60 backdrop-blur-sm p-3">
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">الوزن الحي اليوم</p>
+              <p className="mt-1 text-2xl font-extrabold text-slate-800 dark:text-slate-100 tabular-nums">{liveWeightToday.toFixed(1)} <span className="text-xs font-semibold text-slate-500">كجم</span></p>
             </div>
-            <div className="rounded-lg border bg-background p-3">
-              <p className="text-xs text-muted-foreground">نسبة التصافي (مشفى ÷ حي)</p>
-              <p className={`text-2xl font-bold ${cleanMeatYieldPct > 0 && cleanMeatYieldPct < 40 ? "text-red-600" : "text-emerald-700"}`}>
+            <div className="rounded-xl border border-slate-200/70 dark:border-slate-700/40 bg-white/70 dark:bg-background/60 backdrop-blur-sm p-3">
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">نسبة التصافي (مشفى ÷ حي)</p>
+              <p className={`mt-1 text-2xl font-extrabold tabular-nums ${cleanMeatYieldPct > 0 && cleanMeatYieldPct < 40 ? "text-red-600" : "text-emerald-700 dark:text-emerald-300"}`}>
                 {cleanMeatYieldPct.toFixed(1)}%
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
+
 
 
       {/* نعام نافق — شهر/سنة */}
