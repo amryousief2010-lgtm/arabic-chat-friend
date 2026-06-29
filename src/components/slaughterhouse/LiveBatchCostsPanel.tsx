@@ -80,20 +80,36 @@ export default function LiveBatchCostsPanel() {
     [receipts, activeBatchId],
   );
 
+  const slaughteredByReceipt = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const b of slaughterBatches) {
+      if (b.status === 'cancelled' || !b.live_receipt_id) continue;
+      map[b.live_receipt_id] = (map[b.live_receipt_id] || 0) + Number(b.birds_slaughtered || 0);
+    }
+    return map;
+  }, [slaughterBatches]);
+
   const totals = useMemo(() => {
-    return receipts.reduce(
+    const base = receipts.reduce(
       (acc, r) => {
         acc.original += Number(r.bird_count || 0);
         acc.alive += Number(r.current_alive_count || 0);
         acc.dead += Number(r.mortality_count || 0);
+        acc.slaughtered += Number(slaughteredByReceipt[r.id] || 0);
         acc.feed += Number(r.feed_cost_loaded || 0);
         acc.mort += Number(r.mortality_cost_loaded || 0);
         acc.total += Number(r.total_batch_cost || 0);
         return acc;
       },
-      { original: 0, alive: 0, dead: 0, feed: 0, mort: 0, total: 0 },
+      { original: 0, alive: 0, dead: 0, slaughtered: 0, feed: 0, mort: 0, total: 0 },
     );
-  }, [receipts]);
+    // Real mortality across ALL receipts (including archived/opening) for visibility
+    base.deadAll = allReceipts.reduce(
+      (s, r) => s + Number(r.mortality_count || 0),
+      0,
+    );
+    return base as typeof base & { deadAll: number };
+  }, [receipts, allReceipts, slaughteredByReceipt]);
 
   const allocate = async (batchId: string) => {
     try {
