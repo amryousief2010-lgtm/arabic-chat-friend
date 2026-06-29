@@ -569,29 +569,29 @@ export default function CourierOrderCustodyTab() {
                               </> : <span className="text-muted-foreground">—</span>}
                             </TableCell>
                             <TableCell className="text-xs">{new Date(a.assigned_at).toLocaleDateString("ar-EG")}</TableCell>
-                            <TableCell>
+                            <TableCell className="min-w-[280px]">
                               <div className="flex gap-1 flex-wrap">
-                                <Button size="sm" variant="outline" className="h-7 px-2 gap-1" onClick={() => setDetailsOrder(o ?? null)} disabled={!o} title="تفاصيل الأوردر">
-                                  <Eye className="w-3 h-3" /> <span className="text-xs">تفاصيل</span>
+                                <Button size="sm" variant="outline" className="h-7 px-1.5 gap-1 text-[10px]" onClick={() => setDetailsOrder(o ?? null)} disabled={!o} title="تفاصيل الأوردر">
+                                  <Eye className="w-3 h-3" /> تفاصيل
                                 </Button>
-                                <Button size="sm" variant="outline" className="h-7 px-2" title="قيد التوزيع"
+                                <Button size="sm" variant="outline" className="h-7 px-1.5 gap-1 text-[10px]" title="قيد التوزيع"
                                   onClick={() => updateAssignmentStatus(a.id, a.order_id, "with_courier", "out_for_delivery")}>
-                                  <Truck className="w-3 h-3" />
+                                  <Truck className="w-3 h-3" /> توزيع
                                 </Button>
-                                <Button size="sm" variant="outline" className="h-7 px-2" title="تم التسليم للعميل (آجل بدون تحصيل)"
+                                <Button size="sm" variant="outline" className="h-7 px-1.5 gap-1 text-[10px] text-teal-700" title="تم التسليم للعميل (آجل بدون تحصيل)"
                                   onClick={async () => { if (await recordDeliveryAndCollection(a.order_id, 0)) { toast({ title: "تم التسليم (آجل)" }); load(); } }}>
-                                  <CheckCircle2 className="w-3 h-3 text-teal-600" />
+                                  <CheckCircle2 className="w-3 h-3" /> تسليم
                                 </Button>
-                                <Button size="sm" variant="outline" className="h-7 px-2 border-emerald-300 hover:bg-emerald-50" title="تحصيل نقدي"
+                                <Button size="sm" variant="outline" className="h-7 px-1.5 gap-1 text-[10px] border-emerald-300 hover:bg-emerald-50 text-emerald-700" title="تحصيل نقدي"
                                   onClick={() => {
                                     const ord = o ?? ({ id: a.order_id, order_number: a.order_id.slice(0, 8), total: dueAmt, customer_name: "—", status: a.status, created_at: a.assigned_at } as Order);
                                     setCollectOpen(ord);
                                     setCollectAmt(String(Math.max(0, dueAmt - colAmt)));
                                     setCollectNotes("");
                                   }}>
-                                  <Coins className="w-3 h-3 text-emerald-600" />
+                                  <Coins className="w-3 h-3" /> كاش
                                 </Button>
-                                <Button size="sm" variant="outline" className="h-7 px-2 border-rose-300 hover:bg-rose-50" title="تسجيل مرتجع"
+                                <Button size="sm" variant="outline" className="h-7 px-1.5 gap-1 text-[10px] border-rose-300 hover:bg-rose-50 text-rose-700" title="تسجيل مرتجع"
                                   onClick={() => {
                                     const ord = o ?? ({ id: a.order_id, order_number: a.order_id.slice(0, 8), total: dueAmt, customer_name: "—", status: a.status, created_at: a.assigned_at } as Order);
                                     setReturnOpen(ord);
@@ -599,18 +599,18 @@ export default function CourierOrderCustodyTab() {
                                     setReturnNotes("");
                                     setReturnKind("partial");
                                   }}>
-                                  <RotateCcw className="w-3 h-3 text-rose-600" />
+                                  <RotateCcw className="w-3 h-3" /> مرتجع
                                 </Button>
-                                <Button size="sm" variant="outline" className="h-7 px-2 border-pink-300 hover:bg-pink-50" title="هدية / مجاني (بدون تحصيل)"
+                                <Button size="sm" variant="outline" className="h-7 px-1.5 gap-1 text-[10px] border-pink-300 hover:bg-pink-50 text-pink-700" title="هدية / مجاني (بدون تحصيل)"
                                   onClick={async () => {
                                     if (!confirm(`تأكيد: تسليم الأوردر ${o?.order_number ?? ""} كهدية مجانية بدون تحصيل؟`)) return;
                                     if (await recordDeliveryAndCollection(a.order_id, 0, "هدية مجانية - تم التسليم بدون تحصيل")) {
                                       toast({ title: "تم التسليم كهدية مجانية" }); load();
                                     }
                                   }}>
-                                  <span className="text-xs">🎁</span>
+                                  🎁 مجاني
                                 </Button>
-                                <Button size="sm" variant="outline" className="h-7 px-2 border-gray-400 hover:bg-gray-50" title="ألغاه العميل (إرجاع البضاعة)"
+                                <Button size="sm" variant="outline" className="h-7 px-1.5 gap-1 text-[10px] border-gray-400 hover:bg-gray-50 text-gray-700" title="ألغاه العميل (إرجاع البضاعة)"
                                   onClick={() => {
                                     const ord = o ?? ({ id: a.order_id, order_number: a.order_id.slice(0, 8), total: dueAmt, customer_name: "—", status: a.status, created_at: a.assigned_at } as Order);
                                     setReturnOpen(ord);
@@ -618,16 +618,16 @@ export default function CourierOrderCustodyTab() {
                                     setReturnNotes("ألغى العميل الأوردر — إرجاع كامل");
                                     setReturnKind("full");
                                   }}>
-                                  <span className="text-xs">❌</span>
+                                  ❌ إلغاء
                                 </Button>
-                                <Button size="sm" variant="outline" className="h-7 px-2 border-amber-300 hover:bg-amber-50" title="تصحيح/تعديل"
+                                <Button size="sm" variant="outline" className="h-7 px-1.5 gap-1 text-[10px] border-amber-300 hover:bg-amber-50 text-amber-700" title="تصحيح/تعديل"
                                   onClick={() => {
                                     setCorrectOpen({ assignment: a, order: o });
                                     setCorrectAction(col ? "edit_collection_amount" : a.returned_at ? "reverse_return" : "reverse_collection");
                                     setCorrectReason("");
                                     setCorrectAmount(col ? String(colAmt) : "");
                                   }}>
-                                  <Wrench className="w-3 h-3 text-amber-600" />
+                                  <Wrench className="w-3 h-3" /> تصحيح
                                 </Button>
                               </div>
                             </TableCell>
