@@ -923,6 +923,11 @@ const Orders = () => {
 
   const handleDeleteOrder = async (orderId: string) => {
     try {
+      // M4-B: free any Agouza hold before delete (Agouza-only; no-op otherwise).
+      const target = orders.find((o) => o.id === orderId);
+      if (target?.source_warehouse_id === AGOUZA_WAREHOUSE_ID) {
+        await releaseAgouzaForOrder(orderId, 'order_deleted');
+      }
       const { error: itemsErr } = await supabase.from('order_items').delete().eq('order_id', orderId);
       if (itemsErr) throw itemsErr;
       const { error } = await supabase.from('orders').delete().eq('id', orderId);
@@ -934,6 +939,7 @@ const Orders = () => {
       toast.error('تعذّر حذف الطلب');
     }
   };
+
 
   const getStatusIcon = (status: OrderStatus) => {
     switch (status) {
