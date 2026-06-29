@@ -2290,6 +2290,21 @@ export default function MainWarehouseTreasuryTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {mainWarehouse?.id && (
+        <AddMainWarehouseItemDialog
+          open={addProductOpen}
+          onOpenChange={setAddProductOpen}
+          mainWarehouseId={mainWarehouse.id}
+          mainWarehouseName={mainWarehouse.name}
+          onCreated={async (newItemId?: string) => {
+            await fetchMainWarehouseItems();
+            if (newItemId) {
+              setLineInventoryItemId(newItemId);
+            }
+          }}
+        />
+      )}
     </div>
 
 
