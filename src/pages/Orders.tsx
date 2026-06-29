@@ -1316,6 +1316,21 @@ const Orders = () => {
                         </Badge>
                       </div>
                     )}
+                    {order.source_warehouse_id === AGOUZA_WAREHOUSE_ID && (
+                      <div className="text-[11px]">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] border-purple-400 text-purple-700 bg-purple-50"
+                        >
+                          {order.status === 'delivered'
+                            ? 'حجز عجوزة • تم الخصم'
+                            : order.status === 'cancelled'
+                            ? 'حجز عجوزة • تم فك الحجز'
+                            : 'حجز عجوزة • محجوز'}
+                        </Badge>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-end gap-1 pt-1">
                        <Button variant="ghost" size="icon" asChild className="h-8 w-8">
                          <Link to={`/orders/${order.id}`}><Eye className="w-4 h-4" /></Link>
