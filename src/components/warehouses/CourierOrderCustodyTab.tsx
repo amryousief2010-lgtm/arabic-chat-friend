@@ -141,19 +141,20 @@ export default function CourierOrderCustodyTab() {
     const assignedOrderIds = asn.map((a) => a.order_id);
     const [readyOrdersRes, assignedOrdersRes] = await Promise.all([
       (supabase as any).from("orders")
-        .select("id, order_number, status, total, customer_name, created_at")
+        .select("id, order_number, status, total, customer_id, created_at, customers!orders_customer_id_fkey(name, phone)")
         .in("status", ["pending", "processing", "shipped"])
         .order("created_at", { ascending: false })
         .limit(500),
       assignedOrderIds.length
         ? (supabase as any).from("orders")
-            .select("id, order_number, status, total, customer_name, created_at")
+            .select("id, order_number, status, total, customer_id, created_at, customers!orders_customer_id_fkey(name, phone)")
             .in("id", assignedOrderIds)
         : Promise.resolve({ data: [] as Order[] }),
     ]);
+    const enrich = (o: any): Order => ({ ...o, customer_name: o?.customers?.name ?? null });
     const mergedMap = new Map<string, Order>();
-    (readyOrdersRes.data || []).forEach((o: Order) => mergedMap.set(o.id, o));
-    (assignedOrdersRes.data || []).forEach((o: Order) => mergedMap.set(o.id, o));
+    (readyOrdersRes.data || []).forEach((o: any) => mergedMap.set(o.id, enrich(o)));
+    (assignedOrdersRes.data || []).forEach((o: any) => mergedMap.set(o.id, enrich(o)));
     setOrders(Array.from(mergedMap.values()));
 
     const ids = Array.from(mergedMap.keys());
