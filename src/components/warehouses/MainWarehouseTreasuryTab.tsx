@@ -579,6 +579,9 @@ export default function MainWarehouseTreasuryTab() {
     } else {
       if (lineType === "issue") {
         if (!lineInventoryItemId) { toast({ title: "اختر المنتج من أصناف المخزن الرئيسي", variant: "destructive" }); return; }
+      } else if (lineType === "sale") {
+        if (!lineInventoryItemId) { toast({ title: "اختر المنتج من أصناف المخزن الرئيسي", variant: "destructive" }); return; }
+        if (!lineCustomerName.trim()) { toast({ title: "أدخل اسم العميل", variant: "destructive" }); return; }
       } else if (!lineProduct.trim()) { toast({ title: "أدخل اسم المنتج", variant: "destructive" }); return; }
       if (!qty || qty <= 0) { toast({ title: "أدخل كمية صحيحة", variant: "destructive" }); return; }
       if (lineType === "sale") {
