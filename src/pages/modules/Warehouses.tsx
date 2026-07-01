@@ -1514,14 +1514,81 @@ const Warehouses = () => {
                 wh: findByPatterns([/كارفور/, /carrefour/i]) },
               { value: "wh-packaging", label: "التغليف والتعبئة",
                 wh: findByPatterns([/تغليف/, /تعبئة/, /packaging/i]) || findByType("packaging") },
-              { value: "wh-activity", label: "سجل حركات المخزن الرئيسي",
-                wh: findByPatterns([/رئيسي/, /main/i]) },
             ] as const;
 
+            // Sub-tool icon strip config per warehouse — fully scoped, no cross-leaks.
+            const MAIN_TOOLS = [
+              { key: "activity", label: "سجل حركات المخزن الرئيسي", Icon: BarChart3 },
+              { key: "treasury", label: "خزينة المخزن الرئيسي", Icon: Wallet },
+              { key: "courier-orders", label: "عهدة أوردرات المندوب", Icon: Truck },
+              { key: "route-prep", label: "تجهيز خط التوزيع", Icon: Truck },
+            ];
+            const AGOUZA_TOOLS = [
+              { key: "treasury", label: "خزنة مخزن العجوزة", Icon: Wallet },
+              { key: "recon", label: "مطابقة خزنة العجوزة", Icon: ClipboardCheck },
+              { key: "closure", label: "إقفال يوم العجوزة", Icon: ClipboardCheck },
+              { key: "daily-recon", label: "تسوية عهدة اليوم", Icon: ClipboardCheck },
+            ];
+
+            const renderSubToolbar = (
+              tools: typeof MAIN_TOOLS,
+              current: string | null,
+              set: (v: string | null) => void,
+              scopeLabel: string,
+            ) => (
+              <div className="rounded-2xl border border-border/40 bg-card/70 backdrop-blur-xl p-2 shadow-lg shadow-black/5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                  {tools.map(({ key, label, Icon }) => {
+                    const active = current === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => set(active ? null : key)}
+                        className={
+                          "min-h-[80px] flex flex-col items-center justify-center gap-1.5 rounded-xl px-2 py-3 text-xs font-semibold leading-tight text-center border transition-all " +
+                          (active
+                            ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-xl shadow-primary/25 ring-2 ring-primary/20 border-transparent"
+                            : "border-transparent hover:bg-muted/60 hover:border-border/40")
+                        }
+                      >
+                        <Icon className="w-5 h-5 mb-0.5" />
+                        <span>{label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {current && (
+                  <div className="mt-2 flex items-center justify-between gap-2 px-2">
+                    <span className="text-xs text-muted-foreground">أدوات {scopeLabel} — {tools.find(t => t.key === current)?.label}</span>
+                    <Button variant="outline" size="sm" onClick={() => set(null)}>
+                      <ArrowLeftRight className="w-4 h-4 ml-1" />رجوع لداشبورد {scopeLabel}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            );
+
+            const renderMainSubview = () => {
+              switch (mainSubview) {
+                case "activity": return <MainWarehouseActivity embedded />;
+                case "treasury": return <MainWarehouseTreasuryTab />;
+                case "courier-orders": return <CourierOrderCustodyTab />;
+                case "route-prep": return <RouteDistributionPreparationTab />;
+                default: return null;
+              }
+            };
+            const renderAgouzaSubview = () => {
+              switch (agouzaSubview) {
+                case "treasury": return <AgouzaTreasuryTab />;
+                case "recon": return <AgouzaReconciliationTab />;
+                case "closure": return <AgouzaDailyClosureTab />;
+                case "daily-recon": return <DailyCustodyReconciliationTab />;
+                default: return null;
+              }
+            };
+
             return TABS.map((t) => {
-              // Per-tab items list locked to this warehouse only (no dropdown).
-              // For Main Warehouse, also exclude meat-factory / feed / packaging
-              // categories even if mis-assigned in DB.
               const tabItems = t.wh
                 ? items
                     .filter((i) => i.warehouse_id === t.wh!.id)
@@ -1531,9 +1598,15 @@ const Warehouses = () => {
                         : true
                     )
                 : [];
+              const isMain = t.value === "wh-main";
+              const isAgouza = t.value === "wh-agouza";
+              const activeSub = isMain ? mainSubview : isAgouza ? agouzaSubview : null;
               return (
                 <TabsContent key={t.value} value={t.value} className="space-y-4">
-                  {t.value === "wh-main" && canManageWarehouses && t.wh && (
+                  {isMain && renderSubToolbar(MAIN_TOOLS, mainSubview, setMainSubview, t.label)}
+                  {isAgouza && renderSubToolbar(AGOUZA_TOOLS, agouzaSubview, setAgouzaSubview, t.label)}
+
+                  {isMain && !activeSub && canManageWarehouses && t.wh && (
                     <div className="flex justify-end">
                       <Button onClick={() => setAddMainItemDialog(true)}>
                         <Plus className="w-4 h-4 ml-2" />
@@ -1541,114 +1614,91 @@ const Warehouses = () => {
                       </Button>
                     </div>
                   )}
-                  {t.value !== "wh-activity" && (
-                    <WarehouseKpisBlock
-                      warehouseId={t.wh?.id}
-                      warehouseName={t.label}
-                      items={items}
-                      movements={movements}
-                    />
-                  )}
 
-                  {t.value !== "wh-activity" && t.wh && (
-                    <details className="group rounded-2xl border border-primary/20 bg-card overflow-hidden">
-                      <summary className="cursor-pointer select-none px-4 py-3 flex items-center gap-2 bg-gradient-to-l from-primary/5 to-transparent hover:bg-primary/10 transition-colors">
-                        <BarChart3 className="w-4 h-4 text-primary" />
-                        <span className="font-semibold">داشبورد المخزن — {t.label}</span>
-                        <span className="text-xs text-muted-foreground mr-2">(اضغط للعرض/الإخفاء)</span>
-                      </summary>
-                      <div className="p-4 border-t border-border/60">
-                        <WarehousesDashboardPanel
-                          warehouses={warehouses as any}
-                          items={items as any}
-                          movements={movements as any}
-                          scopeWarehouseId={t.wh.id}
-                          title={`داشبورد ${t.label}`}
-                        />
-                      </div>
-                    </details>
+                  {activeSub ? (
+                    isMain ? renderMainSubview() : renderAgouzaSubview()
+                  ) : (
+                    <>
+                      <WarehouseKpisBlock
+                        warehouseId={t.wh?.id}
+                        warehouseName={t.label}
+                        items={items}
+                        movements={movements}
+                      />
+
+                      {t.wh && (
+                        <details className="group rounded-2xl border border-primary/20 bg-card overflow-hidden">
+                          <summary className="cursor-pointer select-none px-4 py-3 flex items-center gap-2 bg-gradient-to-l from-primary/5 to-transparent hover:bg-primary/10 transition-colors">
+                            <BarChart3 className="w-4 h-4 text-primary" />
+                            <span className="font-semibold">داشبورد المخزن — {t.label}</span>
+                            <span className="text-xs text-muted-foreground mr-2">(اضغط للعرض/الإخفاء)</span>
+                          </summary>
+                          <div className="p-4 border-t border-border/60">
+                            <WarehousesDashboardPanel
+                              warehouses={warehouses as any}
+                              items={items as any}
+                              movements={movements as any}
+                              scopeWarehouseId={t.wh.id}
+                              title={`داشبورد ${t.label}`}
+                            />
+                          </div>
+                        </details>
+                      )}
+
+                      {t.value !== "wh-main" && t.value !== "wh-agouza" && t.value !== "wh-hht" && t.value !== "wh-carrefour" && t.wh && (
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-base flex items-center gap-2">
+                              <Package className="w-4 h-4 text-primary" />
+                              أصناف {t.label}
+                              <Badge variant="outline">{tabItems.length}</Badge>
+                            </CardTitle>
+                            <CardDescription>عرض مقصور على هذا المخزن فقط</CardDescription>
+                          </CardHeader>
+                          <CardContent className="p-0">
+                            <div className="overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>الصنف</TableHead>
+                                    <TableHead>الفئة</TableHead>
+                                    <TableHead>الرصيد</TableHead>
+                                    <TableHead>الوحدة</TableHead>
+                                    <TableHead>الحد الأدنى</TableHead>
+                                    <TableHead>التكلفة</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {tabItems.length === 0 ? (
+                                    <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">لا توجد أصناف لهذا المخزن</TableCell></TableRow>
+                                  ) : tabItems.map((it) => (
+                                    <TableRow key={it.id} className={it.stock <= it.low_stock_threshold ? "bg-destructive/5" : ""}>
+                                      <TableCell className="font-medium">{it.name}{it.sku && <span className="text-xs text-muted-foreground mr-1">({it.sku})</span>}</TableCell>
+                                      <TableCell className="text-sm text-muted-foreground">{(it as any).category || "—"}</TableCell>
+                                      <TableCell className={it.stock <= it.low_stock_threshold ? "text-destructive font-bold" : ""}>{it.stock}</TableCell>
+                                      <TableCell>{it.unit}</TableCell>
+                                      <TableCell>{it.low_stock_threshold}</TableCell>
+                                      <TableCell>{Number(it.unit_cost || 0).toFixed(2)}</TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {"scope" in t ? (
+                        <WarehouseStockView scope={t.scope} embedded />
+                      ) : null}
+                    </>
                   )}
-                  {t.value !== "wh-activity" && t.value !== "wh-main" && t.value !== "wh-agouza" && t.value !== "wh-hht" && t.value !== "wh-carrefour" && t.wh && (
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <Package className="w-4 h-4 text-primary" />
-                          أصناف {t.label}
-                          <Badge variant="outline">{tabItems.length}</Badge>
-                        </CardTitle>
-                        <CardDescription>عرض مقصور على هذا المخزن فقط</CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>الصنف</TableHead>
-                                <TableHead>الفئة</TableHead>
-                                <TableHead>الرصيد</TableHead>
-                                <TableHead>الوحدة</TableHead>
-                                <TableHead>الحد الأدنى</TableHead>
-                                <TableHead>التكلفة</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {tabItems.length === 0 ? (
-                                <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">لا توجد أصناف لهذا المخزن</TableCell></TableRow>
-                              ) : tabItems.map((it) => (
-                                <TableRow key={it.id} className={it.stock <= it.low_stock_threshold ? "bg-destructive/5" : ""}>
-                                  <TableCell className="font-medium">{it.name}{it.sku && <span className="text-xs text-muted-foreground mr-1">({it.sku})</span>}</TableCell>
-                                  <TableCell className="text-sm text-muted-foreground">{(it as any).category || "—"}</TableCell>
-                                  <TableCell className={it.stock <= it.low_stock_threshold ? "text-destructive font-bold" : ""}>{it.stock}</TableCell>
-                                  <TableCell>{it.unit}</TableCell>
-                                  <TableCell>{it.low_stock_threshold}</TableCell>
-                                  <TableCell>{Number(it.unit_cost || 0).toFixed(2)}</TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                  {t.value === "wh-activity" ? (
-                    <MainWarehouseActivity embedded />
-                  ) : "scope" in t ? (
-                    <WarehouseStockView scope={t.scope} embedded />
-                  ) : null}
                 </TabsContent>
               );
             });
           })()}
 
-          <TabsContent value="wh-treasury" className="space-y-4">
-            <MainWarehouseTreasuryTab />
-          </TabsContent>
 
-          <TabsContent value="wh-agouza-treasury" className="space-y-4">
-            <AgouzaTreasuryTab />
-          </TabsContent>
-
-          <TabsContent value="wh-agouza-recon" className="space-y-4">
-            <AgouzaReconciliationTab />
-          </TabsContent>
-
-          <TabsContent value="wh-agouza-closure" className="space-y-4">
-            <AgouzaDailyClosureTab />
-          </TabsContent>
-
-
-
-          <TabsContent value="wh-courier-orders" className="space-y-4">
-            <CourierOrderCustodyTab />
-          </TabsContent>
-
-          <TabsContent value="wh-daily-recon" className="space-y-4">
-            <DailyCustodyReconciliationTab />
-          </TabsContent>
-
-          <TabsContent value="wh-route-prep" className="space-y-4">
-            <RouteDistributionPreparationTab />
-          </TabsContent>
 
 
 
