@@ -276,6 +276,17 @@ export default function SlaughterhouseFeedStore() {
 
         <FeedInternalDebtDashboard department="slaughterhouse" />
 
+        {Math.abs(totals.reconDiff) > 0.5 && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>يوجد فرق في مطابقة مخزون العلف، برجاء مراجعة سجل الحركات</AlertTitle>
+            <AlertDescription className="text-xs">
+              الرصيد الحالي: <b>{fmt(totals.balance)}</b> كجم — المتوقع من السجل (وارد {fmt(totals.totalIn)} + تسويات {fmt(totals.totalAdj)} − مصروف {fmt(totals.totalOut)}) = <b>{fmt(totals.totalIn + totals.totalAdj - totals.totalOut)}</b> كجم — الفرق: <b>{fmt(totals.reconDiff)}</b> كجم
+            </AlertDescription>
+          </Alert>
+        )}
+
+
         <Tabs defaultValue="balances" dir="rtl">
           <TabsList className="bg-muted/60 p-2 flex-wrap h-auto">
             <TabsTrigger value="balances">الأرصدة</TabsTrigger>
