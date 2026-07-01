@@ -82,6 +82,9 @@ const STATUS_ICON: Record<string, string> = {
 
 const fmt = (n: number) => new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 2 }).format(n || 0);
 
+const isGiftAssignment = (a: { notes?: string | null }) =>
+  !!(a?.notes && /هدية مجانية|مجاني/.test(a.notes));
+
 type Custody = { id: string; courier_name: string; status: string; opened_at: string };
 type Assignment = {
   id: string; custody_id: string; order_id: string; courier_name: string;
