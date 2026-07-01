@@ -233,6 +233,13 @@ export default function SocialMediaDailyReport() {
       additional_notes: form.additional_notes || null,
       complaint_attachment_path: form.complaint_attachment_path,
       status,
+      reach_count: form.reach_count ? toNum(form.reach_count) : null,
+      impressions_count: form.impressions_count ? toNum(form.impressions_count) : null,
+      likes_count: form.likes_count ? toNum(form.likes_count) : null,
+      comments_count: form.comments_count ? toNum(form.comments_count) : null,
+      shares_count: form.shares_count ? toNum(form.shares_count) : null,
+      new_followers_count: form.new_followers_count ? toNum(form.new_followers_count) : null,
+      platforms: form.platforms.length ? form.platforms : null,
     };
     const { data, error } = await supabase
       .from("social_media_daily_reports")
