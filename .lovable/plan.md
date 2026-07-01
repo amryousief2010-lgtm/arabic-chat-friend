@@ -1,101 +1,121 @@
-# تطوير نظام عهدة المندوبين
 
-## نظرة عامة
+# تفعيل قسم السوشيال ميديا (لوحة + قراءات + تصدير)
 
-البناء فوق الجداول الموجودة (`courier_goods_custodies`, `courier_goods_custody_lines`) داخل تبويب «خزينة المخزن الرئيسي» مع جداول وإعدادات جديدة لإغلاق الدورة المحاسبية بالكامل.
-
----
-
-## 1) الحد الائتماني (Credit Limit)
-
-- جدول جديد `courier_profiles`: `courier_name` (مفتاح فريد), `credit_limit`, `commission_type`, `commission_value`, `notes`. صلاحية التعديل: المدير العام + التنفيذي فقط.
-- عند فتح نافذة «صرف بضاعة»: حساب العهدة الحالية للمندوب (مصروف − مرتجع − مبيعات). إذا (الحالي + قيمة الصرف الجديد) > الحد:
-  - مستخدم عادي → منع الصرف مع تحذير أحمر، أو اختيار «طلب اعتماد» يحفظ السطر بحالة `pending_credit_override` ويرسل إشعار للمديرين.
-  - مدير عام/تنفيذي → السماح المباشر مع تأكيد.
-- إظهار في رأس كل عهدة: «الحد المسموح / العهدة الحالية / المتبقي» مع شريط تقدّم.
-
-## 2) كشف حساب المندوب
-
-- زر «كشف حساب» على كل عهدة + اختيار فترة (من/إلى أو شهر).
-- يعرض: رصيد افتتاحي بداية الفترة (مجموع الحركات قبلها)، ثم بنود مفصّلة بالترتيب: صرف / مرتجع / مبيعات / خصومات / تحصيل / عجز أو زيادة / رصيد ختامي.
-- طباعة عربية عبر `openPrintWindow` (نمط الموجود في الملف)، وExcel عبر `xlsx`.
-
-## 3) العمولات
-
-- في `courier_profiles`: `commission_type` ∈ (`percent_of_sales`, `per_kg`, `per_item`) و`commission_value`.
-- جدول `courier_commission_payouts`: مبلغ مصروف، تاريخ، ملاحظات، performed_by.
-- حساب العمولة المستحقة من سطور البيع المعتمدة (auto_approved + approved) داخل ملخّص العهدة، وعرض: المستحق / المصروف / المتبقي.
-- صرف العمولة يخصم نقدًا من خزينة المخزن الرئيسي تلقائيًا (حركة `manual_adjust` صادرة بوصف «عمولة مندوب»).
-
-## 4) إغلاق يوم المندوب
-
-- جدول `courier_daily_closures`: `custody_id`, `closure_date`, snapshot للقيم (مصروف/مرتجع/مبيعات/خصومات/تحصيل/متبقي/عجز)، `closed_by`, `reopened_by`, `reopened_at`, `status` ∈ (`closed`, `reopened`).
-- زر «إغلاق اليوم» يحسب الأرقام ويثبّتها ويمنع إضافة/تعديل سطور بتاريخ ≤ تاريخ الإغلاق (عبر trigger يقرأ آخر إغلاق لكل عهدة).
-- زر «إعادة فتح» يظهر فقط للمدير العام/التنفيذي، يسجّل سبب الفتح في `audit_log` الموجود.
-
-## 5) لوحة معلومات المندوبين
-
-كرت داخل نفس التبويب يجمع:
-- إجمالي البضاعة الحالية لدى جميع المندوبين.
-- إجمالي تحصيلات/مرتجعات/مبيعات الفترة (آخر 30 يوم افتراضيًا).
-- ترتيب أعلى مندوب في: مبيعات، خصومات، عجز، تحصيل.
-
-## 6) الصلاحيات (RLS)
-
-- `warehouse_supervisor` (عبدالمنعم): إنشاء حركات صرف/مرتجع/تحصيل، لا يعدّل حدود ولا عمولات ولا يعيد فتح إغلاق.
-- `financial_manager` (محمد شعلة): قراءة، اعتماد التحصيلات (موجود).
-- `general_manager` / `executive_manager`: كل شيء + اعتماد تجاوز الحد + إعادة فتح + تعديل حدود/عمولات.
-- (مستقبلًا) دور `courier`: يرى فقط `custody_id` الخاص به عبر mapping `auth.uid()` ↔ `courier_name`. **حاليًا**: لا يوجد مستخدم مندوب في النظام، سيُترك hook جاهز للربط لاحقًا.
+القسم موجود جزئيًا (تقرير يومي + أسبوعي + مراجعة إدارة + تقاريري)، لكن ينقصه: **لوحة KPI موحّدة، أيقونات معبّرة داخل السايدبار والصفحات، وتصدير تقارير احترافي (PDF/Excel)**. الخطة تركّز على تفعيل هذه الطبقة بدون تغيير منطق الجداول الحالية.
 
 ---
 
-## تفاصيل تقنية
+## 1) هيكلة القسم داخل السايدبار
 
-### جداول جديدة
+مجموعة جديدة باسم **"السوشيال ميديا"** بأيقونة `Megaphone` تحتوي:
 
-```text
-courier_profiles
-  id, courier_name UNIQUE, credit_limit NUMERIC,
-  commission_type TEXT CHECK IN (none|percent_of_sales|per_kg|per_item),
-  commission_value NUMERIC, notes, updated_by, timestamps
+| العنصر | الأيقونة (lucide) | الدور |
+|---|---|---|
+| لوحة السوشيال (جديد) | `LayoutDashboard` | الكل حسب الصلاحية |
+| تقرير اليوم | `ClipboardList` | موظفة السوشيال |
+| تقاريري السابقة | `History` | موظفة السوشيال |
+| التقرير الأسبوعي | `CalendarRange` | موظفة السوشيال |
+| مراجعة الإدارة | `ShieldCheck` | GM / Exec / Marketing Mgr |
+| تصدير التقارير (جديد) | `FileDown` | GM / Exec / Marketing Mgr |
 
-courier_commission_payouts
-  id, courier_name, amount, paid_at, notes, performed_by, treasury_txn_id
+اقتراحات أيقونات إضافية داخل الصفحات: `Instagram`, `Facebook`, `Youtube`, `MessageCircle` للتفاعل، `Users` للجمهور، `TrendingUp` للنمو، `Heart` للإعجابات، `Eye` للوصول، `AlertTriangle` للشكاوى، `Lightbulb` لاقتراحات المحتوى، `Image`/`Video` للبوستات/الريلز، `Sparkles` لأعلى محتوى.
 
-courier_daily_closures
-  id, custody_id FK, closure_date DATE,
-  goods_out, goods_returned, sales_value, discounts_value,
-  cash_collected, remaining_goods, remaining_cash, deficit_or_surplus,
-  closed_by, closed_at, reopened_by, reopened_at, reopen_reason,
-  status CHECK IN (closed|reopened)
-  UNIQUE(custody_id, closure_date)
-```
+---
 
-### إضافات على `courier_goods_custody_lines`
+## 2) لوحة السوشيال ميديا (Dashboard جديد)
 
-- `credit_override_status` TEXT ∈ (`none`, `pending`, `approved`, `rejected`) لتجاوز الحد.
-- `credit_override_by`, `credit_override_at`.
+مسار: `/social-media/dashboard` — مرئية للمدير العام/التنفيذي/مدير التسويق، وللموظفة (بياناتها فقط).
 
-### Triggers / RPCs
+### كروت KPI علوية (فلتر فترة: اليوم / الأسبوع / الشهر / مخصص)
+- **إجمالي البوستات** (`Image`)
+- **إجمالي الريلز/الفيديو** (`Video`)
+- **إجمالي العملاء المهتمين** (`Users`)
+- **متوسط بوستات/يوم** (`TrendingUp`)
+- **عدد أيام العمل** (تقارير مُرسلة) (`CalendarCheck`)
+- **الشكاوى المُسجَّلة** (`AlertTriangle`)
+- **معدل الالتزام** = أيام مُرسلة ÷ أيام الفترة (`ShieldCheck`)
+- **اقتراحات المحتوى المُقدَّمة** (`Lightbulb`)
 
-- `enforce_courier_closure_lock()`: يمنع INSERT/UPDATE/DELETE على سطور بتاريخ ≤ آخر إغلاق غير معاد فتحه.
-- `approve_courier_credit_override(_line_id)` / `reject_courier_credit_override`.
-- `close_courier_day(_custody_id, _date)` / `reopen_courier_day(_id, _reason)` — security definer.
-- `pay_courier_commission(_courier_name, _amount, _notes)` — ينشئ صف payout + حركة `manual_adjust` صادرة في خزينة المخزن.
+### رسومات (Recharts)
+- خط زمني: بوستات + ريلز + عملاء مهتمين لكل يوم.
+- عمودي: أعلى 5 أيام في العملاء المهتمين.
+- Pie: توزيع نوع المحتوى (بوستات vs ريلز).
+- جدول: أعلى محتوى تفاعلًا (top_engaging_content) بترتيب تاريخي.
 
-### واجهة (داخل `MainWarehouseTreasuryTab.tsx`)
+### لوحة الشكاوى
+جدول آخر 10 شكاوى مع صورة مصغّرة (لو موجودة) + زر عرض.
 
-- إضافة قسم «إعدادات المندوب» (حد + عمولة) قابل للتعديل بالـ inline edit للمدير.
-- توسعة كرت كل عهدة: شريط الحد، أزرار «كشف حساب»، «إغلاق اليوم»، «صرف عمولة».
-- Dialogs جديدة: كشف الحساب (مع طباعة/Excel)، إعدادات المندوب، تأكيد إغلاق اليوم، صرف عمولة، طلب اعتماد تجاوز الحد.
-- كرت Dashboard للمندوبين أعلى قائمة العهدات.
+---
 
-### اختبار
+## 3) قراءات إضافية على نموذج التقرير اليومي (اختيارية غير كاسرة)
 
-1. ضبط حد كيمو = 30,000 → محاولة صرف يتجاوز الحد → يجب أن يمنع/يطلب اعتماد.
-2. اعتماد التجاوز من المدير → الحركة تصبح مرحّلة.
-3. تسجيل بيع بخصم → احتساب العمولة (2%) ضمن الملخّص.
-4. زر «كشف حساب» → طباعة + Excel.
-5. «إغلاق اليوم» → محاولة تعديل سطر بتاريخ مغلق → ترفض من الـ trigger.
-6. «إعادة فتح» من مستخدم عادي → ترفض. من المدير → تنجح وتُسجَّل.
+إضافة حقول رقمية اختيارية لتغذية التقارير — كلها Nullable و لا تكسر البيانات الحالية:
+- `reach_count` (الوصول) — `Eye`
+- `impressions_count` (الظهور) — `Activity`
+- `likes_count` — `Heart`
+- `comments_count` — `MessageCircle`
+- `shares_count` — `Share2`
+- `new_followers_count` — `UserPlus`
+- `platform` (تعدد اختيار: Instagram / Facebook / TikTok / YouTube) — checkboxes صغيرة
 
+القيم القديمة تبقى كما هي؛ التقارير تعرض "—" لو فارغة.
+
+---
+
+## 4) تصدير التقارير
+
+صفحة `/social-media/export` بها:
+- فلاتر: من/إلى، الموظفة، المنصة، الحالة (مسودة/مرسل/مراجَع).
+- زر **طباعة PDF عربي** عبر `openPrintWindow` من `@/lib/printPdf` (احترامًا للقاعدة الأساسية للـ PDF العربي).
+- زر **تصدير Excel** عبر `xlsx` بأوراق:
+  1. الملخّص (KPIs + الفترة).
+  2. التقارير اليومية (كل الأعمدة).
+  3. التقارير الأسبوعية.
+  4. الشكاوى.
+  5. أعلى محتوى تفاعلًا.
+
+### محتوى PDF
+هيدر شركة + فترة + بطاقات KPI + جداول (الأداء اليومي، الأسبوعي، الشكاوى، أعلى محتوى). صف إجمالي أسفل كل جدول.
+
+---
+
+## 5) صلاحيات
+
+- الموظفة `social_media_manager`: ترى تقاريرها فقط في اللوحة + تصدير تقاريرها فقط.
+- `general_manager` / `executive_manager` / `marketing_sales_manager`: كل شيء + تصدير عام + فلتر حسب موظفة.
+- بدون تغييرات في RLS الحالية — يتم الفلترة على مستوى الاستعلامات.
+
+---
+
+## 6) تفاصيل تقنية
+
+### ملفات جديدة
+- `src/pages/social-media/SocialMediaDashboard.tsx` (اللوحة + KPIs + الرسومات).
+- `src/pages/social-media/SocialMediaExport.tsx` (فلاتر + PDF + Excel).
+- `src/lib/socialMediaReport.ts` (helpers: `aggregateKPIs`, `buildDailySeries`, `buildExcelWorkbook`, `buildPdfBody`).
+
+### تعديلات
+- `src/App.tsx` (أو ملف الراوتنج): إضافة المسارين الجديدين.
+- `src/components/layout/SidebarMenuSections.tsx`: مجموعة "السوشيال ميديا" بالأيقونات أعلاه.
+- `src/pages/social-media/SocialMediaDailyReport.tsx`: إضافة الحقول الاختيارية (reach/impressions/likes/…/platform) خلف قسم قابل للطي "إحصائيات المنصات (اختياري)".
+- Migration بسيطة: إضافة الأعمدة الاختيارية على `social_media_daily_reports` (NULLABLE، بدون تريجرات، مع GRANT محفوظ كما هو).
+
+### مكتبات
+- `xlsx` (مستخدمة أصلًا في التصدير).
+- `recharts` (مستخدمة أصلًا في الداشبورد).
+- `@/lib/printPdf` للـ PDF العربي.
+
+---
+
+## 7) خطوات التنفيذ (مقترحة بترتيب)
+
+1. Migration للأعمدة الاختيارية على `social_media_daily_reports`.
+2. تحديث النموذج اليومي بالحقول الجديدة (قابلة للطي).
+3. `SocialMediaDashboard.tsx` بالـ KPIs والرسومات.
+4. `SocialMediaExport.tsx` مع PDF + Excel.
+5. تحديث السايدبار + الراوتنج + landing role.
+6. اختبار: موظفة تنشئ تقرير كامل → المدير يرى KPI ويطبع PDF ويصدّر Excel.
+
+---
+
+**سؤال قبل التنفيذ:** هل توافقين على إضافة الحقول الاختيارية (reach/impressions/likes/…) أم تكتفي بالحقول الحالية فقط (بوستات/ريلز/عملاء مهتمين/محتوى/شكاوى/اقتراحات)؟

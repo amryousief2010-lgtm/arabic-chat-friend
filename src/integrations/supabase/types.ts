@@ -16458,19 +16458,26 @@ export type Database = {
       social_media_daily_reports: {
         Row: {
           additional_notes: string | null
+          comments_count: number | null
           complaint_attachment_path: string | null
           created_at: string
           employee_id: string
           employee_name: string
           id: string
+          impressions_count: number | null
           interested_customers_count: number
           issues_or_complaints: string | null
+          likes_count: number | null
           management_notes: string | null
+          new_followers_count: number | null
+          platforms: string[] | null
           posts_count: number
+          reach_count: number | null
           reels_videos_count: number
           report_date: string
           reviewed_at: string | null
           reviewed_by: string | null
+          shares_count: number | null
           status: string
           tomorrow_content_suggestions: string
           top_engaging_content: string
@@ -16478,19 +16485,26 @@ export type Database = {
         }
         Insert: {
           additional_notes?: string | null
+          comments_count?: number | null
           complaint_attachment_path?: string | null
           created_at?: string
           employee_id: string
           employee_name: string
           id?: string
+          impressions_count?: number | null
           interested_customers_count?: number
           issues_or_complaints?: string | null
+          likes_count?: number | null
           management_notes?: string | null
+          new_followers_count?: number | null
+          platforms?: string[] | null
           posts_count?: number
+          reach_count?: number | null
           reels_videos_count?: number
           report_date?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          shares_count?: number | null
           status?: string
           tomorrow_content_suggestions: string
           top_engaging_content: string
@@ -16498,19 +16512,26 @@ export type Database = {
         }
         Update: {
           additional_notes?: string | null
+          comments_count?: number | null
           complaint_attachment_path?: string | null
           created_at?: string
           employee_id?: string
           employee_name?: string
           id?: string
+          impressions_count?: number | null
           interested_customers_count?: number
           issues_or_complaints?: string | null
+          likes_count?: number | null
           management_notes?: string | null
+          new_followers_count?: number | null
+          platforms?: string[] | null
           posts_count?: number
+          reach_count?: number | null
           reels_videos_count?: number
           report_date?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          shares_count?: number | null
           status?: string
           tomorrow_content_suggestions?: string
           top_engaging_content?: string

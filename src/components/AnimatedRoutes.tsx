@@ -216,6 +216,8 @@ const SocialMediaDailyReport = lazy(() => import("@/pages/social-media/SocialMed
 const SocialMediaWeeklyReport = lazy(() => import("@/pages/social-media/SocialMediaWeeklyReport"));
 const SocialMediaMyReports = lazy(() => import("@/pages/social-media/SocialMediaMyReports"));
 const SocialMediaReportsReview = lazy(() => import("@/pages/social-media/SocialMediaReportsReview"));
+const SocialMediaDashboard = lazy(() => import("@/pages/social-media/SocialMediaDashboard"));
+const SocialMediaExport = lazy(() => import("@/pages/social-media/SocialMediaExport"));
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -409,6 +411,17 @@ const AnimatedRoutes = () => {
               <PageTransition><SocialMediaReportsReview /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/social-media/dashboard" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager']}>
+              <PageTransition><SocialMediaDashboard /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/social-media/export" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager']}>
+              <PageTransition><SocialMediaExport /></PageTransition>
+            </ProtectedRoute>
+          } />
+
 
 
 

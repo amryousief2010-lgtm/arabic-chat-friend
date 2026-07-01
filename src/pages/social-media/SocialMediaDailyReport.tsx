@@ -10,9 +10,17 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ClipboardList, Save, Send, History, Paperclip, X, ImageIcon } from "lucide-react";
+import { ClipboardList, Save, Send, History, Paperclip, X, ImageIcon, ChevronDown, Eye, Sparkles, Heart, MessageCircle, Share2, UserPlus, Instagram, Facebook, Youtube, Video as VideoIcon } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type DailyStatus = "draft" | "submitted" | "reviewed";
+const PLATFORMS: { key: string; label: string; icon: any }[] = [
+  { key: "instagram", label: "Instagram", icon: Instagram },
+  { key: "facebook", label: "Facebook", icon: Facebook },
+  { key: "tiktok", label: "TikTok", icon: VideoIcon },
+  { key: "youtube", label: "YouTube", icon: Youtube },
+];
 
 interface DailyForm {
   id?: string;
@@ -27,6 +35,13 @@ interface DailyForm {
   complaint_attachment_path: string | null;
   status: DailyStatus;
   management_notes?: string | null;
+  reach_count: string;
+  impressions_count: string;
+  likes_count: string;
+  comments_count: string;
+  shares_count: string;
+  new_followers_count: string;
+  platforms: string[];
 }
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -62,6 +77,13 @@ export default function SocialMediaDailyReport() {
     additional_notes: "",
     complaint_attachment_path: null,
     status: "draft",
+    reach_count: "",
+    impressions_count: "",
+    likes_count: "",
+    comments_count: "",
+    shares_count: "",
+    new_followers_count: "",
+    platforms: [],
   });
 
   useEffect(() => {
@@ -75,19 +97,27 @@ export default function SocialMediaDailyReport() {
         .eq("report_date", form.report_date)
         .maybeSingle();
       if (!error && data) {
+        const d = data as any;
         setForm({
-          id: data.id,
-          report_date: data.report_date,
-          posts_count: String(data.posts_count ?? ""),
-          reels_videos_count: String(data.reels_videos_count ?? ""),
-          interested_customers_count: String(data.interested_customers_count ?? ""),
-          top_engaging_content: data.top_engaging_content ?? "",
-          issues_or_complaints: data.issues_or_complaints ?? "",
-          tomorrow_content_suggestions: data.tomorrow_content_suggestions ?? "",
-          additional_notes: data.additional_notes ?? "",
-          complaint_attachment_path: (data as any).complaint_attachment_path ?? null,
-          status: data.status as DailyStatus,
-          management_notes: data.management_notes,
+          id: d.id,
+          report_date: d.report_date,
+          posts_count: String(d.posts_count ?? ""),
+          reels_videos_count: String(d.reels_videos_count ?? ""),
+          interested_customers_count: String(d.interested_customers_count ?? ""),
+          top_engaging_content: d.top_engaging_content ?? "",
+          issues_or_complaints: d.issues_or_complaints ?? "",
+          tomorrow_content_suggestions: d.tomorrow_content_suggestions ?? "",
+          additional_notes: d.additional_notes ?? "",
+          complaint_attachment_path: d.complaint_attachment_path ?? null,
+          status: d.status as DailyStatus,
+          management_notes: d.management_notes,
+          reach_count: d.reach_count != null ? String(d.reach_count) : "",
+          impressions_count: d.impressions_count != null ? String(d.impressions_count) : "",
+          likes_count: d.likes_count != null ? String(d.likes_count) : "",
+          comments_count: d.comments_count != null ? String(d.comments_count) : "",
+          shares_count: d.shares_count != null ? String(d.shares_count) : "",
+          new_followers_count: d.new_followers_count != null ? String(d.new_followers_count) : "",
+          platforms: Array.isArray(d.platforms) ? d.platforms : [],
         });
       } else {
         setForm((f) => ({
@@ -103,6 +133,13 @@ export default function SocialMediaDailyReport() {
           complaint_attachment_path: null,
           status: "draft",
           management_notes: null,
+          reach_count: "",
+          impressions_count: "",
+          likes_count: "",
+          comments_count: "",
+          shares_count: "",
+          new_followers_count: "",
+          platforms: [],
         }));
       }
       setLoading(false);
@@ -196,6 +233,13 @@ export default function SocialMediaDailyReport() {
       additional_notes: form.additional_notes || null,
       complaint_attachment_path: form.complaint_attachment_path,
       status,
+      reach_count: form.reach_count ? toNum(form.reach_count) : null,
+      impressions_count: form.impressions_count ? toNum(form.impressions_count) : null,
+      likes_count: form.likes_count ? toNum(form.likes_count) : null,
+      comments_count: form.comments_count ? toNum(form.comments_count) : null,
+      shares_count: form.shares_count ? toNum(form.shares_count) : null,
+      new_followers_count: form.new_followers_count ? toNum(form.new_followers_count) : null,
+      platforms: form.platforms.length ? form.platforms : null,
     };
     const { data, error } = await supabase
       .from("social_media_daily_reports")
@@ -400,6 +444,76 @@ export default function SocialMediaDailyReport() {
                     onChange={(e) => setForm((f) => ({ ...f, additional_notes: e.target.value }))}
                   />
                 </div>
+
+                {/* Optional platform stats */}
+                <div className="md:col-span-2">
+                  <Collapsible>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="outline" size="sm" type="button" className="w-full justify-between">
+                        <span className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-primary" />
+                          إحصائيات المنصات (اختياري)
+                        </span>
+                        <ChevronDown className="w-4 h-4" />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-3 space-y-3">
+                      <div>
+                        <Label className="text-sm">المنصات النشطة</Label>
+                        <div className="flex flex-wrap gap-3 mt-2">
+                          {PLATFORMS.map((p) => {
+                            const checked = form.platforms.includes(p.key);
+                            const Icon = p.icon;
+                            return (
+                              <label key={p.key} className="flex items-center gap-2 text-sm cursor-pointer border rounded-md px-3 py-1.5">
+                                <Checkbox
+                                  checked={checked}
+                                  disabled={isLocked}
+                                  onCheckedChange={(v) =>
+                                    setForm((f) => ({
+                                      ...f,
+                                      platforms: v
+                                        ? [...f.platforms, p.key]
+                                        : f.platforms.filter((x) => x !== p.key),
+                                    }))
+                                  }
+                                />
+                                <Icon className="w-4 h-4" /> {p.label}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {([
+                          { k: "reach_count", label: "الوصول (Reach)", icon: Eye },
+                          { k: "impressions_count", label: "الظهور (Impressions)", icon: Sparkles },
+                          { k: "likes_count", label: "الإعجابات", icon: Heart },
+                          { k: "comments_count", label: "التعليقات", icon: MessageCircle },
+                          { k: "shares_count", label: "المشاركات", icon: Share2 },
+                          { k: "new_followers_count", label: "متابعون جدد", icon: UserPlus },
+                        ] as const).map(({ k, label, icon: Icon }) => (
+                          <div key={k}>
+                            <Label className="text-xs flex items-center gap-1">
+                              <Icon className="w-3.5 h-3.5" /> {label}
+                            </Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              value={(form as any)[k]}
+                              disabled={isLocked}
+                              onChange={(e) =>
+                                setForm((f) => ({ ...f, [k]: e.target.value } as any))
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+
                 {form.management_notes && (
                   <div className="md:col-span-2 p-3 rounded-md bg-muted/50">
                     <Label className="text-sm">ملاحظة الإدارة</Label>
