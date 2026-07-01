@@ -298,9 +298,50 @@ export default function SocialMediaDashboard() {
     [filtered],
   );
 
+  const socialOrdersStats = useMemo(() => {
+    const perPlatform = new Map<string, { orders: number; revenue: number; delivered: number }>();
+    const perMonth = new Map<string, { month: string; orders: number; revenue: number }>();
+    let orders = 0;
+    let revenue = 0;
+    let delivered = 0;
+    for (const o of socialOrders) {
+      const platform = normalizeSocialSource(o.source);
+      if (!platform) continue;
+      const total = Number(o.total || 0);
+      const isDelivered = (o.status || "").toLowerCase() === "delivered";
+      orders++;
+      revenue += total;
+      if (isDelivered) delivered++;
+      const p = perPlatform.get(platform) || { orders: 0, revenue: 0, delivered: 0 };
+      p.orders++;
+      p.revenue += total;
+      if (isDelivered) p.delivered++;
+      perPlatform.set(platform, p);
+      const monthKey = (o.created_at || "").slice(0, 7);
+      const m = perMonth.get(monthKey) || { month: monthKey, orders: 0, revenue: 0 };
+      m.orders++;
+      m.revenue += total;
+      perMonth.set(monthKey, m);
+    }
+    return {
+      orders,
+      revenue,
+      delivered,
+      deliveredRate: orders ? Math.round((delivered / orders) * 100) : 0,
+      aov: orders ? Math.round(revenue / orders) : 0,
+      byPlatform: Array.from(perPlatform.entries())
+        .map(([name, v]) => ({ name, ...v }))
+        .sort((a, b) => b.orders - a.orders),
+      byMonth: Array.from(perMonth.values()).sort((a, b) => a.month.localeCompare(b.month)),
+    };
+  }, [socialOrders]);
+
+  const fmtEGP = (n: number) => `${Math.round(n).toLocaleString("ar-EG")} ج.م`;
+
   return (
     <DashboardLayout>
       <div className="space-y-6" dir="rtl">
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
