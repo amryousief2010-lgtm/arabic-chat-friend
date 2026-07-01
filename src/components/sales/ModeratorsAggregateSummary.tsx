@@ -144,7 +144,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
       }
 
       // 6) Aggregate
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = toCairoDateString(new Date());
       const orderById = new Map<string, any>(
         girlsOrders.map((o: any) => [o.id, o]),
       );
@@ -153,14 +153,14 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
       const today = emptyAgg();
       monthAgg.orders = girlsOrders.length;
       today.orders = girlsOrders.filter((o: any) =>
-        o.created_at.slice(0, 10) === todayStr,
+        toCairoDateString(o.created_at) === todayStr,
       ).length;
       monthAgg.sales = girlsOrders.reduce(
         (s: number, o: any) => s + Number(o.total || 0),
         0,
       );
       today.sales = girlsOrders
-        .filter((o: any) => o.created_at.slice(0, 10) === todayStr)
+        .filter((o: any) => toCairoDateString(o.created_at) === todayStr)
         .reduce((s: number, o: any) => s + Number(o.total || 0), 0);
 
       for (const it of items) {
@@ -173,7 +173,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
         if (cat === "other") continue;
         const qty = Number(it.quantity || 0);
         monthAgg.weight[cat] += qty;
-        if (o.created_at.slice(0, 10) === todayStr) today.weight[cat] += qty;
+        if (toCairoDateString(o.created_at) === todayStr) today.weight[cat] += qty;
       }
 
       return { month: monthAgg, today };
