@@ -106,6 +106,24 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
     return m;
   }, [receipts]);
 
+  // زر "تفاصيل التكلفة" — يعرض تفكيك تكلفة الدفعة قبل استخدامها
+  const [detailsFor, setDetailsFor] = useState<any | null>(null);
+
+  // منطق "التكلفة تحتاج مراجعة": انحراف كبير عن التكلفة الأصلية أو استبعاد/أرشفة/تسوية يدوية
+  const needsCostReview = (r: any): { flag: boolean; reason: string } => {
+    if (!r) return { flag: false, reason: "" };
+    const orig = Number(r.bird_count) || 0;
+    const baseCost = Number(r.opening_cost_total || 0) + Number(r.total_cost || 0);
+    const fairCpb = orig > 0 ? baseCost / orig : 0;
+    const currentCpb = Number(r.cost_per_bird_current || 0);
+    const reasons: string[] = [];
+    if (r.excluded_from_costing) reasons.push("مستبعدة من التكلفة");
+    if (r.archived) reasons.push("مؤرشفة");
+    if (Number(r.manual_available_adjustment || 0) !== 0) reasons.push(`تسوية يدوية (${r.manual_available_adjustment})`);
+    if (fairCpb > 0 && currentCpb > fairCpb * 1.5) reasons.push(`تكلفة/نعامة ${fmt(currentCpb)} أعلى بكثير من الأصلية ${fmt(fairCpb)}`);
+    return { flag: reasons.length > 0, reason: reasons.join(" • ") };
+  };
+
   // نعرض أي دفعة لها رصيد حي متاح فعلاً (current_alive_count > 0) بغض النظر عن الأرشفة أو الاستبعاد من التكلفة،
   // لأن "النعام القائم" في الداشبورد يعتمد على نفس الحساب (bird_count - doa - mortality - slaughtered + manual_adj).
   // الدفعات المدبوحة بالكامل (available = 0) أو الملغاة تُخفى تلقائياً.
