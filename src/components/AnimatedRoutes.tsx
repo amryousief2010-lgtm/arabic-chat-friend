@@ -411,6 +411,17 @@ const AnimatedRoutes = () => {
               <PageTransition><SocialMediaReportsReview /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/social-media/dashboard" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager']}>
+              <PageTransition><SocialMediaDashboard /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/social-media/export" element={
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager']}>
+              <PageTransition><SocialMediaExport /></PageTransition>
+            </ProtectedRoute>
+          } />
+
 
 
 
