@@ -2119,6 +2119,59 @@ const Orders = () => {
         </DialogContent>
       </Dialog>
 
+      {/* اختيار طريقة التحصيل قبل تأكيد التسليم — لا يمس منطق التسليم/المخزون/المالية */}
+      <AlertDialog
+        open={!!pendingDeliveryOrderId}
+        onOpenChange={(open) => { if (!open) setPendingDeliveryOrderId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>طريقة التحصيل</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-right">
+                <p className="text-sm">اختر طريقة التحصيل قبل تأكيد التسليم:</p>
+                <div className="grid gap-2">
+                  {(Object.keys(collectionMethodMeta) as CollectionMethod[]).map((k) => (
+                    <label
+                      key={k}
+                      className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 cursor-pointer transition ${pendingDeliveryMethod === k ? 'border-primary bg-primary/5' : 'border-muted hover:bg-muted/40'}`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="pendingDeliveryMethod"
+                          checked={pendingDeliveryMethod === k}
+                          onChange={() => setPendingDeliveryMethod(k)}
+                        />
+                        <span className="text-sm">{collectionMethodMeta[k].label}</span>
+                      </span>
+                      <Badge className={`text-[11px] border ${collectionMethodMeta[k].className}`}>
+                        {collectionMethodMeta[k].short}
+                      </Badge>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                const id = pendingDeliveryOrderId;
+                const method = pendingDeliveryMethod;
+                setPendingDeliveryOrderId(null);
+                if (!id) return;
+                await updateCollectionMethod(id, method);
+                await handleStatusChange(id, 'delivered');
+              }}
+            >
+              حفظ ومتابعة التسليم
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={!!collectionMismatch} onOpenChange={(open) => { if (!open) setCollectionMismatch(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
