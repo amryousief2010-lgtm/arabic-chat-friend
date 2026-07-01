@@ -13438,6 +13438,68 @@ export type Database = {
           },
         ]
       }
+      order_payment_breakdown_audit: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_cash_amount: number | null
+          new_collection_method: string | null
+          new_free_amount: number | null
+          new_instapay_amount: number | null
+          new_vodafone_cash_amount: number | null
+          note: string | null
+          old_cash_amount: number | null
+          old_collection_method: string | null
+          old_free_amount: number | null
+          old_instapay_amount: number | null
+          old_vodafone_cash_amount: number | null
+          order_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_cash_amount?: number | null
+          new_collection_method?: string | null
+          new_free_amount?: number | null
+          new_instapay_amount?: number | null
+          new_vodafone_cash_amount?: number | null
+          note?: string | null
+          old_cash_amount?: number | null
+          old_collection_method?: string | null
+          old_free_amount?: number | null
+          old_instapay_amount?: number | null
+          old_vodafone_cash_amount?: number | null
+          order_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_cash_amount?: number | null
+          new_collection_method?: string | null
+          new_free_amount?: number | null
+          new_instapay_amount?: number | null
+          new_vodafone_cash_amount?: number | null
+          note?: string | null
+          old_cash_amount?: number | null
+          old_collection_method?: string | null
+          old_free_amount?: number | null
+          old_instapay_amount?: number | null
+          old_vodafone_cash_amount?: number | null
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_payment_breakdown_audit_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_review_status: {
         Row: {
           created_at: string
@@ -13547,8 +13609,10 @@ export type Database = {
           duplicate_approved_by: string | null
           extra_charge: number
           extra_charge_reason: string | null
+          free_amount: number
           fulfillment_type: string | null
           id: string
+          instapay_amount: number
           is_duplicate_approved: boolean
           moderator: string | null
           notes: string | null
@@ -13569,6 +13633,7 @@ export type Database = {
           update_status_updated_at: string | null
           update_status_updated_by: string | null
           updated_at: string
+          vodafone_cash_amount: number
         }
         Insert: {
           collected_at?: string | null
@@ -13596,8 +13661,10 @@ export type Database = {
           duplicate_approved_by?: string | null
           extra_charge?: number
           extra_charge_reason?: string | null
+          free_amount?: number
           fulfillment_type?: string | null
           id?: string
+          instapay_amount?: number
           is_duplicate_approved?: boolean
           moderator?: string | null
           notes?: string | null
@@ -13618,6 +13685,7 @@ export type Database = {
           update_status_updated_at?: string | null
           update_status_updated_by?: string | null
           updated_at?: string
+          vodafone_cash_amount?: number
         }
         Update: {
           collected_at?: string | null
@@ -13645,8 +13713,10 @@ export type Database = {
           duplicate_approved_by?: string | null
           extra_charge?: number
           extra_charge_reason?: string | null
+          free_amount?: number
           fulfillment_type?: string | null
           id?: string
+          instapay_amount?: number
           is_duplicate_approved?: boolean
           moderator?: string | null
           notes?: string | null
@@ -13667,6 +13737,7 @@ export type Database = {
           update_status_updated_at?: string | null
           update_status_updated_by?: string | null
           updated_at?: string
+          vodafone_cash_amount?: number
         }
         Relationships: [
           {
