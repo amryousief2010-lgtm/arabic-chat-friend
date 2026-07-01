@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Users, Package, CheckCircle2, XCircle, Truck, RefreshCw, Bird } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { findModeratorByName } from '@/constants/moderators';
+import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 
 const GIRLS = ['اية', 'نورا', 'سارة', 'منال'];
 
