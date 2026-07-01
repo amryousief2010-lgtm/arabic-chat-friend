@@ -246,7 +246,11 @@ export default function CourierOrderCustodyTab() {
       const giftOrderIds = new Set(myAsn.filter((a) => isNonCashAssignment(a, orders.find((o) => o.id === a.order_id) as any)).map((a) => a.order_id));
       const myOrderIds = new Set(myAsn.map((a) => a.order_id));
       const myOrders = orders.filter((o) => myOrderIds.has(o.id));
-      const totalValue = myOrders.reduce((s, o) => s + (giftOrderIds.has(o.id) ? 0 : Number(o.total || 0)), 0);
+      const totalValue = myOrders.reduce((s, o) => {
+        if (giftOrderIds.has(o.id)) return s;
+        if ((o as any).collection_method === 'mixed_payment') return s + Number((o as any).courier_cash_due || 0);
+        return s + Number(o.total || 0);
+      }, 0);
       const myCols = collections.filter((cl) => myOrderIds.has(cl.order_id));
       const collected = myCols.reduce((s, cl) => s + Number(cl.amount_collected || 0), 0);
       const delivered = myAsn.filter((a) => ["delivered", "collected", "completed"].includes(a.status)).length;
