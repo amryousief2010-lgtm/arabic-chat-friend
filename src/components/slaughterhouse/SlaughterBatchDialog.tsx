@@ -662,6 +662,20 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
                   <div>تكلفة/نعامة العادلة (على العدد الأصلي)</div>
                   <div className="text-left">{fmt(fairCpb)}</div>
                 </div>
+                <div className="grid grid-cols-2 gap-2 rounded border p-3 bg-emerald-50 border-emerald-300">
+                  <div className="font-semibold">النعام القائم حالياً</div>
+                  <div className="text-left font-bold">{alive}</div>
+                  <div className="font-semibold">تكلفة النعامة الحالية</div>
+                  <div className="text-left font-bold">{fmt(currentCpb)}</div>
+                  <div className="border-t pt-1 font-bold text-emerald-800">إجمالي تكلفة النعام القائم فقط</div>
+                  <div className="text-left border-t pt-1 font-extrabold text-emerald-800">
+                    {fmt(alive * currentCpb)}
+                  </div>
+                  <div className="col-span-2 text-[11px] text-emerald-700">
+                    = {alive} × {fmt(currentCpb)} — هذه القيمة تعكس فقط النعام المتبقي في هذه الدفعة، وليست إجمالي تكلفة الدفعة التاريخية.
+                  </div>
+                </div>
+
                 <div className="text-[11px] text-muted-foreground">
                   المعادلة الحالية: <code>cost_per_bird = total_batch_cost / current_alive_count</code>.
                   عندما يقلّ المتبقي كثيراً (نفوق/تسوية/دبح سابق)، تتراكم التكلفة على النعامات القليلة المتبقية.
