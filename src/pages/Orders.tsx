@@ -495,6 +495,8 @@ const Orders = () => {
             unit: (item.product_id && productsMap[item.product_id]) || 'كجم',
             offer_name: (item as any).offer_name ?? null,
           })),
+          update_status_marker: ((order as any).update_status_marker ?? null) as UpdateStatusMarker | null,
+          update_status_updated_at: (order as any).update_status_updated_at ?? null,
         }));
 
       const loadLookups = async (orders: any[], items: any[]) => {
