@@ -368,9 +368,14 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
                                 ) : opts.map((opt) => {
                                   const a = Number(opt.current_alive_count ?? opt.bird_count) || 0;
                                   const c = Number(opt.cost_per_bird_current || 0);
+                                  const rev = needsCostReview(opt);
                                   return (
                                     <SelectItem key={opt.id} value={opt.id}>
-                                      {opt.receipt_number} — متاح {a} — تكلفة/نعامة {fmt(c)}
+                                      <span className="flex items-center gap-1">
+                                        {rev.flag && <AlertTriangle className="w-3 h-3 text-amber-600" />}
+                                        {opt.receipt_number} — متاح {a} — تكلفة/نعامة {fmt(c)}
+                                        {rev.flag && <span className="text-[10px] text-amber-700">⚠ مراجعة</span>}
+                                      </span>
                                     </SelectItem>
                                   );
                                 })}
@@ -381,9 +386,23 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
                                 <AlertCircle className="w-3 h-3" /> {rowErr}
                               </p>
                             )}
+                            {r && needsCostReview(r).flag && (
+                              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 mt-1 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" /> تكلفة هذه الدفعة تحتاج مراجعة قبل الدبح
+                              </p>
+                            )}
                           </td>
                           <td className="text-center p-2 tabular-nums">{r ? avail : "—"}</td>
-                          <td className="text-center p-2 tabular-nums">{r ? fmt(cost) : "—"}</td>
+                          <td className="text-center p-2 tabular-nums">
+                            {r ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <span>{fmt(cost)}</span>
+                                <Button type="button" size="icon" variant="ghost" className="h-6 w-6" title="تفاصيل التكلفة" onClick={() => setDetailsFor(r)}>
+                                  <Info className="w-3 h-3 text-blue-600" />
+                                </Button>
+                              </div>
+                            ) : "—"}
+                          </td>
                           <td className="p-2">
                             <Input
                               type="number" inputMode="numeric" min={0} max={avail || undefined}
