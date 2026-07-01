@@ -406,7 +406,32 @@ export default function SlaughterhouseFeedStore() {
           </TabsContent>
 
           <TabsContent value="outflow"><MovementsTable rows={outflowRows} inventory={inv} /></TabsContent>
-          <TabsContent value="all"><MovementsTable rows={movs} inventory={inv} /></TabsContent>
+          <TabsContent value="all">
+            <div className="mb-2 flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium">فلتر نوع الحركة:</span>
+              <Select value={movFilter} onValueChange={setMovFilter}>
+                <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  <SelectItem value="factory_supply">وارد من مصنع العلف</SelectItem>
+                  <SelectItem value="opening">رصيد افتتاحي</SelectItem>
+                  <SelectItem value="consumption">صرف علف للنعام</SelectItem>
+                  <SelectItem value="bulk">صرف جماعي</SelectItem>
+                  <SelectItem value="adjustment">تسوية</SelectItem>
+                  <SelectItem value="cancelled">إلغاء/عكس</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <MovementsTable
+              rows={movs.filter((m: any) => {
+                if (movFilter === "all") return true;
+                if (movFilter === "cancelled") return isCancelledNote(m.notes) || m.movement_type === "reversal";
+                if (movFilter === "bulk") return (m.reference_no || "").startsWith("BULK-");
+                return m.movement_type === movFilter;
+              })}
+              inventory={inv}
+            />
+          </TabsContent>
         </Tabs>
       </div>
 
