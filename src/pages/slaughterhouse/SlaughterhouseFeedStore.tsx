@@ -101,6 +101,20 @@ export default function SlaughterhouseFeedStore() {
     },
   });
 
+  // Load profile names for supplier/receiver display
+  const profilesQ = useQuery({
+    queryKey: ["sl_feed_profiles_min"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("id,full_name");
+      if (error) throw error;
+      const map = new Map<string, string>();
+      (data as any[]).forEach((p) => map.set(p.id, p.full_name || ""));
+      return map;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const nameOfUser = (uid?: string | null) => (uid && profilesQ.data?.get(uid)) || "—";
+
   const movs = movQ.data || [];
   const inv = invQ.data || [];
 
