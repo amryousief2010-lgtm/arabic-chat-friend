@@ -555,7 +555,103 @@ export default function SocialMediaDashboard() {
             )}
           </CardContent>
         </Card>
+
+        {/* Social Media Orders — Last 3 Months (live from orders table) */}
+        <Card className="border-primary/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Megaphone className="w-5 h-5 text-primary" />
+              طلبات السوشيال ميديا — آخر 3 شهور
+              <Badge variant="secondary" className="mr-2">بيانات فعلية من الأوردرات</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {ordersLoading ? (
+              <p className="text-muted-foreground">جاري تحميل بيانات الأوردرات…</p>
+            ) : socialOrdersStats.orders === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                لا توجد أوردرات مرتبطة بمصادر السوشيال ميديا في آخر 3 شهور.
+              </p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <KPI icon={Users} label="إجمالي الطلبات" value={socialOrdersStats.orders.toLocaleString("ar-EG")} color="bg-blue-500" />
+                  <KPI icon={TrendingUp} label="إجمالي الإيرادات" value={fmtEGP(socialOrdersStats.revenue)} color="bg-emerald-500" />
+                  <KPI icon={CalendarCheck} label="الطلبات المُسلَّمة" value={socialOrdersStats.delivered.toLocaleString("ar-EG")} color="bg-cyan-600" />
+                  <KPI icon={ShieldCheck} label="نسبة التسليم" value={`${socialOrdersStats.deliveredRate}%`} color="bg-indigo-500" />
+                  <KPI icon={Sparkles} label="متوسط قيمة الطلب" value={fmtEGP(socialOrdersStats.aov)} color="bg-fuchsia-500" />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">الطلبات حسب المنصة</CardTitle>
+                    </CardHeader>
+                    <CardContent className="h-72">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={socialOrdersStats.byPlatform}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" fontSize={11} />
+                          <YAxis fontSize={11} />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="orders" name="طلبات" fill="#8b5cf6" />
+                          <Bar dataKey="delivered" name="مُسلَّم" fill="#10b981" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">الإيرادات الشهرية</CardTitle>
+                    </CardHeader>
+                    <CardContent className="h-72">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={socialOrdersStats.byMonth}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="month" fontSize={11} />
+                          <YAxis fontSize={11} />
+                          <Tooltip formatter={(v: any, k: any) => k === "revenue" ? fmtEGP(Number(v)) : v} />
+                          <Legend />
+                          <Line type="monotone" dataKey="orders" name="طلبات" stroke="#3b82f6" />
+                          <Line type="monotone" dataKey="revenue" name="إيرادات" stroke="#f97316" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>المنصة</TableHead>
+                      <TableHead>الطلبات</TableHead>
+                      <TableHead>المُسلَّم</TableHead>
+                      <TableHead>نسبة التسليم</TableHead>
+                      <TableHead>الإيرادات</TableHead>
+                      <TableHead>متوسط الطلب</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {socialOrdersStats.byPlatform.map((p) => (
+                      <TableRow key={p.name}>
+                        <TableCell className="font-semibold">{p.name}</TableCell>
+                        <TableCell>{p.orders.toLocaleString("ar-EG")}</TableCell>
+                        <TableCell>{p.delivered.toLocaleString("ar-EG")}</TableCell>
+                        <TableCell>{p.orders ? Math.round((p.delivered / p.orders) * 100) : 0}%</TableCell>
+                        <TableCell>{fmtEGP(p.revenue)}</TableCell>
+                        <TableCell>{fmtEGP(p.orders ? p.revenue / p.orders : 0)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
     </DashboardLayout>
   );
 }
