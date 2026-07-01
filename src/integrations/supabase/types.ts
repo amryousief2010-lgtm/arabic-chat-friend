@@ -13551,6 +13551,9 @@ export type Database = {
           subtotal: number
           total: number
           total_at_delivery: number | null
+          update_status_marker: string | null
+          update_status_updated_at: string | null
+          update_status_updated_by: string | null
           updated_at: string
         }
         Insert: {
@@ -13592,6 +13595,9 @@ export type Database = {
           subtotal?: number
           total?: number
           total_at_delivery?: number | null
+          update_status_marker?: string | null
+          update_status_updated_at?: string | null
+          update_status_updated_by?: string | null
           updated_at?: string
         }
         Update: {
@@ -13633,6 +13639,9 @@ export type Database = {
           subtotal?: number
           total?: number
           total_at_delivery?: number | null
+          update_status_marker?: string | null
+          update_status_updated_at?: string | null
+          update_status_updated_by?: string | null
           updated_at?: string
         }
         Relationships: [
