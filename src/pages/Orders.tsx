@@ -877,6 +877,33 @@ const Orders = () => {
     return true;
   };
 
+  // يحدّث "علامة التحديث" لكل أوردر بشكل مستقل (عرض فقط، لا يمس المخزون/المالية).
+  // يُستدعى فقط بعد نجاح العملية الأصلية.
+  const markOrderUpdate = async (orderId: string, marker: UpdateStatusMarker) => {
+    const nowIso = new Date().toISOString();
+    // تحديث تفاؤلي فوري في الواجهة.
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? { ...o, update_status_marker: marker, update_status_updated_at: nowIso }
+          : o
+      )
+    );
+    try {
+      await supabase
+        .from('orders')
+        .update({
+          update_status_marker: marker,
+          update_status_updated_at: nowIso,
+          update_status_updated_by: user?.id ?? null,
+        } as any)
+        .eq('id', orderId);
+    } catch (e) {
+      // best-effort — لا نفشل العملية الأصلية بسبب علامة العرض.
+      console.warn('markOrderUpdate failed', e);
+    }
+  };
+
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     try {
