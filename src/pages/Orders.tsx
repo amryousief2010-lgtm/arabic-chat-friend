@@ -1299,6 +1299,22 @@ const Orders = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={filterCollectionMethod} onValueChange={setFilterCollectionMethod}>
+              <SelectTrigger className="w-52 input-modern">
+                <SelectValue placeholder="فلترة حسب طريقة التحصيل" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل طرق التحصيل</SelectItem>
+                <SelectItem value="unset">لم يحدد التحصيل</SelectItem>
+                {(Object.keys(collectionMethodMeta) as CollectionMethod[]).map((k) => (
+                  <SelectItem key={k} value={k}>{collectionMethodMeta[k].label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm">
+              <span className="text-emerald-800 font-semibold">إجمالي المطلوب من المندوب كاش:</span>
+              <span className="text-emerald-900 font-bold">{totalCourierCashDue.toLocaleString()} ج</span>
+            </div>
             {!isPrivateDeliveryRep && (
               <Select value={filterModerator} onValueChange={setFilterModerator}>
                 <SelectTrigger className="w-40 input-modern">
