@@ -71,6 +71,9 @@ const ALLOWED_PATHS = [
   "/internal-messages",
   "/org-chart",
   "/permissions",
+  // Moved into the social-media sidebar section via
+  // @/config/sidebarOverrides — must remain reachable.
+  "/sales/daily-performance-analysis",
 ];
 
 describe("ProtectedRoute — marketing_sales_manager (only role)", () => {
