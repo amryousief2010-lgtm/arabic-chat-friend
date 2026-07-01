@@ -2312,7 +2312,11 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
   // Computed proportionally per-source from slaughter_batch_live_sources + slaughter_live_receipts.
   const [costBreakdown, setCostBreakdown] = useState<{
     purchase: number; feed: number; mortality: number; other: number; total: number;
-    sources: Array<{ receipt_number: string; birds: number; per_bird: number; purchase: number; feed: number; mortality: number; other: number; total: number; }>;
+    sources: Array<{
+      receipt_number: string; birds: number; per_bird: number;
+      snapshot_per_bird: number | null; snapshot_total: number | null;
+      purchase: number; feed: number; mortality: number; other: number; total: number;
+    }>;
   }>({ purchase: 0, feed: 0, mortality: 0, other: 0, total: 0, sources: [] });
   // Total birds in the purchase receipts that contributed to this slaughter batch (NOT what was slaughtered).
   const [birdsPurchased, setBirdsPurchased] = useState<number>(0);
@@ -2354,8 +2358,12 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
         const shareOther = (Number(r.other_costs_loaded) || 0) * birds / denom;
         const subTotal = sharePurchase + shareFeed + shareMort + shareOther;
         purchase += sharePurchase; feed += shareFeed; mortality += shareMort; other += shareOther; total += subTotal;
+        const snapPerBird = s.cost_per_bird_snapshot != null ? Number(s.cost_per_bird_snapshot) : null;
+        const snapTotal = s.total_birds_cost != null ? Number(s.total_birds_cost) : null;
         sourceRows.push({
           receipt_number: r.receipt_number, birds, per_bird: birds > 0 ? subTotal / birds : 0,
+          snapshot_per_bird: snapPerBird,
+          snapshot_total: snapTotal != null ? snapTotal : (snapPerBird != null ? snapPerBird * birds : null),
           purchase: sharePurchase, feed: shareFeed, mortality: shareMort, other: shareOther, total: subTotal,
         });
       }
@@ -2364,6 +2372,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
       setBirdsPurchased(totalPurchased);
     })();
   }, [batchId, batch]);
+
 
 
 
