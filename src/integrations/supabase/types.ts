@@ -15750,6 +15750,7 @@ export type Database = {
           farm_transfer_id: string | null
           feed_cost_loaded: number
           id: string
+          manual_available_adjustment: number
           mortality_cost_loaded: number
           mortality_count: number
           notes: string | null
@@ -15784,6 +15785,7 @@ export type Database = {
           farm_transfer_id?: string | null
           feed_cost_loaded?: number
           id?: string
+          manual_available_adjustment?: number
           mortality_cost_loaded?: number
           mortality_count?: number
           notes?: string | null
@@ -15818,6 +15820,7 @@ export type Database = {
           farm_transfer_id?: string | null
           feed_cost_loaded?: number
           id?: string
+          manual_available_adjustment?: number
           mortality_cost_loaded?: number
           mortality_count?: number
           notes?: string | null
