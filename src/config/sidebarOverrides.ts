@@ -36,16 +36,6 @@ export const SIDEBAR_ITEM_MOVES: SidebarItemMove[] = [
     toSectionId: "social-media",
     after: "/social-media/marketing-dashboard",
   },
-  {
-    path: "/team-performance",
-    toSectionId: "social-media",
-    after: "/sales/daily-performance-analysis",
-  },
-  {
-    path: "/moderator-performance",
-    toSectionId: "social-media",
-    after: "/team-performance",
-  },
 ];
 
 /**
@@ -55,13 +45,11 @@ export const SIDEBAR_ITEM_MOVES: SidebarItemMove[] = [
  * Shared by:
  *  - `SidebarMenuSections.tsx` (so the item stays visible in the sidebar)
  *  - `ProtectedRoute.tsx`      (so the route is not redirected away)
- *
- * Any item you MOVE into `/social-media` via SIDEBAR_ITEM_MOVES that keeps
- * its own non-`/social-media` path must be listed here as well.
  */
 export const MARKETING_ONLY_EXTRA_PREFIXES: string[] = [
   "/sales/daily-performance-analysis",
   "/team-performance",
   "/moderator-performance",
 ];
+
 
