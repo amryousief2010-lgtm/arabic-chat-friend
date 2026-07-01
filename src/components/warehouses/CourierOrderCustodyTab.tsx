@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Truck, Package2, Coins, RotateCcw, CheckCircle2, Eye, ClipboardList, Trophy, ChevronDown, ChevronLeft, Printer, FileSpreadsheet, Wrench } from "lucide-react";
+import { Truck, Package2, Coins, RotateCcw, CheckCircle2, Eye, ClipboardList, Trophy, ChevronDown, ChevronLeft, Printer, FileSpreadsheet, Wrench, ListChecks } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { fetchCourierStatementLines, printCourierStatement, exportCourierStatementExcel } from "@/lib/courierStatement";
 import { openPrintWindow } from "@/lib/printPdf";
 import { Switch } from "@/components/ui/switch";
@@ -597,66 +598,99 @@ export default function CourierOrderCustodyTab() {
                               </> : <span className="text-muted-foreground">—</span>}
                             </TableCell>
                             <TableCell className="text-xs">{new Date(a.assigned_at).toLocaleDateString("ar-EG")}</TableCell>
-                            <TableCell className="min-w-[420px]">
-                              <div className="flex gap-1.5 flex-wrap">
+                            <TableCell className="min-w-[320px]">
+                              <div className="flex gap-2 items-center flex-wrap">
                                 <Button size="sm" variant="outline" className={`${btnBase} bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-300`} onClick={() => setDetailsOrder(o ?? null)} disabled={!o} title="تفاصيل الأوردر">
                                   <Eye className="w-3.5 h-3.5" /> تفاصيل 👁
                                 </Button>
-                                <Button size="sm" variant="outline" className={`${btnBase} bg-violet-500 hover:bg-violet-600 text-white border-violet-600`} title="قيد التوزيع"
-                                  onClick={() => updateAssignmentStatus(a.id, a.order_id, "with_courier", "out_for_delivery")}>
-                                  <Truck className="w-3.5 h-3.5" /> توزيع 🚚
-                                </Button>
-                                <Button size="sm" variant="outline" className={`${btnBase} bg-sky-500 hover:bg-sky-600 text-white border-sky-600`} title="تم التسليم للعميل (آجل بدون تحصيل)"
-                                  onClick={async () => { if (await recordDeliveryAndCollection(a.order_id, 0)) { toast({ title: "تم التسليم (آجل)" }); load(); } }}>
-                                  <CheckCircle2 className="w-3.5 h-3.5" /> تسليم ✅
-                                </Button>
-                                <Button size="sm" variant="outline" className={`${btnBase} bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-600`} title="تحصيل نقدي"
-                                  onClick={() => {
-                                    const ord = o ?? ({ id: a.order_id, order_number: a.order_id.slice(0, 8), total: dueAmt, customer_name: "—", status: a.status, created_at: a.assigned_at } as Order);
-                                    setCollectOpen(ord);
-                                    setCollectAmt(String(Math.max(0, dueAmt - colAmt)));
-                                    setCollectNotes("");
-                                  }}>
-                                  <Coins className="w-3.5 h-3.5" /> كاش 💵
-                                </Button>
-                                <Button size="sm" variant="outline" className={`${btnBase} bg-red-500 hover:bg-red-600 text-white border-red-600`} title="تسجيل مرتجع"
-                                  onClick={() => {
-                                    const ord = o ?? ({ id: a.order_id, order_number: a.order_id.slice(0, 8), total: dueAmt, customer_name: "—", status: a.status, created_at: a.assigned_at } as Order);
-                                    setReturnOpen(ord);
-                                    setReturnReason("customer_refused");
-                                    setReturnNotes("");
-                                    setReturnKind("partial");
-                                  }}>
-                                  <RotateCcw className="w-3.5 h-3.5" /> مرتجع ↩️
-                                </Button>
-                                <Button size="sm" variant="outline" className={`${btnBase} bg-pink-500 hover:bg-pink-600 text-white border-pink-600`} title="هدية / مجاني (بدون تحصيل)"
-                                  onClick={async () => {
-                                    if (!confirm(`تأكيد: تسليم الأوردر ${o?.order_number ?? ""} كهدية مجانية بدون تحصيل؟`)) return;
-                                    if (await recordDeliveryAndCollection(a.order_id, 0, "هدية مجانية - تم التسليم بدون تحصيل")) {
-                                      toast({ title: "تم التسليم كهدية مجانية" }); load();
-                                    }
-                                  }}>
-                                  <span>🎁</span> مجاني
-                                </Button>
-                                <Button size="sm" variant="outline" className={`${btnBase} bg-slate-500 hover:bg-slate-600 text-white border-slate-600`} title="ألغاه العميل (إرجاع البضاعة)"
-                                  onClick={() => {
-                                    const ord = o ?? ({ id: a.order_id, order_number: a.order_id.slice(0, 8), total: dueAmt, customer_name: "—", status: a.status, created_at: a.assigned_at } as Order);
-                                    setReturnOpen(ord);
-                                    setReturnReason("customer_cancelled");
-                                    setReturnNotes("ألغى العميل الأوردر — إرجاع كامل");
-                                    setReturnKind("full");
-                                  }}>
-                                  <span>❌</span> إلغاء
-                                </Button>
-                                <Button size="sm" variant="outline" className={`${btnBase} bg-orange-500 hover:bg-orange-600 text-white border-orange-600`} title="تصحيح/تعديل"
-                                  onClick={() => {
-                                    setCorrectOpen({ assignment: a, order: o });
-                                    setCorrectAction(col ? "edit_collection_amount" : a.returned_at ? "reverse_return" : "reverse_collection");
-                                    setCorrectReason("");
-                                    setCorrectAmount(col ? String(colAmt) : "");
-                                  }}>
-                                  <Wrench className="w-3.5 h-3.5" /> تصحيح 🔧
-                                </Button>
+
+                                {/* شارة الحالة الحالية — واضحة دائمًا */}
+                                {effectiveStatus ? (
+                                  <Badge className={`${stClass} text-xs font-semibold px-2 py-1 whitespace-nowrap`}>
+                                    <span className="ml-1">{stIcon}</span> {stLabel}
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-gray-200 text-gray-700 border border-gray-300 text-xs font-semibold px-2 py-1 whitespace-nowrap">
+                                    ⚪ لم يتم تحديد الحالة
+                                  </Badge>
+                                )}
+
+                                {/* قائمة موحّدة لاختيار الحالة */}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button size="sm" variant="outline" className={`${btnBase} bg-primary text-primary-foreground border-primary hover:bg-primary/90`}>
+                                      <ListChecks className="w-3.5 h-3.5" /> اختيار الحالة
+                                      <ChevronDown className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
+                                    <DropdownMenuLabel>حدّث حالة الأوردر</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => updateAssignmentStatus(a.id, a.order_id, "with_courier", "out_for_delivery")}
+                                    >
+                                      <Truck className="w-4 h-4 ml-2 text-violet-600" /> توزيع للمندوب 🚚
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={async () => { if (await recordDeliveryAndCollection(a.order_id, 0)) { toast({ title: "تم التسليم (آجل)" }); load(); } }}
+                                    >
+                                      <CheckCircle2 className="w-4 h-4 ml-2 text-sky-600" /> تم التسليم للعميل ✅
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        const ord = o ?? ({ id: a.order_id, order_number: a.order_id.slice(0, 8), total: dueAmt, customer_name: "—", status: a.status, created_at: a.assigned_at } as Order);
+                                        setCollectOpen(ord);
+                                        setCollectAmt(String(Math.max(0, dueAmt - colAmt)));
+                                        setCollectNotes("");
+                                      }}
+                                    >
+                                      <Coins className="w-4 h-4 ml-2 text-emerald-600" /> تحصيل كاش 💵
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        const ord = o ?? ({ id: a.order_id, order_number: a.order_id.slice(0, 8), total: dueAmt, customer_name: "—", status: a.status, created_at: a.assigned_at } as Order);
+                                        setReturnOpen(ord);
+                                        setReturnReason("customer_refused");
+                                        setReturnNotes("");
+                                        setReturnKind("partial");
+                                      }}
+                                    >
+                                      <RotateCcw className="w-4 h-4 ml-2 text-red-600" /> مرتجع ↩️
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={async () => {
+                                        if (!confirm(`تأكيد: تسليم الأوردر ${o?.order_number ?? ""} كهدية مجانية بدون تحصيل؟`)) return;
+                                        if (await recordDeliveryAndCollection(a.order_id, 0, "هدية مجانية - تم التسليم بدون تحصيل")) {
+                                          toast({ title: "تم التسليم كهدية مجانية" }); load();
+                                        }
+                                      }}
+                                    >
+                                      <span className="ml-2">🎁</span> مجاني
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        const ord = o ?? ({ id: a.order_id, order_number: a.order_id.slice(0, 8), total: dueAmt, customer_name: "—", status: a.status, created_at: a.assigned_at } as Order);
+                                        setReturnOpen(ord);
+                                        setReturnReason("customer_cancelled");
+                                        setReturnNotes("ألغى العميل الأوردر — إرجاع كامل");
+                                        setReturnKind("full");
+                                      }}
+                                    >
+                                      <span className="ml-2">❌</span> إلغاء
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setCorrectOpen({ assignment: a, order: o });
+                                        setCorrectAction(col ? "edit_collection_amount" : a.returned_at ? "reverse_return" : "reverse_collection");
+                                        setCorrectReason("");
+                                        setCorrectAmount(col ? String(colAmt) : "");
+                                      }}
+                                    >
+                                      <Wrench className="w-4 h-4 ml-2 text-orange-600" /> تصحيح 🔧
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                             </TableCell>
                           </TableRow>
