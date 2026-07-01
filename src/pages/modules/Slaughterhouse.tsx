@@ -2419,6 +2419,11 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
       const y = yields.find(y => y.cut_name_ar === o.cut_name_ar);
       let r = map.get(key);
       if (!r) {
+        const oa: any = o;
+        const autoCost = Number(oa.auto_cost_per_kg) || 0;
+        const manualCost = oa.manual_cost_per_kg == null ? null : Number(oa.manual_cost_per_kg);
+        const suggestedSale = Number(oa.suggested_sale_price_per_kg) || 0;
+        const manualSale = oa.manual_sale_price_per_kg == null ? null : Number(oa.manual_sale_price_per_kg);
         r = {
           yield_standard_id: y?.id || null,
           cut_name_ar: o.cut_name_ar,
@@ -2429,9 +2434,13 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
           quarantined_weight_kg: 0,
           package_count: Number(o.package_count) || 0,
           standard_weight_kg: Number(o.standard_weight_kg) || 0,
-          unit_cost: Number(o.unit_cost) || batchCostPerKg,
-          unit_price: Number(o.unit_price) || 0,
-
+          auto_cost_per_kg: autoCost || batchCostPerKg,
+          manual_cost_per_kg: manualCost,
+          suggested_sale_price_per_kg: suggestedSale || productPriceOf(o.cut_name_ar),
+          manual_sale_price_per_kg: manualSale,
+          price_edit_reason: oa.price_edit_reason || "",
+          unit_cost: manualCost != null && manualCost > 0 ? manualCost : (autoCost || Number(o.unit_cost) || batchCostPerKg),
+          unit_price: manualSale != null && manualSale > 0 ? manualSale : (suggestedSale || Number(o.unit_price) || productPriceOf(o.cut_name_ar)),
           destination: o.destination,
           branch_id: o.branch_id || "",
         };
