@@ -14,7 +14,18 @@ import RouteVersionGuard from "@/components/RouteVersionGuard";
 import InstalledIconMismatchAlert from "@/components/InstalledIconMismatchAlert";
 import AppErrorBoundary from "@/components/AppErrorBoundary";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // ضمان أحدث البيانات لكل المستخدمين (بما فيهم محمد سيد):
+      // إعادة الجلب عند العودة للتبويب أو استعادة الاتصال، وتجديد دوري خفيف.
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      refetchOnMount: true,
+      staleTime: 30_000,
+    },
+  },
+});
 
 const App = () => (
   <AppErrorBoundary>
