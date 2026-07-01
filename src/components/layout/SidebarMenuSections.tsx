@@ -300,7 +300,7 @@ export const moduleSections: ModuleSection[] = [
     ],
   },
   {
-    id: "hr",
+    id: "hr-staff",
     icon: UsersRound,
     label: "شؤون الموظفين",
     roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'],
