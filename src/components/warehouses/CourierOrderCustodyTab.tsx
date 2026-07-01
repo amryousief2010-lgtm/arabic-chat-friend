@@ -240,7 +240,7 @@ export default function CourierOrderCustodyTab() {
   const custodyAnalytics = useMemo(() => {
     return custodies.map((c) => {
       const myAsn = assignments.filter((a) => a.custody_id === c.id);
-      const giftOrderIds = new Set(myAsn.filter((a) => isGiftAssignment(a, orders.find((o) => o.id === a.order_id) as any)).map((a) => a.order_id));
+      const giftOrderIds = new Set(myAsn.filter((a) => isNonCashAssignment(a, orders.find((o) => o.id === a.order_id) as any)).map((a) => a.order_id));
       const myOrderIds = new Set(myAsn.map((a) => a.order_id));
       const myOrders = orders.filter((o) => myOrderIds.has(o.id));
       const totalValue = myOrders.reduce((s, o) => s + (giftOrderIds.has(o.id) ? 0 : Number(o.total || 0)), 0);
@@ -299,7 +299,7 @@ export default function CourierOrderCustodyTab() {
       .map(([day, items]) => {
         const totalValue = items.reduce((s, a) => {
           const o = orders.find((x) => x.id === a.order_id);
-          if (isGiftAssignment(a, o as any)) return s;
+          if (isNonCashAssignment(a, o as any)) return s;
           return s + Number(o?.total || 0);
         }, 0);
 
@@ -675,7 +675,7 @@ export default function CourierOrderCustodyTab() {
                         const o = orders.find((x) => x.id === a.order_id);
                         const trk = tracking[a.order_id];
                         const col = collections.find((c) => c.order_id === a.order_id);
-                        const gift = isGiftAssignment(a, o as any);
+                        const gift = isNonCashAssignment(a, o as any);
                         const dueAmt = gift ? 0 : Number(o?.total || 0);
                         const colAmt = Number(col?.amount_collected || 0);
                         const remain = Math.max(0, dueAmt - colAmt);
