@@ -680,8 +680,13 @@ export default function CourierOrderCustodyTab() {
                         const col = collections.find((c) => c.order_id === a.order_id);
                         const gift = isGiftAssignment(a, o as any);
                         const transfer = !gift && isTransferAssignment(a, o as any);
+                        const mixed = !gift && !transfer && o?.collection_method === 'mixed_payment';
                         const nonCash = gift || transfer;
-                        const dueAmt = nonCash ? 0 : Number(o?.total || 0);
+                        // For mixed: cash due comes ONLY from courier_cash_due (electronic + free excluded).
+                        // For non-cash: zero. Otherwise full total.
+                        const dueAmt = mixed
+                          ? Number(o?.courier_cash_due || 0)
+                          : nonCash ? 0 : Number(o?.total || 0);
                         const colAmt = Number(col?.amount_collected || 0);
                         const remain = Math.max(0, dueAmt - colAmt);
                         const effectiveStatus = trk || a.status;
@@ -689,9 +694,11 @@ export default function CourierOrderCustodyTab() {
                           ? "bg-pink-500 text-white border border-pink-600"
                           : transfer
                             ? "bg-indigo-500 text-white border border-indigo-600"
-                            : (STATUS_COLOR[effectiveStatus] || STATUS_COLOR[a.status] || "bg-gray-200 text-gray-800 border border-gray-300");
-                        const stIcon = gift ? "🎁" : transfer ? "📲" : (STATUS_ICON[effectiveStatus] || STATUS_ICON[a.status] || "•");
-                        const stLabel = gift ? "مجاني" : transfer ? "تحويل كاش/انستا" : (COURIER_STATUS_LABEL[effectiveStatus] || COURIER_STATUS_LABEL[a.status] || "غير محدد");
+                            : mixed
+                              ? "bg-amber-500 text-white border border-amber-600"
+                              : (STATUS_COLOR[effectiveStatus] || STATUS_COLOR[a.status] || "bg-gray-200 text-gray-800 border border-gray-300");
+                        const stIcon = gift ? "🎁" : transfer ? "📲" : mixed ? "🧩" : (STATUS_ICON[effectiveStatus] || STATUS_ICON[a.status] || "•");
+                        const stLabel = gift ? "مجاني" : transfer ? "تحويل كاش/انستا" : mixed ? "تحصيل مختلط" : (COURIER_STATUS_LABEL[effectiveStatus] || COURIER_STATUS_LABEL[a.status] || "غير محدد");
                         // Common button styles: always-visible labels, strong colors, no hover-only text.
                         const btnBase = "h-8 px-2 gap-1 text-xs font-semibold border shadow-sm";
                         return (
