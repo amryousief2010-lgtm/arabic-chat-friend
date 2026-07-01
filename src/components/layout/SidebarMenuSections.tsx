@@ -52,6 +52,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
+import { SIDEBAR_ITEM_MOVES, MARKETING_ONLY_EXTRA_PREFIXES } from "@/config/sidebarOverrides";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 import { useLabTreasuryApprovals } from "@/hooks/useLabTreasuryApprovals";
 import { useExecutiveApprovals } from "@/hooks/useExecutiveApprovals";
@@ -137,6 +138,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: UsersRound, label: "أداء الفريق", path: "/team-performance", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
       { icon: UserCheck, label: "أداء الموديراتور", path: "/moderator-performance", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
       { icon: BarChart3, label: "التقارير", path: "/reports", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'quality_manager'] },
+      { icon: TrendingUp, label: "تحليل الأداء اليومي وخطة الشهر", path: "/sales/daily-performance-analysis", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant'] },
       { icon: Tag, label: "الأسعار الداخلية بين الأقسام", path: "/modules/internal-prices-settings", roles: ['general_manager', 'executive_manager', 'financial_manager', 'slaughterhouse_manager', 'production_manager'] },
       { icon: Upload, label: "استيراد البيانات", path: "/import-sales", roles: ['general_manager'] },
     ],
@@ -296,7 +298,6 @@ export const moduleSections: ModuleSection[] = [
       { icon: ShieldCheck, label: "مراجعة تقارير السوشيال ميديا", path: "/social-media/review", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager'] },
       { icon: Receipt, label: "مصروفات السوشيال", path: "/social-media/expenses", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager'] },
       { icon: FileSpreadsheet, label: "تصدير التقارير", path: "/social-media/export", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager'] },
-      { icon: TrendingUp, label: "تحليل الأداء اليومي وخطة الشهر", path: "/sales/daily-performance-analysis", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant'] },
     ],
   },
   {
@@ -416,6 +417,39 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
   };
 
 
+  // Apply config-driven cross-section moves (see @/config/sidebarOverrides).
+  // Runs before role filtering so the item's original `roles` list is honored.
+  const sectionsWithMoves: ModuleSection[] = (() => {
+    if (SIDEBAR_ITEM_MOVES.length === 0) return moduleSections;
+    // Detach every moved item from its source section.
+    const movedItems = new Map<string, MenuItem>();
+    const stripped = moduleSections.map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        const move = SIDEBAR_ITEM_MOVES.find((m) => m.path === item.path);
+        if (move) {
+          movedItems.set(item.path, item);
+          return false;
+        }
+        return true;
+      }),
+    }));
+    // Re-insert each into its target section at the requested position.
+    return stripped.map((section) => {
+      const incoming = SIDEBAR_ITEM_MOVES.filter((m) => m.toSectionId === section.id);
+      if (incoming.length === 0) return section;
+      const items = [...section.items];
+      for (const move of incoming) {
+        const item = movedItems.get(move.path);
+        if (!item) continue;
+        const anchorIdx = move.after ? items.findIndex((i) => i.path === move.after) : -1;
+        if (anchorIdx >= 0) items.splice(anchorIdx + 1, 0, item);
+        else items.push(item);
+      }
+      return { ...section, items };
+    });
+  })();
+
   // Marketing-only users (only role = marketing_sales_manager, e.g. Mohamed Sayed)
   // get a strict allowlist of sidebar paths. Users with additional roles
   // (e.g. آلاء who also holds sales_manager) are unaffected.
@@ -424,13 +458,14 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
   const MARKETING_ONLY_ALLOWED_PATH_PREFIXES = [
     '/social-media', '/reports', '/notifications', '/internal-messages',
     '/permissions', '/org-chart',
+    ...MARKETING_ONLY_EXTRA_PREFIXES,
   ];
   const isPathAllowedForMarketingOnly = (path: string) =>
     MARKETING_ONLY_ALLOWED_PATH_PREFIXES.some(
       (p) => path === p || path.startsWith(p + '/'),
     );
 
-  const visibleSections = moduleSections
+  const visibleSections = sectionsWithMoves
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
