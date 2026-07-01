@@ -256,6 +256,11 @@ const AnimatedRoutes = () => {
               <PageTransition><PwaDiagnostics /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/reports/marketing-manager-account" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+              <PageTransition><MarketingManagerAccountReport /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/farm" element={<RedirectWithQuery to="/modules/farm" />} />
           <Route path="/hatchery" element={<RedirectWithQuery to="/modules/hatchery" />} />
           <Route path="/" element={<RoleLanding />} />
