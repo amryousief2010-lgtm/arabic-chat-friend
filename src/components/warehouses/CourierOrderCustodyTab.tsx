@@ -102,7 +102,12 @@ type Order = {
   customer_id?: string | null;
   customer_name?: string | null; created_at: string;
   customers?: { name: string | null; phone: string | null } | null;
+  update_status_marker?: string | null;
+  collection_method?: string | null;
+  courier_cash_due?: number | null;
+  collection_note?: string | null;
 };
+
 type Tracking = { order_id: string; courier_status: string | null };
 type Collection = { id: string; order_id: string; amount_due: number; amount_collected: number; status: string; collected_at: string };
 type FailedAttempt = { id: string; order_id: string; reason: string; notes: string | null; created_at: string };
