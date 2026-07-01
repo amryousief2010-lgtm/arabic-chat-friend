@@ -82,6 +82,9 @@ const STATUS_ICON: Record<string, string> = {
 
 const fmt = (n: number) => new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 2 }).format(n || 0);
 
+const isGiftAssignment = (a: { notes?: string | null }) =>
+  !!(a?.notes && /هدية مجانية|مجاني/.test(a.notes));
+
 type Custody = { id: string; courier_name: string; status: string; opened_at: string };
 type Assignment = {
   id: string; custody_id: string; order_id: string; courier_name: string;
@@ -209,14 +212,15 @@ export default function CourierOrderCustodyTab() {
   const custodyAnalytics = useMemo(() => {
     return custodies.map((c) => {
       const myAsn = assignments.filter((a) => a.custody_id === c.id);
+      const giftOrderIds = new Set(myAsn.filter(isGiftAssignment).map((a) => a.order_id));
       const myOrderIds = new Set(myAsn.map((a) => a.order_id));
       const myOrders = orders.filter((o) => myOrderIds.has(o.id));
-      const totalValue = myOrders.reduce((s, o) => s + Number(o.total || 0), 0);
+      const totalValue = myOrders.reduce((s, o) => s + (giftOrderIds.has(o.id) ? 0 : Number(o.total || 0)), 0);
       const myCols = collections.filter((cl) => myOrderIds.has(cl.order_id));
       const collected = myCols.reduce((s, cl) => s + Number(cl.amount_collected || 0), 0);
       const delivered = myAsn.filter((a) => ["delivered", "collected", "completed"].includes(a.status)).length;
       const undelivered = myAsn.filter((a) => a.status === "with_courier").length;
-      const uncollected = myOrders.filter((o) => !myCols.find((cl) => cl.order_id === o.id)).length;
+      const uncollected = myOrders.filter((o) => !giftOrderIds.has(o.id) && !myCols.find((cl) => cl.order_id === o.id)).length;
       const returns = myAsn.filter((a) => ["partially_returned", "fully_returned"].includes(a.status)).length;
       return {
         ...c,
@@ -266,6 +270,7 @@ export default function CourierOrderCustodyTab() {
       .sort((a, b) => (a[0] < b[0] ? 1 : -1))
       .map(([day, items]) => {
         const totalValue = items.reduce((s, a) => {
+          if (isGiftAssignment(a)) return s;
           const o = orders.find((x) => x.id === a.order_id);
           return s + Number(o?.total || 0);
         }, 0);
@@ -572,13 +577,16 @@ export default function CourierOrderCustodyTab() {
                         const o = orders.find((x) => x.id === a.order_id);
                         const trk = tracking[a.order_id];
                         const col = collections.find((c) => c.order_id === a.order_id);
-                        const dueAmt = Number(o?.total || 0);
+                        const gift = isGiftAssignment(a);
+                        const dueAmt = gift ? 0 : Number(o?.total || 0);
                         const colAmt = Number(col?.amount_collected || 0);
                         const remain = Math.max(0, dueAmt - colAmt);
                         const effectiveStatus = trk || a.status;
-                        const stClass = STATUS_COLOR[effectiveStatus] || STATUS_COLOR[a.status] || "bg-gray-200 text-gray-800 border border-gray-300";
-                        const stIcon = STATUS_ICON[effectiveStatus] || STATUS_ICON[a.status] || "•";
-                        const stLabel = COURIER_STATUS_LABEL[effectiveStatus] || COURIER_STATUS_LABEL[a.status] || "غير محدد";
+                        const stClass = gift
+                          ? "bg-pink-500 text-white border border-pink-600"
+                          : (STATUS_COLOR[effectiveStatus] || STATUS_COLOR[a.status] || "bg-gray-200 text-gray-800 border border-gray-300");
+                        const stIcon = gift ? "🎁" : (STATUS_ICON[effectiveStatus] || STATUS_ICON[a.status] || "•");
+                        const stLabel = gift ? "مجاني" : (COURIER_STATUS_LABEL[effectiveStatus] || COURIER_STATUS_LABEL[a.status] || "غير محدد");
                         // Common button styles: always-visible labels, strong colors, no hover-only text.
                         const btnBase = "h-8 px-2 gap-1 text-xs font-semibold border shadow-sm";
                         return (
