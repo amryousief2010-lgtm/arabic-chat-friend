@@ -3258,6 +3258,17 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                     <TableCell><Input className="w-16" type="number" value={r.package_count || ""}
                       onChange={e => updateRow(i, { package_count: +e.target.value })} /></TableCell>
                     <TableCell className="flex gap-1">
+                      {(canEditCostPrice || canEditSellPrice) && (
+                        <Button size="icon" variant="ghost" onClick={() => {
+                          setEditRow({ index: i });
+                          setEditCost(String(Number(r.unit_cost) || 0));
+                          setEditSale(String(Number(r.unit_price) || 0));
+                          setEditReason(r.price_edit_reason || "");
+                          setEditUpdateGlobal(false);
+                        }} title="تعديل الأسعار (مع سبب وسجل مراجعة)">
+                          <Edit className="w-4 h-4 text-blue-600" />
+                        </Button>
+                      )}
                       <Button size="icon" variant="ghost" onClick={() => addRow(r.cut_name_ar)} title="إضافة فرع آخر لنفس الصنف"><Plus className="w-4 h-4 text-emerald-600" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => setRows(rows.filter((_, idx) => idx !== i))}><Trash2 className="w-4 h-4 text-red-500" /></Button>
                     </TableCell>
