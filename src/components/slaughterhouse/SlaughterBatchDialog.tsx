@@ -603,6 +603,77 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* تفاصيل تكلفة الدفعة (تشخيص فقط) */}
+      <Dialog open={!!detailsFor} onOpenChange={(v) => !v && setDetailsFor(null)}>
+        <DialogContent dir="rtl" className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Info className="w-5 h-5 text-blue-600" />
+              تفاصيل تكلفة الدفعة {detailsFor?.receipt_number}
+            </DialogTitle>
+          </DialogHeader>
+          {detailsFor && (() => {
+            const r: any = detailsFor;
+            const orig = Number(r.bird_count) || 0;
+            const alive = Number(r.current_alive_count) || 0;
+            const mort = Number(r.mortality_count) || 0;
+            const doa = Number(r.dead_on_arrival) || 0;
+            const adj = Number(r.manual_available_adjustment) || 0;
+            const slaughtered = Math.max(orig - doa - mort - alive + adj, 0);
+            const baseCost = Number(r.opening_cost_total || 0) + Number(r.total_cost || 0);
+            const totalCost = Number(r.total_batch_cost || 0);
+            const currentCpb = Number(r.cost_per_bird_current || 0);
+            const fairCpb = orig > 0 ? baseCost / orig : 0;
+            const rev = needsCostReview(r);
+            return (
+              <div className="space-y-2 text-sm">
+                {rev.flag && (
+                  <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded p-2 text-xs flex items-start gap-1">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div><b>تكلفة هذه الدفعة تحتاج مراجعة قبل الدبح</b><br/>{rev.reason}</div>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-2 rounded border p-3 bg-muted/30">
+                  <div>عدد النعام الأصلي</div><div className="text-left font-bold">{orig}</div>
+                  <div>ميت وقت الاستلام (DOA)</div><div className="text-left">{doa}</div>
+                  <div>نفوق</div><div className="text-left">{mort}</div>
+                  <div>مدبوح سابقاً</div><div className="text-left">{slaughtered}</div>
+                  <div>تسوية يدوية</div><div className={cn("text-left", adj !== 0 && "text-amber-700 font-bold")}>{adj}</div>
+                  <div className="border-t pt-1">النعام القائم الآن</div><div className="text-left font-bold border-t pt-1">{alive}</div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 rounded border p-3 bg-muted/30">
+                  <div>تكلفة الشراء</div><div className="text-left">{fmt(Number(r.total_cost || 0))}</div>
+                  <div>رصيد افتتاحي</div><div className="text-left">{fmt(Number(r.opening_cost_total || 0))}</div>
+                  <div>علف محمّل</div><div className="text-left">{fmt(Number(r.feed_cost_loaded || 0))}</div>
+                  <div>تكلفة نفوق</div><div className="text-left">{fmt(Number(r.mortality_cost_loaded || 0))}</div>
+                  <div>تكاليف أخرى</div><div className="text-left">{fmt(Number(r.other_costs_loaded || 0))}</div>
+                  <div className="border-t pt-1 font-bold">إجمالي تكلفة الدفعة</div>
+                  <div className="text-left border-t pt-1 font-bold">{fmt(totalCost)}</div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 rounded border p-3 bg-blue-50 border-blue-200">
+                  <div>تكلفة/نعامة المعروضة (حسب المتبقي)</div>
+                  <div className="text-left font-bold text-blue-700">{fmt(currentCpb)}</div>
+                  <div>تكلفة/نعامة العادلة (على العدد الأصلي)</div>
+                  <div className="text-left">{fmt(fairCpb)}</div>
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  المعادلة الحالية: <code>cost_per_bird = total_batch_cost / current_alive_count</code>.
+                  عندما يقلّ المتبقي كثيراً (نفوق/تسوية/دبح سابق)، تتراكم التكلفة على النعامات القليلة المتبقية.
+                </div>
+                <div className="flex flex-wrap gap-2 text-[11px]">
+                  {r.excluded_from_costing && <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded">مستبعدة من التكلفة</span>}
+                  {r.archived && <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded">مؤرشفة</span>}
+                  <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded">أُنشئت: {String(r.created_at || "").slice(0,10)}</span>
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailsFor(null)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };
