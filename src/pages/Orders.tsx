@@ -106,7 +106,29 @@ interface Order {
   route_id: string | null;
   route_name: string | null;
   items: OrderItem[];
+  update_status_marker?: UpdateStatusMarker | null;
+  update_status_updated_at?: string | null;
 }
+
+// آخر زر تحديث تم استخدامه على الأوردر (عرض فقط، لا يمس منطق المخزون/المالية).
+type UpdateStatusMarker =
+  | 'cash'
+  | 'delivered'
+  | 'distribution'
+  | 'correction'
+  | 'cancelled'
+  | 'gift'
+  | 'returned';
+
+const updateMarkerMeta: Record<UpdateStatusMarker, { label: string; className: string }> = {
+  cash:         { label: 'كاش ✅',    className: 'bg-emerald-500 text-white border-emerald-600' },
+  delivered:    { label: 'تسليم ✅',  className: 'bg-sky-500 text-white border-sky-600' },
+  distribution: { label: 'توزيع 🚚',  className: 'bg-violet-500 text-white border-violet-600' },
+  correction:   { label: 'تصحيح 🔧', className: 'bg-orange-500 text-white border-orange-600' },
+  cancelled:    { label: 'إلغاء ❌',  className: 'bg-slate-500 text-white border-slate-600' },
+  gift:         { label: 'مجاني 🎁', className: 'bg-pink-500 text-white border-pink-600' },
+  returned:     { label: 'مرتجع ↩️', className: 'bg-red-600 text-white border-red-700' },
+};
 
 // Fulfillment filter keys
 const fulfillmentOptions: { value: string; label: string }[] = [
