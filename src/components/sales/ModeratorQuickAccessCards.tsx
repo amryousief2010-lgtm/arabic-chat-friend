@@ -164,7 +164,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
             monthW[cat] += qty;
           }
           const o = orderById.get(it.order_id);
-          if (o && o.created_at.slice(0, 10) === todayStr) todayW[cat] += qty;
+          if (o && toCairoDateString(o.created_at) === todayStr) todayW[cat] += qty;
         }
         // EGP amounts use the same fixed per-kg prices as جدول البيان (Sales Targets):
         // لحوم 390 ج/كجم، بالعظم 350 ج/كجم، مصنعات 160 ج/كجم
