@@ -2299,13 +2299,14 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
     Number(b.total_allocatable_cost) ||
     Number(b.total_birds_cost) ||
     (Number(b.cost_per_bird_snapshot) || 0) * (Number(batch.birds_slaughtered) || 0) ||
+    Number(costBreakdownTotalFallback) ||
     0;
   const storedCostPerKg = Number(batch.cost_per_kg_meat) || 0;
-  // Auto-derive cost/kg when stored = 0 but we have total cost + produced kg
   const outputsTotalKg = (outputs || []).reduce((s, o: any) => s + (Number(o.actual_weight_kg) || 0), 0);
   const batchCostPerKg = storedCostPerKg > 0
     ? storedCostPerKg
     : (batchTotalCost > 0 && outputsTotalKg > 0 ? batchTotalCost / outputsTotalKg : 0);
+
   const [costAuditOpen, setCostAuditOpen] = useState(false);
 
   // Breakdown of batch cost by component (purchase / feed / mortality / other)
