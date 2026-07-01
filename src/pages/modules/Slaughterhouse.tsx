@@ -2295,6 +2295,30 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
   const b: any = batch as any;
   const [costAuditOpen, setCostAuditOpen] = useState(false);
   const [sourcesSnapshotTotal, setSourcesSnapshotTotal] = useState<number>(0);
+  const canUpdateGlobalPrice = (roles || []).some((r: string) => r === "general_manager" || r === "executive_manager");
+
+  // Products menu (name -> price) — source of truth for suggested sale price.
+  const [productMap, setProductMap] = useState<Record<string, { id: string; price: number }>>({});
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("products").select("id,name,price");
+      const map: Record<string, { id: string; price: number }> = {};
+      for (const p of (data as any[]) || []) {
+        map[normalizeCutName(p.name)] = { id: p.id, price: Number(p.price) || 0 };
+      }
+      setProductMap(map);
+    })();
+  }, []);
+  const productPriceOf = (name: string) => productMap[normalizeCutName(name)]?.price ?? 0;
+  const productIdOf = (name: string) => productMap[normalizeCutName(name)]?.id ?? null;
+
+  // Per-row audit dialog state
+  const [editRow, setEditRow] = useState<null | { index: number }>(null);
+  const [editReason, setEditReason] = useState("");
+  const [editCost, setEditCost] = useState<string>("");
+  const [editSale, setEditSale] = useState<string>("");
+  const [editUpdateGlobal, setEditUpdateGlobal] = useState(false);
+
 
   // Breakdown of batch cost by component (purchase / feed / mortality / other)
   // Computed proportionally per-source from slaughter_batch_live_sources + slaughter_live_receipts.
