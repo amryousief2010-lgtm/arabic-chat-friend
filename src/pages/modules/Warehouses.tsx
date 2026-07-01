@@ -1085,14 +1085,6 @@ const Warehouses = () => {
               <TabsTrigger value="wh-hht"><Warehouse />هايبر هيلثي تيست</TabsTrigger>
               <TabsTrigger value="wh-carrefour"><Warehouse />هايبر كارفور</TabsTrigger>
               <TabsTrigger value="wh-packaging"><Package />التغليف والتعبئة</TabsTrigger>
-              <TabsTrigger value="wh-activity"><BarChart3 />سجل حركات المخزن الرئيسي</TabsTrigger>
-              <TabsTrigger value="wh-treasury"><Wallet />خزينة المخزن الرئيسي</TabsTrigger>
-              <TabsTrigger value="wh-agouza-treasury"><Wallet />خزنة مخزن العجوزة</TabsTrigger>
-              <TabsTrigger value="wh-agouza-recon"><ClipboardCheck />مطابقة خزنة العجوزة</TabsTrigger>
-              <TabsTrigger value="wh-agouza-closure"><ClipboardCheck />إقفال يوم العجوزة</TabsTrigger>
-              <TabsTrigger value="wh-courier-orders"><Truck />عهدة أوردرات المندوب</TabsTrigger>
-              <TabsTrigger value="wh-route-prep"><Truck />تجهيز خط التوزيع</TabsTrigger>
-              <TabsTrigger value="wh-daily-recon"><ClipboardCheck />تسوية عهدة اليوم</TabsTrigger>
               <TabsTrigger value="reports"><FileText />التقارير</TabsTrigger>
               <TabsTrigger value="menu"><UtensilsCrossed />المنيو</TabsTrigger>
               <TabsTrigger value="more"><Menu />المزيد</TabsTrigger>
