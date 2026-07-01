@@ -2293,20 +2293,8 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
   const canEditSellPrice = (roles || []).some((r: string) => r === "general_manager" || r === "executive_manager" || r === "slaughterhouse_manager");
   const canEditCostPrice = (roles || []).some((r: string) => r === "general_manager" || r === "executive_manager" || r === "slaughterhouse_manager");
   const b: any = batch as any;
-  // Total slaughter-batch cost = snapshot of live birds cost at slaughter time + any direct/allocated slaughter cost.
-  // Prefer total_allocatable_cost (set during recompute_slaughter_batch_cost). Fallback to total_birds_cost.
-  const batchTotalCost =
-    Number(b.total_allocatable_cost) ||
-    Number(b.total_birds_cost) ||
-    (Number(b.cost_per_bird_snapshot) || 0) * (Number(batch.birds_slaughtered) || 0) ||
-    0;
-  const storedCostPerKg = Number(batch.cost_per_kg_meat) || 0;
-  // Auto-derive cost/kg when stored = 0 but we have total cost + produced kg
-  const outputsTotalKg = (outputs || []).reduce((s, o: any) => s + (Number(o.actual_weight_kg) || 0), 0);
-  const batchCostPerKg = storedCostPerKg > 0
-    ? storedCostPerKg
-    : (batchTotalCost > 0 && outputsTotalKg > 0 ? batchTotalCost / outputsTotalKg : 0);
   const [costAuditOpen, setCostAuditOpen] = useState(false);
+  const [sourcesSnapshotTotal, setSourcesSnapshotTotal] = useState<number>(0);
 
   // Breakdown of batch cost by component (purchase / feed / mortality / other)
   // Computed proportionally per-source from slaughter_batch_live_sources + slaughter_live_receipts.
@@ -2321,6 +2309,21 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
   // Total birds in the purchase receipts that contributed to this slaughter batch (NOT what was slaughtered).
   const [birdsPurchased, setBirdsPurchased] = useState<number>(0);
 
+  // Fallback total = sum of saved per-source snapshots on slaughter_batch_live_sources.
+  // Used when batch-level cost fields (total_allocatable_cost/total_birds_cost) weren't populated.
+  const batchTotalCost =
+    Number(b.total_allocatable_cost) ||
+    Number(b.total_birds_cost) ||
+    (Number(b.cost_per_bird_snapshot) || 0) * (Number(batch.birds_slaughtered) || 0) ||
+    Number(sourcesSnapshotTotal) ||
+    0;
+  const storedCostPerKg = Number(batch.cost_per_kg_meat) || 0;
+  const outputsTotalKg = (outputs || []).reduce((s, o: any) => s + (Number(o.actual_weight_kg) || 0), 0);
+  const batchCostPerKg = storedCostPerKg > 0
+    ? storedCostPerKg
+    : (batchTotalCost > 0 && outputsTotalKg > 0 ? batchTotalCost / outputsTotalKg : 0);
+
+
   useEffect(() => {
     (async () => {
       const { data: srcs } = await supabase
@@ -2328,6 +2331,12 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
         .select("live_receipt_id,birds_count,cost_per_bird_snapshot,total_birds_cost")
         .eq("slaughter_batch_id", batchId);
       let sources: any[] = (srcs as any[]) || [];
+      // Sum of frozen snapshots per source (used as fallback for batchTotalCost)
+      const snapSum = sources.reduce(
+        (acc, s) => acc + (Number(s.total_birds_cost) || (Number(s.cost_per_bird_snapshot) || 0) * (Number(s.birds_count) || 0)),
+        0
+      );
+      setSourcesSnapshotTotal(snapSum);
       // back-compat: single live_receipt_id on batch
       if (!sources.length && (batch as any).live_receipt_id) {
         sources = [{
@@ -2338,6 +2347,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
         }];
       }
       if (!sources.length) return;
+
       const ids = Array.from(new Set(sources.map(s => s.live_receipt_id).filter(Boolean)));
       const { data: receipts } = await supabase
         .from("slaughter_live_receipts" as any)
