@@ -371,6 +371,75 @@ export default function CourierOrderCustodyTab() {
     return true;
   };
 
+  // Convert an assignment/order into a GIFT (no cash collection required from courier).
+  // Preserves original delivery status when already delivered; never re-deducts stock.
+  const markOrderAsGift = async (asn: Assignment, ord?: Order): Promise<boolean> => {
+    if (!asn) return false;
+    const orderRow = ord ?? orders.find((x) => x.id === asn.order_id);
+    const wasDelivered = !!asn.delivered_at || ["delivered", "collected", "completed"].includes(asn.status);
+    const before = {
+      update_status_marker: orderRow?.update_status_marker ?? null,
+      collection_method: orderRow?.collection_method ?? null,
+      courier_cash_due: orderRow?.courier_cash_due ?? null,
+      collection_note: orderRow?.collection_note ?? null,
+      assignment_status: asn.status,
+      assignment_notes: asn.notes ?? null,
+    };
+    // 1) If not delivered yet, atomically record a zero-cash delivery (uses existing RPC — no stock double-deduct because it flips delivered).
+    if (!wasDelivered) {
+      const ok = await recordDeliveryAndCollection(asn.order_id, 0, "هدية مجانية - تم التسليم بدون تحصيل");
+      if (!ok) return false;
+    }
+    // 2) Persist gift markers on orders + zero out cash due (safe whether delivered or not)
+    const nowIso = new Date().toISOString();
+    const { error: ordErr } = await (supabase as any)
+      .from("orders")
+      .update({
+        update_status_marker: "gift",
+        update_status_updated_at: nowIso,
+        update_status_updated_by: user?.id ?? null,
+        collection_method: "no_collection",
+        courier_cash_due: 0,
+        collection_note: "أوردر مجاني - لا يوجد تحصيل من المندوب",
+        collection_updated_at: nowIso,
+        collection_updated_by: user?.id ?? null,
+      })
+      .eq("id", asn.order_id);
+    if (ordErr) {
+      toast({ title: "تعذّر تحديث بيانات الأوردر", description: ordErr.message, variant: "destructive" });
+      return false;
+    }
+    // 3) Tag assignment notes so isGiftAssignment fallback also matches
+    const mergedNotes = /هدية مجانية|مجاني/.test(asn.notes || "")
+      ? asn.notes
+      : `${asn.notes ? asn.notes + " | " : ""}هدية مجانية - لا يوجد تحصيل`;
+    await (supabase as any)
+      .from("courier_order_assignments")
+      .update({ notes: mergedNotes })
+      .eq("id", asn.id);
+    // 4) Audit log
+    await (supabase as any).from("courier_assignment_corrections").insert({
+      assignment_id: asn.id,
+      order_id: asn.order_id,
+      courier_name: asn.courier_name,
+      action: "mark_as_gift",
+      before_snapshot: before,
+      after_snapshot: {
+        update_status_marker: "gift",
+        collection_method: "no_collection",
+        courier_cash_due: 0,
+        collection_note: "أوردر مجاني - لا يوجد تحصيل من المندوب",
+        preserved_delivery: wasDelivered,
+      },
+      reason: "تحويل الأوردر إلى مجاني من قائمة اختيار الحالة",
+      performed_by: user?.id ?? null,
+    });
+    toast({ title: "تم تحويل الأوردر إلى مجاني 🎁", description: "خرج من إجمالي التحصيل والمطلوب من المندوب." });
+    await load();
+    return true;
+  };
+
+
   const saveCollection = async () => {
     if (!collectOpen) return;
     const amt = Number(collectAmt || 0);
