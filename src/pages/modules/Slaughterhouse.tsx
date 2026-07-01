@@ -2798,37 +2798,50 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                           تكلفة الكيلو (بالعلف + النافق + أخرى): <b>{totalProduced > 0 ? (costBreakdown.total / totalProduced).toFixed(2) : "0.00"} ج.م/كجم</b>
                         </div>
                       </div>
-                      {costBreakdown.sources.length > 1 && (
+                      {costBreakdown.sources.length > 0 && (
                         <div className="mt-2">
-                          <div className="text-muted-foreground mb-1">تفصيل لكل دفعة استلام مساهمة:</div>
+                          <div className="text-muted-foreground mb-1">تفصيل مصادر النعام المُدبوح (كل مصدر بتكلفته المستقلة وقت الذبح):</div>
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead className="text-right">رقم الإستلام</TableHead>
-                                <TableHead className="text-right">عدد النعام</TableHead>
-                                <TableHead className="text-right">شراء</TableHead>
-                                <TableHead className="text-right">علف</TableHead>
-                                <TableHead className="text-right">نافق</TableHead>
-                                <TableHead className="text-right">أخرى</TableHead>
-                                <TableHead className="text-right">إجمالي</TableHead>
+                                <TableHead className="text-right">كود دفعة النعام</TableHead>
+                                <TableHead className="text-right">عدد النعام المدبوح</TableHead>
+                                <TableHead className="text-right">تكلفة النعامة</TableHead>
+                                <TableHead className="text-right">إجمالي تكلفة المصدر</TableHead>
+                                <TableHead className="text-right text-xs text-muted-foreground">شراء</TableHead>
+                                <TableHead className="text-right text-xs text-muted-foreground">علف</TableHead>
+                                <TableHead className="text-right text-xs text-muted-foreground">نافق</TableHead>
+                                <TableHead className="text-right text-xs text-muted-foreground">أخرى</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {costBreakdown.sources.map((s, i) => (
-                                <TableRow key={i}>
-                                  <TableCell>{s.receipt_number}</TableCell>
-                                  <TableCell>{s.birds}</TableCell>
-                                  <TableCell>{s.purchase.toFixed(2)}</TableCell>
-                                  <TableCell>{s.feed.toFixed(2)}</TableCell>
-                                  <TableCell>{s.mortality.toFixed(2)}</TableCell>
-                                  <TableCell>{s.other.toFixed(2)}</TableCell>
-                                  <TableCell><b>{s.total.toFixed(2)}</b></TableCell>
-                                </TableRow>
-                              ))}
+                              {costBreakdown.sources.map((s, i) => {
+                                const perBird = s.snapshot_per_bird;
+                                const totalSrc = s.snapshot_total;
+                                const fmt = (v: number | null) =>
+                                  v == null ? <span className="text-muted-foreground">غير محدد</span>
+                                    : <span>{v.toLocaleString("en-US", { maximumFractionDigits: 2 })} ج.م</span>;
+                                return (
+                                  <TableRow key={i}>
+                                    <TableCell className="font-mono">{s.receipt_number}</TableCell>
+                                    <TableCell>{s.birds}</TableCell>
+                                    <TableCell className="font-bold text-primary">{fmt(perBird)}</TableCell>
+                                    <TableCell className="font-bold">{fmt(totalSrc)}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">{s.purchase.toFixed(2)}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">{s.feed.toFixed(2)}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">{s.mortality.toFixed(2)}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">{s.other.toFixed(2)}</TableCell>
+                                  </TableRow>
+                                );
+                              })}
                             </TableBody>
                           </Table>
+                          <div className="text-[11px] text-muted-foreground mt-1">
+                            ملاحظة: تكلفة النعامة محفوظة كـ snapshot وقت الذبح في <code>slaughter_batch_live_sources.cost_per_bird_snapshot</code> ولا تتأثر بتغيّر تكلفة الدفعة لاحقًا.
+                          </div>
                         </div>
                       )}
+
                     </div>
                   )}
                   <div className="text-xs text-muted-foreground border-t pt-2">
