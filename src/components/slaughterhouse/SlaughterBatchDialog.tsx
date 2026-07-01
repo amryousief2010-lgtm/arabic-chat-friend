@@ -395,7 +395,24 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
                 </table>
               </div>
               <ErrMsg name="sources" />
-              <p className="text-xs text-muted-foreground mt-2">يتم خصم النعام من كل دفعة مصدر تلقائياً عند حفظ الدفعة.</p>
+              <div className="mt-2 space-y-1">
+                <p className="text-xs text-muted-foreground">يتم خصم النعام من كل دفعة مصدر تلقائياً عند حفظ الدفعة.</p>
+                <div className="text-xs bg-muted/40 rounded p-2 flex flex-wrap gap-x-4 gap-y-1">
+                  <span>إجمالي المتاح للدبح من الدفعات الظاهرة: <b className="tabular-nums text-primary">{totalAvailableInDropdown}</b> نعامة</span>
+                  {typeof dashboardLiveBalance === "number" && (
+                    <span>النعام القائم (الداشبورد): <b className="tabular-nums">{dashboardLiveBalance}</b></span>
+                  )}
+                </div>
+                {typeof dashboardLiveBalance === "number" && diagDiff !== 0 && (
+                  <div className="text-xs bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-200 rounded p-2 flex items-start gap-2">
+                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <span>
+                      يوجد فرق بين النعام القائم ومصادر الدبح المتاحة قدره <b>{Math.abs(diagDiff)}</b> نعامة.
+                      برجاء مراجعة الدفعات غير المربوطة أو غير المصنفة، أو ضبط حقل "manual_available_adjustment" على الدفعة المعنية.
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
