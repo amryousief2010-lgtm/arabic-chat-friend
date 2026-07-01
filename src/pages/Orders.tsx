@@ -338,6 +338,7 @@ const Orders = () => {
   const [filterGovernorate, setFilterGovernorate] = useState<string>("all");
   const [filterFulfillment, setFilterFulfillment] = useState<string>("all");
   const [filterRoute, setFilterRoute] = useState<string>("all");
+  const [filterCollectionMethod, setFilterCollectionMethod] = useState<string>("all");
   const [availableRoutes, setAvailableRoutes] = useState<{ id: string; name: string; color: string }[]>([]);
   const [availableProducts, setAvailableProducts] = useState<string[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
