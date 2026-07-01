@@ -979,6 +979,9 @@ const Orders = () => {
         newStatus === 'delivered' ? new Date().toISOString() : null;
       statusOverridesRef.current.set(orderId, { status: newStatus, delivered_at: deliveredAtForOverride });
       toast.success(`تم تحديث حالة الطلب إلى "${statusLabels[newStatus]}"`);
+      // علامة "حالة التحديث": delivered/cancelled يقابلان أزرار التسليم/الإلغاء.
+      if (newStatus === 'delivered') void markOrderUpdate(orderId, 'delivered');
+      else if (newStatus === 'cancelled') void markOrderUpdate(orderId, 'cancelled');
     } catch (error) {
       console.error('Error updating order status:', error);
       toast.error('حدث خطأ أثناء تحديث الحالة');
