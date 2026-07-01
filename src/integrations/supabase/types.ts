@@ -16275,38 +16275,48 @@ export type Database = {
           created_at: string
           current_kg: number
           feed_name: string
-          feed_product_id: string
+          feed_product_id: string | null
           id: string
           last_unit_cost: number
           notes: string | null
+          raw_material_id: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           current_kg?: number
           feed_name: string
-          feed_product_id: string
+          feed_product_id?: string | null
           id?: string
           last_unit_cost?: number
           notes?: string | null
+          raw_material_id?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           current_kg?: number
           feed_name?: string
-          feed_product_id?: string
+          feed_product_id?: string | null
           id?: string
           last_unit_cost?: number
           notes?: string | null
+          raw_material_id?: string | null
           updated_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "slaughterhouse_feed_inventory_feed_product_id_fkey"
             columns: ["feed_product_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "feed_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughterhouse_feed_inventory_raw_material_id_fkey"
+            columns: ["raw_material_id"]
+            isOneToOne: false
+            referencedRelation: "feed_raw_materials"
             referencedColumns: ["id"]
           },
         ]
@@ -19201,6 +19211,10 @@ export type Database = {
       }
       ensure_hatch_batch_lot: {
         Args: { p_hatch_batch_id: string }
+        Returns: string
+      }
+      ensure_slaughter_feed_raw_row: {
+        Args: { _name: string; _raw_material_id: string }
         Returns: string
       }
       ensure_slaughter_feed_row: {
