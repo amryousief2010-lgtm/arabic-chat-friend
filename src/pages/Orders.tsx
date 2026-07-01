@@ -1016,6 +1016,8 @@ const Orders = () => {
     } else {
       toast.success(value === 'collected' ? 'تم تحديث حالة التحصيل: تم التحصيل' : 'تم تحديث حالة التحصيل: لم يتم التحصيل');
     }
+    // زر "كاش" = تم التحصيل نقداً → علامة cash.
+    if (value === 'collected') void markOrderUpdate(orderId, 'cash');
   };
 
   const handleCollectionChange = async (orderId: string, value: string) => {
