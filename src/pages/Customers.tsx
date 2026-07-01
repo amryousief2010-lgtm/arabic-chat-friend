@@ -263,8 +263,37 @@ const Customers = () => {
                   </Button>
                 </div>
               </DialogContent>
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                    <div className="col-span-2 text-xs text-muted-foreground">حقول تسويقية (اختيارية):</div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">مصدر العميل</Label>
+                      <Input value={formData.source} onChange={(e) => setFormData({ ...formData, source: e.target.value })} placeholder="Facebook / Instagram / موقع..." className="input-modern" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">قناة التواصل</Label>
+                      <Input value={formData.communication_channel} onChange={(e) => setFormData({ ...formData, communication_channel: e.target.value })} placeholder="واتساب / مكالمة / رسالة..." className="input-modern" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">المحافظة</Label>
+                      <Input value={formData.governorate} onChange={(e) => setFormData({ ...formData, governorate: e.target.value })} placeholder="القاهرة / الجيزة..." className="input-modern" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">المنطقة</Label>
+                      <Input value={formData.area} onChange={(e) => setFormData({ ...formData, area: e.target.value })} placeholder="مدينة نصر..." className="input-modern" />
+                    </div>
+                    <div className="col-span-2 space-y-2">
+                      <Label className="text-xs">اسم الحملة</Label>
+                      <Input value={formData.campaign_name} onChange={(e) => setFormData({ ...formData, campaign_name: e.target.value })} placeholder="اسم الحملة الإعلانية إن وجدت" className="input-modern" />
+                    </div>
+                  </div>
+                  <Button onClick={handleSubmit} className="w-full btn-primary">
+                    {editingCustomer ? "حفظ التعديلات" : "إضافة العميل"}
+                  </Button>
+                </div>
+              </DialogContent>
             </Dialog>
           </div>
+
 
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
