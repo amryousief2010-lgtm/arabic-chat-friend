@@ -46,16 +46,37 @@ const COURIER_STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  approved_by_marketing: "bg-blue-100 text-blue-800",
-  prepared_by_warehouse: "bg-indigo-100 text-indigo-800",
-  picked_up_by_courier: "bg-purple-100 text-purple-800",
-  out_for_delivery: "bg-amber-100 text-amber-800",
-  delivered: "bg-teal-100 text-teal-800",
-  collected: "bg-emerald-100 text-emerald-800",
-  completed: "bg-emerald-200 text-emerald-900",
-  partially_returned: "bg-orange-100 text-orange-800",
-  fully_returned: "bg-rose-100 text-rose-800",
-  failed_delivery: "bg-rose-100 text-rose-800",
+  approved_by_marketing: "bg-blue-500 text-white border border-blue-600",
+  prepared_by_warehouse: "bg-indigo-500 text-white border border-indigo-600",
+  assigned_to_courier: "bg-violet-500 text-white border border-violet-600",
+  picked_up_by_courier: "bg-purple-500 text-white border border-purple-600",
+  out_for_delivery: "bg-violet-600 text-white border border-violet-700",
+  delivered: "bg-teal-500 text-white border border-teal-600",
+  collected: "bg-emerald-500 text-white border border-emerald-600",
+  completed: "bg-emerald-600 text-white border border-emerald-700",
+  partially_returned: "bg-orange-500 text-white border border-orange-600",
+  fully_returned: "bg-rose-500 text-white border border-rose-600",
+  failed_delivery: "bg-rose-500 text-white border border-rose-600",
+  cancelled: "bg-slate-500 text-white border border-slate-600",
+  returned_to_warehouse: "bg-rose-400 text-white border border-rose-500",
+  ready_for_pickup_from_main_warehouse: "bg-cyan-500 text-white border border-cyan-600",
+};
+
+const STATUS_ICON: Record<string, string> = {
+  approved_by_marketing: "✅",
+  prepared_by_warehouse: "📦",
+  assigned_to_courier: "🧾",
+  picked_up_by_courier: "🚚",
+  out_for_delivery: "🚚",
+  delivered: "✅",
+  collected: "💵",
+  completed: "🏁",
+  partially_returned: "↩️",
+  fully_returned: "↩️",
+  failed_delivery: "⚠️",
+  cancelled: "❌",
+  returned_to_warehouse: "🏬",
+  ready_for_pickup_from_main_warehouse: "📦",
 };
 
 const fmt = (n: number) => new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 2 }).format(n || 0);
