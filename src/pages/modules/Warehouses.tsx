@@ -257,11 +257,29 @@ const Warehouses = () => {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("items");
   const [menuSubview, setMenuSubview] = useState<string | null>(null);
+  // Per-warehouse sub-tool view (main warehouse vs. Agouza)
+  const [mainSubview, setMainSubview] = useState<string | null>(null);
+  const [agouzaSubview, setAgouzaSubview] = useState<string | null>(null);
 
   useEffect(() => {
+    const MAIN_LEGACY: Record<string, string> = {
+      "wh-activity": "activity",
+      "wh-treasury": "treasury",
+      "wh-courier-orders": "courier-orders",
+      "wh-route-prep": "route-prep",
+    };
+    const AGOUZA_LEGACY: Record<string, string> = {
+      "wh-agouza-treasury": "treasury",
+      "wh-agouza-recon": "recon",
+      "wh-agouza-closure": "closure",
+      "wh-daily-recon": "daily-recon",
+    };
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail;
-      if (typeof detail === "string") setActiveTab(detail);
+      if (typeof detail !== "string") return;
+      if (MAIN_LEGACY[detail]) { setActiveTab("wh-main"); setMainSubview(MAIN_LEGACY[detail]); return; }
+      if (AGOUZA_LEGACY[detail]) { setActiveTab("wh-agouza"); setAgouzaSubview(AGOUZA_LEGACY[detail]); return; }
+      setActiveTab(detail);
     };
     window.addEventListener("warehouses:switch-tab", handler);
     return () => window.removeEventListener("warehouses:switch-tab", handler);
