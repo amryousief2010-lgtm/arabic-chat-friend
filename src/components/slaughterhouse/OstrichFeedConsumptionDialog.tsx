@@ -58,6 +58,11 @@ export function OstrichFeedConsumptionDialog({
 
   const feed = useMemo(() => feedInventory.find((f) => f.id === feedId), [feedInventory, feedId]);
   const batch = useMemo(() => liveBatches.find((b) => b.id === liveBatchId), [liveBatches, liveBatchId]);
+  // فقط الدفعات التي بها نعام حي لم يُذبح بعد
+  const activeBatches = useMemo(
+    () => liveBatches.filter((b) => Number(b.current_alive_count ?? b.bird_count ?? 0) > 0),
+    [liveBatches]
+  );
   const available = Number(feed?.current_kg || 0);
   const unitCost = Number(feed?.last_unit_cost || 0);
   const total = qty * unitCost;
