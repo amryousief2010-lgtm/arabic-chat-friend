@@ -129,7 +129,12 @@ export function OstrichFeedConsumptionDialog({
             <Select value={liveBatchId} onValueChange={setLiveBatchId}>
               <SelectTrigger><SelectValue placeholder="اختر الدفعة" /></SelectTrigger>
               <SelectContent>
-                {liveBatches.map((b) => (
+                {activeBatches.length === 0 && (
+                  <div className="p-2 text-xs text-muted-foreground text-center">
+                    لا توجد دفعات نعام حي متاحة للصرف
+                  </div>
+                )}
+                {activeBatches.map((b) => (
                   <SelectItem key={b.id} value={b.id}>
                     {b.receipt_number} — حي: {b.current_alive_count || b.bird_count}
                   </SelectItem>
