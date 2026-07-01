@@ -1850,6 +1850,38 @@ const Orders = () => {
                         </Badge>
                       )}
                     </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1 min-w-[170px]">
+                        <Select
+                          value={order.collection_method ?? '__unset__'}
+                          onValueChange={(v) => updateCollectionMethod(order.id, v as CollectionMethod)}
+                        >
+                          <SelectTrigger className="w-full h-8 px-2">
+                            {order.collection_method ? (
+                              <Badge className={`text-[11px] border ${collectionMethodMeta[order.collection_method].className}`}>
+                                {collectionMethodMeta[order.collection_method].short}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[11px] text-muted-foreground border-muted">
+                                لم يحدد التحصيل
+                              </Badge>
+                            )}
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(Object.keys(collectionMethodMeta) as CollectionMethod[]).map((k) => (
+                              <SelectItem key={k} value={k}>{collectionMethodMeta[k].label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <span className="text-[11px] text-muted-foreground">
+                          {order.collection_method === 'cash_courier'
+                            ? <>مطلوب: <span className="font-bold text-emerald-700">{Number(order.courier_cash_due || order.total).toLocaleString()} ج</span></>
+                            : order.collection_method
+                              ? <>مطلوب من المندوب: <span className="font-bold">0 ج</span></>
+                              : <span className="italic">لم يحدد التحصيل</span>}
+                        </span>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {formatDate(order.created_at)}
                     </TableCell>
