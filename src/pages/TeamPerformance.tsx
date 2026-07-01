@@ -745,14 +745,25 @@ const TeamPerformance = () => {
                         <Badge variant="outline">{member.pendingOrders}</Badge>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => handleRemoveMember(member.id)}
-                        >
-                          <UserMinus className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openMemberDetails(member)}
+                            title="عرض تفاصيل الطلبات"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleRemoveMember(member.id)}
+                            title="إزالة من الفريق"
+                          >
+                            <UserMinus className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -762,6 +773,50 @@ const TeamPerformance = () => {
           </Card>
         </>
       )}
+
+      {/* Member details dialog */}
+      <Dialog open={!!detailsMember} onOpenChange={(open) => { if (!open) { setDetailsMember(null); setDetailsOrders([]); } }}>
+        <DialogContent dir="rtl" className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>تفاصيل طلبات: {detailsMember?.full_name}</DialogTitle>
+            <DialogDescription>
+              الفترة: {periodLabels[period]} — إجمالي {detailsMember?.ordersCount ?? 0} طلب بقيمة {(detailsMember?.totalSales ?? 0).toLocaleString()} ج.م
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-auto flex-1">
+            {detailsLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary" />
+              </div>
+            ) : detailsOrders.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">لا توجد طلبات في هذه الفترة</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-right">رقم الطلب</TableHead>
+                    <TableHead className="text-right">العميل</TableHead>
+                    <TableHead className="text-right">الحالة</TableHead>
+                    <TableHead className="text-right">الإجمالي</TableHead>
+                    <TableHead className="text-right">التاريخ</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {detailsOrders.map(o => (
+                    <TableRow key={o.id}>
+                      <TableCell className="font-mono text-xs">{o.order_number ?? o.id.slice(0, 8)}</TableCell>
+                      <TableCell>{o.customer_name ?? '—'}</TableCell>
+                      <TableCell><Badge variant="outline">{o.status}</Badge></TableCell>
+                      <TableCell className="font-semibold">{Number(o.total || 0).toLocaleString()} ج.م</TableCell>
+                      <TableCell className="text-xs">{formatDate(new Date(o.created_at))}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
