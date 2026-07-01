@@ -106,7 +106,29 @@ interface Order {
   route_id: string | null;
   route_name: string | null;
   items: OrderItem[];
+  update_status_marker?: UpdateStatusMarker | null;
+  update_status_updated_at?: string | null;
 }
+
+// آخر زر تحديث تم استخدامه على الأوردر (عرض فقط، لا يمس منطق المخزون/المالية).
+type UpdateStatusMarker =
+  | 'cash'
+  | 'delivered'
+  | 'distribution'
+  | 'correction'
+  | 'cancelled'
+  | 'gift'
+  | 'returned';
+
+const updateMarkerMeta: Record<UpdateStatusMarker, { label: string; className: string }> = {
+  cash:         { label: 'كاش ✅',    className: 'bg-emerald-500 text-white border-emerald-600' },
+  delivered:    { label: 'تسليم ✅',  className: 'bg-sky-500 text-white border-sky-600' },
+  distribution: { label: 'توزيع 🚚',  className: 'bg-violet-500 text-white border-violet-600' },
+  correction:   { label: 'تصحيح 🔧', className: 'bg-orange-500 text-white border-orange-600' },
+  cancelled:    { label: 'إلغاء ❌',  className: 'bg-slate-500 text-white border-slate-600' },
+  gift:         { label: 'مجاني 🎁', className: 'bg-pink-500 text-white border-pink-600' },
+  returned:     { label: 'مرتجع ↩️', className: 'bg-red-600 text-white border-red-700' },
+};
 
 // Fulfillment filter keys
 const fulfillmentOptions: { value: string; label: string }[] = [
@@ -417,6 +439,7 @@ const Orders = () => {
         'collection_status','subtotal','discount','delivery_fee','total','notes',
         'delivery_address','created_at','delivered_at','created_by','moderator',
         'shipping_company','fulfillment_type','source_warehouse_id','route_id',
+        'update_status_marker','update_status_updated_at',
       ].join(',');
       const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg';
 
@@ -472,6 +495,8 @@ const Orders = () => {
             unit: (item.product_id && productsMap[item.product_id]) || 'كجم',
             offer_name: (item as any).offer_name ?? null,
           })),
+          update_status_marker: ((order as any).update_status_marker ?? null) as UpdateStatusMarker | null,
+          update_status_updated_at: (order as any).update_status_updated_at ?? null,
         }));
 
       const loadLookups = async (orders: any[], items: any[]) => {
@@ -852,6 +877,33 @@ const Orders = () => {
     return true;
   };
 
+  // يحدّث "علامة التحديث" لكل أوردر بشكل مستقل (عرض فقط، لا يمس المخزون/المالية).
+  // يُستدعى فقط بعد نجاح العملية الأصلية.
+  const markOrderUpdate = async (orderId: string, marker: UpdateStatusMarker) => {
+    const nowIso = new Date().toISOString();
+    // تحديث تفاؤلي فوري في الواجهة.
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? { ...o, update_status_marker: marker, update_status_updated_at: nowIso }
+          : o
+      )
+    );
+    try {
+      await supabase
+        .from('orders')
+        .update({
+          update_status_marker: marker,
+          update_status_updated_at: nowIso,
+          update_status_updated_by: user?.id ?? null,
+        } as any)
+        .eq('id', orderId);
+    } catch (e) {
+      // best-effort — لا نفشل العملية الأصلية بسبب علامة العرض.
+      console.warn('markOrderUpdate failed', e);
+    }
+  };
+
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     try {
@@ -927,6 +979,9 @@ const Orders = () => {
         newStatus === 'delivered' ? new Date().toISOString() : null;
       statusOverridesRef.current.set(orderId, { status: newStatus, delivered_at: deliveredAtForOverride });
       toast.success(`تم تحديث حالة الطلب إلى "${statusLabels[newStatus]}"`);
+      // علامة "حالة التحديث": delivered/cancelled يقابلان أزرار التسليم/الإلغاء.
+      if (newStatus === 'delivered') void markOrderUpdate(orderId, 'delivered');
+      else if (newStatus === 'cancelled') void markOrderUpdate(orderId, 'cancelled');
     } catch (error) {
       console.error('Error updating order status:', error);
       toast.error('حدث خطأ أثناء تحديث الحالة');
@@ -961,6 +1016,8 @@ const Orders = () => {
     } else {
       toast.success(value === 'collected' ? 'تم تحديث حالة التحصيل: تم التحصيل' : 'تم تحديث حالة التحصيل: لم يتم التحصيل');
     }
+    // زر "كاش" = تم التحصيل نقداً → علامة cash.
+    if (value === 'collected') void markOrderUpdate(orderId, 'cash');
   };
 
   const handleCollectionChange = async (orderId: string, value: string) => {
@@ -1345,6 +1402,21 @@ const Orders = () => {
                         {order.collection_status === 'collected' ? 'تم التحصيل' : 'لم يتم التحصيل'}
                       </Badge>
                     </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground shrink-0">حالة التحديث:</span>
+                      {order.update_status_marker ? (
+                        <Badge
+                          className={`text-[11px] border ${updateMarkerMeta[order.update_status_marker].className}`}
+                          title={order.update_status_updated_at ? `آخر تحديث: ${new Date(order.update_status_updated_at).toLocaleString('ar-EG')}` : undefined}
+                        >
+                          {updateMarkerMeta[order.update_status_marker].label}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[11px] text-muted-foreground border-muted">
+                          لم يتم التحديث
+                        </Badge>
+                      )}
+                    </div>
                     {!isSalesModerator && (
                       <Select value={order.status} onValueChange={(v: OrderStatus) => handleStatusChange(order.id, v)}>
                         <SelectTrigger className="w-full h-9 text-xs"><SelectValue /></SelectTrigger>
@@ -1593,35 +1665,53 @@ const Orders = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {isSalesModerator ? (
-                        <Badge className={`${statusColors[order.status]} flex items-center gap-1 w-fit`}>
-                          {getStatusIcon(order.status)}
-                          {statusLabels[order.status]}
-                        </Badge>
-                      ) : (
-                        <Select
-                          value={order.status}
-                          onValueChange={(value: OrderStatus) =>
-                            handleStatusChange(order.id, value)
-                          }
-                        >
-                          <SelectTrigger className="w-36">
-                            <Badge className={`${statusColors[order.status]} flex items-center gap-1`}>
-                              {getStatusIcon(order.status)}
-                              {statusLabels[order.status]}
+                      <div className="flex flex-col gap-1.5">
+                        {isSalesModerator ? (
+                          <Badge className={`${statusColors[order.status]} flex items-center gap-1 w-fit`}>
+                            {getStatusIcon(order.status)}
+                            {statusLabels[order.status]}
+                          </Badge>
+                        ) : (
+                          <Select
+                            value={order.status}
+                            onValueChange={(value: OrderStatus) =>
+                              handleStatusChange(order.id, value)
+                            }
+                          >
+                            <SelectTrigger className="w-36">
+                              <Badge className={`${statusColors[order.status]} flex items-center gap-1`}>
+                                {getStatusIcon(order.status)}
+                                {statusLabels[order.status]}
+                              </Badge>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(statusLabels)
+                                .filter(([value]) => value === order.status || ['pending', 'delivered', 'cancelled'].includes(value))
+                                .map(([value, label]) => (
+                                  <SelectItem key={value} value={value}>
+                                    {value === 'pending' && isPrivateDeliveryRep ? 'مؤجل' : label}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        {/* حالة التحديث — علامة آخر زر تحديث تم استخدامه (عرض فقط). */}
+                        <div className="flex items-center gap-1 text-[10px]">
+                          <span className="text-muted-foreground">آخر تحديث:</span>
+                          {order.update_status_marker ? (
+                            <Badge
+                              className={`text-[10px] border px-1.5 py-0 ${updateMarkerMeta[order.update_status_marker].className}`}
+                              title={order.update_status_updated_at ? new Date(order.update_status_updated_at).toLocaleString('ar-EG') : undefined}
+                            >
+                              {updateMarkerMeta[order.update_status_marker].label}
                             </Badge>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(statusLabels)
-                              .filter(([value]) => value === order.status || ['pending', 'delivered', 'cancelled'].includes(value))
-                              .map(([value, label]) => (
-                                <SelectItem key={value} value={value}>
-                                  {value === 'pending' && isPrivateDeliveryRep ? 'مؤجل' : label}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      )}
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] text-muted-foreground border-muted px-1.5 py-0">
+                              لم يتم التحديث
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>
                       {isAccountant ? (
