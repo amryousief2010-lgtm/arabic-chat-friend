@@ -417,7 +417,7 @@ const buildReportHtml = (loginUrl: string) => {
 };
 
 const MarketingManagerAccountReport = () => {
-  const loginUrl = useMemo(() => `${window.location.origin}/auth`, []);
+  const loginUrl = useMemo(() => "https://coceg.net/auth", []);
 
   const handlePrint = () => {
     openPrintWindow(
