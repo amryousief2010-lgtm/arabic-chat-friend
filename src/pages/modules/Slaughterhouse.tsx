@@ -2672,6 +2672,8 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
       const { error } = await supabase.from("slaughter_batch_outputs" as any).insert(toUpsert);
       if (error) { toast.error(error.message); return; }
     }
+    // Refresh auto_cost_per_kg via unified allocation over accepted outputs
+    try { await supabase.rpc("recalc_slaughter_output_auto_costs" as any, { p_batch_id: batchId }); } catch {}
 
     const { data: userRes } = await supabase.auth.getUser();
     const uid = userRes?.user?.id || null;
