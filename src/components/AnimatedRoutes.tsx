@@ -419,7 +419,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/social-media/export" element={
-            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager']}>
               <PageTransition><SocialMediaExport /></PageTransition>
             </ProtectedRoute>
           } />

@@ -296,11 +296,11 @@ export const moduleSections: ModuleSection[] = [
       { icon: History, label: "تقاريري السابقة", path: "/social-media/my-reports", roles: ['social_media_manager'] },
       { icon: ShieldCheck, label: "مراجعة تقارير السوشيال ميديا", path: "/social-media/review", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager'] },
       { icon: Receipt, label: "مصروفات السوشيال", path: "/social-media/expenses", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager'] },
-      { icon: FileSpreadsheet, label: "تصدير التقارير", path: "/social-media/export", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'social_media_manager'] },
+      { icon: FileSpreadsheet, label: "تصدير التقارير", path: "/social-media/export", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager'] },
     ],
   },
   {
-    id: "hr",
+    id: "hr-staff",
     icon: UsersRound,
     label: "شؤون الموظفين",
     roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'],
