@@ -368,17 +368,22 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
                                 ) : opts.map((opt) => {
                                   const a = Number(opt.current_alive_count ?? opt.bird_count) || 0;
                                   const c = Number(opt.cost_per_bird_current || 0);
+                                  const availTotal = a * c;
                                   const rev = needsCostReview(opt);
                                   return (
                                     <SelectItem key={opt.id} value={opt.id}>
-                                      <span className="flex items-center gap-1">
+                                      <span className="flex items-center gap-1 whitespace-nowrap">
                                         {rev.flag && <AlertTriangle className="w-3 h-3 text-amber-600" />}
-                                        {opt.receipt_number} — متاح {a} — تكلفة/نعامة {fmt(c)}
+                                        <b>{opt.receipt_number}</b>
+                                        <span className="text-muted-foreground">— متاح</span> <b>{a}</b>
+                                        <span className="text-muted-foreground">— تكلفة/نعامة</span> <b>{fmt(c)}</b>
+                                        <span className="text-muted-foreground">— إجمالي المتاح</span> <b className="text-primary">{fmt(availTotal)}</b>
                                         {rev.flag && <span className="text-[10px] text-amber-700">⚠ مراجعة</span>}
                                       </span>
                                     </SelectItem>
                                   );
                                 })}
+
                               </SelectContent>
                             </Select>
                             {rowErr && (
