@@ -977,6 +977,15 @@ const Orders = () => {
       const isAgouza = targetOrder?.source_warehouse_id === AGOUZA_WAREHOUSE_ID;
       const prevStatus = targetOrder?.status as OrderStatus | undefined;
 
+      // إلزامية اختيار طريقة التحصيل قبل تأكيد التسليم.
+      // لا تمس منطق التسليم/المخزون/المالية — مجرد Gate واجهة.
+      if (newStatus === 'delivered' && !targetOrder?.collection_method) {
+        setPendingDeliveryMethod('cash_courier');
+        setPendingDeliveryOrderId(orderId);
+        return;
+      }
+
+
       // M4-B: Agouza orders without an active/committed reservation (shortage).
       // Allow override with explicit confirmation; skip commit since there's
       // no reservation to commit. Stock movement is bypassed in that case.
