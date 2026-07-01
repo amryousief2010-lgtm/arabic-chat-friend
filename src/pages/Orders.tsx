@@ -518,6 +518,9 @@ const Orders = () => {
           })),
           update_status_marker: ((order as any).update_status_marker ?? null) as UpdateStatusMarker | null,
           update_status_updated_at: (order as any).update_status_updated_at ?? null,
+          collection_method: ((order as any).collection_method ?? null) as CollectionMethod | null,
+          courier_cash_due: (order as any).courier_cash_due != null ? Number((order as any).courier_cash_due) : 0,
+          collection_updated_at: (order as any).collection_updated_at ?? null,
         }));
 
       const loadLookups = async (orders: any[], items: any[]) => {
