@@ -123,10 +123,13 @@ const Customers = () => {
       setFormData({
         name: customer.name, phone: customer.phone,
         email: customer.email || "", address: customer.address || "", city: customer.city || "",
+        source: customer.source || "", communication_channel: customer.communication_channel || "",
+        governorate: customer.governorate || "", area: customer.area || "",
+        campaign_name: customer.campaign_name || "",
       });
     } else {
       setEditingCustomer(null);
-      setFormData({ name: "", phone: "", email: "", address: "", city: "" });
+      setFormData({ name: "", phone: "", email: "", address: "", city: "", source: "", communication_channel: "", governorate: "", area: "", campaign_name: "" });
     }
     setIsDialogOpen(true);
   };
