@@ -118,8 +118,8 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
     queryKey: ['girls-auto-qty', selectedMonth, selectedYear],
     queryFn: async () => {
       // حدود الشهر بـ UTC لتطابق created_at المخزّن
-      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0, 0)).toISOString();
-      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0, 0)).toISOString();
+      const startDate = cairoMonthStartUTC(selectedYear, selectedMonth - 1).toISOString();
+      const endDate = cairoMonthStartUTC(selectedYear, selectedMonth).toISOString();
 
       const empty = () => GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
       const result = { meat: empty(), bone: empty(), processed: empty() };
@@ -205,8 +205,8 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
   const { data: chickQtyByGirl = {} as Record<string, number> } = useQuery({
     queryKey: ['girls-chick-qty', selectedMonth, selectedYear],
     queryFn: async () => {
-      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0, 0)).toISOString();
-      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0, 0)).toISOString();
+      const startDate = cairoMonthStartUTC(selectedYear, selectedMonth - 1).toISOString();
+      const endDate = cairoMonthStartUTC(selectedYear, selectedMonth).toISOString();
       const empty = GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
       const { data: rows, error } = await supabase
         .from('chick_orders')
