@@ -303,6 +303,8 @@ export default function CourierOrderCustodyTab() {
         const totalValue = items.reduce((s, a) => {
           const o = orders.find((x) => x.id === a.order_id);
           if (isNonCashAssignment(a, o as any)) return s;
+          // For mixed payments, only the cash portion counts toward courier cash-due totals.
+          if (o?.collection_method === 'mixed_payment') return s + Number(o?.courier_cash_due || 0);
           return s + Number(o?.total || 0);
         }, 0);
 
