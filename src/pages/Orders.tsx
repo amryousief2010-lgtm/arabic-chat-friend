@@ -930,16 +930,105 @@ const Orders = () => {
 
   // تحديث طريقة التحصيل + إعادة حساب المبلغ المطلوب من المندوب.
   // لا يمس أي منطق للمخزون أو التسليم أو الحركات المالية.
+  // نافذة توزيع "التحصيل المختلط" — تُفتح عند اختيار طريقة mixed_payment.
+  const [mixedDlgOrderId, setMixedDlgOrderId] = useState<string | null>(null);
+  const [mixedCash, setMixedCash] = useState<string>('');
+  const [mixedVod, setMixedVod] = useState<string>('');
+  const [mixedInsta, setMixedInsta] = useState<string>('');
+  const [mixedFree, setMixedFree] = useState<string>('');
+  const [mixedNote, setMixedNote] = useState<string>('');
+
+  const openMixedDialog = (orderId: string) => {
+    const t = orders.find((o) => o.id === orderId);
+    if (!t) return;
+    setMixedCash(String(t.courier_cash_due ?? 0));
+    setMixedVod(String(t.vodafone_cash_amount ?? 0));
+    setMixedInsta(String(t.instapay_amount ?? 0));
+    setMixedFree(String(t.free_amount ?? 0));
+    setMixedNote('');
+    setMixedDlgOrderId(orderId);
+  };
+
+  const saveMixedBreakdown = async () => {
+    const id = mixedDlgOrderId;
+    if (!id) return;
+    const target = orders.find((o) => o.id === id);
+    if (!target) return;
+    const cash = Number(mixedCash) || 0;
+    const vod = Number(mixedVod) || 0;
+    const insta = Number(mixedInsta) || 0;
+    const free = Number(mixedFree) || 0;
+    const sum = cash + vod + insta + free;
+    const totalVal = Number(target.total || 0);
+    if (Math.abs(sum - totalVal) > 0.01) {
+      toast.error(`مجموع مبالغ التحصيل (${sum.toFixed(2)}) لا يساوي قيمة الأوردر (${totalVal.toFixed(2)}).`);
+      return;
+    }
+    if ([cash, vod, insta, free].some((v) => v < 0)) {
+      toast.error('لا يمكن إدخال مبالغ سالبة.');
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    try {
+      const { error } = await supabase.from('orders').update({
+        collection_method: 'mixed_payment',
+        courier_cash_due: cash,
+        vodafone_cash_amount: vod,
+        instapay_amount: insta,
+        free_amount: free,
+        collection_note: mixedNote || null,
+        collection_updated_at: nowIso,
+        collection_updated_by: user?.id ?? null,
+      } as any).eq('id', id);
+      if (error) throw error;
+      // Audit
+      await supabase.from('order_payment_breakdown_audit' as any).insert({
+        order_id: id,
+        old_collection_method: target.collection_method ?? null,
+        new_collection_method: 'mixed_payment',
+        old_cash_amount: target.courier_cash_due ?? 0,
+        new_cash_amount: cash,
+        old_vodafone_cash_amount: target.vodafone_cash_amount ?? 0,
+        new_vodafone_cash_amount: vod,
+        old_instapay_amount: target.instapay_amount ?? 0,
+        new_instapay_amount: insta,
+        old_free_amount: target.free_amount ?? 0,
+        new_free_amount: free,
+        note: mixedNote || null,
+        changed_by: user?.id ?? null,
+      } as any);
+      setOrders((prev) => prev.map((o) => o.id === id ? { ...o,
+        collection_method: 'mixed_payment',
+        courier_cash_due: cash,
+        vodafone_cash_amount: vod,
+        instapay_amount: insta,
+        free_amount: free,
+        collection_updated_at: nowIso,
+      } : o));
+      setMixedDlgOrderId(null);
+      toast.success('تم حفظ توزيع التحصيل المختلط ✅');
+    } catch (e: any) {
+      console.error('saveMixedBreakdown failed', e);
+      toast.error(e?.message || 'تعذّر حفظ التوزيع');
+    }
+  };
+
+  // تحديث طريقة التحصيل + إعادة حساب المبلغ المطلوب من المندوب.
+  // لا يمس أي منطق للمخزون أو التسليم أو الحركات المالية.
   const updateCollectionMethod = async (orderId: string, method: CollectionMethod) => {
     const target = orders.find((o) => o.id === orderId);
     if (!target) return;
+    // For mixed payment, open the breakdown dialog instead of saving directly.
+    if (method === 'mixed_payment') { openMixedDialog(orderId); return; }
     const due = method === 'cash_courier' ? Number(target.total || 0) : 0;
     const nowIso = new Date().toISOString();
     // تحديث تفاؤلي
     setOrders((prev) =>
       prev.map((o) =>
         o.id === orderId
-          ? { ...o, collection_method: method, courier_cash_due: due, collection_updated_at: nowIso }
+          ? { ...o, collection_method: method, courier_cash_due: due,
+              vodafone_cash_amount: 0, instapay_amount: 0, free_amount: 0,
+              collection_updated_at: nowIso }
           : o
       )
     );
@@ -949,6 +1038,9 @@ const Orders = () => {
         .update({
           collection_method: method,
           courier_cash_due: due,
+          vodafone_cash_amount: 0,
+          instapay_amount: 0,
+          free_amount: 0,
           collection_updated_at: nowIso,
           collection_updated_by: user?.id ?? null,
         } as any)
