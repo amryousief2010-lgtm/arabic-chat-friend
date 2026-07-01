@@ -218,7 +218,7 @@ export default function CourierOrderCustodyTab() {
   const custodyAnalytics = useMemo(() => {
     return custodies.map((c) => {
       const myAsn = assignments.filter((a) => a.custody_id === c.id);
-      const giftOrderIds = new Set(myAsn.filter(isGiftAssignment).map((a) => a.order_id));
+      const giftOrderIds = new Set(myAsn.filter((a) => isGiftAssignment(a, orders.find((o) => o.id === a.order_id) as any)).map((a) => a.order_id));
       const myOrderIds = new Set(myAsn.map((a) => a.order_id));
       const myOrders = orders.filter((o) => myOrderIds.has(o.id));
       const totalValue = myOrders.reduce((s, o) => s + (giftOrderIds.has(o.id) ? 0 : Number(o.total || 0)), 0);
