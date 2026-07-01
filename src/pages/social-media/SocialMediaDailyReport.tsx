@@ -10,9 +10,17 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ClipboardList, Save, Send, History, Paperclip, X, ImageIcon } from "lucide-react";
+import { ClipboardList, Save, Send, History, Paperclip, X, ImageIcon, ChevronDown, Eye, Sparkles, Heart, MessageCircle, Share2, UserPlus, Instagram, Facebook, Youtube, Video as VideoIcon } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type DailyStatus = "draft" | "submitted" | "reviewed";
+const PLATFORMS: { key: string; label: string; icon: any }[] = [
+  { key: "instagram", label: "Instagram", icon: Instagram },
+  { key: "facebook", label: "Facebook", icon: Facebook },
+  { key: "tiktok", label: "TikTok", icon: VideoIcon },
+  { key: "youtube", label: "YouTube", icon: Youtube },
+];
 
 interface DailyForm {
   id?: string;
@@ -27,6 +35,13 @@ interface DailyForm {
   complaint_attachment_path: string | null;
   status: DailyStatus;
   management_notes?: string | null;
+  reach_count: string;
+  impressions_count: string;
+  likes_count: string;
+  comments_count: string;
+  shares_count: string;
+  new_followers_count: string;
+  platforms: string[];
 }
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
