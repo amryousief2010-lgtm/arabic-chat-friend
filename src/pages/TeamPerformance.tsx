@@ -404,6 +404,69 @@ const TeamPerformance = () => {
     toast.success('تم تصدير التقرير بنجاح');
   };
 
+  const exportToCSV = () => {
+    const header = ['الاسم', 'عدد الطلبات', 'المبيعات (ج.م)', 'تم التوصيل', 'قيد التنفيذ'];
+    const rows = teamMembers.map(m => [
+      m.full_name,
+      m.ordersCount,
+      m.totalSales,
+      m.deliveredOrders,
+      m.pendingOrders,
+    ]);
+    const totals = ['الإجمالي', totalOrders, totalSales, totalDelivered, teamMembers.reduce((s, m) => s + m.pendingOrders, 0)];
+    const csv = [header, ...rows, totals]
+      .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    // BOM for Excel Arabic
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `team-performance-${period}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('تم تصدير CSV بنجاح');
+  };
+
+  const openMemberDetails = async (member: TeamMember) => {
+    setDetailsMember(member);
+    setDetailsLoading(true);
+    setDetailsOrders([]);
+    try {
+      // Recompute period start (نفس منطق fetchTeamData)
+      const now = new Date();
+      const { year: cy, monthIndex0: cm } = currentCairoYearMonth(now);
+      let startDate: Date;
+      switch (period) {
+        case 'week':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+        case 'quarter':
+          startDate = cairoMonthStartUTC(cy, Math.floor(cm / 3) * 3); break;
+        case 'year':
+          startDate = cairoYearStartUTC(cy); break;
+        case 'month':
+        default:
+          startDate = cairoMonthStartUTC(cy, cm);
+      }
+      const { data, error } = await supabase
+        .from('orders')
+        .select('id, order_number, customer_name, total, status, created_at')
+        .eq('created_by', member.id)
+        .gte('created_at', startDate.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      setDetailsOrders(data || []);
+    } catch (e) {
+      console.error(e);
+      toast.error('تعذّر تحميل تفاصيل الطلبات');
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+
+
   return (
     <DashboardLayout>
       <Header title="أداء الفريق" subtitle="متابعة أداء فريق المبيعات" />
