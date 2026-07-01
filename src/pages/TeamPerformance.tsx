@@ -61,6 +61,9 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
+  FileDown,
+  RefreshCcw,
+  Eye,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -97,6 +100,9 @@ const TeamPerformance = () => {
   const [period, setPeriod] = useState('month');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedModerator, setSelectedModerator] = useState<string>('');
+  const [detailsMember, setDetailsMember] = useState<TeamMember | null>(null);
+  const [detailsOrders, setDetailsOrders] = useState<any[]>([]);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   const fetchTeamData = async () => {
     if (!user) return;
@@ -398,6 +404,69 @@ const TeamPerformance = () => {
     toast.success('تم تصدير التقرير بنجاح');
   };
 
+  const exportToCSV = () => {
+    const header = ['الاسم', 'عدد الطلبات', 'المبيعات (ج.م)', 'تم التوصيل', 'قيد التنفيذ'];
+    const rows = teamMembers.map(m => [
+      m.full_name,
+      m.ordersCount,
+      m.totalSales,
+      m.deliveredOrders,
+      m.pendingOrders,
+    ]);
+    const totals = ['الإجمالي', totalOrders, totalSales, totalDelivered, teamMembers.reduce((s, m) => s + m.pendingOrders, 0)];
+    const csv = [header, ...rows, totals]
+      .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    // BOM for Excel Arabic
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `team-performance-${period}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('تم تصدير CSV بنجاح');
+  };
+
+  const openMemberDetails = async (member: TeamMember) => {
+    setDetailsMember(member);
+    setDetailsLoading(true);
+    setDetailsOrders([]);
+    try {
+      // Recompute period start (نفس منطق fetchTeamData)
+      const now = new Date();
+      const { year: cy, monthIndex0: cm } = currentCairoYearMonth(now);
+      let startDate: Date;
+      switch (period) {
+        case 'week':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+        case 'quarter':
+          startDate = cairoMonthStartUTC(cy, Math.floor(cm / 3) * 3); break;
+        case 'year':
+          startDate = cairoYearStartUTC(cy); break;
+        case 'month':
+        default:
+          startDate = cairoMonthStartUTC(cy, cm);
+      }
+      const { data, error } = await supabase
+        .from('orders')
+        .select('id, order_number, customer_name, total, status, created_at')
+        .eq('created_by', member.id)
+        .gte('created_at', startDate.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      setDetailsOrders(data || []);
+    } catch (e) {
+      console.error(e);
+      toast.error('تعذّر تحميل تفاصيل الطلبات');
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+
+
   return (
     <DashboardLayout>
       <Header title="أداء الفريق" subtitle="متابعة أداء فريق المبيعات" />
@@ -434,10 +503,21 @@ const TeamPerformance = () => {
                   <FileSpreadsheet className="w-4 h-4" />
                   تصدير Excel
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToCSV} className="gap-2 cursor-pointer">
+                  <FileDown className="w-4 h-4" />
+                  تصدير CSV
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+
+          <Button variant="outline" className="gap-2" onClick={fetchTeamData} disabled={loading}>
+            <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            تحديث
+          </Button>
         </div>
+
+
 
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
@@ -665,14 +745,25 @@ const TeamPerformance = () => {
                         <Badge variant="outline">{member.pendingOrders}</Badge>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => handleRemoveMember(member.id)}
-                        >
-                          <UserMinus className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openMemberDetails(member)}
+                            title="عرض تفاصيل الطلبات"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleRemoveMember(member.id)}
+                            title="إزالة من الفريق"
+                          >
+                            <UserMinus className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -682,6 +773,50 @@ const TeamPerformance = () => {
           </Card>
         </>
       )}
+
+      {/* Member details dialog */}
+      <Dialog open={!!detailsMember} onOpenChange={(open) => { if (!open) { setDetailsMember(null); setDetailsOrders([]); } }}>
+        <DialogContent dir="rtl" className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>تفاصيل طلبات: {detailsMember?.full_name}</DialogTitle>
+            <DialogDescription>
+              الفترة: {periodLabels[period]} — إجمالي {detailsMember?.ordersCount ?? 0} طلب بقيمة {(detailsMember?.totalSales ?? 0).toLocaleString()} ج.م
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-auto flex-1">
+            {detailsLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary" />
+              </div>
+            ) : detailsOrders.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">لا توجد طلبات في هذه الفترة</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-right">رقم الطلب</TableHead>
+                    <TableHead className="text-right">العميل</TableHead>
+                    <TableHead className="text-right">الحالة</TableHead>
+                    <TableHead className="text-right">الإجمالي</TableHead>
+                    <TableHead className="text-right">التاريخ</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {detailsOrders.map(o => (
+                    <TableRow key={o.id}>
+                      <TableCell className="font-mono text-xs">{o.order_number ?? o.id.slice(0, 8)}</TableCell>
+                      <TableCell>{o.customer_name ?? '—'}</TableCell>
+                      <TableCell><Badge variant="outline">{o.status}</Badge></TableCell>
+                      <TableCell className="font-semibold">{Number(o.total || 0).toLocaleString()} ج.م</TableCell>
+                      <TableCell className="text-xs">{formatDate(new Date(o.created_at))}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
