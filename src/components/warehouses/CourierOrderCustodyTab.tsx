@@ -82,8 +82,14 @@ const STATUS_ICON: Record<string, string> = {
 
 const fmt = (n: number) => new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 2 }).format(n || 0);
 
-const isGiftAssignment = (a: { notes?: string | null }) =>
-  !!(a?.notes && /هدية مجانية|مجاني/.test(a.notes));
+const isGiftAssignment = (
+  a: { notes?: string | null; order_id?: string } | null | undefined,
+  order?: { update_status_marker?: string | null; collection_method?: string | null } | null,
+) => {
+  if (order && (order.update_status_marker === "gift" || order.collection_method === "none")) return true;
+  return !!(a?.notes && /هدية مجانية|مجاني/.test(a.notes));
+};
+
 
 type Custody = { id: string; courier_name: string; status: string; opened_at: string };
 type Assignment = {
@@ -96,7 +102,12 @@ type Order = {
   customer_id?: string | null;
   customer_name?: string | null; created_at: string;
   customers?: { name: string | null; phone: string | null } | null;
+  update_status_marker?: string | null;
+  collection_method?: string | null;
+  courier_cash_due?: number | null;
+  collection_note?: string | null;
 };
+
 type Tracking = { order_id: string; courier_status: string | null };
 type Collection = { id: string; order_id: string; amount_due: number; amount_collected: number; status: string; collected_at: string };
 type FailedAttempt = { id: string; order_id: string; reason: string; notes: string | null; created_at: string };
@@ -166,15 +177,16 @@ export default function CourierOrderCustodyTab() {
     const assignedOrderIds = asn.map((a) => a.order_id);
     const [readyOrdersRes, assignedOrdersRes] = await Promise.all([
       (supabase as any).from("orders")
-        .select("id, order_number, status, total, customer_id, created_at, customers!orders_customer_id_fkey(name, phone)")
+        .select("id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, courier_cash_due, collection_note, customers!orders_customer_id_fkey(name, phone)")
         .in("status", ["pending", "processing", "shipped"])
         .order("created_at", { ascending: false })
         .limit(500),
       assignedOrderIds.length
         ? (supabase as any).from("orders")
-            .select("id, order_number, status, total, customer_id, created_at, customers!orders_customer_id_fkey(name, phone)")
+            .select("id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, courier_cash_due, collection_note, customers!orders_customer_id_fkey(name, phone)")
             .in("id", assignedOrderIds)
         : Promise.resolve({ data: [] as Order[] }),
+
     ]);
     const enrich = (o: any): Order => ({ ...o, customer_name: o?.customers?.name ?? null });
     const mergedMap = new Map<string, Order>();
@@ -212,7 +224,7 @@ export default function CourierOrderCustodyTab() {
   const custodyAnalytics = useMemo(() => {
     return custodies.map((c) => {
       const myAsn = assignments.filter((a) => a.custody_id === c.id);
-      const giftOrderIds = new Set(myAsn.filter(isGiftAssignment).map((a) => a.order_id));
+      const giftOrderIds = new Set(myAsn.filter((a) => isGiftAssignment(a, orders.find((o) => o.id === a.order_id) as any)).map((a) => a.order_id));
       const myOrderIds = new Set(myAsn.map((a) => a.order_id));
       const myOrders = orders.filter((o) => myOrderIds.has(o.id));
       const totalValue = myOrders.reduce((s, o) => s + (giftOrderIds.has(o.id) ? 0 : Number(o.total || 0)), 0);
@@ -270,10 +282,11 @@ export default function CourierOrderCustodyTab() {
       .sort((a, b) => (a[0] < b[0] ? 1 : -1))
       .map(([day, items]) => {
         const totalValue = items.reduce((s, a) => {
-          if (isGiftAssignment(a)) return s;
           const o = orders.find((x) => x.id === a.order_id);
+          if (isGiftAssignment(a, o as any)) return s;
           return s + Number(o?.total || 0);
         }, 0);
+
         const collected = items.reduce((s, a) => {
           const c = collections.find((cl) => cl.order_id === a.order_id);
           return s + Number(c?.amount_collected || 0);
@@ -357,6 +370,75 @@ export default function CourierOrderCustodyTab() {
     }
     return true;
   };
+
+  // Convert an assignment/order into a GIFT (no cash collection required from courier).
+  // Preserves original delivery status when already delivered; never re-deducts stock.
+  const markOrderAsGift = async (asn: Assignment, ord?: Order): Promise<boolean> => {
+    if (!asn) return false;
+    const orderRow = ord ?? orders.find((x) => x.id === asn.order_id);
+    const wasDelivered = !!asn.delivered_at || ["delivered", "collected", "completed"].includes(asn.status);
+    const before = {
+      update_status_marker: orderRow?.update_status_marker ?? null,
+      collection_method: orderRow?.collection_method ?? null,
+      courier_cash_due: orderRow?.courier_cash_due ?? null,
+      collection_note: orderRow?.collection_note ?? null,
+      assignment_status: asn.status,
+      assignment_notes: asn.notes ?? null,
+    };
+    // 1) If not delivered yet, atomically record a zero-cash delivery (uses existing RPC — no stock double-deduct because it flips delivered).
+    if (!wasDelivered) {
+      const ok = await recordDeliveryAndCollection(asn.order_id, 0, "هدية مجانية - تم التسليم بدون تحصيل");
+      if (!ok) return false;
+    }
+    // 2) Persist gift markers on orders + zero out cash due (safe whether delivered or not)
+    const nowIso = new Date().toISOString();
+    const { error: ordErr } = await (supabase as any)
+      .from("orders")
+      .update({
+        update_status_marker: "gift",
+        update_status_updated_at: nowIso,
+        update_status_updated_by: user?.id ?? null,
+        collection_method: "none",
+        courier_cash_due: 0,
+        collection_note: "أوردر مجاني - لا يوجد تحصيل من المندوب",
+        collection_updated_at: nowIso,
+        collection_updated_by: user?.id ?? null,
+      })
+      .eq("id", asn.order_id);
+    if (ordErr) {
+      toast({ title: "تعذّر تحديث بيانات الأوردر", description: ordErr.message, variant: "destructive" });
+      return false;
+    }
+    // 3) Tag assignment notes so isGiftAssignment fallback also matches
+    const mergedNotes = /هدية مجانية|مجاني/.test(asn.notes || "")
+      ? asn.notes
+      : `${asn.notes ? asn.notes + " | " : ""}هدية مجانية - لا يوجد تحصيل`;
+    await (supabase as any)
+      .from("courier_order_assignments")
+      .update({ notes: mergedNotes })
+      .eq("id", asn.id);
+    // 4) Audit log
+    await (supabase as any).from("courier_assignment_corrections").insert({
+      assignment_id: asn.id,
+      order_id: asn.order_id,
+      courier_name: asn.courier_name,
+      action: "mark_as_gift",
+      before_snapshot: before,
+      after_snapshot: {
+        update_status_marker: "gift",
+        collection_method: "none",
+        courier_cash_due: 0,
+        collection_note: "أوردر مجاني - لا يوجد تحصيل من المندوب",
+        preserved_delivery: wasDelivered,
+      },
+      reason: "تحويل الأوردر إلى مجاني من قائمة اختيار الحالة",
+      performed_by: user?.id ?? null,
+    });
+    toast({ title: "تم تحويل الأوردر إلى مجاني 🎁", description: "خرج من إجمالي التحصيل والمطلوب من المندوب." });
+    await load();
+    return true;
+  };
+
 
   const saveCollection = async () => {
     if (!collectOpen) return;
@@ -577,7 +659,7 @@ export default function CourierOrderCustodyTab() {
                         const o = orders.find((x) => x.id === a.order_id);
                         const trk = tracking[a.order_id];
                         const col = collections.find((c) => c.order_id === a.order_id);
-                        const gift = isGiftAssignment(a);
+                        const gift = isGiftAssignment(a, o as any);
                         const dueAmt = gift ? 0 : Number(o?.total || 0);
                         const colAmt = Number(col?.amount_collected || 0);
                         const remain = Math.max(0, dueAmt - colAmt);
@@ -667,14 +749,13 @@ export default function CourierOrderCustodyTab() {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                       onClick={async () => {
-                                        if (!confirm(`تأكيد: تسليم الأوردر ${o?.order_number ?? ""} كهدية مجانية بدون تحصيل؟`)) return;
-                                        if (await recordDeliveryAndCollection(a.order_id, 0, "هدية مجانية - تم التسليم بدون تحصيل")) {
-                                          toast({ title: "تم التسليم كهدية مجانية" }); load();
-                                        }
+                                        if (!confirm(`تأكيد: تحويل الأوردر ${o?.order_number ?? ""} إلى "مجاني 🎁"؟ لن يُطلب أي تحصيل من المندوب.`)) return;
+                                        await markOrderAsGift(a, o);
                                       }}
                                     >
-                                      <span className="ml-2">🎁</span> مجاني
+                                      <span className="ml-2">🎁</span> مجاني 🎁
                                     </DropdownMenuItem>
+
                                     <DropdownMenuItem
                                       onClick={() => {
                                         const ord = o ?? ({ id: a.order_id, order_number: a.order_id.slice(0, 8), total: dueAmt, customer_name: "—", status: a.status, created_at: a.assigned_at } as Order);
