@@ -1665,35 +1665,53 @@ const Orders = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {isSalesModerator ? (
-                        <Badge className={`${statusColors[order.status]} flex items-center gap-1 w-fit`}>
-                          {getStatusIcon(order.status)}
-                          {statusLabels[order.status]}
-                        </Badge>
-                      ) : (
-                        <Select
-                          value={order.status}
-                          onValueChange={(value: OrderStatus) =>
-                            handleStatusChange(order.id, value)
-                          }
-                        >
-                          <SelectTrigger className="w-36">
-                            <Badge className={`${statusColors[order.status]} flex items-center gap-1`}>
-                              {getStatusIcon(order.status)}
-                              {statusLabels[order.status]}
+                      <div className="flex flex-col gap-1.5">
+                        {isSalesModerator ? (
+                          <Badge className={`${statusColors[order.status]} flex items-center gap-1 w-fit`}>
+                            {getStatusIcon(order.status)}
+                            {statusLabels[order.status]}
+                          </Badge>
+                        ) : (
+                          <Select
+                            value={order.status}
+                            onValueChange={(value: OrderStatus) =>
+                              handleStatusChange(order.id, value)
+                            }
+                          >
+                            <SelectTrigger className="w-36">
+                              <Badge className={`${statusColors[order.status]} flex items-center gap-1`}>
+                                {getStatusIcon(order.status)}
+                                {statusLabels[order.status]}
+                              </Badge>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(statusLabels)
+                                .filter(([value]) => value === order.status || ['pending', 'delivered', 'cancelled'].includes(value))
+                                .map(([value, label]) => (
+                                  <SelectItem key={value} value={value}>
+                                    {value === 'pending' && isPrivateDeliveryRep ? 'مؤجل' : label}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        {/* حالة التحديث — علامة آخر زر تحديث تم استخدامه (عرض فقط). */}
+                        <div className="flex items-center gap-1 text-[10px]">
+                          <span className="text-muted-foreground">آخر تحديث:</span>
+                          {order.update_status_marker ? (
+                            <Badge
+                              className={`text-[10px] border px-1.5 py-0 ${updateMarkerMeta[order.update_status_marker].className}`}
+                              title={order.update_status_updated_at ? new Date(order.update_status_updated_at).toLocaleString('ar-EG') : undefined}
+                            >
+                              {updateMarkerMeta[order.update_status_marker].label}
                             </Badge>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(statusLabels)
-                              .filter(([value]) => value === order.status || ['pending', 'delivered', 'cancelled'].includes(value))
-                              .map(([value, label]) => (
-                                <SelectItem key={value} value={value}>
-                                  {value === 'pending' && isPrivateDeliveryRep ? 'مؤجل' : label}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      )}
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] text-muted-foreground border-muted px-1.5 py-0">
+                              لم يتم التحديث
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>
                       {isAccountant ? (
