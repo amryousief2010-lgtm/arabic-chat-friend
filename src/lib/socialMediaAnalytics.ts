@@ -33,6 +33,7 @@ export type OrderLite = {
   customer_governorate?: string | null;
   customer_area?: string | null;
   customer_channel?: string | null;
+  customer_campaign?: string | null;
 };
 
 export type ExpenseRow = {
