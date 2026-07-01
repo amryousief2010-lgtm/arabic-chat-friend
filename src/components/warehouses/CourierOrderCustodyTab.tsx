@@ -705,7 +705,15 @@ export default function CourierOrderCustodyTab() {
                           <TableRow key={a.id} className={indent ? "bg-muted/20" : ""}>
                             <TableCell className={`font-mono ${indent ? "pr-8" : ""}`}>{o?.order_number ?? a.order_id.slice(0, 8)}</TableCell>
                             <TableCell>{o?.customer_name ?? "—"}</TableCell>
-                            <TableCell className="font-mono">{fmt(dueAmt)}</TableCell>
+                            <TableCell className="font-mono">
+                              <div>{fmt(dueAmt)}</div>
+                              {mixed && (
+                                <div className="text-[10px] text-amber-700 leading-tight mt-0.5">
+                                  إجمالي: {fmt(Number(o?.total || 0))} · 📱 {fmt(Number(o?.vodafone_cash_amount || 0))} · 💳 {fmt(Number(o?.instapay_amount || 0))}
+                                  {Number(o?.free_amount || 0) > 0 && <> · 🎁 {fmt(Number(o?.free_amount || 0))}</>}
+                                </div>
+                              )}
+                            </TableCell>
                             <TableCell>
                               <Badge className={`${stClass} text-xs font-semibold px-2 py-1 whitespace-nowrap`} title={a.status !== effectiveStatus ? `assignment: ${a.status}` : undefined}>
                                 <span className="ml-1">{stIcon}</span> {stLabel}
