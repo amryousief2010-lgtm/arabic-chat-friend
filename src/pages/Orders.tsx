@@ -527,6 +527,9 @@ const Orders = () => {
           update_status_updated_at: (order as any).update_status_updated_at ?? null,
           collection_method: ((order as any).collection_method ?? null) as CollectionMethod | null,
           courier_cash_due: (order as any).courier_cash_due != null ? Number((order as any).courier_cash_due) : 0,
+          vodafone_cash_amount: (order as any).vodafone_cash_amount != null ? Number((order as any).vodafone_cash_amount) : 0,
+          instapay_amount: (order as any).instapay_amount != null ? Number((order as any).instapay_amount) : 0,
+          free_amount: (order as any).free_amount != null ? Number((order as any).free_amount) : 0,
           collection_updated_at: (order as any).collection_updated_at ?? null,
         }));
 
