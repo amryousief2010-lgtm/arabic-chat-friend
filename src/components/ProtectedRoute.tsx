@@ -91,7 +91,8 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const isModeratorBlocked =
     (role === 'sales_moderator' && !isPathAllowedForModerator(location.pathname)) ||
     (role === 'private_delivery_rep' && !isPathAllowedForPrivateRep(location.pathname)) ||
-    (role === 'social_media_manager' && !isPathAllowedForSocialMedia(location.pathname));
+    (role === 'social_media_manager' && !isPathAllowedForSocialMedia(location.pathname)) ||
+    (isMarketingOnly && !isPathAllowedForMarketingOnly(location.pathname));
   // 2) Standard role check — pass if ANY of the user's roles is allowed.
   const isRoleDenied = !!(allowedRoles && !(effectiveRoles.some((r) => allowedRoles.includes(r))));
   const isDenied = isModeratorBlocked || isRoleDenied;
@@ -103,6 +104,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
       const isSilentLanding =
         (role === 'private_delivery_rep') ||
         (role === 'social_media_manager') ||
+        isMarketingOnly ||
         (role === 'sales_moderator' && (location.pathname === '/' || location.pathname.startsWith('/dashboard')));
       if (isSilentLanding) return;
       const isDashboardAttempt =
@@ -129,7 +131,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   }
 
   if (isDenied) {
-    if (role === 'sales_moderator' || role === 'private_delivery_rep' || role === 'social_media_manager') {
+    if (role === 'sales_moderator' || role === 'private_delivery_rep' || role === 'social_media_manager' || isMarketingOnly) {
       return <Navigate to={moderatorTarget} replace />;
     }
     return <Navigate to="/unauthorized" state={{ from: location.pathname }} replace />;
