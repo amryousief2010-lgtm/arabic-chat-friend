@@ -448,6 +448,68 @@ export default function SlaughterhouseFeedStore() {
   );
 }
 
+function InflowTable({ rows, inventory, balances, nameOfUser, monthTotal }: any) {
+  const nameOf = (id: string) => inventory.find((i: any) => i.id === id)?.feed_name || "—";
+  const label: Record<string, string> = { factory_supply: "وارد من مصنع العلف", opening: "رصيد افتتاحي" };
+  return (
+    <Card>
+      <CardHeader className="pb-2 flex flex-row items-center justify-between flex-wrap gap-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Factory className="h-4 w-4 text-emerald-600" />
+          سجل الوارد من مصنع العلف
+        </CardTitle>
+        <Badge variant="secondary" className="text-sm">
+          إجمالي وارد مصنع العلف هذا الشهر: <b className="mx-1 text-emerald-700">{fmt(monthTotal)}</b> كجم
+        </Badge>
+      </CardHeader>
+      <CardContent className="p-3">
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>التاريخ</TableHead>
+            <TableHead>نوع العلف</TableHead>
+            <TableHead>الكمية (كجم)</TableHead>
+            <TableHead>المصدر</TableHead>
+            <TableHead>رقم الفاتورة / المرجع</TableHead>
+            <TableHead>المسؤول عن الاستلام</TableHead>
+            <TableHead>الرصيد قبل</TableHead>
+            <TableHead>الرصيد بعد</TableHead>
+            <TableHead>ملاحظات</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {rows.map((m: any) => {
+              const bal = balances.get(m.id);
+              const ref = m.invoice_no || m.reference_no || (m.source_id ? String(m.source_id).slice(0, 8) : "—");
+              return (
+                <TableRow key={m.id}>
+                  <TableCell className="text-xs">{new Date(m.performed_at).toLocaleString("ar-EG")}</TableCell>
+                  <TableCell className="font-medium">{nameOf(m.feed_id)}</TableCell>
+                  <TableCell className="font-bold text-emerald-700">{fmt(m.quantity_kg)}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs">
+                      {m.movement_type === "opening" ? "رصيد افتتاحي" : "مصنع العلف"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    <span className="flex items-center gap-1"><FileText className="h-3 w-3" />{ref}</span>
+                  </TableCell>
+                  <TableCell className="text-xs">{nameOfUser(m.performed_by)}</TableCell>
+                  <TableCell>{bal ? fmt(bal.before) : "—"}</TableCell>
+                  <TableCell className="font-medium">{bal ? fmt(bal.after) : "—"}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground max-w-[220px] truncate">{m.notes || "—"}</TableCell>
+                </TableRow>
+              );
+            })}
+            {!rows.length && (
+              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">لا توجد حركات وارد من المصنع</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+
 function MovementsTable({ rows, inventory }: any) {
   const nameOf = (id: string) => inventory.find((i: any) => i.id === id)?.feed_name || "—";
   const label: Record<string, string> = { factory_supply: "وارد من المصنع", consumption: "مصروف", opening: "رصيد افتتاحي", adjustment: "تعديل", reversal: "إلغاء حركة" };
