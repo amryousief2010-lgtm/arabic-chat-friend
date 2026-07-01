@@ -108,6 +108,9 @@ interface Order {
   items: OrderItem[];
   update_status_marker?: UpdateStatusMarker | null;
   update_status_updated_at?: string | null;
+  collection_method?: CollectionMethod | null;
+  courier_cash_due?: number | null;
+  collection_updated_at?: string | null;
 }
 
 // آخر زر تحديث تم استخدامه على الأوردر (عرض فقط، لا يمس منطق المخزون/المالية).
@@ -129,6 +132,23 @@ const updateMarkerMeta: Record<UpdateStatusMarker, { label: string; className: s
   gift:         { label: 'مجاني 🎁', className: 'bg-pink-500 text-white border-pink-600' },
   returned:     { label: 'مرتجع ↩️', className: 'bg-red-600 text-white border-red-700' },
 };
+
+// طريقة/حالة تحصيل مبلغ الأوردر — للعرض فقط ولا تمس منطق التسليم/المخزون/المالية.
+type CollectionMethod =
+  | 'cash_courier'
+  | 'vodafone_cash'
+  | 'instapay'
+  | 'prepaid'
+  | 'none';
+
+const collectionMethodMeta: Record<CollectionMethod, { label: string; short: string; className: string }> = {
+  cash_courier:  { label: 'تحصيل نقدي مع المندوب', short: 'كاش من المندوب',  className: 'bg-emerald-500 text-white border-emerald-600' },
+  vodafone_cash: { label: 'تحويل فودافون كاش',      short: 'Vodafone Cash',   className: 'bg-rose-500 text-white border-rose-600' },
+  instapay:      { label: 'تحويل إنستاباي',         short: 'InstaPay',        className: 'bg-violet-500 text-white border-violet-600' },
+  prepaid:       { label: 'مدفوع مسبقاً',           short: 'مدفوع مسبقاً',    className: 'bg-sky-500 text-white border-sky-600' },
+  none:          { label: 'لا يوجد تحصيل',          short: 'لا يوجد تحصيل',   className: 'bg-slate-500 text-white border-slate-600' },
+};
+
 
 // Fulfillment filter keys
 const fulfillmentOptions: { value: string; label: string }[] = [
