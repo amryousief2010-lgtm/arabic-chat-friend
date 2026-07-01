@@ -86,7 +86,7 @@ const isGiftAssignment = (
   a: { notes?: string | null; order_id?: string } | null | undefined,
   order?: { update_status_marker?: string | null; collection_method?: string | null } | null,
 ) => {
-  if (order && (order.update_status_marker === "gift" || order.collection_method === "no_collection")) return true;
+  if (order && (order.update_status_marker === "gift" || order.collection_method === "none")) return true;
   return !!(a?.notes && /هدية مجانية|مجاني/.test(a.notes));
 };
 
@@ -398,7 +398,7 @@ export default function CourierOrderCustodyTab() {
         update_status_marker: "gift",
         update_status_updated_at: nowIso,
         update_status_updated_by: user?.id ?? null,
-        collection_method: "no_collection",
+        collection_method: "none",
         courier_cash_due: 0,
         collection_note: "أوردر مجاني - لا يوجد تحصيل من المندوب",
         collection_updated_at: nowIso,
@@ -426,7 +426,7 @@ export default function CourierOrderCustodyTab() {
       before_snapshot: before,
       after_snapshot: {
         update_status_marker: "gift",
-        collection_method: "no_collection",
+        collection_method: "none",
         courier_cash_due: 0,
         collection_note: "أوردر مجاني - لا يوجد تحصيل من المندوب",
         preserved_delivery: wasDelivered,
