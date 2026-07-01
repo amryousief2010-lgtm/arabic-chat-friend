@@ -100,6 +100,9 @@ const TeamPerformance = () => {
   const [period, setPeriod] = useState('month');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedModerator, setSelectedModerator] = useState<string>('');
+  const [detailsMember, setDetailsMember] = useState<TeamMember | null>(null);
+  const [detailsOrders, setDetailsOrders] = useState<any[]>([]);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   const fetchTeamData = async () => {
     if (!user) return;
