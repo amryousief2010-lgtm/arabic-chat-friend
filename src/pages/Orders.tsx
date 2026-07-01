@@ -902,6 +902,45 @@ const Orders = () => {
     return true;
   };
 
+  // نافذة اختيار طريقة التحصيل قبل تأكيد التسليم (لا تمس منطق التسليم/المخزون/المالية).
+  const [pendingDeliveryOrderId, setPendingDeliveryOrderId] = useState<string | null>(null);
+  const [pendingDeliveryMethod, setPendingDeliveryMethod] = useState<CollectionMethod>('cash_courier');
+
+  // تحديث طريقة التحصيل + إعادة حساب المبلغ المطلوب من المندوب.
+  // لا يمس أي منطق للمخزون أو التسليم أو الحركات المالية.
+  const updateCollectionMethod = async (orderId: string, method: CollectionMethod) => {
+    const target = orders.find((o) => o.id === orderId);
+    if (!target) return;
+    const due = method === 'cash_courier' ? Number(target.total || 0) : 0;
+    const nowIso = new Date().toISOString();
+    // تحديث تفاؤلي
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? { ...o, collection_method: method, courier_cash_due: due, collection_updated_at: nowIso }
+          : o
+      )
+    );
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          collection_method: method,
+          courier_cash_due: due,
+          collection_updated_at: nowIso,
+          collection_updated_by: user?.id ?? null,
+        } as any)
+        .eq('id', orderId);
+      if (error) throw error;
+      toast.success(`تم حفظ طريقة التحصيل: ${collectionMethodMeta[method].label}`);
+    } catch (e) {
+      console.error('updateCollectionMethod failed', e);
+      toast.error('تعذّر حفظ طريقة التحصيل');
+    }
+  };
+
+
+
   // يحدّث "علامة التحديث" لكل أوردر بشكل مستقل (عرض فقط، لا يمس المخزون/المالية).
   // يُستدعى فقط بعد نجاح العملية الأصلية.
   const markOrderUpdate = async (orderId: string, marker: UpdateStatusMarker) => {
