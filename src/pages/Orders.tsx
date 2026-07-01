@@ -467,6 +467,7 @@ const Orders = () => {
         'shipping_company','fulfillment_type','source_warehouse_id','route_id',
         'update_status_marker','update_status_updated_at',
         'collection_method','courier_cash_due','collection_updated_at',
+        'vodafone_cash_amount','instapay_amount','free_amount',
       ].join(',');
       const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg';
 
