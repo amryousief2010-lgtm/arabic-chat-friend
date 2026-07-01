@@ -90,6 +90,22 @@ const isGiftAssignment = (
   return !!(a?.notes && /هدية مجانية|مجاني/.test(a.notes));
 };
 
+// Transfer (Vodafone Cash / InstaPay) — customer pays directly, courier holds no cash.
+const isTransferAssignment = (
+  a: { notes?: string | null } | null | undefined,
+  order?: { collection_method?: string | null } | null,
+) => {
+  if (order?.collection_method === "transfer") return true;
+  return !!(a?.notes && /فودافون كاش|انستا ?باى|انستا ?باي|instapay/i.test(a.notes));
+};
+
+// Any assignment that should NOT count against the courier's cash-due.
+const isNonCashAssignment = (
+  a: { notes?: string | null; order_id?: string } | null | undefined,
+  order?: { update_status_marker?: string | null; collection_method?: string | null } | null,
+) => isGiftAssignment(a, order) || isTransferAssignment(a, order);
+
+
 
 type Custody = { id: string; courier_name: string; status: string; opened_at: string };
 type Assignment = {
