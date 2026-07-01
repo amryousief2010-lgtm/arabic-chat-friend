@@ -41,6 +41,7 @@ const Customers = () => {
 
   const [formData, setFormData] = useState({
     name: "", phone: "", email: "", address: "", city: "",
+    source: "", communication_channel: "", governorate: "", area: "", campaign_name: "",
   });
 
   // Debounce search
@@ -122,10 +123,13 @@ const Customers = () => {
       setFormData({
         name: customer.name, phone: customer.phone,
         email: customer.email || "", address: customer.address || "", city: customer.city || "",
+        source: customer.source || "", communication_channel: customer.communication_channel || "",
+        governorate: customer.governorate || "", area: customer.area || "",
+        campaign_name: customer.campaign_name || "",
       });
     } else {
       setEditingCustomer(null);
-      setFormData({ name: "", phone: "", email: "", address: "", city: "" });
+      setFormData({ name: "", phone: "", email: "", address: "", city: "", source: "", communication_channel: "", governorate: "", area: "", campaign_name: "" });
     }
     setIsDialogOpen(true);
   };
@@ -141,6 +145,11 @@ const Customers = () => {
       const { error } = await supabase.from('customers').insert({
         name: data.name, phone: data.phone,
         email: data.email || null, address: data.address || null, city: data.city || null,
+        source: data.source || null,
+        communication_channel: data.communication_channel || null,
+        governorate: data.governorate || null,
+        area: data.area || null,
+        campaign_name: data.campaign_name || null,
       });
       if (error) throw error;
     },
@@ -186,8 +195,16 @@ const Customers = () => {
       return;
     }
     const cleaned = { ...formData, phone: normalizedPhone };
+    const nul = (v: string) => v?.trim() || null;
+    const updates = {
+      ...cleaned,
+      email: nul(cleaned.email), address: nul(cleaned.address), city: nul(cleaned.city),
+      source: nul(cleaned.source), communication_channel: nul(cleaned.communication_channel),
+      governorate: nul(cleaned.governorate), area: nul(cleaned.area),
+      campaign_name: nul(cleaned.campaign_name),
+    };
     if (editingCustomer) {
-      updateMutation.mutate({ id: editingCustomer.id, updates: { ...cleaned, email: cleaned.email || null, address: cleaned.address || null, city: cleaned.city || null } });
+      updateMutation.mutate({ id: editingCustomer.id, updates });
     } else {
       createMutation.mutate(cleaned);
     }
@@ -241,6 +258,29 @@ const Customers = () => {
                     <Label>العنوان</Label>
                     <Input value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} placeholder="أدخل العنوان" className="input-modern" />
                   </div>
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                    <div className="col-span-2 text-xs text-muted-foreground">حقول تسويقية (اختيارية):</div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">مصدر العميل</Label>
+                      <Input value={formData.source} onChange={(e) => setFormData({ ...formData, source: e.target.value })} placeholder="Facebook / Instagram / موقع..." className="input-modern" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">قناة التواصل</Label>
+                      <Input value={formData.communication_channel} onChange={(e) => setFormData({ ...formData, communication_channel: e.target.value })} placeholder="واتساب / مكالمة / رسالة..." className="input-modern" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">المحافظة</Label>
+                      <Input value={formData.governorate} onChange={(e) => setFormData({ ...formData, governorate: e.target.value })} placeholder="القاهرة / الجيزة..." className="input-modern" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">المنطقة</Label>
+                      <Input value={formData.area} onChange={(e) => setFormData({ ...formData, area: e.target.value })} placeholder="مدينة نصر..." className="input-modern" />
+                    </div>
+                    <div className="col-span-2 space-y-2">
+                      <Label className="text-xs">اسم الحملة</Label>
+                      <Input value={formData.campaign_name} onChange={(e) => setFormData({ ...formData, campaign_name: e.target.value })} placeholder="اسم الحملة الإعلانية إن وجدت" className="input-modern" />
+                    </div>
+                  </div>
                   <Button onClick={handleSubmit} className="w-full btn-primary">
                     {editingCustomer ? "حفظ التعديلات" : "إضافة العميل"}
                   </Button>
@@ -248,6 +288,7 @@ const Customers = () => {
               </DialogContent>
             </Dialog>
           </div>
+
 
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">

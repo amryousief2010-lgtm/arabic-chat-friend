@@ -136,6 +136,9 @@ export default function SocialMediaMarketingDashboard() {
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [areaFilter, setAreaFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [channelFilter, setChannelFilter] = useState<string>("all");
+  const [campaignFilter, setCampaignFilter] = useState<string>("all");
+  const [productFilter, setProductFilter] = useState<string>("all");
 
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
@@ -148,9 +151,11 @@ export default function SocialMediaMarketingDashboard() {
         const src = (o.customer_source || o.source || "غير محدد").trim();
         if (src !== sourceFilter) return false;
       }
+      if (channelFilter !== "all" && (o.customer_channel || "غير محدد").trim() !== channelFilter) return false;
+      if (campaignFilter !== "all" && ((o as any).customer_campaign || "غير محدد").trim() !== campaignFilter) return false;
       return true;
     });
-  }, [orders, statusFilter, areaFilter, sourceFilter]);
+  }, [orders, statusFilter, areaFilter, sourceFilter, channelFilter, campaignFilter]);
 
   const approvedExpense = useMemo(() => expenses.filter((e) => e.is_approved).reduce((s, e) => s + e.amount, 0), [expenses]);
   const pendingExpense = useMemo(() => expenses.filter((e) => !e.is_approved).reduce((s, e) => s + e.amount, 0), [expenses]);
@@ -163,7 +168,14 @@ export default function SocialMediaMarketingDashboard() {
   const sourceAgg = useMemo(() => aggregateBySource(filteredOrders), [filteredOrders]);
   const areaAgg = useMemo(() => aggregateByArea(filteredOrders), [filteredOrders]);
   const ordersById = useMemo(() => new Map(filteredOrders.map((o) => [o.id, o])), [filteredOrders]);
-  const productAgg = useMemo(() => aggregateProducts(items, ordersById), [items, ordersById]);
+  const filteredItems = useMemo(() => {
+    return items.filter((it) => {
+      if (!ordersById.has(it.order_id)) return false;
+      if (productFilter !== "all" && it.product_name !== productFilter) return false;
+      return true;
+    });
+  }, [items, ordersById, productFilter]);
+  const productAgg = useMemo(() => aggregateProducts(filteredItems, ordersById), [filteredItems, ordersById]);
   const daily = useMemo(() => dailySeries(filteredOrders), [filteredOrders]);
 
   const uniqueSources = useMemo(
@@ -175,6 +187,18 @@ export default function SocialMediaMarketingDashboard() {
     [orders],
   );
   const uniqueStatuses = useMemo(() => Array.from(new Set(orders.map((o) => o.status))), [orders]);
+  const uniqueChannels = useMemo(
+    () => Array.from(new Set(orders.map((o) => (o.customer_channel || "غير محدد").trim()))),
+    [orders],
+  );
+  const uniqueCampaigns = useMemo(
+    () => Array.from(new Set(orders.map((o: any) => (o.customer_campaign || "غير محدد").trim()))),
+    [orders],
+  );
+  const uniqueProducts = useMemo(
+    () => Array.from(new Set(items.map((i) => i.product_name))).sort(),
+    [items],
+  );
 
   return (
     <DashboardLayout>
@@ -248,8 +272,49 @@ export default function SocialMediaMarketingDashboard() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>قناة التواصل</Label>
+              <Select value={channelFilter} onValueChange={setChannelFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل القنوات</SelectItem>
+                  {uniqueChannels.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>الحملة</Label>
+              <Select value={campaignFilter} onValueChange={setCampaignFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل الحملات</SelectItem>
+                  {uniqueCampaigns.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>المنتج</Label>
+              <Select value={productFilter} onValueChange={setProductFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل المنتجات</SelectItem>
+                  {uniqueProducts.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
           </CardContent>
         </Card>
+
+        {pendingExpense > 0 && (
+          <Alert className="border-amber-500 bg-amber-50">
+            <ShieldAlert className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-800">مصروفات قيد المراجعة</AlertTitle>
+            <AlertDescription className="text-amber-700">
+              يوجد مصروفات سوشيال ميديا قيد المراجعة بقيمة {fmtMoney(pendingExpense)}، وهذه المصروفات لا تدخل في النسبة الرسمية إلا بعد اعتمادها.
+            </AlertDescription>
+          </Alert>
+        )}
+
 
         {/* KPI cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
