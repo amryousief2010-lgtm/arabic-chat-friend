@@ -216,6 +216,8 @@ const SocialMediaDailyReport = lazy(() => import("@/pages/social-media/SocialMed
 const SocialMediaWeeklyReport = lazy(() => import("@/pages/social-media/SocialMediaWeeklyReport"));
 const SocialMediaMyReports = lazy(() => import("@/pages/social-media/SocialMediaMyReports"));
 const SocialMediaReportsReview = lazy(() => import("@/pages/social-media/SocialMediaReportsReview"));
+const SocialMediaDashboard = lazy(() => import("@/pages/social-media/SocialMediaDashboard"));
+const SocialMediaExport = lazy(() => import("@/pages/social-media/SocialMediaExport"));
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
