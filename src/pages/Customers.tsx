@@ -195,8 +195,16 @@ const Customers = () => {
       return;
     }
     const cleaned = { ...formData, phone: normalizedPhone };
+    const nul = (v: string) => v?.trim() || null;
+    const updates = {
+      ...cleaned,
+      email: nul(cleaned.email), address: nul(cleaned.address), city: nul(cleaned.city),
+      source: nul(cleaned.source), communication_channel: nul(cleaned.communication_channel),
+      governorate: nul(cleaned.governorate), area: nul(cleaned.area),
+      campaign_name: nul(cleaned.campaign_name),
+    };
     if (editingCustomer) {
-      updateMutation.mutate({ id: editingCustomer.id, updates: { ...cleaned, email: cleaned.email || null, address: cleaned.address || null, city: cleaned.city || null } });
+      updateMutation.mutate({ id: editingCustomer.id, updates });
     } else {
       createMutation.mutate(cleaned);
     }
