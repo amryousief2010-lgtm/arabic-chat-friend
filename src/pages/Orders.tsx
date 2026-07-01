@@ -439,6 +439,7 @@ const Orders = () => {
         'collection_status','subtotal','discount','delivery_fee','total','notes',
         'delivery_address','created_at','delivered_at','created_by','moderator',
         'shipping_company','fulfillment_type','source_warehouse_id','route_id',
+        'update_status_marker','update_status_updated_at',
       ].join(',');
       const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg';
 
