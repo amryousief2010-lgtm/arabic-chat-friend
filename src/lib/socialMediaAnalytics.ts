@@ -157,7 +157,7 @@ export async function fetchOrdersInRange(range: DateRange): Promise<OrderLite[]>
     supabase
       .from("orders")
       .select(
-        "id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, source, moderator, customers:customer_id(name, source, governorate, area, communication_channel)",
+        "id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, source, moderator, customers:customer_id(name, source, governorate, area, communication_channel, campaign_name)",
       )
       .gte("created_at", range.from)
       .lte("created_at", range.to)
@@ -180,6 +180,7 @@ export async function fetchOrdersInRange(range: DateRange): Promise<OrderLite[]>
     customer_governorate: r.customers?.governorate ?? null,
     customer_area: r.customers?.area ?? null,
     customer_channel: r.customers?.communication_channel ?? null,
+    customer_campaign: r.customers?.campaign_name ?? null,
   }));
 }
 
