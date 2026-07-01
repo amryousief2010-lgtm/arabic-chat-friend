@@ -1055,7 +1055,7 @@ const Warehouses = () => {
         </div>
 
 
-        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setForceAllKpi(false); if (v === "more") setMenuSubview(null); }} defaultValue="items">
+        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setForceAllKpi(false); if (v === "more") setMenuSubview(null); if (v !== "wh-main") setMainSubview(null); if (v !== "wh-agouza") setAgouzaSubview(null); }} defaultValue="items">
           <div className="mb-4">
             <TabsList
               className="
