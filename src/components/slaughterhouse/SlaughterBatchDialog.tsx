@@ -64,6 +64,8 @@ interface Props {
   receipts: Array<ReceiptOption>;
   workers?: Array<{ id: string; full_name: string; role: string; is_active: boolean; lead_rank?: number | null }>;
   onSave: (draft: BatchDraft) => Promise<boolean>;
+  /** رصيد "النعام القائم" من الداشبورد للتحقق من مطابقة مجموع المصادر */
+  dashboardLiveBalance?: number;
 }
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
