@@ -3114,6 +3114,17 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
         <div className="text-xs text-muted-foreground mb-2">
           💡 المتاح يُحسب تلقائيًا = الكمية المنتجة − التالف − المحجور. لتوزيع نفس القطعة على أكثر من فرع، اضغط زر "+ فرع".
         </div>
+        {(() => {
+          const missingCost = rows.filter((r: any) => (Number(r.auto_cost_per_kg) || batchCostPerKg || 0) <= 0 && acceptedOf(r) > 0);
+          const missingPrice = rows.filter((r: any) => (Number(r.suggested_sale_price_per_kg) || productPriceOf(r.cut_name_ar) || 0) <= 0 && acceptedOf(r) > 0);
+          if (missingCost.length === 0 && missingPrice.length === 0) return null;
+          return (
+            <div className="mb-2 p-2 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/30 text-xs space-y-1">
+              {missingCost.length > 0 && <div className="text-amber-800">⚠ تكلفة الكيلو غير محسوبة لـ {missingCost.length} صنف — يرجى مراجعة تكلفة الدفعة.</div>}
+              {missingPrice.length > 0 && <div className="text-amber-800">⚠ لا يوجد سعر بيع افتراضي في قائمة الأسعار لـ {missingPrice.length} صنف: {missingPrice.map((r: any) => r.cut_name_ar).join("، ")}</div>}
+            </div>
+          );
+        })()}
         <div className="overflow-x-auto">
           <Table>
             <TableHeader><TableRow>
