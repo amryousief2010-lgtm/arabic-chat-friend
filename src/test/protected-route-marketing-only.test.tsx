@@ -74,7 +74,12 @@ const ALLOWED_PATHS = [
   // Moved into the social-media sidebar section via
   // @/config/sidebarOverrides — must remain reachable.
   "/sales/daily-performance-analysis",
+  // Kept in their original "Sales & Marketing" section but explicitly
+  // allowlisted for Mohamed Sayed so he can open them without a redirect.
+  "/team-performance",
+  "/moderator-performance",
 ];
+
 
 describe("ProtectedRoute — marketing_sales_manager (only role)", () => {
   beforeEach(() => vi.clearAllMocks());
