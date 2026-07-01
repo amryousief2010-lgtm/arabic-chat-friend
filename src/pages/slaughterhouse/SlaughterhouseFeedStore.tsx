@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Wheat, ArrowDownToLine, ArrowUpFromLine, Boxes, FileText, RefreshCw, Printer, Drumstick } from "lucide-react";
+import { Wheat, ArrowDownToLine, ArrowUpFromLine, Boxes, FileText, RefreshCw, Printer, Drumstick, AlertTriangle, Factory } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import FeedInternalDebtDashboard from "@/components/feed/FeedInternalDebtDashboard";
 import { openPrintWindow } from "@/lib/printPdf";
 import { OstrichFeedConsumptionDialog } from "@/components/slaughterhouse/OstrichFeedConsumptionDialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
