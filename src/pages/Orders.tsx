@@ -1519,6 +1519,40 @@ const Orders = () => {
                         </Badge>
                       )}
                     </div>
+                    <div className="flex flex-col gap-1 text-xs">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-muted-foreground shrink-0">طريقة التحصيل:</span>
+                        {order.collection_method ? (
+                          <Badge className={`text-[11px] border ${collectionMethodMeta[order.collection_method].className}`}>
+                            {collectionMethodMeta[order.collection_method].short}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[11px] text-muted-foreground border-muted">
+                            لم يحدد التحصيل
+                          </Badge>
+                        )}
+                        {order.collection_method === 'cash_courier' && (
+                          <span className="text-emerald-700 font-bold">
+                            مطلوب: {Number(order.courier_cash_due || order.total).toLocaleString()} ج
+                          </span>
+                        )}
+                        {order.collection_method && order.collection_method !== 'cash_courier' && (
+                          <span className="text-muted-foreground">مطلوب من المندوب: 0 ج</span>
+                        )}
+                      </div>
+                      <Select
+                        value={order.collection_method ?? '__unset__'}
+                        onValueChange={(v) => updateCollectionMethod(order.id, v as CollectionMethod)}
+                      >
+                        <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="تغيير طريقة التحصيل" /></SelectTrigger>
+                        <SelectContent>
+                          {(Object.keys(collectionMethodMeta) as CollectionMethod[]).map((k) => (
+                            <SelectItem key={k} value={k}>{collectionMethodMeta[k].label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     {!isSalesModerator && (
                       <Select value={order.status} onValueChange={(v: OrderStatus) => handleStatusChange(order.id, v)}>
                         <SelectTrigger className="w-full h-9 text-xs"><SelectValue /></SelectTrigger>
