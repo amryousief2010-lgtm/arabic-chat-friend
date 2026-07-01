@@ -2331,6 +2331,12 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
         .select("live_receipt_id,birds_count,cost_per_bird_snapshot,total_birds_cost")
         .eq("slaughter_batch_id", batchId);
       let sources: any[] = (srcs as any[]) || [];
+      // Sum of frozen snapshots per source (used as fallback for batchTotalCost)
+      const snapSum = sources.reduce(
+        (acc, s) => acc + (Number(s.total_birds_cost) || (Number(s.cost_per_bird_snapshot) || 0) * (Number(s.birds_count) || 0)),
+        0
+      );
+      setSourcesSnapshotTotal(snapSum);
       // back-compat: single live_receipt_id on batch
       if (!sources.length && (batch as any).live_receipt_id) {
         sources = [{
@@ -2341,6 +2347,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
         }];
       }
       if (!sources.length) return;
+
       const ids = Array.from(new Set(sources.map(s => s.live_receipt_id).filter(Boolean)));
       const { data: receipts } = await supabase
         .from("slaughter_live_receipts" as any)
