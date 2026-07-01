@@ -90,6 +90,22 @@ const isGiftAssignment = (
   return !!(a?.notes && /هدية مجانية|مجاني/.test(a.notes));
 };
 
+// Transfer (Vodafone Cash / InstaPay) — customer pays directly, courier holds no cash.
+const isTransferAssignment = (
+  a: { notes?: string | null } | null | undefined,
+  order?: { collection_method?: string | null } | null,
+) => {
+  if (order?.collection_method === "transfer") return true;
+  return !!(a?.notes && /فودافون كاش|انستا ?باى|انستا ?باي|instapay/i.test(a.notes));
+};
+
+// Any assignment that should NOT count against the courier's cash-due.
+const isNonCashAssignment = (
+  a: { notes?: string | null; order_id?: string } | null | undefined,
+  order?: { update_status_marker?: string | null; collection_method?: string | null } | null,
+) => isGiftAssignment(a, order) || isTransferAssignment(a, order);
+
+
 
 type Custody = { id: string; courier_name: string; status: string; opened_at: string };
 type Assignment = {
@@ -224,7 +240,7 @@ export default function CourierOrderCustodyTab() {
   const custodyAnalytics = useMemo(() => {
     return custodies.map((c) => {
       const myAsn = assignments.filter((a) => a.custody_id === c.id);
-      const giftOrderIds = new Set(myAsn.filter((a) => isGiftAssignment(a, orders.find((o) => o.id === a.order_id) as any)).map((a) => a.order_id));
+      const giftOrderIds = new Set(myAsn.filter((a) => isNonCashAssignment(a, orders.find((o) => o.id === a.order_id) as any)).map((a) => a.order_id));
       const myOrderIds = new Set(myAsn.map((a) => a.order_id));
       const myOrders = orders.filter((o) => myOrderIds.has(o.id));
       const totalValue = myOrders.reduce((s, o) => s + (giftOrderIds.has(o.id) ? 0 : Number(o.total || 0)), 0);
@@ -283,7 +299,7 @@ export default function CourierOrderCustodyTab() {
       .map(([day, items]) => {
         const totalValue = items.reduce((s, a) => {
           const o = orders.find((x) => x.id === a.order_id);
-          if (isGiftAssignment(a, o as any)) return s;
+          if (isNonCashAssignment(a, o as any)) return s;
           return s + Number(o?.total || 0);
         }, 0);
 
@@ -659,7 +675,7 @@ export default function CourierOrderCustodyTab() {
                         const o = orders.find((x) => x.id === a.order_id);
                         const trk = tracking[a.order_id];
                         const col = collections.find((c) => c.order_id === a.order_id);
-                        const gift = isGiftAssignment(a, o as any);
+                        const gift = isNonCashAssignment(a, o as any);
                         const dueAmt = gift ? 0 : Number(o?.total || 0);
                         const colAmt = Number(col?.amount_collected || 0);
                         const remain = Math.max(0, dueAmt - colAmt);
@@ -738,26 +754,33 @@ export default function CourierOrderCustodyTab() {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                       onClick={async () => {
-                                        const remaining = Math.max(0, dueAmt - colAmt);
-                                        if (remaining <= 0) {
-                                          toast({ title: "لا يوجد مبلغ متبقٍ للتحويل", variant: "destructive" });
-                                          return;
-                                        }
-                                        if (!confirm(`تأكيد: تسجيل تحويل فودافون كاش / انستا باى (أحمد الجمل) بمبلغ ${remaining.toLocaleString("ar-EG")} ج.م للأوردر ${o?.order_number ?? ""}؟`)) return;
+                                        const amt = Number(o?.total || 0);
+                                        if (!confirm(`تأكيد: تسجيل تحويل فودافون كاش / انستا باى (أحمد الجمل) بمبلغ ${amt.toLocaleString("ar-EG")} ج.م للأوردر ${o?.order_number ?? ""}؟ لن يُطلب أي تحصيل من المندوب.`)) return;
                                         const note = "تحويل فودافون كاش / انستا باى (أحمد الجمل)";
-                                        const ok = await recordDeliveryAndCollection(a.order_id, remaining, note);
-                                        if (ok) {
-                                          await (supabase as any).from("orders").update({
-                                            collection_method: "transfer",
-                                            collection_note: note,
-                                          }).eq("id", a.order_id);
-                                          toast({ title: "تم تسجيل التحويل ✅", description: "فودافون كاش / انستا باى — أحمد الجمل" });
-                                          load();
+                                        // Mark as delivered without recording cash on the courier (like gift)
+                                        const wasDelivered = !!a.delivered_at || ["delivered", "collected", "completed"].includes(a.status);
+                                        if (!wasDelivered) {
+                                          const ok = await recordDeliveryAndCollection(a.order_id, 0, note);
+                                          if (!ok) return;
                                         }
+                                        // Persist markers on order + zero the courier cash due
+                                        await (supabase as any).from("orders").update({
+                                          collection_method: "transfer",
+                                          collection_note: note,
+                                          courier_cash_due: 0,
+                                        }).eq("id", a.order_id);
+                                        // Tag the assignment note so the non-cash fallback matches everywhere
+                                        const mergedNotes = /فودافون كاش|انستا ?باى|انستا ?باي/.test(a.notes || "")
+                                          ? a.notes
+                                          : `${a.notes ? a.notes + " | " : ""}${note}`;
+                                        await (supabase as any).from("courier_order_assignments").update({ notes: mergedNotes }).eq("id", a.id);
+                                        toast({ title: "تم تسجيل التحويل ✅", description: "خرج من مطلوب التحصيل على المندوب." });
+                                        load();
                                       }}
                                     >
                                       <span className="ml-2">📲</span> تحويل فودافون كاش / انستا باى (أحمد الجمل)
                                     </DropdownMenuItem>
+
 
                                     <DropdownMenuItem
                                       onClick={() => {
