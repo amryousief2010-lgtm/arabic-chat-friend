@@ -754,26 +754,33 @@ export default function CourierOrderCustodyTab() {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                       onClick={async () => {
-                                        const remaining = Math.max(0, dueAmt - colAmt);
-                                        if (remaining <= 0) {
-                                          toast({ title: "لا يوجد مبلغ متبقٍ للتحويل", variant: "destructive" });
-                                          return;
-                                        }
-                                        if (!confirm(`تأكيد: تسجيل تحويل فودافون كاش / انستا باى (أحمد الجمل) بمبلغ ${remaining.toLocaleString("ar-EG")} ج.م للأوردر ${o?.order_number ?? ""}؟`)) return;
+                                        const amt = Number(o?.total || 0);
+                                        if (!confirm(`تأكيد: تسجيل تحويل فودافون كاش / انستا باى (أحمد الجمل) بمبلغ ${amt.toLocaleString("ar-EG")} ج.م للأوردر ${o?.order_number ?? ""}؟ لن يُطلب أي تحصيل من المندوب.`)) return;
                                         const note = "تحويل فودافون كاش / انستا باى (أحمد الجمل)";
-                                        const ok = await recordDeliveryAndCollection(a.order_id, remaining, note);
-                                        if (ok) {
-                                          await (supabase as any).from("orders").update({
-                                            collection_method: "transfer",
-                                            collection_note: note,
-                                          }).eq("id", a.order_id);
-                                          toast({ title: "تم تسجيل التحويل ✅", description: "فودافون كاش / انستا باى — أحمد الجمل" });
-                                          load();
+                                        // Mark as delivered without recording cash on the courier (like gift)
+                                        const wasDelivered = !!a.delivered_at || ["delivered", "collected", "completed"].includes(a.status);
+                                        if (!wasDelivered) {
+                                          const ok = await recordDeliveryAndCollection(a.order_id, 0, note);
+                                          if (!ok) return;
                                         }
+                                        // Persist markers on order + zero the courier cash due
+                                        await (supabase as any).from("orders").update({
+                                          collection_method: "transfer",
+                                          collection_note: note,
+                                          courier_cash_due: 0,
+                                        }).eq("id", a.order_id);
+                                        // Tag the assignment note so the non-cash fallback matches everywhere
+                                        const mergedNotes = /فودافون كاش|انستا ?باى|انستا ?باي/.test(a.notes || "")
+                                          ? a.notes
+                                          : `${a.notes ? a.notes + " | " : ""}${note}`;
+                                        await (supabase as any).from("courier_order_assignments").update({ notes: mergedNotes }).eq("id", a.id);
+                                        toast({ title: "تم تسجيل التحويل ✅", description: "خرج من مطلوب التحصيل على المندوب." });
+                                        load();
                                       }}
                                     >
                                       <span className="ml-2">📲</span> تحويل فودافون كاش / انستا باى (أحمد الجمل)
                                     </DropdownMenuItem>
+
 
                                     <DropdownMenuItem
                                       onClick={() => {
