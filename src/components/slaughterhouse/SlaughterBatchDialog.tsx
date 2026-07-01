@@ -70,7 +70,7 @@ interface Props {
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
 
-export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [], onSave }: Props) => {
+export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [], onSave, dashboardLiveBalance }: Props) => {
   const sortedWorkers = [...workers]
     .filter((w) => w.is_active !== false)
     .sort((a, b) => (a.lead_rank ?? 99) - (b.lead_rank ?? 99) || a.full_name.localeCompare(b.full_name, "ar"));
