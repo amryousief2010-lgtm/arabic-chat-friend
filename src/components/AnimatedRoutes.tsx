@@ -70,6 +70,7 @@ const RebuildMayOrders = lazy(() => import("@/pages/RebuildMayOrders"));
 const ExcelComparison = lazy(() => import("@/pages/ExcelComparison"));
 const OfferBoxPricingAudit = lazy(() => import("@/pages/OfferBoxPricingAudit"));
 const ModeratorPerformance = lazy(() => import("@/pages/ModeratorPerformance"));
+const MarketingManagerAccountReport = lazy(() => import("@/pages/reports/MarketingManagerAccountReport"));
 const ModeratorOrdersLog = lazy(() => import("@/pages/ModeratorOrdersLog"));
 const Farm = lazy(() => import("@/pages/modules/Farm"));
 const Hatchery = lazy(() => import("@/pages/modules/Hatchery"));
@@ -253,6 +254,11 @@ const AnimatedRoutes = () => {
           <Route path="/pwa-diagnostics" element={
             <ProtectedRoute allowedRoles={['general_manager']}>
               <PageTransition><PwaDiagnostics /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/reports/marketing-manager-account" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager']}>
+              <PageTransition><MarketingManagerAccountReport /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/farm" element={<RedirectWithQuery to="/modules/farm" />} />
