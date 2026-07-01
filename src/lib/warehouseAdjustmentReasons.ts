@@ -9,6 +9,7 @@ export const STOCK_ADJUSTMENT_REASONS = [
   "مرتجع",
   "تصحيح عبوات",
   "تسوية مخزون",
+  "بيع لعميل",
 ] as const;
 
 export type StockAdjustmentReason = typeof STOCK_ADJUSTMENT_REASONS[number];
