@@ -444,6 +444,76 @@ export default function SocialMediaDailyReport() {
                     onChange={(e) => setForm((f) => ({ ...f, additional_notes: e.target.value }))}
                   />
                 </div>
+
+                {/* Optional platform stats */}
+                <div className="md:col-span-2">
+                  <Collapsible>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="outline" size="sm" type="button" className="w-full justify-between">
+                        <span className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-primary" />
+                          إحصائيات المنصات (اختياري)
+                        </span>
+                        <ChevronDown className="w-4 h-4" />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-3 space-y-3">
+                      <div>
+                        <Label className="text-sm">المنصات النشطة</Label>
+                        <div className="flex flex-wrap gap-3 mt-2">
+                          {PLATFORMS.map((p) => {
+                            const checked = form.platforms.includes(p.key);
+                            const Icon = p.icon;
+                            return (
+                              <label key={p.key} className="flex items-center gap-2 text-sm cursor-pointer border rounded-md px-3 py-1.5">
+                                <Checkbox
+                                  checked={checked}
+                                  disabled={isLocked}
+                                  onCheckedChange={(v) =>
+                                    setForm((f) => ({
+                                      ...f,
+                                      platforms: v
+                                        ? [...f.platforms, p.key]
+                                        : f.platforms.filter((x) => x !== p.key),
+                                    }))
+                                  }
+                                />
+                                <Icon className="w-4 h-4" /> {p.label}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {([
+                          { k: "reach_count", label: "الوصول (Reach)", icon: Eye },
+                          { k: "impressions_count", label: "الظهور (Impressions)", icon: Sparkles },
+                          { k: "likes_count", label: "الإعجابات", icon: Heart },
+                          { k: "comments_count", label: "التعليقات", icon: MessageCircle },
+                          { k: "shares_count", label: "المشاركات", icon: Share2 },
+                          { k: "new_followers_count", label: "متابعون جدد", icon: UserPlus },
+                        ] as const).map(({ k, label, icon: Icon }) => (
+                          <div key={k}>
+                            <Label className="text-xs flex items-center gap-1">
+                              <Icon className="w-3.5 h-3.5" /> {label}
+                            </Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              value={(form as any)[k]}
+                              disabled={isLocked}
+                              onChange={(e) =>
+                                setForm((f) => ({ ...f, [k]: e.target.value } as any))
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+
                 {form.management_notes && (
                   <div className="md:col-span-2 p-3 rounded-md bg-muted/50">
                     <Label className="text-sm">ملاحظة الإدارة</Label>
