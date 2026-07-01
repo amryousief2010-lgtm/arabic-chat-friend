@@ -212,14 +212,15 @@ export default function CourierOrderCustodyTab() {
   const custodyAnalytics = useMemo(() => {
     return custodies.map((c) => {
       const myAsn = assignments.filter((a) => a.custody_id === c.id);
+      const giftOrderIds = new Set(myAsn.filter(isGiftAssignment).map((a) => a.order_id));
       const myOrderIds = new Set(myAsn.map((a) => a.order_id));
       const myOrders = orders.filter((o) => myOrderIds.has(o.id));
-      const totalValue = myOrders.reduce((s, o) => s + Number(o.total || 0), 0);
+      const totalValue = myOrders.reduce((s, o) => s + (giftOrderIds.has(o.id) ? 0 : Number(o.total || 0)), 0);
       const myCols = collections.filter((cl) => myOrderIds.has(cl.order_id));
       const collected = myCols.reduce((s, cl) => s + Number(cl.amount_collected || 0), 0);
       const delivered = myAsn.filter((a) => ["delivered", "collected", "completed"].includes(a.status)).length;
       const undelivered = myAsn.filter((a) => a.status === "with_courier").length;
-      const uncollected = myOrders.filter((o) => !myCols.find((cl) => cl.order_id === o.id)).length;
+      const uncollected = myOrders.filter((o) => !giftOrderIds.has(o.id) && !myCols.find((cl) => cl.order_id === o.id)).length;
       const returns = myAsn.filter((a) => ["partially_returned", "fully_returned"].includes(a.status)).length;
       return {
         ...c,
