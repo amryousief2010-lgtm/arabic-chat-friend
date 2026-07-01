@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Wallet, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 
 const GIRLS = ['اية', 'نورا', 'سارة', 'منال'] as const;
 type Girl = typeof GIRLS[number];
@@ -57,8 +58,9 @@ const months = [
   { value: 10, label: 'أكتوبر' }, { value: 11, label: 'نوفمبر' }, { value: 12, label: 'ديسمبر' },
 ];
 
-const currentYear = new Date().getFullYear();
-const currentMonth = new Date().getMonth() + 1;
+const _cur = currentCairoYearMonth();
+const currentYear = _cur.year;
+const currentMonth = _cur.monthIndex0 + 1;
 
 const normalize = (s: string) => (s || '').replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
 const matches = (name: string, target: string) => normalize(name.trim()).includes(normalize(target));
@@ -115,8 +117,8 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     queryKey: ['girls-auto-qty', selectedMonth, selectedYear],
     queryFn: async () => {
       // حدود الشهر بـ UTC لتطابق created_at المخزّن
-      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0, 0)).toISOString();
-      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0, 0)).toISOString();
+      const startDate = cairoMonthStartUTC(selectedYear, selectedMonth - 1).toISOString();
+      const endDate = cairoMonthStartUTC(selectedYear, selectedMonth).toISOString();
       const empty = () => GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
       const result = { meat: empty(), bone: empty(), processed: empty() };
 
@@ -196,8 +198,8 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   const { data: chickQtyByGirl = {} as Record<string, number> } = useQuery({
     queryKey: ['girls-chick-qty', selectedMonth, selectedYear],
     queryFn: async () => {
-      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0, 0)).toISOString();
-      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0, 0)).toISOString();
+      const startDate = cairoMonthStartUTC(selectedYear, selectedMonth - 1).toISOString();
+      const endDate = cairoMonthStartUTC(selectedYear, selectedMonth).toISOString();
       const empty = GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
       const { data: rows, error } = await supabase
         .from('chick_orders')

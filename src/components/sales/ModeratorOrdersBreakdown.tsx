@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Users, Package, CheckCircle2, XCircle, Truck, RefreshCw, Bird } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { findModeratorByName } from '@/constants/moderators';
+import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 
 const GIRLS = ['اية', 'نورا', 'سارة', 'منال'];
 
@@ -24,8 +25,9 @@ const months = [
   { value: 12, label: 'ديسمبر' },
 ];
 
-const currentYear = new Date().getFullYear();
-const currentMonth = new Date().getMonth() + 1;
+const _cur = currentCairoYearMonth();
+const currentYear = _cur.year;
+const currentMonth = _cur.monthIndex0 + 1;
 
 interface OrderRow {
   status: string;
@@ -72,9 +74,10 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
     queryKey: ['moderator-orders-breakdown', selectedMonth, selectedYear],
     refetchInterval: 60000,
     queryFn: async () => {
-      // حدود الشهر بـ UTC لتطابق طريقة تخزين created_at للأوردرات المستوردة
-      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0, 0)).toISOString();
-      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0, 0)).toISOString();
+      // Cairo-timezone boundaries so orders logged just after Cairo midnight
+      // (still previous UTC day) attribute to the correct Cairo month.
+      const startDate = cairoMonthStartUTC(selectedYear, selectedMonth - 1).toISOString();
+      const endDate = cairoMonthStartUTC(selectedYear, selectedMonth).toISOString();
 
       const { data: orders, error } = await supabase
         .from('orders')

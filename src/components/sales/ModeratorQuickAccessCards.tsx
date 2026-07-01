@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Plus, FileText, UserRound, Beef, Drumstick, Flame } from "lucide-react";
 import { MODERATORS, isOrderForModerator, ModeratorConfig, findModeratorByName } from "@/constants/moderators";
 import { useAuth } from "@/hooks/useAuth";
+import { cairoMonthStartUTC, currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
 
 interface OrderRow {
   id: string;
@@ -54,11 +55,15 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
   const visibleModerators = canSeeAll ? MODERATORS : (ownMod ? [ownMod] : []);
   const visibleSlugs = new Set(visibleModerators.map((m) => m.slug));
 
+  // Boundaries computed in Africa/Cairo so orders logged just after Cairo
+  // midnight (which are still in the previous UTC day) attribute to the
+  // correct Cairo month — bug fix for July 1st rollover.
   const nowRef = new Date();
-  const viewYear = year ?? nowRef.getUTCFullYear();
-  const viewMonth = (month ?? nowRef.getUTCMonth() + 1) - 1; // 0-based
+  const cur = currentCairoYearMonth(nowRef);
+  const viewYear = year ?? cur.year;
+  const viewMonth = (month ?? cur.monthIndex0 + 1) - 1; // 0-based
   const isCurrentMonth =
-    viewYear === nowRef.getUTCFullYear() && viewMonth === nowRef.getUTCMonth();
+    viewYear === cur.year && viewMonth === cur.monthIndex0;
   const monthLabel = new Date(Date.UTC(viewYear, viewMonth, 1)).toLocaleDateString(
     "en-GB",
     { month: "long", year: "numeric" },
@@ -69,8 +74,8 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
     refetchInterval: 5 * 60_000,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      const startOfMonth = new Date(Date.UTC(viewYear, viewMonth, 1, 0, 0, 0, 0));
-      const startOfNextMonth = new Date(Date.UTC(viewYear, viewMonth + 1, 1, 0, 0, 0, 0));
+      const startOfMonth = cairoMonthStartUTC(viewYear, viewMonth);
+      const startOfNextMonth = cairoMonthStartUTC(viewYear, viewMonth + 1);
 
       let q = supabase
         .from("orders")
@@ -133,14 +138,14 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
         (products || []).forEach((p: any) => productCat.set(p.id, p.category ?? null));
       }
 
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = toCairoDateString(new Date());
       const orderById = new Map<string, OrderRow>(
         (orders as OrderRow[]).map((o) => [o.id, o]),
       );
 
       return MODERATORS.map((m) => {
         const filtered = (orders as OrderRow[]).filter((o) => orderToMod.get(o.id)?.slug === m.slug);
-        const today = filtered.filter((o) => o.created_at.slice(0, 10) === todayStr);
+        const today = filtered.filter((o) => toCairoDateString(o.created_at) === todayStr);
         const monthTotal = filtered.reduce((s, o) => s + Number(o.total || 0), 0);
         const todayTotal = today.reduce((s, o) => s + Number(o.total || 0), 0);
 
@@ -159,7 +164,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
             monthW[cat] += qty;
           }
           const o = orderById.get(it.order_id);
-          if (o && o.created_at.slice(0, 10) === todayStr) todayW[cat] += qty;
+          if (o && toCairoDateString(o.created_at) === todayStr) todayW[cat] += qty;
         }
         // EGP amounts use the same fixed per-kg prices as جدول البيان (Sales Targets):
         // لحوم 390 ج/كجم، بالعظم 350 ج/كجم، مصنعات 160 ج/كجم

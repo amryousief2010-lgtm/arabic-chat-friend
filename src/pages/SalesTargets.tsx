@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { cairoMonthStartUTC } from '@/lib/cairoDate';
+import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -59,8 +59,9 @@ const months = [
   { value: 12, label: 'ديسمبر' },
 ];
 
-const currentYear = new Date().getFullYear();
-const currentMonth = new Date().getMonth() + 1;
+const _cur = currentCairoYearMonth();
+const currentYear = _cur.year;
+const currentMonth = _cur.monthIndex0 + 1;
 
 interface Profile {
   id: string;

@@ -10,6 +10,7 @@ import {
   Flame,
 } from "lucide-react";
 import { MODERATORS, isOrderForModerator } from "@/constants/moderators";
+import { cairoMonthStartUTC, currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
 
 type Category = "meat" | "bone" | "processed" | "other";
 
@@ -55,9 +56,12 @@ interface Props {
 }
 
 const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
+  // Cairo-timezone boundaries (fix: orders logged just after Cairo midnight
+  // — but still in the previous UTC day — must attribute to the correct month).
   const nowRef = new Date();
-  const viewYear = year ?? nowRef.getUTCFullYear();
-  const viewMonth = (month ?? nowRef.getUTCMonth() + 1) - 1;
+  const cur = currentCairoYearMonth(nowRef);
+  const viewYear = year ?? cur.year;
+  const viewMonth = (month ?? cur.monthIndex0 + 1) - 1;
   const monthLabel = new Date(Date.UTC(viewYear, viewMonth, 1)).toLocaleDateString(
     "en-GB",
     { month: "long", year: "numeric" },
@@ -67,8 +71,8 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
     queryKey: ["moderators-aggregate-summary", viewYear, viewMonth],
     refetchInterval: 5 * 60_000,
     queryFn: async () => {
-      const startOfMonth = new Date(Date.UTC(viewYear, viewMonth, 1, 0, 0, 0, 0));
-      const startOfNextMonth = new Date(Date.UTC(viewYear, viewMonth + 1, 1, 0, 0, 0, 0));
+      const startOfMonth = cairoMonthStartUTC(viewYear, viewMonth);
+      const startOfNextMonth = cairoMonthStartUTC(viewYear, viewMonth + 1);
 
       // 1) Orders for this month (UTC boundaries — created_at is UTC)
       const { data: orders, error } = await supabase
@@ -140,7 +144,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
       }
 
       // 6) Aggregate
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = toCairoDateString(new Date());
       const orderById = new Map<string, any>(
         girlsOrders.map((o: any) => [o.id, o]),
       );
@@ -149,14 +153,14 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
       const today = emptyAgg();
       monthAgg.orders = girlsOrders.length;
       today.orders = girlsOrders.filter((o: any) =>
-        o.created_at.slice(0, 10) === todayStr,
+        toCairoDateString(o.created_at) === todayStr,
       ).length;
       monthAgg.sales = girlsOrders.reduce(
         (s: number, o: any) => s + Number(o.total || 0),
         0,
       );
       today.sales = girlsOrders
-        .filter((o: any) => o.created_at.slice(0, 10) === todayStr)
+        .filter((o: any) => toCairoDateString(o.created_at) === todayStr)
         .reduce((s: number, o: any) => s + Number(o.total || 0), 0);
 
       for (const it of items) {
@@ -169,7 +173,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
         if (cat === "other") continue;
         const qty = Number(it.quantity || 0);
         monthAgg.weight[cat] += qty;
-        if (o.created_at.slice(0, 10) === todayStr) today.weight[cat] += qty;
+        if (toCairoDateString(o.created_at) === todayStr) today.weight[cat] += qty;
       }
 
       return { month: monthAgg, today };
