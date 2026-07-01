@@ -14751,6 +14751,7 @@ export type Database = {
       slaughter_batch_outputs: {
         Row: {
           actual_weight_kg: number
+          auto_cost_per_kg: number | null
           barcode: string | null
           batch_id: string
           branch_id: string | null
@@ -14760,8 +14761,13 @@ export type Database = {
           destination: string
           expiry_date: string | null
           id: string
+          manual_cost_per_kg: number | null
+          manual_sale_price_per_kg: number | null
           notes: string | null
           package_count: number
+          price_edit_reason: string | null
+          price_updated_at: string | null
+          price_updated_by: string | null
           product_id: string | null
           quality_status: string
           quarantined_weight_kg: number
@@ -14774,6 +14780,7 @@ export type Database = {
           reversed_at: string | null
           reversed_by: string | null
           standard_weight_kg: number
+          suggested_sale_price_per_kg: number | null
           total_cost: number | null
           unit_cost: number
           unit_price: number
@@ -14783,6 +14790,7 @@ export type Database = {
         }
         Insert: {
           actual_weight_kg?: number
+          auto_cost_per_kg?: number | null
           barcode?: string | null
           batch_id: string
           branch_id?: string | null
@@ -14792,8 +14800,13 @@ export type Database = {
           destination?: string
           expiry_date?: string | null
           id?: string
+          manual_cost_per_kg?: number | null
+          manual_sale_price_per_kg?: number | null
           notes?: string | null
           package_count?: number
+          price_edit_reason?: string | null
+          price_updated_at?: string | null
+          price_updated_by?: string | null
           product_id?: string | null
           quality_status?: string
           quarantined_weight_kg?: number
@@ -14806,6 +14819,7 @@ export type Database = {
           reversed_at?: string | null
           reversed_by?: string | null
           standard_weight_kg?: number
+          suggested_sale_price_per_kg?: number | null
           total_cost?: number | null
           unit_cost?: number
           unit_price?: number
@@ -14815,6 +14829,7 @@ export type Database = {
         }
         Update: {
           actual_weight_kg?: number
+          auto_cost_per_kg?: number | null
           barcode?: string | null
           batch_id?: string
           branch_id?: string | null
@@ -14824,8 +14839,13 @@ export type Database = {
           destination?: string
           expiry_date?: string | null
           id?: string
+          manual_cost_per_kg?: number | null
+          manual_sale_price_per_kg?: number | null
           notes?: string | null
           package_count?: number
+          price_edit_reason?: string | null
+          price_updated_at?: string | null
+          price_updated_by?: string | null
           product_id?: string | null
           quality_status?: string
           quarantined_weight_kg?: number
@@ -14838,6 +14858,7 @@ export type Database = {
           reversed_at?: string | null
           reversed_by?: string | null
           standard_weight_kg?: number
+          suggested_sale_price_per_kg?: number | null
           total_cost?: number | null
           unit_cost?: number
           unit_price?: number
@@ -15948,6 +15969,60 @@ export type Database = {
             columns: ["live_batch_id"]
             isOneToOne: false
             referencedRelation: "slaughter_live_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slaughter_output_price_audit: {
+        Row: {
+          batch_id: string
+          changed_at: string
+          changed_by: string | null
+          field: string
+          id: string
+          new_value: number | null
+          old_value: number | null
+          output_id: string
+          product_id: string | null
+          reason: string | null
+        }
+        Insert: {
+          batch_id: string
+          changed_at?: string
+          changed_by?: string | null
+          field: string
+          id?: string
+          new_value?: number | null
+          old_value?: number | null
+          output_id: string
+          product_id?: string | null
+          reason?: string | null
+        }
+        Update: {
+          batch_id?: string
+          changed_at?: string
+          changed_by?: string | null
+          field?: string
+          id?: string
+          new_value?: number | null
+          old_value?: number | null
+          output_id?: string
+          product_id?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_output_price_audit_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_output_price_audit_output_id_fkey"
+            columns: ["output_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_batch_outputs"
             referencedColumns: ["id"]
           },
         ]
@@ -18316,6 +18391,15 @@ export type Database = {
         Args: { p_slaughter_batch_id: string }
         Returns: Json
       }
+      apply_slaughter_output_price_update: {
+        Args: {
+          p_manual_cost_per_kg: number
+          p_manual_sale_price_per_kg: number
+          p_output_id: string
+          p_reason: string
+        }
+        Returns: undefined
+      }
       approve_agouza_cash_handover: {
         Args: { p_handover_id: string }
         Returns: string
@@ -20047,6 +20131,10 @@ export type Database = {
       }
       recalc_live_batch_cost: {
         Args: { p_live_batch_id: string }
+        Returns: undefined
+      }
+      recalc_slaughter_output_auto_costs: {
+        Args: { p_batch_id: string }
         Returns: undefined
       }
       receive_slaughter_batch: {
