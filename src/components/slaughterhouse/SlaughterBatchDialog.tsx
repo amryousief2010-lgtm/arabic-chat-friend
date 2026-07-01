@@ -64,11 +64,13 @@ interface Props {
   receipts: Array<ReceiptOption>;
   workers?: Array<{ id: string; full_name: string; role: string; is_active: boolean; lead_rank?: number | null }>;
   onSave: (draft: BatchDraft) => Promise<boolean>;
+  /** رصيد "النعام القائم" من الداشبورد للتحقق من مطابقة مجموع المصادر */
+  dashboardLiveBalance?: number;
 }
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
 
-export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [], onSave }: Props) => {
+export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [], onSave, dashboardLiveBalance }: Props) => {
   const sortedWorkers = [...workers]
     .filter((w) => w.is_active !== false)
     .sort((a, b) => (a.lead_rank ?? 99) - (b.lead_rank ?? 99) || a.full_name.localeCompare(b.full_name, "ar"));
@@ -104,20 +106,31 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
     return m;
   }, [receipts]);
 
-  // Receipts that are available as sources (have alive birds and not rejected/processed/archived/excluded)
-  // نطابق منطق داشبورد "النعام القائم" — نستبعد الدفعات المؤرشفة والمستبعدة من التكلفة
-  // (مثل الرصيد الافتتاحي المُقفَل أو الدفعات المرفوضة) حتى لا يظهر عدد أكبر من الفعلي المتاح للدبح.
+  // نعرض أي دفعة لها رصيد حي متاح فعلاً (current_alive_count > 0) بغض النظر عن الأرشفة أو الاستبعاد من التكلفة،
+  // لأن "النعام القائم" في الداشبورد يعتمد على نفس الحساب (bird_count - doa - mortality - slaughtered + manual_adj).
+  // الدفعات المدبوحة بالكامل (available = 0) أو الملغاة تُخفى تلقائياً.
   const availableReceipts = useMemo(
     () =>
       receipts.filter((r: any) => {
-        if (r.archived) return false;
-        if (r.excluded_from_costing) return false;
-        if (r.status === "processed" || r.status === "rejected") return false;
-        const alive = Number(r.current_alive_count ?? r.bird_count) || 0;
+        if (r.status === "cancelled" || r.status === "processed") return false;
+        const alive = Number(r.current_alive_count ?? 0) || 0;
         return alive > 0;
       }),
     [receipts]
   );
+
+  const totalAvailableInDropdown = useMemo(
+    () => availableReceipts.reduce((s, r: any) => s + (Number(r.current_alive_count) || 0), 0),
+    [availableReceipts]
+  );
+  const diagDiff = typeof dashboardLiveBalance === "number" ? dashboardLiveBalance - totalAvailableInDropdown : 0;
+
+  useEffect(() => {
+    if (typeof dashboardLiveBalance === "number") {
+      // eslint-disable-next-line no-console
+      console.info("[SlaughterBatchDialog] النعام القائم:", dashboardLiveBalance, "| متاح في المصادر:", totalAvailableInDropdown, "| فرق:", diagDiff);
+    }
+  }, [dashboardLiveBalance, totalAvailableInDropdown, diagDiff]);
 
   // Sources aggregates
   const sourcesTotalBirds = form.sources.reduce((s, x) => s + (Number(x.birds_count) || 0), 0);
@@ -382,7 +395,24 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
                 </table>
               </div>
               <ErrMsg name="sources" />
-              <p className="text-xs text-muted-foreground mt-2">يتم خصم النعام من كل دفعة مصدر تلقائياً عند حفظ الدفعة.</p>
+              <div className="mt-2 space-y-1">
+                <p className="text-xs text-muted-foreground">يتم خصم النعام من كل دفعة مصدر تلقائياً عند حفظ الدفعة.</p>
+                <div className="text-xs bg-muted/40 rounded p-2 flex flex-wrap gap-x-4 gap-y-1">
+                  <span>إجمالي المتاح للدبح من الدفعات الظاهرة: <b className="tabular-nums text-primary">{totalAvailableInDropdown}</b> نعامة</span>
+                  {typeof dashboardLiveBalance === "number" && (
+                    <span>النعام القائم (الداشبورد): <b className="tabular-nums">{dashboardLiveBalance}</b></span>
+                  )}
+                </div>
+                {typeof dashboardLiveBalance === "number" && diagDiff !== 0 && (
+                  <div className="text-xs bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-200 rounded p-2 flex items-start gap-2">
+                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <span>
+                      يوجد فرق بين النعام القائم ومصادر الدبح المتاحة قدره <b>{Math.abs(diagDiff)}</b> نعامة.
+                      برجاء مراجعة الدفعات غير المربوطة أو غير المصنفة، أو ضبط حقل "manual_available_adjustment" على الدفعة المعنية.
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

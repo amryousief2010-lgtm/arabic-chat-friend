@@ -1335,6 +1335,7 @@ const Slaughterhouse = () => {
                 receipts={receipts}
                 workers={workers as any}
                 onSave={async (draft) => saveBatch(draft as any)}
+                dashboardLiveBalance={liveBalance}
               />
             </CardHeader>
             <CardContent>
