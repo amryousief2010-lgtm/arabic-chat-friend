@@ -1402,6 +1402,21 @@ const Orders = () => {
                         {order.collection_status === 'collected' ? 'تم التحصيل' : 'لم يتم التحصيل'}
                       </Badge>
                     </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground shrink-0">حالة التحديث:</span>
+                      {order.update_status_marker ? (
+                        <Badge
+                          className={`text-[11px] border ${updateMarkerMeta[order.update_status_marker].className}`}
+                          title={order.update_status_updated_at ? `آخر تحديث: ${new Date(order.update_status_updated_at).toLocaleString('ar-EG')}` : undefined}
+                        >
+                          {updateMarkerMeta[order.update_status_marker].label}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[11px] text-muted-foreground border-muted">
+                          لم يتم التحديث
+                        </Badge>
+                      )}
+                    </div>
                     {!isSalesModerator && (
                       <Select value={order.status} onValueChange={(v: OrderStatus) => handleStatusChange(order.id, v)}>
                         <SelectTrigger className="w-full h-9 text-xs"><SelectValue /></SelectTrigger>
