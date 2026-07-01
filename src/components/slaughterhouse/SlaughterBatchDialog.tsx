@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, AlertCircle, ChevronRight, ChevronLeft, Save, Trash2, X } from "lucide-react";
+import { Plus, AlertCircle, ChevronRight, ChevronLeft, Save, Trash2, X, Info, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const DRAFT_KEY = "slaughter_batch_draft_v2";
