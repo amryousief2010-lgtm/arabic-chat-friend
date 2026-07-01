@@ -2254,6 +2254,69 @@ const Orders = () => {
         </DialogContent>
       </Dialog>
 
+      {/* توزيع مبالغ التحصيل المختلط */}
+      <Dialog
+        open={!!mixedDlgOrderId}
+        onOpenChange={(open) => { if (!open) setMixedDlgOrderId(null); }}
+      >
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>🧩 توزيع التحصيل المختلط</DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const t = orders.find((o) => o.id === mixedDlgOrderId);
+            if (!t) return null;
+            const cash = Number(mixedCash) || 0;
+            const vod = Number(mixedVod) || 0;
+            const insta = Number(mixedInsta) || 0;
+            const free = Number(mixedFree) || 0;
+            const sum = cash + vod + insta + free;
+            const totalVal = Number(t.total || 0);
+            const diff = totalVal - sum;
+            const ok = Math.abs(diff) <= 0.01;
+            return (
+              <div className="space-y-3">
+                <div className="rounded-md border bg-muted/40 p-3 text-sm flex justify-between">
+                  <span className="text-muted-foreground">إجمالي قيمة الأوردر</span>
+                  <span className="font-bold">{totalVal.toLocaleString()} ج</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">💵 كاش مع المندوب</label>
+                    <Input type="number" min={0} step="0.01" value={mixedCash} onChange={(e) => setMixedCash(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">📱 Vodafone Cash</label>
+                    <Input type="number" min={0} step="0.01" value={mixedVod} onChange={(e) => setMixedVod(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">💳 InstaPay</label>
+                    <Input type="number" min={0} step="0.01" value={mixedInsta} onChange={(e) => setMixedInsta(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">🎁 مجاني / معفى</label>
+                    <Input type="number" min={0} step="0.01" value={mixedFree} onChange={(e) => setMixedFree(e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">ملاحظات التحصيل</label>
+                  <Input value={mixedNote} onChange={(e) => setMixedNote(e.target.value)} placeholder="اختياري" />
+                </div>
+                <div className={`rounded-md border p-3 text-sm flex justify-between ${ok ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-rose-50 border-rose-300 text-rose-800'}`}>
+                  <span>المجموع: <b>{sum.toLocaleString()}</b> ج</span>
+                  <span>{ok ? '✓ مطابق' : `فرق: ${diff.toLocaleString()} ج`}</span>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setMixedDlgOrderId(null)}>إلغاء</Button>
+                  <Button onClick={saveMixedBreakdown} disabled={!ok}>حفظ التوزيع</Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+
       {/* اختيار طريقة التحصيل قبل تأكيد التسليم — لا يمس منطق التسليم/المخزون/المالية */}
       <AlertDialog
         open={!!pendingDeliveryOrderId}
