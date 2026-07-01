@@ -2991,7 +2991,10 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          area: string | null
+          campaign_name: string | null
           city: string | null
+          communication_channel: string | null
           created_at: string
           email: string | null
           governorate: string | null
@@ -3008,7 +3011,10 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          area?: string | null
+          campaign_name?: string | null
           city?: string | null
+          communication_channel?: string | null
           created_at?: string
           email?: string | null
           governorate?: string | null
@@ -3025,7 +3031,10 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          area?: string | null
+          campaign_name?: string | null
           city?: string | null
+          communication_channel?: string | null
           created_at?: string
           email?: string | null
           governorate?: string | null
@@ -16546,6 +16555,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      social_media_expenses: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          attachment_url: string | null
+          campaign_name: string | null
+          created_at: string
+          created_by: string | null
+          employee_name: string | null
+          expense_date: string
+          expense_type: string
+          id: string
+          is_approved: boolean
+          notes: string | null
+          platform: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          attachment_url?: string | null
+          campaign_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_name?: string | null
+          expense_date?: string
+          expense_type: string
+          id?: string
+          is_approved?: boolean
+          notes?: string | null
+          platform?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          attachment_url?: string | null
+          campaign_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_name?: string | null
+          expense_date?: string
+          expense_type?: string
+          id?: string
+          is_approved?: boolean
+          notes?: string | null
+          platform?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       social_media_weekly_reports: {
         Row: {
