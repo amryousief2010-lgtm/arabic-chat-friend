@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Wheat, ArrowDownToLine, ArrowUpFromLine, Boxes, FileText, RefreshCw, Printer, Drumstick } from "lucide-react";
+import { Wheat, ArrowDownToLine, ArrowUpFromLine, Boxes, FileText, RefreshCw, Printer, Drumstick, AlertTriangle, Factory } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import FeedInternalDebtDashboard from "@/components/feed/FeedInternalDebtDashboard";
 import { openPrintWindow } from "@/lib/printPdf";
 import { OstrichFeedConsumptionDialog } from "@/components/slaughterhouse/OstrichFeedConsumptionDialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
@@ -100,6 +101,20 @@ export default function SlaughterhouseFeedStore() {
     },
   });
 
+  // Load profile names for supplier/receiver display
+  const profilesQ = useQuery({
+    queryKey: ["sl_feed_profiles_min"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("id,full_name");
+      if (error) throw error;
+      const map = new Map<string, string>();
+      (data as any[]).forEach((p) => map.set(p.id, p.full_name || ""));
+      return map;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const nameOfUser = (uid?: string | null) => (uid && profilesQ.data?.get(uid)) || "—";
+
   const movs = movQ.data || [];
   const inv = invQ.data || [];
 
@@ -163,8 +178,22 @@ export default function SlaughterhouseFeedStore() {
     const avgDaily = days.length ? days.reduce((a, b) => a + b, 0) / days.length : 0;
     let peakDay = { date: "—", qty: 0 };
     daily.forEach((q, d) => { if (q > peakDay.qty) peakDay = { date: d, qty: q }; });
-    return { balance, inMonth, outMonth, outToday, avgDaily, peakDay };
+    // Reconciliation: opening + factory_supply + adjustment - consumption should equal current balance
+    const totalIn = movs
+      .filter((m: any) => ["factory_supply", "opening"].includes(m.movement_type) && !isCancelledNote(m.notes))
+      .reduce((s, m) => s + Number(m.quantity_kg || 0), 0);
+    const totalOut = movs
+      .filter((m: any) => m.movement_type === "consumption" && !isCancelledNote(m.notes))
+      .reduce((s, m) => s + Number(m.quantity_kg || 0), 0);
+    const totalAdj = movs
+      .filter((m: any) => m.movement_type === "adjustment" && !isCancelledNote(m.notes))
+      .reduce((s, m) => s + Number(m.quantity_kg || 0), 0);
+    const expected = totalIn + totalAdj - totalOut;
+    const reconDiff = Number((balance - expected).toFixed(3));
+    return { balance, inMonth, outMonth, outToday, avgDaily, peakDay, reconDiff, totalIn, totalOut, totalAdj };
   }, [inv, movs]);
+
+  const [movFilter, setMovFilter] = useState<string>("all");
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["sl_feed_inv"] });
@@ -247,6 +276,17 @@ export default function SlaughterhouseFeedStore() {
 
         <FeedInternalDebtDashboard department="slaughterhouse" />
 
+        {Math.abs(totals.reconDiff) > 0.5 && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>يوجد فرق في مطابقة مخزون العلف، برجاء مراجعة سجل الحركات</AlertTitle>
+            <AlertDescription className="text-xs">
+              الرصيد الحالي: <b>{fmt(totals.balance)}</b> كجم — المتوقع من السجل (وارد {fmt(totals.totalIn)} + تسويات {fmt(totals.totalAdj)} − مصروف {fmt(totals.totalOut)}) = <b>{fmt(totals.totalIn + totals.totalAdj - totals.totalOut)}</b> كجم — الفرق: <b>{fmt(totals.reconDiff)}</b> كجم
+            </AlertDescription>
+          </Alert>
+        )}
+
+
         <Tabs defaultValue="balances" dir="rtl">
           <TabsList className="bg-muted/60 p-2 flex-wrap h-auto">
             <TabsTrigger value="balances">الأرصدة</TabsTrigger>
@@ -279,7 +319,15 @@ export default function SlaughterhouseFeedStore() {
             </CardContent></Card>
           </TabsContent>
 
-          <TabsContent value="inflow"><MovementsTable rows={inflowRows} inventory={inv} /></TabsContent>
+          <TabsContent value="inflow">
+            <InflowTable
+              rows={inflowRows}
+              inventory={inv}
+              balances={balancesByMovementId}
+              nameOfUser={nameOfUser}
+              monthTotal={totals.inMonth}
+            />
+          </TabsContent>
 
           <TabsContent value="fattening">
             <Card>
@@ -358,7 +406,32 @@ export default function SlaughterhouseFeedStore() {
           </TabsContent>
 
           <TabsContent value="outflow"><MovementsTable rows={outflowRows} inventory={inv} /></TabsContent>
-          <TabsContent value="all"><MovementsTable rows={movs} inventory={inv} /></TabsContent>
+          <TabsContent value="all">
+            <div className="mb-2 flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium">فلتر نوع الحركة:</span>
+              <Select value={movFilter} onValueChange={setMovFilter}>
+                <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  <SelectItem value="factory_supply">وارد من مصنع العلف</SelectItem>
+                  <SelectItem value="opening">رصيد افتتاحي</SelectItem>
+                  <SelectItem value="consumption">صرف علف للنعام</SelectItem>
+                  <SelectItem value="bulk">صرف جماعي</SelectItem>
+                  <SelectItem value="adjustment">تسوية</SelectItem>
+                  <SelectItem value="cancelled">إلغاء/عكس</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <MovementsTable
+              rows={movs.filter((m: any) => {
+                if (movFilter === "all") return true;
+                if (movFilter === "cancelled") return isCancelledNote(m.notes) || m.movement_type === "reversal";
+                if (movFilter === "bulk") return (m.reference_no || "").startsWith("BULK-");
+                return m.movement_type === movFilter;
+              })}
+              inventory={inv}
+            />
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -374,6 +447,68 @@ export default function SlaughterhouseFeedStore() {
     </DashboardLayout>
   );
 }
+
+function InflowTable({ rows, inventory, balances, nameOfUser, monthTotal }: any) {
+  const nameOf = (id: string) => inventory.find((i: any) => i.id === id)?.feed_name || "—";
+  const label: Record<string, string> = { factory_supply: "وارد من مصنع العلف", opening: "رصيد افتتاحي" };
+  return (
+    <Card>
+      <CardHeader className="pb-2 flex flex-row items-center justify-between flex-wrap gap-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Factory className="h-4 w-4 text-emerald-600" />
+          سجل الوارد من مصنع العلف
+        </CardTitle>
+        <Badge variant="secondary" className="text-sm">
+          إجمالي وارد مصنع العلف هذا الشهر: <b className="mx-1 text-emerald-700">{fmt(monthTotal)}</b> كجم
+        </Badge>
+      </CardHeader>
+      <CardContent className="p-3">
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>التاريخ</TableHead>
+            <TableHead>نوع العلف</TableHead>
+            <TableHead>الكمية (كجم)</TableHead>
+            <TableHead>المصدر</TableHead>
+            <TableHead>رقم الفاتورة / المرجع</TableHead>
+            <TableHead>المسؤول عن الاستلام</TableHead>
+            <TableHead>الرصيد قبل</TableHead>
+            <TableHead>الرصيد بعد</TableHead>
+            <TableHead>ملاحظات</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {rows.map((m: any) => {
+              const bal = balances.get(m.id);
+              const ref = m.invoice_no || m.reference_no || (m.source_id ? String(m.source_id).slice(0, 8) : "—");
+              return (
+                <TableRow key={m.id}>
+                  <TableCell className="text-xs">{new Date(m.performed_at).toLocaleString("ar-EG")}</TableCell>
+                  <TableCell className="font-medium">{nameOf(m.feed_id)}</TableCell>
+                  <TableCell className="font-bold text-emerald-700">{fmt(m.quantity_kg)}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs">
+                      {m.movement_type === "opening" ? "رصيد افتتاحي" : "مصنع العلف"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    <span className="flex items-center gap-1"><FileText className="h-3 w-3" />{ref}</span>
+                  </TableCell>
+                  <TableCell className="text-xs">{nameOfUser(m.performed_by)}</TableCell>
+                  <TableCell>{bal ? fmt(bal.before) : "—"}</TableCell>
+                  <TableCell className="font-medium">{bal ? fmt(bal.after) : "—"}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground max-w-[220px] truncate">{m.notes || "—"}</TableCell>
+                </TableRow>
+              );
+            })}
+            {!rows.length && (
+              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">لا توجد حركات وارد من المصنع</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 function MovementsTable({ rows, inventory }: any) {
   const nameOf = (id: string) => inventory.find((i: any) => i.id === id)?.feed_name || "—";
