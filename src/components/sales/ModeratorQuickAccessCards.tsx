@@ -55,11 +55,15 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
   const visibleModerators = canSeeAll ? MODERATORS : (ownMod ? [ownMod] : []);
   const visibleSlugs = new Set(visibleModerators.map((m) => m.slug));
 
+  // Boundaries computed in Africa/Cairo so orders logged just after Cairo
+  // midnight (which are still in the previous UTC day) attribute to the
+  // correct Cairo month — bug fix for July 1st rollover.
   const nowRef = new Date();
-  const viewYear = year ?? nowRef.getUTCFullYear();
-  const viewMonth = (month ?? nowRef.getUTCMonth() + 1) - 1; // 0-based
+  const cur = currentCairoYearMonth(nowRef);
+  const viewYear = year ?? cur.year;
+  const viewMonth = (month ?? cur.monthIndex0 + 1) - 1; // 0-based
   const isCurrentMonth =
-    viewYear === nowRef.getUTCFullYear() && viewMonth === nowRef.getUTCMonth();
+    viewYear === cur.year && viewMonth === cur.monthIndex0;
   const monthLabel = new Date(Date.UTC(viewYear, viewMonth, 1)).toLocaleDateString(
     "en-GB",
     { month: "long", year: "numeric" },
