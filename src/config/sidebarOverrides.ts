@@ -36,6 +36,16 @@ export const SIDEBAR_ITEM_MOVES: SidebarItemMove[] = [
     toSectionId: "social-media",
     after: "/social-media/marketing-dashboard",
   },
+  {
+    path: "/team-performance",
+    toSectionId: "social-media",
+    after: "/sales/daily-performance-analysis",
+  },
+  {
+    path: "/moderator-performance",
+    toSectionId: "social-media",
+    after: "/team-performance",
+  },
 ];
 
 /**
@@ -51,4 +61,7 @@ export const SIDEBAR_ITEM_MOVES: SidebarItemMove[] = [
  */
 export const MARKETING_ONLY_EXTRA_PREFIXES: string[] = [
   "/sales/daily-performance-analysis",
+  "/team-performance",
+  "/moderator-performance",
 ];
+
