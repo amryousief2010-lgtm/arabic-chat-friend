@@ -145,6 +145,11 @@ const Customers = () => {
       const { error } = await supabase.from('customers').insert({
         name: data.name, phone: data.phone,
         email: data.email || null, address: data.address || null, city: data.city || null,
+        source: data.source || null,
+        communication_channel: data.communication_channel || null,
+        governorate: data.governorate || null,
+        area: data.area || null,
+        campaign_name: data.campaign_name || null,
       });
       if (error) throw error;
     },
