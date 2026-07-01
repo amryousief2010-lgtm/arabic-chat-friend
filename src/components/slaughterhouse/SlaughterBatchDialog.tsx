@@ -106,20 +106,31 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
     return m;
   }, [receipts]);
 
-  // Receipts that are available as sources (have alive birds and not rejected/processed/archived/excluded)
-  // نطابق منطق داشبورد "النعام القائم" — نستبعد الدفعات المؤرشفة والمستبعدة من التكلفة
-  // (مثل الرصيد الافتتاحي المُقفَل أو الدفعات المرفوضة) حتى لا يظهر عدد أكبر من الفعلي المتاح للدبح.
+  // نعرض أي دفعة لها رصيد حي متاح فعلاً (current_alive_count > 0) بغض النظر عن الأرشفة أو الاستبعاد من التكلفة،
+  // لأن "النعام القائم" في الداشبورد يعتمد على نفس الحساب (bird_count - doa - mortality - slaughtered + manual_adj).
+  // الدفعات المدبوحة بالكامل (available = 0) أو الملغاة تُخفى تلقائياً.
   const availableReceipts = useMemo(
     () =>
       receipts.filter((r: any) => {
-        if (r.archived) return false;
-        if (r.excluded_from_costing) return false;
-        if (r.status === "processed" || r.status === "rejected") return false;
-        const alive = Number(r.current_alive_count ?? r.bird_count) || 0;
+        if (r.status === "cancelled" || r.status === "processed") return false;
+        const alive = Number(r.current_alive_count ?? 0) || 0;
         return alive > 0;
       }),
     [receipts]
   );
+
+  const totalAvailableInDropdown = useMemo(
+    () => availableReceipts.reduce((s, r: any) => s + (Number(r.current_alive_count) || 0), 0),
+    [availableReceipts]
+  );
+  const diagDiff = typeof dashboardLiveBalance === "number" ? dashboardLiveBalance - totalAvailableInDropdown : 0;
+
+  useEffect(() => {
+    if (typeof dashboardLiveBalance === "number") {
+      // eslint-disable-next-line no-console
+      console.info("[SlaughterBatchDialog] النعام القائم:", dashboardLiveBalance, "| متاح في المصادر:", totalAvailableInDropdown, "| فرق:", diagDiff);
+    }
+  }, [dashboardLiveBalance, totalAvailableInDropdown, diagDiff]);
 
   // Sources aggregates
   const sourcesTotalBirds = form.sources.reduce((s, x) => s + (Number(x.birds_count) || 0), 0);
