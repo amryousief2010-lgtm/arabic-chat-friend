@@ -577,13 +577,16 @@ export default function CourierOrderCustodyTab() {
                         const o = orders.find((x) => x.id === a.order_id);
                         const trk = tracking[a.order_id];
                         const col = collections.find((c) => c.order_id === a.order_id);
-                        const dueAmt = Number(o?.total || 0);
+                        const gift = isGiftAssignment(a);
+                        const dueAmt = gift ? 0 : Number(o?.total || 0);
                         const colAmt = Number(col?.amount_collected || 0);
                         const remain = Math.max(0, dueAmt - colAmt);
                         const effectiveStatus = trk || a.status;
-                        const stClass = STATUS_COLOR[effectiveStatus] || STATUS_COLOR[a.status] || "bg-gray-200 text-gray-800 border border-gray-300";
-                        const stIcon = STATUS_ICON[effectiveStatus] || STATUS_ICON[a.status] || "•";
-                        const stLabel = COURIER_STATUS_LABEL[effectiveStatus] || COURIER_STATUS_LABEL[a.status] || "غير محدد";
+                        const stClass = gift
+                          ? "bg-pink-500 text-white border border-pink-600"
+                          : (STATUS_COLOR[effectiveStatus] || STATUS_COLOR[a.status] || "bg-gray-200 text-gray-800 border border-gray-300");
+                        const stIcon = gift ? "🎁" : (STATUS_ICON[effectiveStatus] || STATUS_ICON[a.status] || "•");
+                        const stLabel = gift ? "مجاني" : (COURIER_STATUS_LABEL[effectiveStatus] || COURIER_STATUS_LABEL[a.status] || "غير محدد");
                         // Common button styles: always-visible labels, strong colors, no hover-only text.
                         const btnBase = "h-8 px-2 gap-1 text-xs font-semibold border shadow-sm";
                         return (
