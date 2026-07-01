@@ -77,6 +77,13 @@ export default function SocialMediaDailyReport() {
     additional_notes: "",
     complaint_attachment_path: null,
     status: "draft",
+    reach_count: "",
+    impressions_count: "",
+    likes_count: "",
+    comments_count: "",
+    shares_count: "",
+    new_followers_count: "",
+    platforms: [],
   });
 
   useEffect(() => {
@@ -90,19 +97,27 @@ export default function SocialMediaDailyReport() {
         .eq("report_date", form.report_date)
         .maybeSingle();
       if (!error && data) {
+        const d = data as any;
         setForm({
-          id: data.id,
-          report_date: data.report_date,
-          posts_count: String(data.posts_count ?? ""),
-          reels_videos_count: String(data.reels_videos_count ?? ""),
-          interested_customers_count: String(data.interested_customers_count ?? ""),
-          top_engaging_content: data.top_engaging_content ?? "",
-          issues_or_complaints: data.issues_or_complaints ?? "",
-          tomorrow_content_suggestions: data.tomorrow_content_suggestions ?? "",
-          additional_notes: data.additional_notes ?? "",
-          complaint_attachment_path: (data as any).complaint_attachment_path ?? null,
-          status: data.status as DailyStatus,
-          management_notes: data.management_notes,
+          id: d.id,
+          report_date: d.report_date,
+          posts_count: String(d.posts_count ?? ""),
+          reels_videos_count: String(d.reels_videos_count ?? ""),
+          interested_customers_count: String(d.interested_customers_count ?? ""),
+          top_engaging_content: d.top_engaging_content ?? "",
+          issues_or_complaints: d.issues_or_complaints ?? "",
+          tomorrow_content_suggestions: d.tomorrow_content_suggestions ?? "",
+          additional_notes: d.additional_notes ?? "",
+          complaint_attachment_path: d.complaint_attachment_path ?? null,
+          status: d.status as DailyStatus,
+          management_notes: d.management_notes,
+          reach_count: d.reach_count != null ? String(d.reach_count) : "",
+          impressions_count: d.impressions_count != null ? String(d.impressions_count) : "",
+          likes_count: d.likes_count != null ? String(d.likes_count) : "",
+          comments_count: d.comments_count != null ? String(d.comments_count) : "",
+          shares_count: d.shares_count != null ? String(d.shares_count) : "",
+          new_followers_count: d.new_followers_count != null ? String(d.new_followers_count) : "",
+          platforms: Array.isArray(d.platforms) ? d.platforms : [],
         });
       } else {
         setForm((f) => ({
