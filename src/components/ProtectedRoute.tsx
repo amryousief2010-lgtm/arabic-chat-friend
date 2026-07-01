@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
+import { MARKETING_ONLY_EXTRA_PREFIXES } from '@/config/sidebarOverrides';
 import { toast } from 'sonner';
 
 interface ProtectedRouteProps {
@@ -45,7 +46,8 @@ const SOCIAL_MEDIA_ALLOWED_PREFIXES = [
 
 // Marketing Sales Manager (when it's the ONLY role, e.g. Mohamed Sayed):
 // view-only marketing/reports scope. No orders create/edit, no warehouses,
-// no treasury, no operational actions.
+// no treasury, no operational actions. Extra allowed prefixes come from
+// @/config/sidebarOverrides so cross-section moves stay reachable.
 const MARKETING_ONLY_ALLOWED_PREFIXES = [
   '/social-media',
   '/reports',
@@ -55,6 +57,7 @@ const MARKETING_ONLY_ALLOWED_PREFIXES = [
   '/org-chart',
   '/auth',
   '/install',
+  ...MARKETING_ONLY_EXTRA_PREFIXES,
 ];
 
 const isPathAllowedForModerator = (pathname: string) =>

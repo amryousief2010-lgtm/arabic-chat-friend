@@ -52,6 +52,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
+import { SIDEBAR_ITEM_MOVES, MARKETING_ONLY_EXTRA_PREFIXES } from "@/config/sidebarOverrides";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 import { useLabTreasuryApprovals } from "@/hooks/useLabTreasuryApprovals";
 import { useExecutiveApprovals } from "@/hooks/useExecutiveApprovals";
@@ -416,6 +417,39 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
   };
 
 
+  // Apply config-driven cross-section moves (see @/config/sidebarOverrides).
+  // Runs before role filtering so the item's original `roles` list is honored.
+  const sectionsWithMoves: ModuleSection[] = (() => {
+    if (SIDEBAR_ITEM_MOVES.length === 0) return moduleSections;
+    // Detach every moved item from its source section.
+    const movedItems = new Map<string, MenuItem>();
+    const stripped = moduleSections.map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        const move = SIDEBAR_ITEM_MOVES.find((m) => m.path === item.path);
+        if (move) {
+          movedItems.set(item.path, item);
+          return false;
+        }
+        return true;
+      }),
+    }));
+    // Re-insert each into its target section at the requested position.
+    return stripped.map((section) => {
+      const incoming = SIDEBAR_ITEM_MOVES.filter((m) => m.toSectionId === section.id);
+      if (incoming.length === 0) return section;
+      const items = [...section.items];
+      for (const move of incoming) {
+        const item = movedItems.get(move.path);
+        if (!item) continue;
+        const anchorIdx = move.after ? items.findIndex((i) => i.path === move.after) : -1;
+        if (anchorIdx >= 0) items.splice(anchorIdx + 1, 0, item);
+        else items.push(item);
+      }
+      return { ...section, items };
+    });
+  })();
+
   // Marketing-only users (only role = marketing_sales_manager, e.g. Mohamed Sayed)
   // get a strict allowlist of sidebar paths. Users with additional roles
   // (e.g. آلاء who also holds sales_manager) are unaffected.
@@ -424,13 +458,14 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
   const MARKETING_ONLY_ALLOWED_PATH_PREFIXES = [
     '/social-media', '/reports', '/notifications', '/internal-messages',
     '/permissions', '/org-chart',
+    ...MARKETING_ONLY_EXTRA_PREFIXES,
   ];
   const isPathAllowedForMarketingOnly = (path: string) =>
     MARKETING_ONLY_ALLOWED_PATH_PREFIXES.some(
       (p) => path === p || path.startsWith(p + '/'),
     );
 
-  const visibleSections = moduleSections
+  const visibleSections = sectionsWithMoves
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
