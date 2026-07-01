@@ -2586,6 +2586,15 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
       const quarantined = Number(r.quarantined_weight_kg) || 0;
       if (accepted <= 0 && damaged <= 0 && quarantined <= 0) continue;
 
+      const autoCost = Number(r.auto_cost_per_kg) || batchCostPerKg || 0;
+      const suggestedSale = Number(r.suggested_sale_price_per_kg) || productPriceOf(r.cut_name_ar) || 0;
+      const manualCost = (r.manual_cost_per_kg != null && Number(r.manual_cost_per_kg) > 0)
+        ? Number(r.manual_cost_per_kg)
+        : (Number(r.unit_cost) > 0 && Math.abs(Number(r.unit_cost) - autoCost) > 0.005 ? Number(r.unit_cost) : null);
+      const manualSale = (r.manual_sale_price_per_kg != null && Number(r.manual_sale_price_per_kg) > 0)
+        ? Number(r.manual_sale_price_per_kg)
+        : (Number(r.unit_price) > 0 && Math.abs(Number(r.unit_price) - suggestedSale) > 0.005 ? Number(r.unit_price) : null);
+
       const base = {
         batch_id: batchId,
         yield_standard_id: r.yield_standard_id,
@@ -2595,6 +2604,11 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
         unit_price: Number(r.unit_price) || 0,
         destination: r.destination,
         branch_id: r.branch_id || null,
+        auto_cost_per_kg: autoCost,
+        manual_cost_per_kg: manualCost,
+        suggested_sale_price_per_kg: suggestedSale,
+        manual_sale_price_per_kg: manualSale,
+        price_edit_reason: r.price_edit_reason || null,
       };
 
       if (accepted > 0) {
