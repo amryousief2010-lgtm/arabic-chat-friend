@@ -13516,7 +13516,12 @@ export type Database = {
           collected_at: string | null
           collected_by: string | null
           collection_batch_id: string | null
+          collection_method: string | null
+          collection_note: string | null
           collection_status: string
+          collection_updated_at: string | null
+          collection_updated_by: string | null
+          courier_cash_due: number
           created_at: string
           created_by: string | null
           customer_id: string | null
@@ -13560,7 +13565,12 @@ export type Database = {
           collected_at?: string | null
           collected_by?: string | null
           collection_batch_id?: string | null
+          collection_method?: string | null
+          collection_note?: string | null
           collection_status?: string
+          collection_updated_at?: string | null
+          collection_updated_by?: string | null
+          courier_cash_due?: number
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -13604,7 +13614,12 @@ export type Database = {
           collected_at?: string | null
           collected_by?: string | null
           collection_batch_id?: string | null
+          collection_method?: string | null
+          collection_note?: string | null
           collection_status?: string
+          collection_updated_at?: string | null
+          collection_updated_by?: string | null
+          courier_cash_due?: number
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
