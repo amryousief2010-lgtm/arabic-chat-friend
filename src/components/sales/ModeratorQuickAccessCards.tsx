@@ -138,14 +138,14 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
         (products || []).forEach((p: any) => productCat.set(p.id, p.category ?? null));
       }
 
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = toCairoDateString(new Date());
       const orderById = new Map<string, OrderRow>(
         (orders as OrderRow[]).map((o) => [o.id, o]),
       );
 
       return MODERATORS.map((m) => {
         const filtered = (orders as OrderRow[]).filter((o) => orderToMod.get(o.id)?.slug === m.slug);
-        const today = filtered.filter((o) => o.created_at.slice(0, 10) === todayStr);
+        const today = filtered.filter((o) => toCairoDateString(o.created_at) === todayStr);
         const monthTotal = filtered.reduce((s, o) => s + Number(o.total || 0), 0);
         const todayTotal = today.reduce((s, o) => s + Number(o.total || 0), 0);
 
