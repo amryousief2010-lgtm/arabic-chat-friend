@@ -2553,6 +2553,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
 
   const addRow = (cutName: string) => {
     const y = yields.find(y => y.cut_name_ar === cutName);
+    const suggested = productPriceOf(cutName);
     setRows(prev => [...prev, {
       yield_standard_id: y?.id || null,
       cut_name_ar: cutName,
@@ -2563,7 +2564,15 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
       quarantined_weight_kg: 0,
       package_count: 0,
       standard_weight_kg: y ? (Number(batch.total_live_weight_kg) * Number(y.standard_yield_pct)) / 100 : 0,
-      unit_cost: batchCostPerKg, unit_price: 0, destination: "warehouse", branch_id: "",
+      auto_cost_per_kg: batchCostPerKg,
+      manual_cost_per_kg: null,
+      suggested_sale_price_per_kg: suggested,
+      manual_sale_price_per_kg: null,
+      price_edit_reason: "",
+      unit_cost: batchCostPerKg,
+      unit_price: suggested,
+      destination: "warehouse",
+      branch_id: "",
     }]);
   };
 
