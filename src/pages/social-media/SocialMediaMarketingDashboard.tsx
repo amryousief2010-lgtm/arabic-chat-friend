@@ -272,8 +272,49 @@ export default function SocialMediaMarketingDashboard() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>قناة التواصل</Label>
+              <Select value={channelFilter} onValueChange={setChannelFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل القنوات</SelectItem>
+                  {uniqueChannels.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>الحملة</Label>
+              <Select value={campaignFilter} onValueChange={setCampaignFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل الحملات</SelectItem>
+                  {uniqueCampaigns.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>المنتج</Label>
+              <Select value={productFilter} onValueChange={setProductFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل المنتجات</SelectItem>
+                  {uniqueProducts.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
           </CardContent>
         </Card>
+
+        {pendingExpense > 0 && (
+          <Alert className="border-amber-500 bg-amber-50">
+            <ShieldAlert className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-800">مصروفات قيد المراجعة</AlertTitle>
+            <AlertDescription className="text-amber-700">
+              يوجد مصروفات سوشيال ميديا قيد المراجعة بقيمة {fmtMoney(pendingExpense)}، وهذه المصروفات لا تدخل في النسبة الرسمية إلا بعد اعتمادها.
+            </AlertDescription>
+          </Alert>
+        )}
+
 
         {/* KPI cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
