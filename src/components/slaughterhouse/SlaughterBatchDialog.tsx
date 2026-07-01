@@ -104,12 +104,17 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
     return m;
   }, [receipts]);
 
-  // Receipts that are available as sources (have alive birds and not rejected/processed)
+  // Receipts that are available as sources (have alive birds and not rejected/processed/archived/excluded)
+  // نطابق منطق داشبورد "النعام القائم" — نستبعد الدفعات المؤرشفة والمستبعدة من التكلفة
+  // (مثل الرصيد الافتتاحي المُقفَل أو الدفعات المرفوضة) حتى لا يظهر عدد أكبر من الفعلي المتاح للدبح.
   const availableReceipts = useMemo(
     () =>
-      receipts.filter((r) => {
+      receipts.filter((r: any) => {
+        if (r.archived) return false;
+        if (r.excluded_from_costing) return false;
+        if (r.status === "processed" || r.status === "rejected") return false;
         const alive = Number(r.current_alive_count ?? r.bird_count) || 0;
-        return r.status !== "processed" && r.status !== "rejected" && alive > 0;
+        return alive > 0;
       }),
     [receipts]
   );
