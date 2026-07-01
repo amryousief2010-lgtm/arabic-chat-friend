@@ -737,6 +737,29 @@ export default function CourierOrderCustodyTab() {
                                       <Coins className="w-4 h-4 ml-2 text-emerald-600" /> تحصيل كاش 💵
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
+                                      onClick={async () => {
+                                        const remaining = Math.max(0, dueAmt - colAmt);
+                                        if (remaining <= 0) {
+                                          toast({ title: "لا يوجد مبلغ متبقٍ للتحويل", variant: "destructive" });
+                                          return;
+                                        }
+                                        if (!confirm(`تأكيد: تسجيل تحويل فودافون كاش / انستا باى (أحمد الجمل) بمبلغ ${remaining.toLocaleString("ar-EG")} ج.م للأوردر ${o?.order_number ?? ""}؟`)) return;
+                                        const note = "تحويل فودافون كاش / انستا باى (أحمد الجمل)";
+                                        const ok = await recordDeliveryAndCollection(a.order_id, remaining, note);
+                                        if (ok) {
+                                          await (supabase as any).from("orders").update({
+                                            collection_method: "transfer",
+                                            collection_note: note,
+                                          }).eq("id", a.order_id);
+                                          toast({ title: "تم تسجيل التحويل ✅", description: "فودافون كاش / انستا باى — أحمد الجمل" });
+                                          load();
+                                        }
+                                      }}
+                                    >
+                                      <span className="ml-2">📲</span> تحويل فودافون كاش / انستا باى (أحمد الجمل)
+                                    </DropdownMenuItem>
+
+                                    <DropdownMenuItem
                                       onClick={() => {
                                         const ord = o ?? ({ id: a.order_id, order_number: a.order_id.slice(0, 8), total: dueAmt, customer_name: "—", status: a.status, created_at: a.assigned_at } as Order);
                                         setReturnOpen(ord);
