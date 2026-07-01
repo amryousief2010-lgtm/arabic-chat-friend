@@ -74,8 +74,8 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
     refetchInterval: 5 * 60_000,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      const startOfMonth = new Date(Date.UTC(viewYear, viewMonth, 1, 0, 0, 0, 0));
-      const startOfNextMonth = new Date(Date.UTC(viewYear, viewMonth + 1, 1, 0, 0, 0, 0));
+      const startOfMonth = cairoMonthStartUTC(viewYear, viewMonth);
+      const startOfNextMonth = cairoMonthStartUTC(viewYear, viewMonth + 1);
 
       let q = supabase
         .from("orders")
