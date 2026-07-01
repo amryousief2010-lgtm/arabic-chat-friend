@@ -113,6 +113,33 @@ const KPI = ({
 
 const PIE_COLORS = ["#8b5cf6", "#f97316", "#3b82f6", "#10b981", "#ef4444"];
 
+// Map raw orders.source values to normalized social-media platforms
+const SOCIAL_SOURCE_MAP: Record<string, string> = {
+  "فيسبوك": "Facebook",
+  "حملات فيسبوك": "Facebook",
+  "واتساب": "WhatsApp",
+  "حملات واتساب": "WhatsApp",
+  "حملات واتس": "WhatsApp",
+  "مكالمة / واتساب": "WhatsApp",
+  "تلجرام": "Telegram",
+  "تليجرام": "Telegram",
+  "تلجيرام": "Telegram",
+  "انستجرام": "Instagram",
+  "إعلان": "إعلانات",
+  "اعلان": "إعلانات",
+  "تسويق": "تسويق",
+  "ويب سايت": "Website",
+};
+const normalizeSocialSource = (src?: string | null) =>
+  src ? SOCIAL_SOURCE_MAP[src.trim()] ?? null : null;
+
+type SocialOrderRow = {
+  created_at: string;
+  total: number | null;
+  status: string | null;
+  source: string | null;
+};
+
 export default function SocialMediaDashboard() {
   const { user, isGeneralManager, isExecutiveManager, roles } = useAuth();
   const isManager =
@@ -125,6 +152,8 @@ export default function SocialMediaDashboard() {
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [socialOrders, setSocialOrders] = useState<SocialOrderRow[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -141,6 +170,37 @@ export default function SocialMediaDashboard() {
       setLoading(false);
     })();
   }, [from, to, user, isManager]);
+
+  // Load orders coming from social-media sources over the last 3 months
+  useEffect(() => {
+    (async () => {
+      setOrdersLoading(true);
+      const since = new Date();
+      since.setMonth(since.getMonth() - 3);
+      const acc: SocialOrderRow[] = [];
+      const pageSize = 1000;
+      let offset = 0;
+      // paginate to bypass 1000-row cap
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from("orders")
+          .select("created_at,total,status,source")
+          .gte("created_at", since.toISOString())
+          .not("source", "is", null)
+          .order("created_at", { ascending: false })
+          .range(offset, offset + pageSize - 1);
+        if (error || !data || data.length === 0) break;
+        acc.push(...(data as any));
+        if (data.length < pageSize) break;
+        offset += pageSize;
+      }
+      const socialOnly = acc.filter((o) => normalizeSocialSource(o.source));
+      setSocialOrders(socialOnly);
+      setOrdersLoading(false);
+    })();
+  }, []);
+
 
   const filtered = useMemo(
     () =>
