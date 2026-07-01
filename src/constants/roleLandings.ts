@@ -9,7 +9,7 @@ export const ROLE_LANDING: Record<AppRole, string> = {
   sales_moderator: "/orders",
   general_manager: "/",
   executive_manager: "/",
-  marketing_sales_manager: "/",
+  marketing_sales_manager: "/social-media/marketing-dashboard",
   financial_manager: "/",
   production_manager: "/",
   sales_manager: "/",

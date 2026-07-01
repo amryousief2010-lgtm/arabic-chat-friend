@@ -416,10 +416,28 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
   };
 
 
+  // Marketing-only users (only role = marketing_sales_manager, e.g. Mohamed Sayed)
+  // get a strict allowlist of sidebar paths. Users with additional roles
+  // (e.g. آلاء who also holds sales_manager) are unaffected.
+  const isMarketingOnly =
+    userRoles.length > 0 && userRoles.every((r) => r === 'marketing_sales_manager');
+  const MARKETING_ONLY_ALLOWED_PATH_PREFIXES = [
+    '/social-media', '/reports', '/notifications', '/internal-messages',
+    '/permissions', '/org-chart',
+  ];
+  const isPathAllowedForMarketingOnly = (path: string) =>
+    MARKETING_ONLY_ALLOWED_PATH_PREFIXES.some(
+      (p) => path === p || path.startsWith(p + '/'),
+    );
+
   const visibleSections = moduleSections
     .map((section) => ({
       ...section,
-      items: section.items.filter((item) => hasAnyRole(item.roles)),
+      items: section.items.filter((item) => {
+        if (!hasAnyRole(item.roles)) return false;
+        if (isMarketingOnly && !isPathAllowedForMarketingOnly(item.path)) return false;
+        return true;
+      }),
     }))
     .filter((section) => hasAnyRole(section.roles) && section.items.length > 0);
 
