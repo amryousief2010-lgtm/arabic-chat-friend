@@ -571,10 +571,9 @@ const Warehouses = () => {
   const fetchAll = async () => {
     setLoading(true);
     const sinceISO = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
-    const [w, i, m, s, o] = await Promise.all([
+    const [w, i, s, o] = await Promise.all([
       supabase.from("warehouses").select("*").order("name"),
       supabase.from("inventory_items").select("*, warehouse:warehouses(name), product:products(is_active, category, name, barcode)").order("name"),
-      supabase.from("inventory_movements").select("*, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)").order("performed_at", { ascending: false }).limit(200),
       supabase.from("slaughter_batch_outputs")
         .select("id, batch_id, cut_name_ar, actual_weight_kg, unit_cost, quality_status, received_status, received_at, received_warehouse_id, batch:slaughter_batches(batch_number, slaughter_date, status)")
         .in("destination", ["warehouse", "branch"]) // مسؤول المخزن الرئيسي يرى فقط ما هو موجه إليه — أوارد مصنع اللحوم تظهر داخل صفحة مصنع اللحوم
@@ -588,9 +587,38 @@ const Warehouses = () => {
     ]);
     if (w.data) setWarehouses(w.data as WarehouseRow[]);
     if (i.data) setItems(i.data as InventoryItem[]);
-    if (m.data) setMovements(m.data as Movement[]);
     if (s.data) setSlaughterOutputs(s.data as any[]);
     if (o.data) setRecentOrders(o.data as any[]);
+
+    // Fetch movements PER warehouse (top 200 each) so per-warehouse KPIs never
+    // miss their own "last movement" due to a global limit dominated by another
+    // busier warehouse. Guarantees strict isolation without cross-leak.
+    const whIds = (w.data || []).map((x: any) => x.id);
+    if (whIds.length > 0) {
+      const perWhMoves = await Promise.all(
+        whIds.map((id) =>
+          supabase
+            .from("inventory_movements")
+            .select("*, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)")
+            .or(`warehouse_id.eq.${id},source_warehouse_id.eq.${id},destination_warehouse_id.eq.${id}`)
+            .order("performed_at", { ascending: false })
+            .limit(200)
+        )
+      );
+      const seen = new Set<string>();
+      const merged: any[] = [];
+      for (const r of perWhMoves) {
+        for (const row of ((r.data || []) as any[])) {
+          if (seen.has(row.id)) continue;
+          seen.add(row.id);
+          merged.push(row);
+        }
+      }
+      merged.sort((a, b) => (a.performed_at < b.performed_at ? 1 : -1));
+      setMovements(merged as Movement[]);
+    } else {
+      setMovements([]);
+    }
     setLoading(false);
   };
 
