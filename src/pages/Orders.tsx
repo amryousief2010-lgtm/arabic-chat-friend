@@ -141,6 +141,7 @@ type CollectionMethod =
   | 'cash_courier'
   | 'vodafone_cash'
   | 'instapay'
+  | 'mixed_payment'
   | 'prepaid'
   | 'none';
 
@@ -148,6 +149,7 @@ const collectionMethodMeta: Record<CollectionMethod, { label: string; short: str
   cash_courier:  { label: 'تحصيل نقدي مع المندوب', short: 'كاش من المندوب',  className: 'bg-emerald-500 text-white border-emerald-600' },
   vodafone_cash: { label: 'تحويل فودافون كاش',      short: 'Vodafone Cash',   className: 'bg-rose-500 text-white border-rose-600' },
   instapay:      { label: 'تحويل إنستاباي',         short: 'InstaPay',        className: 'bg-violet-500 text-white border-violet-600' },
+  mixed_payment: { label: 'تحصيل مختلط',            short: 'مختلط 🧩',        className: 'bg-amber-500 text-white border-amber-600' },
   prepaid:       { label: 'مدفوع مسبقاً',           short: 'مدفوع مسبقاً',    className: 'bg-sky-500 text-white border-sky-600' },
   none:          { label: 'لا يوجد تحصيل',          short: 'لا يوجد تحصيل',   className: 'bg-slate-500 text-white border-slate-600' },
 };
