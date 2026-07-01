@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 
 const validateNumber = (value: number, label: string): number | null => {
   if (Number.isNaN(value)) {
