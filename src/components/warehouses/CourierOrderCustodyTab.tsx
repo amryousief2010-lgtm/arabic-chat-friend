@@ -121,6 +121,9 @@ type Order = {
   update_status_marker?: string | null;
   collection_method?: string | null;
   courier_cash_due?: number | null;
+  vodafone_cash_amount?: number | null;
+  instapay_amount?: number | null;
+  free_amount?: number | null;
   collection_note?: string | null;
 };
 
