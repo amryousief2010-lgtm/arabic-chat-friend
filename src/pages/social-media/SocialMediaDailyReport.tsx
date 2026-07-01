@@ -133,6 +133,13 @@ export default function SocialMediaDailyReport() {
           complaint_attachment_path: null,
           status: "draft",
           management_notes: null,
+          reach_count: "",
+          impressions_count: "",
+          likes_count: "",
+          comments_count: "",
+          shares_count: "",
+          new_followers_count: "",
+          platforms: [],
         }));
       }
       setLoading(false);
