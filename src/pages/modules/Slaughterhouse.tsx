@@ -3195,6 +3195,13 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                           ? "تكلفة الكيلو — يمكن تعديلها يدويًا، وإلا يتم استخدام تكلفة دفعة الذبح"
                           : "لا تملك صلاحية تعديل السعر"}
                       />
+                      {(() => {
+                        const auto = Number(r.auto_cost_per_kg) || batchCostPerKg || 0;
+                        const cur = Number(r.unit_cost) || 0;
+                        const isManual = auto > 0 && Math.abs(cur - auto) > 0.005;
+                        if (auto <= 0) return <div className="text-[10px] text-amber-600 mt-0.5">⚠ غير محسوبة</div>;
+                        return <div className={"text-[10px] mt-0.5 " + (isManual ? "text-amber-700" : "text-muted-foreground")}>{isManual ? `معدل يدوياً (تلقائي: ${auto.toFixed(2)})` : "تلقائي"}</div>;
+                      })()}
                     </TableCell>
                     <TableCell>
                       <Input
@@ -3211,6 +3218,13 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                         readOnly={!canEditSellPrice}
                         title={canEditSellPrice ? "سعر البيع لكل كجم" : "لا تملك صلاحية تعديل السعر"}
                       />
+                      {(() => {
+                        const sug = Number(r.suggested_sale_price_per_kg) || productPriceOf(r.cut_name_ar) || 0;
+                        const cur = Number(r.unit_price) || 0;
+                        const isManual = sug > 0 && Math.abs(cur - sug) > 0.005;
+                        if (sug <= 0) return <div className="text-[10px] text-amber-600 mt-0.5">⚠ غير محدد بالقائمة</div>;
+                        return <div className={"text-[10px] mt-0.5 " + (isManual ? "text-amber-700" : "text-muted-foreground")}>{isManual ? `معدل يدوياً (مقترح: ${sug.toFixed(2)})` : "تلقائي من القائمة"}</div>;
+                      })()}
                     </TableCell>
                     <TableCell className="font-semibold text-slate-700">{totalCost.toFixed(0)}</TableCell>
                     <TableCell className="font-semibold text-blue-700">{totalSale.toFixed(0)}</TableCell>
