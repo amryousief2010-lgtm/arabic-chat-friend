@@ -258,11 +258,6 @@ const Customers = () => {
                     <Label>العنوان</Label>
                     <Input value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} placeholder="أدخل العنوان" className="input-modern" />
                   </div>
-                  <Button onClick={handleSubmit} className="w-full btn-primary">
-                    {editingCustomer ? "حفظ التعديلات" : "إضافة العميل"}
-                  </Button>
-                </div>
-              </DialogContent>
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t">
                     <div className="col-span-2 text-xs text-muted-foreground">حقول تسويقية (اختيارية):</div>
                     <div className="space-y-2">
