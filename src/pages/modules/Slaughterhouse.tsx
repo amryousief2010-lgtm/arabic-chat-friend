@@ -3490,6 +3490,101 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
           </AlertDialogContent>
         </AlertDialog>
 
+        {/* Per-row price edit dialog (with reason + audit trail) */}
+        <Dialog open={!!editRow} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
+          <DialogContent className="max-w-md" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>تعديل تكلفة/سعر البيع</DialogTitle>
+            </DialogHeader>
+            {editRow && (() => {
+              const r = rows[editRow.index] || {};
+              const autoCost = Number(r.auto_cost_per_kg) || batchCostPerKg || 0;
+              const sugSale = Number(r.suggested_sale_price_per_kg) || productPriceOf(r.cut_name_ar) || 0;
+              return (
+                <div className="space-y-3 text-sm">
+                  <div className="p-2 bg-muted/40 rounded">
+                    <div><b>الصنف:</b> {r.cut_name_ar}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      تكلفة تلقائية: {autoCost > 0 ? autoCost.toFixed(2) : "—"} • سعر بيع مقترح: {sugSale > 0 ? sugSale.toFixed(2) : "—"}
+                    </div>
+                  </div>
+                  {canEditCostPrice && (
+                    <div>
+                      <label className="text-xs text-muted-foreground">تكلفة الكيلو</label>
+                      <Input type="number" step="0.01" value={editCost} onChange={e => setEditCost(e.target.value)} />
+                    </div>
+                  )}
+                  {canEditSellPrice && (
+                    <div>
+                      <label className="text-xs text-muted-foreground">سعر البيع/كجم</label>
+                      <Input type="number" step="0.01" value={editSale} onChange={e => setEditSale(e.target.value)} />
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-xs text-muted-foreground">سبب التعديل</label>
+                    <Input value={editReason} onChange={e => setEditReason(e.target.value)} placeholder="مثال: خصم على العميل / تكلفة إضافية" />
+                  </div>
+                  {canUpdateGlobalPrice && (
+                    <label className="flex items-center gap-2 text-xs">
+                      <input type="checkbox" checked={editUpdateGlobal} onChange={e => setEditUpdateGlobal(e.target.checked)} />
+                      تحديث سعر البيع في قائمة الأسعار العامة أيضاً (المدير العام/التنفيذي فقط)
+                    </label>
+                  )}
+                  {!editUpdateGlobal && (
+                    <div className="text-[11px] text-emerald-700 bg-emerald-50 p-2 rounded">
+                      ✓ سيتم تطبيق التعديل على هذه الدفعة فقط ولن يتأثر سعر المنتج في النظام.
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditRow(null)}>إلغاء</Button>
+              <Button onClick={async () => {
+                if (!editRow) return;
+                const i = editRow.index;
+                const r = rows[i];
+                const newCost = Math.max(0, Number(editCost) || 0);
+                const newSale = Math.max(0, Number(editSale) || 0);
+                updateRow(i, { unit_cost: newCost, unit_price: newSale, price_edit_reason: editReason });
+
+                // If already persisted (has DB id via output), record audit through RPC.
+                // Match to the currently-saved output for this cut/branch to obtain id.
+                const dbOut = (outputs as any[]).find(o =>
+                  o.cut_name_ar === r.cut_name_ar &&
+                  (o.branch_id || "") === (r.branch_id || "") &&
+                  (o.quality_status || "accepted") === "accepted"
+                );
+                if (dbOut?.id) {
+                  const autoCost = Number(r.auto_cost_per_kg) || batchCostPerKg || 0;
+                  const sugSale = Number(r.suggested_sale_price_per_kg) || productPriceOf(r.cut_name_ar) || 0;
+                  const manualCost = Math.abs(newCost - autoCost) > 0.005 ? newCost : null;
+                  const manualSale = Math.abs(newSale - sugSale) > 0.005 ? newSale : null;
+                  const { error } = await supabase.rpc("apply_slaughter_output_price_update" as any, {
+                    p_output_id: dbOut.id,
+                    p_manual_cost_per_kg: manualCost,
+                    p_manual_sale_price_per_kg: manualSale,
+                    p_reason: editReason || null,
+                  } as any);
+                  if (error) { toast.error(error.message); return; }
+                }
+
+                // Optional: update global products.price
+                if (editUpdateGlobal && canUpdateGlobalPrice) {
+                  const pid = productIdOf(r.cut_name_ar);
+                  if (pid) {
+                    const { error } = await supabase.from("products").update({ price: newSale }).eq("id", pid);
+                    if (error) toast.error("تعذر تحديث السعر العام: " + error.message);
+                    else toast.success("تم تحديث السعر العام لهذا المنتج");
+                  }
+                }
+                toast.success("تم التعديل — احفظ التقييم لتثبيت التغييرات على المخرجات.");
+                setEditRow(null);
+              }}>حفظ التعديل</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
       </DialogContent>
     </Dialog>
   );
