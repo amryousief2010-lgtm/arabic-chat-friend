@@ -104,15 +104,25 @@ const TeamPerformance = () => {
     try {
       setLoading(true);
 
-      // Get team assignments. General manager sees ALL teams; others see their own team.
-      const assignmentsQuery = supabase.from('team_assignments').select('moderator_id');
-      const { data: assignments, error: assignError } = isGeneralManager
-        ? await assignmentsQuery
-        : await assignmentsQuery.eq('manager_id', user.id);
+      // Sales Manager (م. آلاء) & General Manager see ALL registered sales moderators automatically.
+      // Others see only their assigned team.
+      let moderatorIds: string[] = [];
 
-      if (assignError) throw assignError;
-
-      const moderatorIds = assignments?.map(a => a.moderator_id) || [];
+      if (isSalesManager || isGeneralManager) {
+        const { data: roles, error: rolesError } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'sales_moderator');
+        if (rolesError) throw rolesError;
+        moderatorIds = Array.from(new Set((roles || []).map(r => r.user_id)));
+      } else {
+        const { data: assignments, error: assignError } = await supabase
+          .from('team_assignments')
+          .select('moderator_id')
+          .eq('manager_id', user.id);
+        if (assignError) throw assignError;
+        moderatorIds = (assignments || []).map(a => a.moderator_id);
+      }
 
       if (moderatorIds.length === 0) {
         setTeamMembers([]);
