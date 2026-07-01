@@ -2439,7 +2439,9 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
           suggested_sale_price_per_kg: suggestedSale || productPriceOf(o.cut_name_ar),
           manual_sale_price_per_kg: manualSale,
           price_edit_reason: oa.price_edit_reason || "",
-          unit_cost: manualCost != null && manualCost > 0 ? manualCost : (autoCost || Number(o.unit_cost) || batchCostPerKg),
+          // COST source rule (locked): manual (if explicitly set) → auto (per-batch snapshot) → batchCostPerKg.
+          // NEVER use products.cost, last-saved o.unit_cost, or a global average — see mem://features/slaughterhouse/output-cost-per-batch.
+          unit_cost: manualCost != null && manualCost > 0 ? manualCost : (autoCost || batchCostPerKg),
           unit_price: manualSale != null && manualSale > 0 ? manualSale : (suggestedSale || Number(o.unit_price) || productPriceOf(o.cut_name_ar)),
           destination: o.destination,
           branch_id: o.branch_id || "",
