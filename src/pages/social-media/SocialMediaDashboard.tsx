@@ -113,6 +113,33 @@ const KPI = ({
 
 const PIE_COLORS = ["#8b5cf6", "#f97316", "#3b82f6", "#10b981", "#ef4444"];
 
+// Map raw orders.source values to normalized social-media platforms
+const SOCIAL_SOURCE_MAP: Record<string, string> = {
+  "فيسبوك": "Facebook",
+  "حملات فيسبوك": "Facebook",
+  "واتساب": "WhatsApp",
+  "حملات واتساب": "WhatsApp",
+  "حملات واتس": "WhatsApp",
+  "مكالمة / واتساب": "WhatsApp",
+  "تلجرام": "Telegram",
+  "تليجرام": "Telegram",
+  "تلجيرام": "Telegram",
+  "انستجرام": "Instagram",
+  "إعلان": "إعلانات",
+  "اعلان": "إعلانات",
+  "تسويق": "تسويق",
+  "ويب سايت": "Website",
+};
+const normalizeSocialSource = (src?: string | null) =>
+  src ? SOCIAL_SOURCE_MAP[src.trim()] ?? null : null;
+
+type SocialOrderRow = {
+  created_at: string;
+  total: number | null;
+  status: string | null;
+  source: string | null;
+};
+
 export default function SocialMediaDashboard() {
   const { user, isGeneralManager, isExecutiveManager, roles } = useAuth();
   const isManager =
@@ -125,6 +152,8 @@ export default function SocialMediaDashboard() {
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [socialOrders, setSocialOrders] = useState<SocialOrderRow[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -141,6 +170,37 @@ export default function SocialMediaDashboard() {
       setLoading(false);
     })();
   }, [from, to, user, isManager]);
+
+  // Load orders coming from social-media sources over the last 3 months
+  useEffect(() => {
+    (async () => {
+      setOrdersLoading(true);
+      const since = new Date();
+      since.setMonth(since.getMonth() - 3);
+      const acc: SocialOrderRow[] = [];
+      const pageSize = 1000;
+      let offset = 0;
+      // paginate to bypass 1000-row cap
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from("orders")
+          .select("created_at,total,status,source")
+          .gte("created_at", since.toISOString())
+          .not("source", "is", null)
+          .order("created_at", { ascending: false })
+          .range(offset, offset + pageSize - 1);
+        if (error || !data || data.length === 0) break;
+        acc.push(...(data as any));
+        if (data.length < pageSize) break;
+        offset += pageSize;
+      }
+      const socialOnly = acc.filter((o) => normalizeSocialSource(o.source));
+      setSocialOrders(socialOnly);
+      setOrdersLoading(false);
+    })();
+  }, []);
+
 
   const filtered = useMemo(
     () =>
@@ -238,9 +298,50 @@ export default function SocialMediaDashboard() {
     [filtered],
   );
 
+  const socialOrdersStats = useMemo(() => {
+    const perPlatform = new Map<string, { orders: number; revenue: number; delivered: number }>();
+    const perMonth = new Map<string, { month: string; orders: number; revenue: number }>();
+    let orders = 0;
+    let revenue = 0;
+    let delivered = 0;
+    for (const o of socialOrders) {
+      const platform = normalizeSocialSource(o.source);
+      if (!platform) continue;
+      const total = Number(o.total || 0);
+      const isDelivered = (o.status || "").toLowerCase() === "delivered";
+      orders++;
+      revenue += total;
+      if (isDelivered) delivered++;
+      const p = perPlatform.get(platform) || { orders: 0, revenue: 0, delivered: 0 };
+      p.orders++;
+      p.revenue += total;
+      if (isDelivered) p.delivered++;
+      perPlatform.set(platform, p);
+      const monthKey = (o.created_at || "").slice(0, 7);
+      const m = perMonth.get(monthKey) || { month: monthKey, orders: 0, revenue: 0 };
+      m.orders++;
+      m.revenue += total;
+      perMonth.set(monthKey, m);
+    }
+    return {
+      orders,
+      revenue,
+      delivered,
+      deliveredRate: orders ? Math.round((delivered / orders) * 100) : 0,
+      aov: orders ? Math.round(revenue / orders) : 0,
+      byPlatform: Array.from(perPlatform.entries())
+        .map(([name, v]) => ({ name, ...v }))
+        .sort((a, b) => b.orders - a.orders),
+      byMonth: Array.from(perMonth.values()).sort((a, b) => a.month.localeCompare(b.month)),
+    };
+  }, [socialOrders]);
+
+  const fmtEGP = (n: number) => `${Math.round(n).toLocaleString("ar-EG")} ج.م`;
+
   return (
     <DashboardLayout>
       <div className="space-y-6" dir="rtl">
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -454,7 +555,103 @@ export default function SocialMediaDashboard() {
             )}
           </CardContent>
         </Card>
+
+        {/* Social Media Orders — Last 3 Months (live from orders table) */}
+        <Card className="border-primary/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Megaphone className="w-5 h-5 text-primary" />
+              طلبات السوشيال ميديا — آخر 3 شهور
+              <Badge variant="secondary" className="mr-2">بيانات فعلية من الأوردرات</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {ordersLoading ? (
+              <p className="text-muted-foreground">جاري تحميل بيانات الأوردرات…</p>
+            ) : socialOrdersStats.orders === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                لا توجد أوردرات مرتبطة بمصادر السوشيال ميديا في آخر 3 شهور.
+              </p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <KPI icon={Users} label="إجمالي الطلبات" value={socialOrdersStats.orders.toLocaleString("ar-EG")} color="bg-blue-500" />
+                  <KPI icon={TrendingUp} label="إجمالي الإيرادات" value={fmtEGP(socialOrdersStats.revenue)} color="bg-emerald-500" />
+                  <KPI icon={CalendarCheck} label="الطلبات المُسلَّمة" value={socialOrdersStats.delivered.toLocaleString("ar-EG")} color="bg-cyan-600" />
+                  <KPI icon={ShieldCheck} label="نسبة التسليم" value={`${socialOrdersStats.deliveredRate}%`} color="bg-indigo-500" />
+                  <KPI icon={Sparkles} label="متوسط قيمة الطلب" value={fmtEGP(socialOrdersStats.aov)} color="bg-fuchsia-500" />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">الطلبات حسب المنصة</CardTitle>
+                    </CardHeader>
+                    <CardContent className="h-72">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={socialOrdersStats.byPlatform}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" fontSize={11} />
+                          <YAxis fontSize={11} />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="orders" name="طلبات" fill="#8b5cf6" />
+                          <Bar dataKey="delivered" name="مُسلَّم" fill="#10b981" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">الإيرادات الشهرية</CardTitle>
+                    </CardHeader>
+                    <CardContent className="h-72">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={socialOrdersStats.byMonth}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="month" fontSize={11} />
+                          <YAxis fontSize={11} />
+                          <Tooltip formatter={(v: any, k: any) => k === "revenue" ? fmtEGP(Number(v)) : v} />
+                          <Legend />
+                          <Line type="monotone" dataKey="orders" name="طلبات" stroke="#3b82f6" />
+                          <Line type="monotone" dataKey="revenue" name="إيرادات" stroke="#f97316" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>المنصة</TableHead>
+                      <TableHead>الطلبات</TableHead>
+                      <TableHead>المُسلَّم</TableHead>
+                      <TableHead>نسبة التسليم</TableHead>
+                      <TableHead>الإيرادات</TableHead>
+                      <TableHead>متوسط الطلب</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {socialOrdersStats.byPlatform.map((p) => (
+                      <TableRow key={p.name}>
+                        <TableCell className="font-semibold">{p.name}</TableCell>
+                        <TableCell>{p.orders.toLocaleString("ar-EG")}</TableCell>
+                        <TableCell>{p.delivered.toLocaleString("ar-EG")}</TableCell>
+                        <TableCell>{p.orders ? Math.round((p.delivered / p.orders) * 100) : 0}%</TableCell>
+                        <TableCell>{fmtEGP(p.revenue)}</TableCell>
+                        <TableCell>{fmtEGP(p.orders ? p.revenue / p.orders : 0)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
     </DashboardLayout>
   );
 }
