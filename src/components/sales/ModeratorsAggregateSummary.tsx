@@ -10,6 +10,7 @@ import {
   Flame,
 } from "lucide-react";
 import { MODERATORS, isOrderForModerator } from "@/constants/moderators";
+import { cairoMonthStartUTC, currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
 
 type Category = "meat" | "bone" | "processed" | "other";
 
