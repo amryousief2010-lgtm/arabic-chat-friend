@@ -557,7 +557,7 @@ export default function CourierOrderCustodyTab() {
                       <TableHead>رقم الأوردر</TableHead>
                       <TableHead>العميل</TableHead>
                       <TableHead>القيمة</TableHead>
-                      <TableHead>الحالة</TableHead>
+                      <TableHead>حالة التحديث</TableHead>
                       <TableHead>التحصيل</TableHead>
                       <TableHead>تاريخ التسليم للمندوب</TableHead>
                       <TableHead>إجراءات</TableHead>
