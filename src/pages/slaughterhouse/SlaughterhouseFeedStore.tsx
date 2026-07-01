@@ -319,7 +319,15 @@ export default function SlaughterhouseFeedStore() {
             </CardContent></Card>
           </TabsContent>
 
-          <TabsContent value="inflow"><MovementsTable rows={inflowRows} inventory={inv} /></TabsContent>
+          <TabsContent value="inflow">
+            <InflowTable
+              rows={inflowRows}
+              inventory={inv}
+              balances={balancesByMovementId}
+              nameOfUser={nameOfUser}
+              monthTotal={totals.inMonth}
+            />
+          </TabsContent>
 
           <TabsContent value="fattening">
             <Card>
