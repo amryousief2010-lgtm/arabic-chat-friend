@@ -121,6 +121,9 @@ type Order = {
   update_status_marker?: string | null;
   collection_method?: string | null;
   courier_cash_due?: number | null;
+  vodafone_cash_amount?: number | null;
+  instapay_amount?: number | null;
+  free_amount?: number | null;
   collection_note?: string | null;
 };
 
@@ -193,13 +196,13 @@ export default function CourierOrderCustodyTab() {
     const assignedOrderIds = asn.map((a) => a.order_id);
     const [readyOrdersRes, assignedOrdersRes] = await Promise.all([
       (supabase as any).from("orders")
-        .select("id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, courier_cash_due, collection_note, customers!orders_customer_id_fkey(name, phone)")
+        .select("id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, courier_cash_due, vodafone_cash_amount, instapay_amount, free_amount, collection_note, customers!orders_customer_id_fkey(name, phone)")
         .in("status", ["pending", "processing", "shipped"])
         .order("created_at", { ascending: false })
         .limit(500),
       assignedOrderIds.length
         ? (supabase as any).from("orders")
-            .select("id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, courier_cash_due, collection_note, customers!orders_customer_id_fkey(name, phone)")
+            .select("id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, courier_cash_due, vodafone_cash_amount, instapay_amount, free_amount, collection_note, customers!orders_customer_id_fkey(name, phone)")
             .in("id", assignedOrderIds)
         : Promise.resolve({ data: [] as Order[] }),
 
@@ -243,7 +246,11 @@ export default function CourierOrderCustodyTab() {
       const giftOrderIds = new Set(myAsn.filter((a) => isNonCashAssignment(a, orders.find((o) => o.id === a.order_id) as any)).map((a) => a.order_id));
       const myOrderIds = new Set(myAsn.map((a) => a.order_id));
       const myOrders = orders.filter((o) => myOrderIds.has(o.id));
-      const totalValue = myOrders.reduce((s, o) => s + (giftOrderIds.has(o.id) ? 0 : Number(o.total || 0)), 0);
+      const totalValue = myOrders.reduce((s, o) => {
+        if (giftOrderIds.has(o.id)) return s;
+        if ((o as any).collection_method === 'mixed_payment') return s + Number((o as any).courier_cash_due || 0);
+        return s + Number(o.total || 0);
+      }, 0);
       const myCols = collections.filter((cl) => myOrderIds.has(cl.order_id));
       const collected = myCols.reduce((s, cl) => s + Number(cl.amount_collected || 0), 0);
       const delivered = myAsn.filter((a) => ["delivered", "collected", "completed"].includes(a.status)).length;
@@ -300,6 +307,8 @@ export default function CourierOrderCustodyTab() {
         const totalValue = items.reduce((s, a) => {
           const o = orders.find((x) => x.id === a.order_id);
           if (isNonCashAssignment(a, o as any)) return s;
+          // For mixed payments, only the cash portion counts toward courier cash-due totals.
+          if (o?.collection_method === 'mixed_payment') return s + Number(o?.courier_cash_due || 0);
           return s + Number(o?.total || 0);
         }, 0);
 
@@ -677,8 +686,13 @@ export default function CourierOrderCustodyTab() {
                         const col = collections.find((c) => c.order_id === a.order_id);
                         const gift = isGiftAssignment(a, o as any);
                         const transfer = !gift && isTransferAssignment(a, o as any);
+                        const mixed = !gift && !transfer && o?.collection_method === 'mixed_payment';
                         const nonCash = gift || transfer;
-                        const dueAmt = nonCash ? 0 : Number(o?.total || 0);
+                        // For mixed: cash due comes ONLY from courier_cash_due (electronic + free excluded).
+                        // For non-cash: zero. Otherwise full total.
+                        const dueAmt = mixed
+                          ? Number(o?.courier_cash_due || 0)
+                          : nonCash ? 0 : Number(o?.total || 0);
                         const colAmt = Number(col?.amount_collected || 0);
                         const remain = Math.max(0, dueAmt - colAmt);
                         const effectiveStatus = trk || a.status;
@@ -686,16 +700,26 @@ export default function CourierOrderCustodyTab() {
                           ? "bg-pink-500 text-white border border-pink-600"
                           : transfer
                             ? "bg-indigo-500 text-white border border-indigo-600"
-                            : (STATUS_COLOR[effectiveStatus] || STATUS_COLOR[a.status] || "bg-gray-200 text-gray-800 border border-gray-300");
-                        const stIcon = gift ? "🎁" : transfer ? "📲" : (STATUS_ICON[effectiveStatus] || STATUS_ICON[a.status] || "•");
-                        const stLabel = gift ? "مجاني" : transfer ? "تحويل كاش/انستا" : (COURIER_STATUS_LABEL[effectiveStatus] || COURIER_STATUS_LABEL[a.status] || "غير محدد");
+                            : mixed
+                              ? "bg-amber-500 text-white border border-amber-600"
+                              : (STATUS_COLOR[effectiveStatus] || STATUS_COLOR[a.status] || "bg-gray-200 text-gray-800 border border-gray-300");
+                        const stIcon = gift ? "🎁" : transfer ? "📲" : mixed ? "🧩" : (STATUS_ICON[effectiveStatus] || STATUS_ICON[a.status] || "•");
+                        const stLabel = gift ? "مجاني" : transfer ? "تحويل كاش/انستا" : mixed ? "تحصيل مختلط" : (COURIER_STATUS_LABEL[effectiveStatus] || COURIER_STATUS_LABEL[a.status] || "غير محدد");
                         // Common button styles: always-visible labels, strong colors, no hover-only text.
                         const btnBase = "h-8 px-2 gap-1 text-xs font-semibold border shadow-sm";
                         return (
                           <TableRow key={a.id} className={indent ? "bg-muted/20" : ""}>
                             <TableCell className={`font-mono ${indent ? "pr-8" : ""}`}>{o?.order_number ?? a.order_id.slice(0, 8)}</TableCell>
                             <TableCell>{o?.customer_name ?? "—"}</TableCell>
-                            <TableCell className="font-mono">{fmt(dueAmt)}</TableCell>
+                            <TableCell className="font-mono">
+                              <div>{fmt(dueAmt)}</div>
+                              {mixed && (
+                                <div className="text-[10px] text-amber-700 leading-tight mt-0.5">
+                                  إجمالي: {fmt(Number(o?.total || 0))} · 📱 {fmt(Number(o?.vodafone_cash_amount || 0))} · 💳 {fmt(Number(o?.instapay_amount || 0))}
+                                  {Number(o?.free_amount || 0) > 0 && <> · 🎁 {fmt(Number(o?.free_amount || 0))}</>}
+                                </div>
+                              )}
+                            </TableCell>
                             <TableCell>
                               <Badge className={`${stClass} text-xs font-semibold px-2 py-1 whitespace-nowrap`} title={a.status !== effectiveStatus ? `assignment: ${a.status}` : undefined}>
                                 <span className="ml-1">{stIcon}</span> {stLabel}

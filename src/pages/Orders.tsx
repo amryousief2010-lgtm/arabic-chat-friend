@@ -110,6 +110,9 @@ interface Order {
   update_status_updated_at?: string | null;
   collection_method?: CollectionMethod | null;
   courier_cash_due?: number | null;
+  vodafone_cash_amount?: number | null;
+  instapay_amount?: number | null;
+  free_amount?: number | null;
   collection_updated_at?: string | null;
 }
 
@@ -138,6 +141,7 @@ type CollectionMethod =
   | 'cash_courier'
   | 'vodafone_cash'
   | 'instapay'
+  | 'mixed_payment'
   | 'prepaid'
   | 'none';
 
@@ -145,6 +149,7 @@ const collectionMethodMeta: Record<CollectionMethod, { label: string; short: str
   cash_courier:  { label: 'تحصيل نقدي مع المندوب', short: 'كاش من المندوب',  className: 'bg-emerald-500 text-white border-emerald-600' },
   vodafone_cash: { label: 'تحويل فودافون كاش',      short: 'Vodafone Cash',   className: 'bg-rose-500 text-white border-rose-600' },
   instapay:      { label: 'تحويل إنستاباي',         short: 'InstaPay',        className: 'bg-violet-500 text-white border-violet-600' },
+  mixed_payment: { label: 'تحصيل مختلط',            short: 'مختلط 🧩',        className: 'bg-amber-500 text-white border-amber-600' },
   prepaid:       { label: 'مدفوع مسبقاً',           short: 'مدفوع مسبقاً',    className: 'bg-sky-500 text-white border-sky-600' },
   none:          { label: 'لا يوجد تحصيل',          short: 'لا يوجد تحصيل',   className: 'bg-slate-500 text-white border-slate-600' },
 };
@@ -462,6 +467,7 @@ const Orders = () => {
         'shipping_company','fulfillment_type','source_warehouse_id','route_id',
         'update_status_marker','update_status_updated_at',
         'collection_method','courier_cash_due','collection_updated_at',
+        'vodafone_cash_amount','instapay_amount','free_amount',
       ].join(',');
       const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg';
 
@@ -521,6 +527,9 @@ const Orders = () => {
           update_status_updated_at: (order as any).update_status_updated_at ?? null,
           collection_method: ((order as any).collection_method ?? null) as CollectionMethod | null,
           courier_cash_due: (order as any).courier_cash_due != null ? Number((order as any).courier_cash_due) : 0,
+          vodafone_cash_amount: (order as any).vodafone_cash_amount != null ? Number((order as any).vodafone_cash_amount) : 0,
+          instapay_amount: (order as any).instapay_amount != null ? Number((order as any).instapay_amount) : 0,
+          free_amount: (order as any).free_amount != null ? Number((order as any).free_amount) : 0,
           collection_updated_at: (order as any).collection_updated_at ?? null,
         }));
 
@@ -921,16 +930,105 @@ const Orders = () => {
 
   // تحديث طريقة التحصيل + إعادة حساب المبلغ المطلوب من المندوب.
   // لا يمس أي منطق للمخزون أو التسليم أو الحركات المالية.
+  // نافذة توزيع "التحصيل المختلط" — تُفتح عند اختيار طريقة mixed_payment.
+  const [mixedDlgOrderId, setMixedDlgOrderId] = useState<string | null>(null);
+  const [mixedCash, setMixedCash] = useState<string>('');
+  const [mixedVod, setMixedVod] = useState<string>('');
+  const [mixedInsta, setMixedInsta] = useState<string>('');
+  const [mixedFree, setMixedFree] = useState<string>('');
+  const [mixedNote, setMixedNote] = useState<string>('');
+
+  const openMixedDialog = (orderId: string) => {
+    const t = orders.find((o) => o.id === orderId);
+    if (!t) return;
+    setMixedCash(String(t.courier_cash_due ?? 0));
+    setMixedVod(String(t.vodafone_cash_amount ?? 0));
+    setMixedInsta(String(t.instapay_amount ?? 0));
+    setMixedFree(String(t.free_amount ?? 0));
+    setMixedNote('');
+    setMixedDlgOrderId(orderId);
+  };
+
+  const saveMixedBreakdown = async () => {
+    const id = mixedDlgOrderId;
+    if (!id) return;
+    const target = orders.find((o) => o.id === id);
+    if (!target) return;
+    const cash = Number(mixedCash) || 0;
+    const vod = Number(mixedVod) || 0;
+    const insta = Number(mixedInsta) || 0;
+    const free = Number(mixedFree) || 0;
+    const sum = cash + vod + insta + free;
+    const totalVal = Number(target.total || 0);
+    if (Math.abs(sum - totalVal) > 0.01) {
+      toast.error(`مجموع مبالغ التحصيل (${sum.toFixed(2)}) لا يساوي قيمة الأوردر (${totalVal.toFixed(2)}).`);
+      return;
+    }
+    if ([cash, vod, insta, free].some((v) => v < 0)) {
+      toast.error('لا يمكن إدخال مبالغ سالبة.');
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    try {
+      const { error } = await supabase.from('orders').update({
+        collection_method: 'mixed_payment',
+        courier_cash_due: cash,
+        vodafone_cash_amount: vod,
+        instapay_amount: insta,
+        free_amount: free,
+        collection_note: mixedNote || null,
+        collection_updated_at: nowIso,
+        collection_updated_by: user?.id ?? null,
+      } as any).eq('id', id);
+      if (error) throw error;
+      // Audit
+      await supabase.from('order_payment_breakdown_audit' as any).insert({
+        order_id: id,
+        old_collection_method: target.collection_method ?? null,
+        new_collection_method: 'mixed_payment',
+        old_cash_amount: target.courier_cash_due ?? 0,
+        new_cash_amount: cash,
+        old_vodafone_cash_amount: target.vodafone_cash_amount ?? 0,
+        new_vodafone_cash_amount: vod,
+        old_instapay_amount: target.instapay_amount ?? 0,
+        new_instapay_amount: insta,
+        old_free_amount: target.free_amount ?? 0,
+        new_free_amount: free,
+        note: mixedNote || null,
+        changed_by: user?.id ?? null,
+      } as any);
+      setOrders((prev) => prev.map((o) => o.id === id ? { ...o,
+        collection_method: 'mixed_payment',
+        courier_cash_due: cash,
+        vodafone_cash_amount: vod,
+        instapay_amount: insta,
+        free_amount: free,
+        collection_updated_at: nowIso,
+      } : o));
+      setMixedDlgOrderId(null);
+      toast.success('تم حفظ توزيع التحصيل المختلط ✅');
+    } catch (e: any) {
+      console.error('saveMixedBreakdown failed', e);
+      toast.error(e?.message || 'تعذّر حفظ التوزيع');
+    }
+  };
+
+  // تحديث طريقة التحصيل + إعادة حساب المبلغ المطلوب من المندوب.
+  // لا يمس أي منطق للمخزون أو التسليم أو الحركات المالية.
   const updateCollectionMethod = async (orderId: string, method: CollectionMethod) => {
     const target = orders.find((o) => o.id === orderId);
     if (!target) return;
+    // For mixed payment, open the breakdown dialog instead of saving directly.
+    if (method === 'mixed_payment') { openMixedDialog(orderId); return; }
     const due = method === 'cash_courier' ? Number(target.total || 0) : 0;
     const nowIso = new Date().toISOString();
     // تحديث تفاؤلي
     setOrders((prev) =>
       prev.map((o) =>
         o.id === orderId
-          ? { ...o, collection_method: method, courier_cash_due: due, collection_updated_at: nowIso }
+          ? { ...o, collection_method: method, courier_cash_due: due,
+              vodafone_cash_amount: 0, instapay_amount: 0, free_amount: 0,
+              collection_updated_at: nowIso }
           : o
       )
     );
@@ -940,6 +1038,9 @@ const Orders = () => {
         .update({
           collection_method: method,
           courier_cash_due: due,
+          vodafone_cash_amount: 0,
+          instapay_amount: 0,
+          free_amount: 0,
           collection_updated_at: nowIso,
           collection_updated_by: user?.id ?? null,
         } as any)
@@ -2152,6 +2253,69 @@ const Orders = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* توزيع مبالغ التحصيل المختلط */}
+      <Dialog
+        open={!!mixedDlgOrderId}
+        onOpenChange={(open) => { if (!open) setMixedDlgOrderId(null); }}
+      >
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>🧩 توزيع التحصيل المختلط</DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const t = orders.find((o) => o.id === mixedDlgOrderId);
+            if (!t) return null;
+            const cash = Number(mixedCash) || 0;
+            const vod = Number(mixedVod) || 0;
+            const insta = Number(mixedInsta) || 0;
+            const free = Number(mixedFree) || 0;
+            const sum = cash + vod + insta + free;
+            const totalVal = Number(t.total || 0);
+            const diff = totalVal - sum;
+            const ok = Math.abs(diff) <= 0.01;
+            return (
+              <div className="space-y-3">
+                <div className="rounded-md border bg-muted/40 p-3 text-sm flex justify-between">
+                  <span className="text-muted-foreground">إجمالي قيمة الأوردر</span>
+                  <span className="font-bold">{totalVal.toLocaleString()} ج</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">💵 كاش مع المندوب</label>
+                    <Input type="number" min={0} step="0.01" value={mixedCash} onChange={(e) => setMixedCash(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">📱 Vodafone Cash</label>
+                    <Input type="number" min={0} step="0.01" value={mixedVod} onChange={(e) => setMixedVod(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">💳 InstaPay</label>
+                    <Input type="number" min={0} step="0.01" value={mixedInsta} onChange={(e) => setMixedInsta(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">🎁 مجاني / معفى</label>
+                    <Input type="number" min={0} step="0.01" value={mixedFree} onChange={(e) => setMixedFree(e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">ملاحظات التحصيل</label>
+                  <Input value={mixedNote} onChange={(e) => setMixedNote(e.target.value)} placeholder="اختياري" />
+                </div>
+                <div className={`rounded-md border p-3 text-sm flex justify-between ${ok ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-rose-50 border-rose-300 text-rose-800'}`}>
+                  <span>المجموع: <b>{sum.toLocaleString()}</b> ج</span>
+                  <span>{ok ? '✓ مطابق' : `فرق: ${diff.toLocaleString()} ج`}</span>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setMixedDlgOrderId(null)}>إلغاء</Button>
+                  <Button onClick={saveMixedBreakdown} disabled={!ok}>حفظ التوزيع</Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
 
       {/* اختيار طريقة التحصيل قبل تأكيد التسليم — لا يمس منطق التسليم/المخزون/المالية */}
       <AlertDialog
