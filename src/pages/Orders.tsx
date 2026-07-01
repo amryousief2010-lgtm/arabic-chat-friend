@@ -108,6 +108,9 @@ interface Order {
   items: OrderItem[];
   update_status_marker?: UpdateStatusMarker | null;
   update_status_updated_at?: string | null;
+  collection_method?: CollectionMethod | null;
+  courier_cash_due?: number | null;
+  collection_updated_at?: string | null;
 }
 
 // آخر زر تحديث تم استخدامه على الأوردر (عرض فقط، لا يمس منطق المخزون/المالية).
@@ -129,6 +132,23 @@ const updateMarkerMeta: Record<UpdateStatusMarker, { label: string; className: s
   gift:         { label: 'مجاني 🎁', className: 'bg-pink-500 text-white border-pink-600' },
   returned:     { label: 'مرتجع ↩️', className: 'bg-red-600 text-white border-red-700' },
 };
+
+// طريقة/حالة تحصيل مبلغ الأوردر — للعرض فقط ولا تمس منطق التسليم/المخزون/المالية.
+type CollectionMethod =
+  | 'cash_courier'
+  | 'vodafone_cash'
+  | 'instapay'
+  | 'prepaid'
+  | 'none';
+
+const collectionMethodMeta: Record<CollectionMethod, { label: string; short: string; className: string }> = {
+  cash_courier:  { label: 'تحصيل نقدي مع المندوب', short: 'كاش من المندوب',  className: 'bg-emerald-500 text-white border-emerald-600' },
+  vodafone_cash: { label: 'تحويل فودافون كاش',      short: 'Vodafone Cash',   className: 'bg-rose-500 text-white border-rose-600' },
+  instapay:      { label: 'تحويل إنستاباي',         short: 'InstaPay',        className: 'bg-violet-500 text-white border-violet-600' },
+  prepaid:       { label: 'مدفوع مسبقاً',           short: 'مدفوع مسبقاً',    className: 'bg-sky-500 text-white border-sky-600' },
+  none:          { label: 'لا يوجد تحصيل',          short: 'لا يوجد تحصيل',   className: 'bg-slate-500 text-white border-slate-600' },
+};
+
 
 // Fulfillment filter keys
 const fulfillmentOptions: { value: string; label: string }[] = [
@@ -318,6 +338,7 @@ const Orders = () => {
   const [filterGovernorate, setFilterGovernorate] = useState<string>("all");
   const [filterFulfillment, setFilterFulfillment] = useState<string>("all");
   const [filterRoute, setFilterRoute] = useState<string>("all");
+  const [filterCollectionMethod, setFilterCollectionMethod] = useState<string>("all");
   const [availableRoutes, setAvailableRoutes] = useState<{ id: string; name: string; color: string }[]>([]);
   const [availableProducts, setAvailableProducts] = useState<string[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -440,6 +461,7 @@ const Orders = () => {
         'delivery_address','created_at','delivered_at','created_by','moderator',
         'shipping_company','fulfillment_type','source_warehouse_id','route_id',
         'update_status_marker','update_status_updated_at',
+        'collection_method','courier_cash_due','collection_updated_at',
       ].join(',');
       const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg';
 
@@ -497,6 +519,9 @@ const Orders = () => {
           })),
           update_status_marker: ((order as any).update_status_marker ?? null) as UpdateStatusMarker | null,
           update_status_updated_at: (order as any).update_status_updated_at ?? null,
+          collection_method: ((order as any).collection_method ?? null) as CollectionMethod | null,
+          courier_cash_due: (order as any).courier_cash_due != null ? Number((order as any).courier_cash_due) : 0,
+          collection_updated_at: (order as any).collection_updated_at ?? null,
         }));
 
       const loadLookups = async (orders: any[], items: any[]) => {
@@ -712,6 +737,9 @@ const Orders = () => {
       filterFulfillment === "all" || fulfillmentKey === filterFulfillment;
     const matchesRoute =
       filterRoute === "all" || order.route_id === filterRoute;
+    const matchesCollectionMethod =
+      filterCollectionMethod === "all" ||
+      (filterCollectionMethod === "unset" ? !order.collection_method : order.collection_method === filterCollectionMethod);
     // مشرف المخزن الرئيسي (هادى) يشوف فقط طلبات المخزن الرئيسي (استلام أو توصيل)
     const matchesWarehouseScope =
       !isWarehouseSupervisor || fulfillmentKey === 'pickup_main' || fulfillmentKey === 'delivery_main';
@@ -721,8 +749,18 @@ const Orders = () => {
       isGeneralManager ||
       (!isWarehouseSupervisor && !isExecutiveManager) ||
       new Date(order.created_at) >= new Date('2026-06-18T00:00:00+02:00');
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesWarehouseScope && matchesOperationalStart;
-  }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, isWarehouseSupervisor, isGeneralManager, isExecutiveManager]);
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart;
+  }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager]);
+
+  // إجمالي المطلوب من المندوب كاش على الأوردرات الظاهرة حالياً بعد الفلاتر.
+  const totalCourierCashDue = useMemo(
+    () =>
+      filteredOrders.reduce(
+        (sum, o) => sum + (o.collection_method === 'cash_courier' ? Number(o.courier_cash_due || o.total || 0) : 0),
+        0
+      ),
+    [filteredOrders]
+  );
 
   // Detect duplicate orders by customer phone — every order after the earliest one
   // for the same normalized phone *in the same Cairo month* is flagged as duplicate.
@@ -877,6 +915,45 @@ const Orders = () => {
     return true;
   };
 
+  // نافذة اختيار طريقة التحصيل قبل تأكيد التسليم (لا تمس منطق التسليم/المخزون/المالية).
+  const [pendingDeliveryOrderId, setPendingDeliveryOrderId] = useState<string | null>(null);
+  const [pendingDeliveryMethod, setPendingDeliveryMethod] = useState<CollectionMethod>('cash_courier');
+
+  // تحديث طريقة التحصيل + إعادة حساب المبلغ المطلوب من المندوب.
+  // لا يمس أي منطق للمخزون أو التسليم أو الحركات المالية.
+  const updateCollectionMethod = async (orderId: string, method: CollectionMethod) => {
+    const target = orders.find((o) => o.id === orderId);
+    if (!target) return;
+    const due = method === 'cash_courier' ? Number(target.total || 0) : 0;
+    const nowIso = new Date().toISOString();
+    // تحديث تفاؤلي
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? { ...o, collection_method: method, courier_cash_due: due, collection_updated_at: nowIso }
+          : o
+      )
+    );
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          collection_method: method,
+          courier_cash_due: due,
+          collection_updated_at: nowIso,
+          collection_updated_by: user?.id ?? null,
+        } as any)
+        .eq('id', orderId);
+      if (error) throw error;
+      toast.success(`تم حفظ طريقة التحصيل: ${collectionMethodMeta[method].label}`);
+    } catch (e) {
+      console.error('updateCollectionMethod failed', e);
+      toast.error('تعذّر حفظ طريقة التحصيل');
+    }
+  };
+
+
+
   // يحدّث "علامة التحديث" لكل أوردر بشكل مستقل (عرض فقط، لا يمس المخزون/المالية).
   // يُستدعى فقط بعد نجاح العملية الأصلية.
   const markOrderUpdate = async (orderId: string, marker: UpdateStatusMarker) => {
@@ -912,6 +989,15 @@ const Orders = () => {
       const targetOrder = orders.find((o) => o.id === orderId);
       const isAgouza = targetOrder?.source_warehouse_id === AGOUZA_WAREHOUSE_ID;
       const prevStatus = targetOrder?.status as OrderStatus | undefined;
+
+      // إلزامية اختيار طريقة التحصيل قبل تأكيد التسليم.
+      // لا تمس منطق التسليم/المخزون/المالية — مجرد Gate واجهة.
+      if (newStatus === 'delivered' && !targetOrder?.collection_method) {
+        setPendingDeliveryMethod('cash_courier');
+        setPendingDeliveryOrderId(orderId);
+        return;
+      }
+
 
       // M4-B: Agouza orders without an active/committed reservation (shortage).
       // Allow override with explicit confirmation; skip commit since there's
@@ -1213,6 +1299,22 @@ const Orders = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={filterCollectionMethod} onValueChange={setFilterCollectionMethod}>
+              <SelectTrigger className="w-52 input-modern">
+                <SelectValue placeholder="فلترة حسب طريقة التحصيل" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل طرق التحصيل</SelectItem>
+                <SelectItem value="unset">لم يحدد التحصيل</SelectItem>
+                {(Object.keys(collectionMethodMeta) as CollectionMethod[]).map((k) => (
+                  <SelectItem key={k} value={k}>{collectionMethodMeta[k].label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm">
+              <span className="text-emerald-800 font-semibold">إجمالي المطلوب من المندوب كاش:</span>
+              <span className="text-emerald-900 font-bold">{totalCourierCashDue.toLocaleString()} ج</span>
+            </div>
             {!isPrivateDeliveryRep && (
               <Select value={filterModerator} onValueChange={setFilterModerator}>
                 <SelectTrigger className="w-40 input-modern">
@@ -1417,6 +1519,40 @@ const Orders = () => {
                         </Badge>
                       )}
                     </div>
+                    <div className="flex flex-col gap-1 text-xs">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-muted-foreground shrink-0">طريقة التحصيل:</span>
+                        {order.collection_method ? (
+                          <Badge className={`text-[11px] border ${collectionMethodMeta[order.collection_method].className}`}>
+                            {collectionMethodMeta[order.collection_method].short}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[11px] text-muted-foreground border-muted">
+                            لم يحدد التحصيل
+                          </Badge>
+                        )}
+                        {order.collection_method === 'cash_courier' && (
+                          <span className="text-emerald-700 font-bold">
+                            مطلوب: {Number(order.courier_cash_due || order.total).toLocaleString()} ج
+                          </span>
+                        )}
+                        {order.collection_method && order.collection_method !== 'cash_courier' && (
+                          <span className="text-muted-foreground">مطلوب من المندوب: 0 ج</span>
+                        )}
+                      </div>
+                      <Select
+                        value={order.collection_method ?? '__unset__'}
+                        onValueChange={(v) => updateCollectionMethod(order.id, v as CollectionMethod)}
+                      >
+                        <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="تغيير طريقة التحصيل" /></SelectTrigger>
+                        <SelectContent>
+                          {(Object.keys(collectionMethodMeta) as CollectionMethod[]).map((k) => (
+                            <SelectItem key={k} value={k}>{collectionMethodMeta[k].label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     {!isSalesModerator && (
                       <Select value={order.status} onValueChange={(v: OrderStatus) => handleStatusChange(order.id, v)}>
                         <SelectTrigger className="w-full h-9 text-xs"><SelectValue /></SelectTrigger>
@@ -1563,6 +1699,7 @@ const Orders = () => {
                 <TableHead className="text-right">حالة الدفع</TableHead>
                 <TableHead className="text-right">الحالة</TableHead>
                 <TableHead className="text-right">التحصيل</TableHead>
+                <TableHead className="text-right">طريقة التحصيل</TableHead>
                 <TableHead className="text-right">التاريخ</TableHead>
                 <TableHead className="text-right">التوقيت</TableHead>
                 <TableHead className="text-right">تاريخ التسليم</TableHead>
@@ -1746,6 +1883,38 @@ const Orders = () => {
                           {order.collection_status === 'collected' ? 'تم التحصيل' : 'لم يتم التحصيل'}
                         </Badge>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1 min-w-[170px]">
+                        <Select
+                          value={order.collection_method ?? '__unset__'}
+                          onValueChange={(v) => updateCollectionMethod(order.id, v as CollectionMethod)}
+                        >
+                          <SelectTrigger className="w-full h-8 px-2">
+                            {order.collection_method ? (
+                              <Badge className={`text-[11px] border ${collectionMethodMeta[order.collection_method].className}`}>
+                                {collectionMethodMeta[order.collection_method].short}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[11px] text-muted-foreground border-muted">
+                                لم يحدد التحصيل
+                              </Badge>
+                            )}
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(Object.keys(collectionMethodMeta) as CollectionMethod[]).map((k) => (
+                              <SelectItem key={k} value={k}>{collectionMethodMeta[k].label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <span className="text-[11px] text-muted-foreground">
+                          {order.collection_method === 'cash_courier'
+                            ? <>مطلوب: <span className="font-bold text-emerald-700">{Number(order.courier_cash_due || order.total).toLocaleString()} ج</span></>
+                            : order.collection_method
+                              ? <>مطلوب من المندوب: <span className="font-bold">0 ج</span></>
+                              : <span className="italic">لم يحدد التحصيل</span>}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {formatDate(order.created_at)}
@@ -1983,6 +2152,59 @@ const Orders = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* اختيار طريقة التحصيل قبل تأكيد التسليم — لا يمس منطق التسليم/المخزون/المالية */}
+      <AlertDialog
+        open={!!pendingDeliveryOrderId}
+        onOpenChange={(open) => { if (!open) setPendingDeliveryOrderId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>طريقة التحصيل</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-right">
+                <p className="text-sm">اختر طريقة التحصيل قبل تأكيد التسليم:</p>
+                <div className="grid gap-2">
+                  {(Object.keys(collectionMethodMeta) as CollectionMethod[]).map((k) => (
+                    <label
+                      key={k}
+                      className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 cursor-pointer transition ${pendingDeliveryMethod === k ? 'border-primary bg-primary/5' : 'border-muted hover:bg-muted/40'}`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="pendingDeliveryMethod"
+                          checked={pendingDeliveryMethod === k}
+                          onChange={() => setPendingDeliveryMethod(k)}
+                        />
+                        <span className="text-sm">{collectionMethodMeta[k].label}</span>
+                      </span>
+                      <Badge className={`text-[11px] border ${collectionMethodMeta[k].className}`}>
+                        {collectionMethodMeta[k].short}
+                      </Badge>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                const id = pendingDeliveryOrderId;
+                const method = pendingDeliveryMethod;
+                setPendingDeliveryOrderId(null);
+                if (!id) return;
+                await updateCollectionMethod(id, method);
+                await handleStatusChange(id, 'delivered');
+              }}
+            >
+              حفظ ومتابعة التسليم
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!collectionMismatch} onOpenChange={(open) => { if (!open) setCollectionMismatch(null); }}>
         <AlertDialogContent>
