@@ -737,6 +737,9 @@ const Orders = () => {
       filterFulfillment === "all" || fulfillmentKey === filterFulfillment;
     const matchesRoute =
       filterRoute === "all" || order.route_id === filterRoute;
+    const matchesCollectionMethod =
+      filterCollectionMethod === "all" ||
+      (filterCollectionMethod === "unset" ? !order.collection_method : order.collection_method === filterCollectionMethod);
     // مشرف المخزن الرئيسي (هادى) يشوف فقط طلبات المخزن الرئيسي (استلام أو توصيل)
     const matchesWarehouseScope =
       !isWarehouseSupervisor || fulfillmentKey === 'pickup_main' || fulfillmentKey === 'delivery_main';
@@ -746,8 +749,18 @@ const Orders = () => {
       isGeneralManager ||
       (!isWarehouseSupervisor && !isExecutiveManager) ||
       new Date(order.created_at) >= new Date('2026-06-18T00:00:00+02:00');
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesWarehouseScope && matchesOperationalStart;
-  }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, isWarehouseSupervisor, isGeneralManager, isExecutiveManager]);
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart;
+  }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager]);
+
+  // إجمالي المطلوب من المندوب كاش على الأوردرات الظاهرة حالياً بعد الفلاتر.
+  const totalCourierCashDue = useMemo(
+    () =>
+      filteredOrders.reduce(
+        (sum, o) => sum + (o.collection_method === 'cash_courier' ? Number(o.courier_cash_due || o.total || 0) : 0),
+        0
+      ),
+    [filteredOrders]
+  );
 
   // Detect duplicate orders by customer phone — every order after the earliest one
   // for the same normalized phone *in the same Cairo month* is flagged as duplicate.
