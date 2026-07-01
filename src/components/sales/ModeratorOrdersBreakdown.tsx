@@ -74,9 +74,10 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
     queryKey: ['moderator-orders-breakdown', selectedMonth, selectedYear],
     refetchInterval: 60000,
     queryFn: async () => {
-      // حدود الشهر بـ UTC لتطابق طريقة تخزين created_at للأوردرات المستوردة
-      const startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1, 0, 0, 0, 0)).toISOString();
-      const endDate = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0, 0)).toISOString();
+      // Cairo-timezone boundaries so orders logged just after Cairo midnight
+      // (still previous UTC day) attribute to the correct Cairo month.
+      const startDate = cairoMonthStartUTC(selectedYear, selectedMonth - 1).toISOString();
+      const endDate = cairoMonthStartUTC(selectedYear, selectedMonth).toISOString();
 
       const { data: orders, error } = await supabase
         .from('orders')
