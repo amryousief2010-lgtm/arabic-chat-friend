@@ -310,14 +310,37 @@ const OrgChart = () => {
 
         {/* MARKETING & SALES */}
         <SectionTitle>إدارة التسويق والمبيعات</SectionTitle>
-        <TeamSection
-          title="فريق المبيعات"
-          icon={Megaphone}
-          gradient="from-pink-500 to-pink-700"
-          managerName="م/ آلاء حامد"
-          managerTitle="مدير المبيعات"
-          members={salesTeam}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <div className="flex justify-center mb-4">
+              <TopCard
+                name="أ/ محمد سيد"
+                title="مدير التسويق"
+                icon={Megaphone}
+                gradient="from-fuchsia-500 to-fuchsia-700"
+              />
+            </div>
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="w-4 h-4 text-muted-foreground" />
+                <h4 className="font-semibold text-foreground">فريق التسويق والسوشيال ميديا</h4>
+              </div>
+              <div className="space-y-2">
+                <MemberRow member={{ name: "شاغر", title: "أخصائي سوشيال ميديا", vacant: true }} />
+                <MemberRow member={{ name: "شاغر", title: "أخصائي حملات تسويقية", vacant: true }} />
+              </div>
+            </Card>
+          </div>
+          <TeamSection
+            title="فريق المبيعات"
+            icon={Megaphone}
+            gradient="from-pink-500 to-pink-700"
+            managerName="م/ آلاء حامد"
+            managerTitle="مدير المبيعات"
+            members={salesTeam}
+          />
+        </div>
+
 
         {/* FINANCE */}
         <SectionTitle>الإدارة المالية</SectionTitle>
