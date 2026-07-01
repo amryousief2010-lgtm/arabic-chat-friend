@@ -503,10 +503,21 @@ const TeamPerformance = () => {
                   <FileSpreadsheet className="w-4 h-4" />
                   تصدير Excel
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToCSV} className="gap-2 cursor-pointer">
+                  <FileDown className="w-4 h-4" />
+                  تصدير CSV
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+
+          <Button variant="outline" className="gap-2" onClick={fetchTeamData} disabled={loading}>
+            <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            تحديث
+          </Button>
         </div>
+
+
 
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
