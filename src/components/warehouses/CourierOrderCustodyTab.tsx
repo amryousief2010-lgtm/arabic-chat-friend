@@ -680,14 +680,13 @@ export default function CourierOrderCustodyTab() {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                       onClick={async () => {
-                                        if (!confirm(`تأكيد: تسليم الأوردر ${o?.order_number ?? ""} كهدية مجانية بدون تحصيل؟`)) return;
-                                        if (await recordDeliveryAndCollection(a.order_id, 0, "هدية مجانية - تم التسليم بدون تحصيل")) {
-                                          toast({ title: "تم التسليم كهدية مجانية" }); load();
-                                        }
+                                        if (!confirm(`تأكيد: تحويل الأوردر ${o?.order_number ?? ""} إلى "مجاني 🎁"؟ لن يُطلب أي تحصيل من المندوب.`)) return;
+                                        await markOrderAsGift(a, o);
                                       }}
                                     >
-                                      <span className="ml-2">🎁</span> مجاني
+                                      <span className="ml-2">🎁</span> مجاني 🎁
                                     </DropdownMenuItem>
+
                                     <DropdownMenuItem
                                       onClick={() => {
                                         const ord = o ?? ({ id: a.order_id, order_number: a.order_id.slice(0, 8), total: dueAmt, customer_name: "—", status: a.status, created_at: a.assigned_at } as Order);
