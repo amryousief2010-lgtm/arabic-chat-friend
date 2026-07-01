@@ -766,7 +766,6 @@ const Warehouses = () => {
       "wh-hht": f([/هيلثي/, /healthy/i]),
       "wh-carrefour": f([/كارفور/, /carrefour/i]),
       "wh-packaging": f([/تغليف/, /تعبئة/, /packaging/i]) || warehouses.find((w) => w.type === "packaging"),
-      "wh-activity": f([/رئيسي/, /main/i]),
     } as Record<string, any>;
   }, [warehouses]);
   const kpiWh = !forceAllKpi ? tabWarehouseMap[activeTab] : undefined;
