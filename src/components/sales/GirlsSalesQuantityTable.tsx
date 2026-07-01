@@ -40,8 +40,9 @@ const months = [
   { value: 10, label: 'أكتوبر' }, { value: 11, label: 'نوفمبر' }, { value: 12, label: 'ديسمبر' },
 ];
 
-const currentYear = new Date().getFullYear();
-const currentMonth = new Date().getMonth() + 1;
+const _cur = currentCairoYearMonth();
+const currentYear = _cur.year;
+const currentMonth = _cur.monthIndex0 + 1;
 
 const normalize = (s: string) => (s || '').replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
 const matches = (name: string, target: string) => normalize(name.trim()).includes(normalize(target));
