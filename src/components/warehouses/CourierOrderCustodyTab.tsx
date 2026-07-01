@@ -270,6 +270,7 @@ export default function CourierOrderCustodyTab() {
       .sort((a, b) => (a[0] < b[0] ? 1 : -1))
       .map(([day, items]) => {
         const totalValue = items.reduce((s, a) => {
+          if (isGiftAssignment(a)) return s;
           const o = orders.find((x) => x.id === a.order_id);
           return s + Number(o?.total || 0);
         }, 0);
