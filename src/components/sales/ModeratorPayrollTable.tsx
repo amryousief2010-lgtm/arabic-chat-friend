@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Wallet, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 
 const GIRLS = ['اية', 'نورا', 'سارة', 'منال'] as const;
 type Girl = typeof GIRLS[number];
