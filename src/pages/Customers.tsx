@@ -41,6 +41,7 @@ const Customers = () => {
 
   const [formData, setFormData] = useState({
     name: "", phone: "", email: "", address: "", city: "",
+    source: "", communication_channel: "", governorate: "", area: "", campaign_name: "",
   });
 
   // Debounce search
