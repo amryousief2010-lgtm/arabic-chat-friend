@@ -282,10 +282,11 @@ export default function CourierOrderCustodyTab() {
       .sort((a, b) => (a[0] < b[0] ? 1 : -1))
       .map(([day, items]) => {
         const totalValue = items.reduce((s, a) => {
-          if (isGiftAssignment(a)) return s;
           const o = orders.find((x) => x.id === a.order_id);
+          if (isGiftAssignment(a, o as any)) return s;
           return s + Number(o?.total || 0);
         }, 0);
+
         const collected = items.reduce((s, a) => {
           const c = collections.find((cl) => cl.order_id === a.order_id);
           return s + Number(c?.amount_collected || 0);
