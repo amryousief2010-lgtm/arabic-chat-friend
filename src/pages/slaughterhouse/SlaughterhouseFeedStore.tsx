@@ -178,8 +178,22 @@ export default function SlaughterhouseFeedStore() {
     const avgDaily = days.length ? days.reduce((a, b) => a + b, 0) / days.length : 0;
     let peakDay = { date: "—", qty: 0 };
     daily.forEach((q, d) => { if (q > peakDay.qty) peakDay = { date: d, qty: q }; });
-    return { balance, inMonth, outMonth, outToday, avgDaily, peakDay };
+    // Reconciliation: opening + factory_supply + adjustment - consumption should equal current balance
+    const totalIn = movs
+      .filter((m: any) => ["factory_supply", "opening"].includes(m.movement_type) && !isCancelledNote(m.notes))
+      .reduce((s, m) => s + Number(m.quantity_kg || 0), 0);
+    const totalOut = movs
+      .filter((m: any) => m.movement_type === "consumption" && !isCancelledNote(m.notes))
+      .reduce((s, m) => s + Number(m.quantity_kg || 0), 0);
+    const totalAdj = movs
+      .filter((m: any) => m.movement_type === "adjustment" && !isCancelledNote(m.notes))
+      .reduce((s, m) => s + Number(m.quantity_kg || 0), 0);
+    const expected = totalIn + totalAdj - totalOut;
+    const reconDiff = Number((balance - expected).toFixed(3));
+    return { balance, inMonth, outMonth, outToday, avgDaily, peakDay, reconDiff, totalIn, totalOut, totalAdj };
   }, [inv, movs]);
+
+  const [movFilter, setMovFilter] = useState<string>("all");
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["sl_feed_inv"] });
