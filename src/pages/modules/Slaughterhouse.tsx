@@ -3266,7 +3266,7 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
                           setEditReason(r.price_edit_reason || "");
                           setEditUpdateGlobal(false);
                         }} title="تعديل الأسعار (مع سبب وسجل مراجعة)">
-                          <Edit className="w-4 h-4 text-blue-600" />
+                          <Pencil className="w-4 h-4 text-blue-600" />
                         </Button>
                       )}
                       <Button size="icon" variant="ghost" onClick={() => addRow(r.cut_name_ar)} title="إضافة فرع آخر لنفس الصنف"><Plus className="w-4 h-4 text-emerald-600" /></Button>
