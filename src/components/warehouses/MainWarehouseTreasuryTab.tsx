@@ -118,6 +118,9 @@ export default function MainWarehouseTreasuryTab() {
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferAmt, setTransferAmt] = useState("");
   const [transferNotes, setTransferNotes] = useState("");
+  const [pendingDeposits, setPendingDeposits] = useState<any[]>([]);
+  const [selectedDepositIds, setSelectedDepositIds] = useState<Set<string>>(new Set());
+  const [loadingDeposits, setLoadingDeposits] = useState(false);
 
   const [busy, setBusy] = useState(false);
 
