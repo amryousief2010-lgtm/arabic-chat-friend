@@ -790,8 +790,24 @@ const Orders = () => {
       else ch = 'unclassified';
       matchesDashboardChannel = ch === channelParam;
     }
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel;
-  }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam]);
+    // Dashboard "Top products (7d)" deep-link: /orders?range=7d&product_id=... or product_name=...
+    let matchesRange7d = true;
+    let matchesProductParam = true;
+    if (rangeParam === '7d') {
+      const todayStart = cairoTodayStartUTC(new Date());
+      const rangeStart = new Date(todayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
+      const rangeEnd = new Date(todayStart.getTime() + 26 * 60 * 60 * 1000);
+      const created = new Date(order.created_at);
+      matchesRange7d = created >= rangeStart && created < rangeEnd;
+    }
+    if (productIdParam || productNameParam) {
+      const items = (order as any).order_items || [];
+      matchesProductParam = items.some((it: any) =>
+        productIdParam ? it.product_id === productIdParam : it.product_name === productNameParam,
+      );
+    }
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange7d && matchesProductParam;
+  }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
 
   // إجمالي المطلوب من المندوب كاش على الأوردرات الظاهرة حالياً بعد الفلاتر.
   const totalCourierCashDue = useMemo(
