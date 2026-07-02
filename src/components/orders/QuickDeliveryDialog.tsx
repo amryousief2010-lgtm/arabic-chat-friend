@@ -125,9 +125,10 @@ const QuickDeliveryDialog = ({ open, onOpenChange, orders, onDeliver, statusLabe
                 </div>
                 <Button
                   size="sm"
-                  disabled={busyId === o.id}
+                  disabled={busyId === o.id || !canMarkDelivered}
                   onClick={() => handleDeliver(o.id)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 shrink-0"
+                  title={!canMarkDelivered ? 'تحديث الحالة من صلاحيات التسويق فقط' : undefined}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 shrink-0 disabled:opacity-50"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   {busyId === o.id ? "..." : "تم التسليم للعميل"}
