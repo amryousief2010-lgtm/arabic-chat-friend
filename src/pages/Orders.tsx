@@ -409,6 +409,7 @@ const Orders = () => {
   const mixedParam = searchParams.get("mixed");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [quickDeliveryOpen, setQuickDeliveryOpen] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 800);
     return () => clearTimeout(t);
