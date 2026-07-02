@@ -2574,18 +2574,42 @@ const Orders = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">العميل</p>
                   <p className="font-semibold">{selectedOrder.customer_name}</p>
+                  {selectedOrder.customer_phone && (
+                    <a href={`tel:${selectedOrder.customer_phone}`} dir="ltr" className="block text-xs font-mono text-primary hover:underline">
+                      {selectedOrder.customer_phone}
+                    </a>
+                  )}
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">التاريخ</p>
-                  <p className="font-semibold">
-                    {formatDate(selectedOrder.created_at)}
-                  </p>
+                  <p className="font-semibold">{formatDate(selectedOrder.created_at)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">الحالة</p>
+                  <Badge className={`${statusColors[selectedOrder.status]} flex items-center gap-1 text-xs w-fit`}>
+                    {getStatusIcon(selectedOrder.status)}
+                    {statusLabels[selectedOrder.status]}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">طريقة الدفع</p>
+                  <p className="font-semibold text-sm">{paymentLabels[selectedOrder.payment_method] || selectedOrder.payment_method}</p>
                 </div>
                 <div className="col-span-2">
-                  <p className="text-sm text-muted-foreground">عنوان التوصيل</p>
-                  <p className="font-semibold">{selectedOrder.delivery_address || 'غير محدد'}</p>
+                  <p className="text-sm text-muted-foreground">المحافظة / عنوان التوصيل</p>
+                  <p className="font-semibold text-sm">
+                    {selectedOrder.governorate ? `${selectedOrder.governorate} — ` : ''}
+                    {selectedOrder.delivery_address || 'غير محدد'}
+                  </p>
                 </div>
+                {selectedOrder.notes && (
+                  <div className="col-span-2">
+                    <p className="text-sm text-muted-foreground">ملاحظات</p>
+                    <p className="text-sm bg-muted/50 border rounded p-2">{selectedOrder.notes}</p>
+                  </div>
+                )}
               </div>
+
 
               <div>
                 <p className="text-sm text-muted-foreground mb-3">المنتجات</p>
