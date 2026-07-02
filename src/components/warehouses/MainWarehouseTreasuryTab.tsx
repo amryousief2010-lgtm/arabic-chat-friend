@@ -1945,6 +1945,15 @@ export default function MainWarehouseTreasuryTab() {
                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input placeholder="بحث (مرجع/ملاحظات/مستخدم)" value={search} onChange={(e) => setSearch(e.target.value)} className="pr-9 w-60" />
               </div>
+              <Button
+                size="sm"
+                variant={showProofs ? "default" : "outline"}
+                onClick={() => setShowProofs((v) => !v)}
+                className="h-9 text-xs"
+                title="حركات الإثبات (فودافون/إنستاباي/بنكي/مجاني) بقيمة صفر"
+              >
+                {showProofs ? "إخفاء حركات الإثبات" : "عرض حركات الإثبات"}
+              </Button>
               <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
