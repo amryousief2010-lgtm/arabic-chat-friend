@@ -241,8 +241,23 @@ const formatItemQty = (qty: number, unit?: string): string => {
 
 const Orders = () => {
  const { user, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, roles, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems } = useAuth();
- const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
-  const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
+  const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
+   const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
+   // صلاحية إدارة/اختيار طريقة التحصيل — الأدوار المسؤولة عن التحصيل فعلياً فقط.
+   // الأدوار التسويقية (مثل مديرة التسويق م/آلاء) تحدّث الحالة فقط بدون فتح شاشة التحصيل.
+   const rolesList = (roles || []) as string[];
+   const canSetCollectionMethod =
+     isGeneralManager ||
+     isExecutiveManager ||
+     isWarehouseSupervisor ||
+     isAccountant ||
+     isShippingCompany ||
+     isPrivateDeliveryRep ||
+     rolesList.includes('financial_manager') ||
+     rolesList.includes('main_treasury_accountant') ||
+     rolesList.includes('main_treasury_approver') ||
+     rolesList.includes('treasury_accountant') ||
+     rolesList.includes('courier');
   const [orders, setOrders] = useState<Order[]>([]);
   // M4-B: per-order Agouza reservation status. Drives the Agouza-only badge and
   // blocks delivery confirmation when no active/committed reservation exists.
@@ -1231,9 +1246,10 @@ const Orders = () => {
       const isAgouza = targetOrder?.source_warehouse_id === AGOUZA_WAREHOUSE_ID;
       const prevStatus = targetOrder?.status as OrderStatus | undefined;
 
-      // إلزامية اختيار طريقة التحصيل قبل تأكيد التسليم.
-      // لا تمس منطق التسليم/المخزون/المالية — مجرد Gate واجهة.
-      if (newStatus === 'delivered' && !targetOrder?.collection_method) {
+      // إلزامية اختيار طريقة التحصيل قبل تأكيد التسليم — فقط لأدوار التحصيل.
+      // الأدوار التسويقية/الموديريتور تحدّث الحالة فقط بدون فتح شاشة التحصيل،
+      // ولا تُنشئ أو تعدّل أي بيانات تحصيل (breakdown / cash_due).
+      if (newStatus === 'delivered' && !targetOrder?.collection_method && canSetCollectionMethod) {
         setPendingDeliveryMethod('cash_courier');
         setPendingDeliveryOrderId(orderId);
         return;
