@@ -25,9 +25,10 @@ interface Props {
   orders: QDOrder[];
   onDeliver: (orderId: string) => void | Promise<void>;
   statusLabels: Record<string, string>;
+  canMarkDelivered: boolean;
 }
 
-const QuickDeliveryDialog = ({ open, onOpenChange, orders, onDeliver, statusLabels }: Props) => {
+const QuickDeliveryDialog = ({ open, onOpenChange, orders, onDeliver, statusLabels, canMarkDelivered }: Props) => {
   const [query, setQuery] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
 
