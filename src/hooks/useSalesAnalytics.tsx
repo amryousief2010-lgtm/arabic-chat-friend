@@ -5,7 +5,6 @@ import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
 import { AGOUZA_WAREHOUSE_ID } from "@/lib/agouzaReservations";
 
 export interface TodayOrdersBreakdown {
-  shipping: number;
   mainWarehouse: number;
   agouza: number;
   unclassified: number;
