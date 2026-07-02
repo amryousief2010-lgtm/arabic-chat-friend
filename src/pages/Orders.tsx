@@ -2127,6 +2127,8 @@ const Orders = () => {
                                   <span className="font-bold text-emerald-700">نقدي: {Number(order.courier_cash_due || 0).toLocaleString()}</span>
                                   {Number(order.vodafone_cash_amount || 0) > 0 && <span className="text-rose-700">📱 {Number(order.vodafone_cash_amount).toLocaleString()}</span>}
                                   {Number(order.instapay_amount || 0) > 0 && <span className="text-indigo-700">💳 {Number(order.instapay_amount).toLocaleString()}</span>}
+                                  {Number(order.bank_transfer_amount || 0) > 0 && <span className="text-blue-700">🏦 {Number(order.bank_transfer_amount).toLocaleString()}</span>}
+                                  {Number(order.other_amount || 0) > 0 && <span className="text-zinc-700">💠 {Number(order.other_amount).toLocaleString()}</span>}
                                   {Number(order.free_amount || 0) > 0 && <span className="text-slate-600">🎁 {Number(order.free_amount).toLocaleString()}</span>}
                                 </span>
                               : order.collection_method
