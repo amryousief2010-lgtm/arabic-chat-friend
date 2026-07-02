@@ -1988,7 +1988,16 @@ export default function MainWarehouseTreasuryTab() {
                           {isIn ? "وارد" : "صادر"}
                         </Badge>
                       </td>
-                      <td className="p-2 text-xs">{CATEGORY_LABELS[r.category] || r.category}</td>
+                      <td className="p-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span>{CATEGORY_LABELS[r.category] || r.category}</span>
+                          {r.category === "courier_deposit" && (
+                            <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={() => openDepositDetails(r)}>
+                              تفاصيل اليوم
+                            </Button>
+                          )}
+                        </div>
+                      </td>
                       <td className={`p-2 font-mono font-bold ${isIn ? "text-emerald-700" : "text-rose-700"}`}>
                         {isIn ? "+" : "-"}{fmt(Number(r.amount || 0))}
                       </td>
