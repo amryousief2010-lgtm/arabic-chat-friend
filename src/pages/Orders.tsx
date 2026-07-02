@@ -1968,9 +1968,26 @@ const Orders = () => {
                       />
                     </TableCell>
                     <TableCell className="font-mono font-semibold">
-                      {order.order_number}
+                      <button
+                        type="button"
+                        onClick={() => openMixedDialog(order.id)}
+                        className="text-primary hover:underline focus:outline-none"
+                        title="ضبط التحصيل"
+                      >
+                        {order.order_number}
+                      </button>
                     </TableCell>
-                    <TableCell>{order.customer_name}</TableCell>
+                    <TableCell>
+                      <button
+                        type="button"
+                        onClick={() => openMixedDialog(order.id)}
+                        className="text-right hover:underline focus:outline-none"
+                        title="ضبط التحصيل"
+                      >
+                        {order.customer_name}
+                      </button>
+                    </TableCell>
+
                     <TableCell className="font-mono text-sm" dir="ltr">
                       {order.customer_phone ? (
                         <a href={`tel:${order.customer_phone}`} className="hover:underline">{order.customer_phone}</a>
