@@ -984,6 +984,11 @@ const AnimatedRoutes = () => {
               <PageTransition><HRWorkforceAnalysis /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/hr/payday-report" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager']}>
+              <PageTransition><HRPayDay1Report /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/modules/warehouses" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_moderator']}>
               <PageTransition><Warehouses /></PageTransition>
