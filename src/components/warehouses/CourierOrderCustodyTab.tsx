@@ -170,6 +170,8 @@ export default function CourierOrderCustodyTab() {
   const [handoverAmt, setHandoverAmt] = useState("");
   const [handoverNotes, setHandoverNotes] = useState("");
   const [handoverBusy, setHandoverBusy] = useState(false);
+  const [dailyDeposits, setDailyDeposits] = useState<Array<{ id: string; custody_id: string; deposit_date: string; amount: number; orders_count: number; treasury_txn_id: string | null; performed_by_name: string | null; created_at: string }>>([]);
+  const [depositingDay, setDepositingDay] = useState<string | null>(null);
 
   const printStatement = async (fmt: "pdf" | "xlsx") => {
     if (!selectedCustody) return;
@@ -196,6 +198,18 @@ export default function CourierOrderCustodyTab() {
     setCustodies(cst);
     setAssignments(asn);
     if (!selectedCustody && cst.length) setSelectedCustody(cst[0].id);
+
+    // Load daily cash deposits for all open custodies
+    if (cst.length) {
+      const { data: depRows } = await (supabase as any)
+        .from("courier_daily_cash_deposits")
+        .select("id, custody_id, deposit_date, amount, orders_count, treasury_txn_id, performed_by_name, created_at")
+        .in("custody_id", cst.map((c) => c.id))
+        .order("deposit_date", { ascending: false });
+      setDailyDeposits(depRows || []);
+    } else {
+      setDailyDeposits([]);
+    }
 
     // Pull orders that are: (a) prepared/ready for assignment, (b) currently assigned
     const assignedOrderIds = asn.map((a) => a.order_id);
@@ -334,26 +348,53 @@ export default function CourierOrderCustodyTab() {
       if (!map.has(day)) map.set(day, []);
       map.get(day)!.push(a);
     });
+    const depByDay = new Map(dailyDeposits.filter((d) => d.custody_id === selectedCustody).map((d) => [d.deposit_date, d]));
     return Array.from(map.entries())
       .sort((a, b) => (a[0] < b[0] ? 1 : -1))
       .map(([day, items]) => {
-        const totalValue = items.reduce((s, a) => {
-          const o = orders.find((x) => x.id === a.order_id);
-          if (isNonCashAssignment(a, o as any)) return s;
-          // For mixed payments, only the cash portion counts toward courier cash-due totals.
-          if (o?.collection_method === 'mixed_payment') return s + Number(o?.courier_cash_due || 0);
-          return s + Number(o?.total || 0);
-        }, 0);
-
+        let totalValue = 0, cashDue = 0, vodafone = 0, instapay = 0, bank = 0, other = 0, free = 0;
+        let missingBreakdown = 0, undelivered = 0;
+        items.forEach((a) => {
+          const o: any = orders.find((x) => x.id === a.order_id);
+          if (!o) return;
+          const deliveredStatus = ["delivered", "collected", "completed"].includes(o.status);
+          const nonCash = isNonCashAssignment(a, o);
+          if (!nonCash) {
+            if (o.collection_method === "mixed_payment") totalValue += Number(o.courier_cash_due || 0);
+            else totalValue += Number(o.total || 0);
+          }
+          vodafone += Number(o.vodafone_cash_amount || 0);
+          instapay += Number(o.instapay_amount || 0);
+          bank += Number(o.bank_transfer_amount || 0);
+          other += Number(o.other_amount || 0);
+          free += Number(o.free_amount || 0);
+          if (deliveredStatus && !nonCash) {
+            cashDue += o.collection_method === "mixed_payment" ? Number(o.courier_cash_due || 0) : Number(o.total || 0);
+          }
+          if (deliveredStatus && o.collection_method === "mixed_payment") {
+            const sum = Number(o.courier_cash_due || 0) + Number(o.vodafone_cash_amount || 0) + Number(o.instapay_amount || 0) +
+                        Number(o.bank_transfer_amount || 0) + Number(o.other_amount || 0) + Number(o.free_amount || 0);
+            if (Math.abs(sum - Number(o.total || 0)) > 0.01) missingBreakdown += 1;
+          }
+          if (!["delivered", "collected", "completed", "cancelled", "partially_returned", "fully_returned"].includes(o.status)) undelivered += 1;
+        });
         const collected = items.reduce((s, a) => {
           const c = collections.find((cl) => cl.order_id === a.order_id);
           return s + Number(c?.amount_collected || 0);
         }, 0);
         const delivered = items.filter((a) => ["delivered", "collected", "completed"].includes(a.status)).length;
         const returns = items.filter((a) => ["partially_returned", "fully_returned"].includes(a.status)).length;
-        return { day, items, totalValue, collected, delivered, returns, remaining: Math.max(0, totalValue - collected) };
+        const deposit = depByDay.get(day) || null;
+        return {
+          day, items, totalValue, collected, delivered, returns,
+          remaining: Math.max(0, totalValue - collected),
+          cashDue, vodafone, instapay, bank, other, free,
+          missingBreakdown, undelivered, deposit,
+          canDeposit: undelivered === 0 && missingBreakdown === 0 && cashDue > 0 && !deposit,
+        };
       });
-  }, [currentAssignments, orders, collections]);
+  }, [currentAssignments, orders, collections, dailyDeposits, selectedCustody]);
+
 
   // ── Actions ─────────────────────────────────────────────────────────────
   const handleAssign = async () => {
@@ -561,6 +602,26 @@ export default function CourierOrderCustodyTab() {
       toast({ title: "تعذّر إرسال التوريد", description: e?.message || "", variant: "destructive" });
     } finally { setHandoverBusy(false); }
   };
+
+  const depositDayCash = async (day: string, amountPreview: number) => {
+    if (!selectedCustody) return;
+    const dayLabel = new Date(day).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" });
+    if (!confirm(`سيتم توريد ${fmt(amountPreview)} ج.م إلى خزنة المخزن الرئيسي عن يوم ${dayLabel}. متابعة؟`)) return;
+    setDepositingDay(day);
+    try {
+      const { data, error } = await (supabase as any).rpc("deposit_courier_day_cash", {
+        p_custody_id: selectedCustody,
+        p_day: day,
+        p_notes: null,
+      });
+      if (error) throw error;
+      toast({ title: "تم التوريد بنجاح", description: `المبلغ: ${fmt(data?.amount || 0)} ج.م — ${data?.reference || ""}` });
+      await load();
+    } catch (e: any) {
+      toast({ title: "تعذّر التوريد", description: e?.message || "", variant: "destructive" });
+    } finally { setDepositingDay(null); }
+  };
+
 
   const submitCorrection = async () => {
     if (!correctOpen) return;
@@ -1023,10 +1084,29 @@ export default function CourierOrderCustodyTab() {
                           <TableRow key={`day-${grp.day}`} className="bg-primary/5 hover:bg-primary/10 cursor-pointer font-medium"
                             onClick={() => setExpandedDays((s) => ({ ...s, [grp.day]: !isOpen }))}>
                             <TableCell className="font-bold">
-                              <div className="flex items-center gap-2">
-                                {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-                                <span>{new Date(grp.day).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })}</span>
-                                <Badge variant="secondary" className="text-xs">{grp.items.length} أوردر</Badge>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                                  <span>{new Date(grp.day).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })}</span>
+                                  <Badge variant="secondary" className="text-xs">{grp.items.length} أوردر</Badge>
+                                  {grp.deposit ? (
+                                    <Badge className="bg-emerald-600 text-white text-[10px]">✓ تم التوريد {fmt(Number(grp.deposit.amount))} ج.م</Badge>
+                                  ) : grp.undelivered > 0 ? (
+                                    <Badge className="bg-amber-500 text-white text-[10px]">يحتاج مراجعة ({grp.undelivered} غير مسلّم)</Badge>
+                                  ) : grp.missingBreakdown > 0 ? (
+                                    <Badge className="bg-orange-500 text-white text-[10px]">breakdown غير مضبوط ({grp.missingBreakdown})</Badge>
+                                  ) : grp.cashDue > 0 ? (
+                                    <Badge variant="outline" className="text-[10px]">لم يتم التوريد</Badge>
+                                  ) : null}
+                                </div>
+                                <div className="text-[10px] text-muted-foreground font-normal flex flex-wrap gap-2">
+                                  <span>💵 كاش مع كيمو: <b className="text-emerald-700">{fmt(grp.cashDue)}</b></span>
+                                  {grp.vodafone > 0 && <span>📱 فودافون: {fmt(grp.vodafone)}</span>}
+                                  {grp.instapay > 0 && <span>💳 إنستاباي: {fmt(grp.instapay)}</span>}
+                                  {grp.bank > 0 && <span>🏦 بنكي: {fmt(grp.bank)}</span>}
+                                  {grp.other > 0 && <span>💠 أخرى: {fmt(grp.other)}</span>}
+                                  {grp.free > 0 && <span>🎁 مجاني: {fmt(grp.free)}</span>}
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">—</TableCell>
@@ -1041,14 +1121,38 @@ export default function CourierOrderCustodyTab() {
                             </TableCell>
                             <TableCell className="text-xs">{new Date(grp.day).toLocaleDateString("ar-EG")}</TableCell>
                             <TableCell className="text-xs">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <Button size="sm" variant="outline" className="h-7 px-2 gap-1" onClick={printDay} title="طباعة أوردرات اليوم">
                                   <Printer className="w-3 h-3" /> <span className="text-xs">طباعة</span>
                                 </Button>
-                                <span className="text-muted-foreground">{isOpen ? "إخفاء" : "عرض الأوردرات"}</span>
+                                {grp.deposit ? (
+                                  <Badge variant="outline" className="text-[10px] gap-1">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> رقم الحركة {grp.deposit.treasury_txn_id?.slice(0, 8) || "—"}
+                                  </Badge>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    className="h-7 px-2 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+                                    disabled={!grp.canDeposit || depositingDay === grp.day}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!grp.canDeposit) {
+                                        toast({ title: "لا يمكن التوريد الآن", description: grp.undelivered > 0 ? "لا يمكن توريد نقدية اليوم قبل مراجعة تحصيل كل الأوردرات." : grp.missingBreakdown > 0 ? "يوجد أوردر دفع مختلط بدون breakdown مضبوط" : "لا توجد نقدية للتوريد", variant: "destructive" });
+                                        return;
+                                      }
+                                      depositDayCash(grp.day, grp.cashDue);
+                                    }}
+                                    title="توريد نقدية اليوم لخزنة المخزن الرئيسي"
+                                  >
+                                    <Coins className="w-3 h-3" />
+                                    <span className="text-xs">{depositingDay === grp.day ? "جاري..." : `توريد ${fmt(grp.cashDue)}`}</span>
+                                  </Button>
+                                )}
+                                <span className="text-muted-foreground text-[10px]">{isOpen ? "إخفاء" : "عرض"}</span>
                               </div>
                             </TableCell>
                           </TableRow>
+
                         ];
                         if (isOpen) grp.items.forEach((a) => rows.push(renderOrderRow(a, true)));
                         return rows;
