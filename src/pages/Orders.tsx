@@ -1743,6 +1743,8 @@ const Orders = () => {
                             <span className="text-emerald-700 font-bold">نقدي: {Number(order.courier_cash_due || 0).toLocaleString()}</span>
                             {Number(order.vodafone_cash_amount || 0) > 0 && <span className="text-rose-700">📱 فودافون: {Number(order.vodafone_cash_amount).toLocaleString()}</span>}
                             {Number(order.instapay_amount || 0) > 0 && <span className="text-indigo-700">💳 إنستاباي: {Number(order.instapay_amount).toLocaleString()}</span>}
+                            {Number(order.bank_transfer_amount || 0) > 0 && <span className="text-blue-700">🏦 بنكي: {Number(order.bank_transfer_amount).toLocaleString()}</span>}
+                            {Number(order.other_amount || 0) > 0 && <span className="text-zinc-700">💠 أخرى: {Number(order.other_amount).toLocaleString()}</span>}
                             {Number(order.free_amount || 0) > 0 && <span className="text-slate-600">🎁 مجاني: {Number(order.free_amount).toLocaleString()}</span>}
                           </span>
                         )}
