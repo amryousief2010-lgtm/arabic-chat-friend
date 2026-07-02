@@ -181,6 +181,116 @@ export default function MainWarehouseTreasuryTab() {
   const [mainWarehouse, setMainWarehouse] = useState<{ id: string; name: string } | null>(null);
   const [mainWarehouseItems, setMainWarehouseItems] = useState<WarehouseStockItem[]>([]);
 
+  // === Deposit day details dialog ===
+  const [depDetailsOpen, setDepDetailsOpen] = useState(false);
+  const [depDetailsLoading, setDepDetailsLoading] = useState(false);
+  const [depDetailsMeta, setDepDetailsMeta] = useState<any>(null);
+  const [depDetailsLines, setDepDetailsLines] = useState<any[]>([]);
+
+  const openDepositDetails = async (txn: Txn) => {
+    setDepDetailsOpen(true);
+    setDepDetailsLoading(true);
+    setDepDetailsMeta(null);
+    setDepDetailsLines([]);
+    try {
+      const { data: dep } = await (supabase as any)
+        .from("courier_daily_cash_deposits")
+        .select("*")
+        .eq("treasury_txn_id", txn.id)
+        .maybeSingle();
+      if (!dep) {
+        toast({ title: "لا توجد تفاصيل مسجلة لهذا التوريد", variant: "destructive" });
+        setDepDetailsOpen(false);
+        return;
+      }
+      setDepDetailsMeta({ ...dep, txn });
+      const { data: lines } = await (supabase as any)
+        .from("courier_daily_cash_deposit_lines")
+        .select("*")
+        .eq("deposit_id", dep.id)
+        .order("order_number");
+      setDepDetailsLines(lines || []);
+    } catch (e: any) {
+      toast({ title: "تعذّر تحميل التفاصيل", description: e?.message || "", variant: "destructive" });
+    } finally {
+      setDepDetailsLoading(false);
+    }
+  };
+
+  const printDepositDetails = () => {
+    if (!depDetailsMeta) return;
+    const m = depDetailsMeta;
+    const dayLabel = new Date(m.deposit_date).toLocaleDateString("ar-EG");
+    const totCash = depDetailsLines.reduce((s, l) => s + Number(l.courier_cash_due || 0), 0);
+    const totVoda = depDetailsLines.reduce((s, l) => s + Number(l.vodafone_cash_amount || 0), 0);
+    const totInsta = depDetailsLines.reduce((s, l) => s + Number(l.instapay_amount || 0), 0);
+    const totBank = depDetailsLines.reduce((s, l) => s + Number(l.bank_transfer_amount || 0), 0);
+    const totFree = depDetailsLines.reduce((s, l) => s + Number(l.free_amount || 0) + (l.update_status_marker === "gift" || l.collection_method === "none" ? Number(l.order_total || 0) : 0), 0);
+    const totOrder = depDetailsLines.reduce((s, l) => s + Number(l.order_total || 0), 0);
+    const rowsHtml = depDetailsLines.map((l, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${escapeHtml(l.order_number)}</td>
+        <td>${escapeHtml(l.customer_name || "—")}</td>
+        <td class="num">${fmtNum(Number(l.order_total || 0))}</td>
+        <td class="num strong">${fmtNum(Number(l.courier_cash_due || 0))}</td>
+        <td class="num">${fmtNum(Number(l.vodafone_cash_amount || 0))}</td>
+        <td class="num">${fmtNum(Number(l.instapay_amount || 0))}</td>
+        <td class="num">${fmtNum(Number(l.bank_transfer_amount || 0))}</td>
+        <td class="num">${fmtNum(Number(l.free_amount || 0) + (l.update_status_marker === "gift" || l.collection_method === "none" ? Number(l.order_total || 0) : 0))}</td>
+        <td>${escapeHtml(l.status || "")}</td>
+      </tr>
+    `).join("");
+    const html = `
+      <div class="header">
+        <h1>تفاصيل توريد نقدية يوم ${dayLabel}</h1>
+        <div class="meta">
+          <div><b>المندوب:</b> ${escapeHtml(m.courier_name || "")}</div>
+          <div><b>عدد الأوردرات:</b> ${m.orders_count}</div>
+          <div><b>المرجع:</b> ${escapeHtml(m.txn?.reference || "")}</div>
+          <div><b>بواسطة:</b> ${escapeHtml(m.performed_by_name || "")}</div>
+        </div>
+      </div>
+      <table class="tbl">
+        <thead><tr>
+          <th>#</th><th>رقم الأوردر</th><th>العميل</th><th>إجمالي الأوردر</th>
+          <th>نقدي من كيمو</th><th>فودافون</th><th>إنستاباي</th><th>بنكي</th><th>مجاني</th><th>الحالة</th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+        <tfoot><tr>
+          <th colspan="3">الإجماليات</th>
+          <th class="num">${fmtNum(totOrder)}</th>
+          <th class="num strong">${fmtNum(totCash)}</th>
+          <th class="num">${fmtNum(totVoda)}</th>
+          <th class="num">${fmtNum(totInsta)}</th>
+          <th class="num">${fmtNum(totBank)}</th>
+          <th class="num">${fmtNum(totFree)}</th>
+          <th></th>
+        </tr></tfoot>
+      </table>
+      <div class="summary">
+        <div><b>إجمالي النقدية المورَّدة للخزنة:</b> ${fmtNum(Number(m.amount || 0))} ج.م</div>
+      </div>
+      <style>
+        .header{margin-bottom:12px}
+        .header h1{font-size:18px;margin:0 0 6px}
+        .meta{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;font-size:12px}
+        table.tbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+        table.tbl th, table.tbl td{border:1px solid #ccc;padding:6px;text-align:center}
+        table.tbl thead th{background:#f3f4f6}
+        table.tbl tfoot th{background:#fef3c7}
+        .num{font-family:monospace}
+        .strong{font-weight:bold;color:#059669}
+        .summary{margin-top:12px;padding:10px;background:#ecfdf5;border:1px solid #10b981;border-radius:6px;font-size:14px}
+      </style>
+    `;
+    openPrintWindow(`تفاصيل توريد ${m.courier_name} - ${dayLabel}`, html);
+  };
+
+
+
+
+
 
 
 
@@ -1878,7 +1988,16 @@ export default function MainWarehouseTreasuryTab() {
                           {isIn ? "وارد" : "صادر"}
                         </Badge>
                       </td>
-                      <td className="p-2 text-xs">{CATEGORY_LABELS[r.category] || r.category}</td>
+                      <td className="p-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span>{CATEGORY_LABELS[r.category] || r.category}</span>
+                          {r.category === "courier_deposit" && (
+                            <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={() => openDepositDetails(r)}>
+                              تفاصيل اليوم
+                            </Button>
+                          )}
+                        </div>
+                      </td>
                       <td className={`p-2 font-mono font-bold ${isIn ? "text-emerald-700" : "text-rose-700"}`}>
                         {isIn ? "+" : "-"}{fmt(Number(r.amount || 0))}
                       </td>
@@ -2310,7 +2429,95 @@ export default function MainWarehouseTreasuryTab() {
           onCreated={() => { fetchMainWarehouseItems(); }}
         />
       )}
+
+      {/* Deposit day details dialog */}
+      <Dialog open={depDetailsOpen} onOpenChange={setDepDetailsOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardCheck className="w-4 h-4 text-primary" />
+              تفاصيل توريد نقدية اليوم
+            </DialogTitle>
+            <DialogDescription>
+              {depDetailsMeta ? (
+                <span>
+                  المندوب: <b>{depDetailsMeta.courier_name}</b> — اليوم:{" "}
+                  <b>{new Date(depDetailsMeta.deposit_date).toLocaleDateString("ar-EG")}</b> — عدد الأوردرات:{" "}
+                  <b>{depDetailsMeta.orders_count}</b> — الإجمالي النقدي:{" "}
+                  <b className="text-emerald-700">{fmt(Number(depDetailsMeta.amount || 0))} ج.م</b>
+                </span>
+              ) : "جاري التحميل..."}
+            </DialogDescription>
+          </DialogHeader>
+          {depDetailsLoading ? (
+            <div className="text-center p-6 text-muted-foreground">جاري تحميل التفاصيل...</div>
+          ) : (
+            <div className="space-y-3">
+              <div className="overflow-x-auto rounded-md border">
+                <table className="w-full text-right text-xs">
+                  <thead className="bg-muted/60">
+                    <tr>
+                      <th className="p-2">#</th>
+                      <th className="p-2">رقم الأوردر</th>
+                      <th className="p-2">العميل</th>
+                      <th className="p-2">إجمالي</th>
+                      <th className="p-2 text-emerald-700">نقدي من كيمو</th>
+                      <th className="p-2">فودافون</th>
+                      <th className="p-2">إنستاباي</th>
+                      <th className="p-2">بنكي</th>
+                      <th className="p-2">مجاني</th>
+                      <th className="p-2">الحالة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {depDetailsLines.length === 0 ? (
+                      <tr><td colSpan={10} className="p-4 text-center text-muted-foreground">لا توجد تفاصيل</td></tr>
+                    ) : depDetailsLines.map((l, i) => {
+                      const freeVal = Number(l.free_amount || 0) + ((l.update_status_marker === "gift" || l.collection_method === "none") ? Number(l.order_total || 0) : 0);
+                      return (
+                        <tr key={l.id} className="border-t">
+                          <td className="p-2">{i + 1}</td>
+                          <td className="p-2 font-mono">{l.order_number}</td>
+                          <td className="p-2">{l.customer_name || "—"}</td>
+                          <td className="p-2 font-mono">{fmt(Number(l.order_total || 0))}</td>
+                          <td className="p-2 font-mono font-bold text-emerald-700">{fmt(Number(l.courier_cash_due || 0))}</td>
+                          <td className="p-2 font-mono">{fmt(Number(l.vodafone_cash_amount || 0))}</td>
+                          <td className="p-2 font-mono">{fmt(Number(l.instapay_amount || 0))}</td>
+                          <td className="p-2 font-mono">{fmt(Number(l.bank_transfer_amount || 0))}</td>
+                          <td className="p-2 font-mono">{fmt(freeVal)}</td>
+                          <td className="p-2 text-[10px]">{l.status || "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  {depDetailsLines.length > 0 && (
+                    <tfoot className="bg-amber-50 font-bold">
+                      <tr>
+                        <td colSpan={3} className="p-2">الإجماليات</td>
+                        <td className="p-2 font-mono">{fmt(depDetailsLines.reduce((s, l) => s + Number(l.order_total || 0), 0))}</td>
+                        <td className="p-2 font-mono text-emerald-700">{fmt(depDetailsLines.reduce((s, l) => s + Number(l.courier_cash_due || 0), 0))}</td>
+                        <td className="p-2 font-mono">{fmt(depDetailsLines.reduce((s, l) => s + Number(l.vodafone_cash_amount || 0), 0))}</td>
+                        <td className="p-2 font-mono">{fmt(depDetailsLines.reduce((s, l) => s + Number(l.instapay_amount || 0), 0))}</td>
+                        <td className="p-2 font-mono">{fmt(depDetailsLines.reduce((s, l) => s + Number(l.bank_transfer_amount || 0), 0))}</td>
+                        <td className="p-2 font-mono">{fmt(depDetailsLines.reduce((s, l) => s + Number(l.free_amount || 0) + ((l.update_status_marker === "gift" || l.collection_method === "none") ? Number(l.order_total || 0) : 0), 0))}</td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={printDepositDetails} disabled={depDetailsLoading || !depDetailsMeta}>
+              <Printer className="w-4 h-4 ml-1" /> طباعة
+            </Button>
+            <Button variant="ghost" onClick={() => setDepDetailsOpen(false)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+
 
 
   );
