@@ -199,6 +199,18 @@ export default function CourierOrderCustodyTab() {
     setAssignments(asn);
     if (!selectedCustody && cst.length) setSelectedCustody(cst[0].id);
 
+    // Load daily cash deposits for all open custodies
+    if (cst.length) {
+      const { data: depRows } = await (supabase as any)
+        .from("courier_daily_cash_deposits")
+        .select("id, custody_id, deposit_date, amount, orders_count, treasury_txn_id, performed_by_name, created_at")
+        .in("custody_id", cst.map((c) => c.id))
+        .order("deposit_date", { ascending: false });
+      setDailyDeposits(depRows || []);
+    } else {
+      setDailyDeposits([]);
+    }
+
     // Pull orders that are: (a) prepared/ready for assignment, (b) currently assigned
     const assignedOrderIds = asn.map((a) => a.order_id);
     const [readyOrdersRes, assignedOrdersRes] = await Promise.all([
