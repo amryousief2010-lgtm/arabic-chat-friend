@@ -41,6 +41,7 @@ import AddOfferDialog from "@/components/orders/AddOfferDialog";
 import EditAddressWarehouseDialog from "@/components/orders/EditAddressWarehouseDialog";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import QuickDeliveryDialog from "@/components/orders/QuickDeliveryDialog";
+import ReassignOwnerDialog from "@/components/orders/ReassignOwnerDialog";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
