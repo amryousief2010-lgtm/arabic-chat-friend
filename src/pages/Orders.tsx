@@ -280,6 +280,12 @@ const Orders = () => {
      isShippingCompany ||
      isPrivateDeliveryRep ||
      rolesList.includes('courier');
+   // صلاحية نقل الأوردر من مسوقة إلى أخرى — مقصورة على مديرة التسويق والإدارة العليا فقط
+   const canReassignOwner =
+     isGeneralManager ||
+     isExecutiveManager ||
+     rolesList.includes('marketing_sales_manager');
+   const [reassignOrder, setReassignOrder] = useState<Order | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   // M4-B: per-order Agouza reservation status. Drives the Agouza-only badge and
   // blocks delivery confirmation when no active/committed reservation exists.
