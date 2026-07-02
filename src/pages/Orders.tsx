@@ -1853,6 +1853,15 @@ const Orders = () => {
                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePrintOrder(order)} title="طباعة الطلب">
                          <Printer className="w-4 h-4 text-primary" />
                        </Button>
+                       <Button
+                         variant="ghost"
+                         size="icon"
+                         className="h-8 w-8"
+                         onClick={() => openMixedDialog(order.id)}
+                         title="تعديل / ضبط تحصيل الأوردر"
+                       >
+                         <Wallet className="w-4 h-4 text-emerald-600" />
+                       </Button>
                       {isPrivateDeliveryRep && order.status !== 'delivered' && order.status !== 'cancelled' && !approvedEditOrderIds.has(order.id) && (
                         <Button
                           variant="ghost"
