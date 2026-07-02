@@ -58,6 +58,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   courier_deposit: "توريد نقدية من مندوب",
   transfer_to_main_treasury: "تحويل للخزينة الرئيسية (قديم)",
   transfer_from_main_warehouse_treasury: "تحويل من خزينة المخزن للخزينة الرئيسية",
+  prior_deposit_reconciliation: "تسوية مع إيداع سابق في الخزينة الرئيسية",
   manual_adjust: "تسوية يدوية",
   opening_balance: "رصيد افتتاحي",
   other: "أخرى",
@@ -118,9 +119,12 @@ export default function MainWarehouseTreasuryTab() {
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferAmt, setTransferAmt] = useState("");
   const [transferNotes, setTransferNotes] = useState("");
+  const [transferMode, setTransferMode] = useState<"normal" | "reconcile">("normal");
+  const [reconcileRef, setReconcileRef] = useState("");
   const [pendingDeposits, setPendingDeposits] = useState<any[]>([]);
   const [selectedDepositIds, setSelectedDepositIds] = useState<Set<string>>(new Set());
   const [loadingDeposits, setLoadingDeposits] = useState(false);
+  const canReconcile = isGeneralManager || isExecutiveManager || isFinancialManager;
 
   const [busy, setBusy] = useState(false);
 
