@@ -1007,7 +1007,10 @@ const Orders = () => {
     setMixedCash(String(t.courier_cash_due ?? 0));
     setMixedVod(String(t.vodafone_cash_amount ?? 0));
     setMixedInsta(String(t.instapay_amount ?? 0));
+    setMixedBank(String(t.bank_transfer_amount ?? 0));
+    setMixedOther(String(t.other_amount ?? 0));
     setMixedFree(String(t.free_amount ?? 0));
+    setMixedRef(String(t.transfer_reference ?? ''));
     setMixedNote('');
     setMixedDlgOrderId(orderId);
   };
@@ -1020,14 +1023,16 @@ const Orders = () => {
     const cash = Number(mixedCash) || 0;
     const vod = Number(mixedVod) || 0;
     const insta = Number(mixedInsta) || 0;
+    const bank = Number(mixedBank) || 0;
+    const other = Number(mixedOther) || 0;
     const free = Number(mixedFree) || 0;
-    const sum = cash + vod + insta + free;
+    const sum = cash + vod + insta + bank + other + free;
     const totalVal = Number(target.total || 0);
     if (Math.abs(sum - totalVal) > 0.01) {
       toast.error(`مجموع مبالغ التحصيل (${sum.toFixed(2)}) لا يساوي قيمة الأوردر (${totalVal.toFixed(2)}).`);
       return;
     }
-    if ([cash, vod, insta, free].some((v) => v < 0)) {
+    if ([cash, vod, insta, bank, other, free].some((v) => v < 0)) {
       toast.error('لا يمكن إدخال مبالغ سالبة.');
       return;
     }
@@ -1038,13 +1043,16 @@ const Orders = () => {
         courier_cash_due: cash,
         vodafone_cash_amount: vod,
         instapay_amount: insta,
+        bank_transfer_amount: bank,
+        other_amount: other,
         free_amount: free,
+        transfer_reference: mixedRef || null,
         collection_note: mixedNote || null,
         collection_updated_at: nowIso,
         collection_updated_by: user?.id ?? null,
       } as any).eq('id', id);
       if (error) throw error;
-      // Audit
+      // Audit — سجل تاريخي منفصل لكل تعديل (INSERT وليس UPDATE).
       await supabase.from('order_payment_breakdown_audit' as any).insert({
         order_id: id,
         old_collection_method: target.collection_method ?? null,
@@ -1055,8 +1063,13 @@ const Orders = () => {
         new_vodafone_cash_amount: vod,
         old_instapay_amount: target.instapay_amount ?? 0,
         new_instapay_amount: insta,
+        old_bank_transfer_amount: target.bank_transfer_amount ?? 0,
+        new_bank_transfer_amount: bank,
+        old_other_amount: target.other_amount ?? 0,
+        new_other_amount: other,
         old_free_amount: target.free_amount ?? 0,
         new_free_amount: free,
+        transfer_reference: mixedRef || null,
         note: mixedNote || null,
         changed_by: user?.id ?? null,
       } as any);
@@ -1065,7 +1078,10 @@ const Orders = () => {
         courier_cash_due: cash,
         vodafone_cash_amount: vod,
         instapay_amount: insta,
+        bank_transfer_amount: bank,
+        other_amount: other,
         free_amount: free,
+        transfer_reference: mixedRef || null,
         collection_updated_at: nowIso,
       } : o));
       setMixedDlgOrderId(null);
