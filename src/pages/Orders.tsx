@@ -2225,6 +2225,14 @@ const Orders = () => {
                         >
                           <Printer className="w-4 h-4 text-primary" />
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openMixedDialog(order.id)}
+                          title="تعديل / ضبط تحصيل الأوردر"
+                        >
+                          <Wallet className="w-4 h-4 text-emerald-600" />
+                        </Button>
                         {isPrivateDeliveryRep &&
                           order.status !== 'delivered' &&
                           order.status !== 'cancelled' &&
