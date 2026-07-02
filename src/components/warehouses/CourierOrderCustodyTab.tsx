@@ -1031,11 +1031,21 @@ export default function CourierOrderCustodyTab() {
                       return groupedByDay.flatMap((grp) => {
                         const isOpen = expandedDays[grp.day] ?? false;
                         const courierName = custodies.find((c) => c.id === selectedCustody)?.courier_name || "—";
-                        const printDay = (e: React.MouseEvent) => {
+                        const printDay = async (e: React.MouseEvent) => {
                           e.stopPropagation();
                           const dayLabel = new Date(grp.day).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+                          const orderIds = grp.items.map((a) => a.order_id);
+                          const { data: itemsData } = await (supabase as any)
+                            .from("order_items")
+                            .select("order_id, product_name, quantity, unit_price, total_price, is_gift, offer_name")
+                            .in("order_id", orderIds);
+                          const itemsByOrder: Record<string, any[]> = {};
+                          (itemsData || []).forEach((it: any) => {
+                            (itemsByOrder[it.order_id] = itemsByOrder[it.order_id] || []).push(it);
+                          });
                           let sumTotal = 0, sumCash = 0, sumVoda = 0, sumInsta = 0, sumBank = 0, sumOther = 0, sumFree = 0;
-                          const rows = grp.items.map((a, i) => {
+                          let cntGift = 0, cntMixed = 0;
+                          const blocks = grp.items.map((a, i) => {
                             const o = orders.find((x) => x.id === a.order_id);
                             const cm = o?.collection_method || null;
                             const isGift = o?.update_status_marker === "gift" || cm === "none";
@@ -1048,40 +1058,53 @@ export default function CourierOrderCustodyTab() {
                             let cashFromCourier = 0;
                             if (isGift) cashFromCourier = 0;
                             else if (cm === "mixed_payment") cashFromCourier = Number(o?.courier_cash_due || 0);
+                            else if (cm === "vodafone_cash" || cm === "instapay" || cm === "bank_transfer") cashFromCourier = 0;
                             else cashFromCourier = Math.max(0, orderTotal - voda - insta - bank - other - freeAmt);
+                            const remaining = Math.max(0, orderTotal - voda - insta - bank - other - freeAmt - cashFromCourier);
                             sumTotal += orderTotal; sumCash += cashFromCourier; sumVoda += voda; sumInsta += insta; sumBank += bank; sumOther += other; sumFree += freeAmt;
+                            if (isGift) cntGift++;
+                            if (cm === "mixed_payment") cntMixed++;
                             const trk = tracking[a.order_id];
                             const statusLabel = isGift ? "مجاني 🎁" : (COURIER_STATUS_LABEL[trk || a.status] || a.status);
-                            const mono = 'style="text-align:left;font-family:monospace"';
-                            return `<tr>
-                              <td>${i + 1}</td>
-                              <td>${o?.order_number ?? a.order_id.slice(0, 8)}</td>
-                              <td>${o?.customer_name ?? "—"}</td>
-                              <td>${statusLabel}</td>
-                              <td ${mono}>${fmt(orderTotal)}</td>
-                              <td ${mono} class="cash">${fmt(cashFromCourier)}</td>
-                              <td ${mono}>${voda ? fmt(voda) : "—"}</td>
-                              <td ${mono}>${insta ? fmt(insta) : "—"}</td>
-                              <td ${mono}>${bank ? fmt(bank) : "—"}</td>
-                              <td ${mono}>${freeAmt ? fmt(freeAmt) : "—"}</td>
-                            </tr>`;
+                            const its = itemsByOrder[a.order_id] || [];
+                            const itemsRows = its.map((it) => {
+                              const qty = Number(it.quantity || 0);
+                              const tp = Number(it.total_price || 0);
+                              const up = Number(it.unit_price || 0) > 0 ? Number(it.unit_price) : (qty > 0 ? tp / qty : 0);
+                              const name = it.offer_name ? `${it.product_name} <span style="color:#7c3aed">(${it.offer_name})</span>` : it.product_name;
+                              return `<tr><td>${name}</td><td style="text-align:center">${qty}</td><td style="text-align:left;font-family:monospace">${fmt(up)}</td><td style="text-align:left;font-family:monospace">${fmt(tp)}</td></tr>`;
+                            }).join("") || `<tr><td colspan="4" style="text-align:center;color:#999">لا توجد أصناف</td></tr>`;
+                            const cashBg = cashFromCourier > 0 ? "background:#ecfdf5;color:#065f46" : "background:#f3f4f6;color:#666";
+                            return `
+                              <div class="order-block">
+                                <div class="oh">
+                                  <div><span class="lbl">#${i + 1}</span> <b>${o?.order_number ?? a.order_id.slice(0, 8)}</b> — ${o?.customer_name ?? "—"} <span class="st">${statusLabel}</span></div>
+                                </div>
+                                <div class="ol">
+                                  <div><span>إجمالي الأوردر:</span> <b>${fmt(orderTotal)}</b></div>
+                                  <div style="${cashBg};padding:2px 8px;border-radius:4px"><span>💵 نقدي مطلوب من كيمو:</span> <b>${fmt(cashFromCourier)}</b></div>
+                                  ${voda ? `<div><span>📱 فودافون:</span> <b>${fmt(voda)}</b></div>` : ""}
+                                  ${insta ? `<div><span>💳 إنستاباي:</span> <b>${fmt(insta)}</b></div>` : ""}
+                                  ${bank ? `<div><span>🏦 بنكي:</span> <b>${fmt(bank)}</b></div>` : ""}
+                                  ${other ? `<div><span>💠 أخرى:</span> <b>${fmt(other)}</b></div>` : ""}
+                                  ${freeAmt ? `<div><span>🎁 مجاني:</span> <b>${fmt(freeAmt)}</b></div>` : ""}
+                                  ${remaining ? `<div style="color:#b45309"><span>⚠️ متبقي:</span> <b>${fmt(remaining)}</b></div>` : ""}
+                                </div>
+                                <table class="items">
+                                  <thead><tr><th>المنتج</th><th style="width:60px">الكمية</th><th style="width:90px">سعر الوحدة</th><th style="width:100px">إجمالي الصنف</th></tr></thead>
+                                  <tbody>${itemsRows}</tbody>
+                                </table>
+                              </div>`;
                           }).join("");
                           const body = `
                             <div class="meta">
                               <div><strong>المندوب:</strong> ${courierName}</div>
                               <div><strong>اليوم:</strong> ${dayLabel}</div>
                               <div><strong>عدد الأوردرات:</strong> ${grp.items.length}</div>
+                              <div><strong>مجاني:</strong> ${cntGift}</div>
+                              <div><strong>مختلط:</strong> ${cntMixed}</div>
                             </div>
-                            <table>
-                              <thead>
-                                <tr>
-                                  <th>#</th><th>رقم الأوردر</th><th>العميل</th><th>الحالة</th>
-                                  <th>إجمالي الأوردر</th><th>نقدي مع كيمو</th>
-                                  <th>فودافون</th><th>إنستاباي</th><th>بنكي</th><th>مجاني</th>
-                                </tr>
-                              </thead>
-                              <tbody>${rows}</tbody>
-                            </table>
+                            ${blocks}
                             <div class="totals">
                               <div class="t-row"><span>إجمالي قيمة الأوردرات (للعرض فقط):</span><b>${fmt(sumTotal)} ج.م</b></div>
                               <div class="t-row"><span>إجمالي فودافون كاش:</span><b>${fmt(sumVoda)} ج.م</b></div>
@@ -1090,21 +1113,27 @@ export default function CourierOrderCustodyTab() {
                               ${sumOther ? `<div class="t-row"><span>إجمالي أخرى:</span><b>${fmt(sumOther)} ج.م</b></div>` : ""}
                               <div class="t-row"><span>إجمالي المجاني / الهدايا:</span><b>${fmt(sumFree)} ج.م</b></div>
                               <div class="t-row highlight"><span>💵 إجمالي النقدية المطلوب استلامها من كيمو:</span><b>${fmt(sumCash)} ج.م</b></div>
-                              <div class="note">ملاحظة: التحويلات (فودافون/إنستاباي/بنكي) والأوردرات المجانية تظهر للإثبات فقط ولا تدخل نقدًا مع المندوب. المبلغ الفعلي الذي يدخل خزنة المخزن الرئيسي = النقدية المطلوبة من كيمو فقط.</div>
+                              <div class="note">ملاحظة: التحويلات (فودافون/إنستاباي/بنكي) والأوردرات المجانية تظهر للإثبات فقط ولا تدخل نقدًا مع المندوب. المبلغ الفعلي الذي يدخل خزنة المخزن الرئيسي = النقدية المطلوبة من كيمو فقط (مجموع courier_cash_due).</div>
                             </div>`;
                           const css = `
-                            .meta { display:flex; gap:24px; margin-bottom:12px; font-size:13px; }
-                            table { width:100%; border-collapse:collapse; font-size:11px; }
-                            th, td { border:1px solid #ccc; padding:5px 6px; text-align:right; }
-                            thead th { background:#f3f4f6; }
-                            td.cash { background:#ecfdf5; font-weight:bold; color:#065f46; }
-                            .totals { margin-top:14px; font-size:12px; border:1px solid #ccc; padding:10px; background:#fafafa; }
+                            .meta { display:flex; gap:20px; flex-wrap:wrap; margin-bottom:12px; font-size:12px; padding:8px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:4px; }
+                            .order-block { margin-bottom:14px; border:1px solid #d1d5db; border-radius:6px; padding:8px; page-break-inside: avoid; }
+                            .oh { font-size:13px; padding-bottom:6px; border-bottom:1px solid #e5e7eb; margin-bottom:6px; }
+                            .oh .lbl { background:#6366f1; color:#fff; padding:1px 6px; border-radius:3px; font-size:11px; }
+                            .oh .st { color:#059669; font-size:11px; margin-right:6px; }
+                            .ol { display:flex; flex-wrap:wrap; gap:8px 14px; font-size:11px; margin-bottom:6px; }
+                            .ol b { font-family:monospace; }
+                            table.items { width:100%; border-collapse:collapse; font-size:11px; }
+                            table.items th, table.items td { border:1px solid #d1d5db; padding:3px 6px; text-align:right; }
+                            table.items thead th { background:#f3f4f6; }
+                            .totals { margin-top:14px; font-size:12px; border:2px solid #6366f1; padding:10px; background:#fafafa; border-radius:6px; }
                             .t-row { display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px dashed #ddd; }
-                            .t-row.highlight { background:#fef3c7; padding:6px; margin-top:6px; font-size:14px; border:1px solid #f59e0b; }
-                            .note { margin-top:8px; font-size:10px; color:#555; line-height:1.5; }
+                            .t-row.highlight { background:#fef3c7; padding:8px; margin-top:6px; font-size:15px; border:2px solid #f59e0b; border-radius:4px; }
+                            .note { margin-top:8px; font-size:10px; color:#555; line-height:1.6; }
                           `;
                           openPrintWindow(`عهدة ${courierName} — ${dayLabel}`, body, css);
                         };
+
                         const rows: JSX.Element[] = [
                           <TableRow key={`day-${grp.day}`} className="bg-primary/5 hover:bg-primary/10 cursor-pointer font-medium"
                             onClick={() => setExpandedDays((s) => ({ ...s, [grp.day]: !isOpen }))}>
