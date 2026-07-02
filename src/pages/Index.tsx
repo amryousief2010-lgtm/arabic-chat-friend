@@ -119,6 +119,7 @@ const Index = () => {
 const DashboardContent = () => {
   const navigate = useNavigate();
   const { data: stats, isLoading } = useDashboardStats();
+  const { data: todayBreakdown } = useTodayOrdersBreakdown();
   const { data: recentOrders, isLoading: ordersLoading } = useRecentOrders(5);
   const reportData = useReportsData("all");
   const [prodFrom, setProdFrom] = useState<string>("");
