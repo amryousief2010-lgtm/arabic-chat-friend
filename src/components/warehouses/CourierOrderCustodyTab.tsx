@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -137,6 +138,7 @@ type FailedAttempt = { id: string; order_id: string; reason: string; notes: stri
 export default function CourierOrderCustodyTab() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [custodies, setCustodies] = useState<Custody[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -791,8 +793,29 @@ export default function CourierOrderCustodyTab() {
                         const btnBase = "h-8 px-2 gap-1 text-xs font-semibold border shadow-sm";
                         return (
                           <TableRow key={a.id} className={indent ? "bg-muted/20" : ""}>
-                            <TableCell className={`font-mono ${indent ? "pr-8" : ""}`}>{o?.order_number ?? a.order_id.slice(0, 8)}</TableCell>
-                            <TableCell>{o?.customer_name ?? "—"}</TableCell>
+                            <TableCell className={`font-mono ${indent ? "pr-8" : ""}`}>
+                              <button
+                                type="button"
+                                className="text-primary underline underline-offset-2 hover:text-primary/80 font-mono"
+                                onClick={() => o && navigate(`/orders?mixed=${o.id}`)}
+                                disabled={!o}
+                                title="فتح شاشة ضبط التحصيل"
+                              >
+                                {o?.order_number ?? a.order_id.slice(0, 8)}
+                              </button>
+                            </TableCell>
+                            <TableCell>
+                              {o ? (
+                                <button
+                                  type="button"
+                                  className="text-primary underline underline-offset-2 hover:text-primary/80"
+                                  onClick={() => navigate(`/orders?mixed=${o.id}`)}
+                                  title="فتح شاشة ضبط التحصيل"
+                                >
+                                  {o.customer_name ?? "—"}
+                                </button>
+                              ) : "—"}
+                            </TableCell>
                             <TableCell className="font-mono">
                               <div>{fmt(dueAmt)}</div>
                               {mixed && (
@@ -1091,9 +1114,11 @@ export default function CourierOrderCustodyTab() {
 
       {/* Order details dialog */}
       <Dialog open={!!detailsOrder} onOpenChange={(v) => !v && setDetailsOrder(null)}>
-        <DialogContent dir="rtl" className="max-w-2xl">
+        <DialogContent dir="rtl" className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader><DialogTitle>تفاصيل {detailsOrder?.order_number}</DialogTitle></DialogHeader>
-          <OrderDetailsBody order={detailsOrder} />
+          <div className="flex-1 overflow-y-auto pr-1">
+            <OrderDetailsBody order={detailsOrder} />
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1232,22 +1257,48 @@ export default function CourierOrderCustodyTab() {
 }
 
 function OrderDetailsBody({ order }: { order: Order | null }) {
+  const navigate = useNavigate();
   const [items, setItems] = useState<any[]>([]);
   const [bonuses, setBonuses] = useState<any[]>([]);
+  const [full, setFull] = useState<any | null>(null);
   useEffect(() => {
     if (!order) return;
     (async () => {
-      const [itRes, bonRes] = await Promise.all([
+      const [itRes, bonRes, ordRes] = await Promise.all([
         (supabase as any).from("order_items").select("*").eq("order_id", order.id),
         (supabase as any).from("courier_goods_custody_lines").select("*").eq("order_id", order.id).in("line_type", ["bonus", "sale"]),
+        (supabase as any).from("orders").select("subtotal, discount, delivery_fee, total, collection_method, courier_cash_due, vodafone_cash_amount, instapay_amount, bank_transfer_amount, other_amount, free_amount, transfer_reference, collection_note").eq("id", order.id).maybeSingle(),
       ]);
       setItems(itRes.data || []);
       setBonuses(bonRes.data || []);
+      setFull(ordRes.data || null);
     })();
   }, [order]);
   if (!order) return null;
+
+  // Robust price resolution: unit_price → fallback total/qty; never render bare dot/NaN.
+  const priceOf = (it: any) => {
+    const qty = Number(it.quantity || 0);
+    const unit = Number(it.unit_price ?? it.price ?? 0);
+    const total = Number(it.total_price ?? it.line_total ?? it.subtotal ?? it.item_total ?? 0);
+    const resolvedUnit = unit > 0 ? unit : (total > 0 && qty > 0 ? total / qty : 0);
+    const resolvedTotal = total > 0 ? total : (resolvedUnit > 0 ? resolvedUnit * qty : 0);
+    const isFree = resolvedUnit === 0 && resolvedTotal === 0 && (it.offer_name || /هدية|مجاني/.test(String(it.product_name || "")) || Number(order.total || 0) > 0);
+    return { qty, resolvedUnit, resolvedTotal, isFree };
+  };
+
+  const cm = full?.collection_method ?? order.collection_method;
+  const collectionRows: Array<[string, number]> = ([
+    ["💵 نقدي مع المندوب", Number(full?.courier_cash_due ?? order.courier_cash_due ?? 0)],
+    ["📱 فودافون كاش", Number(full?.vodafone_cash_amount ?? order.vodafone_cash_amount ?? 0)],
+    ["💳 إنستاباي", Number(full?.instapay_amount ?? order.instapay_amount ?? 0)],
+    ["🏦 تحويل بنكي", Number(full?.bank_transfer_amount ?? order.bank_transfer_amount ?? 0)],
+    ["💠 أخرى", Number(full?.other_amount ?? order.other_amount ?? 0)],
+    ["🎁 مجاني", Number(full?.free_amount ?? order.free_amount ?? 0)],
+  ] as Array<[string, number]>).filter(([, v]) => v > 0);
+
   return (
-    <div className="space-y-3 text-sm">
+    <div className="space-y-3 text-sm pb-2">
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div><span className="text-muted-foreground">رقم الأوردر:</span> <span className="font-mono">{order.order_number}</span></div>
         <div><span className="text-muted-foreground">العميل:</span> {order.customer_name ?? "—"}</div>
@@ -1257,19 +1308,65 @@ function OrderDetailsBody({ order }: { order: Order | null }) {
       <div>
         <div className="font-semibold mb-1">الأصناف</div>
         <Table>
-          <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>الكمية</TableHead><TableHead>السعر</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>الصنف</TableHead><TableHead>الكمية</TableHead><TableHead>سعر الوحدة</TableHead><TableHead>إجمالي الصنف</TableHead></TableRow></TableHeader>
           <TableBody>
-            {items.length === 0 ? <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">—</TableCell></TableRow> :
-             items.map((it) => (
-              <TableRow key={it.id}>
-                <TableCell>{it.product_name}</TableCell>
-                <TableCell className="font-mono">{fmt(Number(it.quantity || 0))}</TableCell>
-                <TableCell className="font-mono">{fmt(Number(it.price || 0))}</TableCell>
-              </TableRow>
-            ))}
+            {items.length === 0 ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">—</TableCell></TableRow> :
+             items.map((it) => {
+              const { qty, resolvedUnit, resolvedTotal, isFree } = priceOf(it);
+              return (
+                <TableRow key={it.id}>
+                  <TableCell>
+                    {it.product_name}
+                    {it.offer_name ? <span className="block text-[10px] text-muted-foreground">ضمن {it.offer_name}</span> : null}
+                  </TableCell>
+                  <TableCell className="font-mono">{fmt(qty)}</TableCell>
+                  <TableCell className="font-mono">
+                    {resolvedUnit > 0 ? `${fmt(resolvedUnit)} ج.م`
+                      : isFree ? <Badge variant="outline" className="text-[10px]">🎁 مجاني / ضمن عرض — 0 ج.م</Badge>
+                      : <span className="text-muted-foreground text-xs">غير محسوب</span>}
+                  </TableCell>
+                  <TableCell className="font-mono">
+                    {resolvedTotal > 0 ? `${fmt(resolvedTotal)} ج.م`
+                      : isFree ? "0 ج.م"
+                      : <span className="text-muted-foreground text-xs">غير محسوب</span>}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
+
+      {/* Financial summary */}
+      <div className="border rounded-md p-3 bg-muted/30 space-y-1 text-xs">
+        <div className="font-semibold mb-1">الملخص المالي</div>
+        <div className="flex justify-between"><span>الأصناف:</span><span className="font-mono">{fmt(Number(full?.subtotal ?? 0))} ج.م</span></div>
+        <div className="flex justify-between"><span>الخصم:</span><span className="font-mono">{fmt(Number(full?.discount ?? 0))} ج.م</span></div>
+        <div className="flex justify-between"><span>الشحن:</span><span className="font-mono">{fmt(Number(full?.delivery_fee ?? 0))} ج.م</span></div>
+        <div className="flex justify-between font-bold text-sm border-t pt-1 mt-1"><span>الإجمالي:</span><span className="font-mono">{fmt(Number(full?.total ?? order.total ?? 0))} ج.م</span></div>
+      </div>
+
+      {/* Collection breakdown */}
+      <div className="border rounded-md p-3 bg-amber-50/50 space-y-1 text-xs">
+        <div className="flex items-center justify-between mb-1">
+          <div className="font-semibold">تفاصيل التحصيل {cm === "mixed_payment" ? "🧩 (مختلط)" : ""}</div>
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => navigate(`/orders?mixed=${order.id}`)}>
+            <Coins className="w-3.5 h-3.5" /> ضبط التحصيل
+          </Button>
+        </div>
+        {collectionRows.length === 0 ? (
+          <div className="text-muted-foreground">لم يتم تسجيل تفاصيل تحصيل بعد.</div>
+        ) : collectionRows.map(([label, v]) => (
+          <div key={label} className="flex justify-between"><span>{label}:</span><span className="font-mono">{fmt(v)} ج.م</span></div>
+        ))}
+        {(full?.transfer_reference || order.transfer_reference) && (
+          <div className="flex justify-between"><span>مرجع التحويل:</span><span className="font-mono">{full?.transfer_reference ?? order.transfer_reference}</span></div>
+        )}
+        {(full?.collection_note || order.collection_note) && (
+          <div className="text-muted-foreground">ملاحظات: {full?.collection_note ?? order.collection_note}</div>
+        )}
+      </div>
+
       {bonuses.length > 0 && (
         <div>
           <div className="font-semibold mb-1">🎁 مجانيات/خصومات مرتبطة بالأوردر</div>

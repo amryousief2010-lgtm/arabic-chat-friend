@@ -1031,14 +1031,34 @@ const Orders = () => {
   // Auto-open mixed collection dialog when navigated with ?mixed=<orderId>
   useEffect(() => {
     if (!mixedParam) return;
+    const clearParam = () => {
+      const next = new URLSearchParams(searchParams);
+      next.delete('mixed');
+      setSearchParams(next, { replace: true });
+    };
     const found = orders.find((o) => o.id === mixedParam);
-    if (!found) return;
-    openMixedDialog(mixedParam);
-    const next = new URLSearchParams(searchParams);
-    next.delete('mixed');
-    setSearchParams(next, { replace: true });
+    if (found) {
+      openMixedDialog(mixedParam);
+      clearParam();
+      return;
+    }
+    // الطلب قد يكون خارج نطاق الشهر الحالي المُحمَّل — نجلبه مباشرةً بالمعرّف.
+    if (loading) return;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from('orders')
+        .select('*')
+        .eq('id', mixedParam)
+        .maybeSingle();
+      if (data) {
+        setOrders((prev) => (prev.some((o) => o.id === data.id) ? prev : [{ ...data, items: [] } as any, ...prev]));
+        // openMixedDialog سيُستدعى في الدورة التالية بعد دخول الطلب في القائمة.
+      } else {
+        clearParam();
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mixedParam, orders.length]);
+  }, [mixedParam, orders.length, loading]);
 
 
 
