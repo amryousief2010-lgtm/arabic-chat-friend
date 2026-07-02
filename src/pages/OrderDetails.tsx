@@ -98,6 +98,15 @@ interface Order {
   created_by_name: string | null;
   source_warehouse_name: string | null;
   items: OrderItem[];
+  collection_method?: string | null;
+  courier_cash_due?: number;
+  vodafone_cash_amount?: number;
+  instapay_amount?: number;
+  bank_transfer_amount?: number;
+  other_amount?: number;
+  free_amount?: number;
+  transfer_reference?: string | null;
+  collection_note?: string | null;
 }
 
 const statusColors: Record<OrderStatus, string> = {
