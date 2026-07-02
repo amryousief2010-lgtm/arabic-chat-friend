@@ -61,7 +61,17 @@ const CATEGORY_LABELS: Record<string, string> = {
   manual_adjust: "تسوية يدوية",
   opening_balance: "رصيد افتتاحي",
   other: "أخرى",
+  courier_vodafone_proof: "إثبات فودافون كاش (بدون كاش)",
+  courier_instapay_proof: "إثبات إنستاباي (بدون كاش)",
+  courier_bank_transfer_proof: "إثبات تحويل بنكي (بدون كاش)",
+  courier_other_proof: "إثبات تحصيل أخرى (بدون كاش)",
+  courier_free_order_proof: "إثبات أوردر مجاني",
 };
+
+const PROOF_CATEGORIES = new Set([
+  "courier_vodafone_proof","courier_instapay_proof","courier_bank_transfer_proof",
+  "courier_other_proof","courier_free_order_proof",
+]);
 
 const TRANSFER_OUT_CATEGORIES = new Set(["transfer_to_main_treasury", "transfer_from_main_warehouse_treasury"]);
 
