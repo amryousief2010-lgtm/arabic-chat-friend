@@ -291,10 +291,14 @@ export default function CourierOrderCustodyTab() {
   }, [custodyAnalytics]);
 
   // ── Transfers breakdown (تحويلات مباشرة للشركة — لا تدخل عهدة المندوب نقديًا)
+  // يتأثر بفلتر المندوب (selectedCustody). إذا لم يتم اختيار مندوب يعرض إجمالي كل العهدات.
   const transfersBreakdown = useMemo(() => {
-    const assignedOrderIds = new Set(assignments.map((a) => a.order_id));
+    const scopedAssignments = selectedCustody
+      ? assignments.filter((a) => a.custody_id === selectedCustody)
+      : assignments;
+    const assignedOrderIds = new Set(scopedAssignments.map((a) => a.order_id));
     const relevant = orders.filter((o) => assignedOrderIds.has(o.id));
-    const acc = { vodafone: 0, instapay: 0, bank: 0, other: 0, free: 0, cashDue: 0, ordersTotal: 0, missingBreakdown: 0 };
+    const acc = { vodafone: 0, instapay: 0, bank: 0, other: 0, free: 0, cashDue: 0, ordersTotal: 0, missingBreakdown: 0, ordersCount: relevant.length };
     relevant.forEach((o: any) => {
       acc.ordersTotal += Number(o.total || 0);
       acc.cashDue += Number(o.courier_cash_due || 0);
@@ -303,7 +307,6 @@ export default function CourierOrderCustodyTab() {
       acc.bank += Number(o.bank_transfer_amount || 0);
       acc.other += Number(o.other_amount || 0);
       acc.free += Number(o.free_amount || 0);
-      // Legacy protection: delivered mixed order with no breakdown recorded
       if (o.status === 'delivered' && o.collection_method === 'mixed_payment') {
         const sum = Number(o.courier_cash_due || 0) + Number(o.vodafone_cash_amount || 0) +
           Number(o.instapay_amount || 0) + Number(o.bank_transfer_amount || 0) +
@@ -312,7 +315,7 @@ export default function CourierOrderCustodyTab() {
       }
     });
     return acc;
-  }, [orders, assignments]);
+  }, [orders, assignments, selectedCustody]);
 
 
   const current = custodyAnalytics.find((c) => c.id === selectedCustody);
