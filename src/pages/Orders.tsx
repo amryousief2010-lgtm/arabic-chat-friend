@@ -368,6 +368,9 @@ const Orders = () => {
     const next = new URLSearchParams(searchParams);
     next.delete("today");
     next.delete("channel");
+    next.delete("range");
+    next.delete("product_id");
+    next.delete("product_name");
     setSearchParams(next, { replace: true });
   };
   const [searchQuery, setSearchQuery] = useState("");
