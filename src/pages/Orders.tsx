@@ -551,7 +551,10 @@ const Orders = () => {
           courier_cash_due: (order as any).courier_cash_due != null ? Number((order as any).courier_cash_due) : 0,
           vodafone_cash_amount: (order as any).vodafone_cash_amount != null ? Number((order as any).vodafone_cash_amount) : 0,
           instapay_amount: (order as any).instapay_amount != null ? Number((order as any).instapay_amount) : 0,
+          bank_transfer_amount: (order as any).bank_transfer_amount != null ? Number((order as any).bank_transfer_amount) : 0,
+          other_amount: (order as any).other_amount != null ? Number((order as any).other_amount) : 0,
           free_amount: (order as any).free_amount != null ? Number((order as any).free_amount) : 0,
+          transfer_reference: (order as any).transfer_reference ?? null,
           collection_updated_at: (order as any).collection_updated_at ?? null,
         }));
 
