@@ -611,7 +611,10 @@ export default function CourierOrderCustodyTab() {
       <Card className="bg-gradient-to-l from-blue-50/60 to-emerald-50/60 border-blue-200">
         <CardContent className="p-3">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-bold">تفصيل التحصيل عبر عهدات المندوبين</div>
+            <div className="text-sm font-bold">
+              تفصيل التحصيل — {selectedCustody ? (custodies.find(c=>c.id===selectedCustody)?.courier_name || 'المندوب') : 'كل العهدات'}
+              <span className="text-xs text-muted-foreground font-normal mr-2">({transfersBreakdown.ordersCount} أوردر)</span>
+            </div>
             {transfersBreakdown.missingBreakdown > 0 && (
               <span className="text-[11px] bg-amber-100 text-amber-800 border border-amber-300 rounded px-2 py-0.5">
                 ⚠️ {transfersBreakdown.missingBreakdown} أوردر مسلّم بدون تفصيل تحصيل مسجل — مراجعة يدوية مطلوبة
