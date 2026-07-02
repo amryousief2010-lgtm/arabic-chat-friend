@@ -58,6 +58,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   courier_deposit: "توريد نقدية من مندوب",
   transfer_to_main_treasury: "تحويل للخزينة الرئيسية (قديم)",
   transfer_from_main_warehouse_treasury: "تحويل من خزينة المخزن للخزينة الرئيسية",
+  prior_deposit_reconciliation: "تسوية مع إيداع سابق في الخزينة الرئيسية",
   manual_adjust: "تسوية يدوية",
   opening_balance: "رصيد افتتاحي",
   other: "أخرى",
@@ -118,9 +119,12 @@ export default function MainWarehouseTreasuryTab() {
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferAmt, setTransferAmt] = useState("");
   const [transferNotes, setTransferNotes] = useState("");
+  const [transferMode, setTransferMode] = useState<"normal" | "reconcile">("normal");
+  const [reconcileRef, setReconcileRef] = useState("");
   const [pendingDeposits, setPendingDeposits] = useState<any[]>([]);
   const [selectedDepositIds, setSelectedDepositIds] = useState<Set<string>>(new Set());
   const [loadingDeposits, setLoadingDeposits] = useState(false);
+  const canReconcile = isGeneralManager || isExecutiveManager || isFinancialManager;
 
   const [busy, setBusy] = useState(false);
 
@@ -536,31 +540,47 @@ export default function MainWarehouseTreasuryTab() {
     if (amt > kpis.balance) {
       if (!window.confirm(`المبلغ (${fmt(amt)}) أكبر من الرصيد الحالي (${fmt(kpis.balance)}). متابعة؟`)) return;
     }
+
+    const isReconcile = transferMode === "reconcile";
+    if (isReconcile) {
+      if (!canReconcile) {
+        toast({ title: "غير مصرح", description: "التسوية متاحة للمدير العام / التنفيذي / المسؤول المالي فقط", variant: "destructive" });
+        return;
+      }
+      const ok = window.confirm(
+        "تحذير: هذا الإجراء سيعلّم التوريد بأنه تمت تسويته مع إيداع سابق، لكنه لن يضيف أي مبلغ جديد إلى الخزينة الرئيسية.\n\nاستخدمه فقط إذا كان المبلغ مسجلًا بالفعل يدويًا في الخزينة الرئيسية.\n\nهل أنت متأكد؟"
+      );
+      if (!ok) return;
+    }
+
     setBusy(true);
     try {
       const selectedDeps = pendingDeposits.filter((d) => selectedDepositIds.has(d.id));
-      // Build detailed notes summary from selected days
       let autoNotes = "";
       if (selectedDeps.length) {
         const lines = selectedDeps.map((d) => {
           const day = new Date(d.deposit_date).toLocaleDateString("ar-EG");
           return `• يوم ${day} — ${d.courier_name || ""} — ${fmt(Number(d.amount || 0))} ج.م — ${d.orders_count} أوردر${Array.isArray(d.order_numbers) && d.order_numbers.length ? ` [${d.order_numbers.join(", ")}]` : ""}`;
         });
-        autoNotes = `تحويل ${selectedDeps.length} يوم/أيام توريد:\n` + lines.join("\n");
+        autoNotes = `${isReconcile ? "تسوية" : "تحويل"} ${selectedDeps.length} يوم/أيام توريد:\n` + lines.join("\n");
       }
-      const finalNotes = [transferNotes.trim(), autoNotes].filter(Boolean).join("\n\n") || null;
+      const reconcileNote = isReconcile
+        ? `تمت تسوية هذا التوريد مع مبلغ تم تسجيله مسبقًا في الخزينة الرئيسية بتاريخ سابق، بدون إنشاء وارد جديد لمنع التكرار.${reconcileRef.trim() ? `\nمرجع الحركة السابقة: ${reconcileRef.trim()}` : ""}`
+        : "";
+      const finalNotes = [reconcileNote, transferNotes.trim(), autoNotes].filter(Boolean).join("\n\n") || null;
 
       const { data: inserted, error } = await (supabase as any).from("main_warehouse_treasury_txns").insert({
         direction: "out",
-        category: "transfer_from_main_warehouse_treasury",
+        category: isReconcile ? "prior_deposit_reconciliation" : "transfer_from_main_warehouse_treasury",
         amount: amt,
         notes: finalNotes,
         performed_by: user?.id,
-        status: "pending_approval",
+        status: isReconcile ? "posted" : "pending_approval",
+        approved_by: isReconcile ? user?.id : null,
+        approved_at: isReconcile ? new Date().toISOString() : null,
       }).select("id").single();
       if (error) throw error;
 
-      // Link selected deposits to this transfer txn
       if (selectedDeps.length && inserted?.id) {
         await (supabase as any)
           .from("courier_daily_cash_deposits")
@@ -568,31 +588,40 @@ export default function MainWarehouseTreasuryTab() {
           .in("id", selectedDeps.map((d) => d.id));
       }
 
-      // notify financial manager(s) / main treasury approvers
-      try {
-        const { data: approvers } = await (supabase as any)
-          .from("user_roles")
-          .select("user_id")
-          .in("role", ["financial_manager", "main_treasury_approver", "general_manager"]);
-        const targetIds = Array.from(new Set((approvers || []).map((a: any) => a.user_id))) as string[];
-        if (targetIds.length) {
-          await (supabase as any).from("notifications").insert(
-            targetIds.map((uid) => ({
-              user_id: uid,
-              type: "main_warehouse_transfer_pending",
-              title: "تحويل جديد من خزينة المخزن الرئيسي",
-              message: `بانتظار اعتمادك: ${fmt(amt)} ج.م${transferNotes ? ` — ${transferNotes}` : ""}`,
-              read: false,
-            }))
-          );
-        }
-      } catch { /* best effort */ }
+      if (!isReconcile) {
+        try {
+          const { data: approvers } = await (supabase as any)
+            .from("user_roles")
+            .select("user_id")
+            .in("role", ["financial_manager", "main_treasury_approver", "general_manager"]);
+          const targetIds = Array.from(new Set((approvers || []).map((a: any) => a.user_id))) as string[];
+          if (targetIds.length) {
+            await (supabase as any).from("notifications").insert(
+              targetIds.map((uid) => ({
+                user_id: uid,
+                type: "main_warehouse_transfer_pending",
+                title: "تحويل جديد من خزينة المخزن الرئيسي",
+                message: `بانتظار اعتمادك: ${fmt(amt)} ج.م${transferNotes ? ` — ${transferNotes}` : ""}`,
+                read: false,
+              }))
+            );
+          }
+        } catch { /* best effort */ }
+      }
 
-      toast({ title: "تم إرسال التحويل للاعتماد", description: `بانتظار محمد شعلة: ${fmt(amt)} ج.م` });
-      setTransferOpen(false); setTransferAmt(""); setTransferNotes(""); setSelectedDepositIds(new Set());
+      toast({
+        title: isReconcile ? "تمت التسوية بدون إضافة وارد جديد" : "تم إرسال التحويل للاعتماد",
+        description: isReconcile
+          ? `تم تعليم ${selectedDeps.length} يوم توريد كمُسواة (${fmt(amt)} ج.م) بدون التأثير على رصيد الخزينة الرئيسية`
+          : `بانتظار محمد شعلة: ${fmt(amt)} ج.م`
+      });
+      setTransferOpen(false);
+      setTransferAmt(""); setTransferNotes(""); setReconcileRef("");
+      setTransferMode("normal");
+      setSelectedDepositIds(new Set());
       await fetchAll();
     } catch (e: any) {
-      toast({ title: "تعذّر إرسال التحويل", description: e?.message || "", variant: "destructive" });
+      toast({ title: "تعذّر تنفيذ العملية", description: e?.message || "", variant: "destructive" });
     } finally { setBusy(false); }
   };
 
@@ -2131,7 +2160,7 @@ export default function MainWarehouseTreasuryTab() {
 
 
       {/* Transfer dialog */}
-      <Dialog open={transferOpen} onOpenChange={(o) => { setTransferOpen(o); if (!o) { setSelectedDepositIds(new Set()); } }}>
+      <Dialog open={transferOpen} onOpenChange={(o) => { setTransferOpen(o); if (!o) { setSelectedDepositIds(new Set()); setTransferMode("normal"); setReconcileRef(""); } }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>تحويل إلى الخزينة الرئيسية</DialogTitle>
@@ -2139,6 +2168,36 @@ export default function MainWarehouseTreasuryTab() {
           </DialogHeader>
           <div className="space-y-3">
             <div className="text-sm bg-muted/40 rounded-md p-2">الرصيد الحالي: <b>{fmt(kpis.balance)} ج.م</b></div>
+
+            {canReconcile && (
+              <div className="border rounded-lg p-3 space-y-2 bg-amber-50/50 border-amber-200">
+                <Label className="text-sm font-semibold">نوع العملية</Label>
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-start gap-2 text-sm cursor-pointer">
+                    <input type="radio" name="tmode" checked={transferMode === "normal"} onChange={() => setTransferMode("normal")} className="mt-1" />
+                    <div>
+                      <div className="font-medium">تحويل عادي للخزينة الرئيسية</div>
+                      <div className="text-xs text-muted-foreground">خروج من خزنة المخزن + دخول جديد في الخزينة الرئيسية بعد الاعتماد.</div>
+                    </div>
+                  </label>
+                  <label className="flex items-start gap-2 text-sm cursor-pointer">
+                    <input type="radio" name="tmode" checked={transferMode === "reconcile"} onChange={() => setTransferMode("reconcile")} className="mt-1" />
+                    <div>
+                      <div className="font-medium text-amber-800">تسوية مع إيداع سابق — بدون إضافة وارد جديد</div>
+                      <div className="text-xs text-amber-700">
+                        استخدمه فقط إذا كان المبلغ مسجل بالفعل يدويًا في الخزينة الرئيسية. لن يزيد رصيد الخزينة الرئيسية مرة ثانية.
+                      </div>
+                    </div>
+                  </label>
+                </div>
+                {transferMode === "reconcile" && (
+                  <div className="pt-2">
+                    <Label className="text-xs">مرجع الحركة السابقة في الخزينة الرئيسية (اختياري)</Label>
+                    <Input value={reconcileRef} onChange={(e) => setReconcileRef(e.target.value)} placeholder="رقم/تاريخ الحركة المسجلة سابقاً" />
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="border rounded-lg">
               <div className="flex items-center justify-between px-3 py-2 bg-muted/40 border-b">
@@ -2179,12 +2238,13 @@ export default function MainWarehouseTreasuryTab() {
             </div>
 
             <div><Label>المبلغ (ج.م)</Label><Input type="number" min="0" step="0.01" value={transferAmt} onChange={(e) => setTransferAmt(e.target.value)} /></div>
-            <div><Label>ملاحظات / سبب التحويل</Label><Textarea rows={2} value={transferNotes} onChange={(e) => setTransferNotes(e.target.value)} /></div>
+            <div><Label>ملاحظات / سبب {transferMode === "reconcile" ? "التسوية" : "التحويل"}</Label><Textarea rows={2} value={transferNotes} onChange={(e) => setTransferNotes(e.target.value)} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTransferOpen(false)}>إلغاء</Button>
-            <Button disabled={busy} onClick={submitTransfer}>
-              <Send className="w-4 h-4 ml-1" /> إرسال للاعتماد
+            <Button disabled={busy} onClick={submitTransfer} className={transferMode === "reconcile" ? "bg-amber-600 hover:bg-amber-700 text-white" : ""}>
+              <Send className="w-4 h-4 ml-1" />
+              {transferMode === "reconcile" ? "تنفيذ التسوية بدون وارد جديد" : "إرسال للاعتماد"}
             </Button>
           </DialogFooter>
         </DialogContent>
