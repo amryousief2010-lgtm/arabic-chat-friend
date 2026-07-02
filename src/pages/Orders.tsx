@@ -1406,7 +1406,7 @@ const Orders = () => {
                 فلتر نشط:
                 {todayParam ? ' طلبات اليوم' : ''}
                 {rangeParam === '7d' ? ' آخر 7 أيام' : ''}
-                {channelParam === 'shipping' ? ' — شركة الشحن' : channelParam === 'main' ? ' — المخزن الرئيسي' : channelParam === 'agouza' ? ' — مخزن العجوزة' : channelParam === 'unclassified' ? ' — غير مصنف' : ''}
+                {channelParam === 'main' ? ' — المخزن الرئيسي' : channelParam === 'agouza' ? ' — مخزن العجوزة' : channelParam === 'unclassified' ? ' — غير مصنف' : ''}
                 {(productIdParam || productNameParam) ? ` — المنتج: ${productNameParam || (orders.find(o => (o as any).order_items?.some((it: any) => it.product_id === productIdParam)) as any)?.order_items?.find((it: any) => it.product_id === productIdParam)?.product_name || productIdParam}` : ''}
                 <button
                   type="button"
