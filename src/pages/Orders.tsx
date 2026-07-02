@@ -2385,8 +2385,10 @@ const Orders = () => {
             const cash = Number(mixedCash) || 0;
             const vod = Number(mixedVod) || 0;
             const insta = Number(mixedInsta) || 0;
+            const bank = Number(mixedBank) || 0;
+            const other = Number(mixedOther) || 0;
             const free = Number(mixedFree) || 0;
-            const sum = cash + vod + insta + free;
+            const sum = cash + vod + insta + bank + other + free;
             const totalVal = Number(t.total || 0);
             const diff = totalVal - sum;
             const ok = Math.abs(diff) <= 0.01;
@@ -2410,9 +2412,21 @@ const Orders = () => {
                     <Input type="number" min={0} step="0.01" value={mixedInsta} onChange={(e) => setMixedInsta(e.target.value)} />
                   </div>
                   <div>
+                    <label className="text-xs text-muted-foreground block mb-1">🏦 تحويل بنكي</label>
+                    <Input type="number" min={0} step="0.01" value={mixedBank} onChange={(e) => setMixedBank(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">💠 أخرى</label>
+                    <Input type="number" min={0} step="0.01" value={mixedOther} onChange={(e) => setMixedOther(e.target.value)} />
+                  </div>
+                  <div>
                     <label className="text-xs text-muted-foreground block mb-1">🎁 مجاني / معفى</label>
                     <Input type="number" min={0} step="0.01" value={mixedFree} onChange={(e) => setMixedFree(e.target.value)} />
                   </div>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">🔖 رقم مرجع التحويل (اختياري)</label>
+                  <Input value={mixedRef} onChange={(e) => setMixedRef(e.target.value)} placeholder="رقم عملية / رقم مرجع البنك" />
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">ملاحظات التحصيل</label>
