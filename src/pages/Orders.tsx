@@ -767,8 +767,24 @@ const Orders = () => {
       isGeneralManager ||
       (!isWarehouseSupervisor && !isExecutiveManager) ||
       new Date(order.created_at) >= new Date('2026-06-18T00:00:00+02:00');
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart;
-  }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager]);
+    // Dashboard "today" card deep-link filter: /orders?today=1&channel=shipping|main|other
+    // Uses Cairo timezone (same classification as useTodayOrdersBreakdown) so totals match the card exactly.
+    let matchesDashboardToday = true;
+    let matchesDashboardChannel = true;
+    if (todayParam) {
+      const todayCairo = toCairoDateString(new Date().toISOString());
+      matchesDashboardToday = toCairoDateString(order.created_at) === todayCairo;
+    }
+    if (channelParam) {
+      const sc = (order.shipping_company || '').trim();
+      let ch: 'shipping' | 'main' | 'other';
+      if (sc && sc !== 'مندوب خاص') ch = 'shipping';
+      else if (order.source_warehouse_id === MAIN_WAREHOUSE_ID) ch = 'main';
+      else ch = 'other';
+      matchesDashboardChannel = ch === channelParam;
+    }
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel;
+  }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam]);
 
   // إجمالي المطلوب من المندوب كاش على الأوردرات الظاهرة حالياً بعد الفلاتر.
   const totalCourierCashDue = useMemo(
