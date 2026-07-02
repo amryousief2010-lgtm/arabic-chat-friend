@@ -2728,6 +2728,7 @@ export type Database = {
           orders_count: number
           performed_by: string | null
           performed_by_name: string | null
+          transferred_txn_id: string | null
           treasury_txn_id: string | null
           updated_at: string
         }
@@ -2744,6 +2745,7 @@ export type Database = {
           orders_count?: number
           performed_by?: string | null
           performed_by_name?: string | null
+          transferred_txn_id?: string | null
           treasury_txn_id?: string | null
           updated_at?: string
         }
@@ -2760,6 +2762,7 @@ export type Database = {
           orders_count?: number
           performed_by?: string | null
           performed_by_name?: string | null
+          transferred_txn_id?: string | null
           treasury_txn_id?: string | null
           updated_at?: string
         }
@@ -2769,6 +2772,13 @@ export type Database = {
             columns: ["custody_id"]
             isOneToOne: false
             referencedRelation: "courier_goods_custodies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_daily_cash_deposits_transferred_txn_id_fkey"
+            columns: ["transferred_txn_id"]
+            isOneToOne: false
+            referencedRelation: "main_warehouse_treasury_txns"
             referencedColumns: ["id"]
           },
           {

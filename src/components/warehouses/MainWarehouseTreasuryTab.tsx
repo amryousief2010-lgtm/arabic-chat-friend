@@ -118,6 +118,9 @@ export default function MainWarehouseTreasuryTab() {
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferAmt, setTransferAmt] = useState("");
   const [transferNotes, setTransferNotes] = useState("");
+  const [pendingDeposits, setPendingDeposits] = useState<any[]>([]);
+  const [selectedDepositIds, setSelectedDepositIds] = useState<Set<string>>(new Set());
+  const [loadingDeposits, setLoadingDeposits] = useState(false);
 
   const [busy, setBusy] = useState(false);
 
@@ -494,6 +497,37 @@ export default function MainWarehouseTreasuryTab() {
     } finally { setBusy(false); }
   };
 
+  // Load un-transferred courier daily deposits when opening dialog
+  useEffect(() => {
+    if (!transferOpen) return;
+    (async () => {
+      setLoadingDeposits(true);
+      try {
+        const { data } = await (supabase as any)
+          .from("courier_daily_cash_deposits")
+          .select("id,courier_name,deposit_date,amount,orders_count,order_numbers,treasury_txn_id,notes")
+          .is("transferred_txn_id", null)
+          .gt("amount", 0)
+          .order("deposit_date", { ascending: false });
+        setPendingDeposits(data || []);
+      } catch { setPendingDeposits([]); }
+      finally { setLoadingDeposits(false); }
+    })();
+  }, [transferOpen]);
+
+  const toggleDeposit = (id: string, amount: number) => {
+    setSelectedDepositIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      // auto-sum amount
+      const total = pendingDeposits
+        .filter((d) => next.has(d.id))
+        .reduce((s, d) => s + Number(d.amount || 0), 0);
+      setTransferAmt(total > 0 ? String(total) : "");
+      return next;
+    });
+  };
+
   const submitTransfer = async () => {
     const amt = Number(transferAmt);
     if (!amt || amt <= 0) {
@@ -504,15 +538,35 @@ export default function MainWarehouseTreasuryTab() {
     }
     setBusy(true);
     try {
-      const { error } = await (supabase as any).from("main_warehouse_treasury_txns").insert({
+      const selectedDeps = pendingDeposits.filter((d) => selectedDepositIds.has(d.id));
+      // Build detailed notes summary from selected days
+      let autoNotes = "";
+      if (selectedDeps.length) {
+        const lines = selectedDeps.map((d) => {
+          const day = new Date(d.deposit_date).toLocaleDateString("ar-EG");
+          return `• يوم ${day} — ${d.courier_name || ""} — ${fmt(Number(d.amount || 0))} ج.م — ${d.orders_count} أوردر${Array.isArray(d.order_numbers) && d.order_numbers.length ? ` [${d.order_numbers.join(", ")}]` : ""}`;
+        });
+        autoNotes = `تحويل ${selectedDeps.length} يوم/أيام توريد:\n` + lines.join("\n");
+      }
+      const finalNotes = [transferNotes.trim(), autoNotes].filter(Boolean).join("\n\n") || null;
+
+      const { data: inserted, error } = await (supabase as any).from("main_warehouse_treasury_txns").insert({
         direction: "out",
         category: "transfer_from_main_warehouse_treasury",
         amount: amt,
-        notes: transferNotes.trim() || null,
+        notes: finalNotes,
         performed_by: user?.id,
         status: "pending_approval",
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      // Link selected deposits to this transfer txn
+      if (selectedDeps.length && inserted?.id) {
+        await (supabase as any)
+          .from("courier_daily_cash_deposits")
+          .update({ transferred_txn_id: inserted.id })
+          .in("id", selectedDeps.map((d) => d.id));
+      }
 
       // notify financial manager(s) / main treasury approvers
       try {
@@ -535,7 +589,7 @@ export default function MainWarehouseTreasuryTab() {
       } catch { /* best effort */ }
 
       toast({ title: "تم إرسال التحويل للاعتماد", description: `بانتظار محمد شعلة: ${fmt(amt)} ج.م` });
-      setTransferOpen(false); setTransferAmt(""); setTransferNotes("");
+      setTransferOpen(false); setTransferAmt(""); setTransferNotes(""); setSelectedDepositIds(new Set());
       await fetchAll();
     } catch (e: any) {
       toast({ title: "تعذّر إرسال التحويل", description: e?.message || "", variant: "destructive" });
@@ -2077,14 +2131,53 @@ export default function MainWarehouseTreasuryTab() {
 
 
       {/* Transfer dialog */}
-      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
-        <DialogContent>
+      <Dialog open={transferOpen} onOpenChange={(o) => { setTransferOpen(o); if (!o) { setSelectedDepositIds(new Set()); } }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>تحويل إلى الخزينة الرئيسية</DialogTitle>
-            <DialogDescription>سيتم إرسال إشعار لمحمد شعلة لاعتماد التحويل.</DialogDescription>
+            <DialogDescription>اختر أيام التوريد التي تريد تحويلها بتفاصيلها. سيتم إرسال إشعار لمحمد شعلة لاعتماد التحويل.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="text-sm bg-muted/40 rounded-md p-2">الرصيد الحالي: <b>{fmt(kpis.balance)} ج.م</b></div>
+
+            <div className="border rounded-lg">
+              <div className="flex items-center justify-between px-3 py-2 bg-muted/40 border-b">
+                <div className="text-sm font-semibold">أيام توريد المندوب المتاحة للتحويل</div>
+                <div className="text-xs text-muted-foreground">
+                  {selectedDepositIds.size > 0 ? `تم اختيار ${selectedDepositIds.size} يوم` : "اختر يوم أو أكثر"}
+                </div>
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                {loadingDeposits ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">جاري التحميل...</div>
+                ) : pendingDeposits.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">لا توجد أيام توريد بانتظار التحويل</div>
+                ) : pendingDeposits.map((d) => {
+                  const selected = selectedDepositIds.has(d.id);
+                  const day = new Date(d.deposit_date).toLocaleDateString("ar-EG", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
+                  return (
+                    <label key={d.id} className={`flex items-start gap-3 p-3 border-b cursor-pointer hover:bg-muted/30 ${selected ? "bg-emerald-50" : ""}`}>
+                      <input type="checkbox" checked={selected} onChange={() => toggleDeposit(d.id, Number(d.amount || 0))} className="mt-1" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="font-semibold text-sm">{day}</div>
+                          <Badge className="bg-emerald-600 text-white">{fmt(Number(d.amount || 0))} ج.م</Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          المندوب: <b>{d.courier_name || "—"}</b> • عدد الأوردرات: <b>{d.orders_count}</b>
+                        </div>
+                        {Array.isArray(d.order_numbers) && d.order_numbers.length > 0 && (
+                          <div className="text-[10px] text-muted-foreground mt-1 truncate" title={d.order_numbers.join(", ")}>
+                            {d.order_numbers.slice(0, 5).join(", ")}{d.order_numbers.length > 5 ? `… (+${d.order_numbers.length - 5})` : ""}
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
             <div><Label>المبلغ (ج.م)</Label><Input type="number" min="0" step="0.01" value={transferAmt} onChange={(e) => setTransferAmt(e.target.value)} /></div>
             <div><Label>ملاحظات / سبب التحويل</Label><Textarea rows={2} value={transferNotes} onChange={(e) => setTransferNotes(e.target.value)} /></div>
           </div>
