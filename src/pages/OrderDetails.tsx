@@ -500,6 +500,11 @@ const OrderDetails = () => {
                 <div className="space-y-3">
                   {order.items.map((item) => {
                     const kg = itemKg(item);
+                    const qty = Number(item.quantity) || 0;
+                    const lineTotal = Number(item.total_price) || 0;
+                    const rawUnit = Number(item.unit_price) || 0;
+                    const unit = rawUnit > 0 ? rawUnit : (qty > 0 && lineTotal > 0 ? lineTotal / qty : 0);
+                    const noPrice = unit === 0 && lineTotal === 0;
                     return (
                     <div
                       key={item.id}
@@ -517,15 +522,19 @@ const OrderDetails = () => {
                             )}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {item.is_half_kg ? (
+                            {noPrice ? (
+                              <span className="text-muted-foreground">الكمية: {qty.toLocaleString()} — <span className="italic">غير محسوب</span></span>
+                            ) : item.is_half_kg ? (
                               <>
-                                <span className="text-primary font-medium">{item.quantity} كجم</span>
-                                <span className="mr-2">({(item.quantity * 2).toLocaleString()} × نص كيلو)</span>
-                                <span className="mr-2">— {item.unit_price.toLocaleString()} ج.م / كجم</span>
+                                <span className="text-primary font-medium">{qty} كجم</span>
+                                <span className="mr-2">({(qty * 2).toLocaleString()} × نص كيلو)</span>
+                                <span className="mr-2">— {unit.toLocaleString(undefined,{maximumFractionDigits:2})} ج.م / كجم</span>
                               </>
                             ) : (
                               <>
-                                {item.unit_price.toLocaleString()} ج.م × {item.quantity}
+                                <span className="font-medium text-foreground">{unit.toLocaleString(undefined,{maximumFractionDigits:2})} ج.م</span>
+                                <span className="mx-1">×</span>
+                                <span>{qty.toLocaleString()}</span>
                                 {kg !== null && (
                                   <span className="mr-2 text-primary font-medium">= {kg} كجم</span>
                                 )}
@@ -561,7 +570,7 @@ const OrderDetails = () => {
                         </div>
                       </div>
                       <p className="font-bold text-lg">
-                        {item.total_price.toLocaleString()} ج.م
+                        {noPrice ? <span className="text-muted-foreground text-sm">—</span> : `${lineTotal.toLocaleString()} ج.م`}
                       </p>
                     </div>
                     );
