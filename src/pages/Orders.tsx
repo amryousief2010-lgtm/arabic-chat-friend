@@ -1104,14 +1104,21 @@ const Orders = () => {
     if (!target) return;
     // For mixed payment, open the breakdown dialog instead of saving directly.
     if (method === 'mixed_payment') { openMixedDialog(orderId); return; }
-    const due = method === 'cash_courier' ? Number(target.total || 0) : 0;
+    const totalVal = Number(target.total || 0);
+    const due = method === 'cash_courier' ? totalVal : 0;
+    const vod = method === 'vodafone_cash' ? totalVal : 0;
+    const insta = method === 'instapay' ? totalVal : 0;
+    const bank = method === 'bank_transfer' ? totalVal : 0;
+    const other = method === 'other' ? totalVal : 0;
+    const free = method === 'none' ? totalVal : 0;
     const nowIso = new Date().toISOString();
     // تحديث تفاؤلي
     setOrders((prev) =>
       prev.map((o) =>
         o.id === orderId
           ? { ...o, collection_method: method, courier_cash_due: due,
-              vodafone_cash_amount: 0, instapay_amount: 0, free_amount: 0,
+              vodafone_cash_amount: vod, instapay_amount: insta,
+              bank_transfer_amount: bank, other_amount: other, free_amount: free,
               collection_updated_at: nowIso }
           : o
       )
@@ -1122,9 +1129,11 @@ const Orders = () => {
         .update({
           collection_method: method,
           courier_cash_due: due,
-          vodafone_cash_amount: 0,
-          instapay_amount: 0,
-          free_amount: 0,
+          vodafone_cash_amount: vod,
+          instapay_amount: insta,
+          bank_transfer_amount: bank,
+          other_amount: other,
+          free_amount: free,
           collection_updated_at: nowIso,
           collection_updated_by: user?.id ?? null,
         } as any)
