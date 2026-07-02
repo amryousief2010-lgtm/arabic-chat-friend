@@ -311,6 +311,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: Network, label: "أماكن العمل والأقسام", path: "/hr/work-locations", roles: ['general_manager', 'executive_manager', 'hr_manager'] },
       { icon: Receipt, label: "تقرير سلف الموظفين", path: "/hr/advances-report", roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'] },
       { icon: Receipt, label: "خصومات الموظفين", path: "/hr/deductions", roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'] },
+      { icon: Wallet, label: "تقرير قبض موظفي يوم 1", path: "/hr/payday-report", roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'] },
       { icon: KeyRound, label: "حسابات دخول الموظفين", path: "/modules/hr", roles: ['general_manager', 'executive_manager'] },
     ],
   },
