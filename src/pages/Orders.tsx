@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin, Printer, AlertCircle, AlertTriangle, Wallet, Zap } from "lucide-react";
+import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin, Printer, AlertCircle, AlertTriangle, Wallet, Zap, UserCog } from "lucide-react";
 import { printOrderInvoice } from "@/lib/printUtils";
 import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth, cairoTodayStartUTC, toCairoDateString } from "@/lib/cairoDate";
 import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
@@ -41,6 +41,7 @@ import AddOfferDialog from "@/components/orders/AddOfferDialog";
 import EditAddressWarehouseDialog from "@/components/orders/EditAddressWarehouseDialog";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import QuickDeliveryDialog from "@/components/orders/QuickDeliveryDialog";
+import ReassignOwnerDialog from "@/components/orders/ReassignOwnerDialog";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -279,6 +280,12 @@ const Orders = () => {
      isShippingCompany ||
      isPrivateDeliveryRep ||
      rolesList.includes('courier');
+   // صلاحية نقل الأوردر من مسوقة إلى أخرى — مقصورة على مديرة التسويق والإدارة العليا فقط
+   const canReassignOwner =
+     isGeneralManager ||
+     isExecutiveManager ||
+     rolesList.includes('marketing_sales_manager');
+   const [reassignOrder, setReassignOrder] = useState<Order | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   // M4-B: per-order Agouza reservation status. Drives the Agouza-only badge and
   // blocks delivery confirmation when no active/committed reservation exists.
@@ -2066,6 +2073,18 @@ const Orders = () => {
                                     <PackageOpen className="w-4 h-4 text-primary" />
                                   </Button>
                                 )}
+                                {canReassignOwner && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 gap-1 text-xs text-purple-700 hover:text-purple-800 hover:bg-purple-50"
+                                    onClick={() => setReassignOrder(order)}
+                                    title="نقل الأوردر لمسوقة أخرى"
+                                  >
+                                    <UserCog className="w-4 h-4" />
+                                    تغيير المسؤولة
+                                  </Button>
+                                )}
                                 {canDeleteOrders && (
                                   <AlertDialog>
                                     <AlertDialogTrigger asChild>
@@ -3022,6 +3041,18 @@ const Orders = () => {
           await handleStatusChange(id, status);
         }}
       />
+
+      {reassignOrder && (
+        <ReassignOwnerDialog
+          open={!!reassignOrder}
+          onOpenChange={(v) => { if (!v) setReassignOrder(null); }}
+          orderId={reassignOrder.id}
+          orderNumber={reassignOrder.order_number}
+          currentOwnerId={reassignOrder.created_by}
+          currentOwnerName={reassignOrder.moderator_name}
+          onDone={() => { setReassignOrder(null); fetchOrders(); }}
+        />
+      )}
     </DashboardLayout>
   );
 };
