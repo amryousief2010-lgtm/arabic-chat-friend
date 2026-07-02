@@ -1683,9 +1683,14 @@ const Orders = () => {
                     </div>
 
                     <div className={`flex items-center justify-between gap-2 rounded-md px-2 py-1.5 ${isDuplicatePhone ? "bg-red-100 dark:bg-red-900/40 border border-red-300" : "bg-primary/10 border border-primary/20"}`}>
-                      <span className={`font-bold text-base md:text-lg truncate ${isDuplicatePhone ? "text-red-700 dark:text-red-200" : "text-primary"}`}>
+                      <button
+                        type="button"
+                        onClick={() => openMixedDialog(order.id)}
+                        className={`font-bold text-base md:text-lg truncate hover:underline text-right ${isDuplicatePhone ? "text-red-700 dark:text-red-200" : "text-primary"}`}
+                        title="ضبط التحصيل"
+                      >
                         {order.customer_name}
-                      </span>
+                      </button>
                       <Badge variant="secondary" className="text-xs shrink-0">{order.moderator_name}</Badge>
                     </div>
                     {order.customer_phone && (
