@@ -109,25 +109,44 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
   };
 
   const printTransfer = async (r: Row) => {
-    const w = window.open("", "_blank", "width=900,height=1000");
+    const w = window.open("", "_blank", "width=1000,height=1100");
     if (!w) return;
     w.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/><title>جاري التحميل...</title></head><body style="font-family:Cairo,Tahoma,sans-serif;padding:24px;text-align:center">جاري تحميل تفاصيل الأوردرات...</body></html>`);
     const performedBy = (r.performed_by && names[r.performed_by]) || "—";
-    const dateStr = new Date(r.performed_at).toLocaleString("ar-EG");
+    const dayStr = new Date(r.performed_at).toLocaleDateString("ar-EG", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
-    // Extract order numbers from notes
     const notes = r.notes || "";
     const orderNumbers = Array.from(new Set((notes.match(/ORD-\d+-\d+/g) || [])));
 
-    type OrderRow = { order_number: string; total: number | null; courier_cash_due: number | null; collection_method: string | null; customer_id: string | null; };
+    type OrderRow = {
+      id: string; order_number: string; total: number | null; courier_cash_due: number | null;
+      collection_method: string | null; customer_id: string | null; status: string | null;
+      vodafone_cash_amount: number | null; instapay_amount: number | null; bank_transfer_amount: number | null;
+    };
+    type ItemRow = { order_id: string; product_name: string | null; offer_name: string | null; quantity: number | null; unit_price: number | null; total_price: number | null; is_gift: boolean | null; is_half_kg: boolean | null; };
+
     let orders: OrderRow[] = [];
+    let itemsByOrder: Record<string, ItemRow[]> = {};
     let customerMap: Record<string, string> = {};
+
     if (orderNumbers.length) {
       const { data: ords } = await (supabase as any)
         .from("orders")
-        .select("order_number,total,courier_cash_due,collection_method,customer_id")
+        .select("id,order_number,total,courier_cash_due,collection_method,customer_id,status,vodafone_cash_amount,instapay_amount,bank_transfer_amount")
         .in("order_number", orderNumbers);
       orders = (ords || []) as OrderRow[];
+
+      const oids = orders.map((o) => o.id);
+      if (oids.length) {
+        const { data: its } = await (supabase as any)
+          .from("order_items")
+          .select("order_id,product_name,offer_name,quantity,unit_price,total_price,is_gift,is_half_kg")
+          .in("order_id", oids);
+        (its || []).forEach((it: ItemRow) => {
+          (itemsByOrder[it.order_id] = itemsByOrder[it.order_id] || []).push(it);
+        });
+      }
+
       const cids = Array.from(new Set(orders.map((o) => o.customer_id).filter(Boolean))) as string[];
       if (cids.length) {
         const { data: custs } = await (supabase as any).from("customers").select("id,name").in("id", cids);
@@ -135,80 +154,111 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
       }
     }
 
-    const cmLabel = (m: string | null) => {
-      switch (m) {
-        case "cash_with_courier": return "كاش مع المندوب";
-        case "vodafone_cash": return "فودافون كاش";
-        case "instapay": return "إنستاباي";
-        case "bank_transfer": return "تحويل بنكي";
-        case "mixed": return "مختلط";
-        case "prepaid": return "مدفوع مسبقًا";
-        case "free": return "مجاني";
-        case "none": return "—";
-        default: return m || "—";
-      }
-    };
+    const cmLabel = (m: string | null) => ({
+      cash_with_courier: "كاش مع المندوب", vodafone_cash: "فودافون كاش", instapay: "إنستاباي",
+      bank_transfer: "تحويل بنكي", mixed: "مختلط", prepaid: "مدفوع مسبقًا", free: "مجاني", none: "لا يوجد",
+    } as any)[m || ""] || m || "—";
 
-    const ordersTotal = orders.reduce((s, o) => s + Number(o.courier_cash_due || o.total || 0), 0);
-    const rowsHtml = orders.length
-      ? orders.map((o) => `<tr>
-          <td>${o.order_number}</td>
-          <td>${(o.customer_id && customerMap[o.customer_id]) || "—"}</td>
-          <td>${cmLabel(o.collection_method)}</td>
-          <td class="num">${fmt(Number(o.total || 0))}</td>
-          <td class="num strong">${fmt(Number(o.courier_cash_due || 0))}</td>
-        </tr>`).join("")
-      : `<tr><td colspan="5" style="text-align:center;color:#888">لا توجد أوردرات مرتبطة</td></tr>`;
+    const statusLabel = (s: string | null) => ({
+      delivered: "تم التسليم للعميل", pending: "قيد الانتظار", processing: "قيد التنفيذ",
+      shipped: "تم الشحن", cancelled: "ملغي", returned: "مرتجع",
+    } as any)[s || ""] || s || "—";
+
+    // Ordered by orderNumbers order
+    const orderedOrders = orderNumbers
+      .map((n) => orders.find((o) => o.order_number === n))
+      .filter(Boolean) as OrderRow[];
+
+    const mixedCount = orderedOrders.filter((o) => o.collection_method === "mixed").length;
+    const freeCount = orderedOrders.filter((o) => o.collection_method === "free").length;
+
+    const orderBlocks = orderedOrders.map((o, idx) => {
+      const items = itemsByOrder[o.id] || [];
+      const customer = (o.customer_id && customerMap[o.customer_id]) || "—";
+      const itemsRows = items.length
+        ? items.map((it) => `<tr>
+            <td>${(it.product_name || "—")}${it.offer_name ? ` <span class="muted">(${it.offer_name})</span>` : ""}${it.is_gift ? ' <span style="color:#059669">🎁</span>' : ""}${it.is_half_kg ? ' <span class="muted">½ك</span>' : ""}</td>
+            <td class="num">${Number(it.quantity || 0)}</td>
+            <td class="num">${fmt(Number(it.unit_price || 0))}</td>
+            <td class="num strong">${fmt(Number(it.total_price || 0))}</td>
+          </tr>`).join("")
+        : `<tr><td colspan="4" style="text-align:center;color:#888">لا توجد أصناف</td></tr>`;
+
+      const paymentBadges: string[] = [];
+      if (Number(o.vodafone_cash_amount || 0) > 0) paymentBadges.push(`📱 فودافون: ${fmt(Number(o.vodafone_cash_amount))}`);
+      if (Number(o.instapay_amount || 0) > 0) paymentBadges.push(`💳 إنستاباي: ${fmt(Number(o.instapay_amount))}`);
+      if (Number(o.bank_transfer_amount || 0) > 0) paymentBadges.push(`🏦 تحويل: ${fmt(Number(o.bank_transfer_amount))}`);
+
+      return `<section class="order">
+        <div class="order-head">
+          <span class="badge">#${idx + 1}</span>
+          <b>${o.order_number}</b>
+          <span class="muted">—</span>
+          <span>${customer}</span>
+          <span class="status">${statusLabel(o.status)}</span>
+        </div>
+        <div class="order-sub">
+          <span>إجمالي الأوردر: <b>${fmt(Number(o.total || 0))}</b></span>
+          <span class="cash">💵 نقدي مطلوب من ${r.courier_name || "المندوب"}: <b>${fmt(Number(o.courier_cash_due || 0))}</b></span>
+          ${paymentBadges.map((b) => `<span class="pay">${b}</span>`).join("")}
+          <span class="muted">طريقة التحصيل: ${cmLabel(o.collection_method)}</span>
+        </div>
+        <table>
+          <thead><tr><th>الصنف</th><th>الكمية</th><th>سعر الوحدة</th><th>إجمالي الصنف</th></tr></thead>
+          <tbody>${itemsRows}</tbody>
+        </table>
+      </section>`;
+    }).join("");
 
     const missing = orderNumbers.filter((n) => !orders.find((o) => o.order_number === n));
+    const totalCash = orderedOrders.reduce((s, o) => s + Number(o.courier_cash_due || 0), 0);
 
     const html = `<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/>
 <title>تفاصيل التوريد ${r.reference || ""}</title>
 <style>
-  body{font-family:'Cairo','Tahoma',sans-serif;padding:24px;color:#111;}
-  h1{font-size:20px;margin:0 0 4px;} .muted{color:#666;font-size:12px;}
-  .card{border:1px solid #ddd;border-radius:8px;padding:14px;margin-top:14px;}
-  .row{display:flex;justify-content:space-between;gap:12px;margin:6px 0;font-size:13px;}
-  .amount{font-size:22px;font-weight:700;color:#059669;}
-  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px;}
-  th,td{border:1px solid #ddd;padding:6px 8px;text-align:right;}
-  th{background:#f3f4f6;font-weight:700;}
-  td.num{font-family:monospace;text-align:left;direction:ltr;} td.strong{font-weight:700;color:#059669;}
-  tfoot td{background:#f9fafb;font-weight:700;}
-  pre{white-space:pre-wrap;background:#f6f6f6;padding:10px;border-radius:6px;font-family:inherit;font-size:12px;line-height:1.7;}
-  @media print{button{display:none;}}
+  *{box-sizing:border-box}
+  body{font-family:'Cairo','Tahoma',sans-serif;padding:20px;color:#111;background:#fff;}
+  .top{display:flex;justify-content:center;gap:10px;margin-bottom:16px;}
+  .top button{padding:8px 18px;border:1px solid #ccc;background:#fff;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;}
+  .header{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;border-bottom:1px solid #eee;padding-bottom:10px;margin-bottom:14px;}
+  .header .item{background:#f9fafb;padding:4px 10px;border-radius:6px;}
+  .muted{color:#666;font-size:11px;}
+  .order{border:1px solid #eee;border-radius:8px;padding:12px;margin-bottom:14px;page-break-inside:avoid;}
+  .order-head{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:6px;flex-wrap:wrap;}
+  .badge{background:#7c3aed;color:#fff;padding:2px 8px;border-radius:6px;font-size:12px;}
+  .status{color:#059669;font-size:12px;margin-inline-start:auto;}
+  .order-sub{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;margin-bottom:8px;padding:6px 8px;background:#fafafa;border-radius:6px;}
+  .cash{background:#d1fae5;padding:2px 8px;border-radius:4px;}
+  .pay{background:#dbeafe;padding:2px 8px;border-radius:4px;}
+  table{width:100%;border-collapse:collapse;margin-top:6px;font-size:12px;}
+  th,td{border:1px solid #e5e7eb;padding:5px 8px;text-align:right;}
+  th{background:#faf5ff;color:#6b21a8;font-weight:700;}
+  td.num{font-family:monospace;text-align:center;} td.strong{font-weight:700;}
+  .footer{text-align:center;color:#666;font-size:11px;margin-top:20px;padding-top:10px;border-top:1px solid #eee;}
+  .grand{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:14px;display:flex;justify-content:space-between;}
+  @media print{.top{display:none;}}
 </style></head><body>
-<h1>تفاصيل توريد من خزينة المخزن الرئيسي</h1>
-<div class="muted">تاريخ الطباعة: ${new Date().toLocaleString("ar-EG")}</div>
-<div class="card">
-  <div class="row"><span>المبلغ الإجمالي للتوريد</span><span class="amount">${fmt(Number(r.amount||0))} ج.م</span></div>
-  <div class="row"><span>رقم المرجع</span><b>${r.reference || "—"}</b></div>
-  <div class="row"><span>المندوب</span><b>${r.courier_name || "—"}</b></div>
-  <div class="row"><span>بواسطة</span><b>${performedBy}</b></div>
-  <div class="row"><span>تاريخ التوريد</span><b>${dateStr}</b></div>
-  <div class="row"><span>الحالة</span><b>${r.status === "pending_approval" ? "بانتظار الاعتماد" : r.status}</b></div>
-  <div class="row"><span>عدد الأوردرات</span><b>${orderNumbers.length}</b></div>
+<div class="top">
+  <button onclick="window.print()">طباعة / حفظ كـ PDF</button>
+  <button onclick="window.close()">إغلاق</button>
 </div>
-
-<div class="card">
-  <div class="muted" style="margin-bottom:8px">تفاصيل الأوردرات — الفلوس دي بتاعت إيه:</div>
-  <table>
-    <thead><tr>
-      <th>رقم الأوردر</th><th>العميل</th><th>طريقة التحصيل</th><th>إجمالي الأوردر</th><th>المستحق على المندوب</th>
-    </tr></thead>
-    <tbody>${rowsHtml}</tbody>
-    <tfoot><tr>
-      <td colspan="3">الإجمالي</td>
-      <td class="num">${fmt(orders.reduce((s,o)=>s+Number(o.total||0),0))}</td>
-      <td class="num strong">${fmt(ordersTotal)}</td>
-    </tr></tfoot>
-  </table>
-  ${missing.length ? `<div class="muted" style="margin-top:8px;color:#b91c1c">أوردرات غير موجودة في النظام: ${missing.join(", ")}</div>` : ""}
+<div class="header">
+  <span class="item">المندوب: <b>${r.courier_name || "—"}</b></span>
+  <span class="item">اليوم: <b>${dayStr}</b></span>
+  <span class="item">عدد الأوردرات: <b>${orderedOrders.length}</b></span>
+  <span class="item">مجاني: <b>${freeCount}</b></span>
+  <span class="item">مختلط: <b>${mixedCount}</b></span>
+  <span class="item">بواسطة: <b>${performedBy}</b></span>
+  <span class="item">المرجع: <b>${r.reference || "—"}</b></span>
 </div>
-
-${r.notes ? `<div class="card"><div class="muted" style="margin-bottom:8px">تفاصيل الأيام (كما تم إدخالها):</div><pre>${r.notes.replace(/</g,"&lt;")}</pre></div>` : ""}
-<div style="margin-top:20px;text-align:center"><button onclick="window.print()">طباعة</button></div>
-<script>setTimeout(()=>window.print(),500);</script>
+<div class="grand">
+  <span>إجمالي التوريد</span>
+  <b style="color:#059669">${fmt(Number(r.amount || 0))} ج.م</b>
+  <span class="muted">مجموع النقدي على المندوب من الأوردرات: ${fmt(totalCash)}</span>
+</div>
+${orderBlocks || '<div class="muted" style="text-align:center;padding:20px">لا توجد أوردرات</div>'}
+${missing.length ? `<div class="muted" style="color:#b91c1c;text-align:center;margin-top:10px">أوردرات غير موجودة: ${missing.join(", ")}</div>` : ""}
+<div class="footer">شركة نعم العاصمة — Na'am Al-Asimah • Capital Ostrich</div>
 </body></html>`;
     w.document.open();
     w.document.write(html);
