@@ -993,7 +993,10 @@ const Orders = () => {
   const [mixedCash, setMixedCash] = useState<string>('');
   const [mixedVod, setMixedVod] = useState<string>('');
   const [mixedInsta, setMixedInsta] = useState<string>('');
+  const [mixedBank, setMixedBank] = useState<string>('');
+  const [mixedOther, setMixedOther] = useState<string>('');
   const [mixedFree, setMixedFree] = useState<string>('');
+  const [mixedRef, setMixedRef] = useState<string>('');
   const [mixedNote, setMixedNote] = useState<string>('');
   // إذا فُتحت النافذة أثناء تدفق تأكيد التسليم، نتابع التحويل إلى delivered بعد الحفظ.
   const [deliverAfterMixedSave, setDeliverAfterMixedSave] = useState<boolean>(false);
