@@ -13,7 +13,7 @@ interface Row {
   reference: string | null;
   notes: string | null;
   courier_name: string | null;
-  performed_by_name: string | null;
+  performed_by: string | null;
   performed_at: string;
   status: string;
 }
@@ -34,21 +34,35 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
 
+  const [names, setNames] = useState<Record<string, string>>({});
+
   const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await (supabase as any)
       .from("main_warehouse_treasury_txns")
-      .select("id, amount, reference, notes, courier_name, performed_by_name, performed_at, status")
+      .select("id, amount, reference, notes, courier_name, performed_by, performed_at, status")
       .eq("category", "transfer_from_main_warehouse_treasury")
       .eq("direction", "out")
       .eq("status", "pending_approval")
       .order("performed_at", { ascending: false });
     if (error) {
-      toast.error("تعذر تحميل تحويلات المخزن الرئيسي");
+      console.error("MWT load error", error);
+      toast.error(error.message || "تعذر تحميل تحويلات المخزن الرئيسي");
       setLoading(false);
       return;
     }
-    setRows((data || []) as Row[]);
+    const list = (data || []) as Row[];
+    setRows(list);
+    const ids = Array.from(new Set(list.map((r) => r.performed_by).filter(Boolean))) as string[];
+    if (ids.length) {
+      const { data: profs } = await (supabase as any)
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", ids);
+      const map: Record<string, string> = {};
+      (profs || []).forEach((p: any) => { map[p.id] = p.full_name || ""; });
+      setNames(map);
+    }
     setLoading(false);
   }, []);
 
@@ -130,7 +144,7 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
                   {r.reference && <span className="text-xs text-muted-foreground">{r.reference}</span>}
                 </div>
                 <div className="text-[11px] text-muted-foreground">
-                  بواسطة: <b>{r.performed_by_name || "—"}</b> •{" "}
+                  بواسطة: <b>{(r.performed_by && names[r.performed_by]) || "—"}</b> •{" "}
                   {new Date(r.performed_at).toLocaleString("ar-EG")}
                 </div>
               </div>
