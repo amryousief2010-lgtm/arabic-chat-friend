@@ -2131,14 +2131,53 @@ export default function MainWarehouseTreasuryTab() {
 
 
       {/* Transfer dialog */}
-      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
-        <DialogContent>
+      <Dialog open={transferOpen} onOpenChange={(o) => { setTransferOpen(o); if (!o) { setSelectedDepositIds(new Set()); } }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>تحويل إلى الخزينة الرئيسية</DialogTitle>
-            <DialogDescription>سيتم إرسال إشعار لمحمد شعلة لاعتماد التحويل.</DialogDescription>
+            <DialogDescription>اختر أيام التوريد التي تريد تحويلها بتفاصيلها. سيتم إرسال إشعار لمحمد شعلة لاعتماد التحويل.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="text-sm bg-muted/40 rounded-md p-2">الرصيد الحالي: <b>{fmt(kpis.balance)} ج.م</b></div>
+
+            <div className="border rounded-lg">
+              <div className="flex items-center justify-between px-3 py-2 bg-muted/40 border-b">
+                <div className="text-sm font-semibold">أيام توريد المندوب المتاحة للتحويل</div>
+                <div className="text-xs text-muted-foreground">
+                  {selectedDepositIds.size > 0 ? `تم اختيار ${selectedDepositIds.size} يوم` : "اختر يوم أو أكثر"}
+                </div>
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                {loadingDeposits ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">جاري التحميل...</div>
+                ) : pendingDeposits.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">لا توجد أيام توريد بانتظار التحويل</div>
+                ) : pendingDeposits.map((d) => {
+                  const selected = selectedDepositIds.has(d.id);
+                  const day = new Date(d.deposit_date).toLocaleDateString("ar-EG", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
+                  return (
+                    <label key={d.id} className={`flex items-start gap-3 p-3 border-b cursor-pointer hover:bg-muted/30 ${selected ? "bg-emerald-50" : ""}`}>
+                      <input type="checkbox" checked={selected} onChange={() => toggleDeposit(d.id, Number(d.amount || 0))} className="mt-1" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="font-semibold text-sm">{day}</div>
+                          <Badge className="bg-emerald-600 text-white">{fmt(Number(d.amount || 0))} ج.م</Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          المندوب: <b>{d.courier_name || "—"}</b> • عدد الأوردرات: <b>{d.orders_count}</b>
+                        </div>
+                        {Array.isArray(d.order_numbers) && d.order_numbers.length > 0 && (
+                          <div className="text-[10px] text-muted-foreground mt-1 truncate" title={d.order_numbers.join(", ")}>
+                            {d.order_numbers.slice(0, 5).join(", ")}{d.order_numbers.length > 5 ? `… (+${d.order_numbers.length - 5})` : ""}
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
             <div><Label>المبلغ (ج.م)</Label><Input type="number" min="0" step="0.01" value={transferAmt} onChange={(e) => setTransferAmt(e.target.value)} /></div>
             <div><Label>ملاحظات / سبب التحويل</Label><Textarea rows={2} value={transferNotes} onChange={(e) => setTransferNotes(e.target.value)} /></div>
           </div>
