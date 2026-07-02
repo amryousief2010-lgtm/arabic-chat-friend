@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin, Printer, AlertCircle, AlertTriangle } from "lucide-react";
+import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin, Printer, AlertCircle, AlertTriangle, Wallet } from "lucide-react";
 import { printOrderInvoice } from "@/lib/printUtils";
 import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth, cairoTodayStartUTC, toCairoDateString } from "@/lib/cairoDate";
 import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
@@ -1853,6 +1853,15 @@ const Orders = () => {
                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePrintOrder(order)} title="طباعة الطلب">
                          <Printer className="w-4 h-4 text-primary" />
                        </Button>
+                       <Button
+                         variant="ghost"
+                         size="icon"
+                         className="h-8 w-8"
+                         onClick={() => openMixedDialog(order.id)}
+                         title="تعديل / ضبط تحصيل الأوردر"
+                       >
+                         <Wallet className="w-4 h-4 text-emerald-600" />
+                       </Button>
                       {isPrivateDeliveryRep && order.status !== 'delivered' && order.status !== 'cancelled' && !approvedEditOrderIds.has(order.id) && (
                         <Button
                           variant="ghost"
@@ -2215,6 +2224,14 @@ const Orders = () => {
                           title="طباعة الطلب"
                         >
                           <Printer className="w-4 h-4 text-primary" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openMixedDialog(order.id)}
+                          title="تعديل / ضبط تحصيل الأوردر"
+                        >
+                          <Wallet className="w-4 h-4 text-emerald-600" />
                         </Button>
                         {isPrivateDeliveryRep &&
                           order.status !== 'delivered' &&
