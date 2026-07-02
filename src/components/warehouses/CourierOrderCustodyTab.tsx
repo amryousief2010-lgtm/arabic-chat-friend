@@ -788,7 +788,7 @@ export default function CourierOrderCustodyTab() {
                               <div>{fmt(dueAmt)}</div>
                               {mixed && (
                                 <div className="text-[10px] text-amber-700 leading-tight mt-0.5">
-                                  إجمالي: {fmt(Number(o?.total || 0))} · 📱 {fmt(Number(o?.vodafone_cash_amount || 0))} · 💳 {fmt(Number(o?.instapay_amount || 0))}
+                                  إجمالي: {fmt(Number(o?.total || 0))} · 💵 {fmt(Number(o?.courier_cash_due || 0))} · 📱 {fmt(Number(o?.vodafone_cash_amount || 0))} · 💳 {fmt(Number(o?.instapay_amount || 0))} · 🏦 {fmt(Number(o?.bank_transfer_amount || 0))} · 💠 {fmt(Number(o?.other_amount || 0))} · 🎁 {fmt(Number(o?.free_amount || 0))}
                                   {Number(o?.free_amount || 0) > 0 && <> · 🎁 {fmt(Number(o?.free_amount || 0))}</>}
                                 </div>
                               )}
