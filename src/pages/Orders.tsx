@@ -1667,7 +1667,7 @@ const Orders = () => {
                           onCheckedChange={(v) => toggleReviewed(order.id, v === true)}
                           aria-label="تمت المراجعة"
                         />
-                        <span className="font-mono font-semibold text-sm">{order.order_number}</span>
+                        <button type="button" onClick={() => openMixedDialog(order.id)} className="font-mono font-semibold text-sm text-primary hover:underline" title="ضبط التحصيل">{order.order_number}</button>
                       </div>
                       <div className="flex items-center gap-1">
                         {isDuplicatePhone && (
