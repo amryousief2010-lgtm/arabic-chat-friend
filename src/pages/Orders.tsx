@@ -2748,17 +2748,20 @@ const Orders = () => {
           )}
           {selectedOrder && (
             <div className="border-t px-6 py-3 flex items-center justify-between gap-2 shrink-0 bg-background">
-              <Button
-                variant="default"
-                onClick={() => { const id = selectedOrder.id; setSelectedOrder(null); openMixedDialog(id); }}
-                className="gap-2"
-              >
-                <Wallet className="w-4 h-4" />
-                ضبط التحصيل
-              </Button>
+              {canSetCollectionMethod ? (
+                <Button
+                  variant="default"
+                  onClick={() => { const id = selectedOrder.id; setSelectedOrder(null); openMixedDialog(id); }}
+                  className="gap-2"
+                >
+                  <Wallet className="w-4 h-4" />
+                  ضبط التحصيل
+                </Button>
+              ) : <span />}
               <Button variant="outline" onClick={() => setSelectedOrder(null)}>إغلاق</Button>
             </div>
           )}
+
         </DialogContent>
       </Dialog>
 
