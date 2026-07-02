@@ -2091,6 +2091,13 @@ const Orders = () => {
                         </>
                       );
                     })()}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+
 
           {/* Desktop table view */}
           <div className="hidden">
