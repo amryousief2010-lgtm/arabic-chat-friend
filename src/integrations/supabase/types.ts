@@ -13443,52 +13443,67 @@ export type Database = {
           changed_at: string
           changed_by: string | null
           id: string
+          new_bank_transfer_amount: number | null
           new_cash_amount: number | null
           new_collection_method: string | null
           new_free_amount: number | null
           new_instapay_amount: number | null
+          new_other_amount: number | null
           new_vodafone_cash_amount: number | null
           note: string | null
+          old_bank_transfer_amount: number | null
           old_cash_amount: number | null
           old_collection_method: string | null
           old_free_amount: number | null
           old_instapay_amount: number | null
+          old_other_amount: number | null
           old_vodafone_cash_amount: number | null
           order_id: string
+          transfer_reference: string | null
         }
         Insert: {
           changed_at?: string
           changed_by?: string | null
           id?: string
+          new_bank_transfer_amount?: number | null
           new_cash_amount?: number | null
           new_collection_method?: string | null
           new_free_amount?: number | null
           new_instapay_amount?: number | null
+          new_other_amount?: number | null
           new_vodafone_cash_amount?: number | null
           note?: string | null
+          old_bank_transfer_amount?: number | null
           old_cash_amount?: number | null
           old_collection_method?: string | null
           old_free_amount?: number | null
           old_instapay_amount?: number | null
+          old_other_amount?: number | null
           old_vodafone_cash_amount?: number | null
           order_id: string
+          transfer_reference?: string | null
         }
         Update: {
           changed_at?: string
           changed_by?: string | null
           id?: string
+          new_bank_transfer_amount?: number | null
           new_cash_amount?: number | null
           new_collection_method?: string | null
           new_free_amount?: number | null
           new_instapay_amount?: number | null
+          new_other_amount?: number | null
           new_vodafone_cash_amount?: number | null
           note?: string | null
+          old_bank_transfer_amount?: number | null
           old_cash_amount?: number | null
           old_collection_method?: string | null
           old_free_amount?: number | null
           old_instapay_amount?: number | null
+          old_other_amount?: number | null
           old_vodafone_cash_amount?: number | null
           order_id?: string
+          transfer_reference?: string | null
         }
         Relationships: [
           {
@@ -13584,6 +13599,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          bank_transfer_amount: number
           collected_at: string | null
           collected_by: string | null
           collection_batch_id: string | null
@@ -13617,6 +13633,7 @@ export type Database = {
           moderator: string | null
           notes: string | null
           order_number: string
+          other_amount: number
           payment_method: string
           payment_status: string
           route_id: string | null
@@ -13629,6 +13646,7 @@ export type Database = {
           subtotal: number
           total: number
           total_at_delivery: number | null
+          transfer_reference: string | null
           update_status_marker: string | null
           update_status_updated_at: string | null
           update_status_updated_by: string | null
@@ -13636,6 +13654,7 @@ export type Database = {
           vodafone_cash_amount: number
         }
         Insert: {
+          bank_transfer_amount?: number
           collected_at?: string | null
           collected_by?: string | null
           collection_batch_id?: string | null
@@ -13669,6 +13688,7 @@ export type Database = {
           moderator?: string | null
           notes?: string | null
           order_number: string
+          other_amount?: number
           payment_method?: string
           payment_status?: string
           route_id?: string | null
@@ -13681,6 +13701,7 @@ export type Database = {
           subtotal?: number
           total?: number
           total_at_delivery?: number | null
+          transfer_reference?: string | null
           update_status_marker?: string | null
           update_status_updated_at?: string | null
           update_status_updated_by?: string | null
@@ -13688,6 +13709,7 @@ export type Database = {
           vodafone_cash_amount?: number
         }
         Update: {
+          bank_transfer_amount?: number
           collected_at?: string | null
           collected_by?: string | null
           collection_batch_id?: string | null
@@ -13721,6 +13743,7 @@ export type Database = {
           moderator?: string | null
           notes?: string | null
           order_number?: string
+          other_amount?: number
           payment_method?: string
           payment_status?: string
           route_id?: string | null
@@ -13733,6 +13756,7 @@ export type Database = {
           subtotal?: number
           total?: number
           total_at_delivery?: number | null
+          transfer_reference?: string | null
           update_status_marker?: string | null
           update_status_updated_at?: string | null
           update_status_updated_by?: string | null

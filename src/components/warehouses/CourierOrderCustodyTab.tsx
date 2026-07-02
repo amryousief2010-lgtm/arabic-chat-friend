@@ -123,6 +123,9 @@ type Order = {
   courier_cash_due?: number | null;
   vodafone_cash_amount?: number | null;
   instapay_amount?: number | null;
+  bank_transfer_amount?: number | null;
+  other_amount?: number | null;
+  transfer_reference?: string | null;
   free_amount?: number | null;
   collection_note?: string | null;
 };
@@ -196,13 +199,13 @@ export default function CourierOrderCustodyTab() {
     const assignedOrderIds = asn.map((a) => a.order_id);
     const [readyOrdersRes, assignedOrdersRes] = await Promise.all([
       (supabase as any).from("orders")
-        .select("id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, courier_cash_due, vodafone_cash_amount, instapay_amount, free_amount, collection_note, customers!orders_customer_id_fkey(name, phone)")
+        .select("id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, courier_cash_due, vodafone_cash_amount, instapay_amount, bank_transfer_amount, other_amount, free_amount, transfer_reference, collection_note, customers!orders_customer_id_fkey(name, phone)")
         .in("status", ["pending", "processing", "shipped"])
         .order("created_at", { ascending: false })
         .limit(500),
       assignedOrderIds.length
         ? (supabase as any).from("orders")
-            .select("id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, courier_cash_due, vodafone_cash_amount, instapay_amount, free_amount, collection_note, customers!orders_customer_id_fkey(name, phone)")
+            .select("id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, courier_cash_due, vodafone_cash_amount, instapay_amount, bank_transfer_amount, other_amount, free_amount, transfer_reference, collection_note, customers!orders_customer_id_fkey(name, phone)")
             .in("id", assignedOrderIds)
         : Promise.resolve({ data: [] as Order[] }),
 
@@ -286,6 +289,31 @@ export default function CourierOrderCustodyTab() {
     const topCollect = [...custodyAnalytics].sort((a, b) => b.collected - a.collected)[0];
     return { ...totals, topDelivery, topCollect };
   }, [custodyAnalytics]);
+
+  // ── Transfers breakdown (تحويلات مباشرة للشركة — لا تدخل عهدة المندوب نقديًا)
+  const transfersBreakdown = useMemo(() => {
+    const assignedOrderIds = new Set(assignments.map((a) => a.order_id));
+    const relevant = orders.filter((o) => assignedOrderIds.has(o.id));
+    const acc = { vodafone: 0, instapay: 0, bank: 0, other: 0, free: 0, cashDue: 0, ordersTotal: 0, missingBreakdown: 0 };
+    relevant.forEach((o: any) => {
+      acc.ordersTotal += Number(o.total || 0);
+      acc.cashDue += Number(o.courier_cash_due || 0);
+      acc.vodafone += Number(o.vodafone_cash_amount || 0);
+      acc.instapay += Number(o.instapay_amount || 0);
+      acc.bank += Number(o.bank_transfer_amount || 0);
+      acc.other += Number(o.other_amount || 0);
+      acc.free += Number(o.free_amount || 0);
+      // Legacy protection: delivered mixed order with no breakdown recorded
+      if (o.status === 'delivered' && o.collection_method === 'mixed_payment') {
+        const sum = Number(o.courier_cash_due || 0) + Number(o.vodafone_cash_amount || 0) +
+          Number(o.instapay_amount || 0) + Number(o.bank_transfer_amount || 0) +
+          Number(o.other_amount || 0) + Number(o.free_amount || 0);
+        if (Math.abs(sum - Number(o.total || 0)) > 0.01) acc.missingBreakdown += 1;
+      }
+    });
+    return acc;
+  }, [orders, assignments]);
+
 
   const current = custodyAnalytics.find((c) => c.id === selectedCustody);
   const currentAssignments = useMemo(
@@ -576,6 +604,54 @@ export default function CourierOrderCustodyTab() {
         </CardContent></Card>
       </div>
 
+      {/* تفصيل التحصيل — نقدي مطلوب من المندوب vs تحويلات مباشرة للشركة */}
+      <Card className="bg-gradient-to-l from-blue-50/60 to-emerald-50/60 border-blue-200">
+        <CardContent className="p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-sm font-bold">تفصيل التحصيل عبر عهدات المندوبين</div>
+            {transfersBreakdown.missingBreakdown > 0 && (
+              <span className="text-[11px] bg-amber-100 text-amber-800 border border-amber-300 rounded px-2 py-0.5">
+                ⚠️ {transfersBreakdown.missingBreakdown} أوردر مسلّم بدون تفصيل تحصيل مسجل — مراجعة يدوية مطلوبة
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 text-xs">
+            <div className="rounded border bg-white/70 p-2">
+              <div className="text-muted-foreground">إجمالي قيمة الأوردرات</div>
+              <div className="font-mono font-bold">{fmt(transfersBreakdown.ordersTotal)}</div>
+            </div>
+            <div className="rounded border bg-emerald-50 border-emerald-300 p-2">
+              <div className="text-emerald-800">💵 مطلوب نقدي من المندوب</div>
+              <div className="font-mono font-bold text-emerald-800">{fmt(transfersBreakdown.cashDue)}</div>
+            </div>
+            <div className="rounded border bg-rose-50 border-rose-300 p-2">
+              <div className="text-rose-800">📱 فودافون كاش</div>
+              <div className="font-mono font-bold text-rose-800">{fmt(transfersBreakdown.vodafone)}</div>
+            </div>
+            <div className="rounded border bg-indigo-50 border-indigo-300 p-2">
+              <div className="text-indigo-800">💳 إنستاباي</div>
+              <div className="font-mono font-bold text-indigo-800">{fmt(transfersBreakdown.instapay)}</div>
+            </div>
+            <div className="rounded border bg-blue-50 border-blue-300 p-2">
+              <div className="text-blue-800">🏦 تحويل بنكي</div>
+              <div className="font-mono font-bold text-blue-800">{fmt(transfersBreakdown.bank)}</div>
+            </div>
+            <div className="rounded border bg-zinc-50 border-zinc-300 p-2">
+              <div className="text-zinc-800">💠 أخرى</div>
+              <div className="font-mono font-bold text-zinc-800">{fmt(transfersBreakdown.other)}</div>
+            </div>
+            <div className="rounded border bg-slate-50 border-slate-300 p-2">
+              <div className="text-slate-800">🎁 مجاني</div>
+              <div className="font-mono font-bold text-slate-800">{fmt(transfersBreakdown.free)}</div>
+            </div>
+          </div>
+          <div className="mt-2 text-[11px] text-muted-foreground">
+            التحويلات (فودافون / إنستاباي / بنكي / أخرى) دخلت الشركة مباشرةً ولا تُحمَّل على عهدة المندوب نقديًا.
+          </div>
+        </CardContent>
+      </Card>
+
+
       {(dashboard.topDelivery || dashboard.topCollect) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {dashboard.topDelivery && (
@@ -715,7 +791,7 @@ export default function CourierOrderCustodyTab() {
                               <div>{fmt(dueAmt)}</div>
                               {mixed && (
                                 <div className="text-[10px] text-amber-700 leading-tight mt-0.5">
-                                  إجمالي: {fmt(Number(o?.total || 0))} · 📱 {fmt(Number(o?.vodafone_cash_amount || 0))} · 💳 {fmt(Number(o?.instapay_amount || 0))}
+                                  إجمالي: {fmt(Number(o?.total || 0))} · 💵 {fmt(Number(o?.courier_cash_due || 0))} · 📱 {fmt(Number(o?.vodafone_cash_amount || 0))} · 💳 {fmt(Number(o?.instapay_amount || 0))} · 🏦 {fmt(Number(o?.bank_transfer_amount || 0))} · 💠 {fmt(Number(o?.other_amount || 0))} · 🎁 {fmt(Number(o?.free_amount || 0))}
                                   {Number(o?.free_amount || 0) > 0 && <> · 🎁 {fmt(Number(o?.free_amount || 0))}</>}
                                 </div>
                               )}

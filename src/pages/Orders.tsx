@@ -113,7 +113,10 @@ interface Order {
   courier_cash_due?: number | null;
   vodafone_cash_amount?: number | null;
   instapay_amount?: number | null;
+  bank_transfer_amount?: number | null;
+  other_amount?: number | null;
   free_amount?: number | null;
+  transfer_reference?: string | null;
   collection_updated_at?: string | null;
 }
 
@@ -142,6 +145,8 @@ type CollectionMethod =
   | 'cash_courier'
   | 'vodafone_cash'
   | 'instapay'
+  | 'bank_transfer'
+  | 'other'
   | 'mixed_payment'
   | 'prepaid'
   | 'none';
@@ -150,6 +155,8 @@ const collectionMethodMeta: Record<CollectionMethod, { label: string; short: str
   cash_courier:  { label: 'تحصيل نقدي مع المندوب', short: 'كاش من المندوب',  className: 'bg-emerald-500 text-white border-emerald-600' },
   vodafone_cash: { label: 'تحويل فودافون كاش',      short: 'Vodafone Cash',   className: 'bg-rose-500 text-white border-rose-600' },
   instapay:      { label: 'تحويل إنستاباي',         short: 'InstaPay',        className: 'bg-violet-500 text-white border-violet-600' },
+  bank_transfer: { label: 'تحويل بنكي',              short: 'تحويل بنكي 🏦',    className: 'bg-blue-600 text-white border-blue-700' },
+  other:         { label: 'أخرى',                    short: 'أخرى',            className: 'bg-zinc-500 text-white border-zinc-600' },
   mixed_payment: { label: 'تحصيل مختلط',            short: 'مختلط 🧩',        className: 'bg-amber-500 text-white border-amber-600' },
   prepaid:       { label: 'مدفوع مسبقاً',           short: 'مدفوع مسبقاً',    className: 'bg-sky-500 text-white border-sky-600' },
   none:          { label: 'لا يوجد تحصيل',          short: 'لا يوجد تحصيل',   className: 'bg-slate-500 text-white border-slate-600' },
@@ -544,7 +551,10 @@ const Orders = () => {
           courier_cash_due: (order as any).courier_cash_due != null ? Number((order as any).courier_cash_due) : 0,
           vodafone_cash_amount: (order as any).vodafone_cash_amount != null ? Number((order as any).vodafone_cash_amount) : 0,
           instapay_amount: (order as any).instapay_amount != null ? Number((order as any).instapay_amount) : 0,
+          bank_transfer_amount: (order as any).bank_transfer_amount != null ? Number((order as any).bank_transfer_amount) : 0,
+          other_amount: (order as any).other_amount != null ? Number((order as any).other_amount) : 0,
           free_amount: (order as any).free_amount != null ? Number((order as any).free_amount) : 0,
+          transfer_reference: (order as any).transfer_reference ?? null,
           collection_updated_at: (order as any).collection_updated_at ?? null,
         }));
 
@@ -983,7 +993,10 @@ const Orders = () => {
   const [mixedCash, setMixedCash] = useState<string>('');
   const [mixedVod, setMixedVod] = useState<string>('');
   const [mixedInsta, setMixedInsta] = useState<string>('');
+  const [mixedBank, setMixedBank] = useState<string>('');
+  const [mixedOther, setMixedOther] = useState<string>('');
   const [mixedFree, setMixedFree] = useState<string>('');
+  const [mixedRef, setMixedRef] = useState<string>('');
   const [mixedNote, setMixedNote] = useState<string>('');
   // إذا فُتحت النافذة أثناء تدفق تأكيد التسليم، نتابع التحويل إلى delivered بعد الحفظ.
   const [deliverAfterMixedSave, setDeliverAfterMixedSave] = useState<boolean>(false);
@@ -994,7 +1007,10 @@ const Orders = () => {
     setMixedCash(String(t.courier_cash_due ?? 0));
     setMixedVod(String(t.vodafone_cash_amount ?? 0));
     setMixedInsta(String(t.instapay_amount ?? 0));
+    setMixedBank(String(t.bank_transfer_amount ?? 0));
+    setMixedOther(String(t.other_amount ?? 0));
     setMixedFree(String(t.free_amount ?? 0));
+    setMixedRef(String(t.transfer_reference ?? ''));
     setMixedNote('');
     setMixedDlgOrderId(orderId);
   };
@@ -1007,14 +1023,16 @@ const Orders = () => {
     const cash = Number(mixedCash) || 0;
     const vod = Number(mixedVod) || 0;
     const insta = Number(mixedInsta) || 0;
+    const bank = Number(mixedBank) || 0;
+    const other = Number(mixedOther) || 0;
     const free = Number(mixedFree) || 0;
-    const sum = cash + vod + insta + free;
+    const sum = cash + vod + insta + bank + other + free;
     const totalVal = Number(target.total || 0);
     if (Math.abs(sum - totalVal) > 0.01) {
       toast.error(`مجموع مبالغ التحصيل (${sum.toFixed(2)}) لا يساوي قيمة الأوردر (${totalVal.toFixed(2)}).`);
       return;
     }
-    if ([cash, vod, insta, free].some((v) => v < 0)) {
+    if ([cash, vod, insta, bank, other, free].some((v) => v < 0)) {
       toast.error('لا يمكن إدخال مبالغ سالبة.');
       return;
     }
@@ -1025,13 +1043,16 @@ const Orders = () => {
         courier_cash_due: cash,
         vodafone_cash_amount: vod,
         instapay_amount: insta,
+        bank_transfer_amount: bank,
+        other_amount: other,
         free_amount: free,
+        transfer_reference: mixedRef || null,
         collection_note: mixedNote || null,
         collection_updated_at: nowIso,
         collection_updated_by: user?.id ?? null,
       } as any).eq('id', id);
       if (error) throw error;
-      // Audit
+      // Audit — سجل تاريخي منفصل لكل تعديل (INSERT وليس UPDATE).
       await supabase.from('order_payment_breakdown_audit' as any).insert({
         order_id: id,
         old_collection_method: target.collection_method ?? null,
@@ -1042,8 +1063,13 @@ const Orders = () => {
         new_vodafone_cash_amount: vod,
         old_instapay_amount: target.instapay_amount ?? 0,
         new_instapay_amount: insta,
+        old_bank_transfer_amount: target.bank_transfer_amount ?? 0,
+        new_bank_transfer_amount: bank,
+        old_other_amount: target.other_amount ?? 0,
+        new_other_amount: other,
         old_free_amount: target.free_amount ?? 0,
         new_free_amount: free,
+        transfer_reference: mixedRef || null,
         note: mixedNote || null,
         changed_by: user?.id ?? null,
       } as any);
@@ -1052,7 +1078,10 @@ const Orders = () => {
         courier_cash_due: cash,
         vodafone_cash_amount: vod,
         instapay_amount: insta,
+        bank_transfer_amount: bank,
+        other_amount: other,
         free_amount: free,
+        transfer_reference: mixedRef || null,
         collection_updated_at: nowIso,
       } : o));
       setMixedDlgOrderId(null);
@@ -1075,14 +1104,21 @@ const Orders = () => {
     if (!target) return;
     // For mixed payment, open the breakdown dialog instead of saving directly.
     if (method === 'mixed_payment') { openMixedDialog(orderId); return; }
-    const due = method === 'cash_courier' ? Number(target.total || 0) : 0;
+    const totalVal = Number(target.total || 0);
+    const due = method === 'cash_courier' ? totalVal : 0;
+    const vod = method === 'vodafone_cash' ? totalVal : 0;
+    const insta = method === 'instapay' ? totalVal : 0;
+    const bank = method === 'bank_transfer' ? totalVal : 0;
+    const other = method === 'other' ? totalVal : 0;
+    const free = method === 'none' ? totalVal : 0;
     const nowIso = new Date().toISOString();
     // تحديث تفاؤلي
     setOrders((prev) =>
       prev.map((o) =>
         o.id === orderId
           ? { ...o, collection_method: method, courier_cash_due: due,
-              vodafone_cash_amount: 0, instapay_amount: 0, free_amount: 0,
+              vodafone_cash_amount: vod, instapay_amount: insta,
+              bank_transfer_amount: bank, other_amount: other, free_amount: free,
               collection_updated_at: nowIso }
           : o
       )
@@ -1093,9 +1129,11 @@ const Orders = () => {
         .update({
           collection_method: method,
           courier_cash_due: due,
-          vodafone_cash_amount: 0,
-          instapay_amount: 0,
-          free_amount: 0,
+          vodafone_cash_amount: vod,
+          instapay_amount: insta,
+          bank_transfer_amount: bank,
+          other_amount: other,
+          free_amount: free,
           collection_updated_at: nowIso,
           collection_updated_by: user?.id ?? null,
         } as any)
@@ -1714,6 +1752,8 @@ const Orders = () => {
                             <span className="text-emerald-700 font-bold">نقدي: {Number(order.courier_cash_due || 0).toLocaleString()}</span>
                             {Number(order.vodafone_cash_amount || 0) > 0 && <span className="text-rose-700">📱 فودافون: {Number(order.vodafone_cash_amount).toLocaleString()}</span>}
                             {Number(order.instapay_amount || 0) > 0 && <span className="text-indigo-700">💳 إنستاباي: {Number(order.instapay_amount).toLocaleString()}</span>}
+                            {Number(order.bank_transfer_amount || 0) > 0 && <span className="text-blue-700">🏦 بنكي: {Number(order.bank_transfer_amount).toLocaleString()}</span>}
+                            {Number(order.other_amount || 0) > 0 && <span className="text-zinc-700">💠 أخرى: {Number(order.other_amount).toLocaleString()}</span>}
                             {Number(order.free_amount || 0) > 0 && <span className="text-slate-600">🎁 مجاني: {Number(order.free_amount).toLocaleString()}</span>}
                           </span>
                         )}
@@ -2096,6 +2136,8 @@ const Orders = () => {
                                   <span className="font-bold text-emerald-700">نقدي: {Number(order.courier_cash_due || 0).toLocaleString()}</span>
                                   {Number(order.vodafone_cash_amount || 0) > 0 && <span className="text-rose-700">📱 {Number(order.vodafone_cash_amount).toLocaleString()}</span>}
                                   {Number(order.instapay_amount || 0) > 0 && <span className="text-indigo-700">💳 {Number(order.instapay_amount).toLocaleString()}</span>}
+                                  {Number(order.bank_transfer_amount || 0) > 0 && <span className="text-blue-700">🏦 {Number(order.bank_transfer_amount).toLocaleString()}</span>}
+                                  {Number(order.other_amount || 0) > 0 && <span className="text-zinc-700">💠 {Number(order.other_amount).toLocaleString()}</span>}
                                   {Number(order.free_amount || 0) > 0 && <span className="text-slate-600">🎁 {Number(order.free_amount).toLocaleString()}</span>}
                                 </span>
                               : order.collection_method
@@ -2356,8 +2398,10 @@ const Orders = () => {
             const cash = Number(mixedCash) || 0;
             const vod = Number(mixedVod) || 0;
             const insta = Number(mixedInsta) || 0;
+            const bank = Number(mixedBank) || 0;
+            const other = Number(mixedOther) || 0;
             const free = Number(mixedFree) || 0;
-            const sum = cash + vod + insta + free;
+            const sum = cash + vod + insta + bank + other + free;
             const totalVal = Number(t.total || 0);
             const diff = totalVal - sum;
             const ok = Math.abs(diff) <= 0.01;
@@ -2381,9 +2425,21 @@ const Orders = () => {
                     <Input type="number" min={0} step="0.01" value={mixedInsta} onChange={(e) => setMixedInsta(e.target.value)} />
                   </div>
                   <div>
+                    <label className="text-xs text-muted-foreground block mb-1">🏦 تحويل بنكي</label>
+                    <Input type="number" min={0} step="0.01" value={mixedBank} onChange={(e) => setMixedBank(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">💠 أخرى</label>
+                    <Input type="number" min={0} step="0.01" value={mixedOther} onChange={(e) => setMixedOther(e.target.value)} />
+                  </div>
+                  <div>
                     <label className="text-xs text-muted-foreground block mb-1">🎁 مجاني / معفى</label>
                     <Input type="number" min={0} step="0.01" value={mixedFree} onChange={(e) => setMixedFree(e.target.value)} />
                   </div>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">🔖 رقم مرجع التحويل (اختياري)</label>
+                  <Input value={mixedRef} onChange={(e) => setMixedRef(e.target.value)} placeholder="رقم عملية / رقم مرجع البنك" />
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">ملاحظات التحصيل</label>
