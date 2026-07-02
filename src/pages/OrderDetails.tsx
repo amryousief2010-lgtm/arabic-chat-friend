@@ -505,6 +505,8 @@ const OrderDetails = () => {
                     const rawUnit = Number(item.unit_price) || 0;
                     const unit = rawUnit > 0 ? rawUnit : (qty > 0 && lineTotal > 0 ? lineTotal / qty : 0);
                     const noPrice = unit === 0 && lineTotal === 0;
+                    const isOfferComponent = noPrice && !!item.offer_name;
+                    const isGift = noPrice && !item.offer_name;
                     return (
                     <div
                       key={item.id}
@@ -515,15 +517,27 @@ const OrderDetails = () => {
                           <ShoppingCart className="w-6 h-6 text-primary" />
                         </div>
                         <div>
-                          <p className="font-semibold">
-                            {item.product_name}
+                          <p className="font-semibold flex items-center gap-2 flex-wrap">
+                            <span>{item.product_name}</span>
                             {item.is_half_kg && (
-                              <span className="mr-2 text-xs px-2 py-0.5 rounded bg-secondary text-secondary-foreground">نصف كيلو</span>
+                              <span className="text-xs px-2 py-0.5 rounded bg-secondary text-secondary-foreground">نصف كيلو</span>
+                            )}
+                            {isOfferComponent && (
+                              <span className="text-[11px] px-2 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200">
+                                🎁 ضمن {item.offer_name}
+                              </span>
+                            )}
+                            {isGift && (
+                              <span className="text-[11px] px-2 py-0.5 rounded bg-pink-100 text-pink-700 border border-pink-200">
+                                🎁 مجاني / هدية
+                              </span>
                             )}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {noPrice ? (
-                              <span className="text-muted-foreground">الكمية: {qty.toLocaleString()} — <span className="italic">غير محسوب</span></span>
+                            {isOfferComponent ? (
+                              <span>الكمية: {qty.toLocaleString()} كجم — <span className="text-purple-700">السعر ضمن الأوفر</span></span>
+                            ) : isGift ? (
+                              <span>الكمية: {qty.toLocaleString()} — <span className="text-pink-700">0 ج.م (هدية)</span></span>
                             ) : item.is_half_kg ? (
                               <>
                                 <span className="text-primary font-medium">{qty} كجم</span>
@@ -570,7 +584,13 @@ const OrderDetails = () => {
                         </div>
                       </div>
                       <p className="font-bold text-lg">
-                        {noPrice ? <span className="text-muted-foreground text-sm">—</span> : `${lineTotal.toLocaleString()} ج.م`}
+                        {isOfferComponent ? (
+                          <span className="text-purple-700 text-sm">ضمن الأوفر</span>
+                        ) : isGift ? (
+                          <span className="text-pink-700 text-sm">0 ج.م</span>
+                        ) : (
+                          `${lineTotal.toLocaleString()} ج.م`
+                        )}
                       </p>
                     </div>
                     );
