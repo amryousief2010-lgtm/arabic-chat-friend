@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin, Printer, AlertCircle, AlertTriangle, Wallet } from "lucide-react";
+import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin, Printer, AlertCircle, AlertTriangle, Wallet, Zap } from "lucide-react";
 import { printOrderInvoice } from "@/lib/printUtils";
 import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth, cairoTodayStartUTC, toCairoDateString } from "@/lib/cairoDate";
 import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
@@ -40,6 +40,7 @@ import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
 import AddOfferDialog from "@/components/orders/AddOfferDialog";
 import EditAddressWarehouseDialog from "@/components/orders/EditAddressWarehouseDialog";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
+import QuickDeliveryDialog from "@/components/orders/QuickDeliveryDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -408,6 +409,7 @@ const Orders = () => {
   const mixedParam = searchParams.get("mixed");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [quickDeliveryOpen, setQuickDeliveryOpen] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 800);
     return () => clearTimeout(t);
@@ -1484,7 +1486,7 @@ const Orders = () => {
           </CardTitle>
           <div className="flex flex-wrap items-center gap-3">
             <Input
-              placeholder="بحث برقم الطلب أو اسم العميل أو رقم الهاتف..."
+              placeholder="بحث برقم الطلب (كامل أو آخر 6 أرقام) أو اسم العميل أو رقم الهاتف..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-64 input-modern"
@@ -1613,6 +1615,13 @@ const Orders = () => {
             </Button>
             <Button variant="outline" className="gap-2" onClick={() => exportOrdersToPDF(filteredOrders)}>
               <FileText className="w-4 h-4" /> PDF
+            </Button>
+            <Button
+              onClick={() => setQuickDeliveryOpen(true)}
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
+            >
+              <Zap className="w-4 h-4" />
+              تسليم سريع
             </Button>
             {!isSocialMediaManager && (
               <Button asChild className="gap-2">
@@ -2894,6 +2903,16 @@ const Orders = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <QuickDeliveryDialog
+        open={quickDeliveryOpen}
+        onOpenChange={setQuickDeliveryOpen}
+        orders={orders as any}
+        statusLabels={statusLabels}
+        onDeliver={async (id) => {
+          await handleStatusChange(id, 'delivered');
+        }}
+      />
     </DashboardLayout>
   );
 };
