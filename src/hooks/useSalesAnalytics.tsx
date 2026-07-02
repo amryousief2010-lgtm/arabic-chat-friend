@@ -40,15 +40,13 @@ export const useTodayOrdersBreakdown = () => {
           year: "numeric", month: "2-digit", day: "2-digit",
         }).format(new Date(o.created_at)) === todayStr
       );
-      let shipping = 0, mainWarehouse = 0, agouza = 0, unclassified = 0;
+      let mainWarehouse = 0, agouza = 0, unclassified = 0;
       for (const o of rows as any[]) {
-        const sc = (o.shipping_company || "").trim();
-        if (sc && sc !== "مندوب خاص") shipping++;
-        else if (o.source_warehouse_id === MAIN_WAREHOUSE_ID) mainWarehouse++;
+        if (o.source_warehouse_id === MAIN_WAREHOUSE_ID) mainWarehouse++;
         else if (o.source_warehouse_id === AGOUZA_WAREHOUSE_ID) agouza++;
         else unclassified++;
       }
-      return { shipping, mainWarehouse, agouza, unclassified, total: rows.length };
+      return { mainWarehouse, agouza, unclassified, total: rows.length };
     },
     staleTime: 60 * 1000,
     refetchInterval: 2 * 60 * 1000,
