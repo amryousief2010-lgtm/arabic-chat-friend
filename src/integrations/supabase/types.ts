@@ -2649,6 +2649,71 @@ export type Database = {
         }
         Relationships: []
       }
+      courier_daily_cash_deposit_lines: {
+        Row: {
+          bank_transfer_amount: number
+          collection_method: string | null
+          courier_cash_due: number
+          created_at: string
+          customer_name: string | null
+          deposit_id: string
+          free_amount: number
+          id: string
+          instapay_amount: number
+          order_id: string
+          order_number: string
+          order_total: number
+          other_amount: number
+          status: string | null
+          update_status_marker: string | null
+          vodafone_cash_amount: number
+        }
+        Insert: {
+          bank_transfer_amount?: number
+          collection_method?: string | null
+          courier_cash_due?: number
+          created_at?: string
+          customer_name?: string | null
+          deposit_id: string
+          free_amount?: number
+          id?: string
+          instapay_amount?: number
+          order_id: string
+          order_number: string
+          order_total?: number
+          other_amount?: number
+          status?: string | null
+          update_status_marker?: string | null
+          vodafone_cash_amount?: number
+        }
+        Update: {
+          bank_transfer_amount?: number
+          collection_method?: string | null
+          courier_cash_due?: number
+          created_at?: string
+          customer_name?: string | null
+          deposit_id?: string
+          free_amount?: number
+          id?: string
+          instapay_amount?: number
+          order_id?: string
+          order_number?: string
+          order_total?: number
+          other_amount?: number
+          status?: string | null
+          update_status_marker?: string | null
+          vodafone_cash_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_daily_cash_deposit_lines_deposit_id_fkey"
+            columns: ["deposit_id"]
+            isOneToOne: false
+            referencedRelation: "courier_daily_cash_deposits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       courier_daily_cash_deposits: {
         Row: {
           amount: number
