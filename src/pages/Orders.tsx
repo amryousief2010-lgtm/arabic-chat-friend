@@ -241,8 +241,23 @@ const formatItemQty = (qty: number, unit?: string): string => {
 
 const Orders = () => {
  const { user, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, roles, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems } = useAuth();
- const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
-  const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
+  const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
+   const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
+   // صلاحية إدارة/اختيار طريقة التحصيل — الأدوار المسؤولة عن التحصيل فعلياً فقط.
+   // الأدوار التسويقية (مثل مديرة التسويق م/آلاء) تحدّث الحالة فقط بدون فتح شاشة التحصيل.
+   const rolesList = (roles || []) as string[];
+   const canSetCollectionMethod =
+     isGeneralManager ||
+     isExecutiveManager ||
+     isWarehouseSupervisor ||
+     isAccountant ||
+     isShippingCompany ||
+     isPrivateDeliveryRep ||
+     rolesList.includes('financial_manager') ||
+     rolesList.includes('main_treasury_accountant') ||
+     rolesList.includes('main_treasury_approver') ||
+     rolesList.includes('treasury_accountant') ||
+     rolesList.includes('courier');
   const [orders, setOrders] = useState<Order[]>([]);
   // M4-B: per-order Agouza reservation status. Drives the Agouza-only badge and
   // blocks delivery confirmation when no active/committed reservation exists.
@@ -1231,9 +1246,10 @@ const Orders = () => {
       const isAgouza = targetOrder?.source_warehouse_id === AGOUZA_WAREHOUSE_ID;
       const prevStatus = targetOrder?.status as OrderStatus | undefined;
 
-      // إلزامية اختيار طريقة التحصيل قبل تأكيد التسليم.
-      // لا تمس منطق التسليم/المخزون/المالية — مجرد Gate واجهة.
-      if (newStatus === 'delivered' && !targetOrder?.collection_method) {
+      // إلزامية اختيار طريقة التحصيل قبل تأكيد التسليم — فقط لأدوار التحصيل.
+      // الأدوار التسويقية/الموديريتور تحدّث الحالة فقط بدون فتح شاشة التحصيل،
+      // ولا تُنشئ أو تعدّل أي بيانات تحصيل (breakdown / cash_due).
+      if (newStatus === 'delivered' && !targetOrder?.collection_method && canSetCollectionMethod) {
         setPendingDeliveryMethod('cash_courier');
         setPendingDeliveryOrderId(orderId);
         return;
@@ -1813,17 +1829,19 @@ const Orders = () => {
                           <span className="text-muted-foreground">مطلوب من المندوب: 0 ج</span>
                         )}
                       </div>
-                      <Select
-                        value={order.collection_method ?? '__unset__'}
-                        onValueChange={(v) => updateCollectionMethod(order.id, v as CollectionMethod)}
-                      >
-                        <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="تغيير طريقة التحصيل" /></SelectTrigger>
-                        <SelectContent>
-                          {(Object.keys(collectionMethodMeta) as CollectionMethod[]).map((k) => (
-                            <SelectItem key={k} value={k}>{collectionMethodMeta[k].label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {canSetCollectionMethod && (
+                        <Select
+                          value={order.collection_method ?? '__unset__'}
+                          onValueChange={(v) => updateCollectionMethod(order.id, v as CollectionMethod)}
+                        >
+                          <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="تغيير طريقة التحصيل" /></SelectTrigger>
+                          <SelectContent>
+                            {(Object.keys(collectionMethodMeta) as CollectionMethod[]).map((k) => (
+                              <SelectItem key={k} value={k}>{collectionMethodMeta[k].label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
 
                     {!isSalesModerator && (
@@ -2185,27 +2203,39 @@ const Orders = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-1 min-w-[170px]">
-                        <Select
-                          value={order.collection_method ?? '__unset__'}
-                          onValueChange={(v) => updateCollectionMethod(order.id, v as CollectionMethod)}
-                        >
-                          <SelectTrigger className="w-full h-8 px-2">
-                            {order.collection_method ? (
-                              <Badge className={`text-[11px] border ${collectionMethodMeta[order.collection_method].className}`}>
-                                {collectionMethodMeta[order.collection_method].short}
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-[11px] text-muted-foreground border-muted">
-                                لم يحدد التحصيل
-                              </Badge>
-                            )}
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(Object.keys(collectionMethodMeta) as CollectionMethod[]).map((k) => (
-                              <SelectItem key={k} value={k}>{collectionMethodMeta[k].label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {canSetCollectionMethod ? (
+                          <Select
+                            value={order.collection_method ?? '__unset__'}
+                            onValueChange={(v) => updateCollectionMethod(order.id, v as CollectionMethod)}
+                          >
+                            <SelectTrigger className="w-full h-8 px-2">
+                              {order.collection_method ? (
+                                <Badge className={`text-[11px] border ${collectionMethodMeta[order.collection_method].className}`}>
+                                  {collectionMethodMeta[order.collection_method].short}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[11px] text-muted-foreground border-muted">
+                                  لم يحدد التحصيل
+                                </Badge>
+                              )}
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(Object.keys(collectionMethodMeta) as CollectionMethod[]).map((k) => (
+                                <SelectItem key={k} value={k}>{collectionMethodMeta[k].label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          order.collection_method ? (
+                            <Badge className={`text-[11px] border ${collectionMethodMeta[order.collection_method].className}`}>
+                              {collectionMethodMeta[order.collection_method].short}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[11px] text-muted-foreground border-muted">
+                              يحتاج مراجعة تحصيل
+                            </Badge>
+                          )
+                        )}
                         <span className="text-[11px] text-muted-foreground">
                           {order.collection_method === 'cash_courier'
                             ? <>مطلوب: <span className="font-bold text-emerald-700">{Number(order.courier_cash_due || order.total).toLocaleString()} ج</span></>
