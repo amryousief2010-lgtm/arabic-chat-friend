@@ -350,7 +350,10 @@ const Orders = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
   const todayParam = searchParams.get("today") === "1";
-  const channelParam = searchParams.get("channel"); // 'shipping' | 'main' | 'other' | null
+  const channelParam = searchParams.get("channel"); // 'shipping' | 'main' | 'agouza' | 'unclassified' | null
+  const rangeParam = searchParams.get("range"); // '7d' | null
+  const productIdParam = searchParams.get("product_id");
+  const productNameParam = searchParams.get("product_name");
   const yearGroup: YearGroup =
     yearParam === "2026" || yearParam === "pre2026" || yearParam === "all"
       ? (yearParam as YearGroup)
