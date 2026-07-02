@@ -108,11 +108,60 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
     onReceived?.();
   };
 
-  const printTransfer = (r: Row) => {
-    const w = window.open("", "_blank", "width=800,height=900");
+  const printTransfer = async (r: Row) => {
+    const w = window.open("", "_blank", "width=900,height=1000");
     if (!w) return;
+    w.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/><title>جاري التحميل...</title></head><body style="font-family:Cairo,Tahoma,sans-serif;padding:24px;text-align:center">جاري تحميل تفاصيل الأوردرات...</body></html>`);
     const performedBy = (r.performed_by && names[r.performed_by]) || "—";
     const dateStr = new Date(r.performed_at).toLocaleString("ar-EG");
+
+    // Extract order numbers from notes
+    const notes = r.notes || "";
+    const orderNumbers = Array.from(new Set((notes.match(/ORD-\d+-\d+/g) || [])));
+
+    type OrderRow = { order_number: string; total: number | null; courier_cash_due: number | null; collection_method: string | null; customer_id: string | null; };
+    let orders: OrderRow[] = [];
+    let customerMap: Record<string, string> = {};
+    if (orderNumbers.length) {
+      const { data: ords } = await (supabase as any)
+        .from("orders")
+        .select("order_number,total,courier_cash_due,collection_method,customer_id")
+        .in("order_number", orderNumbers);
+      orders = (ords || []) as OrderRow[];
+      const cids = Array.from(new Set(orders.map((o) => o.customer_id).filter(Boolean))) as string[];
+      if (cids.length) {
+        const { data: custs } = await (supabase as any).from("customers").select("id,name").in("id", cids);
+        (custs || []).forEach((c: any) => { customerMap[c.id] = c.name || ""; });
+      }
+    }
+
+    const cmLabel = (m: string | null) => {
+      switch (m) {
+        case "cash_with_courier": return "كاش مع المندوب";
+        case "vodafone_cash": return "فودافون كاش";
+        case "instapay": return "إنستاباي";
+        case "bank_transfer": return "تحويل بنكي";
+        case "mixed": return "مختلط";
+        case "prepaid": return "مدفوع مسبقًا";
+        case "free": return "مجاني";
+        case "none": return "—";
+        default: return m || "—";
+      }
+    };
+
+    const ordersTotal = orders.reduce((s, o) => s + Number(o.courier_cash_due || o.total || 0), 0);
+    const rowsHtml = orders.length
+      ? orders.map((o) => `<tr>
+          <td>${o.order_number}</td>
+          <td>${(o.customer_id && customerMap[o.customer_id]) || "—"}</td>
+          <td>${cmLabel(o.collection_method)}</td>
+          <td class="num">${fmt(Number(o.total || 0))}</td>
+          <td class="num strong">${fmt(Number(o.courier_cash_due || 0))}</td>
+        </tr>`).join("")
+      : `<tr><td colspan="5" style="text-align:center;color:#888">لا توجد أوردرات مرتبطة</td></tr>`;
+
+    const missing = orderNumbers.filter((n) => !orders.find((o) => o.order_number === n));
+
     const html = `<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/>
 <title>تفاصيل التوريد ${r.reference || ""}</title>
 <style>
@@ -121,23 +170,47 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
   .card{border:1px solid #ddd;border-radius:8px;padding:14px;margin-top:14px;}
   .row{display:flex;justify-content:space-between;gap:12px;margin:6px 0;font-size:13px;}
   .amount{font-size:22px;font-weight:700;color:#059669;}
-  pre{white-space:pre-wrap;background:#f6f6f6;padding:10px;border-radius:6px;font-family:inherit;font-size:13px;line-height:1.8;}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px;}
+  th,td{border:1px solid #ddd;padding:6px 8px;text-align:right;}
+  th{background:#f3f4f6;font-weight:700;}
+  td.num{font-family:monospace;text-align:left;direction:ltr;} td.strong{font-weight:700;color:#059669;}
+  tfoot td{background:#f9fafb;font-weight:700;}
+  pre{white-space:pre-wrap;background:#f6f6f6;padding:10px;border-radius:6px;font-family:inherit;font-size:12px;line-height:1.7;}
   @media print{button{display:none;}}
 </style></head><body>
 <h1>تفاصيل توريد من خزينة المخزن الرئيسي</h1>
 <div class="muted">تاريخ الطباعة: ${new Date().toLocaleString("ar-EG")}</div>
 <div class="card">
-  <div class="row"><span>المبلغ الإجمالي</span><span class="amount">${fmt(Number(r.amount||0))} ج.م</span></div>
+  <div class="row"><span>المبلغ الإجمالي للتوريد</span><span class="amount">${fmt(Number(r.amount||0))} ج.م</span></div>
   <div class="row"><span>رقم المرجع</span><b>${r.reference || "—"}</b></div>
   <div class="row"><span>المندوب</span><b>${r.courier_name || "—"}</b></div>
   <div class="row"><span>بواسطة</span><b>${performedBy}</b></div>
   <div class="row"><span>تاريخ التوريد</span><b>${dateStr}</b></div>
   <div class="row"><span>الحالة</span><b>${r.status === "pending_approval" ? "بانتظار الاعتماد" : r.status}</b></div>
+  <div class="row"><span>عدد الأوردرات</span><b>${orderNumbers.length}</b></div>
 </div>
-${r.notes ? `<div class="card"><div class="muted" style="margin-bottom:8px">تفاصيل الأيام والأوردرات:</div><pre>${r.notes.replace(/</g,"&lt;")}</pre></div>` : ""}
+
+<div class="card">
+  <div class="muted" style="margin-bottom:8px">تفاصيل الأوردرات — الفلوس دي بتاعت إيه:</div>
+  <table>
+    <thead><tr>
+      <th>رقم الأوردر</th><th>العميل</th><th>طريقة التحصيل</th><th>إجمالي الأوردر</th><th>المستحق على المندوب</th>
+    </tr></thead>
+    <tbody>${rowsHtml}</tbody>
+    <tfoot><tr>
+      <td colspan="3">الإجمالي</td>
+      <td class="num">${fmt(orders.reduce((s,o)=>s+Number(o.total||0),0))}</td>
+      <td class="num strong">${fmt(ordersTotal)}</td>
+    </tr></tfoot>
+  </table>
+  ${missing.length ? `<div class="muted" style="margin-top:8px;color:#b91c1c">أوردرات غير موجودة في النظام: ${missing.join(", ")}</div>` : ""}
+</div>
+
+${r.notes ? `<div class="card"><div class="muted" style="margin-bottom:8px">تفاصيل الأيام (كما تم إدخالها):</div><pre>${r.notes.replace(/</g,"&lt;")}</pre></div>` : ""}
 <div style="margin-top:20px;text-align:center"><button onclick="window.print()">طباعة</button></div>
-<script>setTimeout(()=>window.print(),400);</script>
+<script>setTimeout(()=>window.print(),500);</script>
 </body></html>`;
+    w.document.open();
     w.document.write(html);
     w.document.close();
   };
