@@ -615,6 +615,68 @@ const OrderDetails = () => {
               </CardContent>
             </Card>
 
+            {/* Collection Breakdown */}
+            <Card className="glass-card">
+              <CardHeader>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="flex items-center gap-2">
+                    <Wallet className="w-5 h-5 text-emerald-600" />
+                    تفاصيل التحصيل
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                    onClick={() => navigate(`/orders?mixed=${order.id}`)}
+                  >
+                    <Wallet className="w-4 h-4" />
+                    ضبط التحصيل
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const cash = Number(order.courier_cash_due || 0);
+                  const vod = Number(order.vodafone_cash_amount || 0);
+                  const insta = Number(order.instapay_amount || 0);
+                  const bank = Number(order.bank_transfer_amount || 0);
+                  const other = Number(order.other_amount || 0);
+                  const free = Number(order.free_amount || 0);
+                  const rows: Array<{ label: string; amount: number; className?: string }> = [
+                    { label: 'نقدي مع المندوب', amount: cash },
+                    { label: '📱 فودافون كاش', amount: vod },
+                    { label: 'إنستاباي', amount: insta },
+                    { label: 'تحويل بنكي', amount: bank },
+                    { label: 'أخرى', amount: other },
+                    { label: 'مجاني', amount: free, className: 'text-pink-600' },
+                  ].filter((r) => r.amount > 0);
+                  if (rows.length === 0) {
+                    return <p className="text-sm text-muted-foreground">لم يتم تسجيل تفاصيل تحصيل بعد. اضغط «ضبط التحصيل» لتحديد كيف حوّل العميل وكم استلم المندوب نقدي.</p>;
+                  }
+                  return (
+                    <div className="space-y-1.5 text-sm">
+                      {rows.map((r, i) => (
+                        <div key={i} className={`flex justify-between ${r.className || ''}`}>
+                          <span>{r.label}</span>
+                          <span className="font-semibold">{r.amount.toLocaleString()} ج.م</span>
+                        </div>
+                      ))}
+                      {order.transfer_reference && (
+                        <div className="flex justify-between border-t pt-1.5 text-xs">
+                          <span className="text-muted-foreground">رقم المرجع</span>
+                          <span>{order.transfer_reference}</span>
+                        </div>
+                      )}
+                      {order.collection_note && (
+                        <div className="border-t pt-1.5 text-xs text-muted-foreground">📝 {order.collection_note}</div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+
+
             {/* Notes Card */}
             {order.notes && (
               <Card className="glass-card">
