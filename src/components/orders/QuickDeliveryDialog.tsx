@@ -85,6 +85,12 @@ const QuickDeliveryDialog = ({ open, onOpenChange, orders, onDeliver, statusLabe
           />
         </div>
 
+        {!canMarkDelivered && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 text-xs p-2 mt-2">
+            تحديث حالة التسليم من صلاحيات التسويق فقط. يمكنك ضبط التحصيل بعد التسليم من تفاصيل الأوردر.
+          </div>
+        )}
+
         <div className="max-h-[420px] overflow-y-auto space-y-2 mt-2">
           {query.trim() === "" ? (
             <p className="text-center text-muted-foreground py-8 text-sm">
