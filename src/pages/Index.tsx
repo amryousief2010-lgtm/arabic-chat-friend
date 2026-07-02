@@ -265,14 +265,22 @@ const DashboardContent = () => {
                   <span className="text-muted-foreground">المخزن الرئيسي</span>
                   <span className="font-semibold">{todayBreakdown.mainWarehouse} أوردر</span>
                 </button>
-                {todayBreakdown.other > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); navigate('/orders?today=1&channel=agouza'); }}
+                  className="w-full flex items-center justify-between hover:text-primary transition-colors"
+                >
+                  <span className="text-muted-foreground">مخزن العجوزة</span>
+                  <span className="font-semibold">{todayBreakdown.agouza} أوردر</span>
+                </button>
+                {todayBreakdown.unclassified > 0 && (
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); navigate('/orders?today=1&channel=other'); }}
+                    onClick={(e) => { e.stopPropagation(); navigate('/orders?today=1&channel=unclassified'); }}
                     className="w-full flex items-center justify-between hover:text-primary transition-colors"
                   >
-                    <span className="text-muted-foreground">أخرى</span>
-                    <span className="font-semibold">{todayBreakdown.other} أوردر</span>
+                    <span className="text-muted-foreground">غير مصنف</span>
+                    <span className="font-semibold">{todayBreakdown.unclassified} أوردر</span>
                   </button>
                 )}
               </div>
