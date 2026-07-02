@@ -985,6 +985,8 @@ const Orders = () => {
   const [mixedInsta, setMixedInsta] = useState<string>('');
   const [mixedFree, setMixedFree] = useState<string>('');
   const [mixedNote, setMixedNote] = useState<string>('');
+  // إذا فُتحت النافذة أثناء تدفق تأكيد التسليم، نتابع التحويل إلى delivered بعد الحفظ.
+  const [deliverAfterMixedSave, setDeliverAfterMixedSave] = useState<boolean>(false);
 
   const openMixedDialog = (orderId: string) => {
     const t = orders.find((o) => o.id === orderId);
