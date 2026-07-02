@@ -259,6 +259,18 @@ const Orders = () => {
      rolesList.includes('main_treasury_approver') ||
      rolesList.includes('treasury_accountant') ||
      rolesList.includes('courier');
+   // صلاحية تحديث حالة الأوردر إلى "تم التسليم للعميل".
+   // مسموح: التسويق (م/آلاء) والموديريتور ومدير المبيعات والإدارة العليا وشركات الشحن/المندوبين.
+   // ممنوع: مسؤول المخزن (عبدالمنعم) والمحاسبون/الخزنة — دورهم بعد التسليم فقط (ضبط التحصيل).
+   const canMarkDelivered =
+     isGeneralManager ||
+     isExecutiveManager ||
+     rolesList.includes('marketing_sales_manager') ||
+     rolesList.includes('sales_manager') ||
+     isSalesModerator ||
+     isShippingCompany ||
+     isPrivateDeliveryRep ||
+     rolesList.includes('courier');
   const [orders, setOrders] = useState<Order[]>([]);
   // M4-B: per-order Agouza reservation status. Drives the Agouza-only badge and
   // blocks delivery confirmation when no active/committed reservation exists.
