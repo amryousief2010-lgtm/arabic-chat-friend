@@ -1,0 +1,3 @@
+UPDATE public.hr_deductions SET employee_id = '362f2fd3-2e76-49b5-9a89-3ef2957d9b72', updated_at = now() WHERE id = '12ce3528-446d-4b1d-90c3-616f01643bc8';
+UPDATE public.hr_deductions SET employee_id = 'd6ccac7b-2f85-4ea6-bca5-272e69cb1f10', updated_at = now() WHERE id = 'dfcdf743-6b9c-4127-9d81-5d09511adbb5';
+UPDATE public.hr_deductions SET employee_id = '885744f4-9e14-4db2-bb64-548c179a3dbc', updated_at = now() WHERE id = 'd36f9b1d-a0f7-4e91-bfd4-630997a299ee';
