@@ -2447,6 +2447,12 @@ const Orders = () => {
                 const method = pendingDeliveryMethod;
                 setPendingDeliveryOrderId(null);
                 if (!id) return;
+                // للتحصيل المختلط: افتح نافذة توزيع المبالغ أولًا، ولا تُغيّر الحالة حتى الحفظ.
+                if (method === 'mixed_payment') {
+                  setDeliverAfterMixedSave(true);
+                  openMixedDialog(id);
+                  return;
+                }
                 await updateCollectionMethod(id, method);
                 await handleStatusChange(id, 'delivered');
               }}
