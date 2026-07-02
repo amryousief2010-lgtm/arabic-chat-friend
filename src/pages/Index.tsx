@@ -7,6 +7,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import StatCard from "@/components/dashboard/StatCard";
 import ActiveUsersWidget from "@/components/ActiveUsersWidget";
+import TopProducts7DaysCard from "@/components/dashboard/TopProducts7DaysCard";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -309,6 +310,10 @@ const DashboardContent = () => {
         </Card>
       </div>
       )}
+
+      <TopProducts7DaysCard />
+
+
 
       {/* Sales Trends — Monthly (current year) & Daily (current month) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

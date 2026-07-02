@@ -350,7 +350,10 @@ const Orders = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
   const todayParam = searchParams.get("today") === "1";
-  const channelParam = searchParams.get("channel"); // 'shipping' | 'main' | 'other' | null
+  const channelParam = searchParams.get("channel"); // 'shipping' | 'main' | 'agouza' | 'unclassified' | null
+  const rangeParam = searchParams.get("range"); // '7d' | null
+  const productIdParam = searchParams.get("product_id");
+  const productNameParam = searchParams.get("product_name");
   const yearGroup: YearGroup =
     yearParam === "2026" || yearParam === "pre2026" || yearParam === "all"
       ? (yearParam as YearGroup)
@@ -365,6 +368,9 @@ const Orders = () => {
     const next = new URLSearchParams(searchParams);
     next.delete("today");
     next.delete("channel");
+    next.delete("range");
+    next.delete("product_id");
+    next.delete("product_name");
     setSearchParams(next, { replace: true });
   };
   const [searchQuery, setSearchQuery] = useState("");
@@ -784,8 +790,24 @@ const Orders = () => {
       else ch = 'unclassified';
       matchesDashboardChannel = ch === channelParam;
     }
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel;
-  }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam]);
+    // Dashboard "Top products (7d)" deep-link: /orders?range=7d&product_id=... or product_name=...
+    let matchesRange7d = true;
+    let matchesProductParam = true;
+    if (rangeParam === '7d') {
+      const todayStart = cairoTodayStartUTC(new Date());
+      const rangeStart = new Date(todayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
+      const rangeEnd = new Date(todayStart.getTime() + 26 * 60 * 60 * 1000);
+      const created = new Date(order.created_at);
+      matchesRange7d = created >= rangeStart && created < rangeEnd;
+    }
+    if (productIdParam || productNameParam) {
+      const items = (order as any).order_items || [];
+      matchesProductParam = items.some((it: any) =>
+        productIdParam ? it.product_id === productIdParam : it.product_name === productNameParam,
+      );
+    }
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange7d && matchesProductParam;
+  }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
 
   // إجمالي المطلوب من المندوب كاش على الأوردرات الظاهرة حالياً بعد الفلاتر.
   const totalCourierCashDue = useMemo(
@@ -1334,11 +1356,13 @@ const Orders = () => {
                 عرض طلبات {monthNames[now.getMonth()]} فقط — اكتب فى البحث لرؤية كل الشهور
               </Badge>
             )}
-            {(todayParam || channelParam) && (
+            {(todayParam || channelParam || rangeParam || productIdParam || productNameParam) && (
               <Badge variant="secondary" className="text-xs font-normal gap-1 bg-primary/10 text-primary border-primary/30">
                 فلتر نشط:
                 {todayParam ? ' طلبات اليوم' : ''}
+                {rangeParam === '7d' ? ' آخر 7 أيام' : ''}
                 {channelParam === 'shipping' ? ' — شركة الشحن' : channelParam === 'main' ? ' — المخزن الرئيسي' : channelParam === 'agouza' ? ' — مخزن العجوزة' : channelParam === 'unclassified' ? ' — غير مصنف' : ''}
+                {(productIdParam || productNameParam) ? ` — المنتج: ${productNameParam || (orders.find(o => (o as any).order_items?.some((it: any) => it.product_id === productIdParam)) as any)?.order_items?.find((it: any) => it.product_id === productIdParam)?.product_name || productIdParam}` : ''}
                 <button
                   type="button"
                   onClick={clearDashboardFilter}
