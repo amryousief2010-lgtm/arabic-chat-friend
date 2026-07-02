@@ -42,6 +42,14 @@ import EditAddressWarehouseDialog from "@/components/orders/EditAddressWarehouse
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import QuickDeliveryDialog from "@/components/orders/QuickDeliveryDialog";
 import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -335,6 +343,14 @@ const Orders = () => {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const toggleExpanded = (id: string) => {
     setExpandedItems(prev => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  };
+  const [expandedDetails, setExpandedDetails] = useState<Set<string>>(new Set());
+  const toggleDetails = (id: string) => {
+    setExpandedDetails(prev => {
       const n = new Set(prev);
       n.has(id) ? n.delete(id) : n.add(id);
       return n;
@@ -1799,219 +1815,289 @@ const Orders = () => {
                       </div>
                     )}
 
+                    {/* السطر الأساسي: السعر + التاريخ */}
                     <div className="flex items-center justify-between gap-2 pt-1 border-t">
-                      <span className="font-bold text-primary">{order.total.toLocaleString()} ج.م</span>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Badge variant="outline" className="text-xs">{paymentLabels[order.payment_method] || order.payment_method}</Badge>
-                        <Badge className={`text-xs ${order.payment_status === 'paid' ? 'bg-success text-success-foreground' : order.payment_status === 'failed' ? 'bg-destructive text-destructive-foreground' : 'bg-warning text-warning-foreground'}`}>
-                          {paymentStatusLabels[order.payment_status] || order.payment_status}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                      <span>{formatDate(order.created_at)} — {new Date(order.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
-                      <Badge className={`text-xs ${order.collection_status === 'collected' ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'}`}>
-                        {order.collection_status === 'collected' ? 'تم التحصيل' : 'لم يتم التحصيل'}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-muted-foreground shrink-0">حالة التحديث:</span>
-                      {order.update_status_marker ? (
-                        <Badge
-                          className={`text-[11px] border ${updateMarkerMeta[order.update_status_marker].className}`}
-                          title={order.update_status_updated_at ? `آخر تحديث: ${new Date(order.update_status_updated_at).toLocaleString('ar-EG')}` : undefined}
-                        >
-                          {updateMarkerMeta[order.update_status_marker].label}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-[11px] text-muted-foreground border-muted">
-                          لم يتم التحديث
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-1 text-xs">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-muted-foreground shrink-0">طريقة التحصيل:</span>
-                        {order.collection_method ? (
-                          <Badge className={`text-[11px] border ${collectionMethodMeta[order.collection_method].className}`}>
-                            {collectionMethodMeta[order.collection_method].short}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[11px] text-muted-foreground border-muted">
-                            لم يحدد التحصيل
-                          </Badge>
-                        )}
-                        {order.collection_method === 'cash_courier' && (
-                          <span className="text-emerald-700 font-bold">
-                            مطلوب: {Number(order.courier_cash_due || order.total).toLocaleString()} ج
-                          </span>
-                        )}
-                        {order.collection_method === 'mixed_payment' && (
-                          <span className="flex flex-wrap gap-x-2 gap-y-0.5 text-[11px]">
-                            <span className="text-emerald-700 font-bold">نقدي: {Number(order.courier_cash_due || 0).toLocaleString()}</span>
-                            {Number(order.vodafone_cash_amount || 0) > 0 && <span className="text-rose-700">📱 فودافون: {Number(order.vodafone_cash_amount).toLocaleString()}</span>}
-                            {Number(order.instapay_amount || 0) > 0 && <span className="text-indigo-700">💳 إنستاباي: {Number(order.instapay_amount).toLocaleString()}</span>}
-                            {Number(order.bank_transfer_amount || 0) > 0 && <span className="text-blue-700">🏦 بنكي: {Number(order.bank_transfer_amount).toLocaleString()}</span>}
-                            {Number(order.other_amount || 0) > 0 && <span className="text-zinc-700">💠 أخرى: {Number(order.other_amount).toLocaleString()}</span>}
-                            {Number(order.free_amount || 0) > 0 && <span className="text-slate-600">🎁 مجاني: {Number(order.free_amount).toLocaleString()}</span>}
-                          </span>
-                        )}
-                        {order.collection_method && order.collection_method !== 'cash_courier' && order.collection_method !== 'mixed_payment' && (
-                          <span className="text-muted-foreground">مطلوب من المندوب: 0 ج</span>
-                        )}
-                      </div>
-                      {canSetCollectionMethod && (
-                        <Select
-                          value={order.collection_method ?? '__unset__'}
-                          onValueChange={(v) => updateCollectionMethod(order.id, v as CollectionMethod)}
-                        >
-                          <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="تغيير طريقة التحصيل" /></SelectTrigger>
-                          <SelectContent>
-                            {(Object.keys(collectionMethodMeta) as CollectionMethod[]).map((k) => (
-                              <SelectItem key={k} value={k}>{collectionMethodMeta[k].label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
+                      <span className="font-bold text-primary text-base">{order.total.toLocaleString()} ج.م</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDate(order.created_at)}
+                      </span>
                     </div>
 
-                    {!isSalesModerator && (
-                      <Select value={order.status} onValueChange={(v: OrderStatus) => handleStatusChange(order.id, v)}>
-                        <SelectTrigger className="w-full h-9 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(statusLabels)
-                           .filter(([value]) => value === order.status || value === 'pending' || value === 'cancelled' || (value === 'delivered' && canMarkDelivered))
-                            .map(([value, label]) => (
-                              <SelectItem key={value} value={value}>
-                                {value === 'pending' && isPrivateDeliveryRep ? 'مؤجل' : label}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    {isAccountant && (
-                      <Select value={order.collection_status} onValueChange={(v) => handleCollectionChange(order.id, v)}>
-                        <SelectTrigger className="w-full h-9 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="collected">تم التحصيل</SelectItem>
-                          <SelectItem value="not_collected">لم يتم التحصيل</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                    {order.governorate && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <MapPin className="w-3 h-3" /> {order.governorate}
-                      </div>
-                    )}
-                    {isPrivateDeliveryRep && order.delivery_address && (
-                      <div className="text-xs bg-primary/5 border border-primary/20 rounded px-2 py-1 break-words">
-                        <span className="font-semibold text-primary">العنوان: </span>
-                        {order.delivery_address}
+                    {/* المحافظة + مصدر التنفيذ (مختصر) */}
+                    {(order.governorate || order.source_warehouse_name || order.shipping_company) && (
+                      <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                        {order.governorate && (
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="w-3 h-3" /> {order.governorate}
+                          </span>
+                        )}
+                        {(order.source_warehouse_name || order.shipping_company) && (
+                          <Badge variant="outline" className="text-[10px]">
+                            {order.fulfillment_type === 'pickup' ? 'استلام من ' : order.fulfillment_type === 'delivery' ? 'توصيل من ' : ''}
+                            {order.source_warehouse_name || order.shipping_company || '-'}
+                          </Badge>
+                        )}
                       </div>
                     )}
 
-                    {(order.source_warehouse_name || order.fulfillment_type || order.shipping_company) && (
-                      <div className="text-[11px]">
-                        <Badge variant="outline" className="text-[10px]">
-                          {order.fulfillment_type === 'pickup' ? 'استلام من ' : order.fulfillment_type === 'delivery' ? 'توصيل من ' : ''}
-                          {order.source_warehouse_name || order.shipping_company || '-'}
-                          {order.fulfillment_type === 'delivery' && order.source_warehouse_name?.includes('الرئيسي') ? ' • مندوب خاص (كيمو)' : ''}
-                        </Badge>
-                      </div>
-                    )}
-                    {order.source_warehouse_id === AGOUZA_WAREHOUSE_ID && (() => {
-                      const resv = agouzaResvMap[order.id] ?? 'none';
-                      // Shortage = order is still pending and the reservation
-                      // attempt did not produce an active/committed row.
-                      const isShortage = resv === 'none' && order.status !== 'delivered' && order.status !== 'cancelled';
-                      let label = 'حجز عجوزة • محجوز';
-                      let cls = 'border-purple-400 text-purple-700 bg-purple-50';
-                      if (resv === 'committed') { label = 'حجز عجوزة • تم الخصم'; cls = 'border-emerald-400 text-emerald-700 bg-emerald-50'; }
-                      else if (resv === 'released') { label = 'حجز عجوزة • تم فك الحجز'; cls = 'border-slate-400 text-slate-700 bg-slate-50'; }
-                      else if (resv === 'active') { label = 'حجز عجوزة • محجوز'; cls = 'border-purple-400 text-purple-700 bg-purple-50'; }
-                      else if (isShortage) { label = '⚠ عجز مخزون العجوزة'; cls = 'border-red-500 text-red-700 bg-red-50 font-semibold'; }
-                      else { label = 'حجز عجوزة • —'; cls = 'border-slate-300 text-slate-600 bg-slate-50'; }
+                    {/* شريط الأزرار الأساسي */}
+                    {(() => {
+                      const isDetailsShown = expandedDetails.has(order.id);
+                      const statusOptions = Object.entries(statusLabels).filter(
+                        ([value]) =>
+                          value === order.status ||
+                          value === 'pending' ||
+                          value === 'cancelled' ||
+                          (value === 'delivered' && canMarkDelivered)
+                      );
                       return (
-                        <div className="text-[11px]">
-                          <Badge variant="outline" className={`text-[10px] ${cls}`}>{label}</Badge>
-                        </div>
+                        <>
+                          <div className="flex flex-wrap items-center gap-2 pt-1">
+                            {!isSalesModerator && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button size="sm" variant="default" className="gap-1 h-8">
+                                    <CheckCircle className="w-3.5 h-3.5" />
+                                    تحديث الحالة
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="min-w-[180px]">
+                                  <DropdownMenuLabel>اختر الحالة الجديدة</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  {statusOptions.map(([value, label]) => (
+                                    <DropdownMenuItem
+                                      key={value}
+                                      disabled={value === order.status}
+                                      onSelect={() => {
+                                        if (value === 'cancelled') {
+                                          if (!window.confirm('هل أنت متأكد من تحديث حالة هذا الأوردر إلى "مرتجع / ملغي"؟')) return;
+                                        }
+                                        handleStatusChange(order.id, value as OrderStatus);
+                                      }}
+                                    >
+                                      {value === 'pending' && isPrivateDeliveryRep ? 'مؤجل' : label}
+                                      {value === order.status && ' ✓'}
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1 h-8"
+                              onClick={() => toggleDetails(order.id)}
+                            >
+                              {isDetailsShown ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                              تفاصيل
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1 h-8"
+                              onClick={() => handlePrintOrder(order)}
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                              طباعة
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              asChild
+                              className="gap-1 h-8"
+                            >
+                              <Link to={`/orders/${order.id}`}>
+                                <Eye className="w-3.5 h-3.5" />
+                                فتح
+                              </Link>
+                            </Button>
+                            {canSetCollectionMethod && (
+                              <Button
+                                size="sm"
+                                className="gap-1 h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                onClick={() => openMixedDialog(order.id)}
+                              >
+                                <Wallet className="w-3.5 h-3.5" />
+                                ضبط التحصيل
+                              </Button>
+                            )}
+                          </div>
+
+                          {/* التفاصيل الموسّعة */}
+                          {isDetailsShown && (
+                            <div className="mt-2 pt-2 border-t space-y-2">
+                              <div className="flex items-center gap-2 text-xs flex-wrap">
+                                <Badge variant="outline" className="text-xs">{paymentLabels[order.payment_method] || order.payment_method}</Badge>
+                                <Badge className={`text-xs ${order.payment_status === 'paid' ? 'bg-success text-success-foreground' : order.payment_status === 'failed' ? 'bg-destructive text-destructive-foreground' : 'bg-warning text-warning-foreground'}`}>
+                                  {paymentStatusLabels[order.payment_status] || order.payment_status}
+                                </Badge>
+                                <span className="text-muted-foreground">
+                                  {new Date(order.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                <Badge className={`text-xs ${order.collection_status === 'collected' ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'}`}>
+                                  {order.collection_status === 'collected' ? 'تم التحصيل' : 'لم يتم التحصيل'}
+                                </Badge>
+                              </div>
+
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="text-muted-foreground shrink-0">حالة التحديث:</span>
+                                {order.update_status_marker ? (
+                                  <Badge
+                                    className={`text-[11px] border ${updateMarkerMeta[order.update_status_marker].className}`}
+                                    title={order.update_status_updated_at ? `آخر تحديث: ${new Date(order.update_status_updated_at).toLocaleString('ar-EG')}` : undefined}
+                                  >
+                                    {updateMarkerMeta[order.update_status_marker].label}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-[11px] text-muted-foreground border-muted">
+                                    لم يتم التحديث
+                                  </Badge>
+                                )}
+                              </div>
+
+                              <div className="flex flex-col gap-1 text-xs">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-muted-foreground shrink-0">طريقة التحصيل:</span>
+                                  {order.collection_method ? (
+                                    <Badge className={`text-[11px] border ${collectionMethodMeta[order.collection_method].className}`}>
+                                      {collectionMethodMeta[order.collection_method].short}
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-[11px] text-muted-foreground border-muted">
+                                      لم يحدد التحصيل
+                                    </Badge>
+                                  )}
+                                  {order.collection_method === 'cash_courier' && (
+                                    <span className="text-emerald-700 font-bold">
+                                      مطلوب: {Number(order.courier_cash_due || order.total).toLocaleString()} ج
+                                    </span>
+                                  )}
+                                  {order.collection_method === 'mixed_payment' && (
+                                    <span className="flex flex-wrap gap-x-2 gap-y-0.5 text-[11px]">
+                                      <span className="text-emerald-700 font-bold">نقدي: {Number(order.courier_cash_due || 0).toLocaleString()}</span>
+                                      {Number(order.vodafone_cash_amount || 0) > 0 && <span className="text-rose-700">📱 فودافون: {Number(order.vodafone_cash_amount).toLocaleString()}</span>}
+                                      {Number(order.instapay_amount || 0) > 0 && <span className="text-indigo-700">💳 إنستاباي: {Number(order.instapay_amount).toLocaleString()}</span>}
+                                      {Number(order.bank_transfer_amount || 0) > 0 && <span className="text-blue-700">🏦 بنكي: {Number(order.bank_transfer_amount).toLocaleString()}</span>}
+                                      {Number(order.other_amount || 0) > 0 && <span className="text-zinc-700">💠 أخرى: {Number(order.other_amount).toLocaleString()}</span>}
+                                      {Number(order.free_amount || 0) > 0 && <span className="text-slate-600">🎁 مجاني: {Number(order.free_amount).toLocaleString()}</span>}
+                                    </span>
+                                  )}
+                                </div>
+                                {canSetCollectionMethod && (
+                                  <Select
+                                    value={order.collection_method ?? '__unset__'}
+                                    onValueChange={(v) => updateCollectionMethod(order.id, v as CollectionMethod)}
+                                  >
+                                    <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="تغيير طريقة التحصيل" /></SelectTrigger>
+                                    <SelectContent>
+                                      {(Object.keys(collectionMethodMeta) as CollectionMethod[]).map((k) => (
+                                        <SelectItem key={k} value={k}>{collectionMethodMeta[k].label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              </div>
+
+                              {isAccountant && (
+                                <Select value={order.collection_status} onValueChange={(v) => handleCollectionChange(order.id, v)}>
+                                  <SelectTrigger className="w-full h-9 text-xs"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="collected">تم التحصيل</SelectItem>
+                                    <SelectItem value="not_collected">لم يتم التحصيل</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              )}
+
+                              {isPrivateDeliveryRep && order.delivery_address && (
+                                <div className="text-xs bg-primary/5 border border-primary/20 rounded px-2 py-1 break-words">
+                                  <span className="font-semibold text-primary">العنوان: </span>
+                                  {order.delivery_address}
+                                </div>
+                              )}
+
+                              {order.source_warehouse_id === AGOUZA_WAREHOUSE_ID && (() => {
+                                const resv = agouzaResvMap[order.id] ?? 'none';
+                                const isShortage = resv === 'none' && order.status !== 'delivered' && order.status !== 'cancelled';
+                                let label = 'حجز عجوزة • محجوز';
+                                let cls = 'border-purple-400 text-purple-700 bg-purple-50';
+                                if (resv === 'committed') { label = 'حجز عجوزة • تم الخصم'; cls = 'border-emerald-400 text-emerald-700 bg-emerald-50'; }
+                                else if (resv === 'released') { label = 'حجز عجوزة • تم فك الحجز'; cls = 'border-slate-400 text-slate-700 bg-slate-50'; }
+                                else if (resv === 'active') { label = 'حجز عجوزة • محجوز'; cls = 'border-purple-400 text-purple-700 bg-purple-50'; }
+                                else if (isShortage) { label = '⚠ عجز مخزون العجوزة'; cls = 'border-red-500 text-red-700 bg-red-50 font-semibold'; }
+                                else { label = 'حجز عجوزة • —'; cls = 'border-slate-300 text-slate-600 bg-slate-50'; }
+                                return (
+                                  <div className="text-[11px]">
+                                    <Badge variant="outline" className={`text-[10px] ${cls}`}>{label}</Badge>
+                                  </div>
+                                );
+                              })()}
+
+                              {/* إجراءات إضافية */}
+                              <div className="flex items-center flex-wrap gap-1 pt-1 border-t">
+                                {isPrivateDeliveryRep && order.status !== 'delivered' && order.status !== 'cancelled' && !approvedEditOrderIds.has(order.id) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    disabled={pendingEditOrderIds.has(order.id)}
+                                    onClick={() => requestEditPermission(order)}
+                                    title={pendingEditOrderIds.has(order.id) ? 'بانتظار موافقة مدير المبيعات' : 'طلب إذن تعديل من مدير المبيعات'}
+                                  >
+                                    <KeyRound className={`w-4 h-4 ${pendingEditOrderIds.has(order.id) ? 'text-warning' : 'text-primary'}`} />
+                                  </Button>
+                                )}
+                                {canEditThisOrder(order) && (
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingOrder(order)} title="تعديل الطلب">
+                                    <Pencil className="w-4 h-4" />
+                                  </Button>
+                                )}
+                                {canEditThisOrder(order) && (
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditAddressOrder(order)} title="تعديل العنوان ومخزن الاستلام">
+                                    <MapPin className="w-4 h-4 text-primary" />
+                                  </Button>
+                                )}
+                                {canEditThisOrder(order) && (
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAddOfferOrder(order)} title="إضافة بوكس / عرض">
+                                    <PackagePlus className="w-4 h-4 text-primary" />
+                                  </Button>
+                                )}
+                                {order.status !== 'delivered' && order.status !== 'cancelled' && order.items.some((it) => it.offer_name) && !isPrivateDeliveryRep && (
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSwapOfferOrder(order)} title="استبدال العرض">
+                                    <PackageOpen className="w-4 h-4 text-primary" />
+                                  </Button>
+                                )}
+                                {canDeleteOrders && (
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>حذف الطلب {order.order_number}؟</AlertDialogTitle>
+                                        <AlertDialogDescription>سيتم حذف الطلب وجميع أصنافه نهائيًا. لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteOrder(order.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </>
                       );
                     })()}
-
-
-                    <div className="flex items-center justify-end gap-1 pt-1">
-                       <Button variant="ghost" size="icon" asChild className="h-8 w-8">
-                         <Link to={`/orders/${order.id}`}><Eye className="w-4 h-4" /></Link>
-                       </Button>
-                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePrintOrder(order)} title="طباعة الطلب">
-                         <Printer className="w-4 h-4 text-primary" />
-                       </Button>
-                       <Button
-                         variant="ghost"
-                         size="icon"
-                         className="h-8 w-8"
-                         onClick={() => openMixedDialog(order.id)}
-                         title="تعديل / ضبط تحصيل الأوردر"
-                       >
-                         <Wallet className="w-4 h-4 text-emerald-600" />
-                       </Button>
-                      {isPrivateDeliveryRep && order.status !== 'delivered' && order.status !== 'cancelled' && !approvedEditOrderIds.has(order.id) && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          disabled={pendingEditOrderIds.has(order.id)}
-                          onClick={() => requestEditPermission(order)}
-                          title={pendingEditOrderIds.has(order.id) ? 'بانتظار موافقة مدير المبيعات' : 'طلب إذن تعديل من مدير المبيعات'}
-                        >
-                          <KeyRound className={`w-4 h-4 ${pendingEditOrderIds.has(order.id) ? 'text-warning' : 'text-primary'}`} />
-                        </Button>
-                      )}
-                      {canEditThisOrder(order) && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingOrder(order)} title="تعديل الطلب">
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                      )}
-                      {canEditThisOrder(order) && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditAddressOrder(order)} title="تعديل العنوان ومخزن الاستلام">
-                          <MapPin className="w-4 h-4 text-primary" />
-                        </Button>
-                      )}
-                      {canEditThisOrder(order) && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAddOfferOrder(order)} title="إضافة بوكس / عرض">
-                          <PackagePlus className="w-4 h-4 text-primary" />
-                        </Button>
-                      )}
-                      {order.status !== 'delivered' && order.status !== 'cancelled' && order.items.some((it) => it.offer_name) && !isPrivateDeliveryRep && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSwapOfferOrder(order)} title="استبدال العرض">
-                          <PackageOpen className="w-4 h-4 text-primary" />
-                        </Button>
-                      )}
-                      {canDeleteOrders && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>حذف الطلب {order.order_number}؟</AlertDialogTitle>
-                              <AlertDialogDescription>سيتم حذف الطلب وجميع أصنافه نهائيًا. لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteOrder(order.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </div>
                   </div>
                 );
               })
             )}
           </div>
+
+
 
           {/* Desktop table view */}
           <div className="hidden">
