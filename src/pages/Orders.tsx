@@ -985,6 +985,8 @@ const Orders = () => {
   const [mixedInsta, setMixedInsta] = useState<string>('');
   const [mixedFree, setMixedFree] = useState<string>('');
   const [mixedNote, setMixedNote] = useState<string>('');
+  // إذا فُتحت النافذة أثناء تدفق تأكيد التسليم، نتابع التحويل إلى delivered بعد الحفظ.
+  const [deliverAfterMixedSave, setDeliverAfterMixedSave] = useState<boolean>(false);
 
   const openMixedDialog = (orderId: string) => {
     const t = orders.find((o) => o.id === orderId);
@@ -1055,6 +1057,11 @@ const Orders = () => {
       } : o));
       setMixedDlgOrderId(null);
       toast.success('تم حفظ توزيع التحصيل المختلط ✅');
+      // إن كانت النافذة فُتحت أثناء تدفق التسليم، تابع الآن.
+      if (deliverAfterMixedSave) {
+        setDeliverAfterMixedSave(false);
+        await handleStatusChange(id, 'delivered');
+      }
     } catch (e: any) {
       console.error('saveMixedBreakdown failed', e);
       toast.error(e?.message || 'تعذّر حفظ التوزيع');
@@ -1702,7 +1709,15 @@ const Orders = () => {
                             مطلوب: {Number(order.courier_cash_due || order.total).toLocaleString()} ج
                           </span>
                         )}
-                        {order.collection_method && order.collection_method !== 'cash_courier' && (
+                        {order.collection_method === 'mixed_payment' && (
+                          <span className="flex flex-wrap gap-x-2 gap-y-0.5 text-[11px]">
+                            <span className="text-emerald-700 font-bold">نقدي: {Number(order.courier_cash_due || 0).toLocaleString()}</span>
+                            {Number(order.vodafone_cash_amount || 0) > 0 && <span className="text-rose-700">📱 فودافون: {Number(order.vodafone_cash_amount).toLocaleString()}</span>}
+                            {Number(order.instapay_amount || 0) > 0 && <span className="text-indigo-700">💳 إنستاباي: {Number(order.instapay_amount).toLocaleString()}</span>}
+                            {Number(order.free_amount || 0) > 0 && <span className="text-slate-600">🎁 مجاني: {Number(order.free_amount).toLocaleString()}</span>}
+                          </span>
+                        )}
+                        {order.collection_method && order.collection_method !== 'cash_courier' && order.collection_method !== 'mixed_payment' && (
                           <span className="text-muted-foreground">مطلوب من المندوب: 0 ج</span>
                         )}
                       </div>
@@ -2076,9 +2091,16 @@ const Orders = () => {
                         <span className="text-[11px] text-muted-foreground">
                           {order.collection_method === 'cash_courier'
                             ? <>مطلوب: <span className="font-bold text-emerald-700">{Number(order.courier_cash_due || order.total).toLocaleString()} ج</span></>
-                            : order.collection_method
-                              ? <>مطلوب من المندوب: <span className="font-bold">0 ج</span></>
-                              : <span className="italic">لم يحدد التحصيل</span>}
+                            : order.collection_method === 'mixed_payment'
+                              ? <span className="flex flex-col leading-tight">
+                                  <span className="font-bold text-emerald-700">نقدي: {Number(order.courier_cash_due || 0).toLocaleString()}</span>
+                                  {Number(order.vodafone_cash_amount || 0) > 0 && <span className="text-rose-700">📱 {Number(order.vodafone_cash_amount).toLocaleString()}</span>}
+                                  {Number(order.instapay_amount || 0) > 0 && <span className="text-indigo-700">💳 {Number(order.instapay_amount).toLocaleString()}</span>}
+                                  {Number(order.free_amount || 0) > 0 && <span className="text-slate-600">🎁 {Number(order.free_amount).toLocaleString()}</span>}
+                                </span>
+                              : order.collection_method
+                                ? <>مطلوب من المندوب: <span className="font-bold">0 ج</span></>
+                                : <span className="italic">لم يحدد التحصيل</span>}
                         </span>
                       </div>
                     </TableCell>
@@ -2425,6 +2447,12 @@ const Orders = () => {
                 const method = pendingDeliveryMethod;
                 setPendingDeliveryOrderId(null);
                 if (!id) return;
+                // للتحصيل المختلط: افتح نافذة توزيع المبالغ أولًا، ولا تُغيّر الحالة حتى الحفظ.
+                if (method === 'mixed_payment') {
+                  setDeliverAfterMixedSave(true);
+                  openMixedDialog(id);
+                  return;
+                }
                 await updateCollectionMethod(id, method);
                 await handleStatusChange(id, 'delivered');
               }}
