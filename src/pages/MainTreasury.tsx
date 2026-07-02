@@ -20,6 +20,7 @@ import * as XLSX from "xlsx";
 import BankAccountPanel from "@/components/main-treasury/BankAccountPanel";
 import MainExpenseAnalytics from "@/components/treasury/MainExpenseAnalytics";
 import IncomingLabCustodyTransfers from "@/components/treasury/IncomingLabCustodyTransfers";
+import IncomingWarehouseTreasuryTransfers from "@/components/treasury/IncomingWarehouseTreasuryTransfers";
 import LogSummaryCards from "@/components/treasury/LogSummaryCards";
 
 type Account = { id: string; name: string; account_type: "cash"|"bank"|"wallet"; bank_name: string|null; opening_balance: number; is_active: boolean };
@@ -596,6 +597,7 @@ export default function MainTreasury() {
 
         {/* Dashboard */}
         <TabsContent value="dashboard" className="mt-4 space-y-3">
+          <IncomingWarehouseTreasuryTransfers onReceived={fetchAll} />
           <IncomingLabCustodyTransfers onReceived={fetchAll} treasuryLabel="الخزنة الرئيسية للشركة" />
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
             {balances.length === 0 ? <Card><CardContent className="p-8 text-center text-muted-foreground">لا توجد حسابات بعد — أضف من تبويب "إعدادات"</CardContent></Card> :
