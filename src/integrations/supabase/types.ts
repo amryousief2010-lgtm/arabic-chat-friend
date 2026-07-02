@@ -7507,6 +7507,84 @@ export type Database = {
           },
         ]
       }
+      hr_payroll_payouts: {
+        Row: {
+          absence_amount: number
+          advances_amount: number
+          base_salary: number
+          bonus_amount: number
+          created_at: string
+          employee_id: string
+          id: string
+          month: number
+          net_amount: number
+          notes: string | null
+          other_deductions_amount: number
+          paid_at: string
+          paid_by: string | null
+          pay_day: number
+          penalties_amount: number
+          status: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          absence_amount?: number
+          advances_amount?: number
+          base_salary?: number
+          bonus_amount?: number
+          created_at?: string
+          employee_id: string
+          id?: string
+          month: number
+          net_amount: number
+          notes?: string | null
+          other_deductions_amount?: number
+          paid_at?: string
+          paid_by?: string | null
+          pay_day?: number
+          penalties_amount?: number
+          status?: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          absence_amount?: number
+          advances_amount?: number
+          base_salary?: number
+          bonus_amount?: number
+          created_at?: string
+          employee_id?: string
+          id?: string
+          month?: number
+          net_amount?: number
+          notes?: string | null
+          other_deductions_amount?: number
+          paid_at?: string
+          paid_by?: string | null
+          pay_day?: number
+          penalties_amount?: number
+          status?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_payroll_payouts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_payroll_payouts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "v_hr_employee_monthly_payroll"
+            referencedColumns: ["employee_id"]
+          },
+        ]
+      }
       hr_work_locations: {
         Row: {
           created_at: string
