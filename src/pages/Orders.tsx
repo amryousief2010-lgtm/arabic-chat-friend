@@ -1922,13 +1922,11 @@ const Orders = () => {
                             <Button
                               size="sm"
                               variant="outline"
-                              asChild
                               className="gap-1 h-8 w-full text-xs"
+                              onClick={() => setSelectedOrder(order)}
                             >
-                              <Link to={`/orders/${order.id}`}>
-                                <Eye className="w-3.5 h-3.5" />
-                                فتح
-                              </Link>
+                              <Eye className="w-3.5 h-3.5" />
+                              فتح
                             </Button>
                             <Button
                               size="sm"
