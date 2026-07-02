@@ -108,6 +108,40 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
     onReceived?.();
   };
 
+  const printTransfer = (r: Row) => {
+    const w = window.open("", "_blank", "width=800,height=900");
+    if (!w) return;
+    const performedBy = (r.performed_by && names[r.performed_by]) || "—";
+    const dateStr = new Date(r.performed_at).toLocaleString("ar-EG");
+    const html = `<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/>
+<title>تفاصيل التوريد ${r.reference || ""}</title>
+<style>
+  body{font-family:'Cairo','Tahoma',sans-serif;padding:24px;color:#111;}
+  h1{font-size:20px;margin:0 0 4px;} .muted{color:#666;font-size:12px;}
+  .card{border:1px solid #ddd;border-radius:8px;padding:14px;margin-top:14px;}
+  .row{display:flex;justify-content:space-between;gap:12px;margin:6px 0;font-size:13px;}
+  .amount{font-size:22px;font-weight:700;color:#059669;}
+  pre{white-space:pre-wrap;background:#f6f6f6;padding:10px;border-radius:6px;font-family:inherit;font-size:13px;line-height:1.8;}
+  @media print{button{display:none;}}
+</style></head><body>
+<h1>تفاصيل توريد من خزينة المخزن الرئيسي</h1>
+<div class="muted">تاريخ الطباعة: ${new Date().toLocaleString("ar-EG")}</div>
+<div class="card">
+  <div class="row"><span>المبلغ الإجمالي</span><span class="amount">${fmt(Number(r.amount||0))} ج.م</span></div>
+  <div class="row"><span>رقم المرجع</span><b>${r.reference || "—"}</b></div>
+  <div class="row"><span>المندوب</span><b>${r.courier_name || "—"}</b></div>
+  <div class="row"><span>بواسطة</span><b>${performedBy}</b></div>
+  <div class="row"><span>تاريخ التوريد</span><b>${dateStr}</b></div>
+  <div class="row"><span>الحالة</span><b>${r.status === "pending_approval" ? "بانتظار الاعتماد" : r.status}</b></div>
+</div>
+${r.notes ? `<div class="card"><div class="muted" style="margin-bottom:8px">تفاصيل الأيام والأوردرات:</div><pre>${r.notes.replace(/</g,"&lt;")}</pre></div>` : ""}
+<div style="margin-top:20px;text-align:center"><button onclick="window.print()">طباعة</button></div>
+<script>setTimeout(()=>window.print(),400);</script>
+</body></html>`;
+    w.document.write(html);
+    w.document.close();
+  };
+
   if (loading) {
     return (
       <Card className="border-sky-300 bg-sky-50/40">
@@ -149,28 +183,37 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
                   {new Date(r.performed_at).toLocaleString("ar-EG")}
                 </div>
               </div>
-              {canApprove && (
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                    disabled={busy === r.id}
-                    onClick={() => approve(r)}
-                  >
-                    {busy === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 ml-1" />}
-                    اعتماد
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-rose-700 border-rose-300 hover:bg-rose-50"
-                    disabled={busy === r.id}
-                    onClick={() => reject(r)}
-                  >
-                    <XCircle className="w-4 h-4 ml-1" /> رفض
-                  </Button>
-                </div>
-              )}
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => printTransfer(r)}
+                >
+                  <Printer className="w-4 h-4 ml-1" /> طباعة
+                </Button>
+                {canApprove && (
+                  <>
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      disabled={busy === r.id}
+                      onClick={() => approve(r)}
+                    >
+                      {busy === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 ml-1" />}
+                      اعتماد
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-rose-700 border-rose-300 hover:bg-rose-50"
+                      disabled={busy === r.id}
+                      onClick={() => reject(r)}
+                    >
+                      <XCircle className="w-4 h-4 ml-1" /> رفض
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
             {r.notes && (
               <pre className="whitespace-pre-wrap text-xs bg-muted/40 rounded p-2 font-sans leading-relaxed">
