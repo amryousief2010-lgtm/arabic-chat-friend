@@ -170,6 +170,8 @@ export default function CourierOrderCustodyTab() {
   const [handoverAmt, setHandoverAmt] = useState("");
   const [handoverNotes, setHandoverNotes] = useState("");
   const [handoverBusy, setHandoverBusy] = useState(false);
+  const [dailyDeposits, setDailyDeposits] = useState<Array<{ id: string; custody_id: string; deposit_date: string; amount: number; orders_count: number; treasury_txn_id: string | null; performed_by_name: string | null; created_at: string }>>([]);
+  const [depositingDay, setDepositingDay] = useState<string | null>(null);
 
   const printStatement = async (fmt: "pdf" | "xlsx") => {
     if (!selectedCustody) return;
