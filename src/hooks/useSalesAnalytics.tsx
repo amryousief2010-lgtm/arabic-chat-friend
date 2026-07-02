@@ -67,14 +67,15 @@ export interface TopProduct {
  * Uses the same exclusion rule as the dashboard totals: cancelled orders are excluded.
  * Grouping: by product_id when present, else by product_name.
  */
-export const useTopProductsLast3Days = (limit = 5) => {
+export const useTopProductsLast3Days = (limit = 5, days: 1 | 3 | 7 | 30 = 3) => {
   return useQuery<TopProduct[]>({
-    queryKey: ["top-products-3d", limit],
+    queryKey: ["top-products", days, limit],
     queryFn: async () => {
       const todayStart = cairoTodayStartUTC(new Date());
-      // last 3 days INCLUSIVE of today = start of the day 2 days ago
-      const rangeStart = new Date(todayStart.getTime() - 2 * 24 * 60 * 60 * 1000);
+      // last N days INCLUSIVE of today = start of the day (N-1) days ago
+      const rangeStart = new Date(todayStart.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
       const rangeEnd = new Date(todayStart.getTime() + 26 * 60 * 60 * 1000);
+
       const { data, error } = await supabase
         .from("order_items")
         .select("product_id, product_name, quantity, total_price, is_gift, order_id, orders!inner(status, created_at)")
