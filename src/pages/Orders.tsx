@@ -2931,6 +2931,7 @@ const Orders = () => {
         onOpenChange={setQuickDeliveryOpen}
         orders={orders as any}
         statusLabels={statusLabels}
+        canMarkDelivered={canMarkDelivered}
         onDeliver={async (id) => {
           await handleStatusChange(id, 'delivered');
         }}
