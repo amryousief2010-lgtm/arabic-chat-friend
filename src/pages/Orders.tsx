@@ -2903,6 +2903,16 @@ const Orders = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <QuickDeliveryDialog
+        open={quickDeliveryOpen}
+        onOpenChange={setQuickDeliveryOpen}
+        orders={orders as any}
+        statusLabels={statusLabels}
+        onDeliver={async (id) => {
+          await handleStatusChange(id, 'delivered');
+        }}
+      />
     </DashboardLayout>
   );
 };
