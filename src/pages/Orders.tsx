@@ -1702,7 +1702,15 @@ const Orders = () => {
                             مطلوب: {Number(order.courier_cash_due || order.total).toLocaleString()} ج
                           </span>
                         )}
-                        {order.collection_method && order.collection_method !== 'cash_courier' && (
+                        {order.collection_method === 'mixed_payment' && (
+                          <span className="flex flex-wrap gap-x-2 gap-y-0.5 text-[11px]">
+                            <span className="text-emerald-700 font-bold">نقدي: {Number(order.courier_cash_due || 0).toLocaleString()}</span>
+                            {Number(order.vodafone_cash_amount || 0) > 0 && <span className="text-rose-700">📱 فودافون: {Number(order.vodafone_cash_amount).toLocaleString()}</span>}
+                            {Number(order.instapay_amount || 0) > 0 && <span className="text-indigo-700">💳 إنستاباي: {Number(order.instapay_amount).toLocaleString()}</span>}
+                            {Number(order.free_amount || 0) > 0 && <span className="text-slate-600">🎁 مجاني: {Number(order.free_amount).toLocaleString()}</span>}
+                          </span>
+                        )}
+                        {order.collection_method && order.collection_method !== 'cash_courier' && order.collection_method !== 'mixed_payment' && (
                           <span className="text-muted-foreground">مطلوب من المندوب: 0 ج</span>
                         )}
                       </div>
