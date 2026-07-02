@@ -505,6 +505,8 @@ const OrderDetails = () => {
                     const rawUnit = Number(item.unit_price) || 0;
                     const unit = rawUnit > 0 ? rawUnit : (qty > 0 && lineTotal > 0 ? lineTotal / qty : 0);
                     const noPrice = unit === 0 && lineTotal === 0;
+                    const isOfferComponent = noPrice && !!item.offer_name;
+                    const isGift = noPrice && !item.offer_name;
                     return (
                     <div
                       key={item.id}
