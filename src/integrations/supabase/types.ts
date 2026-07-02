@@ -13657,6 +13657,56 @@ export type Database = {
           },
         ]
       }
+      order_owner_reassignment_audit: {
+        Row: {
+          changed_at: string
+          changed_by: string
+          changed_by_name: string | null
+          id: string
+          new_owner_id: string
+          new_owner_name: string | null
+          old_owner_id: string | null
+          old_owner_name: string | null
+          order_id: string
+          order_number: string | null
+          reason: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by: string
+          changed_by_name?: string | null
+          id?: string
+          new_owner_id: string
+          new_owner_name?: string | null
+          old_owner_id?: string | null
+          old_owner_name?: string | null
+          order_id: string
+          order_number?: string | null
+          reason: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string
+          changed_by_name?: string | null
+          id?: string
+          new_owner_id?: string
+          new_owner_name?: string | null
+          old_owner_id?: string | null
+          old_owner_name?: string | null
+          order_id?: string
+          order_number?: string | null
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_owner_reassignment_audit_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_payment_breakdown_audit: {
         Row: {
           changed_at: string
@@ -20525,6 +20575,10 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      reassign_order_owner: {
+        Args: { p_new_owner_id: string; p_order_id: string; p_reason: string }
+        Returns: string
       }
       recalc_brooding_batch: { Args: { _batch_id: string }; Returns: undefined }
       recalc_feed_invoice_totals: {
