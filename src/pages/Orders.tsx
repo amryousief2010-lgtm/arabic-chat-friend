@@ -1413,7 +1413,7 @@ const Orders = () => {
               <Badge variant="secondary" className="text-xs font-normal gap-1 bg-primary/10 text-primary border-primary/30">
                 فلتر نشط:
                 {todayParam ? ' طلبات اليوم' : ''}
-                {rangeParam === '7d' ? ' آخر 7 أيام' : ''}
+                {rangeParam === '3d' ? ' آخر 3 أيام' : ''}
                 {channelParam === 'main' ? ' — المخزن الرئيسي' : channelParam === 'agouza' ? ' — مخزن العجوزة' : channelParam === 'unclassified' ? ' — غير مصنف' : ''}
                 {(productIdParam || productNameParam) ? ` — المنتج: ${productNameParam || (orders.find(o => (o as any).order_items?.some((it: any) => it.product_id === productIdParam)) as any)?.order_items?.find((it: any) => it.product_id === productIdParam)?.product_name || productIdParam}` : ''}
                 <button
