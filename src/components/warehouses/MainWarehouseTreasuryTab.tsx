@@ -430,6 +430,7 @@ export default function MainWarehouseTreasuryTab() {
     const q = search.trim();
     return rows.filter((r) => {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (!showProofs && PROOF_CATEGORIES.has(r.category)) return false;
       if (!q) return true;
       return (
         r.reference?.includes(q) ||
@@ -438,7 +439,7 @@ export default function MainWarehouseTreasuryTab() {
         CATEGORY_LABELS[r.category]?.includes(q)
       );
     });
-  }, [rows, search, statusFilter]);
+  }, [rows, search, statusFilter, showProofs]);
 
   // === Actions ===
   const submitCollect = async () => {
