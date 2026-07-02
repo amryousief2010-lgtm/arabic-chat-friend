@@ -603,6 +603,26 @@ export default function CourierOrderCustodyTab() {
     } finally { setHandoverBusy(false); }
   };
 
+  const depositDayCash = async (day: string, amountPreview: number) => {
+    if (!selectedCustody) return;
+    const dayLabel = new Date(day).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" });
+    if (!confirm(`سيتم توريد ${fmt(amountPreview)} ج.م إلى خزنة المخزن الرئيسي عن يوم ${dayLabel}. متابعة؟`)) return;
+    setDepositingDay(day);
+    try {
+      const { data, error } = await (supabase as any).rpc("deposit_courier_day_cash", {
+        p_custody_id: selectedCustody,
+        p_day: day,
+        p_notes: null,
+      });
+      if (error) throw error;
+      toast({ title: "تم التوريد بنجاح", description: `المبلغ: ${fmt(data?.amount || 0)} ج.م — ${data?.reference || ""}` });
+      await load();
+    } catch (e: any) {
+      toast({ title: "تعذّر التوريد", description: e?.message || "", variant: "destructive" });
+    } finally { setDepositingDay(null); }
+  };
+
+
   const submitCorrection = async () => {
     if (!correctOpen) return;
     if (!correctReason.trim()) { toast({ title: "السبب مطلوب", variant: "destructive" }); return; }
