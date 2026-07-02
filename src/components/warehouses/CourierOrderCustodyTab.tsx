@@ -1034,21 +1034,36 @@ export default function CourierOrderCustodyTab() {
                         const printDay = (e: React.MouseEvent) => {
                           e.stopPropagation();
                           const dayLabel = new Date(grp.day).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+                          let sumTotal = 0, sumCash = 0, sumVoda = 0, sumInsta = 0, sumBank = 0, sumOther = 0, sumFree = 0;
                           const rows = grp.items.map((a, i) => {
                             const o = orders.find((x) => x.id === a.order_id);
-                            const col = collections.find((c) => c.order_id === a.order_id);
-                            const due = Number(o?.total || 0);
-                            const colAmt = Number(col?.amount_collected || 0);
+                            const cm = o?.collection_method || null;
+                            const isGift = o?.update_status_marker === "gift" || cm === "none";
+                            const orderTotal = Number(o?.total || 0);
+                            const voda = Number(o?.vodafone_cash_amount || 0);
+                            const insta = Number(o?.instapay_amount || 0);
+                            const bank = Number(o?.bank_transfer_amount || 0);
+                            const other = Number(o?.other_amount || 0);
+                            const freeAmt = isGift ? orderTotal : Number(o?.free_amount || 0);
+                            let cashFromCourier = 0;
+                            if (isGift) cashFromCourier = 0;
+                            else if (cm === "mixed_payment") cashFromCourier = Number(o?.courier_cash_due || 0);
+                            else cashFromCourier = Math.max(0, orderTotal - voda - insta - bank - other - freeAmt);
+                            sumTotal += orderTotal; sumCash += cashFromCourier; sumVoda += voda; sumInsta += insta; sumBank += bank; sumOther += other; sumFree += freeAmt;
                             const trk = tracking[a.order_id];
-                            const statusLabel = COURIER_STATUS_LABEL[trk || a.status] || a.status;
+                            const statusLabel = isGift ? "مجاني 🎁" : (COURIER_STATUS_LABEL[trk || a.status] || a.status);
+                            const mono = 'style="text-align:left;font-family:monospace"';
                             return `<tr>
                               <td>${i + 1}</td>
                               <td>${o?.order_number ?? a.order_id.slice(0, 8)}</td>
                               <td>${o?.customer_name ?? "—"}</td>
                               <td>${statusLabel}</td>
-                              <td style="text-align:left;font-family:monospace">${fmt(due)}</td>
-                              <td style="text-align:left;font-family:monospace">${fmt(colAmt)}</td>
-                              <td style="text-align:left;font-family:monospace">${fmt(Math.max(0, due - colAmt))}</td>
+                              <td ${mono}>${fmt(orderTotal)}</td>
+                              <td ${mono} class="cash">${fmt(cashFromCourier)}</td>
+                              <td ${mono}>${voda ? fmt(voda) : "—"}</td>
+                              <td ${mono}>${insta ? fmt(insta) : "—"}</td>
+                              <td ${mono}>${bank ? fmt(bank) : "—"}</td>
+                              <td ${mono}>${freeAmt ? fmt(freeAmt) : "—"}</td>
                             </tr>`;
                           }).join("");
                           const body = `
@@ -1059,24 +1074,34 @@ export default function CourierOrderCustodyTab() {
                             </div>
                             <table>
                               <thead>
-                                <tr><th>#</th><th>رقم الأوردر</th><th>العميل</th><th>الحالة</th><th>القيمة</th><th>المُحصَّل</th><th>المتبقي</th></tr>
+                                <tr>
+                                  <th>#</th><th>رقم الأوردر</th><th>العميل</th><th>الحالة</th>
+                                  <th>إجمالي الأوردر</th><th>نقدي مع كيمو</th>
+                                  <th>فودافون</th><th>إنستاباي</th><th>بنكي</th><th>مجاني</th>
+                                </tr>
                               </thead>
                               <tbody>${rows}</tbody>
-                              <tfoot>
-                                <tr>
-                                  <th colspan="4">الإجمالي</th>
-                                  <th style="text-align:left;font-family:monospace">${fmt(grp.totalValue)}</th>
-                                  <th style="text-align:left;font-family:monospace">${fmt(grp.collected)}</th>
-                                  <th style="text-align:left;font-family:monospace">${fmt(grp.remaining)}</th>
-                                </tr>
-                              </tfoot>
-                            </table>`;
+                            </table>
+                            <div class="totals">
+                              <div class="t-row"><span>إجمالي قيمة الأوردرات (للعرض فقط):</span><b>${fmt(sumTotal)} ج.م</b></div>
+                              <div class="t-row"><span>إجمالي فودافون كاش:</span><b>${fmt(sumVoda)} ج.م</b></div>
+                              <div class="t-row"><span>إجمالي إنستاباي:</span><b>${fmt(sumInsta)} ج.م</b></div>
+                              <div class="t-row"><span>إجمالي تحويل بنكي:</span><b>${fmt(sumBank)} ج.م</b></div>
+                              ${sumOther ? `<div class="t-row"><span>إجمالي أخرى:</span><b>${fmt(sumOther)} ج.م</b></div>` : ""}
+                              <div class="t-row"><span>إجمالي المجاني / الهدايا:</span><b>${fmt(sumFree)} ج.م</b></div>
+                              <div class="t-row highlight"><span>💵 إجمالي النقدية المطلوب استلامها من كيمو:</span><b>${fmt(sumCash)} ج.م</b></div>
+                              <div class="note">ملاحظة: التحويلات (فودافون/إنستاباي/بنكي) والأوردرات المجانية تظهر للإثبات فقط ولا تدخل نقدًا مع المندوب. المبلغ الفعلي الذي يدخل خزنة المخزن الرئيسي = النقدية المطلوبة من كيمو فقط.</div>
+                            </div>`;
                           const css = `
                             .meta { display:flex; gap:24px; margin-bottom:12px; font-size:13px; }
-                            table { width:100%; border-collapse:collapse; font-size:12px; }
-                            th, td { border:1px solid #ccc; padding:6px 8px; text-align:right; }
+                            table { width:100%; border-collapse:collapse; font-size:11px; }
+                            th, td { border:1px solid #ccc; padding:5px 6px; text-align:right; }
                             thead th { background:#f3f4f6; }
-                            tfoot th { background:#fef3c7; }
+                            td.cash { background:#ecfdf5; font-weight:bold; color:#065f46; }
+                            .totals { margin-top:14px; font-size:12px; border:1px solid #ccc; padding:10px; background:#fafafa; }
+                            .t-row { display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px dashed #ddd; }
+                            .t-row.highlight { background:#fef3c7; padding:6px; margin-top:6px; font-size:14px; border:1px solid #f59e0b; }
+                            .note { margin-top:8px; font-size:10px; color:#555; line-height:1.5; }
                           `;
                           openPrintWindow(`عهدة ${courierName} — ${dayLabel}`, body, css);
                         };
