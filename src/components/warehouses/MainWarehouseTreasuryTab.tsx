@@ -101,6 +101,7 @@ export default function MainWarehouseTreasuryTab() {
   const [rows, setRows] = useState<Txn[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "posted" | "pending_approval" | "rejected">("all");
+  const [showProofs, setShowProofs] = useState(false);
 
   // Dialogs
   const [collectOpen, setCollectOpen] = useState(false);
