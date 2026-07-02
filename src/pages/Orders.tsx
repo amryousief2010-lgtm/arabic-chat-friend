@@ -1338,7 +1338,7 @@ const Orders = () => {
               <Badge variant="secondary" className="text-xs font-normal gap-1 bg-primary/10 text-primary border-primary/30">
                 فلتر نشط:
                 {todayParam ? ' طلبات اليوم' : ''}
-                {channelParam === 'shipping' ? ' — شركة الشحن' : channelParam === 'main' ? ' — المخزن الرئيسي' : channelParam === 'other' ? ' — أخرى' : ''}
+                {channelParam === 'shipping' ? ' — شركة الشحن' : channelParam === 'main' ? ' — المخزن الرئيسي' : channelParam === 'agouza' ? ' — مخزن العجوزة' : channelParam === 'unclassified' ? ' — غير مصنف' : ''}
                 <button
                   type="button"
                   onClick={clearDashboardFilter}
