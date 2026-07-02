@@ -1028,6 +1028,20 @@ const Orders = () => {
     setMixedDlgOrderId(orderId);
   };
 
+  // Auto-open mixed collection dialog when navigated with ?mixed=<orderId>
+  useEffect(() => {
+    if (!mixedParam) return;
+    const found = orders.find((o) => o.id === mixedParam);
+    if (!found) return;
+    openMixedDialog(mixedParam);
+    const next = new URLSearchParams(searchParams);
+    next.delete('mixed');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mixedParam, orders.length]);
+
+
+
   const saveMixedBreakdown = async () => {
     const id = mixedDlgOrderId;
     if (!id) return;
