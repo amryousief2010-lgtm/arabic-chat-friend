@@ -3041,6 +3041,18 @@ const Orders = () => {
           await handleStatusChange(id, status);
         }}
       />
+
+      {reassignOrder && (
+        <ReassignOwnerDialog
+          open={!!reassignOrder}
+          onOpenChange={(v) => { if (!v) setReassignOrder(null); }}
+          orderId={reassignOrder.id}
+          orderNumber={reassignOrder.order_number}
+          currentOwnerId={reassignOrder.created_by}
+          currentOwnerName={reassignOrder.moderator_name}
+          onDone={() => { setReassignOrder(null); fetchOrders(); }}
+        />
+      )}
     </DashboardLayout>
   );
 };
