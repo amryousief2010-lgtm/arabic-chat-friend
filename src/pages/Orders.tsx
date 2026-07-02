@@ -357,7 +357,8 @@ const Orders = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
   const todayParam = searchParams.get("today") === "1";
-  const channelParam = searchParams.get("channel"); // 'shipping' | 'main' | 'agouza' | 'unclassified' | null
+  const rawChannelParam = searchParams.get("channel");
+  const channelParam = rawChannelParam === 'shipping' ? null : rawChannelParam; // 'main' | 'agouza' | 'unclassified' | null
   const rangeParam = searchParams.get("range"); // '7d' | null
   const productIdParam = searchParams.get("product_id");
   const productNameParam = searchParams.get("product_name");
@@ -791,11 +792,10 @@ const Orders = () => {
       const todayCairo = toCairoDateString(new Date().toISOString());
       matchesDashboardToday = toCairoDateString(order.created_at) === todayCairo;
     }
-    if (channelParam) {
+    if (channelParam && channelParam !== 'shipping') {
       const sc = (order.shipping_company || '').trim();
-      let ch: 'shipping' | 'main' | 'agouza' | 'unclassified';
-      if (sc && sc !== 'مندوب خاص') ch = 'shipping';
-      else if (order.source_warehouse_id === MAIN_WAREHOUSE_ID) ch = 'main';
+      let ch: 'main' | 'agouza' | 'unclassified';
+      if (order.source_warehouse_id === MAIN_WAREHOUSE_ID) ch = 'main';
       else if (order.source_warehouse_id === AGOUZA_WAREHOUSE_ID) ch = 'agouza';
       else ch = 'unclassified';
       matchesDashboardChannel = ch === channelParam;
