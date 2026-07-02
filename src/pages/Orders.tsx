@@ -2073,6 +2073,18 @@ const Orders = () => {
                                     <PackageOpen className="w-4 h-4 text-primary" />
                                   </Button>
                                 )}
+                                {canReassignOwner && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 gap-1 text-xs text-purple-700 hover:text-purple-800 hover:bg-purple-50"
+                                    onClick={() => setReassignOrder(order)}
+                                    title="نقل الأوردر لمسوقة أخرى"
+                                  >
+                                    <UserCog className="w-4 h-4" />
+                                    تغيير المسؤولة
+                                  </Button>
+                                )}
                                 {canDeleteOrders && (
                                   <AlertDialog>
                                     <AlertDialogTrigger asChild>
