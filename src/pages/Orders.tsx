@@ -767,7 +767,7 @@ const Orders = () => {
       isGeneralManager ||
       (!isWarehouseSupervisor && !isExecutiveManager) ||
       new Date(order.created_at) >= new Date('2026-06-18T00:00:00+02:00');
-    // Dashboard "today" card deep-link filter: /orders?today=1&channel=shipping|main|other
+    // Dashboard "today" card deep-link filter: /orders?today=1&channel=shipping|main|agouza|unclassified
     // Uses Cairo timezone (same classification as useTodayOrdersBreakdown) so totals match the card exactly.
     let matchesDashboardToday = true;
     let matchesDashboardChannel = true;
@@ -777,10 +777,11 @@ const Orders = () => {
     }
     if (channelParam) {
       const sc = (order.shipping_company || '').trim();
-      let ch: 'shipping' | 'main' | 'other';
+      let ch: 'shipping' | 'main' | 'agouza' | 'unclassified';
       if (sc && sc !== 'مندوب خاص') ch = 'shipping';
       else if (order.source_warehouse_id === MAIN_WAREHOUSE_ID) ch = 'main';
-      else ch = 'other';
+      else if (order.source_warehouse_id === AGOUZA_WAREHOUSE_ID) ch = 'agouza';
+      else ch = 'unclassified';
       matchesDashboardChannel = ch === channelParam;
     }
     return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel;
