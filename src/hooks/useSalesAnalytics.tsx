@@ -14,10 +14,9 @@ export interface TodayOrdersBreakdown {
 /**
  * Splits today's orders (Cairo-day window) by fulfillment channel — display-only.
  * Classification priority (disjoint):
- *   1. shipping_company set AND != 'مندوب خاص'        → شركة الشحن
- *   2. source_warehouse_id = MAIN_WAREHOUSE_ID        → المخزن الرئيسي
- *   3. source_warehouse_id = AGOUZA_WAREHOUSE_ID      → مخزن العجوزة
- *   4. else                                            → غير مصنف
+ *   1. source_warehouse_id = MAIN_WAREHOUSE_ID        → المخزن الرئيسي
+ *   2. source_warehouse_id = AGOUZA_WAREHOUSE_ID      → مخزن العجوزة
+ *   3. else                                            → غير مصنف
  */
 export const useTodayOrdersBreakdown = () => {
   return useQuery<TodayOrdersBreakdown>({
