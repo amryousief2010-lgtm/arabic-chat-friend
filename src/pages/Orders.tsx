@@ -1968,9 +1968,26 @@ const Orders = () => {
                       />
                     </TableCell>
                     <TableCell className="font-mono font-semibold">
-                      {order.order_number}
+                      <button
+                        type="button"
+                        onClick={() => openMixedDialog(order.id)}
+                        className="text-primary hover:underline focus:outline-none"
+                        title="ضبط التحصيل"
+                      >
+                        {order.order_number}
+                      </button>
                     </TableCell>
-                    <TableCell>{order.customer_name}</TableCell>
+                    <TableCell>
+                      <button
+                        type="button"
+                        onClick={() => openMixedDialog(order.id)}
+                        className="text-right hover:underline focus:outline-none"
+                        title="ضبط التحصيل"
+                      >
+                        {order.customer_name}
+                      </button>
+                    </TableCell>
+
                     <TableCell className="font-mono text-sm" dir="ltr">
                       {order.customer_phone ? (
                         <a href={`tel:${order.customer_phone}`} className="hover:underline">{order.customer_phone}</a>
@@ -2360,10 +2377,12 @@ const Orders = () => {
                       {selectedOrder.items.map((item) => {
                         const qty = Number(item.quantity) || 0;
                         const lineTotal = Number(item.total_price) || 0;
-                        // Prefer stored unit_price; fallback to computed
-                        const unit = Number(item.unit_price) > 0
-                          ? Number(item.unit_price)
-                          : (qty > 0 ? lineTotal / qty : 0);
+                        const rawUnit = Number(item.unit_price) || 0;
+                        const unit = rawUnit > 0
+                          ? rawUnit
+                          : (qty > 0 && lineTotal > 0 ? lineTotal / qty : 0);
+                        const noPrice = unit === 0 && lineTotal === 0;
+                        const isGift = (item as any).is_gift === true;
                         const unitLabel = (item as any).is_half_kg ? 'كجم' : ((item as any).unit || 'قطعة');
                         return (
                           <TableRow key={item.id}>
@@ -2372,14 +2391,26 @@ const Orders = () => {
                               {(item as any).is_half_kg && (
                                 <span className="mr-2 text-[10px] px-2 py-0.5 rounded bg-secondary text-secondary-foreground">نصف كيلو</span>
                               )}
+                              {isGift && (
+                                <span className="mr-2 text-[10px] px-2 py-0.5 rounded bg-pink-100 text-pink-700 border border-pink-200">🎁 هدية</span>
+                              )}
                             </TableCell>
                             <TableCell className="text-center">{qty.toLocaleString()}</TableCell>
                             <TableCell className="text-center text-xs text-muted-foreground">{unitLabel}</TableCell>
-                            <TableCell className="text-center">{unit.toLocaleString(undefined,{maximumFractionDigits:2})} ج.م</TableCell>
-                            <TableCell className="text-left font-bold">{lineTotal.toLocaleString()} ج.م</TableCell>
+                            <TableCell className="text-center">
+                              {noPrice
+                                ? <span className="text-muted-foreground text-xs">غير محسوب</span>
+                                : `${unit.toLocaleString(undefined,{maximumFractionDigits:2})} ج.م`}
+                            </TableCell>
+                            <TableCell className="text-left font-bold">
+                              {noPrice
+                                ? <span className="text-muted-foreground text-xs">—</span>
+                                : `${lineTotal.toLocaleString()} ج.م`}
+                            </TableCell>
                           </TableRow>
                         );
                       })}
+
                     </TableBody>
                   </Table>
                 </div>
