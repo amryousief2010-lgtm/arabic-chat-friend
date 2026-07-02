@@ -105,6 +105,7 @@ const HRWorkLocations = lazy(() => import("@/pages/hr/HRWorkLocations"));
 const HREmployeeAdvancesReport = lazy(() => import("@/pages/hr/HREmployeeAdvancesReport"));
 const HRDeductions = lazy(() => import("@/pages/hr/HRDeductions"));
 const HRWorkforceAnalysis = lazy(() => import("@/pages/hr/HRWorkforceAnalysis"));
+const HRPayDay1Report = lazy(() => import("@/pages/hr/HRPayDay1Report"));
 const Warehouses = lazy(() => import("@/pages/modules/Warehouses"));
 const WarehouseManagementHub = lazy(() => import("@/pages/modules/WarehouseManagementHub"));
 const WarehousesByLocation = lazy(() => import("@/pages/modules/WarehousesByLocation"));
@@ -981,6 +982,11 @@ const AnimatedRoutes = () => {
           <Route path="/hr/workforce-analysis" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager']}>
               <PageTransition><HRWorkforceAnalysis /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/hr/payday-report" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager']}>
+              <PageTransition><HRPayDay1Report /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses" element={
