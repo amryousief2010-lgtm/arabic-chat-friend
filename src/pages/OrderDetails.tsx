@@ -32,6 +32,7 @@ import {
   FileText,
   Pencil,
   Printer,
+  Wallet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { printOrderInvoice } from "@/lib/printUtils";
@@ -98,6 +99,15 @@ interface Order {
   created_by_name: string | null;
   source_warehouse_name: string | null;
   items: OrderItem[];
+  collection_method?: string | null;
+  courier_cash_due?: number;
+  vodafone_cash_amount?: number;
+  instapay_amount?: number;
+  bank_transfer_amount?: number;
+  other_amount?: number;
+  free_amount?: number;
+  transfer_reference?: string | null;
+  collection_note?: string | null;
 }
 
 const statusColors: Record<OrderStatus, string> = {
@@ -293,6 +303,15 @@ const OrderDetails = () => {
         created_by: orderData.created_by,
         created_by_name: createdByName,
         source_warehouse_name: sourceWarehouseName,
+        collection_method: (orderData as any).collection_method ?? null,
+        courier_cash_due: Number((orderData as any).courier_cash_due ?? 0),
+        vodafone_cash_amount: Number((orderData as any).vodafone_cash_amount ?? 0),
+        instapay_amount: Number((orderData as any).instapay_amount ?? 0),
+        bank_transfer_amount: Number((orderData as any).bank_transfer_amount ?? 0),
+        other_amount: Number((orderData as any).other_amount ?? 0),
+        free_amount: Number((orderData as any).free_amount ?? 0),
+        transfer_reference: (orderData as any).transfer_reference ?? null,
+        collection_note: (orderData as any).collection_note ?? null,
         items: (itemsData || []).map((item: any) => ({
           id: item.id,
           product_id: item.product_id ?? null,
@@ -481,6 +500,11 @@ const OrderDetails = () => {
                 <div className="space-y-3">
                   {order.items.map((item) => {
                     const kg = itemKg(item);
+                    const qty = Number(item.quantity) || 0;
+                    const lineTotal = Number(item.total_price) || 0;
+                    const rawUnit = Number(item.unit_price) || 0;
+                    const unit = rawUnit > 0 ? rawUnit : (qty > 0 && lineTotal > 0 ? lineTotal / qty : 0);
+                    const noPrice = unit === 0 && lineTotal === 0;
                     return (
                     <div
                       key={item.id}
@@ -498,15 +522,19 @@ const OrderDetails = () => {
                             )}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {item.is_half_kg ? (
+                            {noPrice ? (
+                              <span className="text-muted-foreground">الكمية: {qty.toLocaleString()} — <span className="italic">غير محسوب</span></span>
+                            ) : item.is_half_kg ? (
                               <>
-                                <span className="text-primary font-medium">{item.quantity} كجم</span>
-                                <span className="mr-2">({(item.quantity * 2).toLocaleString()} × نص كيلو)</span>
-                                <span className="mr-2">— {item.unit_price.toLocaleString()} ج.م / كجم</span>
+                                <span className="text-primary font-medium">{qty} كجم</span>
+                                <span className="mr-2">({(qty * 2).toLocaleString()} × نص كيلو)</span>
+                                <span className="mr-2">— {unit.toLocaleString(undefined,{maximumFractionDigits:2})} ج.م / كجم</span>
                               </>
                             ) : (
                               <>
-                                {item.unit_price.toLocaleString()} ج.م × {item.quantity}
+                                <span className="font-medium text-foreground">{unit.toLocaleString(undefined,{maximumFractionDigits:2})} ج.م</span>
+                                <span className="mx-1">×</span>
+                                <span>{qty.toLocaleString()}</span>
                                 {kg !== null && (
                                   <span className="mr-2 text-primary font-medium">= {kg} كجم</span>
                                 )}
@@ -542,7 +570,7 @@ const OrderDetails = () => {
                         </div>
                       </div>
                       <p className="font-bold text-lg">
-                        {item.total_price.toLocaleString()} ج.م
+                        {noPrice ? <span className="text-muted-foreground text-sm">—</span> : `${lineTotal.toLocaleString()} ج.م`}
                       </p>
                     </div>
                     );
@@ -586,6 +614,68 @@ const OrderDetails = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Collection Breakdown */}
+            <Card className="glass-card">
+              <CardHeader>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="flex items-center gap-2">
+                    <Wallet className="w-5 h-5 text-emerald-600" />
+                    تفاصيل التحصيل
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                    onClick={() => navigate(`/orders?mixed=${order.id}`)}
+                  >
+                    <Wallet className="w-4 h-4" />
+                    ضبط التحصيل
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const cash = Number(order.courier_cash_due || 0);
+                  const vod = Number(order.vodafone_cash_amount || 0);
+                  const insta = Number(order.instapay_amount || 0);
+                  const bank = Number(order.bank_transfer_amount || 0);
+                  const other = Number(order.other_amount || 0);
+                  const free = Number(order.free_amount || 0);
+                  const rows: Array<{ label: string; amount: number; className?: string }> = [
+                    { label: 'نقدي مع المندوب', amount: cash },
+                    { label: '📱 فودافون كاش', amount: vod },
+                    { label: 'إنستاباي', amount: insta },
+                    { label: 'تحويل بنكي', amount: bank },
+                    { label: 'أخرى', amount: other },
+                    { label: 'مجاني', amount: free, className: 'text-pink-600' },
+                  ].filter((r) => r.amount > 0);
+                  if (rows.length === 0) {
+                    return <p className="text-sm text-muted-foreground">لم يتم تسجيل تفاصيل تحصيل بعد. اضغط «ضبط التحصيل» لتحديد كيف حوّل العميل وكم استلم المندوب نقدي.</p>;
+                  }
+                  return (
+                    <div className="space-y-1.5 text-sm">
+                      {rows.map((r, i) => (
+                        <div key={i} className={`flex justify-between ${r.className || ''}`}>
+                          <span>{r.label}</span>
+                          <span className="font-semibold">{r.amount.toLocaleString()} ج.م</span>
+                        </div>
+                      ))}
+                      {order.transfer_reference && (
+                        <div className="flex justify-between border-t pt-1.5 text-xs">
+                          <span className="text-muted-foreground">رقم المرجع</span>
+                          <span>{order.transfer_reference}</span>
+                        </div>
+                      )}
+                      {order.collection_note && (
+                        <div className="border-t pt-1.5 text-xs text-muted-foreground">📝 {order.collection_note}</div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+
 
             {/* Notes Card */}
             {order.notes && (

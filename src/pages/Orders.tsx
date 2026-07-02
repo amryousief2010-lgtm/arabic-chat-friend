@@ -389,6 +389,8 @@ const Orders = () => {
       setSearchParams(next, { replace: true });
     }
   }, [rawChannelParam]);
+  // فتح نافذة ضبط التحصيل تلقائيًا عند وجود ?mixed=<orderId>
+  const mixedParam = searchParams.get("mixed");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
@@ -1026,6 +1028,20 @@ const Orders = () => {
     setMixedDlgOrderId(orderId);
   };
 
+  // Auto-open mixed collection dialog when navigated with ?mixed=<orderId>
+  useEffect(() => {
+    if (!mixedParam) return;
+    const found = orders.find((o) => o.id === mixedParam);
+    if (!found) return;
+    openMixedDialog(mixedParam);
+    const next = new URLSearchParams(searchParams);
+    next.delete('mixed');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mixedParam, orders.length]);
+
+
+
   const saveMixedBreakdown = async () => {
     const id = mixedDlgOrderId;
     if (!id) return;
@@ -1651,7 +1667,7 @@ const Orders = () => {
                           onCheckedChange={(v) => toggleReviewed(order.id, v === true)}
                           aria-label="تمت المراجعة"
                         />
-                        <span className="font-mono font-semibold text-sm">{order.order_number}</span>
+                        <button type="button" onClick={() => openMixedDialog(order.id)} className="font-mono font-semibold text-sm text-primary hover:underline" title="ضبط التحصيل">{order.order_number}</button>
                       </div>
                       <div className="flex items-center gap-1">
                         {isDuplicatePhone && (
@@ -1667,9 +1683,14 @@ const Orders = () => {
                     </div>
 
                     <div className={`flex items-center justify-between gap-2 rounded-md px-2 py-1.5 ${isDuplicatePhone ? "bg-red-100 dark:bg-red-900/40 border border-red-300" : "bg-primary/10 border border-primary/20"}`}>
-                      <span className={`font-bold text-base md:text-lg truncate ${isDuplicatePhone ? "text-red-700 dark:text-red-200" : "text-primary"}`}>
+                      <button
+                        type="button"
+                        onClick={() => openMixedDialog(order.id)}
+                        className={`font-bold text-base md:text-lg truncate hover:underline text-right ${isDuplicatePhone ? "text-red-700 dark:text-red-200" : "text-primary"}`}
+                        title="ضبط التحصيل"
+                      >
                         {order.customer_name}
-                      </span>
+                      </button>
                       <Badge variant="secondary" className="text-xs shrink-0">{order.moderator_name}</Badge>
                     </div>
                     {order.customer_phone && (
