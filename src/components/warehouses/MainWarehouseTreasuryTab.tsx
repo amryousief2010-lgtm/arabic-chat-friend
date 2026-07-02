@@ -497,6 +497,37 @@ export default function MainWarehouseTreasuryTab() {
     } finally { setBusy(false); }
   };
 
+  // Load un-transferred courier daily deposits when opening dialog
+  useEffect(() => {
+    if (!transferOpen) return;
+    (async () => {
+      setLoadingDeposits(true);
+      try {
+        const { data } = await (supabase as any)
+          .from("courier_daily_cash_deposits")
+          .select("id,courier_name,deposit_date,amount,orders_count,order_numbers,treasury_txn_id,notes")
+          .is("transferred_txn_id", null)
+          .gt("amount", 0)
+          .order("deposit_date", { ascending: false });
+        setPendingDeposits(data || []);
+      } catch { setPendingDeposits([]); }
+      finally { setLoadingDeposits(false); }
+    })();
+  }, [transferOpen]);
+
+  const toggleDeposit = (id: string, amount: number) => {
+    setSelectedDepositIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      // auto-sum amount
+      const total = pendingDeposits
+        .filter((d) => next.has(d.id))
+        .reduce((s, d) => s + Number(d.amount || 0), 0);
+      setTransferAmt(total > 0 ? String(total) : "");
+      return next;
+    });
+  };
+
   const submitTransfer = async () => {
     const amt = Number(transferAmt);
     if (!amt || amt <= 0) {
@@ -507,15 +538,35 @@ export default function MainWarehouseTreasuryTab() {
     }
     setBusy(true);
     try {
-      const { error } = await (supabase as any).from("main_warehouse_treasury_txns").insert({
+      const selectedDeps = pendingDeposits.filter((d) => selectedDepositIds.has(d.id));
+      // Build detailed notes summary from selected days
+      let autoNotes = "";
+      if (selectedDeps.length) {
+        const lines = selectedDeps.map((d) => {
+          const day = new Date(d.deposit_date).toLocaleDateString("ar-EG");
+          return `• يوم ${day} — ${d.courier_name || ""} — ${fmt(Number(d.amount || 0))} ج.م — ${d.orders_count} أوردر${Array.isArray(d.order_numbers) && d.order_numbers.length ? ` [${d.order_numbers.join(", ")}]` : ""}`;
+        });
+        autoNotes = `تحويل ${selectedDeps.length} يوم/أيام توريد:\n` + lines.join("\n");
+      }
+      const finalNotes = [transferNotes.trim(), autoNotes].filter(Boolean).join("\n\n") || null;
+
+      const { data: inserted, error } = await (supabase as any).from("main_warehouse_treasury_txns").insert({
         direction: "out",
         category: "transfer_from_main_warehouse_treasury",
         amount: amt,
-        notes: transferNotes.trim() || null,
+        notes: finalNotes,
         performed_by: user?.id,
         status: "pending_approval",
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      // Link selected deposits to this transfer txn
+      if (selectedDeps.length && inserted?.id) {
+        await (supabase as any)
+          .from("courier_daily_cash_deposits")
+          .update({ transferred_txn_id: inserted.id })
+          .in("id", selectedDeps.map((d) => d.id));
+      }
 
       // notify financial manager(s) / main treasury approvers
       try {
@@ -538,7 +589,7 @@ export default function MainWarehouseTreasuryTab() {
       } catch { /* best effort */ }
 
       toast({ title: "تم إرسال التحويل للاعتماد", description: `بانتظار محمد شعلة: ${fmt(amt)} ج.م` });
-      setTransferOpen(false); setTransferAmt(""); setTransferNotes("");
+      setTransferOpen(false); setTransferAmt(""); setTransferNotes(""); setSelectedDepositIds(new Set());
       await fetchAll();
     } catch (e: any) {
       toast({ title: "تعذّر إرسال التحويل", description: e?.message || "", variant: "destructive" });
