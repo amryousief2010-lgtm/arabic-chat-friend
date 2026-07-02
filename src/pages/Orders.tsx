@@ -1616,6 +1616,13 @@ const Orders = () => {
             <Button variant="outline" className="gap-2" onClick={() => exportOrdersToPDF(filteredOrders)}>
               <FileText className="w-4 h-4" /> PDF
             </Button>
+            <Button
+              onClick={() => setQuickDeliveryOpen(true)}
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
+            >
+              <Zap className="w-4 h-4" />
+              تسليم سريع
+            </Button>
             {!isSocialMediaManager && (
               <Button asChild className="gap-2">
                 <Link to="/orders/new">
