@@ -1746,49 +1746,69 @@ const Orders = () => {
                     key={order.id}
                     className={
                       isDuplicatePhone
-                        ? "rounded-lg border-2 border-red-500 bg-red-50 dark:bg-red-950/40 ring-2 ring-red-400/60 p-3 space-y-2 shadow-md"
-                        : `rounded-lg border p-3 space-y-2 ${cardColor}`
+                        ? "rounded-lg border-2 border-red-500 bg-red-50 dark:bg-red-950/40 ring-2 ring-red-400/60 p-2.5 sm:p-3 space-y-2 shadow-md"
+                        : `rounded-lg border p-2.5 sm:p-3 space-y-2 ${cardColor}`
                     }
                   >
+                    {/* السطر 1: رقم الأوردر + الحالة + الإجمالي */}
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <Checkbox
                           checked={reviewedIds.has(order.id)}
                           onCheckedChange={(v) => toggleReviewed(order.id, v === true)}
                           aria-label="تمت المراجعة"
                         />
-                        <button type="button" onClick={() => openMixedDialog(order.id)} className="font-mono font-semibold text-sm text-primary hover:underline" title="ضبط التحصيل">{order.order_number}</button>
+                        <button
+                          type="button"
+                          onClick={() => openMixedDialog(order.id)}
+                          className="font-mono font-semibold text-[11px] sm:text-xs text-primary hover:underline truncate"
+                          title="ضبط التحصيل"
+                        >
+                          {order.order_number}
+                        </button>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {isDuplicatePhone && (
                           <Badge className="bg-red-600 hover:bg-red-600 text-white text-[10px] gap-1">
-                            <AlertCircle className="w-3 h-3" /> رقم مكرر
+                            <AlertCircle className="w-3 h-3" /> مكرر
                           </Badge>
                         )}
-                        <Badge className={`${statusColors[order.status]} flex items-center gap-1 text-xs`}>
+                        <Badge className={`${statusColors[order.status]} flex items-center gap-1 text-[11px] py-0.5`}>
                           {getStatusIcon(order.status)}
                           {statusLabels[order.status]}
                         </Badge>
+                        <span className="font-bold text-primary text-sm sm:text-base whitespace-nowrap">
+                          {order.total.toLocaleString()} ج.م
+                        </span>
                       </div>
                     </div>
 
+                    {/* السطر 2: اسم العميل + الهاتف + المسؤولة */}
                     <div className={`flex items-center justify-between gap-2 rounded-md px-2 py-1.5 ${isDuplicatePhone ? "bg-red-100 dark:bg-red-900/40 border border-red-300" : "bg-primary/10 border border-primary/20"}`}>
-                      <button
-                        type="button"
-                        onClick={() => openMixedDialog(order.id)}
-                        className={`font-bold text-base md:text-lg truncate hover:underline text-right ${isDuplicatePhone ? "text-red-700 dark:text-red-200" : "text-primary"}`}
-                        title="ضبط التحصيل"
-                      >
-                        {order.customer_name}
-                      </button>
-                      <Badge variant="secondary" className="text-xs shrink-0">{order.moderator_name}</Badge>
-                    </div>
-                    {order.customer_phone && (
-                      <div className="text-xs font-mono text-muted-foreground" dir="ltr">
-                        <a href={`tel:${order.customer_phone}`} className="hover:underline">{order.customer_phone}</a>
+                      <div className="min-w-0 flex-1">
+                        <button
+                          type="button"
+                          onClick={() => openMixedDialog(order.id)}
+                          className={`block font-bold text-sm sm:text-base truncate hover:underline text-right w-full ${isDuplicatePhone ? "text-red-700 dark:text-red-200" : "text-primary"}`}
+                          title="ضبط التحصيل"
+                        >
+                          {order.customer_name}
+                        </button>
+                        {order.customer_phone && (
+                          <a
+                            href={`tel:${order.customer_phone}`}
+                            dir="ltr"
+                            className="block text-[11px] font-mono text-muted-foreground hover:underline text-right"
+                          >
+                            {order.customer_phone}
+                          </a>
+                        )}
                       </div>
-                    )}
-                    <div className="text-sm text-foreground/90 break-words">
+                      <Badge variant="secondary" className="text-[10px] shrink-0">{order.moderator_name}</Badge>
+                    </div>
+
+                    {/* السطر 3: المنتجات (ملخّص) */}
+                    <div className="text-xs sm:text-sm text-foreground/90 break-words">
                       {itemLines.length === 0 ? '-' : (
                         <ul className="space-y-0.5 list-disc pr-4">
                           {shownLines.map((l, i) => <li key={i}>{l}</li>)}
@@ -1798,56 +1818,50 @@ const Orders = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 px-2 mt-1 text-xs gap-1 text-primary hover:text-primary"
+                          className="h-6 px-1.5 mt-0.5 text-[11px] gap-1 text-primary hover:text-primary"
                           onClick={() => toggleExpanded(order.id)}
                         >
-                          {isExpanded ? <><ChevronUp className="w-3 h-3" /> إخفاء التفاصيل</> : <><ChevronDown className="w-3 h-3" /> عرض كل المنتجات ({itemLines.length})</>}
+                          {isExpanded ? <><ChevronUp className="w-3 h-3" /> إخفاء</> : <><ChevronDown className="w-3 h-3" /> عرض كل المنتجات ({itemLines.length})</>}
                         </Button>
                       )}
                     </div>
+
                     {(() => {
                       const offers = Array.from(new Set(order.items.map((it) => it.offer_name).filter(Boolean) as string[]));
                       return offers.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {offers.map((name) => (
-                            <Badge key={name} className="bg-orange-500 hover:bg-orange-500 text-white text-xs">{name}</Badge>
+                            <Badge key={name} className="bg-orange-500 hover:bg-orange-500 text-white text-[10px] py-0">{name}</Badge>
                           ))}
                         </div>
                       ) : null;
                     })()}
+
                     {order.notes && (
-                      <div className="text-xs bg-muted/50 border rounded px-2 py-1 break-words">
-                        <span className="font-semibold">ملاحظات: </span>
-                        {order.notes}
+                      <div className="text-[11px] bg-muted/50 border rounded px-2 py-1 break-words">
+                        <span className="font-semibold">ملاحظات: </span>{order.notes}
                       </div>
                     )}
 
-                    {/* السطر الأساسي: السعر + التاريخ */}
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t">
-                      <span className="font-bold text-primary text-base">{order.total.toLocaleString()} ج.م</span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDate(order.created_at)}
-                      </span>
-                    </div>
-
-                    {/* المحافظة + مصدر التنفيذ (مختصر) */}
-                    {(order.governorate || order.source_warehouse_name || order.shipping_company) && (
-                      <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                    {/* السطر 4: التوصيل + التاريخ */}
+                    <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                         {order.governorate && (
-                          <span className="inline-flex items-center gap-1">
+                          <span className="inline-flex items-center gap-0.5">
                             <MapPin className="w-3 h-3" /> {order.governorate}
                           </span>
                         )}
                         {(order.source_warehouse_name || order.shipping_company) && (
-                          <Badge variant="outline" className="text-[10px]">
-                            {order.fulfillment_type === 'pickup' ? 'استلام من ' : order.fulfillment_type === 'delivery' ? 'توصيل من ' : ''}
-                            {order.source_warehouse_name || order.shipping_company || '-'}
+                          <Badge variant="outline" className="text-[10px] py-0 font-normal">
+                            {order.fulfillment_type === 'pickup' ? 'استلام: ' : order.fulfillment_type === 'delivery' ? 'توصيل: ' : ''}
+                            {order.source_warehouse_name || order.shipping_company}
                           </Badge>
                         )}
                       </div>
-                    )}
+                      <span className="shrink-0">{formatDate(order.created_at)}</span>
+                    </div>
 
-                    {/* شريط الأزرار الأساسي */}
+                    {/* شريط الأزرار */}
                     {(() => {
                       const isDetailsShown = expandedDetails.has(order.id);
                       const statusOptions = Object.entries(statusLabels).filter(
@@ -1859,11 +1873,12 @@ const Orders = () => {
                       );
                       return (
                         <>
-                          <div className="flex flex-wrap items-center gap-2 pt-1">
-                            {!isSalesModerator && (
+                          {/* الصف الأساسي: تحديث الحالة + تفاصيل */}
+                          <div className="grid grid-cols-2 gap-1.5 pt-1">
+                            {!isSalesModerator ? (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button size="sm" variant="default" className="gap-1 h-8">
+                                  <Button size="sm" variant="default" className="gap-1 h-9 w-full">
                                     <CheckCircle className="w-3.5 h-3.5" />
                                     تحديث الحالة
                                   </Button>
@@ -1888,40 +1903,46 @@ const Orders = () => {
                                   ))}
                                 </DropdownMenuContent>
                               </DropdownMenu>
+                            ) : (
+                              <div />
                             )}
                             <Button
                               size="sm"
                               variant="outline"
-                              className="gap-1 h-8"
+                              className="gap-1 h-9 w-full"
                               onClick={() => toggleDetails(order.id)}
                             >
                               {isDetailsShown ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                               تفاصيل
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1 h-8"
-                              onClick={() => handlePrintOrder(order)}
-                            >
-                              <Printer className="w-3.5 h-3.5" />
-                              طباعة
-                            </Button>
+                          </div>
+
+                          {/* الصف الثانوي: فتح + طباعة + ضبط التحصيل */}
+                          <div className={`grid ${canSetCollectionMethod ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5`}>
                             <Button
                               size="sm"
                               variant="outline"
                               asChild
-                              className="gap-1 h-8"
+                              className="gap-1 h-8 w-full text-xs"
                             >
                               <Link to={`/orders/${order.id}`}>
                                 <Eye className="w-3.5 h-3.5" />
                                 فتح
                               </Link>
                             </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1 h-8 w-full text-xs"
+                              onClick={() => handlePrintOrder(order)}
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                              طباعة
+                            </Button>
                             {canSetCollectionMethod && (
                               <Button
                                 size="sm"
-                                className="gap-1 h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                className="gap-1 h-8 w-full text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
                                 onClick={() => openMixedDialog(order.id)}
                               >
                                 <Wallet className="w-3.5 h-3.5" />
@@ -1929,6 +1950,7 @@ const Orders = () => {
                               </Button>
                             )}
                           </div>
+
 
                           {/* التفاصيل الموسّعة */}
                           {isDetailsShown && (
