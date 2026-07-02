@@ -1092,9 +1092,11 @@ export default function CourierOrderCustodyTab() {
 
       {/* Order details dialog */}
       <Dialog open={!!detailsOrder} onOpenChange={(v) => !v && setDetailsOrder(null)}>
-        <DialogContent dir="rtl" className="max-w-2xl">
+        <DialogContent dir="rtl" className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader><DialogTitle>تفاصيل {detailsOrder?.order_number}</DialogTitle></DialogHeader>
-          <OrderDetailsBody order={detailsOrder} />
+          <div className="flex-1 overflow-y-auto pr-1">
+            <OrderDetailsBody order={detailsOrder} />
+          </div>
         </DialogContent>
       </Dialog>
 
