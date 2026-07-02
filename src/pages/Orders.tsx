@@ -1829,17 +1829,19 @@ const Orders = () => {
                           <span className="text-muted-foreground">مطلوب من المندوب: 0 ج</span>
                         )}
                       </div>
-                      <Select
-                        value={order.collection_method ?? '__unset__'}
-                        onValueChange={(v) => updateCollectionMethod(order.id, v as CollectionMethod)}
-                      >
-                        <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="تغيير طريقة التحصيل" /></SelectTrigger>
-                        <SelectContent>
-                          {(Object.keys(collectionMethodMeta) as CollectionMethod[]).map((k) => (
-                            <SelectItem key={k} value={k}>{collectionMethodMeta[k].label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {canSetCollectionMethod && (
+                        <Select
+                          value={order.collection_method ?? '__unset__'}
+                          onValueChange={(v) => updateCollectionMethod(order.id, v as CollectionMethod)}
+                        >
+                          <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="تغيير طريقة التحصيل" /></SelectTrigger>
+                          <SelectContent>
+                            {(Object.keys(collectionMethodMeta) as CollectionMethod[]).map((k) => (
+                              <SelectItem key={k} value={k}>{collectionMethodMeta[k].label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
 
                     {!isSalesModerator && (
