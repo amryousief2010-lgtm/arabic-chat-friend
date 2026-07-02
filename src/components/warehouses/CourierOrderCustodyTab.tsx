@@ -348,26 +348,53 @@ export default function CourierOrderCustodyTab() {
       if (!map.has(day)) map.set(day, []);
       map.get(day)!.push(a);
     });
+    const depByDay = new Map(dailyDeposits.filter((d) => d.custody_id === selectedCustody).map((d) => [d.deposit_date, d]));
     return Array.from(map.entries())
       .sort((a, b) => (a[0] < b[0] ? 1 : -1))
       .map(([day, items]) => {
-        const totalValue = items.reduce((s, a) => {
-          const o = orders.find((x) => x.id === a.order_id);
-          if (isNonCashAssignment(a, o as any)) return s;
-          // For mixed payments, only the cash portion counts toward courier cash-due totals.
-          if (o?.collection_method === 'mixed_payment') return s + Number(o?.courier_cash_due || 0);
-          return s + Number(o?.total || 0);
-        }, 0);
-
+        let totalValue = 0, cashDue = 0, vodafone = 0, instapay = 0, bank = 0, other = 0, free = 0;
+        let missingBreakdown = 0, undelivered = 0;
+        items.forEach((a) => {
+          const o: any = orders.find((x) => x.id === a.order_id);
+          if (!o) return;
+          const deliveredStatus = ["delivered", "collected", "completed"].includes(o.status);
+          const nonCash = isNonCashAssignment(a, o);
+          if (!nonCash) {
+            if (o.collection_method === "mixed_payment") totalValue += Number(o.courier_cash_due || 0);
+            else totalValue += Number(o.total || 0);
+          }
+          vodafone += Number(o.vodafone_cash_amount || 0);
+          instapay += Number(o.instapay_amount || 0);
+          bank += Number(o.bank_transfer_amount || 0);
+          other += Number(o.other_amount || 0);
+          free += Number(o.free_amount || 0);
+          if (deliveredStatus && !nonCash) {
+            cashDue += o.collection_method === "mixed_payment" ? Number(o.courier_cash_due || 0) : Number(o.total || 0);
+          }
+          if (deliveredStatus && o.collection_method === "mixed_payment") {
+            const sum = Number(o.courier_cash_due || 0) + Number(o.vodafone_cash_amount || 0) + Number(o.instapay_amount || 0) +
+                        Number(o.bank_transfer_amount || 0) + Number(o.other_amount || 0) + Number(o.free_amount || 0);
+            if (Math.abs(sum - Number(o.total || 0)) > 0.01) missingBreakdown += 1;
+          }
+          if (!["delivered", "collected", "completed", "cancelled", "partially_returned", "fully_returned"].includes(o.status)) undelivered += 1;
+        });
         const collected = items.reduce((s, a) => {
           const c = collections.find((cl) => cl.order_id === a.order_id);
           return s + Number(c?.amount_collected || 0);
         }, 0);
         const delivered = items.filter((a) => ["delivered", "collected", "completed"].includes(a.status)).length;
         const returns = items.filter((a) => ["partially_returned", "fully_returned"].includes(a.status)).length;
-        return { day, items, totalValue, collected, delivered, returns, remaining: Math.max(0, totalValue - collected) };
+        const deposit = depByDay.get(day) || null;
+        return {
+          day, items, totalValue, collected, delivered, returns,
+          remaining: Math.max(0, totalValue - collected),
+          cashDue, vodafone, instapay, bank, other, free,
+          missingBreakdown, undelivered, deposit,
+          canDeposit: undelivered === 0 && missingBreakdown === 0 && cashDue > 0 && !deposit,
+        };
       });
-  }, [currentAssignments, orders, collections]);
+  }, [currentAssignments, orders, collections, dailyDeposits, selectedCustody]);
+
 
   // ── Actions ─────────────────────────────────────────────────────────────
   const handleAssign = async () => {
