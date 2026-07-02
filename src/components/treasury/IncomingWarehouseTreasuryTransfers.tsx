@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Warehouse, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Warehouse, CheckCircle2, XCircle, Loader2, Printer } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface Row {
@@ -28,7 +28,8 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
     isGeneralManager ||
     isExecutiveManager ||
     rs.includes("financial_manager") ||
-    rs.includes("main_treasury_approver");
+    rs.includes("main_treasury_approver") ||
+    rs.includes("main_treasury_accountant");
 
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
