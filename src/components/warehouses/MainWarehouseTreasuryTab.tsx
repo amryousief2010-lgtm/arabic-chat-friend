@@ -284,8 +284,9 @@ export default function MainWarehouseTreasuryTab() {
         .summary{margin-top:12px;padding:10px;background:#ecfdf5;border:1px solid #10b981;border-radius:6px;font-size:14px}
       </style>
     `;
-    openPrintWindow({ title: `تفاصيل توريد ${m.courier_name} - ${dayLabel}`, bodyHtml: html, company: COMPANY_AR });
+    openPrintWindow(`تفاصيل توريد ${m.courier_name} - ${dayLabel}`, html);
   };
+
 
 
 
