@@ -1,15 +1,27 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Flame } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTopProductsLast3Days } from "@/hooks/useSalesAnalytics";
+
+type RangeDays = 1 | 3 | 7 | 30;
+
+const RANGE_META: Record<RangeDays, { label: string; qs: string }> = {
+  1:  { label: "آخر يوم",     qs: "1d" },
+  3:  { label: "آخر 3 أيام",  qs: "3d" },
+  7:  { label: "آخر 7 أيام",  qs: "7d" },
+  30: { label: "آخر 30 يوم",  qs: "30d" },
+};
 
 export default function TopProducts3DaysCard() {
   const navigate = useNavigate();
-  const { data, isLoading } = useTopProductsLast3Days(5);
+  const [days, setDays] = useState<RangeDays>(3);
+  const { data, isLoading } = useTopProductsLast3Days(5, days);
 
   const openProduct = (p: { product_id: string | null; product_name: string }) => {
-    const qs = new URLSearchParams({ range: "3d" });
+    const qs = new URLSearchParams({ range: RANGE_META[days].qs });
     if (p.product_id) qs.set("product_id", p.product_id);
     else qs.set("product_name", p.product_name);
     navigate(`/orders?${qs.toString()}`);
@@ -18,17 +30,29 @@ export default function TopProducts3DaysCard() {
   return (
     <Card className="glass-card mb-6">
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Flame className="w-5 h-5 text-orange-500" />
-          المنتجات الأكثر طلبًا خلال آخر 3 أيام
-        </CardTitle>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Flame className="w-5 h-5 text-orange-500" />
+            المنتجات الأكثر طلبًا خلال {RANGE_META[days].label}
+          </CardTitle>
+          <Select value={String(days)} onValueChange={(v) => setDays(Number(v) as RangeDays)}>
+            <SelectTrigger className="w-auto min-w-[140px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(RANGE_META) as unknown as RangeDays[]).map((k) => (
+                <SelectItem key={k} value={String(k)}>{RANGE_META[k as RangeDays].label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </CardHeader>
       <CardContent className="pt-2">
         {isLoading ? (
           <Skeleton className="h-40 w-full" />
         ) : !data || data.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">
-            لا توجد طلبات خلال آخر 3 أيام
+            لا توجد طلبات خلال {RANGE_META[days].label}
           </p>
         ) : (
           <div className="overflow-x-auto">
