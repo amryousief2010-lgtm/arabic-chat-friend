@@ -311,6 +311,10 @@ const DashboardContent = () => {
       </div>
       )}
 
+      <TopProducts7DaysCard />
+
+
+
       {/* Sales Trends — Monthly (current year) & Daily (current month) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <Card className="glass-card">
