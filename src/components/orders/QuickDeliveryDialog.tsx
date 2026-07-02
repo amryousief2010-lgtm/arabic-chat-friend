@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Search, Zap } from "lucide-react";
+import { CheckCircle2, Clock, Truck, Undo2, Search, Zap } from "lucide-react";
 import { formatDate } from "@/lib/dateFormat";
 
 interface QDOrder {
@@ -19,25 +19,71 @@ interface QDOrder {
   moderator_name?: string | null;
 }
 
+type QuickStatus = "delivered" | "pending" | "shipped" | "cancelled";
+
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   orders: QDOrder[];
-  onDeliver: (orderId: string) => void | Promise<void>;
+  onUpdateStatus: (orderId: string, status: QuickStatus) => void | Promise<void>;
   statusLabels: Record<string, string>;
   canMarkDelivered: boolean;
 }
 
-const QuickDeliveryDialog = ({ open, onOpenChange, orders, onDeliver, statusLabels, canMarkDelivered }: Props) => {
+const STATUS_BUTTONS: {
+  key: QuickStatus;
+  label: string;
+  icon: typeof CheckCircle2;
+  className: string;
+  requireConfirm?: boolean;
+  confirmMessage?: string;
+  needsDeliverPerm?: boolean;
+}[] = [
+  {
+    key: "delivered",
+    label: "تم التسليم للعميل",
+    icon: CheckCircle2,
+    className: "bg-emerald-600 hover:bg-emerald-700 text-white",
+    needsDeliverPerm: true,
+  },
+  {
+    key: "shipped",
+    label: "تم التوصيل",
+    icon: Truck,
+    className: "bg-sky-600 hover:bg-sky-700 text-white",
+  },
+  {
+    key: "pending",
+    label: "قيد الانتظار",
+    icon: Clock,
+    className: "bg-amber-500 hover:bg-amber-600 text-white",
+  },
+  {
+    key: "cancelled",
+    label: "مرتجع / ملغي",
+    icon: Undo2,
+    className: "bg-rose-600 hover:bg-rose-700 text-white",
+    requireConfirm: true,
+    confirmMessage: 'هل أنت متأكد من تحديث حالة هذا الأوردر إلى "مرتجع / ملغي"؟',
+  },
+];
+
+const QuickDeliveryDialog = ({
+  open,
+  onOpenChange,
+  orders,
+  onUpdateStatus,
+  statusLabels,
+  canMarkDelivered,
+}: Props) => {
   const [query, setQuery] = useState("");
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
     const digits = q.replace(/[^\d]/g, "");
     return orders
-      .filter((o) => o.status !== "delivered" && o.status !== "cancelled")
       .filter((o) => {
         const num = (o.order_number || "").toLowerCase();
         const name = (o.customer_name || "").toLowerCase();
@@ -51,13 +97,15 @@ const QuickDeliveryDialog = ({ open, onOpenChange, orders, onDeliver, statusLabe
       .slice(0, 20);
   }, [query, orders]);
 
-  const handleDeliver = async (id: string) => {
-    setBusyId(id);
+  const handleUpdate = async (order: QDOrder, target: (typeof STATUS_BUTTONS)[number]) => {
+    if (order.status === target.key) return;
+    if (target.requireConfirm && !window.confirm(target.confirmMessage || "تأكيد التحديث؟")) return;
+    const busy = `${order.id}:${target.key}`;
+    setBusyKey(busy);
     try {
-      await onDeliver(id);
-      setQuery("");
+      await onUpdateStatus(order.id, target.key);
     } finally {
-      setBusyId(null);
+      setBusyKey(null);
     }
   };
 
@@ -70,7 +118,7 @@ const QuickDeliveryDialog = ({ open, onOpenChange, orders, onDeliver, statusLabe
             تحديث سريع للتسليم
           </DialogTitle>
           <DialogDescription>
-            ابحث برقم الأوردر / آخر 6 أرقام / اسم العميل / رقم الهاتف ثم اضغط "تم التسليم للعميل".
+            ابحث برقم الأوردر / آخر 6 أرقام / اسم العميل / رقم الهاتف ثم اختر الحالة الجديدة.
           </DialogDescription>
         </DialogHeader>
 
@@ -87,52 +135,67 @@ const QuickDeliveryDialog = ({ open, onOpenChange, orders, onDeliver, statusLabe
 
         {!canMarkDelivered && (
           <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 text-xs p-2 mt-2">
-            تحديث حالة التسليم من صلاحيات التسويق فقط. يمكنك ضبط التحصيل بعد التسليم من تفاصيل الأوردر.
+            تحديث حالة الأوردر من صلاحيات التسويق فقط. يمكنك ضبط التحصيل بعد التسليم من تفاصيل الأوردر.
           </div>
         )}
 
-        <div className="max-h-[420px] overflow-y-auto space-y-2 mt-2">
+        <div className="max-h-[460px] overflow-y-auto space-y-2 mt-2">
           {query.trim() === "" ? (
             <p className="text-center text-muted-foreground py-8 text-sm">
               اكتب في خانة البحث لعرض النتائج
             </p>
           ) : results.length === 0 ? (
             <p className="text-center text-muted-foreground py-8 text-sm">
-              لا توجد أوردرات مطابقة (يتم استبعاد المسلَّم والملغي)
+              لا توجد أوردرات مطابقة
             </p>
           ) : (
             results.map((o) => (
               <div
                 key={o.id}
-                className="border rounded-lg p-3 flex items-center justify-between gap-3 hover:bg-muted/40 transition"
+                className="border rounded-lg p-3 hover:bg-muted/40 transition space-y-2"
               >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded">
-                      {o.order_number}
-                    </span>
-                    <span className="font-semibold">{o.customer_name}</span>
-                    <Badge variant="outline">{statusLabels[o.status] || o.status}</Badge>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                    {o.customer_phone && <span>📞 {o.customer_phone}</span>}
-                    <span>💰 {Number(o.total).toLocaleString()} ج</span>
-                    <span>📅 {formatDate(o.created_at)}</span>
-                    {o.source_warehouse_name && <span>🏪 {o.source_warehouse_name}</span>}
-                    {o.shipping_company && <span>🚚 {o.shipping_company}</span>}
-                    {o.moderator_name && <span>👤 {o.moderator_name}</span>}
-                  </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded">
+                    {o.order_number}
+                  </span>
+                  <span className="font-semibold">{o.customer_name}</span>
+                  <Badge variant="outline">{statusLabels[o.status] || o.status}</Badge>
                 </div>
-                <Button
-                  size="sm"
-                  disabled={busyId === o.id || !canMarkDelivered}
-                  onClick={() => handleDeliver(o.id)}
-                  title={!canMarkDelivered ? 'تحديث الحالة من صلاحيات التسويق فقط' : undefined}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 shrink-0 disabled:opacity-50"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  {busyId === o.id ? "..." : "تم التسليم للعميل"}
-                </Button>
+                <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
+                  {o.customer_phone && <span>📞 {o.customer_phone}</span>}
+                  <span>💰 {Number(o.total).toLocaleString()} ج</span>
+                  <span>📅 {formatDate(o.created_at)}</span>
+                  {o.source_warehouse_name && <span>🏪 {o.source_warehouse_name}</span>}
+                  {o.shipping_company && <span>🚚 {o.shipping_company}</span>}
+                  {o.moderator_name && <span>👤 {o.moderator_name}</span>}
+                </div>
+                {canMarkDelivered ? (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {STATUS_BUTTONS.map((b) => {
+                      const Icon = b.icon;
+                      const disabledPerm = b.needsDeliverPerm && !canMarkDelivered;
+                      const isCurrent = o.status === b.key;
+                      const busy = busyKey === `${o.id}:${b.key}`;
+                      return (
+                        <Button
+                          key={b.key}
+                          size="sm"
+                          disabled={busy || disabledPerm || isCurrent}
+                          onClick={() => handleUpdate(o, b)}
+                          className={`${b.className} gap-1 disabled:opacity-50`}
+                          title={isCurrent ? "الحالة الحالية" : undefined}
+                        >
+                          <Icon className="w-3.5 h-3.5" />
+                          {busy ? "..." : b.label}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground pt-1">
+                    تحديث الحالة غير متاح لدورك من هذه النافذة.
+                  </div>
+                )}
               </div>
             ))
           )}
