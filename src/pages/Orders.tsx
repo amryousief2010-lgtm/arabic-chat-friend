@@ -808,16 +808,19 @@ const Orders = () => {
       else ch = 'unclassified';
       matchesDashboardChannel = ch === channelParam;
     }
-    // Dashboard "Top products (3d)" deep-link: /orders?range=3d&product_id=... or product_name=...
+    // Dashboard "Top products" deep-link: /orders?range=1d|3d|7d|30d&product_id=... or product_name=...
     let matchesRange3d = true;
     let matchesProductParam = true;
-    if (rangeParam === '3d') {
+    const rangeDaysMap: Record<string, number> = { '1d': 1, '3d': 3, '7d': 7, '30d': 30 };
+    if (rangeParam && rangeDaysMap[rangeParam]) {
+      const nDays = rangeDaysMap[rangeParam];
       const todayStart = cairoTodayStartUTC(new Date());
-      const rangeStart = new Date(todayStart.getTime() - 2 * 24 * 60 * 60 * 1000);
+      const rangeStart = new Date(todayStart.getTime() - (nDays - 1) * 24 * 60 * 60 * 1000);
       const rangeEnd = new Date(todayStart.getTime() + 26 * 60 * 60 * 1000);
       const created = new Date(order.created_at);
       matchesRange3d = created >= rangeStart && created < rangeEnd;
     }
+
     if (productIdParam || productNameParam) {
       const items = (order as any).order_items || [];
       matchesProductParam = items.some((it: any) =>
