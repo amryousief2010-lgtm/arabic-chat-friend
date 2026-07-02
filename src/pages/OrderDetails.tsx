@@ -584,7 +584,13 @@ const OrderDetails = () => {
                         </div>
                       </div>
                       <p className="font-bold text-lg">
-                        {noPrice ? <span className="text-muted-foreground text-sm">—</span> : `${lineTotal.toLocaleString()} ج.م`}
+                        {isOfferComponent ? (
+                          <span className="text-purple-700 text-sm">ضمن الأوفر</span>
+                        ) : isGift ? (
+                          <span className="text-pink-700 text-sm">0 ج.م</span>
+                        ) : (
+                          `${lineTotal.toLocaleString()} ج.م`
+                        )}
                       </p>
                     </div>
                     );
