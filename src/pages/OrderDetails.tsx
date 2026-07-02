@@ -32,6 +32,7 @@ import {
   FileText,
   Pencil,
   Printer,
+  Wallet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { printOrderInvoice } from "@/lib/printUtils";
