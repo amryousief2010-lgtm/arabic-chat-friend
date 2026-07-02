@@ -5,7 +5,6 @@ import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
 import { AGOUZA_WAREHOUSE_ID } from "@/lib/agouzaReservations";
 
 export interface TodayOrdersBreakdown {
-  shipping: number;
   mainWarehouse: number;
   agouza: number;
   unclassified: number;
@@ -15,10 +14,9 @@ export interface TodayOrdersBreakdown {
 /**
  * Splits today's orders (Cairo-day window) by fulfillment channel — display-only.
  * Classification priority (disjoint):
- *   1. shipping_company set AND != 'مندوب خاص'        → شركة الشحن
- *   2. source_warehouse_id = MAIN_WAREHOUSE_ID        → المخزن الرئيسي
- *   3. source_warehouse_id = AGOUZA_WAREHOUSE_ID      → مخزن العجوزة
- *   4. else                                            → غير مصنف
+ *   1. source_warehouse_id = MAIN_WAREHOUSE_ID        → المخزن الرئيسي
+ *   2. source_warehouse_id = AGOUZA_WAREHOUSE_ID      → مخزن العجوزة
+ *   3. else                                            → غير مصنف
  */
 export const useTodayOrdersBreakdown = () => {
   return useQuery<TodayOrdersBreakdown>({
@@ -42,15 +40,13 @@ export const useTodayOrdersBreakdown = () => {
           year: "numeric", month: "2-digit", day: "2-digit",
         }).format(new Date(o.created_at)) === todayStr
       );
-      let shipping = 0, mainWarehouse = 0, agouza = 0, unclassified = 0;
+      let mainWarehouse = 0, agouza = 0, unclassified = 0;
       for (const o of rows as any[]) {
-        const sc = (o.shipping_company || "").trim();
-        if (sc && sc !== "مندوب خاص") shipping++;
-        else if (o.source_warehouse_id === MAIN_WAREHOUSE_ID) mainWarehouse++;
+        if (o.source_warehouse_id === MAIN_WAREHOUSE_ID) mainWarehouse++;
         else if (o.source_warehouse_id === AGOUZA_WAREHOUSE_ID) agouza++;
         else unclassified++;
       }
-      return { shipping, mainWarehouse, agouza, unclassified, total: rows.length };
+      return { mainWarehouse, agouza, unclassified, total: rows.length };
     },
     staleTime: 60 * 1000,
     refetchInterval: 2 * 60 * 1000,

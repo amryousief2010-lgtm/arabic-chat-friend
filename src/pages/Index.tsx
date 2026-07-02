@@ -252,14 +252,6 @@ const DashboardContent = () => {
               <div className="mt-2 pt-2 border-t border-border/40 space-y-0.5 text-[11px]">
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); navigate('/orders?today=1&channel=shipping'); }}
-                  className="w-full flex items-center justify-between hover:text-primary transition-colors"
-                >
-                  <span className="text-muted-foreground">شركة الشحن</span>
-                  <span className="font-semibold">{todayBreakdown.shipping} أوردر</span>
-                </button>
-                <button
-                  type="button"
                   onClick={(e) => { e.stopPropagation(); navigate('/orders?today=1&channel=main'); }}
                   className="w-full flex items-center justify-between hover:text-primary transition-colors"
                 >
