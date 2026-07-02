@@ -381,6 +381,14 @@ const Orders = () => {
     next.delete("product_name");
     setSearchParams(next, { replace: true });
   };
+  // تنظيف فلتر channel=shipping القديم من الرابط تلقائيًا
+  useEffect(() => {
+    if (rawChannelParam === 'shipping') {
+      const next = new URLSearchParams(searchParams);
+      next.delete('channel');
+      setSearchParams(next, { replace: true });
+    }
+  }, [rawChannelParam]);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
