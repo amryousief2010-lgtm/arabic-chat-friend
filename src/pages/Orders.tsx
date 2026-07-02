@@ -340,6 +340,14 @@ const Orders = () => {
       return n;
     });
   };
+  const [expandedDetails, setExpandedDetails] = useState<Set<string>>(new Set());
+  const toggleDetails = (id: string) => {
+    setExpandedDetails(prev => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  };
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
