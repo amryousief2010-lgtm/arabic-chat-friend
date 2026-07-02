@@ -357,7 +357,8 @@ const Orders = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
   const todayParam = searchParams.get("today") === "1";
-  const channelParam = searchParams.get("channel"); // 'shipping' | 'main' | 'agouza' | 'unclassified' | null
+  const rawChannelParam = searchParams.get("channel");
+  const channelParam = rawChannelParam === 'shipping' ? null : rawChannelParam; // 'main' | 'agouza' | 'unclassified' | null
   const rangeParam = searchParams.get("range"); // '7d' | null
   const productIdParam = searchParams.get("product_id");
   const productNameParam = searchParams.get("product_name");
@@ -380,6 +381,14 @@ const Orders = () => {
     next.delete("product_name");
     setSearchParams(next, { replace: true });
   };
+  // تنظيف فلتر channel=shipping القديم من الرابط تلقائيًا
+  useEffect(() => {
+    if (rawChannelParam === 'shipping') {
+      const next = new URLSearchParams(searchParams);
+      next.delete('channel');
+      setSearchParams(next, { replace: true });
+    }
+  }, [rawChannelParam]);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
@@ -783,7 +792,7 @@ const Orders = () => {
       isGeneralManager ||
       (!isWarehouseSupervisor && !isExecutiveManager) ||
       new Date(order.created_at) >= new Date('2026-06-18T00:00:00+02:00');
-    // Dashboard "today" card deep-link filter: /orders?today=1&channel=shipping|main|agouza|unclassified
+    // Dashboard "today" card deep-link filter: /orders?today=1&channel=main|agouza|unclassified
     // Uses Cairo timezone (same classification as useTodayOrdersBreakdown) so totals match the card exactly.
     let matchesDashboardToday = true;
     let matchesDashboardChannel = true;
@@ -791,11 +800,10 @@ const Orders = () => {
       const todayCairo = toCairoDateString(new Date().toISOString());
       matchesDashboardToday = toCairoDateString(order.created_at) === todayCairo;
     }
-    if (channelParam) {
+    if (channelParam && channelParam !== 'shipping') {
       const sc = (order.shipping_company || '').trim();
-      let ch: 'shipping' | 'main' | 'agouza' | 'unclassified';
-      if (sc && sc !== 'مندوب خاص') ch = 'shipping';
-      else if (order.source_warehouse_id === MAIN_WAREHOUSE_ID) ch = 'main';
+      let ch: 'main' | 'agouza' | 'unclassified';
+      if (order.source_warehouse_id === MAIN_WAREHOUSE_ID) ch = 'main';
       else if (order.source_warehouse_id === AGOUZA_WAREHOUSE_ID) ch = 'agouza';
       else ch = 'unclassified';
       matchesDashboardChannel = ch === channelParam;
@@ -1406,7 +1414,7 @@ const Orders = () => {
                 فلتر نشط:
                 {todayParam ? ' طلبات اليوم' : ''}
                 {rangeParam === '7d' ? ' آخر 7 أيام' : ''}
-                {channelParam === 'shipping' ? ' — شركة الشحن' : channelParam === 'main' ? ' — المخزن الرئيسي' : channelParam === 'agouza' ? ' — مخزن العجوزة' : channelParam === 'unclassified' ? ' — غير مصنف' : ''}
+                {channelParam === 'main' ? ' — المخزن الرئيسي' : channelParam === 'agouza' ? ' — مخزن العجوزة' : channelParam === 'unclassified' ? ' — غير مصنف' : ''}
                 {(productIdParam || productNameParam) ? ` — المنتج: ${productNameParam || (orders.find(o => (o as any).order_items?.some((it: any) => it.product_id === productIdParam)) as any)?.order_items?.find((it: any) => it.product_id === productIdParam)?.product_name || productIdParam}` : ''}
                 <button
                   type="button"
