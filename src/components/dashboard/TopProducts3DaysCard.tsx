@@ -2,14 +2,14 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Flame } from "lucide-react";
-import { useTopProductsLast7Days } from "@/hooks/useSalesAnalytics";
+import { useTopProductsLast3Days } from "@/hooks/useSalesAnalytics";
 
-export default function TopProducts7DaysCard() {
+export default function TopProducts3DaysCard() {
   const navigate = useNavigate();
-  const { data, isLoading } = useTopProductsLast7Days(5);
+  const { data, isLoading } = useTopProductsLast3Days(5);
 
   const openProduct = (p: { product_id: string | null; product_name: string }) => {
-    const qs = new URLSearchParams({ range: "7d" });
+    const qs = new URLSearchParams({ range: "3d" });
     if (p.product_id) qs.set("product_id", p.product_id);
     else qs.set("product_name", p.product_name);
     navigate(`/orders?${qs.toString()}`);
@@ -20,7 +20,7 @@ export default function TopProducts7DaysCard() {
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <Flame className="w-5 h-5 text-orange-500" />
-          المنتجات الأكثر طلبًا خلال آخر 7 أيام
+          المنتجات الأكثر طلبًا خلال آخر 3 أيام
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-2">
@@ -28,7 +28,7 @@ export default function TopProducts7DaysCard() {
           <Skeleton className="h-40 w-full" />
         ) : !data || data.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">
-            لا توجد طلبات خلال آخر 7 أيام
+            لا توجد طلبات خلال آخر 3 أيام
           </p>
         ) : (
           <div className="overflow-x-auto">

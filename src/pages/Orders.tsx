@@ -359,7 +359,7 @@ const Orders = () => {
   const todayParam = searchParams.get("today") === "1";
   const rawChannelParam = searchParams.get("channel");
   const channelParam = rawChannelParam === 'shipping' ? null : rawChannelParam; // 'main' | 'agouza' | 'unclassified' | null
-  const rangeParam = searchParams.get("range"); // '7d' | null
+  const rangeParam = searchParams.get("range"); // '3d' | null
   const productIdParam = searchParams.get("product_id");
   const productNameParam = searchParams.get("product_name");
   const yearGroup: YearGroup =
@@ -808,15 +808,15 @@ const Orders = () => {
       else ch = 'unclassified';
       matchesDashboardChannel = ch === channelParam;
     }
-    // Dashboard "Top products (7d)" deep-link: /orders?range=7d&product_id=... or product_name=...
-    let matchesRange7d = true;
+    // Dashboard "Top products (3d)" deep-link: /orders?range=3d&product_id=... or product_name=...
+    let matchesRange3d = true;
     let matchesProductParam = true;
-    if (rangeParam === '7d') {
+    if (rangeParam === '3d') {
       const todayStart = cairoTodayStartUTC(new Date());
-      const rangeStart = new Date(todayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
+      const rangeStart = new Date(todayStart.getTime() - 2 * 24 * 60 * 60 * 1000);
       const rangeEnd = new Date(todayStart.getTime() + 26 * 60 * 60 * 1000);
       const created = new Date(order.created_at);
-      matchesRange7d = created >= rangeStart && created < rangeEnd;
+      matchesRange3d = created >= rangeStart && created < rangeEnd;
     }
     if (productIdParam || productNameParam) {
       const items = (order as any).order_items || [];
@@ -824,7 +824,7 @@ const Orders = () => {
         productIdParam ? it.product_id === productIdParam : it.product_name === productNameParam,
       );
     }
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange7d && matchesProductParam;
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam;
   }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
 
   // إجمالي المطلوب من المندوب كاش على الأوردرات الظاهرة حالياً بعد الفلاتر.
@@ -1413,7 +1413,7 @@ const Orders = () => {
               <Badge variant="secondary" className="text-xs font-normal gap-1 bg-primary/10 text-primary border-primary/30">
                 فلتر نشط:
                 {todayParam ? ' طلبات اليوم' : ''}
-                {rangeParam === '7d' ? ' آخر 7 أيام' : ''}
+                {rangeParam === '3d' ? ' آخر 3 أيام' : ''}
                 {channelParam === 'main' ? ' — المخزن الرئيسي' : channelParam === 'agouza' ? ' — مخزن العجوزة' : channelParam === 'unclassified' ? ' — غير مصنف' : ''}
                 {(productIdParam || productNameParam) ? ` — المنتج: ${productNameParam || (orders.find(o => (o as any).order_items?.some((it: any) => it.product_id === productIdParam)) as any)?.order_items?.find((it: any) => it.product_id === productIdParam)?.product_name || productIdParam}` : ''}
                 <button

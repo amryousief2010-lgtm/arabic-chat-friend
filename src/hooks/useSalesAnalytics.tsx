@@ -63,17 +63,17 @@ export interface TopProduct {
 }
 
 /**
- * Top-N most requested products over the last 7 Cairo days (inclusive of today).
+ * Top-N most requested products over the last 3 Cairo days (inclusive of today).
  * Uses the same exclusion rule as the dashboard totals: cancelled orders are excluded.
  * Grouping: by product_id when present, else by product_name.
  */
-export const useTopProductsLast7Days = (limit = 5) => {
+export const useTopProductsLast3Days = (limit = 5) => {
   return useQuery<TopProduct[]>({
-    queryKey: ["top-products-7d", limit],
+    queryKey: ["top-products-3d", limit],
     queryFn: async () => {
       const todayStart = cairoTodayStartUTC(new Date());
-      // last 7 days INCLUSIVE of today = start of the day 6 days ago
-      const rangeStart = new Date(todayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
+      // last 3 days INCLUSIVE of today = start of the day 2 days ago
+      const rangeStart = new Date(todayStart.getTime() - 2 * 24 * 60 * 60 * 1000);
       const rangeEnd = new Date(todayStart.getTime() + 26 * 60 * 60 * 1000);
       const { data, error } = await supabase
         .from("order_items")
