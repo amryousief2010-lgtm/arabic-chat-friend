@@ -389,6 +389,8 @@ const Orders = () => {
       setSearchParams(next, { replace: true });
     }
   }, [rawChannelParam]);
+  // فتح نافذة ضبط التحصيل تلقائيًا عند وجود ?mixed=<orderId>
+  const mixedParam = searchParams.get("mixed");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
