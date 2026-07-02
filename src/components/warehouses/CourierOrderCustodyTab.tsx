@@ -138,6 +138,7 @@ type FailedAttempt = { id: string; order_id: string; reason: string; notes: stri
 export default function CourierOrderCustodyTab() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [custodies, setCustodies] = useState<Custody[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
