@@ -349,6 +349,8 @@ const Orders = () => {
   const [availableProducts, setAvailableProducts] = useState<string[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
+  const todayParam = searchParams.get("today") === "1";
+  const channelParam = searchParams.get("channel"); // 'shipping' | 'main' | 'other' | null
   const yearGroup: YearGroup =
     yearParam === "2026" || yearParam === "pre2026" || yearParam === "all"
       ? (yearParam as YearGroup)
@@ -357,6 +359,12 @@ const Orders = () => {
     const next = new URLSearchParams(searchParams);
     if (v === "all") next.delete("year");
     else next.set("year", v);
+    setSearchParams(next, { replace: true });
+  };
+  const clearDashboardFilter = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("today");
+    next.delete("channel");
     setSearchParams(next, { replace: true });
   };
   const [searchQuery, setSearchQuery] = useState("");
