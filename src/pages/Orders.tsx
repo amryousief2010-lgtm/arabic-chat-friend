@@ -259,6 +259,18 @@ const Orders = () => {
      rolesList.includes('main_treasury_approver') ||
      rolesList.includes('treasury_accountant') ||
      rolesList.includes('courier');
+   // صلاحية تحديث حالة الأوردر إلى "تم التسليم للعميل".
+   // مسموح: التسويق (م/آلاء) والموديريتور ومدير المبيعات والإدارة العليا وشركات الشحن/المندوبين.
+   // ممنوع: مسؤول المخزن (عبدالمنعم) والمحاسبون/الخزنة — دورهم بعد التسليم فقط (ضبط التحصيل).
+   const canMarkDelivered =
+     isGeneralManager ||
+     isExecutiveManager ||
+     rolesList.includes('marketing_sales_manager') ||
+     rolesList.includes('sales_manager') ||
+     isSalesModerator ||
+     isShippingCompany ||
+     isPrivateDeliveryRep ||
+     rolesList.includes('courier');
   const [orders, setOrders] = useState<Order[]>([]);
   // M4-B: per-order Agouza reservation status. Drives the Agouza-only badge and
   // blocks delivery confirmation when no active/committed reservation exists.
@@ -1251,6 +1263,16 @@ const Orders = () => {
       // إلزامية اختيار طريقة التحصيل قبل تأكيد التسليم — فقط لأدوار التحصيل.
       // الأدوار التسويقية/الموديريتور تحدّث الحالة فقط بدون فتح شاشة التحصيل،
       // ولا تُنشئ أو تعدّل أي بيانات تحصيل (breakdown / cash_due).
+      // منع الأدوار غير المصرح لها من تحديث الحالة إلى "تم التسليم للعميل".
+      // (مسؤول المخزن/المحاسبة/الخزنة) — دورهم بعد التسليم فقط: ضبط التحصيل.
+      if (newStatus === 'delivered' && !canMarkDelivered) {
+        toast.error('تحديث حالة التسليم من صلاحيات التسويق فقط. يمكنك ضبط التحصيل بعد التسليم.');
+        return;
+      }
+
+      // إلزامية اختيار طريقة التحصيل قبل تأكيد التسليم — فقط لأدوار التحصيل.
+      // الأدوار التسويقية/الموديريتور تحدّث الحالة فقط بدون فتح شاشة التحصيل،
+      // ولا تُنشئ أو تعدّل أي بيانات تحصيل (breakdown / cash_due).
       if (newStatus === 'delivered' && !targetOrder?.collection_method && canSetCollectionMethod) {
         setPendingDeliveryMethod('cash_courier');
         setPendingDeliveryOrderId(orderId);
@@ -1858,7 +1880,7 @@ const Orders = () => {
                         <SelectTrigger className="w-full h-9 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {Object.entries(statusLabels)
-                            .filter(([value]) => value === order.status || ['pending', 'delivered', 'cancelled'].includes(value))
+                           .filter(([value]) => value === order.status || value === 'pending' || value === 'cancelled' || (value === 'delivered' && canMarkDelivered))
                             .map(([value, label]) => (
                               <SelectItem key={value} value={value}>
                                 {value === 'pending' && isPrivateDeliveryRep ? 'مؤجل' : label}
@@ -2149,7 +2171,7 @@ const Orders = () => {
                             </SelectTrigger>
                             <SelectContent>
                               {Object.entries(statusLabels)
-                                .filter(([value]) => value === order.status || ['pending', 'delivered', 'cancelled'].includes(value))
+                                .filter(([value]) => value === order.status || value === 'pending' || value === 'cancelled' || (value === 'delivered' && canMarkDelivered))
                                 .map(([value, label]) => (
                                   <SelectItem key={value} value={value}>
                                     {value === 'pending' && isPrivateDeliveryRep ? 'مؤجل' : label}
@@ -2909,6 +2931,7 @@ const Orders = () => {
         onOpenChange={setQuickDeliveryOpen}
         orders={orders as any}
         statusLabels={statusLabels}
+        canMarkDelivered={canMarkDelivered}
         onDeliver={async (id) => {
           await handleStatusChange(id, 'delivered');
         }}

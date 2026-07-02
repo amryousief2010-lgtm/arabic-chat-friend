@@ -25,9 +25,10 @@ interface Props {
   orders: QDOrder[];
   onDeliver: (orderId: string) => void | Promise<void>;
   statusLabels: Record<string, string>;
+  canMarkDelivered: boolean;
 }
 
-const QuickDeliveryDialog = ({ open, onOpenChange, orders, onDeliver, statusLabels }: Props) => {
+const QuickDeliveryDialog = ({ open, onOpenChange, orders, onDeliver, statusLabels, canMarkDelivered }: Props) => {
   const [query, setQuery] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -84,6 +85,12 @@ const QuickDeliveryDialog = ({ open, onOpenChange, orders, onDeliver, statusLabe
           />
         </div>
 
+        {!canMarkDelivered && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 text-xs p-2 mt-2">
+            تحديث حالة التسليم من صلاحيات التسويق فقط. يمكنك ضبط التحصيل بعد التسليم من تفاصيل الأوردر.
+          </div>
+        )}
+
         <div className="max-h-[420px] overflow-y-auto space-y-2 mt-2">
           {query.trim() === "" ? (
             <p className="text-center text-muted-foreground py-8 text-sm">
@@ -118,9 +125,10 @@ const QuickDeliveryDialog = ({ open, onOpenChange, orders, onDeliver, statusLabe
                 </div>
                 <Button
                   size="sm"
-                  disabled={busyId === o.id}
+                  disabled={busyId === o.id || !canMarkDelivered}
                   onClick={() => handleDeliver(o.id)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 shrink-0"
+                  title={!canMarkDelivered ? 'تحديث الحالة من صلاحيات التسويق فقط' : undefined}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 shrink-0 disabled:opacity-50"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   {busyId === o.id ? "..." : "تم التسليم للعميل"}
