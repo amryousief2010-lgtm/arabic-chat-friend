@@ -47,7 +47,7 @@ import {
   RadialBar,
   Legend,
 } from "recharts";
-import { useDashboardStats, useRecentOrders } from "@/hooks/useSalesAnalytics";
+import { useDashboardStats, useRecentOrders, useTodayOrdersBreakdown } from "@/hooks/useSalesAnalytics";
 import { useReportsData } from "@/hooks/useReportsData";
 import { useProductionStats } from "@/hooks/useProductionStats";
 import { Egg, Bird } from "lucide-react";
