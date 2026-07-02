@@ -792,7 +792,7 @@ const Orders = () => {
       isGeneralManager ||
       (!isWarehouseSupervisor && !isExecutiveManager) ||
       new Date(order.created_at) >= new Date('2026-06-18T00:00:00+02:00');
-    // Dashboard "today" card deep-link filter: /orders?today=1&channel=shipping|main|agouza|unclassified
+    // Dashboard "today" card deep-link filter: /orders?today=1&channel=main|agouza|unclassified
     // Uses Cairo timezone (same classification as useTodayOrdersBreakdown) so totals match the card exactly.
     let matchesDashboardToday = true;
     let matchesDashboardChannel = true;
