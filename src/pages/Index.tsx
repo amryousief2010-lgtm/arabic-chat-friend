@@ -303,7 +303,7 @@ const DashboardContent = () => {
       </div>
       )}
 
-      <TopProducts7DaysCard />
+      <TopProducts3DaysCard />
 
 
 

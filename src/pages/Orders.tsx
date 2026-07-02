@@ -359,7 +359,7 @@ const Orders = () => {
   const todayParam = searchParams.get("today") === "1";
   const rawChannelParam = searchParams.get("channel");
   const channelParam = rawChannelParam === 'shipping' ? null : rawChannelParam; // 'main' | 'agouza' | 'unclassified' | null
-  const rangeParam = searchParams.get("range"); // '7d' | null
+  const rangeParam = searchParams.get("range"); // '3d' | null
   const productIdParam = searchParams.get("product_id");
   const productNameParam = searchParams.get("product_name");
   const yearGroup: YearGroup =
