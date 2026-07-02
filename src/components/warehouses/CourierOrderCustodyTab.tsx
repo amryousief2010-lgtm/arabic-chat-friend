@@ -1288,14 +1288,14 @@ function OrderDetailsBody({ order }: { order: Order | null }) {
   };
 
   const cm = full?.collection_method ?? order.collection_method;
-  const collectionRows: Array<[string, number]> = [
+  const collectionRows: Array<[string, number]> = ([
     ["💵 نقدي مع المندوب", Number(full?.courier_cash_due ?? order.courier_cash_due ?? 0)],
     ["📱 فودافون كاش", Number(full?.vodafone_cash_amount ?? order.vodafone_cash_amount ?? 0)],
     ["💳 إنستاباي", Number(full?.instapay_amount ?? order.instapay_amount ?? 0)],
     ["🏦 تحويل بنكي", Number(full?.bank_transfer_amount ?? order.bank_transfer_amount ?? 0)],
     ["💠 أخرى", Number(full?.other_amount ?? order.other_amount ?? 0)],
     ["🎁 مجاني", Number(full?.free_amount ?? order.free_amount ?? 0)],
-  ].filter(([, v]) => v > 0) as Array<[string, number]>;
+  ] as Array<[string, number]>).filter(([, v]) => v > 0);
 
   return (
     <div className="space-y-3 text-sm pb-2">
