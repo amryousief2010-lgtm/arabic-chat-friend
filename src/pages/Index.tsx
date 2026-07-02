@@ -247,6 +247,36 @@ const DashboardContent = () => {
             </div>
             <p className="text-2xl font-bold text-success">{isLoading ? "..." : `${(stats?.salesToday || 0).toLocaleString()} ج.م`}</p>
             <p className="text-xs text-muted-foreground mt-1">{stats?.ordersToday || 0} طلب اليوم</p>
+            {todayBreakdown && (stats?.ordersToday || 0) > 0 && (
+              <div className="mt-2 pt-2 border-t border-border/40 space-y-0.5 text-[11px]">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); navigate('/orders?today=1&channel=shipping'); }}
+                  className="w-full flex items-center justify-between hover:text-primary transition-colors"
+                >
+                  <span className="text-muted-foreground">شركة الشحن</span>
+                  <span className="font-semibold">{todayBreakdown.shipping} أوردر</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); navigate('/orders?today=1&channel=main'); }}
+                  className="w-full flex items-center justify-between hover:text-primary transition-colors"
+                >
+                  <span className="text-muted-foreground">المخزن الرئيسي</span>
+                  <span className="font-semibold">{todayBreakdown.mainWarehouse} أوردر</span>
+                </button>
+                {todayBreakdown.other > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); navigate('/orders?today=1&channel=other'); }}
+                    className="w-full flex items-center justify-between hover:text-primary transition-colors"
+                  >
+                    <span className="text-muted-foreground">أخرى</span>
+                    <span className="font-semibold">{todayBreakdown.other} أوردر</span>
+                  </button>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => navigate('/reports')} role="button" tabIndex={0}>
