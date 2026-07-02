@@ -2084,9 +2084,16 @@ const Orders = () => {
                         <span className="text-[11px] text-muted-foreground">
                           {order.collection_method === 'cash_courier'
                             ? <>مطلوب: <span className="font-bold text-emerald-700">{Number(order.courier_cash_due || order.total).toLocaleString()} ج</span></>
-                            : order.collection_method
-                              ? <>مطلوب من المندوب: <span className="font-bold">0 ج</span></>
-                              : <span className="italic">لم يحدد التحصيل</span>}
+                            : order.collection_method === 'mixed_payment'
+                              ? <span className="flex flex-col leading-tight">
+                                  <span className="font-bold text-emerald-700">نقدي: {Number(order.courier_cash_due || 0).toLocaleString()}</span>
+                                  {Number(order.vodafone_cash_amount || 0) > 0 && <span className="text-rose-700">📱 {Number(order.vodafone_cash_amount).toLocaleString()}</span>}
+                                  {Number(order.instapay_amount || 0) > 0 && <span className="text-indigo-700">💳 {Number(order.instapay_amount).toLocaleString()}</span>}
+                                  {Number(order.free_amount || 0) > 0 && <span className="text-slate-600">🎁 {Number(order.free_amount).toLocaleString()}</span>}
+                                </span>
+                              : order.collection_method
+                                ? <>مطلوب من المندوب: <span className="font-bold">0 ج</span></>
+                                : <span className="italic">لم يحدد التحصيل</span>}
                         </span>
                       </div>
                     </TableCell>
