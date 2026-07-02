@@ -792,8 +792,29 @@ export default function CourierOrderCustodyTab() {
                         const btnBase = "h-8 px-2 gap-1 text-xs font-semibold border shadow-sm";
                         return (
                           <TableRow key={a.id} className={indent ? "bg-muted/20" : ""}>
-                            <TableCell className={`font-mono ${indent ? "pr-8" : ""}`}>{o?.order_number ?? a.order_id.slice(0, 8)}</TableCell>
-                            <TableCell>{o?.customer_name ?? "—"}</TableCell>
+                            <TableCell className={`font-mono ${indent ? "pr-8" : ""}`}>
+                              <button
+                                type="button"
+                                className="text-primary underline underline-offset-2 hover:text-primary/80 font-mono"
+                                onClick={() => o && navigate(`/orders?mixed=${o.id}`)}
+                                disabled={!o}
+                                title="فتح شاشة ضبط التحصيل"
+                              >
+                                {o?.order_number ?? a.order_id.slice(0, 8)}
+                              </button>
+                            </TableCell>
+                            <TableCell>
+                              {o ? (
+                                <button
+                                  type="button"
+                                  className="text-primary underline underline-offset-2 hover:text-primary/80"
+                                  onClick={() => navigate(`/orders?mixed=${o.id}`)}
+                                  title="فتح شاشة ضبط التحصيل"
+                                >
+                                  {o.customer_name ?? "—"}
+                                </button>
+                              ) : "—"}
+                            </TableCell>
                             <TableCell className="font-mono">
                               <div>{fmt(dueAmt)}</div>
                               {mixed && (
