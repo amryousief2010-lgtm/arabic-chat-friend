@@ -1084,10 +1084,29 @@ export default function CourierOrderCustodyTab() {
                           <TableRow key={`day-${grp.day}`} className="bg-primary/5 hover:bg-primary/10 cursor-pointer font-medium"
                             onClick={() => setExpandedDays((s) => ({ ...s, [grp.day]: !isOpen }))}>
                             <TableCell className="font-bold">
-                              <div className="flex items-center gap-2">
-                                {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-                                <span>{new Date(grp.day).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })}</span>
-                                <Badge variant="secondary" className="text-xs">{grp.items.length} أوردر</Badge>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                                  <span>{new Date(grp.day).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })}</span>
+                                  <Badge variant="secondary" className="text-xs">{grp.items.length} أوردر</Badge>
+                                  {grp.deposit ? (
+                                    <Badge className="bg-emerald-600 text-white text-[10px]">✓ تم التوريد {fmt(Number(grp.deposit.amount))} ج.م</Badge>
+                                  ) : grp.undelivered > 0 ? (
+                                    <Badge className="bg-amber-500 text-white text-[10px]">يحتاج مراجعة ({grp.undelivered} غير مسلّم)</Badge>
+                                  ) : grp.missingBreakdown > 0 ? (
+                                    <Badge className="bg-orange-500 text-white text-[10px]">breakdown غير مضبوط ({grp.missingBreakdown})</Badge>
+                                  ) : grp.cashDue > 0 ? (
+                                    <Badge variant="outline" className="text-[10px]">لم يتم التوريد</Badge>
+                                  ) : null}
+                                </div>
+                                <div className="text-[10px] text-muted-foreground font-normal flex flex-wrap gap-2">
+                                  <span>💵 كاش مع كيمو: <b className="text-emerald-700">{fmt(grp.cashDue)}</b></span>
+                                  {grp.vodafone > 0 && <span>📱 فودافون: {fmt(grp.vodafone)}</span>}
+                                  {grp.instapay > 0 && <span>💳 إنستاباي: {fmt(grp.instapay)}</span>}
+                                  {grp.bank > 0 && <span>🏦 بنكي: {fmt(grp.bank)}</span>}
+                                  {grp.other > 0 && <span>💠 أخرى: {fmt(grp.other)}</span>}
+                                  {grp.free > 0 && <span>🎁 مجاني: {fmt(grp.free)}</span>}
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">—</TableCell>
@@ -1102,14 +1121,38 @@ export default function CourierOrderCustodyTab() {
                             </TableCell>
                             <TableCell className="text-xs">{new Date(grp.day).toLocaleDateString("ar-EG")}</TableCell>
                             <TableCell className="text-xs">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <Button size="sm" variant="outline" className="h-7 px-2 gap-1" onClick={printDay} title="طباعة أوردرات اليوم">
                                   <Printer className="w-3 h-3" /> <span className="text-xs">طباعة</span>
                                 </Button>
-                                <span className="text-muted-foreground">{isOpen ? "إخفاء" : "عرض الأوردرات"}</span>
+                                {grp.deposit ? (
+                                  <Badge variant="outline" className="text-[10px] gap-1">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> رقم الحركة {grp.deposit.treasury_txn_id?.slice(0, 8) || "—"}
+                                  </Badge>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    className="h-7 px-2 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+                                    disabled={!grp.canDeposit || depositingDay === grp.day}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!grp.canDeposit) {
+                                        toast({ title: "لا يمكن التوريد الآن", description: grp.undelivered > 0 ? "لا يمكن توريد نقدية اليوم قبل مراجعة تحصيل كل الأوردرات." : grp.missingBreakdown > 0 ? "يوجد أوردر دفع مختلط بدون breakdown مضبوط" : "لا توجد نقدية للتوريد", variant: "destructive" });
+                                        return;
+                                      }
+                                      depositDayCash(grp.day, grp.cashDue);
+                                    }}
+                                    title="توريد نقدية اليوم لخزنة المخزن الرئيسي"
+                                  >
+                                    <Coins className="w-3 h-3" />
+                                    <span className="text-xs">{depositingDay === grp.day ? "جاري..." : `توريد ${fmt(grp.cashDue)}`}</span>
+                                  </Button>
+                                )}
+                                <span className="text-muted-foreground text-[10px]">{isOpen ? "إخفاء" : "عرض"}</span>
                               </div>
                             </TableCell>
                           </TableRow>
+
                         ];
                         if (isOpen) grp.items.forEach((a) => rows.push(renderOrderRow(a, true)));
                         return rows;
