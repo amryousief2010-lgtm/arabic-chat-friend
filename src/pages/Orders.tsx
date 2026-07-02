@@ -61,6 +61,7 @@ import {
   commitAgouzaForOrder,
   releaseAgouzaForOrder,
 } from "@/lib/agouzaReservations";
+import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
 
 
 type YearGroup = "all" | "2026" | "pre2026";
@@ -348,6 +349,8 @@ const Orders = () => {
   const [availableProducts, setAvailableProducts] = useState<string[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
+  const todayParam = searchParams.get("today") === "1";
+  const channelParam = searchParams.get("channel"); // 'shipping' | 'main' | 'other' | null
   const yearGroup: YearGroup =
     yearParam === "2026" || yearParam === "pre2026" || yearParam === "all"
       ? (yearParam as YearGroup)
@@ -356,6 +359,12 @@ const Orders = () => {
     const next = new URLSearchParams(searchParams);
     if (v === "all") next.delete("year");
     else next.set("year", v);
+    setSearchParams(next, { replace: true });
+  };
+  const clearDashboardFilter = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("today");
+    next.delete("channel");
     setSearchParams(next, { replace: true });
   };
   const [searchQuery, setSearchQuery] = useState("");
@@ -758,8 +767,24 @@ const Orders = () => {
       isGeneralManager ||
       (!isWarehouseSupervisor && !isExecutiveManager) ||
       new Date(order.created_at) >= new Date('2026-06-18T00:00:00+02:00');
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart;
-  }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager]);
+    // Dashboard "today" card deep-link filter: /orders?today=1&channel=shipping|main|other
+    // Uses Cairo timezone (same classification as useTodayOrdersBreakdown) so totals match the card exactly.
+    let matchesDashboardToday = true;
+    let matchesDashboardChannel = true;
+    if (todayParam) {
+      const todayCairo = toCairoDateString(new Date().toISOString());
+      matchesDashboardToday = toCairoDateString(order.created_at) === todayCairo;
+    }
+    if (channelParam) {
+      const sc = (order.shipping_company || '').trim();
+      let ch: 'shipping' | 'main' | 'other';
+      if (sc && sc !== 'مندوب خاص') ch = 'shipping';
+      else if (order.source_warehouse_id === MAIN_WAREHOUSE_ID) ch = 'main';
+      else ch = 'other';
+      matchesDashboardChannel = ch === channelParam;
+    }
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel;
+  }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam]);
 
   // إجمالي المطلوب من المندوب كاش على الأوردرات الظاهرة حالياً بعد الفلاتر.
   const totalCourierCashDue = useMemo(
@@ -1306,6 +1331,21 @@ const Orders = () => {
             {restrictToCurrentMonth && (
               <Badge variant="outline" className="text-xs font-normal">
                 عرض طلبات {monthNames[now.getMonth()]} فقط — اكتب فى البحث لرؤية كل الشهور
+              </Badge>
+            )}
+            {(todayParam || channelParam) && (
+              <Badge variant="secondary" className="text-xs font-normal gap-1 bg-primary/10 text-primary border-primary/30">
+                فلتر نشط:
+                {todayParam ? ' طلبات اليوم' : ''}
+                {channelParam === 'shipping' ? ' — شركة الشحن' : channelParam === 'main' ? ' — المخزن الرئيسي' : channelParam === 'other' ? ' — أخرى' : ''}
+                <button
+                  type="button"
+                  onClick={clearDashboardFilter}
+                  className="mr-1 rounded-full hover:bg-primary/20 px-1"
+                  aria-label="إزالة الفلتر"
+                >
+                  ✕
+                </button>
               </Badge>
             )}
           </CardTitle>
