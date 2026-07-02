@@ -1333,6 +1333,21 @@ const Orders = () => {
                 عرض طلبات {monthNames[now.getMonth()]} فقط — اكتب فى البحث لرؤية كل الشهور
               </Badge>
             )}
+            {(todayParam || channelParam) && (
+              <Badge variant="secondary" className="text-xs font-normal gap-1 bg-primary/10 text-primary border-primary/30">
+                فلتر نشط:
+                {todayParam ? ' طلبات اليوم' : ''}
+                {channelParam === 'shipping' ? ' — شركة الشحن' : channelParam === 'main' ? ' — المخزن الرئيسي' : channelParam === 'other' ? ' — أخرى' : ''}
+                <button
+                  type="button"
+                  onClick={clearDashboardFilter}
+                  className="mr-1 rounded-full hover:bg-primary/20 px-1"
+                  aria-label="إزالة الفلتر"
+                >
+                  ✕
+                </button>
+              </Badge>
+            )}
           </CardTitle>
           <div className="flex flex-wrap items-center gap-3">
             <Input
