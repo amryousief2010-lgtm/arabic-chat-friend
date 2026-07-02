@@ -1880,7 +1880,7 @@ const Orders = () => {
                         <SelectTrigger className="w-full h-9 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {Object.entries(statusLabels)
-                            .filter(([value]) => value === order.status || ['pending', 'delivered', 'cancelled'].includes(value))
+                           .filter(([value]) => value === order.status || value === 'pending' || value === 'cancelled' || (value === 'delivered' && canMarkDelivered))
                             .map(([value, label]) => (
                               <SelectItem key={value} value={value}>
                                 {value === 'pending' && isPrivateDeliveryRep ? 'مؤجل' : label}
