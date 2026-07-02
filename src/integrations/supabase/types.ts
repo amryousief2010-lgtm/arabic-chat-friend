@@ -2649,6 +2649,72 @@ export type Database = {
         }
         Relationships: []
       }
+      courier_daily_cash_deposits: {
+        Row: {
+          amount: number
+          courier_name: string
+          created_at: string
+          custody_id: string
+          deposit_date: string
+          id: string
+          notes: string | null
+          order_ids: string[]
+          order_numbers: string[]
+          orders_count: number
+          performed_by: string | null
+          performed_by_name: string | null
+          treasury_txn_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          courier_name: string
+          created_at?: string
+          custody_id: string
+          deposit_date: string
+          id?: string
+          notes?: string | null
+          order_ids?: string[]
+          order_numbers?: string[]
+          orders_count?: number
+          performed_by?: string | null
+          performed_by_name?: string | null
+          treasury_txn_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          courier_name?: string
+          created_at?: string
+          custody_id?: string
+          deposit_date?: string
+          id?: string
+          notes?: string | null
+          order_ids?: string[]
+          order_numbers?: string[]
+          orders_count?: number
+          performed_by?: string | null
+          performed_by_name?: string | null
+          treasury_txn_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_daily_cash_deposits_custody_id_fkey"
+            columns: ["custody_id"]
+            isOneToOne: false
+            referencedRelation: "courier_goods_custodies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_daily_cash_deposits_treasury_txn_id_fkey"
+            columns: ["treasury_txn_id"]
+            isOneToOne: false
+            referencedRelation: "main_warehouse_treasury_txns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       courier_daily_closures: {
         Row: {
           cash_collected: number
@@ -19459,6 +19525,10 @@ export type Database = {
       delete_stocktaking_line: {
         Args: { p_line_id: string }
         Returns: undefined
+      }
+      deposit_courier_day_cash: {
+        Args: { p_custody_id: string; p_day: string; p_notes?: string }
+        Returns: Json
       }
       dismiss_proposal: {
         Args: { p_id: string; p_reason: string }
