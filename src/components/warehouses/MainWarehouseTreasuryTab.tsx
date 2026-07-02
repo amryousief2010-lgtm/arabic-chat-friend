@@ -101,6 +101,7 @@ export default function MainWarehouseTreasuryTab() {
   const [rows, setRows] = useState<Txn[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "posted" | "pending_approval" | "rejected">("all");
+  const [showProofs, setShowProofs] = useState(false);
 
   // Dialogs
   const [collectOpen, setCollectOpen] = useState(false);
@@ -429,6 +430,7 @@ export default function MainWarehouseTreasuryTab() {
     const q = search.trim();
     return rows.filter((r) => {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (!showProofs && PROOF_CATEGORIES.has(r.category)) return false;
       if (!q) return true;
       return (
         r.reference?.includes(q) ||
@@ -437,7 +439,7 @@ export default function MainWarehouseTreasuryTab() {
         CATEGORY_LABELS[r.category]?.includes(q)
       );
     });
-  }, [rows, search, statusFilter]);
+  }, [rows, search, statusFilter, showProofs]);
 
   // === Actions ===
   const submitCollect = async () => {
@@ -1943,6 +1945,15 @@ export default function MainWarehouseTreasuryTab() {
                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input placeholder="بحث (مرجع/ملاحظات/مستخدم)" value={search} onChange={(e) => setSearch(e.target.value)} className="pr-9 w-60" />
               </div>
+              <Button
+                size="sm"
+                variant={showProofs ? "default" : "outline"}
+                onClick={() => setShowProofs((v) => !v)}
+                className="h-9 text-xs"
+                title="حركات الإثبات (فودافون/إنستاباي/بنكي/مجاني) بقيمة صفر"
+              >
+                {showProofs ? "إخفاء حركات الإثبات" : "عرض حركات الإثبات"}
+              </Button>
               <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
