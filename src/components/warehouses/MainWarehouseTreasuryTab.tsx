@@ -2429,7 +2429,95 @@ export default function MainWarehouseTreasuryTab() {
           onCreated={() => { fetchMainWarehouseItems(); }}
         />
       )}
+
+      {/* Deposit day details dialog */}
+      <Dialog open={depDetailsOpen} onOpenChange={setDepDetailsOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardCheck className="w-4 h-4 text-primary" />
+              تفاصيل توريد نقدية اليوم
+            </DialogTitle>
+            <DialogDescription>
+              {depDetailsMeta ? (
+                <span>
+                  المندوب: <b>{depDetailsMeta.courier_name}</b> — اليوم:{" "}
+                  <b>{new Date(depDetailsMeta.deposit_date).toLocaleDateString("ar-EG")}</b> — عدد الأوردرات:{" "}
+                  <b>{depDetailsMeta.orders_count}</b> — الإجمالي النقدي:{" "}
+                  <b className="text-emerald-700">{fmt(Number(depDetailsMeta.amount || 0))} ج.م</b>
+                </span>
+              ) : "جاري التحميل..."}
+            </DialogDescription>
+          </DialogHeader>
+          {depDetailsLoading ? (
+            <div className="text-center p-6 text-muted-foreground">جاري تحميل التفاصيل...</div>
+          ) : (
+            <div className="space-y-3">
+              <div className="overflow-x-auto rounded-md border">
+                <table className="w-full text-right text-xs">
+                  <thead className="bg-muted/60">
+                    <tr>
+                      <th className="p-2">#</th>
+                      <th className="p-2">رقم الأوردر</th>
+                      <th className="p-2">العميل</th>
+                      <th className="p-2">إجمالي</th>
+                      <th className="p-2 text-emerald-700">نقدي من كيمو</th>
+                      <th className="p-2">فودافون</th>
+                      <th className="p-2">إنستاباي</th>
+                      <th className="p-2">بنكي</th>
+                      <th className="p-2">مجاني</th>
+                      <th className="p-2">الحالة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {depDetailsLines.length === 0 ? (
+                      <tr><td colSpan={10} className="p-4 text-center text-muted-foreground">لا توجد تفاصيل</td></tr>
+                    ) : depDetailsLines.map((l, i) => {
+                      const freeVal = Number(l.free_amount || 0) + ((l.update_status_marker === "gift" || l.collection_method === "none") ? Number(l.order_total || 0) : 0);
+                      return (
+                        <tr key={l.id} className="border-t">
+                          <td className="p-2">{i + 1}</td>
+                          <td className="p-2 font-mono">{l.order_number}</td>
+                          <td className="p-2">{l.customer_name || "—"}</td>
+                          <td className="p-2 font-mono">{fmt(Number(l.order_total || 0))}</td>
+                          <td className="p-2 font-mono font-bold text-emerald-700">{fmt(Number(l.courier_cash_due || 0))}</td>
+                          <td className="p-2 font-mono">{fmt(Number(l.vodafone_cash_amount || 0))}</td>
+                          <td className="p-2 font-mono">{fmt(Number(l.instapay_amount || 0))}</td>
+                          <td className="p-2 font-mono">{fmt(Number(l.bank_transfer_amount || 0))}</td>
+                          <td className="p-2 font-mono">{fmt(freeVal)}</td>
+                          <td className="p-2 text-[10px]">{l.status || "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  {depDetailsLines.length > 0 && (
+                    <tfoot className="bg-amber-50 font-bold">
+                      <tr>
+                        <td colSpan={3} className="p-2">الإجماليات</td>
+                        <td className="p-2 font-mono">{fmt(depDetailsLines.reduce((s, l) => s + Number(l.order_total || 0), 0))}</td>
+                        <td className="p-2 font-mono text-emerald-700">{fmt(depDetailsLines.reduce((s, l) => s + Number(l.courier_cash_due || 0), 0))}</td>
+                        <td className="p-2 font-mono">{fmt(depDetailsLines.reduce((s, l) => s + Number(l.vodafone_cash_amount || 0), 0))}</td>
+                        <td className="p-2 font-mono">{fmt(depDetailsLines.reduce((s, l) => s + Number(l.instapay_amount || 0), 0))}</td>
+                        <td className="p-2 font-mono">{fmt(depDetailsLines.reduce((s, l) => s + Number(l.bank_transfer_amount || 0), 0))}</td>
+                        <td className="p-2 font-mono">{fmt(depDetailsLines.reduce((s, l) => s + Number(l.free_amount || 0) + ((l.update_status_marker === "gift" || l.collection_method === "none") ? Number(l.order_total || 0) : 0), 0))}</td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={printDepositDetails} disabled={depDetailsLoading || !depDetailsMeta}>
+              <Printer className="w-4 h-4 ml-1" /> طباعة
+            </Button>
+            <Button variant="ghost" onClick={() => setDepDetailsOpen(false)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+
 
 
   );
