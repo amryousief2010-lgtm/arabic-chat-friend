@@ -540,31 +540,47 @@ export default function MainWarehouseTreasuryTab() {
     if (amt > kpis.balance) {
       if (!window.confirm(`المبلغ (${fmt(amt)}) أكبر من الرصيد الحالي (${fmt(kpis.balance)}). متابعة؟`)) return;
     }
+
+    const isReconcile = transferMode === "reconcile";
+    if (isReconcile) {
+      if (!canReconcile) {
+        toast({ title: "غير مصرح", description: "التسوية متاحة للمدير العام / التنفيذي / المسؤول المالي فقط", variant: "destructive" });
+        return;
+      }
+      const ok = window.confirm(
+        "تحذير: هذا الإجراء سيعلّم التوريد بأنه تمت تسويته مع إيداع سابق، لكنه لن يضيف أي مبلغ جديد إلى الخزينة الرئيسية.\n\nاستخدمه فقط إذا كان المبلغ مسجلًا بالفعل يدويًا في الخزينة الرئيسية.\n\nهل أنت متأكد؟"
+      );
+      if (!ok) return;
+    }
+
     setBusy(true);
     try {
       const selectedDeps = pendingDeposits.filter((d) => selectedDepositIds.has(d.id));
-      // Build detailed notes summary from selected days
       let autoNotes = "";
       if (selectedDeps.length) {
         const lines = selectedDeps.map((d) => {
           const day = new Date(d.deposit_date).toLocaleDateString("ar-EG");
           return `• يوم ${day} — ${d.courier_name || ""} — ${fmt(Number(d.amount || 0))} ج.م — ${d.orders_count} أوردر${Array.isArray(d.order_numbers) && d.order_numbers.length ? ` [${d.order_numbers.join(", ")}]` : ""}`;
         });
-        autoNotes = `تحويل ${selectedDeps.length} يوم/أيام توريد:\n` + lines.join("\n");
+        autoNotes = `${isReconcile ? "تسوية" : "تحويل"} ${selectedDeps.length} يوم/أيام توريد:\n` + lines.join("\n");
       }
-      const finalNotes = [transferNotes.trim(), autoNotes].filter(Boolean).join("\n\n") || null;
+      const reconcileNote = isReconcile
+        ? `تمت تسوية هذا التوريد مع مبلغ تم تسجيله مسبقًا في الخزينة الرئيسية بتاريخ سابق، بدون إنشاء وارد جديد لمنع التكرار.${reconcileRef.trim() ? `\nمرجع الحركة السابقة: ${reconcileRef.trim()}` : ""}`
+        : "";
+      const finalNotes = [reconcileNote, transferNotes.trim(), autoNotes].filter(Boolean).join("\n\n") || null;
 
       const { data: inserted, error } = await (supabase as any).from("main_warehouse_treasury_txns").insert({
         direction: "out",
-        category: "transfer_from_main_warehouse_treasury",
+        category: isReconcile ? "prior_deposit_reconciliation" : "transfer_from_main_warehouse_treasury",
         amount: amt,
         notes: finalNotes,
         performed_by: user?.id,
-        status: "pending_approval",
+        status: isReconcile ? "posted" : "pending_approval",
+        approved_by: isReconcile ? user?.id : null,
+        approved_at: isReconcile ? new Date().toISOString() : null,
       }).select("id").single();
       if (error) throw error;
 
-      // Link selected deposits to this transfer txn
       if (selectedDeps.length && inserted?.id) {
         await (supabase as any)
           .from("courier_daily_cash_deposits")
@@ -572,31 +588,40 @@ export default function MainWarehouseTreasuryTab() {
           .in("id", selectedDeps.map((d) => d.id));
       }
 
-      // notify financial manager(s) / main treasury approvers
-      try {
-        const { data: approvers } = await (supabase as any)
-          .from("user_roles")
-          .select("user_id")
-          .in("role", ["financial_manager", "main_treasury_approver", "general_manager"]);
-        const targetIds = Array.from(new Set((approvers || []).map((a: any) => a.user_id))) as string[];
-        if (targetIds.length) {
-          await (supabase as any).from("notifications").insert(
-            targetIds.map((uid) => ({
-              user_id: uid,
-              type: "main_warehouse_transfer_pending",
-              title: "تحويل جديد من خزينة المخزن الرئيسي",
-              message: `بانتظار اعتمادك: ${fmt(amt)} ج.م${transferNotes ? ` — ${transferNotes}` : ""}`,
-              read: false,
-            }))
-          );
-        }
-      } catch { /* best effort */ }
+      if (!isReconcile) {
+        try {
+          const { data: approvers } = await (supabase as any)
+            .from("user_roles")
+            .select("user_id")
+            .in("role", ["financial_manager", "main_treasury_approver", "general_manager"]);
+          const targetIds = Array.from(new Set((approvers || []).map((a: any) => a.user_id))) as string[];
+          if (targetIds.length) {
+            await (supabase as any).from("notifications").insert(
+              targetIds.map((uid) => ({
+                user_id: uid,
+                type: "main_warehouse_transfer_pending",
+                title: "تحويل جديد من خزينة المخزن الرئيسي",
+                message: `بانتظار اعتمادك: ${fmt(amt)} ج.م${transferNotes ? ` — ${transferNotes}` : ""}`,
+                read: false,
+              }))
+            );
+          }
+        } catch { /* best effort */ }
+      }
 
-      toast({ title: "تم إرسال التحويل للاعتماد", description: `بانتظار محمد شعلة: ${fmt(amt)} ج.م` });
-      setTransferOpen(false); setTransferAmt(""); setTransferNotes(""); setSelectedDepositIds(new Set());
+      toast({
+        title: isReconcile ? "تمت التسوية بدون إضافة وارد جديد" : "تم إرسال التحويل للاعتماد",
+        description: isReconcile
+          ? `تم تعليم ${selectedDeps.length} يوم توريد كمُسواة (${fmt(amt)} ج.م) بدون التأثير على رصيد الخزينة الرئيسية`
+          : `بانتظار محمد شعلة: ${fmt(amt)} ج.م`
+      });
+      setTransferOpen(false);
+      setTransferAmt(""); setTransferNotes(""); setReconcileRef("");
+      setTransferMode("normal");
+      setSelectedDepositIds(new Set());
       await fetchAll();
     } catch (e: any) {
-      toast({ title: "تعذّر إرسال التحويل", description: e?.message || "", variant: "destructive" });
+      toast({ title: "تعذّر تنفيذ العملية", description: e?.message || "", variant: "destructive" });
     } finally { setBusy(false); }
   };
 
