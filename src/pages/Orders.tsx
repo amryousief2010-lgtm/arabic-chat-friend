@@ -2317,12 +2317,12 @@ const Orders = () => {
         open={!!selectedOrder}
         onOpenChange={() => setSelectedOrder(null)}
       >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-3 border-b shrink-0">
             <DialogTitle>تفاصيل الطلب {selectedOrder?.order_number}</DialogTitle>
           </DialogHeader>
           {selectedOrder && (
-            <div className="space-y-6">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">العميل</p>
@@ -2342,45 +2342,52 @@ const Orders = () => {
 
               <div>
                 <p className="text-sm text-muted-foreground mb-3">المنتجات</p>
-                <div className="space-y-2">
-                  {selectedOrder.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                    >
-                      <div>
-                        <p className="font-medium">
-                          {item.product_name}
-                          {(item as any).is_half_kg && (
-                            <span className="mr-2 text-xs px-2 py-0.5 rounded bg-secondary text-secondary-foreground">نصف كيلو</span>
-                          )}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {(item as any).is_half_kg ? (
-                            <>
-                              <span className="text-primary font-medium">{item.quantity} كجم</span>
-                              <span className="mr-2">({(item.quantity * 2).toLocaleString()} × نص كيلو)</span>
-                              <span className="mr-2">— {item.unit_price.toLocaleString()} ج.م / كجم</span>
-                            </>
-                          ) : (
-                            <>{item.unit_price.toLocaleString()} ج.م × {item.quantity}</>
-                          )}
-                        </p>
-                      </div>
-                      <p className="font-bold">
-                        {item.total_price.toLocaleString()} ج.م
-                      </p>
-                    </div>
-                  ))}
+                <div className="rounded-lg border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="text-right">المنتج</TableHead>
+                        <TableHead className="text-center">الكمية</TableHead>
+                        <TableHead className="text-center">الوحدة</TableHead>
+                        <TableHead className="text-center">سعر الوحدة</TableHead>
+                        <TableHead className="text-left">الإجمالي</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedOrder.items.map((item) => {
+                        const qty = Number(item.quantity) || 0;
+                        const lineTotal = Number(item.total_price) || 0;
+                        // Prefer stored unit_price; fallback to computed
+                        const unit = Number(item.unit_price) > 0
+                          ? Number(item.unit_price)
+                          : (qty > 0 ? lineTotal / qty : 0);
+                        const unitLabel = (item as any).is_half_kg ? 'كجم' : ((item as any).unit || 'قطعة');
+                        return (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium text-right">
+                              {item.product_name}
+                              {(item as any).is_half_kg && (
+                                <span className="mr-2 text-[10px] px-2 py-0.5 rounded bg-secondary text-secondary-foreground">نصف كيلو</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center">{qty.toLocaleString()}</TableCell>
+                            <TableCell className="text-center text-xs text-muted-foreground">{unitLabel}</TableCell>
+                            <TableCell className="text-center">{unit.toLocaleString(undefined,{maximumFractionDigits:2})} ج.م</TableCell>
+                            <TableCell className="text-left font-bold">{lineTotal.toLocaleString()} ج.م</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
 
               <div className="space-y-2 border-t pt-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground flex items-center gap-1">
-                    المجموع الفرعي
+                    إجمالي المنتجات
                     <span
-                      title="قيمة المنتجات فقط (subtotal) — كما في عمود «قيمة الاوردر بدون شحن» في ملف Excel. لا يشمل رسوم التوصيل إلا للعروض."
+                      title="قيمة المنتجات فقط (subtotal) — كما في عمود «قيمة الاوردر بدون شحن» في ملف Excel."
                       className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-muted text-[10px] cursor-help"
                     >؟</span>
                   </span>
@@ -2397,16 +2404,79 @@ const Orders = () => {
                   </div>
                 )}
                 <div className="flex items-center justify-between pt-2 border-t">
-                  <span className="text-lg font-semibold">الإجمالي</span>
+                  <span className="text-lg font-semibold">إجمالي الأوردر</span>
                   <span className="text-2xl font-bold text-primary">
                     {selectedOrder.total.toLocaleString()} ج.م
                   </span>
                 </div>
+                {(() => {
+                  const diff = Number(selectedOrder.total) - (Number(selectedOrder.subtotal) + Number(selectedOrder.delivery_fee) - Number(selectedOrder.discount||0));
+                  if (Math.abs(diff) > 0.01) {
+                    return (
+                      <div className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">
+                        ملاحظة: يوجد فرق قدره {diff.toLocaleString()} ج.م بين مجموع (منتجات + شحن − خصم) وإجمالي الأوردر المُخزَّن.
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
+
+              {/* تفاصيل التحصيل */}
+              {selectedOrder.collection_method && (
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-semibold">تفاصيل التحصيل</p>
+                    <Badge className={`text-[11px] border ${collectionMethodMeta[selectedOrder.collection_method].className}`}>
+                      {collectionMethodMeta[selectedOrder.collection_method].label}
+                    </Badge>
+                  </div>
+                  <div className="rounded-lg bg-muted/40 border p-3 space-y-1.5 text-sm">
+                    {Number(selectedOrder.courier_cash_due || 0) > 0 && (
+                      <div className="flex justify-between"><span>نقدي مع المندوب</span><span className="font-semibold">{Number(selectedOrder.courier_cash_due).toLocaleString()} ج.م</span></div>
+                    )}
+                    {Number(selectedOrder.vodafone_cash_amount || 0) > 0 && (
+                      <div className="flex justify-between"><span>📱 فودافون كاش</span><span className="font-semibold">{Number(selectedOrder.vodafone_cash_amount).toLocaleString()} ج.م</span></div>
+                    )}
+                    {Number((selectedOrder as any).instapay_amount || 0) > 0 && (
+                      <div className="flex justify-between"><span>إنستاباي</span><span className="font-semibold">{Number((selectedOrder as any).instapay_amount).toLocaleString()} ج.م</span></div>
+                    )}
+                    {Number((selectedOrder as any).bank_transfer_amount || 0) > 0 && (
+                      <div className="flex justify-between"><span>تحويل بنكي</span><span className="font-semibold">{Number((selectedOrder as any).bank_transfer_amount).toLocaleString()} ج.م</span></div>
+                    )}
+                    {Number((selectedOrder as any).other_amount || 0) > 0 && (
+                      <div className="flex justify-between"><span>أخرى</span><span className="font-semibold">{Number((selectedOrder as any).other_amount).toLocaleString()} ج.م</span></div>
+                    )}
+                    {Number((selectedOrder as any).free_amount || 0) > 0 && (
+                      <div className="flex justify-between text-pink-600"><span>مجاني</span><span className="font-semibold">{Number((selectedOrder as any).free_amount).toLocaleString()} ج.م</span></div>
+                    )}
+                    {(selectedOrder as any).transfer_reference && (
+                      <div className="flex justify-between border-t pt-1.5 text-xs"><span className="text-muted-foreground">رقم المرجع</span><span>{(selectedOrder as any).transfer_reference}</span></div>
+                    )}
+                    {(selectedOrder as any).collection_note && (
+                      <div className="border-t pt-1.5 text-xs text-muted-foreground">📝 {(selectedOrder as any).collection_note}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {selectedOrder && (
+            <div className="border-t px-6 py-3 flex items-center justify-between gap-2 shrink-0 bg-background">
+              <Button
+                variant="default"
+                onClick={() => { const id = selectedOrder.id; setSelectedOrder(null); openMixedDialog(id); }}
+                className="gap-2"
+              >
+                <Wallet className="w-4 h-4" />
+                ضبط التحصيل
+              </Button>
+              <Button variant="outline" onClick={() => setSelectedOrder(null)}>إغلاق</Button>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
 
       {/* توزيع مبالغ التحصيل المختلط */}
       <Dialog
