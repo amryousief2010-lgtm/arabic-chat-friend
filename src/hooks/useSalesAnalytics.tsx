@@ -2,29 +2,30 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cairoTodayStartUTC } from "@/lib/cairoDate";
 import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
+import { AGOUZA_WAREHOUSE_ID } from "@/lib/agouzaReservations";
 
 export interface TodayOrdersBreakdown {
   shipping: number;
   mainWarehouse: number;
-  other: number;
+  agouza: number;
+  unclassified: number;
   total: number;
 }
 
 /**
- * Splits today's orders (same Cairo-day window used by
- * get_dashboard_overview) by fulfillment channel — display-only,
- * does not change totals shown elsewhere.
- * Classification (disjoint, in this priority):
- *   1. shipping_company IS NOT NULL AND != 'مندوب خاص'  → شركة الشحن
- *   2. source_warehouse_id = MAIN_WAREHOUSE_ID          → المخزن الرئيسي
- *   3. anything else                                     → أخرى
+ * Splits today's orders (Cairo-day window) by fulfillment channel — display-only.
+ * Classification priority (disjoint):
+ *   1. shipping_company set AND != 'مندوب خاص'        → شركة الشحن
+ *   2. source_warehouse_id = MAIN_WAREHOUSE_ID        → المخزن الرئيسي
+ *   3. source_warehouse_id = AGOUZA_WAREHOUSE_ID      → مخزن العجوزة
+ *   4. else                                            → غير مصنف
  */
 export const useTodayOrdersBreakdown = () => {
   return useQuery<TodayOrdersBreakdown>({
-    queryKey: ["today-orders-breakdown-v1"],
+    queryKey: ["today-orders-breakdown-v2"],
     queryFn: async () => {
       const start = cairoTodayStartUTC(new Date());
-      const end = new Date(start.getTime() + 26 * 60 * 60 * 1000); // safe upper bound
+      const end = new Date(start.getTime() + 26 * 60 * 60 * 1000);
       const { data, error } = await supabase
         .from("orders")
         .select("id, shipping_company, source_warehouse_id, created_at")
@@ -41,14 +42,15 @@ export const useTodayOrdersBreakdown = () => {
           year: "numeric", month: "2-digit", day: "2-digit",
         }).format(new Date(o.created_at)) === todayStr
       );
-      let shipping = 0, mainWarehouse = 0, other = 0;
+      let shipping = 0, mainWarehouse = 0, agouza = 0, unclassified = 0;
       for (const o of rows as any[]) {
         const sc = (o.shipping_company || "").trim();
         if (sc && sc !== "مندوب خاص") shipping++;
         else if (o.source_warehouse_id === MAIN_WAREHOUSE_ID) mainWarehouse++;
-        else other++;
+        else if (o.source_warehouse_id === AGOUZA_WAREHOUSE_ID) agouza++;
+        else unclassified++;
       }
-      return { shipping, mainWarehouse, other, total: rows.length };
+      return { shipping, mainWarehouse, agouza, unclassified, total: rows.length };
     },
     staleTime: 60 * 1000,
     refetchInterval: 2 * 60 * 1000,
