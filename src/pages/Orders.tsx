@@ -1057,6 +1057,11 @@ const Orders = () => {
       } : o));
       setMixedDlgOrderId(null);
       toast.success('تم حفظ توزيع التحصيل المختلط ✅');
+      // إن كانت النافذة فُتحت أثناء تدفق التسليم، تابع الآن.
+      if (deliverAfterMixedSave) {
+        setDeliverAfterMixedSave(false);
+        await handleStatusChange(id, 'delivered');
+      }
     } catch (e: any) {
       console.error('saveMixedBreakdown failed', e);
       toast.error(e?.message || 'تعذّر حفظ التوزيع');
