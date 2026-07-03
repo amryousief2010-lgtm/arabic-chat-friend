@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { cairoTodayStartUTC } from "@/lib/cairoDate";
+import { cairoTodayStartUTC, toCairoDateString } from "@/lib/cairoDate";
 import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
 import { AGOUZA_WAREHOUSE_ID } from "@/lib/agouzaReservations";
 
