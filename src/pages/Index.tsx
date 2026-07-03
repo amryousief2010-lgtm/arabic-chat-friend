@@ -8,6 +8,7 @@ import Header from "@/components/layout/Header";
 import StatCard from "@/components/dashboard/StatCard";
 import ActiveUsersWidget from "@/components/ActiveUsersWidget";
 import TopProducts3DaysCard from "@/components/dashboard/TopProducts3DaysCard";
+import TopOfferBoxes3DaysCard from "@/components/dashboard/TopOfferBoxes3DaysCard";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -358,7 +359,10 @@ const DashboardContent = () => {
       </div>
       )}
 
-      <TopProducts3DaysCard />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TopProducts3DaysCard />
+        <TopOfferBoxes3DaysCard />
+      </div>
 
 
 
