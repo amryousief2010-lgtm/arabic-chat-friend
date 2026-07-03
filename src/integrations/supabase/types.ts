@@ -7288,6 +7288,13 @@ export type Database = {
             foreignKeyName: "hr_deductions_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_employees_masked"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_deductions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "v_hr_employee_monthly_payroll"
             referencedColumns: ["employee_id"]
           },
@@ -7357,6 +7364,13 @@ export type Database = {
             foreignKeyName: "hr_employee_documents_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_employees_masked"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "v_hr_employee_monthly_payroll"
             referencedColumns: ["employee_id"]
           },
@@ -7408,6 +7422,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_name_aliases_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees_masked"
             referencedColumns: ["id"]
           },
           {
@@ -7483,6 +7504,13 @@ export type Database = {
             foreignKeyName: "hr_employee_suspensions_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_employees_masked"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_suspensions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "v_hr_employee_monthly_payroll"
             referencedColumns: ["employee_id"]
           },
@@ -7528,6 +7556,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_transfers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees_masked"
             referencedColumns: ["id"]
           },
           {
@@ -7715,6 +7750,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_payroll_payouts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees_masked"
             referencedColumns: ["id"]
           },
           {
@@ -18226,6 +18268,104 @@ export type Database = {
       }
     }
     Views: {
+      hr_employees_masked: {
+        Row: {
+          base_salary: number | null
+          code: string | null
+          created_at: string | null
+          created_by: string | null
+          current_location_id: string | null
+          daily_rate: number | null
+          department: string | null
+          employment_type:
+            | Database["public"]["Enums"]["hr_employment_type"]
+            | null
+          full_name: string | null
+          id: string | null
+          is_suspended: boolean | null
+          job_title: string | null
+          notes: string | null
+          pay_day: number | null
+          phone: string | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["hr_employee_status"] | null
+          suspended_at: string | null
+          suspended_by: string | null
+          suspension_date: string | null
+          suspension_net_amount: number | null
+          suspension_notes: string | null
+          suspension_reason: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          base_salary?: number | null
+          code?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          current_location_id?: string | null
+          daily_rate?: number | null
+          department?: string | null
+          employment_type?:
+            | Database["public"]["Enums"]["hr_employment_type"]
+            | null
+          full_name?: string | null
+          id?: string | null
+          is_suspended?: boolean | null
+          job_title?: string | null
+          notes?: string | null
+          pay_day?: number | null
+          phone?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["hr_employee_status"] | null
+          suspended_at?: string | null
+          suspended_by?: string | null
+          suspension_date?: string | null
+          suspension_net_amount?: number | null
+          suspension_notes?: string | null
+          suspension_reason?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          base_salary?: number | null
+          code?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          current_location_id?: string | null
+          daily_rate?: number | null
+          department?: string | null
+          employment_type?:
+            | Database["public"]["Enums"]["hr_employment_type"]
+            | null
+          full_name?: string | null
+          id?: string | null
+          is_suspended?: boolean | null
+          job_title?: string | null
+          notes?: string | null
+          pay_day?: number | null
+          phone?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["hr_employee_status"] | null
+          suspended_at?: string | null
+          suspended_by?: string | null
+          suspension_date?: string | null
+          suspension_net_amount?: number | null
+          suspension_notes?: string | null
+          suspension_reason?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employees_current_location_id_fkey"
+            columns: ["current_location_id"]
+            isOneToOne: false
+            referencedRelation: "hr_work_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_agouza_readiness: {
         Row: {
           agouza_stock: number | null
@@ -18437,6 +18577,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_deductions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees_masked"
             referencedColumns: ["id"]
           },
           {
