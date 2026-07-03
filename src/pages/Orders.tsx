@@ -686,8 +686,14 @@ const Orders = () => {
             .limit(500);
           custIds = (cdata || []).map((c: any) => c.id);
         }
-        // 2) جلب الطلبات: رقم طلب مطابق أو ينتمي لعميل مطابق
-        const orFilters: string[] = [`order_number.ilike.%${term}%`];
+        // 2) جلب الطلبات: رقم طلب / اسم عميل / هاتف عميل مطابق أو ينتمي لعميل مطابق
+        const orFilters: string[] = [
+          `order_number.ilike.%${term}%`,
+          `customer_name.ilike.%${term}%`,
+        ];
+        if (digits) {
+          orFilters.push(`customer_phone.ilike.%${digits}%`);
+        }
         if (custIds.length > 0) {
           orFilters.push(`customer_id.in.(${custIds.join(',')})`);
         }
