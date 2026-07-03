@@ -330,9 +330,9 @@ export const useMonthlySalesFromDB = () => {
 
       return Object.entries(monthMap)
         .map(([key, val]) => {
-          const [, monthIdx] = key.split("-");
+          const [, monthNum] = key.split("-");
           return {
-            month: monthNames[parseInt(monthIdx)],
+            month: monthNames[parseInt(monthNum) - 1],
             sales: Math.round(val.sales),
             orders: val.orders,
             sortKey: key,
