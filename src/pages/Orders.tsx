@@ -895,8 +895,22 @@ const Orders = () => {
       filterWarehouseChip === "all" ||
       (filterWarehouseChip === "main" && order.source_warehouse_id === MAIN_WAREHOUSE_ID) ||
       (filterWarehouseChip === "agouza" && order.source_warehouse_id === AGOUZA_WAREHOUSE_ID);
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam && matchesWarehouseChip;
+    const baseMatch = matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam;
+    (order as any).__matchesBaseNoChip = baseMatch;
+    return baseMatch && matchesWarehouseChip;
   }), [orders, filterStatus, filterWarehouseChip, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
+
+  // Counts per warehouse chip that honor ALL other filters (including current status).
+  const warehouseChipCounts = useMemo(() => {
+    let all = 0, main = 0, agouza = 0;
+    for (const o of orders) {
+      if (!(o as any).__matchesBaseNoChip) continue;
+      all++;
+      if (o.source_warehouse_id === MAIN_WAREHOUSE_ID) main++;
+      else if (o.source_warehouse_id === AGOUZA_WAREHOUSE_ID) agouza++;
+    }
+    return { all, main, agouza };
+  }, [orders, filteredOrders]);
 
   // إجمالي المطلوب من المندوب كاش على الأوردرات الظاهرة حالياً بعد الفلاتر.
   const totalCourierCashDue = useMemo(
