@@ -1684,6 +1684,31 @@ const Orders = () => {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="flex flex-wrap gap-2 mb-2">
+            <Button
+              variant={filterWarehouseChip === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterWarehouseChip("all")}
+            >
+              كل المخازن
+            </Button>
+            <Button
+              variant={filterWarehouseChip === "main" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterWarehouseChip("main")}
+              className={filterWarehouseChip === "main" ? "bg-primary" : ""}
+            >
+              المخزن الرئيسي
+            </Button>
+            <Button
+              variant={filterWarehouseChip === "agouza" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterWarehouseChip("agouza")}
+              className={filterWarehouseChip === "agouza" ? "bg-primary" : ""}
+            >
+              مخزن العجوزة
+            </Button>
+          </div>
           <div className="flex flex-wrap gap-2 mb-4">
             <Button
               variant={filterStatus === "all" ? "default" : "outline"}
