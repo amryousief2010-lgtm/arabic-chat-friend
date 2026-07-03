@@ -809,9 +809,11 @@ const Orders = () => {
       order.customer_name.toLowerCase().includes(q) ||
       routeName.includes(q) ||
       (normalizedPhoneQuery.length > 0 && normalizedOrderPhone.includes(normalizedPhoneQuery));
-    const d = new Date(order.created_at);
-    const year = d.getUTCFullYear();
-    const month = d.getUTCMonth() + 1;
+    // Use Cairo calendar for year/month classification so orders after
+    // midnight Cairo (still previous UTC day) are bucketed correctly.
+    const cairoYMD = toCairoDateString(order.created_at); // YYYY-MM-DD
+    const year = parseInt(cairoYMD.slice(0, 4), 10);
+    const month = parseInt(cairoYMD.slice(5, 7), 10);
     const matchesYearGroup =
       yearGroup === "all" ||
       (yearGroup === "2026" && year >= 2026) ||
@@ -965,8 +967,8 @@ const Orders = () => {
 
   const availableYears = Array.from(
     new Set([
-      now.getFullYear(),
-      ...orders.map((o) => new Date(o.created_at).getUTCFullYear()),
+      parseInt(toCairoDateString(now.toISOString()).slice(0, 4), 10),
+      ...orders.map((o) => parseInt(toCairoDateString(o.created_at).slice(0, 4), 10)),
     ])
   ).sort((a, b) => b - a);
 
