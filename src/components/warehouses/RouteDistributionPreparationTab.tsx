@@ -99,6 +99,7 @@ export default function RouteDistributionPreparationTab() {
   const [selectedCustodyId, setSelectedCustodyId] = useState<string>("");
   const [search, setSearch] = useState("");
   const [deliveryFilter, setDeliveryFilter] = useState<'all' | DeliveryKind>('all');
+  const [fromDate, setFromDate] = useState<string>('2026-07-01');
   const [openNewCustody, setOpenNewCustody] = useState(false);
   const [newCourierName, setNewCourierName] = useState("");
   const [newCustodyNotes, setNewCustodyNotes] = useState("");
