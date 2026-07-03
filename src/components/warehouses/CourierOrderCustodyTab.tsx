@@ -390,7 +390,7 @@ export default function CourierOrderCustodyTab() {
           remaining: Math.max(0, totalValue - collected),
           cashDue, vodafone, instapay, bank, other, free,
           missingBreakdown, undelivered, deposit,
-          canDeposit: undelivered === 0 && missingBreakdown === 0 && cashDue > 0 && !deposit,
+          canDeposit: undelivered === 0 && missingBreakdown === 0 && items.length > 0 && !deposit,
         };
       });
   }, [currentAssignments, orders, collections, dailyDeposits, selectedCustody]);
@@ -1149,10 +1149,8 @@ export default function CourierOrderCustodyTab() {
                                     <Badge className="bg-amber-500 text-white text-[10px]">يحتاج مراجعة ({grp.undelivered} غير مسلّم)</Badge>
                                   ) : grp.missingBreakdown > 0 ? (
                                     <Badge className="bg-orange-500 text-white text-[10px]">breakdown غير مضبوط ({grp.missingBreakdown})</Badge>
-                                  ) : grp.cashDue > 0 ? (
-                                    <Badge variant="outline" className="text-[10px]">لم يتم التوريد</Badge>
                                   ) : (
-                                    <Badge className="bg-emerald-600 text-white text-[10px]">✓ مكتمل (بدون نقدية)</Badge>
+                                    <Badge variant="outline" className="text-[10px]">لم يتم التوريد</Badge>
                                   )}
                                 </div>
                                 <div className="text-[10px] text-muted-foreground font-normal flex flex-wrap gap-2">
@@ -1185,10 +1183,6 @@ export default function CourierOrderCustodyTab() {
                                   <Badge variant="outline" className="text-[10px] gap-1">
                                     <CheckCircle2 className="w-3 h-3 text-emerald-600" /> رقم الحركة {grp.deposit.treasury_txn_id?.slice(0, 8) || "—"}
                                   </Badge>
-                                ) : grp.cashDue <= 0 && grp.undelivered === 0 && grp.missingBreakdown === 0 ? (
-                                  <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500 text-emerald-700">
-                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> لا يوجد نقدية مطلوبة (تحصيل غير نقدي)
-                                  </Badge>
                                 ) : (
                                   <Button
                                     size="sm"
@@ -1197,12 +1191,12 @@ export default function CourierOrderCustodyTab() {
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       if (!grp.canDeposit) {
-                                        toast({ title: "لا يمكن التوريد الآن", description: grp.undelivered > 0 ? "لا يمكن توريد نقدية اليوم قبل مراجعة تحصيل كل الأوردرات." : grp.missingBreakdown > 0 ? "يوجد أوردر دفع مختلط بدون breakdown مضبوط" : "لا توجد نقدية للتوريد", variant: "destructive" });
+                                        toast({ title: "لا يمكن التوريد الآن", description: grp.undelivered > 0 ? "لا يمكن التوريد قبل مراجعة تحصيل كل الأوردرات." : grp.missingBreakdown > 0 ? "يوجد أوردر دفع مختلط بدون breakdown مضبوط" : "لا توجد أوردرات لليوم", variant: "destructive" });
                                         return;
                                       }
                                       depositDayCash(grp.day, grp.cashDue);
                                     }}
-                                    title="توريد نقدية اليوم لخزنة المخزن الرئيسي"
+                                    title="توريد اليوم لخزنة المخزن الرئيسي (حتى لو صفر نقدية)"
                                   >
                                     <Coins className="w-3 h-3" />
                                     <span className="text-xs">{depositingDay === grp.day ? "جاري..." : `توريد ${fmt(grp.cashDue)}`}</span>
