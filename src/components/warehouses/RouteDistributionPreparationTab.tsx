@@ -160,11 +160,15 @@ export default function RouteDistributionPreparationTab() {
           .select("order_id, status"),
       ]);
 
-      if (ordersRes.error) {
-        toast.error("خطأ قراءة الطلبات: " + ordersRes.error.message);
-      }
+      const rawOrdersRes = await (supabase as any)
+        .from("orders")
+        .select("id, order_number, status, total, customer_id, delivery_address, created_at, fulfillment_type, source_warehouse_id, customers(name, phone)")
+        .in("status", ["pending", "processing", "shipped", "confirmed"])
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (rawOrdersRes.error) toast.error("خطأ قراءة الطلبات: " + rawOrdersRes.error.message);
 
-      const rawOrders: any[] = ordersRes.data ?? [];
+      const rawOrders: any[] = rawOrdersRes.data ?? [];
       const assignedIds = new Set<string>(
         (assignmentsRes.data ?? [])
           .filter((a: any) => !["fully_returned", "cancelled"].includes(a.status))
@@ -183,6 +187,8 @@ export default function RouteDistributionPreparationTab() {
           customer_phone: o.customers?.phone ?? null,
           delivery_address: o.delivery_address,
           created_at: o.created_at,
+          fulfillment_type: o.fulfillment_type ?? null,
+          source_warehouse_id: o.source_warehouse_id ?? null,
         }));
 
       const statusCounts: Record<string, number> = {};
@@ -192,8 +198,9 @@ export default function RouteDistributionPreparationTab() {
         filtered: ordersData.length,
         statuses: statusCounts,
         assignedExcluded: rawOrders.length - ordersData.length,
-        error: ordersRes.error?.message,
+        error: rawOrdersRes.error?.message,
       });
+
 
       setOrders(ordersData);
       setCustodies(custodiesRes.data ?? []);
