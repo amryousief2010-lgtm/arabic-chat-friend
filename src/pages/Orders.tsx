@@ -1851,12 +1851,35 @@ const Orders = () => {
                             <MapPin className="w-3 h-3" /> {order.governorate}
                           </span>
                         )}
-                        {(order.source_warehouse_name || order.shipping_company) && (
-                          <Badge variant="outline" className="text-[10px] py-0 font-normal">
-                            {order.fulfillment_type === 'pickup' ? 'استلام: ' : order.fulfillment_type === 'delivery' ? 'توصيل: ' : ''}
-                            {order.source_warehouse_name || order.shipping_company}
-                          </Badge>
-                        )}
+                        {(order.source_warehouse_name || order.shipping_company) && (() => {
+                          const wn = order.source_warehouse_name || '';
+                          const ch = wn.includes('الرئيسي') ? 'main' : wn.includes('العجوزة') ? 'agouza' : null;
+                          const label = `${order.fulfillment_type === 'pickup' ? 'استلام: ' : order.fulfillment_type === 'delivery' ? 'توصيل: ' : ''}${order.source_warehouse_name || order.shipping_company}`;
+                          if (ch) {
+                            return (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const next = new URLSearchParams(searchParams);
+                                  if (channelParam === ch) next.delete('channel'); else next.set('channel', ch);
+                                  setSearchParams(next);
+                                }}
+                                title={channelParam === ch ? 'إزالة فلتر المخزن' : 'عرض أوردرات هذا المخزن فقط'}
+                              >
+                                <Badge
+                                  variant={channelParam === ch ? 'default' : 'outline'}
+                                  className="text-[10px] py-0 font-normal cursor-pointer hover:bg-primary/10"
+                                >
+                                  {label}
+                                </Badge>
+                              </button>
+                            );
+                          }
+                          return (
+                            <Badge variant="outline" className="text-[10px] py-0 font-normal">{label}</Badge>
+                          );
+                        })()}
                       </div>
                       <span className="shrink-0">{formatDate(order.created_at)}</span>
                     </div>
