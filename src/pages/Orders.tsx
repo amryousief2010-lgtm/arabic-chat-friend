@@ -1804,7 +1804,20 @@ const Orders = () => {
                           </a>
                         )}
                       </div>
-                      <Badge variant="secondary" className="text-[10px] shrink-0">{order.moderator_name}</Badge>
+                      {canReassignOwner ? (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setReassignOrder(order); }}
+                          title="اضغط لتغيير المسؤولة عن الأوردر"
+                          className="shrink-0"
+                        >
+                          <Badge variant="secondary" className="text-[10px] cursor-pointer bg-orange-500 hover:bg-orange-600 text-white border-orange-600">
+                            {order.moderator_name}
+                          </Badge>
+                        </button>
+                      ) : (
+                        <Badge variant="secondary" className="text-[10px] shrink-0">{order.moderator_name}</Badge>
+                      )}
                     </div>
 
                     {/* السطر 3: المنتجات (ملخّص) */}
