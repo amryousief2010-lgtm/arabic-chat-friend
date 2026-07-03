@@ -130,7 +130,7 @@ const FinancialReports = () => {
   const dailyData = useMemo(() => {
     const map = new Map<string, { date: string; collected: number; pending: number }>();
     orders.forEach((o) => {
-      const d = new Date(o.created_at).toISOString().slice(0, 10);
+      const d = toCairoDateString(o.created_at);
       if (!map.has(d)) map.set(d, { date: d, collected: 0, pending: 0 });
       const row = map.get(d)!;
       if (o.collection_status === "collected") row.collected += Number(o.total);
