@@ -967,8 +967,8 @@ const Orders = () => {
 
   const availableYears = Array.from(
     new Set([
-      now.getFullYear(),
-      ...orders.map((o) => new Date(o.created_at).getUTCFullYear()),
+      parseInt(toCairoDateString(now.toISOString()).slice(0, 4), 10),
+      ...orders.map((o) => parseInt(toCairoDateString(o.created_at).slice(0, 4), 10)),
     ])
   ).sort((a, b) => b - a);
 
