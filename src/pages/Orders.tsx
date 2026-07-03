@@ -397,7 +397,16 @@ const Orders = () => {
     });
   };
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterWarehouseChip, setFilterWarehouseChip] = useState<"all" | "main" | "agouza">("all");
+  const [filterWarehouseChip, setFilterWarehouseChip] = useState<"all" | "main" | "agouza">(() => {
+    try {
+      const v = localStorage.getItem("orders.filterWarehouseChip");
+      if (v === "all" || v === "main" || v === "agouza") return v;
+    } catch {}
+    return "all";
+  });
+  useEffect(() => {
+    try { localStorage.setItem("orders.filterWarehouseChip", filterWarehouseChip); } catch {}
+  }, [filterWarehouseChip]);
   const [filterModerator, setFilterModerator] = useState<string>("all");
   const [filterProduct, setFilterProduct] = useState<string>("all");
   const [filterGovernorate, setFilterGovernorate] = useState<string>("all");
