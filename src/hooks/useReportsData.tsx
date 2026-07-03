@@ -138,7 +138,7 @@ export const useReportsData = (period: ReportPeriod) => {
     const monthlySales = Object.entries(monthMap)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, val], i, arr) => {
-        const monthIdx = parseInt(key.split("-")[1]);
+        const monthIdx = parseInt(key.split("-")[1]) - 1;
         const prevSales = i > 0 ? arr[i - 1][1].sales : val.sales;
         const mom = i > 0 ? Math.round(((val.sales - prevSales) / prevSales) * 1000) / 10 : 0;
         return {
