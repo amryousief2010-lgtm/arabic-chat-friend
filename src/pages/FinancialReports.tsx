@@ -47,27 +47,21 @@ const periods = [
 
 const getPeriodStart = (period: string): Date | null => {
   const now = new Date();
-  const cairo = new Date(now.toLocaleString("en-US", { timeZone: "Africa/Cairo" }));
+  const { year, monthIndex0 } = currentCairoYearMonth(now);
   switch (period) {
-    case "today": {
-      const d = new Date(cairo);
-      d.setHours(0, 0, 0, 0);
-      return d;
-    }
+    case "today":
+      return cairoTodayStartUTC(now);
     case "week": {
-      const d = new Date(cairo);
-      d.setDate(d.getDate() - 7);
-      return d;
+      // Last 7 Cairo days including today.
+      const todayStart = cairoTodayStartUTC(now);
+      return new Date(todayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
     }
     case "month":
-      return new Date(Date.UTC(cairo.getFullYear(), cairo.getMonth(), 1));
-    case "quarter": {
-      const d = new Date(cairo);
-      d.setMonth(d.getMonth() - 3);
-      return d;
-    }
+      return cairoMonthStartUTC(year, monthIndex0);
+    case "quarter":
+      return cairoMonthStartUTC(year, monthIndex0 - 2);
     case "year":
-      return new Date(Date.UTC(cairo.getFullYear(), 0, 1));
+      return cairoYearStartUTC(year);
     default:
       return null;
   }
