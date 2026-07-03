@@ -8,6 +8,7 @@ import Header from "@/components/layout/Header";
 import StatCard from "@/components/dashboard/StatCard";
 import ActiveUsersWidget from "@/components/ActiveUsersWidget";
 import TopProducts3DaysCard from "@/components/dashboard/TopProducts3DaysCard";
+import TopOfferBoxes3DaysCard from "@/components/dashboard/TopOfferBoxes3DaysCard";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
