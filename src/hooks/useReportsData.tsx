@@ -125,10 +125,11 @@ export const useReportsData = (period: ReportPeriod) => {
     const avgOrderValue = totalOrders > 0 ? Math.round(totalSales / totalOrders) : 0;
 
     // Monthly breakdown
+    // Monthly breakdown — group by Cairo-local month so orders after midnight
+    // Cairo count under the new month (not the previous UTC month).
     const monthMap: Record<string, { sales: number; orders: number }> = {};
     for (const o of orders) {
-      const d = new Date(o.created_at);
-      const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`;
+      const key = toCairoDateString(o.created_at).slice(0, 7); // YYYY-MM
       if (!monthMap[key]) monthMap[key] = { sales: 0, orders: 0 };
       monthMap[key].sales += Number(o.total);
       monthMap[key].orders++;
