@@ -1,30 +1,37 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useMemo } from "react";
+import {
+  cairoMonthStartUTC,
+  cairoYearStartUTC,
+  currentCairoYearMonth,
+  toCairoDateString,
+} from "@/lib/cairoDate";
 
 export type ReportPeriod = "month" | "quarter" | "half" | "year" | "all";
 
 function getDateRange(period: ReportPeriod): { from: string; to: string } {
   const now = new Date();
+  const { year, monthIndex0 } = currentCairoYearMonth(now);
   const to = now.toISOString();
   let from: Date;
 
   switch (period) {
     case "month":
-      from = new Date(now.getFullYear(), now.getMonth(), 1);
+      from = cairoMonthStartUTC(year, monthIndex0);
       break;
     case "quarter":
-      from = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      from = cairoMonthStartUTC(year, monthIndex0 - 2);
       break;
     case "half":
-      from = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      from = cairoMonthStartUTC(year, monthIndex0 - 5);
       break;
     case "year":
-      from = new Date(now.getFullYear(), 0, 1);
+      from = cairoYearStartUTC(year);
       break;
     case "all":
     default:
-      from = new Date(2020, 0, 1);
+      from = cairoYearStartUTC(2020);
       break;
   }
 
@@ -118,10 +125,11 @@ export const useReportsData = (period: ReportPeriod) => {
     const avgOrderValue = totalOrders > 0 ? Math.round(totalSales / totalOrders) : 0;
 
     // Monthly breakdown
+    // Monthly breakdown — group by Cairo-local month so orders after midnight
+    // Cairo count under the new month (not the previous UTC month).
     const monthMap: Record<string, { sales: number; orders: number }> = {};
     for (const o of orders) {
-      const d = new Date(o.created_at);
-      const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`;
+      const key = toCairoDateString(o.created_at).slice(0, 7); // YYYY-MM
       if (!monthMap[key]) monthMap[key] = { sales: 0, orders: 0 };
       monthMap[key].sales += Number(o.total);
       monthMap[key].orders++;
@@ -130,7 +138,7 @@ export const useReportsData = (period: ReportPeriod) => {
     const monthlySales = Object.entries(monthMap)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, val], i, arr) => {
-        const monthIdx = parseInt(key.split("-")[1]);
+        const monthIdx = parseInt(key.split("-")[1]) - 1;
         const prevSales = i > 0 ? arr[i - 1][1].sales : val.sales;
         const mom = i > 0 ? Math.round(((val.sales - prevSales) / prevSales) * 1000) / 10 : 0;
         return {

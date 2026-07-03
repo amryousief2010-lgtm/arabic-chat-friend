@@ -9,6 +9,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, AreaChart, Area,
 } from "recharts";
+import { toCairoDateString } from "@/lib/cairoDate";
 
 const COLORS = [
   "hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--secondary))",
@@ -75,31 +76,42 @@ const OrdersAnalytics = ({ orders }: OrdersAnalyticsProps) => {
       name: payStatusLabels[k] || k, value: v,
     }));
 
-    // Daily orders trend (last 30 days)
-    const last30 = new Date();
-    last30.setDate(last30.getDate() - 30);
+    // Daily orders trend (last 30 Cairo days) — group by Cairo calendar day
+    // so orders that land after midnight Cairo bucket into the new day.
+    const nowMs = Date.now();
     const dailyMap: Record<string, { orders: number; revenue: number }> = {};
     orders.forEach(o => {
-      const d = new Date(o.created_at);
-      if (d >= last30) {
-        const key = d.toLocaleDateString("en-GB", { month: "short", day: "numeric" });
+      const ts = new Date(o.created_at).getTime();
+      if (nowMs - ts <= 30 * 24 * 60 * 60 * 1000) {
+        const key = toCairoDateString(o.created_at); // YYYY-MM-DD in Cairo
         if (!dailyMap[key]) dailyMap[key] = { orders: 0, revenue: 0 };
         dailyMap[key].orders++;
         dailyMap[key].revenue += o.total;
       }
     });
-    const dailyTrend = Object.entries(dailyMap).map(([day, data]) => ({ day, ...data }));
+    const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const dailyTrend = Object.entries(dailyMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, data]) => {
+        const [, m, d] = key.split("-");
+        return { day: `${parseInt(d)} ${MONTH_SHORT[parseInt(m) - 1]}`, ...data };
+      });
 
-    // Monthly orders
+    // Monthly orders — group by Cairo YYYY-MM to avoid UTC month boundary bugs.
+    const MONTH_LONG = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const monthlyMap: Record<string, { orders: number; revenue: number }> = {};
     orders.forEach(o => {
-      const d = new Date(o.created_at);
-      const key = d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+      const key = toCairoDateString(o.created_at).slice(0, 7); // YYYY-MM
       if (!monthlyMap[key]) monthlyMap[key] = { orders: 0, revenue: 0 };
       monthlyMap[key].orders++;
       monthlyMap[key].revenue += o.total;
     });
-    const monthlyData = Object.entries(monthlyMap).map(([month, data]) => ({ month, ...data }));
+    const monthlyData = Object.entries(monthlyMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, data]) => {
+        const [y, m] = key.split("-");
+        return { month: `${MONTH_LONG[parseInt(m) - 1]} ${y}`, ...data };
+      });
 
     const delivered = statusCounts["delivered"] || 0;
     const cancelled = statusCounts["cancelled"] || 0;

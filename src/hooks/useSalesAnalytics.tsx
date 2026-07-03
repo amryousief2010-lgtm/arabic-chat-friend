@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { cairoTodayStartUTC } from "@/lib/cairoDate";
+import { cairoTodayStartUTC, toCairoDateString } from "@/lib/cairoDate";
 import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
 import { AGOUZA_WAREHOUSE_ID } from "@/lib/agouzaReservations";
 
@@ -321,8 +321,8 @@ export const useMonthlySalesFromDB = () => {
       const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 
       for (const order of data) {
-        const d = new Date(order.created_at);
-        const key = `${d.getFullYear()}-${d.getMonth()}`;
+        // Group by Cairo calendar month so post-midnight orders count correctly.
+        const key = toCairoDateString(order.created_at).slice(0, 7); // YYYY-MM
         if (!monthMap[key]) monthMap[key] = { sales: 0, orders: 0 };
         monthMap[key].sales += Number(order.total);
         monthMap[key].orders++;
@@ -330,9 +330,9 @@ export const useMonthlySalesFromDB = () => {
 
       return Object.entries(monthMap)
         .map(([key, val]) => {
-          const [, monthIdx] = key.split("-");
+          const [, monthNum] = key.split("-");
           return {
-            month: monthNames[parseInt(monthIdx)],
+            month: monthNames[parseInt(monthNum) - 1],
             sales: Math.round(val.sales),
             orders: val.orders,
             sortKey: key,
