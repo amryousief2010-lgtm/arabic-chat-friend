@@ -10,6 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Wallet, TrendingUp, CheckCircle, AlertCircle, Calculator, ArrowLeft } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
+import {
+  cairoMonthStartUTC,
+  cairoTodayStartUTC,
+  cairoYearStartUTC,
+  currentCairoYearMonth,
+  toCairoDateString,
+} from "@/lib/cairoDate";
 
 interface OrderRow {
   id: string;
