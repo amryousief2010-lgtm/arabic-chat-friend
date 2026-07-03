@@ -1149,10 +1149,8 @@ export default function CourierOrderCustodyTab() {
                                     <Badge className="bg-amber-500 text-white text-[10px]">يحتاج مراجعة ({grp.undelivered} غير مسلّم)</Badge>
                                   ) : grp.missingBreakdown > 0 ? (
                                     <Badge className="bg-orange-500 text-white text-[10px]">breakdown غير مضبوط ({grp.missingBreakdown})</Badge>
-                                  ) : grp.cashDue > 0 ? (
-                                    <Badge variant="outline" className="text-[10px]">لم يتم التوريد</Badge>
                                   ) : (
-                                    <Badge className="bg-emerald-600 text-white text-[10px]">✓ مكتمل (بدون نقدية)</Badge>
+                                    <Badge variant="outline" className="text-[10px]">لم يتم التوريد</Badge>
                                   )}
                                 </div>
                                 <div className="text-[10px] text-muted-foreground font-normal flex flex-wrap gap-2">
