@@ -649,6 +649,7 @@ export default function RouteDistributionPreparationTab() {
                             />
                           </TableHead>
                           <TableHead>الطلب</TableHead>
+                          <TableHead>التسليم</TableHead>
                           <TableHead>العميل</TableHead>
                           <TableHead>الأصناف</TableHead>
                           <TableHead>القيمة</TableHead>
