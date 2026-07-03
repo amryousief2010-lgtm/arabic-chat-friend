@@ -60,7 +60,7 @@ export default function ReassignOwnerDialog({
       const { data: roleRows, error: rErr } = await supabase
         .from("user_roles")
         .select("user_id, role")
-        .in("role", ["sales_moderator", "sales_manager", "marketing_sales_manager"]);
+        .in("role", ["sales_moderator"]);
       if (rErr) {
         toast.error("تعذر تحميل قائمة المسوقات");
         setLoading(false);
