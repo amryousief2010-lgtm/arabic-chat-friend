@@ -243,13 +243,22 @@ export default function RouteDistributionPreparationTab() {
 
   const filteredOrders = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return orders;
-    return orders.filter(o =>
-      o.order_number?.toLowerCase().includes(q) ||
-      o.customer_name?.toLowerCase().includes(q) ||
-      o.customer_phone?.toLowerCase().includes(q)
-    );
-  }, [orders, search]);
+    return orders.filter(o => {
+      if (deliveryFilter !== 'all' && getDeliveryKind(o) !== deliveryFilter) return false;
+      if (!q) return true;
+      return (
+        o.order_number?.toLowerCase().includes(q) ||
+        o.customer_name?.toLowerCase().includes(q) ||
+        o.customer_phone?.toLowerCase().includes(q)
+      );
+    });
+  }, [orders, search, deliveryFilter]);
+
+  const deliveryCounts = useMemo(() => {
+    const c = { kimo: 0, pickup_main: 0, other: 0 };
+    for (const o of orders) c[getDeliveryKind(o)]++;
+    return c;
+  }, [orders]);
 
   const selectedOrders = useMemo(
     () => orders.filter(o => selectedOrderIds.has(o.id)),
