@@ -99,6 +99,7 @@ export default function RouteDistributionPreparationTab() {
   const [selectedCustodyId, setSelectedCustodyId] = useState<string>("");
   const [search, setSearch] = useState("");
   const [deliveryFilter, setDeliveryFilter] = useState<'all' | DeliveryKind>('all');
+  const [fromDate, setFromDate] = useState<string>('2026-07-01');
   const [openNewCustody, setOpenNewCustody] = useState(false);
   const [newCourierName, setNewCourierName] = useState("");
   const [newCustodyNotes, setNewCustodyNotes] = useState("");
@@ -241,9 +242,16 @@ export default function RouteDistributionPreparationTab() {
   useEffect(() => { loadData(); }, []);
   useEffect(() => { loadCustodyLines(selectedCustodyId); }, [selectedCustodyId]);
 
+  const fromDateMs = useMemo(() => (fromDate ? new Date(fromDate + 'T00:00:00').getTime() : 0), [fromDate]);
+
+  const dateScopedOrders = useMemo(
+    () => orders.filter(o => !fromDateMs || new Date(o.created_at).getTime() >= fromDateMs),
+    [orders, fromDateMs]
+  );
+
   const filteredOrders = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return orders.filter(o => {
+    return dateScopedOrders.filter(o => {
       if (deliveryFilter !== 'all' && getDeliveryKind(o) !== deliveryFilter) return false;
       if (!q) return true;
       return (
@@ -252,13 +260,13 @@ export default function RouteDistributionPreparationTab() {
         o.customer_phone?.toLowerCase().includes(q)
       );
     });
-  }, [orders, search, deliveryFilter]);
+  }, [dateScopedOrders, search, deliveryFilter]);
 
   const deliveryCounts = useMemo(() => {
     const c = { kimo: 0, pickup_main: 0, other: 0 };
-    for (const o of orders) c[getDeliveryKind(o)]++;
+    for (const o of dateScopedOrders) c[getDeliveryKind(o)]++;
     return c;
-  }, [orders]);
+  }, [dateScopedOrders]);
 
   const selectedOrders = useMemo(
     () => orders.filter(o => selectedOrderIds.has(o.id)),
@@ -607,16 +615,25 @@ export default function RouteDistributionPreparationTab() {
               <CardHeader className="pb-3 space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <CardTitle className="text-base">طلبات قسم التسويق</CardTitle>
-                  <Input
-                    placeholder="بحث برقم الطلب / العميل / الجوال…"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    className="w-64"
-                  />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1">
+                      <Label className="text-xs whitespace-nowrap">من تاريخ:</Label>
+                      <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-40 h-8 text-xs" />
+                      {fromDate && (
+                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setFromDate('')}>مسح</Button>
+                      )}
+                    </div>
+                    <Input
+                      placeholder="بحث برقم الطلب / العميل / الجوال…"
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      className="w-64"
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {([
-                    { k: 'all' as const, label: 'الكل', count: orders.length, cls: 'bg-slate-100 text-slate-700 border-slate-300' },
+                    { k: 'all' as const, label: 'الكل', count: dateScopedOrders.length, cls: 'bg-slate-100 text-slate-700 border-slate-300' },
                     { k: 'kimo' as const, label: '🛵 كيمو (توصيل رئيسي)', count: deliveryCounts.kimo, cls: 'bg-purple-100 text-purple-700 border-purple-300' },
                     { k: 'pickup_main' as const, label: '🏬 استلام من الرئيسي', count: deliveryCounts.pickup_main, cls: 'bg-orange-100 text-orange-700 border-orange-300' },
                     { k: 'other' as const, label: 'غير ذلك', count: deliveryCounts.other, cls: 'bg-slate-50 text-slate-600 border-slate-200' },
