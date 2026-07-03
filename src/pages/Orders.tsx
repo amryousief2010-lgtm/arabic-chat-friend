@@ -1776,7 +1776,36 @@ const Orders = () => {
           <div className="space-y-3">
 
             {filteredOrders.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">لا توجد طلبات</div>
+              <div className="text-center py-10 text-muted-foreground border border-dashed rounded-lg">
+                <div className="text-4xl mb-2">📦</div>
+                <div className="font-medium text-foreground mb-1">لا توجد طلبات مطابقة</div>
+                <div className="text-sm">
+                  {(() => {
+                    const wh = filterWarehouseChip === "main" ? "المخزن الرئيسي"
+                      : filterWarehouseChip === "agouza" ? "مخزن العجوزة"
+                      : "كل المخازن";
+                    const st = filterStatus === "pending" ? "قيد الانتظار"
+                      : filterStatus === "delivered" ? "تم التوصيل"
+                      : filterStatus === "cancelled" ? "المرتجعة"
+                      : "بكل الحالات";
+                    return `لا يوجد أوردرات في ${wh} ${st} حالياً.`;
+                  })()}
+                </div>
+                {(filterWarehouseChip !== "all" || filterStatus !== "all") && (
+                  <div className="mt-3 flex gap-2 justify-center">
+                    {filterWarehouseChip !== "all" && (
+                      <Button size="sm" variant="outline" onClick={() => setFilterWarehouseChip("all")}>
+                        عرض كل المخازن
+                      </Button>
+                    )}
+                    {filterStatus !== "all" && (
+                      <Button size="sm" variant="outline" onClick={() => setFilterStatus("all")}>
+                        عرض كل الحالات
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
             ) : (
               filteredOrders.map((order) => {
                 const itemLines = order.items.map((it) => {
