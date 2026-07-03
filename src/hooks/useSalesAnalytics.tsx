@@ -11,6 +11,39 @@ export interface TodayOrdersBreakdown {
   total: number;
 }
 
+export type TodayOrdersChannel = "main" | "agouza" | "unclassified";
+
+export interface TodayWarehouseOrder {
+  id: string;
+  order_number: string;
+  customer_name: string;
+  total: number;
+  status: string;
+  created_at: string;
+}
+
+const getTodayWindow = () => {
+  const start = cairoTodayStartUTC(new Date());
+  const end = new Date(start.getTime() + 26 * 60 * 60 * 1000);
+  const cairoDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Cairo",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+  return { start, end, cairoDate };
+};
+
+const orderChannel = (sourceWarehouseId: string | null): TodayOrdersChannel => {
+  if (sourceWarehouseId === MAIN_WAREHOUSE_ID) return "main";
+  if (sourceWarehouseId === AGOUZA_WAREHOUSE_ID) return "agouza";
+  return "unclassified";
+};
+
+const isSameCairoDay = (createdAt: string, cairoDate: string) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Cairo",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date(createdAt)) === cairoDate;
+
 /**
  * Splits today's orders (Cairo-day window) by fulfillment channel — display-only.
  * Classification priority (disjoint):
@@ -22,31 +55,54 @@ export const useTodayOrdersBreakdown = () => {
   return useQuery<TodayOrdersBreakdown>({
     queryKey: ["today-orders-breakdown-v2"],
     queryFn: async () => {
-      const start = cairoTodayStartUTC(new Date());
-      const end = new Date(start.getTime() + 26 * 60 * 60 * 1000);
+      const { start, end, cairoDate } = getTodayWindow();
       const { data, error } = await supabase
         .from("orders")
         .select("id, shipping_company, source_warehouse_id, created_at")
         .gte("created_at", start.toISOString())
         .lt("created_at", end.toISOString());
       if (error) throw error;
-      const todayStr = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Africa/Cairo",
-        year: "numeric", month: "2-digit", day: "2-digit",
-      }).format(new Date());
-      const rows = (data || []).filter((o: any) =>
-        new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Africa/Cairo",
-          year: "numeric", month: "2-digit", day: "2-digit",
-        }).format(new Date(o.created_at)) === todayStr
-      );
+      const rows = (data || []).filter((o: any) => isSameCairoDay(o.created_at, cairoDate));
       let mainWarehouse = 0, agouza = 0, unclassified = 0;
       for (const o of rows as any[]) {
-        if (o.source_warehouse_id === MAIN_WAREHOUSE_ID) mainWarehouse++;
-        else if (o.source_warehouse_id === AGOUZA_WAREHOUSE_ID) agouza++;
+        const ch = orderChannel(o.source_warehouse_id ?? null);
+        if (ch === "main") mainWarehouse++;
+        else if (ch === "agouza") agouza++;
         else unclassified++;
       }
       return { mainWarehouse, agouza, unclassified, total: rows.length };
+    },
+    staleTime: 60 * 1000,
+    refetchInterval: 2 * 60 * 1000,
+  });
+};
+
+export const useTodayWarehouseOrders = (channel: TodayOrdersChannel | null) => {
+  return useQuery<TodayWarehouseOrder[]>({
+    queryKey: ["today-warehouse-orders", channel],
+    enabled: !!channel,
+    queryFn: async () => {
+      if (!channel) return [];
+      const { start, end, cairoDate } = getTodayWindow();
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, order_number, total, status, created_at, source_warehouse_id, customers(name)")
+        .gte("created_at", start.toISOString())
+        .lt("created_at", end.toISOString())
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+
+      return ((data || []) as any[])
+        .filter((o) => isSameCairoDay(o.created_at, cairoDate))
+        .filter((o) => orderChannel(o.source_warehouse_id ?? null) === channel)
+        .map((o) => ({
+          id: o.id,
+          order_number: o.order_number,
+          customer_name: Array.isArray(o.customers) ? (o.customers[0]?.name || "-") : (o.customers?.name || "-"),
+          total: Number(o.total || 0),
+          status: o.status || "pending",
+          created_at: o.created_at,
+        }));
     },
     staleTime: 60 * 1000,
     refetchInterval: 2 * 60 * 1000,

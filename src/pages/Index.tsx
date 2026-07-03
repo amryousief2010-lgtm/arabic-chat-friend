@@ -48,7 +48,13 @@ import {
   RadialBar,
   Legend,
 } from "recharts";
-import { useDashboardStats, useRecentOrders, useTodayOrdersBreakdown } from "@/hooks/useSalesAnalytics";
+import {
+  TodayOrdersChannel,
+  useDashboardStats,
+  useRecentOrders,
+  useTodayOrdersBreakdown,
+  useTodayWarehouseOrders,
+} from "@/hooks/useSalesAnalytics";
 import { useReportsData } from "@/hooks/useReportsData";
 import { useProductionStats } from "@/hooks/useProductionStats";
 import { Egg, Bird } from "lucide-react";
@@ -94,6 +100,12 @@ const formatSales = (v: number) => {
   return String(v);
 };
 
+const todayChannelLabels: Record<TodayOrdersChannel, string> = {
+  main: "المخزن الرئيسي",
+  agouza: "مخزن العجوزة",
+  unclassified: "غير مصنف",
+};
+
 const Index = () => {
   const { role, loading: authLoading } = useAuth();
 
@@ -121,6 +133,8 @@ const DashboardContent = () => {
   const navigate = useNavigate();
   const { data: stats, isLoading } = useDashboardStats();
   const { data: todayBreakdown } = useTodayOrdersBreakdown();
+  const [selectedTodayChannel, setSelectedTodayChannel] = useState<TodayOrdersChannel | null>(null);
+  const { data: selectedTodayOrders, isLoading: selectedTodayOrdersLoading } = useTodayWarehouseOrders(selectedTodayChannel);
   const { data: recentOrders, isLoading: ordersLoading } = useRecentOrders(5);
   const reportData = useReportsData("all");
   const [prodFrom, setProdFrom] = useState<string>("");
@@ -252,16 +266,16 @@ const DashboardContent = () => {
               <div className="mt-2 pt-2 border-t border-border/40 space-y-0.5 text-[11px]">
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); navigate('/orders?today=1&channel=main'); }}
-                  className="w-full flex items-center justify-between hover:text-primary transition-colors"
+                  onClick={(e) => { e.stopPropagation(); setSelectedTodayChannel(selectedTodayChannel === 'main' ? null : 'main'); }}
+                  className={`w-full flex items-center justify-between hover:text-primary transition-colors ${selectedTodayChannel === 'main' ? 'text-primary font-bold' : ''}`}
                 >
                   <span className="text-muted-foreground">المخزن الرئيسي</span>
                   <span className="font-semibold">{todayBreakdown.mainWarehouse} أوردر</span>
                 </button>
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); navigate('/orders?today=1&channel=agouza'); }}
-                  className="w-full flex items-center justify-between hover:text-primary transition-colors"
+                  onClick={(e) => { e.stopPropagation(); setSelectedTodayChannel(selectedTodayChannel === 'agouza' ? null : 'agouza'); }}
+                  className={`w-full flex items-center justify-between hover:text-primary transition-colors ${selectedTodayChannel === 'agouza' ? 'text-primary font-bold' : ''}`}
                 >
                   <span className="text-muted-foreground">مخزن العجوزة</span>
                   <span className="font-semibold">{todayBreakdown.agouza} أوردر</span>
@@ -269,12 +283,53 @@ const DashboardContent = () => {
                 {todayBreakdown.unclassified > 0 && (
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); navigate('/orders?today=1&channel=unclassified'); }}
-                    className="w-full flex items-center justify-between hover:text-primary transition-colors"
+                    onClick={(e) => { e.stopPropagation(); setSelectedTodayChannel(selectedTodayChannel === 'unclassified' ? null : 'unclassified'); }}
+                    className={`w-full flex items-center justify-between hover:text-primary transition-colors ${selectedTodayChannel === 'unclassified' ? 'text-primary font-bold' : ''}`}
                   >
                     <span className="text-muted-foreground">غير مصنف</span>
                     <span className="font-semibold">{todayBreakdown.unclassified} أوردر</span>
                   </button>
+                )}
+              </div>
+            )}
+            {selectedTodayChannel && (
+              <div className="mt-3 pt-3 border-t border-border/40" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-xs font-bold text-foreground">
+                    أوردرات {todayChannelLabels[selectedTodayChannel]} اليوم
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setSelectedTodayChannel(null)}
+                  >
+                    إغلاق
+                  </Button>
+                </div>
+                {selectedTodayOrdersLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-9 w-full" />
+                    <Skeleton className="h-9 w-full" />
+                  </div>
+                ) : (selectedTodayOrders?.length || 0) === 0 ? (
+                  <p className="py-3 text-center text-xs text-muted-foreground">لا توجد أوردرات</p>
+                ) : (
+                  <div className="max-h-56 overflow-y-auto divide-y divide-border/40 rounded-md border border-border/40">
+                    {selectedTodayOrders?.map((order) => (
+                      <div key={order.id} className="p-2 text-xs hover:bg-muted/40 transition-colors">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono font-bold">{order.order_number}</span>
+                          <Badge className={statusColors[order.status] || ""}>{statusLabels[order.status] || order.status}</Badge>
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-2 text-muted-foreground">
+                          <span className="truncate">{order.customer_name}</span>
+                          <span className="font-bold text-foreground">{order.total.toLocaleString()} ج.م</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
