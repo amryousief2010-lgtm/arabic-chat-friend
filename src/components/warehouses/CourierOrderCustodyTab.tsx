@@ -1183,6 +1183,10 @@ export default function CourierOrderCustodyTab() {
                                   <Badge variant="outline" className="text-[10px] gap-1">
                                     <CheckCircle2 className="w-3 h-3 text-emerald-600" /> رقم الحركة {grp.deposit.treasury_txn_id?.slice(0, 8) || "—"}
                                   </Badge>
+                                ) : grp.cashDue <= 0 && grp.undelivered === 0 && grp.missingBreakdown === 0 ? (
+                                  <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500 text-emerald-700">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> لا يوجد نقدية مطلوبة (تحصيل غير نقدي)
+                                  </Badge>
                                 ) : (
                                   <Button
                                     size="sm"
