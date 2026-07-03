@@ -145,10 +145,20 @@ const DashboardContent = () => {
 
   const setQuickRange = (kind: "today" | "month" | "year" | "clear") => {
     const now = new Date();
-    const fmt = (d: Date) => d.toISOString().slice(0, 10);
-    if (kind === "today") { const t = fmt(now); setProdFrom(t); setProdTo(t); }
-    else if (kind === "month") { setProdFrom(fmt(new Date(now.getFullYear(), now.getMonth(), 1))); setProdTo(fmt(now)); }
-    else if (kind === "year") { setProdFrom(`${now.getFullYear()}-01-01`); setProdTo(fmt(now)); }
+    // All ranges are anchored to Cairo local calendar so post-midnight
+    // orders bucket into the new day/month/year.
+    const todayCairo = toCairoDateString(now);
+    if (kind === "today") { setProdFrom(todayCairo); setProdTo(todayCairo); }
+    else if (kind === "month") {
+      const [y, m] = todayCairo.split("-");
+      setProdFrom(`${y}-${m}-01`);
+      setProdTo(todayCairo);
+    }
+    else if (kind === "year") {
+      const [y] = todayCairo.split("-");
+      setProdFrom(`${y}-01-01`);
+      setProdTo(todayCairo);
+    }
     else { setProdFrom(""); setProdTo(""); }
   };
 
