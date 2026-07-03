@@ -188,6 +188,70 @@ export const useTopProductsLast3Days = (limit = 5, days: 1 | 3 | 7 | 30 = 3) => 
   });
 };
 
+export interface TopOfferBox {
+  offer_name: string;
+  orders_count: number;
+  items_count: number;
+  total_sales: number;
+}
+
+/**
+ * Top-N most-pulled offer boxes over the last N Cairo days (inclusive of today).
+ * Grouped by order_items.offer_name (non-null). Excludes cancelled orders.
+ */
+export const useTopOfferBoxesLast3Days = (limit = 5, days: 1 | 3 | 7 | 30 = 3) => {
+  return useQuery<TopOfferBox[]>({
+    queryKey: ["top-offer-boxes", days, limit],
+    queryFn: async () => {
+      const todayStart = cairoTodayStartUTC(new Date());
+      const rangeStart = new Date(todayStart.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
+      const rangeEnd = new Date(todayStart.getTime() + 26 * 60 * 60 * 1000);
+
+      const { data, error } = await supabase
+        .from("order_items")
+        .select("offer_name, total_price, order_id, orders!inner(status, created_at)")
+        .gte("orders.created_at", rangeStart.toISOString())
+        .lt("orders.created_at", rangeEnd.toISOString())
+        .neq("orders.status", "cancelled")
+        .not("offer_name", "is", null);
+      if (error) throw error;
+
+      const agg = new Map<string, TopOfferBox & { orderSet: Set<string> }>();
+      for (const row of (data || []) as any[]) {
+        const name: string = row.offer_name;
+        if (!name) continue;
+        let entry = agg.get(name);
+        if (!entry) {
+          entry = {
+            offer_name: name,
+            orders_count: 0,
+            items_count: 0,
+            total_sales: 0,
+            orderSet: new Set<string>(),
+          };
+          agg.set(name, entry);
+        }
+        entry.items_count += 1;
+        entry.total_sales += Number(row.total_price) || 0;
+        entry.orderSet.add(row.order_id);
+      }
+      const list: TopOfferBox[] = Array.from(agg.values()).map((e) => ({
+        offer_name: e.offer_name,
+        orders_count: e.orderSet.size,
+        items_count: e.items_count,
+        total_sales: Math.round(e.total_sales * 100) / 100,
+      }));
+      list.sort((a, b) =>
+        b.orders_count - a.orders_count ||
+        b.total_sales - a.total_sales,
+      );
+      return list.slice(0, limit);
+    },
+    staleTime: 60 * 1000,
+    refetchInterval: 2 * 60 * 1000,
+  });
+};
+
 export interface DashboardOverview {
   today: { sales: number; orders: number };
   month: { sales: number; orders: number };
