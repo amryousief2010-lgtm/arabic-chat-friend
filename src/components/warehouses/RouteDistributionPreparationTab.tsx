@@ -98,6 +98,7 @@ export default function RouteDistributionPreparationTab() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [selectedCustodyId, setSelectedCustodyId] = useState<string>("");
   const [search, setSearch] = useState("");
+  const [deliveryFilter, setDeliveryFilter] = useState<'all' | DeliveryKind>('all');
   const [openNewCustody, setOpenNewCustody] = useState(false);
   const [newCourierName, setNewCourierName] = useState("");
   const [newCustodyNotes, setNewCustodyNotes] = useState("");
