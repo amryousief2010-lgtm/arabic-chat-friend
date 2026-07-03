@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
+
 interface OrderRow {
   id: string;
   order_number: string;
@@ -25,7 +27,20 @@ interface OrderRow {
   customer_phone: string | null;
   delivery_address: string | null;
   created_at: string;
+  fulfillment_type: string | null;
+  source_warehouse_id: string | null;
 }
+
+type DeliveryKind = 'kimo' | 'pickup_main' | 'other';
+const getDeliveryKind = (o: Pick<OrderRow, 'fulfillment_type' | 'source_warehouse_id'>): DeliveryKind => {
+  const isMain = o.source_warehouse_id === MAIN_WAREHOUSE_ID;
+  if (isMain && o.fulfillment_type === 'delivery') return 'kimo';
+  if (isMain && o.fulfillment_type === 'pickup') return 'pickup_main';
+  if (o.fulfillment_type === 'delivery_main') return 'kimo';
+  if (o.fulfillment_type === 'pickup_main') return 'pickup_main';
+  return 'other';
+};
+
 
 interface OrderItemRow {
   id: string;
