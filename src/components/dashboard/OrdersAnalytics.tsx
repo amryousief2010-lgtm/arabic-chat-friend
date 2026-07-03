@@ -9,6 +9,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, AreaChart, Area,
 } from "recharts";
+import { toCairoDateString } from "@/lib/cairoDate";
 
 const COLORS = [
   "hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--secondary))",
