@@ -397,6 +397,7 @@ const Orders = () => {
     });
   };
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterWarehouseChip, setFilterWarehouseChip] = useState<"all" | "main" | "agouza">("all");
   const [filterModerator, setFilterModerator] = useState<string>("all");
   const [filterProduct, setFilterProduct] = useState<string>("all");
   const [filterGovernorate, setFilterGovernorate] = useState<string>("all");
@@ -881,8 +882,12 @@ const Orders = () => {
         productIdParam ? it.product_id === productIdParam : it.product_name === productNameParam,
       );
     }
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam;
-  }), [orders, filterStatus, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
+    const matchesWarehouseChip =
+      filterWarehouseChip === "all" ||
+      (filterWarehouseChip === "main" && order.source_warehouse_id === MAIN_WAREHOUSE_ID) ||
+      (filterWarehouseChip === "agouza" && order.source_warehouse_id === AGOUZA_WAREHOUSE_ID);
+    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam && matchesWarehouseChip;
+  }), [orders, filterStatus, filterWarehouseChip, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
 
   // إجمالي المطلوب من المندوب كاش على الأوردرات الظاهرة حالياً بعد الفلاتر.
   const totalCourierCashDue = useMemo(
@@ -1679,6 +1684,31 @@ const Orders = () => {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="flex flex-wrap gap-2 mb-2">
+            <Button
+              variant={filterWarehouseChip === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterWarehouseChip("all")}
+            >
+              كل المخازن
+            </Button>
+            <Button
+              variant={filterWarehouseChip === "main" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterWarehouseChip("main")}
+              className={filterWarehouseChip === "main" ? "bg-primary" : ""}
+            >
+              المخزن الرئيسي
+            </Button>
+            <Button
+              variant={filterWarehouseChip === "agouza" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterWarehouseChip("agouza")}
+              className={filterWarehouseChip === "agouza" ? "bg-primary" : ""}
+            >
+              مخزن العجوزة
+            </Button>
+          </div>
           <div className="flex flex-wrap gap-2 mb-4">
             <Button
               variant={filterStatus === "all" ? "default" : "outline"}
