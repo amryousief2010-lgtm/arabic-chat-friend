@@ -2247,7 +2247,13 @@ const Orders = () => {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{order.moderator_name}</Badge>
+                      {canReassignOwner ? (
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setReassignOrder(order); }} title="اضغط لتغيير المسؤولة عن الأوردر">
+                          <Badge className="cursor-pointer bg-orange-500 hover:bg-orange-600 text-white border-orange-600">{order.moderator_name}</Badge>
+                        </button>
+                      ) : (
+                        <Badge variant="secondary">{order.moderator_name}</Badge>
+                      )}
                     </TableCell>
                     <TableCell className="max-w-xs">
                       <span className="text-sm whitespace-normal break-words">
