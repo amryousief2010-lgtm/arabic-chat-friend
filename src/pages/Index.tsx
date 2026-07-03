@@ -61,6 +61,7 @@ import { useProductionStats } from "@/hooks/useProductionStats";
 import { Egg, Bird } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDate } from "@/lib/dateFormat";
+import { toCairoDateString } from "@/lib/cairoDate";
 
 const statusColors: Record<string, string> = {
   pending: "bg-warning text-warning-foreground",
