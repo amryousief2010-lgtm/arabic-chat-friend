@@ -615,16 +615,25 @@ export default function RouteDistributionPreparationTab() {
               <CardHeader className="pb-3 space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <CardTitle className="text-base">طلبات قسم التسويق</CardTitle>
-                  <Input
-                    placeholder="بحث برقم الطلب / العميل / الجوال…"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    className="w-64"
-                  />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1">
+                      <Label className="text-xs whitespace-nowrap">من تاريخ:</Label>
+                      <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-40 h-8 text-xs" />
+                      {fromDate && (
+                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setFromDate('')}>مسح</Button>
+                      )}
+                    </div>
+                    <Input
+                      placeholder="بحث برقم الطلب / العميل / الجوال…"
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      className="w-64"
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {([
-                    { k: 'all' as const, label: 'الكل', count: orders.length, cls: 'bg-slate-100 text-slate-700 border-slate-300' },
+                    { k: 'all' as const, label: 'الكل', count: dateScopedOrders.length, cls: 'bg-slate-100 text-slate-700 border-slate-300' },
                     { k: 'kimo' as const, label: '🛵 كيمو (توصيل رئيسي)', count: deliveryCounts.kimo, cls: 'bg-purple-100 text-purple-700 border-purple-300' },
                     { k: 'pickup_main' as const, label: '🏬 استلام من الرئيسي', count: deliveryCounts.pickup_main, cls: 'bg-orange-100 text-orange-700 border-orange-300' },
                     { k: 'other' as const, label: 'غير ذلك', count: deliveryCounts.other, cls: 'bg-slate-50 text-slate-600 border-slate-200' },
