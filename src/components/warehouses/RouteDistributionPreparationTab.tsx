@@ -604,7 +604,7 @@ export default function RouteDistributionPreparationTab() {
           <div className="grid lg:grid-cols-3 gap-3">
             {/* Orders list */}
             <Card className="lg:col-span-2">
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-3 space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <CardTitle className="text-base">طلبات قسم التسويق</CardTitle>
                   <Input
@@ -613,6 +613,23 @@ export default function RouteDistributionPreparationTab() {
                     onChange={e => setSearch(e.target.value)}
                     className="w-64"
                   />
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {([
+                    { k: 'all' as const, label: 'الكل', count: orders.length, cls: 'bg-slate-100 text-slate-700 border-slate-300' },
+                    { k: 'kimo' as const, label: '🛵 كيمو (توصيل رئيسي)', count: deliveryCounts.kimo, cls: 'bg-purple-100 text-purple-700 border-purple-300' },
+                    { k: 'pickup_main' as const, label: '🏬 استلام من الرئيسي', count: deliveryCounts.pickup_main, cls: 'bg-orange-100 text-orange-700 border-orange-300' },
+                    { k: 'other' as const, label: 'غير ذلك', count: deliveryCounts.other, cls: 'bg-slate-50 text-slate-600 border-slate-200' },
+                  ]).map(t => (
+                    <button
+                      key={t.k}
+                      type="button"
+                      onClick={() => setDeliveryFilter(t.k)}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition ${deliveryFilter === t.k ? `${t.cls} font-bold ring-2 ring-offset-1 ring-current/30` : 'bg-white text-muted-foreground border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      {t.label} <span className="mx-1 opacity-70">({t.count})</span>
+                    </button>
+                  ))}
                 </div>
               </CardHeader>
               <CardContent>
