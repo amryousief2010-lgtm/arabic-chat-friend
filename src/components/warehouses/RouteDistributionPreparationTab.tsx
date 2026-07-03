@@ -143,10 +143,10 @@ export default function RouteDistributionPreparationTab() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [ordersRes, custodiesRes, assignmentsRes] = await Promise.all([
+      const [rawOrdersRes, custodiesRes, assignmentsRes] = await Promise.all([
         (supabase as any)
           .from("orders")
-          .select("id, order_number, status, total, customer_id, delivery_address, created_at, customers(name, phone)")
+          .select("id, order_number, status, total, customer_id, delivery_address, created_at, fulfillment_type, source_warehouse_id, customers(name, phone)")
           .in("status", ["pending", "processing", "shipped", "confirmed"])
           .order("created_at", { ascending: false })
           .limit(500),
@@ -159,14 +159,8 @@ export default function RouteDistributionPreparationTab() {
           .from("courier_order_assignments")
           .select("order_id, status"),
       ]);
-
-      const rawOrdersRes = await (supabase as any)
-        .from("orders")
-        .select("id, order_number, status, total, customer_id, delivery_address, created_at, fulfillment_type, source_warehouse_id, customers(name, phone)")
-        .in("status", ["pending", "processing", "shipped", "confirmed"])
-        .order("created_at", { ascending: false })
-        .limit(500);
       if (rawOrdersRes.error) toast.error("خطأ قراءة الطلبات: " + rawOrdersRes.error.message);
+
 
       const rawOrders: any[] = rawOrdersRes.data ?? [];
       const assignedIds = new Set<string>(
