@@ -397,7 +397,16 @@ const Orders = () => {
     });
   };
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterWarehouseChip, setFilterWarehouseChip] = useState<"all" | "main" | "agouza">("all");
+  const [filterWarehouseChip, setFilterWarehouseChip] = useState<"all" | "main" | "agouza">(() => {
+    try {
+      const v = localStorage.getItem("orders.filterWarehouseChip");
+      if (v === "all" || v === "main" || v === "agouza") return v;
+    } catch {}
+    return "all";
+  });
+  useEffect(() => {
+    try { localStorage.setItem("orders.filterWarehouseChip", filterWarehouseChip); } catch {}
+  }, [filterWarehouseChip]);
   const [filterModerator, setFilterModerator] = useState<string>("all");
   const [filterProduct, setFilterProduct] = useState<string>("all");
   const [filterGovernorate, setFilterGovernorate] = useState<string>("all");
@@ -886,8 +895,22 @@ const Orders = () => {
       filterWarehouseChip === "all" ||
       (filterWarehouseChip === "main" && order.source_warehouse_id === MAIN_WAREHOUSE_ID) ||
       (filterWarehouseChip === "agouza" && order.source_warehouse_id === AGOUZA_WAREHOUSE_ID);
-    return matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam && matchesWarehouseChip;
+    const baseMatch = matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam;
+    (order as any).__matchesBaseNoChip = baseMatch;
+    return baseMatch && matchesWarehouseChip;
   }), [orders, filterStatus, filterWarehouseChip, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
+
+  // Counts per warehouse chip that honor ALL other filters (including current status).
+  const warehouseChipCounts = useMemo(() => {
+    let all = 0, main = 0, agouza = 0;
+    for (const o of orders) {
+      if (!(o as any).__matchesBaseNoChip) continue;
+      all++;
+      if (o.source_warehouse_id === MAIN_WAREHOUSE_ID) main++;
+      else if (o.source_warehouse_id === AGOUZA_WAREHOUSE_ID) agouza++;
+    }
+    return { all, main, agouza };
+  }, [orders, filteredOrders]);
 
   // إجمالي المطلوب من المندوب كاش على الأوردرات الظاهرة حالياً بعد الفلاتر.
   const totalCourierCashDue = useMemo(
@@ -1691,6 +1714,9 @@ const Orders = () => {
               onClick={() => setFilterWarehouseChip("all")}
             >
               كل المخازن
+              <span className="mr-2 inline-flex items-center justify-center rounded-full bg-background/20 px-2 text-xs font-semibold min-w-[1.5rem]">
+                {warehouseChipCounts.all}
+              </span>
             </Button>
             <Button
               variant={filterWarehouseChip === "main" ? "default" : "outline"}
@@ -1699,6 +1725,9 @@ const Orders = () => {
               className={filterWarehouseChip === "main" ? "bg-primary" : ""}
             >
               المخزن الرئيسي
+              <span className="mr-2 inline-flex items-center justify-center rounded-full bg-background/20 px-2 text-xs font-semibold min-w-[1.5rem]">
+                {warehouseChipCounts.main}
+              </span>
             </Button>
             <Button
               variant={filterWarehouseChip === "agouza" ? "default" : "outline"}
@@ -1707,6 +1736,9 @@ const Orders = () => {
               className={filterWarehouseChip === "agouza" ? "bg-primary" : ""}
             >
               مخزن العجوزة
+              <span className="mr-2 inline-flex items-center justify-center rounded-full bg-background/20 px-2 text-xs font-semibold min-w-[1.5rem]">
+                {warehouseChipCounts.agouza}
+              </span>
             </Button>
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
@@ -1744,7 +1776,36 @@ const Orders = () => {
           <div className="space-y-3">
 
             {filteredOrders.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">لا توجد طلبات</div>
+              <div className="text-center py-10 text-muted-foreground border border-dashed rounded-lg">
+                <div className="text-4xl mb-2">📦</div>
+                <div className="font-medium text-foreground mb-1">لا توجد طلبات مطابقة</div>
+                <div className="text-sm">
+                  {(() => {
+                    const wh = filterWarehouseChip === "main" ? "المخزن الرئيسي"
+                      : filterWarehouseChip === "agouza" ? "مخزن العجوزة"
+                      : "كل المخازن";
+                    const st = filterStatus === "pending" ? "قيد الانتظار"
+                      : filterStatus === "delivered" ? "تم التوصيل"
+                      : filterStatus === "cancelled" ? "المرتجعة"
+                      : "بكل الحالات";
+                    return `لا يوجد أوردرات في ${wh} ${st} حالياً.`;
+                  })()}
+                </div>
+                {(filterWarehouseChip !== "all" || filterStatus !== "all") && (
+                  <div className="mt-3 flex gap-2 justify-center">
+                    {filterWarehouseChip !== "all" && (
+                      <Button size="sm" variant="outline" onClick={() => setFilterWarehouseChip("all")}>
+                        عرض كل المخازن
+                      </Button>
+                    )}
+                    {filterStatus !== "all" && (
+                      <Button size="sm" variant="outline" onClick={() => setFilterStatus("all")}>
+                        عرض كل الحالات
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
             ) : (
               filteredOrders.map((order) => {
                 const itemLines = order.items.map((it) => {
