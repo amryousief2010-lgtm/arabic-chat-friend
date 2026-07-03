@@ -1714,6 +1714,9 @@ const Orders = () => {
               onClick={() => setFilterWarehouseChip("all")}
             >
               كل المخازن
+              <span className="mr-2 inline-flex items-center justify-center rounded-full bg-background/20 px-2 text-xs font-semibold min-w-[1.5rem]">
+                {warehouseChipCounts.all}
+              </span>
             </Button>
             <Button
               variant={filterWarehouseChip === "main" ? "default" : "outline"}
@@ -1722,6 +1725,9 @@ const Orders = () => {
               className={filterWarehouseChip === "main" ? "bg-primary" : ""}
             >
               المخزن الرئيسي
+              <span className="mr-2 inline-flex items-center justify-center rounded-full bg-background/20 px-2 text-xs font-semibold min-w-[1.5rem]">
+                {warehouseChipCounts.main}
+              </span>
             </Button>
             <Button
               variant={filterWarehouseChip === "agouza" ? "default" : "outline"}
@@ -1730,6 +1736,9 @@ const Orders = () => {
               className={filterWarehouseChip === "agouza" ? "bg-primary" : ""}
             >
               مخزن العجوزة
+              <span className="mr-2 inline-flex items-center justify-center rounded-full bg-background/20 px-2 text-xs font-semibold min-w-[1.5rem]">
+                {warehouseChipCounts.agouza}
+              </span>
             </Button>
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
