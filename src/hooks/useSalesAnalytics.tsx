@@ -321,8 +321,8 @@ export const useMonthlySalesFromDB = () => {
       const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 
       for (const order of data) {
-        const d = new Date(order.created_at);
-        const key = `${d.getFullYear()}-${d.getMonth()}`;
+        // Group by Cairo calendar month so post-midnight orders count correctly.
+        const key = toCairoDateString(order.created_at).slice(0, 7); // YYYY-MM
         if (!monthMap[key]) monthMap[key] = { sales: 0, orders: 0 };
         monthMap[key].sales += Number(order.total);
         monthMap[key].orders++;
