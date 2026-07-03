@@ -242,9 +242,16 @@ export default function RouteDistributionPreparationTab() {
   useEffect(() => { loadData(); }, []);
   useEffect(() => { loadCustodyLines(selectedCustodyId); }, [selectedCustodyId]);
 
+  const fromDateMs = useMemo(() => (fromDate ? new Date(fromDate + 'T00:00:00').getTime() : 0), [fromDate]);
+
+  const dateScopedOrders = useMemo(
+    () => orders.filter(o => !fromDateMs || new Date(o.created_at).getTime() >= fromDateMs),
+    [orders, fromDateMs]
+  );
+
   const filteredOrders = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return orders.filter(o => {
+    return dateScopedOrders.filter(o => {
       if (deliveryFilter !== 'all' && getDeliveryKind(o) !== deliveryFilter) return false;
       if (!q) return true;
       return (
@@ -253,13 +260,13 @@ export default function RouteDistributionPreparationTab() {
         o.customer_phone?.toLowerCase().includes(q)
       );
     });
-  }, [orders, search, deliveryFilter]);
+  }, [dateScopedOrders, search, deliveryFilter]);
 
   const deliveryCounts = useMemo(() => {
     const c = { kimo: 0, pickup_main: 0, other: 0 };
-    for (const o of orders) c[getDeliveryKind(o)]++;
+    for (const o of dateScopedOrders) c[getDeliveryKind(o)]++;
     return c;
-  }, [orders]);
+  }, [dateScopedOrders]);
 
   const selectedOrders = useMemo(
     () => orders.filter(o => selectedOrderIds.has(o.id)),
