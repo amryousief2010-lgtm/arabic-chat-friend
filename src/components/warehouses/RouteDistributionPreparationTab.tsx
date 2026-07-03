@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
+
 interface OrderRow {
   id: string;
   order_number: string;
@@ -25,7 +27,20 @@ interface OrderRow {
   customer_phone: string | null;
   delivery_address: string | null;
   created_at: string;
+  fulfillment_type: string | null;
+  source_warehouse_id: string | null;
 }
+
+type DeliveryKind = 'kimo' | 'pickup_main' | 'other';
+const getDeliveryKind = (o: Pick<OrderRow, 'fulfillment_type' | 'source_warehouse_id'>): DeliveryKind => {
+  const isMain = o.source_warehouse_id === MAIN_WAREHOUSE_ID;
+  if (isMain && o.fulfillment_type === 'delivery') return 'kimo';
+  if (isMain && o.fulfillment_type === 'pickup') return 'pickup_main';
+  if (o.fulfillment_type === 'delivery_main') return 'kimo';
+  if (o.fulfillment_type === 'pickup_main') return 'pickup_main';
+  return 'other';
+};
+
 
 interface OrderItemRow {
   id: string;
@@ -83,6 +98,7 @@ export default function RouteDistributionPreparationTab() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [selectedCustodyId, setSelectedCustodyId] = useState<string>("");
   const [search, setSearch] = useState("");
+  const [deliveryFilter, setDeliveryFilter] = useState<'all' | DeliveryKind>('all');
   const [openNewCustody, setOpenNewCustody] = useState(false);
   const [newCourierName, setNewCourierName] = useState("");
   const [newCustodyNotes, setNewCustodyNotes] = useState("");
@@ -128,10 +144,10 @@ export default function RouteDistributionPreparationTab() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [ordersRes, custodiesRes, assignmentsRes] = await Promise.all([
+      const [rawOrdersRes, custodiesRes, assignmentsRes] = await Promise.all([
         (supabase as any)
           .from("orders")
-          .select("id, order_number, status, total, customer_id, delivery_address, created_at, customers(name, phone)")
+          .select("id, order_number, status, total, customer_id, delivery_address, created_at, fulfillment_type, source_warehouse_id, customers(name, phone)")
           .in("status", ["pending", "processing", "shipped", "confirmed"])
           .order("created_at", { ascending: false })
           .limit(500),
@@ -144,12 +160,10 @@ export default function RouteDistributionPreparationTab() {
           .from("courier_order_assignments")
           .select("order_id, status"),
       ]);
+      if (rawOrdersRes.error) toast.error("خطأ قراءة الطلبات: " + rawOrdersRes.error.message);
 
-      if (ordersRes.error) {
-        toast.error("خطأ قراءة الطلبات: " + ordersRes.error.message);
-      }
 
-      const rawOrders: any[] = ordersRes.data ?? [];
+      const rawOrders: any[] = rawOrdersRes.data ?? [];
       const assignedIds = new Set<string>(
         (assignmentsRes.data ?? [])
           .filter((a: any) => !["fully_returned", "cancelled"].includes(a.status))
@@ -168,6 +182,8 @@ export default function RouteDistributionPreparationTab() {
           customer_phone: o.customers?.phone ?? null,
           delivery_address: o.delivery_address,
           created_at: o.created_at,
+          fulfillment_type: o.fulfillment_type ?? null,
+          source_warehouse_id: o.source_warehouse_id ?? null,
         }));
 
       const statusCounts: Record<string, number> = {};
@@ -177,8 +193,9 @@ export default function RouteDistributionPreparationTab() {
         filtered: ordersData.length,
         statuses: statusCounts,
         assignedExcluded: rawOrders.length - ordersData.length,
-        error: ordersRes.error?.message,
+        error: rawOrdersRes.error?.message,
       });
+
 
       setOrders(ordersData);
       setCustodies(custodiesRes.data ?? []);
@@ -226,13 +243,22 @@ export default function RouteDistributionPreparationTab() {
 
   const filteredOrders = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return orders;
-    return orders.filter(o =>
-      o.order_number?.toLowerCase().includes(q) ||
-      o.customer_name?.toLowerCase().includes(q) ||
-      o.customer_phone?.toLowerCase().includes(q)
-    );
-  }, [orders, search]);
+    return orders.filter(o => {
+      if (deliveryFilter !== 'all' && getDeliveryKind(o) !== deliveryFilter) return false;
+      if (!q) return true;
+      return (
+        o.order_number?.toLowerCase().includes(q) ||
+        o.customer_name?.toLowerCase().includes(q) ||
+        o.customer_phone?.toLowerCase().includes(q)
+      );
+    });
+  }, [orders, search, deliveryFilter]);
+
+  const deliveryCounts = useMemo(() => {
+    const c = { kimo: 0, pickup_main: 0, other: 0 };
+    for (const o of orders) c[getDeliveryKind(o)]++;
+    return c;
+  }, [orders]);
 
   const selectedOrders = useMemo(
     () => orders.filter(o => selectedOrderIds.has(o.id)),
@@ -578,7 +604,7 @@ export default function RouteDistributionPreparationTab() {
           <div className="grid lg:grid-cols-3 gap-3">
             {/* Orders list */}
             <Card className="lg:col-span-2">
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-3 space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <CardTitle className="text-base">طلبات قسم التسويق</CardTitle>
                   <Input
@@ -587,6 +613,23 @@ export default function RouteDistributionPreparationTab() {
                     onChange={e => setSearch(e.target.value)}
                     className="w-64"
                   />
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {([
+                    { k: 'all' as const, label: 'الكل', count: orders.length, cls: 'bg-slate-100 text-slate-700 border-slate-300' },
+                    { k: 'kimo' as const, label: '🛵 كيمو (توصيل رئيسي)', count: deliveryCounts.kimo, cls: 'bg-purple-100 text-purple-700 border-purple-300' },
+                    { k: 'pickup_main' as const, label: '🏬 استلام من الرئيسي', count: deliveryCounts.pickup_main, cls: 'bg-orange-100 text-orange-700 border-orange-300' },
+                    { k: 'other' as const, label: 'غير ذلك', count: deliveryCounts.other, cls: 'bg-slate-50 text-slate-600 border-slate-200' },
+                  ]).map(t => (
+                    <button
+                      key={t.k}
+                      type="button"
+                      onClick={() => setDeliveryFilter(t.k)}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition ${deliveryFilter === t.k ? `${t.cls} font-bold ring-2 ring-offset-1 ring-current/30` : 'bg-white text-muted-foreground border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      {t.label} <span className="mx-1 opacity-70">({t.count})</span>
+                    </button>
+                  ))}
                 </div>
               </CardHeader>
               <CardContent>
@@ -606,6 +649,7 @@ export default function RouteDistributionPreparationTab() {
                             />
                           </TableHead>
                           <TableHead>الطلب</TableHead>
+                          <TableHead>التسليم</TableHead>
                           <TableHead>العميل</TableHead>
                           <TableHead>الأصناف</TableHead>
                           <TableHead>القيمة</TableHead>
@@ -618,6 +662,14 @@ export default function RouteDistributionPreparationTab() {
                             <TableRow key={o.id} className={selectedOrderIds.has(o.id) ? "bg-purple-50/60" : ""}>
                               <TableCell><Checkbox checked={selectedOrderIds.has(o.id)} onCheckedChange={() => toggleOrder(o.id)} /></TableCell>
                               <TableCell className="font-mono text-xs">{o.order_number}</TableCell>
+                              <TableCell>
+                                {(() => {
+                                  const k = getDeliveryKind(o);
+                                  if (k === 'kimo') return <Badge className="bg-purple-100 text-purple-700 border border-purple-300 text-[10px]">🛵 كيمو</Badge>;
+                                  if (k === 'pickup_main') return <Badge className="bg-orange-100 text-orange-700 border border-orange-300 text-[10px]">🏬 استلام رئيسي</Badge>;
+                                  return <Badge variant="outline" className="text-[10px]">—</Badge>;
+                                })()}
+                              </TableCell>
                               <TableCell>
                                 <div className="font-medium">{o.customer_name || "—"}</div>
                                 <div className="text-xs text-muted-foreground">{o.customer_phone}</div>
