@@ -663,6 +663,14 @@ export default function RouteDistributionPreparationTab() {
                               <TableCell><Checkbox checked={selectedOrderIds.has(o.id)} onCheckedChange={() => toggleOrder(o.id)} /></TableCell>
                               <TableCell className="font-mono text-xs">{o.order_number}</TableCell>
                               <TableCell>
+                                {(() => {
+                                  const k = getDeliveryKind(o);
+                                  if (k === 'kimo') return <Badge className="bg-purple-100 text-purple-700 border border-purple-300 text-[10px]">🛵 كيمو</Badge>;
+                                  if (k === 'pickup_main') return <Badge className="bg-orange-100 text-orange-700 border border-orange-300 text-[10px]">🏬 استلام رئيسي</Badge>;
+                                  return <Badge variant="outline" className="text-[10px]">—</Badge>;
+                                })()}
+                              </TableCell>
+                              <TableCell>
                                 <div className="font-medium">{o.customer_name || "—"}</div>
                                 <div className="text-xs text-muted-foreground">{o.customer_phone}</div>
                               </TableCell>
