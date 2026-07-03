@@ -390,7 +390,7 @@ export default function CourierOrderCustodyTab() {
           remaining: Math.max(0, totalValue - collected),
           cashDue, vodafone, instapay, bank, other, free,
           missingBreakdown, undelivered, deposit,
-          canDeposit: undelivered === 0 && missingBreakdown === 0 && cashDue > 0 && !deposit,
+          canDeposit: undelivered === 0 && missingBreakdown === 0 && items.length > 0 && !deposit,
         };
       });
   }, [currentAssignments, orders, collections, dailyDeposits, selectedCustody]);
