@@ -1,30 +1,37 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useMemo } from "react";
+import {
+  cairoMonthStartUTC,
+  cairoYearStartUTC,
+  currentCairoYearMonth,
+  toCairoDateString,
+} from "@/lib/cairoDate";
 
 export type ReportPeriod = "month" | "quarter" | "half" | "year" | "all";
 
 function getDateRange(period: ReportPeriod): { from: string; to: string } {
   const now = new Date();
+  const { year, monthIndex0 } = currentCairoYearMonth(now);
   const to = now.toISOString();
   let from: Date;
 
   switch (period) {
     case "month":
-      from = new Date(now.getFullYear(), now.getMonth(), 1);
+      from = cairoMonthStartUTC(year, monthIndex0);
       break;
     case "quarter":
-      from = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      from = cairoMonthStartUTC(year, monthIndex0 - 2);
       break;
     case "half":
-      from = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      from = cairoMonthStartUTC(year, monthIndex0 - 5);
       break;
     case "year":
-      from = new Date(now.getFullYear(), 0, 1);
+      from = cairoYearStartUTC(year);
       break;
     case "all":
     default:
-      from = new Date(2020, 0, 1);
+      from = cairoYearStartUTC(2020);
       break;
   }
 
