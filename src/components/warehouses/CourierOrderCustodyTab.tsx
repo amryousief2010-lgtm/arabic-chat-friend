@@ -1151,7 +1151,9 @@ export default function CourierOrderCustodyTab() {
                                     <Badge className="bg-orange-500 text-white text-[10px]">breakdown غير مضبوط ({grp.missingBreakdown})</Badge>
                                   ) : grp.cashDue > 0 ? (
                                     <Badge variant="outline" className="text-[10px]">لم يتم التوريد</Badge>
-                                  ) : null}
+                                  ) : (
+                                    <Badge className="bg-emerald-600 text-white text-[10px]">✓ مكتمل (بدون نقدية)</Badge>
+                                  )}
                                 </div>
                                 <div className="text-[10px] text-muted-foreground font-normal flex flex-wrap gap-2">
                                   <span>💵 كاش مع كيمو: <b className="text-emerald-700">{fmt(grp.cashDue)}</b></span>
