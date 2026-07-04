@@ -117,12 +117,12 @@ function UnregisteredDialog({ open, onClose }: { open: boolean; onClose: () => v
             name: r.customer_name || "غير معروف",
             phone: r.phone,
             source: "bostta_sheet",
-            created_by: user.id,
-          })
+          } as any)
           .select("id").single();
         if (cErr) throw new Error(`إنشاء العميل: ${cErr.message}`);
         customerId = newCust.id;
       }
+
 
       // 2. Create the order (delivered immediately, source = Agouza)
       const items = Array.isArray(r.parsed_items) ? r.parsed_items : [];
