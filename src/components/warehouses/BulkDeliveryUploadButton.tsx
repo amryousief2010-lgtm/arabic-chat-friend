@@ -230,7 +230,7 @@ export function BulkDeliveryUploadButton() {
         disabled={loading}
       >
         {loading ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Upload className="w-4 h-4 ml-2" />}
-        رفع شيت تسليمات بوسطة
+        رفع شيت تسليمات شركة الشحن
       </Button>
 
       <Dialog open={open} onOpenChange={(v) => !v && reset()}>
@@ -238,7 +238,7 @@ export function BulkDeliveryUploadButton() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5 text-blue-600" />
-              مراجعة شيت تسليمات بوسطة — {filename}
+              مراجعة شيت تسليمات شركة الشحن — {filename}
             </DialogTitle>
             <DialogDescription>
               راجع الأوردرات قبل التأكيد. المنتجات في الشيت هتحلّ محل منتجات النظام (لو مختلفة) وهيتخصم المخزون من العجوزة.
