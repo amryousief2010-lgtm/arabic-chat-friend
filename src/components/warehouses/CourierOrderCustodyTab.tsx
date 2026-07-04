@@ -1170,7 +1170,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                   )}
                                 </div>
                                 <div className="text-[10px] text-muted-foreground font-normal flex flex-wrap gap-2">
-                                  <span>💵 كاش مع كيمو: <b className="text-emerald-700">{fmt(grp.cashDue)}</b></span>
+                                  <span>💵 كاش مع {courierLabel}: <b className="text-emerald-700">{fmt(grp.cashDue)}</b></span>
                                   {grp.vodafone > 0 && <span>📱 فودافون: {fmt(grp.vodafone)}</span>}
                                   {grp.instapay > 0 && <span>💳 إنستاباي: {fmt(grp.instapay)}</span>}
                                   {grp.bank > 0 && <span>🏦 بنكي: {fmt(grp.bank)}</span>}
