@@ -122,16 +122,18 @@ const Farm = () => {
         </div>
 
         <Tabs defaultValue="dashboard" dir="rtl">
-          <TabsList className="grid grid-cols-2 md:grid-cols-8 w-full">
-            <TabsTrigger value="dashboard"><LayoutDashboard className="w-4 h-4 ml-1" />لوحة التحكم</TabsTrigger>
-            <TabsTrigger value="families"><Users className="w-4 h-4 ml-1" />الأسر</TabsTrigger>
-            <TabsTrigger value="eggs"><Egg className="w-4 h-4 ml-1" />الإنتاج اليومي</TabsTrigger>
-            <TabsTrigger value="transfers"><Truck className="w-4 h-4 ml-1" />نقل للمعمل</TabsTrigger>
-            <TabsTrigger value="feed_inventory"><Wheat className="w-4 h-4 ml-1" />مخزون العلف</TabsTrigger>
-            <TabsTrigger value="feed"><Wheat className="w-4 h-4 ml-1" />سجل العلف اليومي</TabsTrigger>
-            <TabsTrigger value="meds"><Syringe className="w-4 h-4 ml-1" />الأدوية</TabsTrigger>
-            <TabsTrigger value="charts"><BarChart3 className="w-4 h-4 ml-1" />تحليلات</TabsTrigger>
-          </TabsList>
+          <div className="w-full overflow-x-auto -mx-1 px-1">
+            <TabsList className="inline-flex md:grid md:grid-cols-8 w-max md:w-full gap-1 h-auto p-1">
+              <TabsTrigger value="dashboard" className="whitespace-nowrap text-xs md:text-sm px-3 py-2"><LayoutDashboard className="w-4 h-4 ml-1" />لوحة التحكم</TabsTrigger>
+              <TabsTrigger value="families" className="whitespace-nowrap text-xs md:text-sm px-3 py-2"><Users className="w-4 h-4 ml-1" />الأسر</TabsTrigger>
+              <TabsTrigger value="eggs" className="whitespace-nowrap text-xs md:text-sm px-3 py-2"><Egg className="w-4 h-4 ml-1" />الإنتاج اليومي</TabsTrigger>
+              <TabsTrigger value="transfers" className="whitespace-nowrap text-xs md:text-sm px-3 py-2"><Truck className="w-4 h-4 ml-1" />نقل للمعمل</TabsTrigger>
+              <TabsTrigger value="feed_inventory" className="whitespace-nowrap text-xs md:text-sm px-3 py-2"><Wheat className="w-4 h-4 ml-1" />مخزون العلف</TabsTrigger>
+              <TabsTrigger value="feed" className="whitespace-nowrap text-xs md:text-sm px-3 py-2"><Wheat className="w-4 h-4 ml-1" />سجل العلف اليومي</TabsTrigger>
+              <TabsTrigger value="meds" className="whitespace-nowrap text-xs md:text-sm px-3 py-2"><Syringe className="w-4 h-4 ml-1" />الأدوية</TabsTrigger>
+              <TabsTrigger value="charts" className="whitespace-nowrap text-xs md:text-sm px-3 py-2"><BarChart3 className="w-4 h-4 ml-1" />تحليلات</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="dashboard"><MotherFarmDashboard families={families} eggs={eggs} transfers={transfers} /></TabsContent>
           <TabsContent value="families"><FamiliesTab families={families} qc={qc} /></TabsContent>
