@@ -816,6 +816,9 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         </CardContent></Card>
       </div>
 
+      {/* فواتير ميجا المقفولة — نقطة البداية والفواتير اللاحقة */}
+      <ZodexClosedInvoicesCard />
+
       {/* تفصيل التحصيل — نقدي مطلوب من المندوب vs تحويلات مباشرة للشركة */}
       <Card className="bg-gradient-to-l from-blue-50/60 to-emerald-50/60 border-blue-200">
         <CardContent className="p-3">
