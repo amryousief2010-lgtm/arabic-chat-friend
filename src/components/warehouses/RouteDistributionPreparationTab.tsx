@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BulkDeliveryUploadButton } from "@/components/warehouses/BulkDeliveryUploadButton";
+import { ZodexSyncButton } from "@/components/warehouses/ZodexSyncButton";
 import { UnregisteredShipmentsButton } from "@/components/warehouses/UnregisteredShipmentsButton";
 import { openPrintWindow, escapeHtml } from "@/lib/printPdf";
 
@@ -639,6 +640,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
                   <div className="flex items-center gap-2 flex-wrap">
                     <CardTitle className="text-base">طلبات قسم التسويق</CardTitle>
                     <BulkDeliveryUploadButton />
+                    <ZodexSyncButton />
                     <UnregisteredShipmentsButton />
                     <Button size="sm" variant="outline" className="h-8" onClick={() => {
                       const rowsSource = selectedOrderIds.size > 0

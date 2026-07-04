@@ -159,6 +159,7 @@ const FeedIssues = lazy(() => import("@/pages/modules/feed/Issues"));
 const WarehouseDashboard = lazy(() => import("@/pages/modules/warehouse/WarehouseDashboard"));
 const WarehouseDetail = lazy(() => import("@/pages/modules/warehouse/WarehouseDetail"));
 const InventoryImport = lazy(() => import("@/pages/modules/warehouse/InventoryImport"));
+const ZodexMissingOrders = lazy(() => import("@/pages/modules/warehouse/ZodexMissingOrders"));
 const Debug = lazy(() => import("@/pages/Debug"));
 const PwaDiagnostics = lazy(() => import("@/pages/PwaDiagnostics"));
 const ExecutiveDashboards = lazy(() => import("@/pages/ExecutiveDashboards"));
@@ -1057,6 +1058,11 @@ const AnimatedRoutes = () => {
           <Route path="/modules/warehouses/import" element={
             <ProtectedRoute allowedRoles={['general_manager']}>
               <PageTransition><InventoryImport /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/zodex-missing" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'sales_manager', 'agouza_warehouse_keeper']}>
+              <PageTransition><ZodexMissingOrders /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/:id" element={
