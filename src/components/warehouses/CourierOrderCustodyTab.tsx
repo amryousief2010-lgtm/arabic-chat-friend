@@ -1098,7 +1098,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                 </div>
                                 <div class="ol">
                                   <div><span>إجمالي الأوردر:</span> <b>${fmt(orderTotal)}</b></div>
-                                  <div style="${cashBg};padding:2px 8px;border-radius:4px"><span>💵 نقدي مطلوب من كيمو:</span> <b>${fmt(cashFromCourier)}</b></div>
+                                  <div style="${cashBg};padding:2px 8px;border-radius:4px"><span>💵 نقدي مطلوب من ${courierLabel}:</span> <b>${fmt(cashFromCourier)}</b></div>
                                   ${voda ? `<div><span>📱 فودافون:</span> <b>${fmt(voda)}</b></div>` : ""}
                                   ${insta ? `<div><span>💳 إنستاباي:</span> <b>${fmt(insta)}</b></div>` : ""}
                                   ${bank ? `<div><span>🏦 بنكي:</span> <b>${fmt(bank)}</b></div>` : ""}
