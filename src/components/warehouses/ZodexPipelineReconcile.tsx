@@ -81,6 +81,11 @@ export function ZodexPipelineReconcile({ localInFlightCount, localBreakdown }: P
             </Badge>
             <Badge variant="outline" className="text-xs bg-white">
               عندنا: <b className="mx-1">{localInFlightCount}</b>
+              {localBreakdown && (
+                <span className="text-[10px] text-muted-foreground mr-1">
+                  (مخزن {localBreakdown.warehouse} + مع مندوب {localBreakdown.withCourier})
+                </span>
+              )}
             </Badge>
             {pipelineCounts && (
               <Badge className={`text-xs ${match ? "bg-emerald-600" : "bg-amber-600"} text-white`}>
