@@ -816,8 +816,8 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         </CardContent></Card>
       </div>
 
-      {/* فواتير ميجا المقفولة — نقطة البداية والفواتير اللاحقة */}
-      <ZodexClosedInvoicesCard />
+
+
 
       {/* تفصيل التحصيل — نقدي مطلوب من المندوب vs تحويلات مباشرة للشركة */}
       <Card className="bg-gradient-to-l from-blue-50/60 to-emerald-50/60 border-blue-200">
@@ -949,6 +949,9 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                   <div className="bg-rose-50 rounded p-2"><div className="text-muted-foreground">مرتجعات</div><div className="font-bold text-rose-700">{current.returns}</div></div>
                 </div>
               )}
+
+              {/* بداية العهدة — فواتير ميجا المقفولة (نقطة البداية 55811 وأى فواتير لاحقة) */}
+              <ZodexClosedInvoicesCard />
 
               {/* Group toggle */}
               <div className="flex items-center justify-end gap-2 text-xs">
