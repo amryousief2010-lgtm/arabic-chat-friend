@@ -274,6 +274,32 @@ Deno.serve(async (req) => {
         }).eq("id", order.id);
         if (updErr) throw new Error(`update order: ${updErr.message}`);
 
+        // 6. Move order into "عهدة أوردرات مندوب العجوزة"
+        let custody_assigned = false;
+        try {
+          const custodyId = await getOrCreateAgouzaCustody(supabase, userId);
+          if (custodyId) {
+            const nowIso = new Date().toISOString();
+            const { error: asnErr } = await supabase
+              .from("courier_order_assignments")
+              .upsert({
+                custody_id: custodyId,
+                order_id: order.id,
+                courier_name: AGOUZA_COURIER_NAME,
+                warehouse_id: AGOUZA_WAREHOUSE_ID,
+                status: "delivered",
+                assigned_at: nowIso,
+                delivered_at: nowIso,
+                assigned_by: userId,
+                notes: `تم التسليم من شيت شركة الشحن${s.bill_no ? ` — بوليصة ${s.bill_no}` : ""}`,
+              }, { onConflict: "order_id" });
+            if (asnErr) console.error("assign to Agouza custody failed", order.order_number, asnErr);
+            else custody_assigned = true;
+          }
+        } catch (asnEx) {
+          console.error("custody assignment threw", asnEx);
+        }
+
         results.updated.push({
           order_number: order.order_number,
           phone: s.phone,
