@@ -2735,11 +2735,21 @@ const Orders = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">العميل</p>
-                  <p className="font-semibold">{selectedOrder.customer_name}</p>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <p className="font-semibold">{selectedOrder.customer_name}</p>
+                    {canManageOrders && (
+                      <button
+                        type="button"
+                        onClick={() => setEditCustomerOrder(selectedOrder)}
+                        className="text-muted-foreground hover:text-primary p-0.5"
+                        title="تعديل بيانات العميل"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                   {selectedOrder.customer_phone && (
-                    <a href={`tel:${selectedOrder.customer_phone}`} dir="ltr" className="block text-xs font-mono text-primary hover:underline">
-                      {selectedOrder.customer_phone}
-                    </a>
+                    <PhoneWithCopy phone={selectedOrder.customer_phone} className="text-xs text-primary" />
                   )}
                 </div>
                 <div>
