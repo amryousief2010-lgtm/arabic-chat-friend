@@ -1184,7 +1184,32 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
 
                       if (!groupByDay) return currentAssignments.map((a) => renderOrderRow(a));
 
-                      return groupedByDay.flatMap((grp) => {
+                      const invoiceRows: JSX.Element[] = closedInvoices
+                        .filter((inv) => inv.custody_id === selectedCustody)
+                        .map((inv) => (
+                          <TableRow key={`inv-${inv.id}`} className="bg-emerald-50/60 hover:bg-emerald-100/60 font-medium border-t-2 border-emerald-300">
+                            <TableCell className="font-bold">
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-emerald-900">📄 فاتورة ميجا مقفولة #{inv.invoice_no}</span>
+                                  <Badge variant="secondary" className="text-xs">{inv.orders_count} أوردر</Badge>
+                                  <Badge className="bg-emerald-600 text-white text-[10px]">✓ مُسدَّدة عبر ميجا</Badge>
+                                </div>
+                                <div className="text-[10px] text-muted-foreground font-normal">
+                                  نقطة البداية — تم تحصيلها من خلال تسوية ميجا
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">—</TableCell>
+                            <TableCell className="font-mono font-bold text-emerald-700">{fmt(Number(inv.total_amount))}</TableCell>
+                            <TableCell className="text-xs text-emerald-700">مُسدَّد بالكامل</TableCell>
+                            <TableCell className="font-mono text-xs text-emerald-700">{fmt(Number(inv.total_amount))}</TableCell>
+                            <TableCell className="text-xs">{new Date(inv.first_seen_at).toLocaleDateString("ar-EG")}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">—</TableCell>
+                          </TableRow>
+                        ));
+
+                      return [...groupedByDay.flatMap((grp) => {
                         const isOpen = expandedDays[grp.day] ?? false;
                         const courierName = custodies.find((c) => c.id === selectedCustody)?.courier_name || "—";
                         const printDay = async (e: React.MouseEvent) => {
