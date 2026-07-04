@@ -191,14 +191,22 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
 
 
       const rawOrders: any[] = rawOrdersRes.data ?? [];
-      const assignedIds = new Set<string>(
+      // Only hide orders that are fully closed on the courier side (delivered/completed/cancelled/fully_returned).
+      // Orders currently with courier (with_courier) are still "in flight" and should remain visible here,
+      // marked as read-only, to reconcile with Mega's pipeline count.
+      const CLOSED_ASSIGN = new Set(["delivered", "completed", "fully_returned", "cancelled"]);
+      const closedAssignedIds = new Set<string>(
         (assignmentsRes.data ?? [])
-          .filter((a: any) => !["fully_returned", "cancelled"].includes(a.status))
+          .filter((a: any) => CLOSED_ASSIGN.has(a.status))
           .map((a: any) => a.order_id)
       );
+      const withCourierMap = new Map<string, string>();
+      for (const a of (assignmentsRes.data ?? [])) {
+        if (a.status === "with_courier") withCourierMap.set(a.order_id, a.courier_name || "");
+      }
 
       const ordersData: OrderRow[] = rawOrders
-        .filter(o => !assignedIds.has(o.id))
+        .filter(o => !closedAssignedIds.has(o.id))
         .map(o => ({
           id: o.id,
           order_number: o.order_number,
@@ -211,6 +219,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
           created_at: o.created_at,
           fulfillment_type: o.fulfillment_type ?? null,
           source_warehouse_id: o.source_warehouse_id ?? null,
+          with_courier_name: withCourierMap.get(o.id) ?? null,
         }));
 
       const statusCounts: Record<string, number> = {};
