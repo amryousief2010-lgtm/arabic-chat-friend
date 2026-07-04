@@ -141,7 +141,11 @@ interface CourierOrderCustodyTabProps {
   warehouseId?: string;
 }
 
+const AGOUZA_WAREHOUSE_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
+
 export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WAREHOUSE_ID }: CourierOrderCustodyTabProps = {}) {
+  const isAgouza = warehouseId === AGOUZA_WAREHOUSE_ID;
+  const courierLabel = isAgouza ? "شركة الشحن" : "كيمو";
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -365,9 +369,9 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           const o: any = orders.find((x) => x.id === a.order_id);
           if (!o) return;
           const deliveredStatus = ["delivered", "collected", "completed"].includes(o.status);
-          const nonCash = isNonCashAssignment(a, o);
+          const nonCash = isAgouza ? false : isNonCashAssignment(a, o);
           if (!nonCash) {
-            if (o.collection_method === "mixed_payment") totalValue += Number(o.courier_cash_due || 0);
+            if (!isAgouza && o.collection_method === "mixed_payment") totalValue += Number(o.courier_cash_due || 0);
             else totalValue += Number(o.total || 0);
           }
           vodafone += Number(o.vodafone_cash_amount || 0);
@@ -376,7 +380,8 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           other += Number(o.other_amount || 0);
           free += Number(o.free_amount || 0);
           if (deliveredStatus && !nonCash) {
-            cashDue += o.collection_method === "mixed_payment" ? Number(o.courier_cash_due || 0) : Number(o.total || 0);
+            if (isAgouza) cashDue += Number(o.total || 0);
+            else cashDue += o.collection_method === "mixed_payment" ? Number(o.courier_cash_due || 0) : Number(o.total || 0);
           }
           if (deliveredStatus && o.collection_method === "mixed_payment") {
             const sum = Number(o.courier_cash_due || 0) + Number(o.vodafone_cash_amount || 0) + Number(o.instapay_amount || 0) +
@@ -1064,7 +1069,11 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                             const other = Number(o?.other_amount || 0);
                             const freeAmt = isGift ? orderTotal : Number(o?.free_amount || 0);
                             let cashFromCourier = 0;
-                            if (isGift) cashFromCourier = 0;
+                            if (isAgouza) {
+                              // Agouza sheet upload sets order.total = shipping-company COD.
+                              // Cash-due must equal that total exactly (no gift/transfer deductions).
+                              cashFromCourier = orderTotal;
+                            } else if (isGift) cashFromCourier = 0;
                             else if (cm === "mixed_payment") cashFromCourier = Number(o?.courier_cash_due || 0);
                             else if (cm === "vodafone_cash" || cm === "instapay" || cm === "bank_transfer") cashFromCourier = 0;
                             else cashFromCourier = Math.max(0, orderTotal - voda - insta - bank - other - freeAmt);
@@ -1090,7 +1099,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                 </div>
                                 <div class="ol">
                                   <div><span>إجمالي الأوردر:</span> <b>${fmt(orderTotal)}</b></div>
-                                  <div style="${cashBg};padding:2px 8px;border-radius:4px"><span>💵 نقدي مطلوب من كيمو:</span> <b>${fmt(cashFromCourier)}</b></div>
+                                  <div style="${cashBg};padding:2px 8px;border-radius:4px"><span>💵 نقدي مطلوب من ${courierLabel}:</span> <b>${fmt(cashFromCourier)}</b></div>
                                   ${voda ? `<div><span>📱 فودافون:</span> <b>${fmt(voda)}</b></div>` : ""}
                                   ${insta ? `<div><span>💳 إنستاباي:</span> <b>${fmt(insta)}</b></div>` : ""}
                                   ${bank ? `<div><span>🏦 بنكي:</span> <b>${fmt(bank)}</b></div>` : ""}
@@ -1120,8 +1129,8 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                               <div class="t-row"><span>إجمالي تحويل بنكي:</span><b>${fmt(sumBank)} ج.م</b></div>
                               ${sumOther ? `<div class="t-row"><span>إجمالي أخرى:</span><b>${fmt(sumOther)} ج.م</b></div>` : ""}
                               <div class="t-row"><span>إجمالي المجاني / الهدايا:</span><b>${fmt(sumFree)} ج.م</b></div>
-                              <div class="t-row highlight"><span>💵 إجمالي النقدية المطلوب استلامها من كيمو:</span><b>${fmt(sumCash)} ج.م</b></div>
-                              <div class="note">ملاحظة: التحويلات (فودافون/إنستاباي/بنكي) والأوردرات المجانية تظهر للإثبات فقط ولا تدخل نقدًا مع المندوب. المبلغ الفعلي الذي يدخل خزنة المخزن الرئيسي = النقدية المطلوبة من كيمو فقط (مجموع courier_cash_due).</div>
+                              <div class="t-row highlight"><span>💵 إجمالي النقدية المطلوب استلامها من ${courierLabel}:</span><b>${fmt(sumCash)} ج.م</b></div>
+                              <div class="note">ملاحظة: التحويلات (فودافون/إنستاباي/بنكي) والأوردرات المجانية تظهر للإثبات فقط ولا تدخل نقدًا مع المندوب. المبلغ الفعلي الذي يدخل خزنة المخزن الرئيسي = النقدية المطلوبة من ${courierLabel} فقط (مجموع courier_cash_due).</div>
                             </div>`;
                           const css = `
                             .meta { display:flex; gap:20px; flex-wrap:wrap; margin-bottom:12px; font-size:12px; padding:8px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:4px; }
@@ -1162,7 +1171,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                   )}
                                 </div>
                                 <div className="text-[10px] text-muted-foreground font-normal flex flex-wrap gap-2">
-                                  <span>💵 كاش مع كيمو: <b className="text-emerald-700">{fmt(grp.cashDue)}</b></span>
+                                  <span>💵 كاش مع {courierLabel}: <b className="text-emerald-700">{fmt(grp.cashDue)}</b></span>
                                   {grp.vodafone > 0 && <span>📱 فودافون: {fmt(grp.vodafone)}</span>}
                                   {grp.instapay > 0 && <span>💳 إنستاباي: {fmt(grp.instapay)}</span>}
                                   {grp.bank > 0 && <span>🏦 بنكي: {fmt(grp.bank)}</span>}
