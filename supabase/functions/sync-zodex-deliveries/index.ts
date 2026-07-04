@@ -176,8 +176,9 @@ function parseBalanceRows(html: string): ZodexRow[] {
     const iso = parseZodexDate(get(14)) || new Date().toISOString();
     rows.push({
       bill_no: get(5),
-      moderator_ref: get(3),
-      customer_note: get(6),
+      moderator_name: get(3),
+      customer_ref: get(6),
+      customer_name: extractCustomerName(get(6)),
       customer_phone: normalizePhone(get(8)),
       region: get(10),
       cod_amount: parseFloat(get(11).replace(/[^\d.-]/g, "")) || 0,
