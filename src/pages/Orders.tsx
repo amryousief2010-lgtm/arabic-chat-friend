@@ -39,6 +39,8 @@ import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
 import AddOfferDialog from "@/components/orders/AddOfferDialog";
 import EditAddressWarehouseDialog from "@/components/orders/EditAddressWarehouseDialog";
+import EditCustomerInfoDialog from "@/components/orders/EditCustomerInfoDialog";
+import PhoneWithCopy from "@/components/orders/PhoneWithCopy";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import QuickDeliveryDialog from "@/components/orders/QuickDeliveryDialog";
 import ReassignOwnerDialog from "@/components/orders/ReassignOwnerDialog";
@@ -250,7 +252,7 @@ const formatItemQty = (qty: number, unit?: string): string => {
 };
 
 const Orders = () => {
- const { user, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, roles, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems } = useAuth();
+ const { user, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, roles, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems, canManageOrders } = useAuth();
   const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
    const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
    // صلاحية إدارة/اختيار طريقة التحصيل — الأدوار المسؤولة عن التحصيل فعلياً فقط.
@@ -369,6 +371,7 @@ const Orders = () => {
   const [swapOfferOrder, setSwapOfferOrder] = useState<Order | null>(null);
   const [addOfferOrder, setAddOfferOrder] = useState<Order | null>(null);
   const [editAddressOrder, setEditAddressOrder] = useState<Order | null>(null);
+  const [editCustomerOrder, setEditCustomerOrder] = useState<Order | null>(null);
 
   const handlePrintOrder = (order: Order) => {
     printOrderInvoice({
@@ -1894,13 +1897,19 @@ const Orders = () => {
                           {order.customer_name}
                         </button>
                         {order.customer_phone && (
-                          <a
-                            href={`tel:${order.customer_phone}`}
-                            dir="ltr"
-                            className="block text-[11px] font-mono text-muted-foreground hover:underline text-right"
+                          <div className="text-right">
+                            <PhoneWithCopy phone={order.customer_phone} className="text-[11px] text-muted-foreground" />
+                          </div>
+                        )}
+                        {canManageOrders && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setEditCustomerOrder(order); }}
+                            className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary"
+                            title="تعديل بيانات العميل"
                           >
-                            {order.customer_phone}
-                          </a>
+                            <Pencil className="w-3 h-3" /> تعديل بيانات العميل
+                          </button>
                         )}
                       </div>
                       {canReassignOwner ? (
@@ -2328,19 +2337,31 @@ const Orders = () => {
                       </button>
                     </TableCell>
                     <TableCell>
-                      <button
-                        type="button"
-                        onClick={() => openMixedDialog(order.id)}
-                        className="text-right hover:underline focus:outline-none"
-                        title="ضبط التحصيل"
-                      >
-                        {order.customer_name}
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openMixedDialog(order.id)}
+                          className="text-right hover:underline focus:outline-none"
+                          title="ضبط التحصيل"
+                        >
+                          {order.customer_name}
+                        </button>
+                        {canManageOrders && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setEditCustomerOrder(order); }}
+                            className="text-muted-foreground hover:text-primary p-0.5"
+                            title="تعديل بيانات العميل"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
                     </TableCell>
 
                     <TableCell className="font-mono text-sm" dir="ltr">
                       {order.customer_phone ? (
-                        <a href={`tel:${order.customer_phone}`} className="hover:underline">{order.customer_phone}</a>
+                        <PhoneWithCopy phone={order.customer_phone} className="text-sm" />
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
@@ -2714,11 +2735,21 @@ const Orders = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">العميل</p>
-                  <p className="font-semibold">{selectedOrder.customer_name}</p>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <p className="font-semibold">{selectedOrder.customer_name}</p>
+                    {canManageOrders && (
+                      <button
+                        type="button"
+                        onClick={() => setEditCustomerOrder(selectedOrder)}
+                        className="text-muted-foreground hover:text-primary p-0.5"
+                        title="تعديل بيانات العميل"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                   {selectedOrder.customer_phone && (
-                    <a href={`tel:${selectedOrder.customer_phone}`} dir="ltr" className="block text-xs font-mono text-primary hover:underline">
-                      {selectedOrder.customer_phone}
-                    </a>
+                    <PhoneWithCopy phone={selectedOrder.customer_phone} className="text-xs text-primary" />
                   )}
                 </div>
                 <div>
@@ -3142,6 +3173,22 @@ const Orders = () => {
           onSaved={(next) => {
             setOrders((prev) => prev.map((o) => o.id === editAddressOrder.id ? { ...o, ...next } : o));
             setEditAddressOrder(null);
+          }}
+        />
+      )}
+
+      {editCustomerOrder && (
+        <EditCustomerInfoDialog
+          open={!!editCustomerOrder}
+          onOpenChange={(o) => !o && setEditCustomerOrder(null)}
+          orderId={editCustomerOrder.id}
+          customerId={editCustomerOrder.customer_id}
+          initialName={editCustomerOrder.customer_name}
+          initialPhone={editCustomerOrder.customer_phone}
+          initialAddress={editCustomerOrder.delivery_address}
+          onSaved={(next) => {
+            setOrders((prev) => prev.map((o) => o.id === editCustomerOrder.id ? { ...o, ...next } : o));
+            setEditCustomerOrder(null);
           }}
         />
       )}
