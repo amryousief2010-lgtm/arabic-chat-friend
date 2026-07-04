@@ -182,6 +182,7 @@ export function BulkDeliveryUploadButton() {
   const reset = () => {
     setShipments([]);
     setKnownPhones(new Set());
+    setPhoneToModerator(new Map());
     setResult(null);
     setFilename("");
     setOpen(false);
