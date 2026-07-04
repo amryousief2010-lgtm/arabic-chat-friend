@@ -286,7 +286,7 @@ const NewOrder = () => {
   const [extraCharge, setExtraCharge] = useState(0);
   const [extraChargeReason, setExtraChargeReason] = useState('');
   const [notes, setNotes] = useState('');
-  const [shippingBillNo, setShippingBillNo] = useState('');
+  
   const [depositReceiptFile, setDepositReceiptFile] = useState<File | null>(null);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [source, setSource] = useState<string>('');
@@ -1054,7 +1054,7 @@ const NewOrder = () => {
           moderator: moderatorName,
           source: (source === 'أخرى' ? sourceCustom.trim() : source) || null,
           shipping_company: effectiveShippingCompany,
-          shipping_bill_no: shippingBillNo.trim() ? shippingBillNo.trim().toUpperCase() : null,
+          shipping_bill_no: null,
           extra_charge: Number(extraCharge) || 0,
           extra_charge_reason: extraChargeReason.trim() || null,
           fulfillment_type: fulfillmentType,
@@ -2114,19 +2114,6 @@ const NewOrder = () => {
                       <p className="text-xs text-muted-foreground">
                         سيتم خصم المخزون من المخزن المختار. لو الكمية غير كافية يدخل تلقائياً فى أمر إنتاج/ذبح.
                       </p>
-                    </div>
-
-
-                    {/* Mega / Zodex shipping bill number (optional at creation, enables exact auto-match on sync) */}
-                    <div className="space-y-2">
-                      <Label>رقم بوليصة ميجا / زودكس <span className="text-xs text-muted-foreground">(اختيارى — يُدخل من ميجا لربط الأوردر تلقائياً)</span></Label>
-                      <Input
-                        placeholder="مثال: ZX80418554"
-                        value={shippingBillNo}
-                        onChange={(e) => setShippingBillNo(e.target.value)}
-                        dir="ltr"
-                        className="font-mono text-left"
-                      />
                     </div>
 
                     {/* Notes */}
