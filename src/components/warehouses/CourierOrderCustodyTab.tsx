@@ -128,6 +128,7 @@ type Order = {
   other_amount?: number | null;
   transfer_reference?: string | null;
   free_amount?: number | null;
+  delivery_fee?: number | null;
   collection_note?: string | null;
 };
 
@@ -225,14 +226,14 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
     const assignedOrderIds = asn.map((a) => a.order_id);
     const [readyOrdersRes, assignedOrdersRes] = await Promise.all([
       (supabase as any).from("orders")
-        .select("id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, courier_cash_due, vodafone_cash_amount, instapay_amount, bank_transfer_amount, other_amount, free_amount, transfer_reference, collection_note, customers!orders_customer_id_fkey(name, phone)")
+        .select("id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, courier_cash_due, vodafone_cash_amount, instapay_amount, bank_transfer_amount, other_amount, free_amount, delivery_fee, transfer_reference, collection_note, customers!orders_customer_id_fkey(name, phone)")
         .in("status", ["pending", "processing", "shipped"])
         .eq("source_warehouse_id", warehouseId)
         .order("created_at", { ascending: false })
         .limit(500),
       assignedOrderIds.length
         ? (supabase as any).from("orders")
-            .select("id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, courier_cash_due, vodafone_cash_amount, instapay_amount, bank_transfer_amount, other_amount, free_amount, transfer_reference, collection_note, customers!orders_customer_id_fkey(name, phone)")
+            .select("id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, courier_cash_due, vodafone_cash_amount, instapay_amount, bank_transfer_amount, other_amount, free_amount, delivery_fee, transfer_reference, collection_note, customers!orders_customer_id_fkey(name, phone)")
             .in("id", assignedOrderIds)
         : Promise.resolve({ data: [] as Order[] }),
 
@@ -380,7 +381,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           other += Number(o.other_amount || 0);
           free += Number(o.free_amount || 0);
           if (deliveredStatus && !nonCash) {
-            if (isAgouza) cashDue += Number(o.total || 0);
+            if (isAgouza) cashDue += Math.max(0, Number(o.total || 0) - Number(o.delivery_fee || 0));
             else cashDue += o.collection_method === "mixed_payment" ? Number(o.courier_cash_due || 0) : Number(o.total || 0);
           }
           if (deliveredStatus && o.collection_method === "mixed_payment") {
@@ -1069,10 +1070,10 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                             const other = Number(o?.other_amount || 0);
                             const freeAmt = isGift ? orderTotal : Number(o?.free_amount || 0);
                             let cashFromCourier = 0;
+                            const shipFee = Number(o?.delivery_fee || 0);
                             if (isAgouza) {
-                              // Agouza sheet upload sets order.total = shipping-company COD.
-                              // Cash-due must equal that total exactly (no gift/transfer deductions).
-                              cashFromCourier = orderTotal;
+                              // Agouza sheet upload: cash = COD − shipping fee (courier keeps the shipping).
+                              cashFromCourier = Math.max(0, orderTotal - shipFee);
                             } else if (isGift) cashFromCourier = 0;
                             else if (cm === "mixed_payment") cashFromCourier = Number(o?.courier_cash_due || 0);
                             else if (cm === "vodafone_cash" || cm === "instapay" || cm === "bank_transfer") cashFromCourier = 0;
