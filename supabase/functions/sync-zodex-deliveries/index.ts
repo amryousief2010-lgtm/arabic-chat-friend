@@ -178,6 +178,13 @@ function parseBalanceRows(html: string): ZodexRow[] {
     const get = (i: number) => cells[base + i] ?? "";
     const iso = parseZodexDate(get(14)) || new Date().toISOString();
     const mod = splitNameAndPhone(get(6));
+    // Invoice number: appears in one of the trailing cells as "<shipper name>-<invoice_no>"
+    // Match on any cell ending with "-<digits>" where digits are 4-7 long.
+    let invoiceNo: string | null = null;
+    for (let i = cells.length - 1; i >= 0; i--) {
+      const mInv = cells[i].match(/-(\d{4,7})\s*$/);
+      if (mInv) { invoiceNo = mInv[1]; break; }
+    }
     rows.push({
       bill_no: get(5),
       zodex_receiver: get(3),
@@ -191,6 +198,7 @@ function parseBalanceRows(html: string): ZodexRow[] {
       shipment_status: get(7),
       shipment_date: iso,
       raw_date_text: get(14),
+      invoice_no: invoiceNo,
     });
   }
   return rows;
