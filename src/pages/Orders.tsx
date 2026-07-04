@@ -1714,12 +1714,6 @@ const Orders = () => {
               <Zap className="w-4 h-4" />
               تسليم سريع
             </Button>
-            <Button asChild variant="outline" className="gap-2">
-              <Link to="/orders/mega-review">
-                <PackagePlus className="w-4 h-4" />
-                مراجعة ميجا
-              </Link>
-            </Button>
             {!isSocialMediaManager && (
               <Button asChild className="gap-2">
                 <Link to="/orders/new">
