@@ -640,6 +640,41 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
                     <CardTitle className="text-base">طلبات قسم التسويق</CardTitle>
                     <BulkDeliveryUploadButton />
                     <UnregisteredShipmentsButton />
+                    <Button size="sm" variant="outline" className="h-8" onClick={() => {
+                      const rowsSource = selectedOrderIds.size > 0
+                        ? filteredOrders.filter(o => selectedOrderIds.has(o.id))
+                        : filteredOrders;
+                      if (rowsSource.length === 0) { toast.error("لا توجد طلبات للطباعة"); return; }
+                      const rows = rowsSource.map((o, idx) => {
+                        const its = items.filter(i => i.order_id === o.id);
+                        const itemsText = its.map(i => `${i.product_name} (${i.quantity}${i.unit || ""})`).join("، ") || "—";
+                        const k = getDeliveryKind(o);
+                        const delivery = k === 'kimo' ? courierBadgeLabel : k === 'pickup_main' ? pickupBadgeLabel : "—";
+                        return `<tr>
+                          <td>${idx + 1}</td>
+                          <td>${escapeHtml(o.order_number)}</td>
+                          <td>${escapeHtml(delivery)}</td>
+                          <td>${escapeHtml(o.customer_name || "—")}<br/><small>${escapeHtml(o.customer_phone || "")}</small></td>
+                          <td>${escapeHtml(o.delivery_address || "—")}</td>
+                          <td>${escapeHtml(itemsText)}</td>
+                          <td style="text-align:left;font-weight:bold">${Number(o.total || 0).toLocaleString("ar-EG")}</td>
+                        </tr>`;
+                      }).join("");
+                      const totalSum = rowsSource.reduce((s, o) => s + Number(o.total || 0), 0);
+                      const body = `
+                        <h2 style="margin:0 0 8px">قائمة طلبات قسم التسويق</h2>
+                        <div style="font-size:12px;margin-bottom:8px">التاريخ: ${new Date().toLocaleString("ar-EG")} — عدد الطلبات: ${rowsSource.length}</div>
+                        <table>
+                          <thead><tr>
+                            <th>#</th><th>رقم الطلب</th><th>التسليم</th><th>العميل</th><th>العنوان</th><th>الأصناف</th><th>القيمة</th>
+                          </tr></thead>
+                          <tbody>${rows}</tbody>
+                          <tfoot><tr><td colspan="6" style="text-align:left;font-weight:bold">الإجمالي</td><td style="text-align:left;font-weight:bold">${totalSum.toLocaleString("ar-EG")}</td></tr></tfoot>
+                        </table>`;
+                      openPrintWindow("قائمة طلبات قسم التسويق", body);
+                    }}>
+                      <Printer className="h-3 w-3 ml-1" /> طباعة
+                    </Button>
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap">
