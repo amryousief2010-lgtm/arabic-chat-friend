@@ -306,14 +306,20 @@ Deno.serve(async (req) => {
             break;
           }
         }
-        // pass 2: fuzzy customer name + moderator name
+        // pass 2: phone match alone (amount off) + moderator name matches
         if (!matchedOrder) {
           for (const c of list) {
-            const nameScore = tokenSetRatio(c.customers?.name || "", row.customer_name);
+            const cp = normalizePhone(c.customers?.phone);
             const modScore = tokenSetRatio(c.moderator || "", row.moderator_name);
-            if (nameScore >= NAME_MATCH_THRESHOLD && modScore >= 0.4) {
-              matchedOrder = c;
-              break;
+            if (cp === row.customer_phone && modScore >= 0.5) { matchedOrder = c; break; }
+          }
+        }
+        // pass 3: moderator name + amount close (phone wrong)
+        if (!matchedOrder && row.moderator_name) {
+          for (const c of list) {
+            const modScore = tokenSetRatio(c.moderator || "", row.moderator_name);
+            if (modScore >= NAME_MATCH_THRESHOLD && Math.abs(Number(c.total || 0) - row.cod_amount) <= PHONE_MATCH_AMOUNT_TOLERANCE) {
+              matchedOrder = c; break;
             }
           }
         }
