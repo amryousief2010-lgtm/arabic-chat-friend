@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const url = new URL(req.url);
   const search = url.searchParams.get("q") || "55811";
-  const email = Deno.env.get("ZODEX_EMAIL")!;
+  const email = Deno.env.get("ZODEX_USERNAME")!;
   const password = Deno.env.get("ZODEX_PASSWORD")!;
   const client = new ZodexClient();
   await client.login(email, password);
