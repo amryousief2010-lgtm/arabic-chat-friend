@@ -160,6 +160,9 @@ const WarehouseDashboard = lazy(() => import("@/pages/modules/warehouse/Warehous
 const WarehouseDetail = lazy(() => import("@/pages/modules/warehouse/WarehouseDetail"));
 const InventoryImport = lazy(() => import("@/pages/modules/warehouse/InventoryImport"));
 const ZodexMissingOrders = lazy(() => import("@/pages/modules/warehouse/ZodexMissingOrders"));
+const MegaOrdersReview = lazy(() => import("@/pages/orders/MegaOrdersReview"));
+const MegaOrderDiscrepancies = lazy(() => import("@/pages/orders/MegaOrderDiscrepancies"));
+
 const Debug = lazy(() => import("@/pages/Debug"));
 const PwaDiagnostics = lazy(() => import("@/pages/PwaDiagnostics"));
 const ExecutiveDashboards = lazy(() => import("@/pages/ExecutiveDashboards"));
@@ -1065,6 +1068,17 @@ const AnimatedRoutes = () => {
               <PageTransition><ZodexMissingOrders /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/orders/mega-review" element={
+            <ProtectedRoute>
+              <PageTransition><MegaOrdersReview /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/orders/mega-discrepancies" element={
+            <ProtectedRoute>
+              <PageTransition><MegaOrderDiscrepancies /></PageTransition>
+            </ProtectedRoute>
+          } />
+
           <Route path="/modules/warehouses/:id" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_moderator', 'agouza_warehouse_keeper']}>
               <PageTransition><WarehouseDetail /></PageTransition>

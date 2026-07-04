@@ -13765,6 +13765,62 @@ export type Database = {
           },
         ]
       }
+      order_mega_discrepancies: {
+        Row: {
+          created_at: string
+          discrepancy_type: string
+          id: string
+          mega_amount: number | null
+          mega_products_text: string | null
+          order_id: string
+          reported_by: string
+          reporter_note: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          discrepancy_type: string
+          id?: string
+          mega_amount?: number | null
+          mega_products_text?: string | null
+          order_id: string
+          reported_by?: string
+          reporter_note?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          discrepancy_type?: string
+          id?: string
+          mega_amount?: number | null
+          mega_products_text?: string | null
+          order_id?: string
+          reported_by?: string
+          reporter_note?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_mega_discrepancies_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_owner_reassignment_audit: {
         Row: {
           changed_at: string
