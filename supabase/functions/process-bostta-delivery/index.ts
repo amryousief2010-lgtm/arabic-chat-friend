@@ -147,15 +147,10 @@ Deno.serve(async (req) => {
           p_order_id: order.id,
         });
         if (reserveErr) throw new Error(`reserve: ${reserveErr.message}`);
-        if (reserveRes && !(reserveRes as any).ok) {
-          results.errors.push({
-            shipment: s,
-            order_number: order.order_number,
-            reason: "reservation_shortage",
-            shortages: (reserveRes as any).shortages,
-          });
-          continue;
-        }
+        // NOTE: shortages are IGNORED here — user requested to allow negative stock
+        // in Agouza until the physical inventory is reconciled on the system.
+        const shortages = reserveRes && !(reserveRes as any).ok ? (reserveRes as any).shortages : null;
+
 
         // 4. Commit — deducts stock + writes inventory_movements
         const { error: commitErr } = await supabase.rpc("commit_agouza_stock_on_delivery", {
