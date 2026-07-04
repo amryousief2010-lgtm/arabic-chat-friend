@@ -93,19 +93,42 @@ export function BulkDeliveryUploadButton() {
       }
       setShipments(parsed);
 
-      // Fetch known customer phones to detect unregistered shipments
+      // Fetch known customer phones + moderator for each phone (from latest order)
       const phones = Array.from(new Set(parsed.map((p) => p.phone).filter(Boolean)));
       const known = new Set<string>();
+      const phoneMod = new Map<string, string>();
       if (phones.length > 0) {
         const chunkSize = 500;
+        const custIdToPhone = new Map<string, string>();
         for (let i = 0; i < phones.length; i += chunkSize) {
           const chunk = phones.slice(i, i + chunkSize);
           const { data: custs } = await supabase
-            .from("customers").select("phone").in("phone", chunk);
-          (custs || []).forEach((c: any) => c.phone && known.add(normalizePhone(c.phone)));
+            .from("customers").select("id, phone").in("phone", chunk);
+          (custs || []).forEach((c: any) => {
+            if (!c.phone) return;
+            const p = normalizePhone(c.phone);
+            known.add(p);
+            custIdToPhone.set(c.id, p);
+          });
+        }
+        // Fetch latest moderator per customer
+        const custIds = Array.from(custIdToPhone.keys());
+        for (let i = 0; i < custIds.length; i += chunkSize) {
+          const chunk = custIds.slice(i, i + chunkSize);
+          const { data: ords } = await supabase
+            .from("orders")
+            .select("customer_id, moderator, created_at")
+            .in("customer_id", chunk)
+            .not("moderator", "is", null)
+            .order("created_at", { ascending: false });
+          (ords || []).forEach((o: any) => {
+            const p = custIdToPhone.get(o.customer_id);
+            if (p && !phoneMod.has(p)) phoneMod.set(p, o.moderator);
+          });
         }
       }
       setKnownPhones(known);
+      setPhoneToModerator(phoneMod);
 
       setOpen(true);
       const missing = parsed.filter((p) => p.phone && !known.has(p.phone)).length;
