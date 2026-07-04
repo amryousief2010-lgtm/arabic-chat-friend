@@ -128,10 +128,12 @@ function UnregisteredDialog({ open, onClose }: { open: boolean; onClose: () => v
       const items = Array.isArray(r.parsed_items) ? r.parsed_items : [];
       const subtotal = items.reduce((s, it: any) => s + Number(it.quantity || 0) * Number(it.unit_price || 0), 0);
       const shipDate = r.shipment_date ? new Date(r.shipment_date + "T12:00:00Z") : new Date();
+      const orderNumber = `ORD-BST-${r.bill_no}`;
 
       const { data: newOrder, error: oErr } = await supabase
         .from("orders")
         .insert({
+          order_number: orderNumber,
           customer_id: customerId,
           status: "delivered",
           delivered_at: shipDate.toISOString(),
@@ -157,9 +159,10 @@ function UnregisteredDialog({ open, onClose }: { open: boolean; onClose: () => v
               created_by: user.id,
             },
           },
-        })
+        } as any)
         .select("id, order_number").single();
       if (oErr) throw new Error(`إنشاء الأوردر: ${oErr.message}`);
+
 
       // 3. Insert items
       if (items.length > 0) {
