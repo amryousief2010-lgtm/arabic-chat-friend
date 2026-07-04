@@ -35,11 +35,14 @@ export function BulkDeliveryUploadButton() {
   const [submitting, setSubmitting] = useState(false);
   const [filename, setFilename] = useState("");
   const [shipments, setShipments] = useState<ParsedShipment[]>([]);
+  const [knownPhones, setKnownPhones] = useState<Set<string>>(new Set());
   const [result, setResult] = useState<any>(null);
 
-  const readyItems = shipments.filter((s) => s.items.length > 0 && s.unknown_tokens.length === 0);
-  const withWarnings = shipments.filter((s) => s.unknown_tokens.length > 0 && s.items.length > 0);
-  const skipped = shipments.filter((s) => s.items.length === 0);
+  const unregistered = shipments.filter((s) => s.phone && !knownPhones.has(s.phone));
+  const registered = shipments.filter((s) => s.phone && knownPhones.has(s.phone));
+  const readyItems = registered.filter((s) => s.items.length > 0 && s.unknown_tokens.length === 0);
+  const withWarnings = registered.filter((s) => s.unknown_tokens.length > 0 && s.items.length > 0);
+  const skipped = registered.filter((s) => s.items.length === 0);
 
   const handleFile = async (file: File) => {
     setLoading(true);
