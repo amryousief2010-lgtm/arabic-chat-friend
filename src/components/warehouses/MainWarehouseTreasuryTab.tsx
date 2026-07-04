@@ -577,7 +577,11 @@ export default function MainWarehouseTreasuryTab() {
       if (selectedDeps.length) {
         const lines = selectedDeps.map((d) => {
           const day = new Date(d.deposit_date).toLocaleDateString("ar-EG");
-          return `• يوم ${day} — ${d.courier_name || ""} — ${fmt(Number(d.amount || 0))} ج.م — ${d.orders_count} أوردر${Array.isArray(d.order_numbers) && d.order_numbers.length ? ` [${d.order_numbers.join(", ")}]` : ""}`;
+          const cash = Number(d.amount || 0);
+          const nc = Number(d.non_cash_amount || 0);
+          const totalD = cash + nc;
+          const breakdown = nc > 0 ? ` (كاش ${fmt(cash)} + إلكتروني ${fmt(nc)})` : "";
+          return `• يوم ${day} — ${d.courier_name || ""} — ${fmt(totalD)} ج.م${breakdown} — ${d.orders_count} أوردر${Array.isArray(d.order_numbers) && d.order_numbers.length ? ` [${d.order_numbers.join(", ")}]` : ""}`;
         });
         autoNotes = `${isReconcile ? "تسوية" : "تحويل"} ${selectedDeps.length} يوم/أيام توريد:\n` + lines.join("\n");
       }
