@@ -72,9 +72,11 @@ Deno.serve(async (req) => {
       updated: [] as any[],
       product_diffs: [] as any[],
       unmatched: [] as any[],
+      unregistered_queued: [] as any[],
       already_delivered: [] as any[],
       errors: [] as any[],
     };
+
 
     for (const s of shipments) {
       try {
