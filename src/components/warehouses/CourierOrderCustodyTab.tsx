@@ -17,7 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { fetchCourierStatementLines, printCourierStatement, exportCourierStatementExcel } from "@/lib/courierStatement";
 import { openPrintWindow } from "@/lib/printPdf";
 import { Switch } from "@/components/ui/switch";
-import { ZodexClosedInvoicesCard } from "@/components/warehouses/ZodexClosedInvoicesCard";
+
 
 /**
  * Order-based custody layer (طبقة عهدة الأوردرات للمندوب) — built on top of:
@@ -954,8 +954,6 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                 </div>
               )}
 
-              {/* بداية العهدة — فواتير ميجا المقفولة (نقطة البداية 55811 وأى فواتير لاحقة) */}
-              <ZodexClosedInvoicesCard />
 
               {/* Group toggle */}
               <div className="flex items-center justify-end gap-2 text-xs">
