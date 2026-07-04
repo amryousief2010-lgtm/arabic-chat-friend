@@ -82,9 +82,11 @@ Deno.serve(async (req) => {
       try {
         if (!s.phone) { results.unmatched.push({ shipment: s, reason: "no_phone" }); continue; }
 
-        // find customer by phone
+        // find customer by phone OR phone2 (customers may have two numbers)
         const { data: customers } = await supabase
-          .from("customers").select("id, name").eq("phone", s.phone).limit(5);
+          .from("customers").select("id, name")
+          .or(`phone.eq.${s.phone},phone2.eq.${s.phone}`)
+          .limit(5);
         if (!customers || customers.length === 0) {
           // Queue as unregistered shipment (moderator needs to create the order)
           if (s.bill_no) {
