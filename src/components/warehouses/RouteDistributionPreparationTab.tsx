@@ -162,7 +162,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
     }
   };
 
-  const [debug, setDebug] = useState<{ raw: number; filtered: number; statuses: Record<string, number>; assignedExcluded: number; error?: string }>({ raw: 0, filtered: 0, statuses: {}, assignedExcluded: 0 });
+  const [debug, setDebug] = useState<{ raw: number; filtered: number; statuses: Record<string, number>; assignedExcluded: number; withCourier: number; error?: string }>({ raw: 0, filtered: 0, statuses: {}, assignedExcluded: 0, withCourier: 0 });
 
   const loadData = async () => {
     setLoading(true);
