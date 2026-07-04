@@ -249,7 +249,7 @@ function UnregisteredDialog({ open, onClose }: { open: boolean; onClose: () => v
             </Button>
           </DialogTitle>
           <DialogDescription>
-            الشحنات دي جت من شيت بوسطة بس مالهاش أوردر مطابق على السيستم. سجّلها هنا عشان تتحسب delivered.
+            الشحنات دي جت من شيت شركة الشحن بس مالهاش أوردر مطابق على السيستم. سجّلها هنا عشان تتحسب delivered.
           </DialogDescription>
         </DialogHeader>
 
