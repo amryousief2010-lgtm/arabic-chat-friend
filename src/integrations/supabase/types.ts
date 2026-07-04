@@ -14014,6 +14014,7 @@ export type Database = {
           payment_method: string
           payment_status: string
           route_id: string | null
+          shipping_bill_no: string | null
           shipping_company: string | null
           source: string | null
           source_warehouse_id: string | null
@@ -14029,6 +14030,8 @@ export type Database = {
           update_status_updated_by: string | null
           updated_at: string
           vodafone_cash_amount: number
+          zodex_return_amount: number | null
+          zodex_synced_at: string | null
         }
         Insert: {
           bank_transfer_amount?: number
@@ -14069,6 +14072,7 @@ export type Database = {
           payment_method?: string
           payment_status?: string
           route_id?: string | null
+          shipping_bill_no?: string | null
           shipping_company?: string | null
           source?: string | null
           source_warehouse_id?: string | null
@@ -14084,6 +14088,8 @@ export type Database = {
           update_status_updated_by?: string | null
           updated_at?: string
           vodafone_cash_amount?: number
+          zodex_return_amount?: number | null
+          zodex_synced_at?: string | null
         }
         Update: {
           bank_transfer_amount?: number
@@ -14124,6 +14130,7 @@ export type Database = {
           payment_method?: string
           payment_status?: string
           route_id?: string | null
+          shipping_bill_no?: string | null
           shipping_company?: string | null
           source?: string | null
           source_warehouse_id?: string | null
@@ -14139,6 +14146,8 @@ export type Database = {
           update_status_updated_by?: string | null
           updated_at?: string
           vodafone_cash_amount?: number
+          zodex_return_amount?: number | null
+          zodex_synced_at?: string | null
         }
         Relationships: [
           {
@@ -18415,6 +18424,134 @@ export type Database = {
           operational_start_date?: string | null
           type?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      zodex_missing_orders: {
+        Row: {
+          bill_no: string
+          cod_amount: number | null
+          created_at: string
+          customer_name: string | null
+          customer_phone: string | null
+          first_seen_at: string
+          id: string
+          ignored_reason: string | null
+          last_seen_at: string
+          moderator_name: string | null
+          operation_type: string | null
+          raw_row: Json | null
+          region: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          resolved_order_id: string | null
+          shipment_date: string | null
+          status: string
+          updated_at: string
+          zodex_status: string | null
+        }
+        Insert: {
+          bill_no: string
+          cod_amount?: number | null
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          first_seen_at?: string
+          id?: string
+          ignored_reason?: string | null
+          last_seen_at?: string
+          moderator_name?: string | null
+          operation_type?: string | null
+          raw_row?: Json | null
+          region?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_order_id?: string | null
+          shipment_date?: string | null
+          status?: string
+          updated_at?: string
+          zodex_status?: string | null
+        }
+        Update: {
+          bill_no?: string
+          cod_amount?: number | null
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          first_seen_at?: string
+          id?: string
+          ignored_reason?: string | null
+          last_seen_at?: string
+          moderator_name?: string | null
+          operation_type?: string | null
+          raw_row?: Json | null
+          region?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_order_id?: string | null
+          shipment_date?: string | null
+          status?: string
+          updated_at?: string
+          zodex_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zodex_missing_orders_resolved_order_id_fkey"
+            columns: ["resolved_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zodex_sync_runs: {
+        Row: {
+          created_at: string
+          delivered_matched: number
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          missing_created: number
+          missing_updated: number
+          returned_matched: number
+          started_at: string
+          status: string
+          summary: Json | null
+          total_rows: number
+          trigger_source: string
+          triggered_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          delivered_matched?: number
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          missing_created?: number
+          missing_updated?: number
+          returned_matched?: number
+          started_at?: string
+          status?: string
+          summary?: Json | null
+          total_rows?: number
+          trigger_source?: string
+          triggered_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          delivered_matched?: number
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          missing_created?: number
+          missing_updated?: number
+          returned_matched?: number
+          started_at?: string
+          status?: string
+          summary?: Json | null
+          total_rows?: number
+          trigger_source?: string
+          triggered_by?: string | null
         }
         Relationships: []
       }
