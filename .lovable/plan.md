@@ -1,121 +1,76 @@
 
-# تفعيل قسم السوشيال ميديا (لوحة + قراءات + تصدير)
+# نسخة العجوزة المستقلة (تجهيز الخط + عهدة الأوردرات + الخزنة)
 
-القسم موجود جزئيًا (تقرير يومي + أسبوعي + مراجعة إدارة + تقاريري)، لكن ينقصه: **لوحة KPI موحّدة، أيقونات معبّرة داخل السايدبار والصفحات، وتصدير تقارير احترافي (PDF/Excel)**. الخطة تركّز على تفعيل هذه الطبقة بدون تغيير منطق الجداول الحالية.
+## الفكرة العامة
+عمل طبقة مستقلة لمخزن العجوزة موازية للمخزن الرئيسي، بنفس الوظائف بالظبط لكن ببيانات ومناديب ومنطق منفصل تمامًا — أوردر مسحوب من العجوزة لا يظهر في شاشات الرئيسي والعكس صحيح.
 
----
+## 1) قاعدة البيانات
+الجداول الحالية (courier_goods_custodies / courier_order_assignments / pc_order_tracking / courier_daily_cash_deposits …) ما تحتوي حاليًا على عمود `warehouse_id`. الحل الأنظف والأقل مخاطر:
 
-## 1) هيكلة القسم داخل السايدبار
+- إضافة عمود `warehouse_id uuid` على الجداول التالية مع default = ID المخزن الرئيسي (لحفظ التوافق الرجعي مع البيانات القديمة):
+  - `courier_goods_custodies`
+  - `courier_order_assignments`
+  - `pc_order_tracking`
+  - `pc_collections`
+  - `pc_failed_attempts`
+  - `courier_daily_cash_deposits`
+  - `courier_daily_cash_deposit_lines`
+  - `courier_daily_closures`
+  - `delivery_collection_batches`
+  - `courier_commission_payouts`
+- Backfill لكل الصفوف الموجودة → `warehouse_id = MAIN_WAREHOUSE_ID`.
+- Indexes على `(warehouse_id, status)` و `(warehouse_id, opened_at)`.
+- تحديث الـ RLS policies المرتبطة عشان تفلتر على `warehouse_id` عند الحاجة (بس بدون كسر الصلاحيات الحالية).
 
-مجموعة جديدة باسم **"السوشيال ميديا"** بأيقونة `Megaphone` تحتوي:
+- جدول `courier_profiles` نضيف له عمود `warehouse_id uuid` عشان كل مندوب يبقى تابع لمخزن واحد (رئيسي أو عجوزة). Backfill الحاليين على الرئيسي.
 
-| العنصر | الأيقونة (lucide) | الدور |
-|---|---|---|
-| لوحة السوشيال (جديد) | `LayoutDashboard` | الكل حسب الصلاحية |
-| تقرير اليوم | `ClipboardList` | موظفة السوشيال |
-| تقاريري السابقة | `History` | موظفة السوشيال |
-| التقرير الأسبوعي | `CalendarRange` | موظفة السوشيال |
-| مراجعة الإدارة | `ShieldCheck` | GM / Exec / Marketing Mgr |
-| تصدير التقارير (جديد) | `FileDown` | GM / Exec / Marketing Mgr |
+## 2) دور أمين العجوزة والمناديب
+- المناديب اللي حيبقى ليهم `warehouse_id = agouza` يظهروا فقط في شاشات العجوزة.
+- شاشة إضافة مندوب تتعدل عشان تختار المخزن التابع له.
 
-اقتراحات أيقونات إضافية داخل الصفحات: `Instagram`, `Facebook`, `Youtube`, `MessageCircle` للتفاعل، `Users` للجمهور، `TrendingUp` للنمو، `Heart` للإعجابات، `Eye` للوصول، `AlertTriangle` للشكاوى، `Lightbulb` لاقتراحات المحتوى، `Image`/`Video` للبوستات/الريلز، `Sparkles` لأعلى محتوى.
+## 3) المكونات (UI)
+- إعادة تصميم 3 مكونات لتقبل prop `warehouseId`:
+  - `RouteDistributionPreparationTab({ warehouseId })`
+  - `CourierOrderCustodyTab({ warehouseId })`
+  - `MainWarehouseTreasuryTab` → إعادة تسميته `WarehouseTreasuryTab({ warehouseId, label })`
+- المنطق الداخلي:
+  - `getDeliveryKind` يعتمد على `source_warehouse_id === warehouseId` بدل الثابت.
+  - كل استعلام على الجداول أعلاه يضيف `.eq("warehouse_id", warehouseId)`.
+  - كل insert يمرر `warehouse_id: warehouseId`.
+  - RPC calls (لو موجودة) نضيف باراميتر warehouse_id.
 
----
+## 4) شريط الأدوات في صفحة المخازن
+تحديث `AGOUZA_TOOLS` في `src/pages/modules/Warehouses.tsx` ليصبح:
+```
+[
+  { key: "treasury",       label: "خزنة مخزن العجوزة",     Icon: Wallet },
+  { key: "courier-orders", label: "عهدة أوردرات مندوب العجوزة", Icon: Truck },
+  { key: "route-prep",     label: "تجهيز خط توزيع العجوزة", Icon: Truck },
+  { key: "recon",          label: "مطابقة خزنة العجوزة",   Icon: ClipboardCheck },
+  { key: "closure",        label: "إقفال يوم العجوزة",     Icon: ClipboardCheck },
+  { key: "daily-recon",    label: "تسوية عهدة اليوم",      Icon: ClipboardCheck },
+]
+```
+و `renderAgouzaSubview` يمرر `warehouseId={AGOUZA_WAREHOUSE_ID}` للمكونات الثلاثة.
 
-## 2) لوحة السوشيال ميديا (Dashboard جديد)
+## 5) خزنة العجوزة الحالية
+`AgouzaTreasuryTab` الموجودة حاليًا تعمل على `agouza_warehouse_treasury_txns` وهو منفصل عن `main_warehouse_treasury_txns`. الاقتراح: نستبدلها بنسخة من `MainWarehouseTreasuryTab` (بعد جعلها warehouse-aware) عشان الأمين يشوف نفس الواجهة والمميزات (إيداعات المندوب، ربط بحركات المخزن، طباعة، إلخ) — لكن بجدول العجوزة.
 
-مسار: `/social-media/dashboard` — مرئية للمدير العام/التنفيذي/مدير التسويق، وللموظفة (بياناتها فقط).
+**نقطة تحتاج قرار**: هل نبقى على جدول `agouza_warehouse_treasury_txns` المنفصل، ولا ندمج الاثنين في `main_warehouse_treasury_txns` مع عمود `warehouse_id`؟ الأنظف تقنيًا هو الدمج، لكن يحتاج migration data وأثره أوسع.
 
-### كروت KPI علوية (فلتر فترة: اليوم / الأسبوع / الشهر / مخصص)
-- **إجمالي البوستات** (`Image`)
-- **إجمالي الريلز/الفيديو** (`Video`)
-- **إجمالي العملاء المهتمين** (`Users`)
-- **متوسط بوستات/يوم** (`TrendingUp`)
-- **عدد أيام العمل** (تقارير مُرسلة) (`CalendarCheck`)
-- **الشكاوى المُسجَّلة** (`AlertTriangle`)
-- **معدل الالتزام** = أيام مُرسلة ÷ أيام الفترة (`ShieldCheck`)
-- **اقتراحات المحتوى المُقدَّمة** (`Lightbulb`)
+## 6) اختبارات
+- إضافة مندوب جديد للعجوزة، فتح عهدة، صرف أوردر مسحوب من العجوزة، تحصيل، إيداع في خزنة العجوزة، إقفال.
+- التأكد إن نفس الأوردر لا يظهر في شاشات الرئيسي.
+- إن أوردرات الرئيسي القديمة والجديدة تفضل تشتغل زي ما هي.
 
-### رسومات (Recharts)
-- خط زمني: بوستات + ريلز + عملاء مهتمين لكل يوم.
-- عمودي: أعلى 5 أيام في العملاء المهتمين.
-- Pie: توزيع نوع المحتوى (بوستات vs ريلز).
-- جدول: أعلى محتوى تفاعلًا (top_engaging_content) بترتيب تاريخي.
+## تقدير الحجم
+- Migration واحد كبير (5-10 جداول).
+- تعديل 3 مكونات كبيرة (~2000 سطر إجمالاً).
+- تعديل صفحة الـ Warehouses وصفحة المناديب.
+- خطر عالي لو حصل مسح غلط، عشان كده migration تجريبي أولاً.
 
-### لوحة الشكاوى
-جدول آخر 10 شكاوى مع صورة مصغّرة (لو موجودة) + زر عرض.
-
----
-
-## 3) قراءات إضافية على نموذج التقرير اليومي (اختيارية غير كاسرة)
-
-إضافة حقول رقمية اختيارية لتغذية التقارير — كلها Nullable و لا تكسر البيانات الحالية:
-- `reach_count` (الوصول) — `Eye`
-- `impressions_count` (الظهور) — `Activity`
-- `likes_count` — `Heart`
-- `comments_count` — `MessageCircle`
-- `shares_count` — `Share2`
-- `new_followers_count` — `UserPlus`
-- `platform` (تعدد اختيار: Instagram / Facebook / TikTok / YouTube) — checkboxes صغيرة
-
-القيم القديمة تبقى كما هي؛ التقارير تعرض "—" لو فارغة.
-
----
-
-## 4) تصدير التقارير
-
-صفحة `/social-media/export` بها:
-- فلاتر: من/إلى، الموظفة، المنصة، الحالة (مسودة/مرسل/مراجَع).
-- زر **طباعة PDF عربي** عبر `openPrintWindow` من `@/lib/printPdf` (احترامًا للقاعدة الأساسية للـ PDF العربي).
-- زر **تصدير Excel** عبر `xlsx` بأوراق:
-  1. الملخّص (KPIs + الفترة).
-  2. التقارير اليومية (كل الأعمدة).
-  3. التقارير الأسبوعية.
-  4. الشكاوى.
-  5. أعلى محتوى تفاعلًا.
-
-### محتوى PDF
-هيدر شركة + فترة + بطاقات KPI + جداول (الأداء اليومي، الأسبوعي، الشكاوى، أعلى محتوى). صف إجمالي أسفل كل جدول.
-
----
-
-## 5) صلاحيات
-
-- الموظفة `social_media_manager`: ترى تقاريرها فقط في اللوحة + تصدير تقاريرها فقط.
-- `general_manager` / `executive_manager` / `marketing_sales_manager`: كل شيء + تصدير عام + فلتر حسب موظفة.
-- بدون تغييرات في RLS الحالية — يتم الفلترة على مستوى الاستعلامات.
-
----
-
-## 6) تفاصيل تقنية
-
-### ملفات جديدة
-- `src/pages/social-media/SocialMediaDashboard.tsx` (اللوحة + KPIs + الرسومات).
-- `src/pages/social-media/SocialMediaExport.tsx` (فلاتر + PDF + Excel).
-- `src/lib/socialMediaReport.ts` (helpers: `aggregateKPIs`, `buildDailySeries`, `buildExcelWorkbook`, `buildPdfBody`).
-
-### تعديلات
-- `src/App.tsx` (أو ملف الراوتنج): إضافة المسارين الجديدين.
-- `src/components/layout/SidebarMenuSections.tsx`: مجموعة "السوشيال ميديا" بالأيقونات أعلاه.
-- `src/pages/social-media/SocialMediaDailyReport.tsx`: إضافة الحقول الاختيارية (reach/impressions/likes/…/platform) خلف قسم قابل للطي "إحصائيات المنصات (اختياري)".
-- Migration بسيطة: إضافة الأعمدة الاختيارية على `social_media_daily_reports` (NULLABLE، بدون تريجرات، مع GRANT محفوظ كما هو).
-
-### مكتبات
-- `xlsx` (مستخدمة أصلًا في التصدير).
-- `recharts` (مستخدمة أصلًا في الداشبورد).
-- `@/lib/printPdf` للـ PDF العربي.
-
----
-
-## 7) خطوات التنفيذ (مقترحة بترتيب)
-
-1. Migration للأعمدة الاختيارية على `social_media_daily_reports`.
-2. تحديث النموذج اليومي بالحقول الجديدة (قابلة للطي).
-3. `SocialMediaDashboard.tsx` بالـ KPIs والرسومات.
-4. `SocialMediaExport.tsx` مع PDF + Excel.
-5. تحديث السايدبار + الراوتنج + landing role.
-6. اختبار: موظفة تنشئ تقرير كامل → المدير يرى KPI ويطبع PDF ويصدّر Excel.
-
----
-
-**سؤال قبل التنفيذ:** هل توافقين على إضافة الحقول الاختيارية (reach/impressions/likes/…) أم تكتفي بالحقول الحالية فقط (بوستات/ريلز/عملاء مهتمين/محتوى/شكاوى/اقتراحات)؟
+## سؤال قبل التنفيذ
+هل توافق على المسار ده؟ خصوصًا:
+1. إضافة `warehouse_id` للجداول المذكورة بدل ما ننشئ جداول مكررة (agouza_courier_custodies إلخ).
+2. جعل كل مندوب تابع لمخزن واحد (main أو agouza).
+3. الإبقاء على `agouza_warehouse_treasury_txns` كما هو، ولا دمجه مع `main_warehouse_treasury_txns`؟
