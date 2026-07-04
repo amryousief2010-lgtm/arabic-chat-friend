@@ -359,7 +359,7 @@ Deno.serve(async (req) => {
       } else {
         await supabase.from("zodex_missing_orders").insert({
           bill_no: row.bill_no,
-          customer_name: row.customer_name,
+          customer_name: null,
           customer_phone: row.customer_phone,
           region: row.region,
           cod_amount: row.cod_amount,
@@ -369,10 +369,10 @@ Deno.serve(async (req) => {
           shipment_date: row.shipment_date,
           raw_row: row,
         });
-        // Notify Alaa
+        // Notify Alaa (once per new bill)
         await supabase.from("notifications").insert({
           title: "أوردر مسجل على زودكس وغير موجود عندنا",
-          description: `بوليصة ${row.bill_no} • العميل: ${row.customer_name || "—"} (${row.customer_phone || "—"}) • الموديرتور: ${row.moderator_name || "—"} • ${row.region || ""} • ${row.cod_amount} ج`,
+          description: `بوليصة ${row.bill_no} • تليفون العميل: ${row.customer_phone || "—"} • الموديرتور: ${row.moderator_name || "—"} • ${row.region || ""} • ${row.cod_amount} ج • ${row.raw_date_text}`,
           type: "zodex_missing",
           target_user_id: ALAA_USER_ID,
         });
