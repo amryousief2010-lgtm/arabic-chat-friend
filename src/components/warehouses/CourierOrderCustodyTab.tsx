@@ -532,10 +532,12 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           cashDue: finalCashDue, vodafone, instapay, bank, other, free,
           sheetNetAmount,
           missingBreakdown, undelivered, deposit,
+          megaClosedCount: skippedByDay.get(day) || 0,
           canDeposit: undelivered === 0 && missingBreakdown === 0 && items.length > 0 && !deposit,
         };
       });
-  }, [currentAssignments, orders, collections, dailyDeposits, selectedCustody, isAgouza, bosttaUploadNets]);
+  }, [currentAssignments, orders, collections, dailyDeposits, selectedCustody, isAgouza, bosttaUploadNets, zodexClosedOrderIds]);
+
 
 
   // ── Actions ─────────────────────────────────────────────────────────────
