@@ -157,9 +157,23 @@ export function BulkDeliveryUploadButton() {
 
   const reset = () => {
     setShipments([]);
+    setKnownPhones(new Set());
     setResult(null);
     setFilename("");
     setOpen(false);
+  };
+
+  const copyUnregisteredToClipboard = async () => {
+    const lines = unregistered.map(
+      (s) => `${s.phone} — ${s.customer_name} — ${s.cod} ج — ${s.raw_products}`,
+    );
+    const text = `شحنات محتاجة تسجيل (${unregistered.length}):\n\n${lines.join("\n")}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("تم نسخ القائمة — ابعتها للبنات يسجّلوا الأوردرات");
+    } catch {
+      toast.error("مقدرش أنسخ — اعمل تحديد يدوي");
+    }
   };
 
   return (
