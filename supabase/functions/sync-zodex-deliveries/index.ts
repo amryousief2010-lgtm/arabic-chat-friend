@@ -458,7 +458,6 @@ Deno.serve(async (req) => {
             if (hasProductSignal && b._itemsScore !== a._itemsScore) return b._itemsScore - a._itemsScore;
             return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
           });
-          matchedOrder = strictHits[0];
           matchedOrder = scoredHits[0];
           claimedInThisRun.add(matchedOrder.id);
         }
