@@ -823,12 +823,15 @@ const Orders = () => {
     const cairoYMD = toCairoDateString(order.created_at); // YYYY-MM-DD
     const year = parseInt(cairoYMD.slice(0, 4), 10);
     const month = parseInt(cairoYMD.slice(5, 7), 10);
+    // عند وجود بحث نتجاهل فلاتر السنة/الشهر لكى يظهر العميل حتى لو مسجل فى شهر آخر
+    const searchActive = q.length > 0;
     const matchesYearGroup =
+      searchActive ||
       yearGroup === "all" ||
       (yearGroup === "2026" && year >= 2026) ||
       (yearGroup === "pre2026" && year < 2026);
-    const matchesMonth = filterMonth === "all" || String(month) === filterMonth;
-    const matchesYear = filterYear === "all" || String(year) === filterYear;
+    const matchesMonth = searchActive || filterMonth === "all" || String(month) === filterMonth;
+    const matchesYear = searchActive || filterYear === "all" || String(year) === filterYear;
     const matchesProduct =
       filterProduct === "all" ||
       order.items.some((it) => it.product_name === filterProduct);
