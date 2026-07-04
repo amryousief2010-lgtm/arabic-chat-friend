@@ -230,7 +230,7 @@ export function BulkDeliveryUploadButton() {
         disabled={loading}
       >
         {loading ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Upload className="w-4 h-4 ml-2" />}
-        رفع شيت تسليمات بوسطة
+        رفع شيت تسليمات شركة الشحن
       </Button>
 
       <Dialog open={open} onOpenChange={(v) => !v && reset()}>
