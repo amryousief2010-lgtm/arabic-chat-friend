@@ -18513,6 +18513,7 @@ export type Database = {
           id: string
           missing_created: number
           missing_updated: number
+          pipeline_counts: Json | null
           returned_matched: number
           started_at: string
           status: string
@@ -18529,6 +18530,7 @@ export type Database = {
           id?: string
           missing_created?: number
           missing_updated?: number
+          pipeline_counts?: Json | null
           returned_matched?: number
           started_at?: string
           status?: string
@@ -18545,6 +18547,7 @@ export type Database = {
           id?: string
           missing_created?: number
           missing_updated?: number
+          pipeline_counts?: Json | null
           returned_matched?: number
           started_at?: string
           status?: string

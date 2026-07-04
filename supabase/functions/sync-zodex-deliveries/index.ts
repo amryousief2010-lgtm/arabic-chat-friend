@@ -394,12 +394,35 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ----- Pipeline counts (Shipper Shipments page) -----
+    // Extract `var shipments = [...]` from shippers_shipments page
+    let pipelineCounts: Record<string, { count: number; total: number }> | null = null;
+    try {
+      const html = await client.get("/shippers_shipments.php", {
+        action: "shippers_shipments", shipper_id: SHIPPER_ID,
+      });
+      const m = html.match(/var\s+shipments\s*=\s*(\[[\s\S]*?\]);/);
+      if (m) {
+        const arr = JSON.parse(m[1]) as Array<{ status?: string; price?: number }>;
+        const agg: Record<string, { count: number; total: number }> = {};
+        for (const s of arr) {
+          const key = (s.status || "غير محدد").trim();
+          if (!agg[key]) agg[key] = { count: 0, total: 0 };
+          agg[key].count += 1;
+          agg[key].total += Number(s.price || 0);
+        }
+        pipelineCounts = agg;
+      }
+    } catch (e) {
+      errors.push(`pipeline_counts: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
     await supabase.from("zodex_sync_runs").update({
       status: "success", finished_at: new Date().toISOString(),
-      ...stats, summary: { errors },
+      ...stats, pipeline_counts: pipelineCounts, summary: { errors },
     }).eq("id", run!.id);
 
-    return new Response(JSON.stringify({ ok: true, run_id: run!.id, ...stats }), {
+    return new Response(JSON.stringify({ ok: true, run_id: run!.id, pipeline_counts: pipelineCounts, ...stats }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

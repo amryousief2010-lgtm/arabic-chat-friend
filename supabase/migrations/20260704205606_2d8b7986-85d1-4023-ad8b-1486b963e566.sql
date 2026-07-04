@@ -1,0 +1,1 @@
+ALTER TABLE public.zodex_sync_runs ADD COLUMN IF NOT EXISTS pipeline_counts jsonb;
