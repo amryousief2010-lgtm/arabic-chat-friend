@@ -85,7 +85,12 @@ const LINE_TYPE_META: Record<string, { label: string; icon: any; color: string }
   collection: { label: "تحصيل", icon: Coins, color: "bg-green-100 text-green-700" },
 };
 
-export default function RouteDistributionPreparationTab() {
+interface RouteDistributionPreparationTabProps {
+  warehouseId?: string;
+  warehouseLabel?: string;
+}
+
+export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_MAIN_WAREHOUSE_ID, warehouseLabel }: RouteDistributionPreparationTabProps = {}) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -108,7 +113,8 @@ export default function RouteDistributionPreparationTab() {
   const [idempotencyKey, setIdempotencyKey] = useState<string>("");
   const [lastDispatch, setLastDispatch] = useState<{ courierName: string; ordersCount: number; customersCount: number; itemsCount: number; at: string; reference: string; movementsCreated: number; unresolved: string[] } | null>(null);
 
-  const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
+  const getDeliveryKind = useMemo(() => makeGetDeliveryKind(warehouseId), [warehouseId]);
+
 
   const chunkArray = <T,>(arr: T[], size: number) => {
     const chunks: T[][] = [];
