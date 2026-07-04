@@ -70,10 +70,12 @@ class ZodexClient {
   }
 
   private captureCookies(res: Response) {
-    const raw = res.headers.get("set-cookie");
-    if (!raw) return;
-    // Deno concatenates set-cookie headers with newlines
-    for (const line of raw.split(/,(?=[^;]+?=)/g)) {
+    // Deno supports getSetCookie() which returns an array
+    const anyH = res.headers as any;
+    const list: string[] = typeof anyH.getSetCookie === "function"
+      ? anyH.getSetCookie()
+      : (res.headers.get("set-cookie") ? [res.headers.get("set-cookie")!] : []);
+    for (const line of list) {
       const m = line.match(/^\s*([^=;]+)=([^;]*)/);
       if (m) this.cookies.set(m[1].trim(), m[2].trim());
     }
