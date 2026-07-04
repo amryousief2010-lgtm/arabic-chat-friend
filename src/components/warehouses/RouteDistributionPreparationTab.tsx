@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BulkDeliveryUploadButton } from "@/components/warehouses/BulkDeliveryUploadButton";
+import { UnregisteredShipmentsButton } from "@/components/warehouses/UnregisteredShipmentsButton";
+
 
 import { MAIN_WAREHOUSE_ID as DEFAULT_MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
 
