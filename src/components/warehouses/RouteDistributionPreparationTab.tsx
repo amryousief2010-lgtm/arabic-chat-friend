@@ -162,7 +162,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
     }
   };
 
-  const [debug, setDebug] = useState<{ raw: number; filtered: number; statuses: Record<string, number>; assignedExcluded: number; error?: string }>({ raw: 0, filtered: 0, statuses: {}, assignedExcluded: 0 });
+  const [debug, setDebug] = useState<{ raw: number; filtered: number; statuses: Record<string, number>; assignedExcluded: number; withCourier: number; error?: string }>({ raw: 0, filtered: 0, statuses: {}, assignedExcluded: 0, withCourier: 0 });
 
   const loadData = async () => {
     setLoading(true);
@@ -214,11 +214,13 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
 
       const statusCounts: Record<string, number> = {};
       for (const o of rawOrders) statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
+      const withCourierCount = (assignmentsRes.data ?? []).filter((a: any) => a.status === "with_courier").length;
       setDebug({
         raw: rawOrders.length,
         filtered: ordersData.length,
         statuses: statusCounts,
         assignedExcluded: rawOrders.length - ordersData.length,
+        withCourier: withCourierCount,
         error: rawOrdersRes.error?.message,
       });
 
@@ -634,7 +636,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
             </Alert>
           )}
 
-          <ZodexPipelineReconcile localInFlightCount={debug.raw} />
+          <ZodexPipelineReconcile localInFlightCount={debug.raw + debug.withCourier} localBreakdown={{ warehouse: debug.raw, withCourier: debug.withCourier }} />
 
           <ZodexClosedInvoicesCard />
 
