@@ -1068,6 +1068,17 @@ const AnimatedRoutes = () => {
               <PageTransition><ZodexMissingOrders /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/orders/mega-review" element={
+            <ProtectedRoute>
+              <PageTransition><MegaOrdersReview /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/orders/mega-discrepancies" element={
+            <ProtectedRoute>
+              <PageTransition><MegaOrderDiscrepancies /></PageTransition>
+            </ProtectedRoute>
+          } />
+
           <Route path="/modules/warehouses/:id" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_moderator', 'agouza_warehouse_keeper']}>
               <PageTransition><WarehouseDetail /></PageTransition>
