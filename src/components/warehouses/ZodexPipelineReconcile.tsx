@@ -15,9 +15,10 @@ function isClosedStatus(key: string): boolean {
 
 interface Props {
   localInFlightCount: number;
+  localBreakdown?: { warehouse: number; withCourier: number };
 }
 
-export function ZodexPipelineReconcile({ localInFlightCount }: Props) {
+export function ZodexPipelineReconcile({ localInFlightCount, localBreakdown }: Props) {
   const [loading, setLoading] = useState(true);
   const [pipelineCounts, setPipelineCounts] = useState<Record<string, { count: number; total: number }> | null>(null);
   const [finishedAt, setFinishedAt] = useState<string | null>(null);
