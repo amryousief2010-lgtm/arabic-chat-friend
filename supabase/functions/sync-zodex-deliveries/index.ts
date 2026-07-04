@@ -169,6 +169,46 @@ interface ZodexRow {
   raw_date_text: string;
   zodex_receiver: string;   // column 3 "إلي" - the Zodex-side admin (informational)
   invoice_no: string | null; // e.g. "55811" if row is part of a closed payment invoice
+  raw_cells: string[];
+  searchable_text: string;
+}
+
+function normalizeBillNo(s: string | null | undefined): string {
+  return String(s || "").trim().toUpperCase().replace(/\s+/g, "");
+}
+
+function normalizeProductText(s: string | null | undefined): string {
+  return normalizeArabic(String(s || ""))
+    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+    .replace(/\b\d+(?:\.\d+)?\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildItemsSignature(items: Array<{ product_name?: string | null; offer_name?: string | null }>): string[] {
+  const labels = new Set<string>();
+  for (const item of items || []) {
+    const label = normalizeProductText(item.offer_name || item.product_name || "");
+    if (label) labels.add(label);
+  }
+  return [...labels].sort();
+}
+
+function scoreItemsAgainstRow(rowText: string, signature: string[]): number {
+  const text = normalizeProductText(rowText);
+  if (!text || !signature.length) return 0;
+
+  let hits = 0;
+  for (const label of signature) {
+    if (!label) continue;
+    if (text.includes(label)) {
+      hits++;
+      continue;
+    }
+    const labelTokens = label.split(" ").filter((t) => t.length > 1);
+    if (labelTokens.length && labelTokens.every((t) => text.includes(t))) hits++;
+  }
+  return hits / signature.length;
 }
 
 function splitNameAndPhone(text: string): { name: string; phone: string } {
@@ -249,7 +289,7 @@ function parseBalanceRows(html: string): ZodexRow[] {
     }
 
     rows.push({
-      bill_no: get(5),
+      bill_no: normalizeBillNo(get(5)),
       zodex_receiver: get(3),
       moderator_name: mod.name,
       moderator_phone: mod.phone,
@@ -262,6 +302,8 @@ function parseBalanceRows(html: string): ZodexRow[] {
       shipment_date: iso,
       raw_date_text: get(14),
       invoice_no: invoiceNo,
+      raw_cells: cells,
+      searchable_text: cells.join(" | "),
     });
   }
   return rows;
