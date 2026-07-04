@@ -1401,7 +1401,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                         ];
                         if (isOpen) grp.items.forEach((a) => rows.push(renderOrderRow(a, true)));
                         return rows;
-                      });
+                      }), ...invoiceRows];
                     })()}
                   </TableBody>
                 </Table>
