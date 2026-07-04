@@ -58,6 +58,14 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
+    const userSupabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      {
+        auth: { autoRefreshToken: false, persistSession: false },
+        global: { headers: { Authorization: `Bearer ${jwt}` } },
+      },
+    );
 
     // The function gateway verifies the JWT before this code runs. Avoid auth.getUser(jwt)
     // here because stale-but-gateway-accepted sessions can fail with
@@ -149,6 +157,16 @@ Deno.serve(async (req) => {
 
         const order = pending[0]; // oldest pending
 
+        // Permission-gated warehouse RPCs depend on auth.uid(). The admin client
+        // used above bypasses RLS but has no user uid, so verify with the caller's
+        // JWT before mutating the order/items.
+        const { data: canCommit, error: permissionErr } = await userSupabase.rpc("can_operate_agouza_order", {
+          p_order_id: order.id,
+          p_op: "commit",
+        });
+        if (permissionErr) throw new Error(`permission: ${permissionErr.message}`);
+        if (!canCommit) throw new Error("غير مصرح بتنفيذ خصم مخزون العجوزة لهذا الأوردر");
+
         // Fetch existing items for diff logging
         const { data: existingItems } = await supabase
           .from("order_items")
@@ -178,10 +196,10 @@ Deno.serve(async (req) => {
 
         // 3. Reserve Agouza stock (fresh — releases old if any)
         // Release any existing reservation first (safe if none)
-        await supabase.rpc("release_agouza_stock_reservation", {
+        await userSupabase.rpc("release_agouza_stock_reservation", {
           p_order_id: order.id, p_reason: "bostta_bulk_upload_replace",
         });
-        const { data: reserveRes, error: reserveErr } = await supabase.rpc("reserve_agouza_stock_for_order", {
+        const { data: reserveRes, error: reserveErr } = await userSupabase.rpc("reserve_agouza_stock_for_order", {
           p_order_id: order.id,
         });
         if (reserveErr) throw new Error(`reserve: ${reserveErr.message}`);
@@ -194,7 +212,7 @@ Deno.serve(async (req) => {
         // If reservation had shortages, commit may fail. We swallow that so the
         // order is still marked delivered; stock will go negative or stay put
         // and be corrected during physical inventory reconciliation.
-        const { error: commitErr } = await supabase.rpc("commit_agouza_stock_on_delivery", {
+        const { error: commitErr } = await userSupabase.rpc("commit_agouza_stock_on_delivery", {
           p_order_id: order.id,
         });
         const commit_skipped = commitErr ? commitErr.message : null;
