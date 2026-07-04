@@ -762,10 +762,24 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
                       <TableBody>
                         {filteredOrders.map(o => {
                           const oItems = items.filter(i => i.order_id === o.id);
+                          const withCourier = o.with_courier_name != null;
                           return (
-                            <TableRow key={o.id} className={selectedOrderIds.has(o.id) ? "bg-purple-50/60" : ""}>
-                              <TableCell><Checkbox checked={selectedOrderIds.has(o.id)} onCheckedChange={() => toggleOrder(o.id)} /></TableCell>
-                              <TableCell className="font-mono text-xs">{o.order_number}</TableCell>
+                            <TableRow key={o.id} className={withCourier ? "bg-amber-50/60 opacity-80" : (selectedOrderIds.has(o.id) ? "bg-purple-50/60" : "")}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedOrderIds.has(o.id)}
+                                  onCheckedChange={() => toggleOrder(o.id)}
+                                  disabled={withCourier}
+                                />
+                              </TableCell>
+                              <TableCell className="font-mono text-xs">
+                                {o.order_number}
+                                {withCourier && (
+                                  <Badge className="mr-1 bg-amber-100 text-amber-800 border border-amber-300 text-[10px]">
+                                    🛵 مع {o.with_courier_name || "المندوب"}
+                                  </Badge>
+                                )}
+                              </TableCell>
                               <TableCell>
                                 {(() => {
                                   const k = getDeliveryKind(o);
