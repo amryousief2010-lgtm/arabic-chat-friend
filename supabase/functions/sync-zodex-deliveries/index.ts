@@ -235,7 +235,7 @@ Deno.serve(async (req) => {
 
   const stats = {
     total_rows: 0, delivered_matched: 0, returned_matched: 0,
-    missing_created: 0, missing_updated: 0, unmatched_skipped: 0,
+    missing_created: 0, missing_updated: 0, missing_auto_resolved: 0, unmatched_skipped: 0,
   };
   const errors: string[] = [];
 
