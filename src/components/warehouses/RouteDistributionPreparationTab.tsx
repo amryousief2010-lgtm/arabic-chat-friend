@@ -636,7 +636,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
             </Alert>
           )}
 
-          <ZodexPipelineReconcile localInFlightCount={debug.raw} />
+          <ZodexPipelineReconcile localInFlightCount={debug.raw + debug.withCourier} localBreakdown={{ warehouse: debug.raw, withCourier: debug.withCourier }} />
 
           <ZodexClosedInvoicesCard />
 
