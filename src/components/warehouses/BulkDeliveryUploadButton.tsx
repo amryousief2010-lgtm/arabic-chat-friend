@@ -35,11 +35,14 @@ export function BulkDeliveryUploadButton() {
   const [submitting, setSubmitting] = useState(false);
   const [filename, setFilename] = useState("");
   const [shipments, setShipments] = useState<ParsedShipment[]>([]);
+  const [knownPhones, setKnownPhones] = useState<Set<string>>(new Set());
   const [result, setResult] = useState<any>(null);
 
-  const readyItems = shipments.filter((s) => s.items.length > 0 && s.unknown_tokens.length === 0);
-  const withWarnings = shipments.filter((s) => s.unknown_tokens.length > 0 && s.items.length > 0);
-  const skipped = shipments.filter((s) => s.items.length === 0);
+  const unregistered = shipments.filter((s) => s.phone && !knownPhones.has(s.phone));
+  const registered = shipments.filter((s) => s.phone && knownPhones.has(s.phone));
+  const readyItems = registered.filter((s) => s.items.length > 0 && s.unknown_tokens.length === 0);
+  const withWarnings = registered.filter((s) => s.unknown_tokens.length > 0 && s.items.length > 0);
+  const skipped = registered.filter((s) => s.items.length === 0);
 
   const handleFile = async (file: File) => {
     setLoading(true);
@@ -89,8 +92,26 @@ export function BulkDeliveryUploadButton() {
         });
       }
       setShipments(parsed);
+
+      // Fetch known customer phones to detect unregistered shipments
+      const phones = Array.from(new Set(parsed.map((p) => p.phone).filter(Boolean)));
+      const known = new Set<string>();
+      if (phones.length > 0) {
+        const chunkSize = 500;
+        for (let i = 0; i < phones.length; i += chunkSize) {
+          const chunk = phones.slice(i, i + chunkSize);
+          const { data: custs } = await supabase
+            .from("customers").select("phone").in("phone", chunk);
+          (custs || []).forEach((c: any) => c.phone && known.add(normalizePhone(c.phone)));
+        }
+      }
+      setKnownPhones(known);
+
       setOpen(true);
-      toast.success(`تم تحليل ${parsed.length} شحنة من ${file.name}`);
+      const missing = parsed.filter((p) => p.phone && !known.has(p.phone)).length;
+      toast.success(
+        `تم تحليل ${parsed.length} شحنة${missing > 0 ? ` — ${missing} محتاجة تسجيل` : ""}`,
+      );
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || "فشل قراءة الملف");
@@ -136,9 +157,23 @@ export function BulkDeliveryUploadButton() {
 
   const reset = () => {
     setShipments([]);
+    setKnownPhones(new Set());
     setResult(null);
     setFilename("");
     setOpen(false);
+  };
+
+  const copyUnregisteredToClipboard = async () => {
+    const lines = unregistered.map(
+      (s) => `${s.phone} — ${s.customer_name} — ${s.cod} ج — ${s.raw_products}`,
+    );
+    const text = `شحنات محتاجة تسجيل (${unregistered.length}):\n\n${lines.join("\n")}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("تم نسخ القائمة — ابعتها للبنات يسجّلوا الأوردرات");
+    } catch {
+      toast.error("مقدرش أنسخ — اعمل تحديد يدوي");
+    }
   };
 
   return (
@@ -174,19 +209,54 @@ export function BulkDeliveryUploadButton() {
 
           {!result ? (
             <>
-              <div className="grid grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-5 gap-3 mb-4">
                 <StatBox label="إجمالي الشحنات" value={shipments.length} color="slate" />
+                <StatBox label="محتاجة تسجيل" value={unregistered.length} color="blue" />
                 <StatBox label="جاهز للتحديث" value={readyItems.length} color="emerald" />
                 <StatBox label="تحذيرات" value={withWarnings.length} color="amber" />
                 <StatBox label="متجاهَل" value={skipped.length} color="red" />
               </div>
 
-              <Tabs defaultValue="ready" className="w-full">
+              <Tabs defaultValue={unregistered.length > 0 ? "unregistered" : "ready"} className="w-full">
                 <TabsList>
+                  <TabsTrigger value="unregistered" className="data-[state=active]:bg-blue-100">
+                    محتاجة تسجيل ({unregistered.length})
+                  </TabsTrigger>
                   <TabsTrigger value="ready">جاهز ({readyItems.length})</TabsTrigger>
                   <TabsTrigger value="warnings">تحذيرات ({withWarnings.length})</TabsTrigger>
                   <TabsTrigger value="skipped">متجاهَل ({skipped.length})</TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="unregistered">
+                  {unregistered.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">
+                      كل الشحنات موبايلاتها موجودة في العملاء — مفيش حاجة محتاجة تسجيل
+                    </p>
+                  ) : (
+                    <>
+                      <Alert className="mb-3 bg-blue-50 border-blue-300">
+                        <AlertTriangle className="w-4 h-4 text-blue-700" />
+                        <AlertTitle>الشحنات دي موبايلاتها مش موجودة في العملاء</AlertTitle>
+                        <AlertDescription className="space-y-2">
+                          <div>
+                            البنات لازم يسجّلوا الأوردرات دي الأول على السيستم. ابعتلهم القائمة
+                            وبعدين ارفع الشيت تاني — أو كمّل واعتمد الباقي دلوقتي والشحنات دي هتتحط
+                            في قائمة <b>"شحنات محتاجة تسجيل"</b> ويسجّلوها من هناك.
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-blue-500 text-blue-700 hover:bg-blue-100"
+                            onClick={copyUnregisteredToClipboard}
+                          >
+                            📋 نسخ القائمة للبنات
+                          </Button>
+                        </AlertDescription>
+                      </Alert>
+                      <ShipmentTable shipments={unregistered} />
+                    </>
+                  )}
+                </TabsContent>
 
                 <TabsContent value="ready">
                   <ShipmentTable shipments={readyItems} />
@@ -247,6 +317,7 @@ export function BulkDeliveryUploadButton() {
 function StatBox({ label, value, color }: { label: string; value: number; color: string }) {
   const cls: Record<string, string> = {
     slate: "bg-slate-50 border-slate-200 text-slate-800",
+    blue: "bg-blue-50 border-blue-200 text-blue-800",
     emerald: "bg-emerald-50 border-emerald-200 text-emerald-800",
     amber: "bg-amber-50 border-amber-200 text-amber-800",
     red: "bg-red-50 border-red-200 text-red-800",
