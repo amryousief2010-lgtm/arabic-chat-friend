@@ -178,7 +178,31 @@ Deno.serve(async (req) => {
 
         if (pending.length === 0) {
           if (delivered.length > 0) {
-            results.already_delivered.push({ shipment: s, order_number: delivered[delivered.length - 1].order_number });
+            // Backfill: even if already delivered, ensure it's in the Agouza courier custody.
+            const already = delivered[delivered.length - 1];
+            let backfilled = false;
+            try {
+              const custodyId = await getOrCreateAgouzaCustody(supabase, userId);
+              if (custodyId) {
+                const nowIso = new Date().toISOString();
+                const { error: asnErr } = await supabase
+                  .from("courier_order_assignments")
+                  .upsert({
+                    custody_id: custodyId,
+                    order_id: already.id,
+                    courier_name: AGOUZA_COURIER_NAME,
+                    warehouse_id: AGOUZA_WAREHOUSE_ID,
+                    status: "delivered",
+                    assigned_at: nowIso,
+                    delivered_at: nowIso,
+                    assigned_by: userId,
+                    notes: `تم التسليم من شيت شركة الشحن${s.bill_no ? ` — بوليصة ${s.bill_no}` : ""} (backfill)`,
+                  }, { onConflict: "order_id" });
+                if (!asnErr) backfilled = true;
+                else console.error("backfill custody assign failed", already.order_number, asnErr);
+              }
+            } catch (bfEx) { console.error("backfill threw", bfEx); }
+            results.already_delivered.push({ shipment: s, order_number: already.order_number, custody_backfilled: backfilled });
           } else {
             results.unmatched.push({ shipment: s, reason: "no_pending_agouza_order" });
           }
