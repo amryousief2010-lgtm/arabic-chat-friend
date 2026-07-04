@@ -343,6 +343,19 @@ function ResultView({ result, onClose }: { result: any; onClose: () => void }) {
         </div>
       </div>
 
+      {result.unregistered_queued?.length > 0 && (
+        <Alert className="bg-blue-50 border-blue-300">
+          <AlertTriangle className="w-4 h-4 text-blue-700" />
+          <AlertTitle>
+            {result.unregistered_queued.length} شحنة اتحطّت في قائمة "شحنات محتاجة تسجيل"
+          </AlertTitle>
+          <AlertDescription>
+            الموبايلات دي مش موجودة في العملاء — البنات لازم يسجّلوا الأوردرات دي من صفحة
+            <b className="mx-1">"شحنات محتاجة تسجيل"</b>. بعدها هيتحسبوا تسليم ناجح تلقائي.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {result.unmatched?.length > 0 && (
         <details className="border rounded p-2 text-xs">
           <summary className="cursor-pointer font-bold text-red-700">
@@ -357,6 +370,7 @@ function ResultView({ result, onClose }: { result: any; onClose: () => void }) {
           </ul>
         </details>
       )}
+
 
       {result.errors?.length > 0 && (
         <details className="border rounded p-2 text-xs" open>
