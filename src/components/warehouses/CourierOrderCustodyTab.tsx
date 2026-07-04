@@ -1209,7 +1209,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                           </TableRow>
                         ));
 
-                      return [...groupedByDay.flatMap((grp) => {
+                      return [...groupedByDay.filter((g) => g.megaClosedCount === 0).flatMap((grp) => {
                         const isOpen = expandedDays[grp.day] ?? false;
                         const courierName = custodies.find((c) => c.id === selectedCustody)?.courier_name || "—";
                         const printDay = async (e: React.MouseEvent) => {
