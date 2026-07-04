@@ -39,6 +39,8 @@ import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
 import AddOfferDialog from "@/components/orders/AddOfferDialog";
 import EditAddressWarehouseDialog from "@/components/orders/EditAddressWarehouseDialog";
+import EditCustomerInfoDialog from "@/components/orders/EditCustomerInfoDialog";
+import PhoneWithCopy from "@/components/orders/PhoneWithCopy";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import QuickDeliveryDialog from "@/components/orders/QuickDeliveryDialog";
 import ReassignOwnerDialog from "@/components/orders/ReassignOwnerDialog";
