@@ -214,11 +214,13 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
 
       const statusCounts: Record<string, number> = {};
       for (const o of rawOrders) statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
+      const withCourierCount = (assignmentsRes.data ?? []).filter((a: any) => a.status === "with_courier").length;
       setDebug({
         raw: rawOrders.length,
         filtered: ordersData.length,
         statuses: statusCounts,
         assignedExcluded: rawOrders.length - ordersData.length,
+        withCourier: withCourierCount,
         error: rawOrdersRes.error?.message,
       });
 
