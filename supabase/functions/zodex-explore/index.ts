@@ -23,17 +23,32 @@ class ZodexClient {
     this.capture(r);
     return await r.text();
   }
+  async post(path: string, body: URLSearchParams): Promise<string> {
+    const r = await fetch(`${ZODEX_BASE}${path}`, {
+      method: "POST",
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        "Cookie": this.cookieHeader(),
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body,
+    });
+    this.capture(r);
+    return await r.text();
+  }
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const url = new URL(req.url);
   const path = url.searchParams.get("path") || "/index.php";
-  const mode = url.searchParams.get("mode") || "links"; // links | raw | tables
+  const mode = url.searchParams.get("mode") || "links";
+  const postBody = url.searchParams.get("post"); // "shipper_id=215"
 
   const c = new ZodexClient();
   await c.login(Deno.env.get("ZODEX_USERNAME")!, Deno.env.get("ZODEX_PASSWORD")!);
-  const html = await c.get(path);
+  const html = postBody ? await c.post(path, new URLSearchParams(postBody)) : await c.get(path);
 
   if (mode === "raw") {
     const q = url.searchParams.get("q");
