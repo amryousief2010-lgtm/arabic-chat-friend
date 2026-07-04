@@ -533,7 +533,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
         <TabsList>
           <TabsTrigger value="prepare"><Package className="h-4 w-4 ml-1" />تجهيز الخط</TabsTrigger>
           <TabsTrigger value="summary"><FileText className="h-4 w-4 ml-1" />ملخص الصرف</TabsTrigger>
-          <TabsTrigger value="statement"><Users className="h-4 w-4 ml-1" />كشف كيمو حسب العميل</TabsTrigger>
+          <TabsTrigger value="statement"><Users className="h-4 w-4 ml-1" />{statementTabLabel}</TabsTrigger>
         </TabsList>
 
         {/* Prepare tab */}
