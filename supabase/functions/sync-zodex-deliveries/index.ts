@@ -169,6 +169,46 @@ interface ZodexRow {
   raw_date_text: string;
   zodex_receiver: string;   // column 3 "إلي" - the Zodex-side admin (informational)
   invoice_no: string | null; // e.g. "55811" if row is part of a closed payment invoice
+  raw_cells: string[];
+  searchable_text: string;
+}
+
+function normalizeBillNo(s: string | null | undefined): string {
+  return String(s || "").trim().toUpperCase().replace(/\s+/g, "");
+}
+
+function normalizeProductText(s: string | null | undefined): string {
+  return normalizeArabic(String(s || ""))
+    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+    .replace(/\b\d+(?:\.\d+)?\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildItemsSignature(items: Array<{ product_name?: string | null; offer_name?: string | null }>): string[] {
+  const labels = new Set<string>();
+  for (const item of items || []) {
+    const label = normalizeProductText(item.offer_name || item.product_name || "");
+    if (label) labels.add(label);
+  }
+  return [...labels].sort();
+}
+
+function scoreItemsAgainstRow(rowText: string, signature: string[]): number {
+  const text = normalizeProductText(rowText);
+  if (!text || !signature.length) return 0;
+
+  let hits = 0;
+  for (const label of signature) {
+    if (!label) continue;
+    if (text.includes(label)) {
+      hits++;
+      continue;
+    }
+    const labelTokens = label.split(" ").filter((t) => t.length > 1);
+    if (labelTokens.length && labelTokens.every((t) => text.includes(t))) hits++;
+  }
+  return hits / signature.length;
 }
 
 function splitNameAndPhone(text: string): { name: string; phone: string } {
@@ -249,7 +289,7 @@ function parseBalanceRows(html: string): ZodexRow[] {
     }
 
     rows.push({
-      bill_no: get(5),
+      bill_no: normalizeBillNo(get(5)),
       zodex_receiver: get(3),
       moderator_name: mod.name,
       moderator_phone: mod.phone,
@@ -262,6 +302,8 @@ function parseBalanceRows(html: string): ZodexRow[] {
       shipment_date: iso,
       raw_date_text: get(14),
       invoice_no: invoiceNo,
+      raw_cells: cells,
+      searchable_text: cells.join(" | "),
     });
   }
   return rows;
@@ -370,9 +412,10 @@ Deno.serve(async (req) => {
         if (data) matchedOrder = data;
       }
 
-      // 2) Auto-match by phone + amount + moderator, with FIFO tie-breaker.
+      // 2) Auto-match by phone + amount + moderator, with product-aware FIFO tie-breaker.
       //    Same customer can order many times a month with identical name/phone/amount,
-      //    so we pick the earliest-created candidate that hasn't been claimed yet.
+      //    so we first prefer the order whose item/offer signature appears in the Mega/Zodex
+      //    row, then pick the earliest-created candidate that hasn't been claimed yet.
       if (!matchedOrder && row.customer_phone) {
         const winStart = new Date(new Date(row.shipment_date).getTime() - DATE_WINDOW_DAYS * 86400_000).toISOString();
         const winEnd = new Date(new Date(row.shipment_date).getTime() + DATE_WINDOW_DAYS * 86400_000).toISOString();
@@ -394,11 +437,28 @@ Deno.serve(async (req) => {
         });
 
         if (strictHits.length >= 1) {
-          // FIFO: pick the earliest-created candidate. Because we're iterating Zodex
-          // rows in chronological order, the earliest order lines up with the earliest
-          // waybill even when several look identical.
-          strictHits.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-          matchedOrder = strictHits[0];
+          const candidateIds = strictHits.map((c) => c.id);
+          const { data: itemRows } = await supabase.from("order_items")
+            .select("order_id, product_name, offer_name")
+            .in("order_id", candidateIds);
+          const itemsByOrder = new Map<string, Array<{ product_name?: string | null; offer_name?: string | null }>>();
+          for (const item of (itemRows || []) as any[]) {
+            const arr = itemsByOrder.get(item.order_id) || [];
+            arr.push(item);
+            itemsByOrder.set(item.order_id, arr);
+          }
+
+          const scoredHits = strictHits.map((c) => {
+            const signature = buildItemsSignature(itemsByOrder.get(c.id) || []);
+            return { ...c, _itemsScore: scoreItemsAgainstRow(row.searchable_text, signature) };
+          });
+          const hasProductSignal = scoredHits.some((c) => c._itemsScore > 0);
+
+          scoredHits.sort((a, b) => {
+            if (hasProductSignal && b._itemsScore !== a._itemsScore) return b._itemsScore - a._itemsScore;
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          });
+          matchedOrder = scoredHits[0];
           claimedInThisRun.add(matchedOrder.id);
         }
       }
@@ -413,12 +473,16 @@ Deno.serve(async (req) => {
           shipping_bill_no: row.bill_no,
           zodex_synced_at: new Date().toISOString(),
         };
-        if (row.operation_type === OP_DELIVERY) {
+        if (row.operation_type === OP_DELIVERY && row.invoice_no) {
           patch.status = "delivered";
           patch.collection_status = "collected";
           patch.total_at_delivery = row.cod_amount;
           if (!matchedOrder.delivered_at) patch.delivered_at = row.shipment_date;
           stats.delivered_matched++;
+        } else if (row.operation_type === OP_DELIVERY) {
+          // White/open Mega/Zodex pickup rows can carry the same delivery operation label
+          // before the shipment is truly closed. Link the bill, but never flip the order to delivered.
+          (stats as any).pickup_linked = ((stats as any).pickup_linked || 0) + 1;
         } else if (row.operation_type === OP_RETURN) {
           patch.status = "returned";
           patch.zodex_return_amount = row.cod_amount;
