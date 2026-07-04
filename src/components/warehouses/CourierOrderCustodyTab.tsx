@@ -319,11 +319,25 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
       const giftOrderIds = new Set(myAsn.filter((a) => isNonCashAssignment(a, orders.find((o) => o.id === a.order_id) as any)).map((a) => a.order_id));
       const myOrderIds = new Set(myAsn.map((a) => a.order_id));
       const myOrders = orders.filter((o) => myOrderIds.has(o.id));
-      const totalValue = myOrders.reduce((s, o) => {
+      let totalValue = myOrders.reduce((s, o) => {
         if (giftOrderIds.has(o.id)) return s;
         if ((o as any).collection_method === 'mixed_payment') return s + Number((o as any).courier_cash_due || 0);
         return s + Number(o.total || 0);
       }, 0);
+      if (isAgouza && myOrders.length > 0 && bosttaUploadNets.length > 0) {
+        const myOrderNumbers = myOrders.map((o) => o.order_number).filter(Boolean);
+        const myOrderNumberSet = new Set(myOrderNumbers);
+        const matched = new Set<string>();
+        let sheetTotal = 0;
+        bosttaUploadNets.forEach((upload) => {
+          const uploadInsideThisCustody = upload.orderNumbers.length > 0 && upload.orderNumbers.every((no) => myOrderNumberSet.has(no));
+          const overlapsAlreadyMatched = upload.orderNumbers.some((no) => matched.has(no));
+          if (!uploadInsideThisCustody || overlapsAlreadyMatched) return;
+          upload.orderNumbers.forEach((no) => matched.add(no));
+          sheetTotal += Number(upload.netAmount || 0);
+        });
+        if (matched.size === myOrderNumbers.length && sheetTotal > 0) totalValue = sheetTotal;
+      }
       const myCols = collections.filter((cl) => myOrderIds.has(cl.order_id));
       const collected = myCols.reduce((s, cl) => s + Number(cl.amount_collected || 0), 0);
       const delivered = myAsn.filter((a) => ["delivered", "collected", "completed"].includes(a.status)).length;
@@ -342,7 +356,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         returns,
       };
     });
-  }, [custodies, assignments, orders, collections]);
+  }, [custodies, assignments, orders, collections, isAgouza, bosttaUploadNets]);
 
   const dashboard = useMemo(() => {
     const totals = custodyAnalytics.reduce(
@@ -384,8 +398,22 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         if (Math.abs(sum - Number(o.total || 0)) > 0.01) acc.missingBreakdown += 1;
       }
     });
+    if (isAgouza && relevant.length > 0 && bosttaUploadNets.length > 0) {
+      const relevantOrderNumbers = relevant.map((o) => o.order_number).filter(Boolean);
+      const relevantSet = new Set(relevantOrderNumbers);
+      const matched = new Set<string>();
+      let sheetTotal = 0;
+      bosttaUploadNets.forEach((upload) => {
+        const uploadInsideScope = upload.orderNumbers.length > 0 && upload.orderNumbers.every((no) => relevantSet.has(no));
+        const overlapsAlreadyMatched = upload.orderNumbers.some((no) => matched.has(no));
+        if (!uploadInsideScope || overlapsAlreadyMatched) return;
+        upload.orderNumbers.forEach((no) => matched.add(no));
+        sheetTotal += Number(upload.netAmount || 0);
+      });
+      if (matched.size === relevantOrderNumbers.length && sheetTotal > 0) acc.cashDue = sheetTotal;
+    }
     return acc;
-  }, [orders, assignments, selectedCustody]);
+  }, [orders, assignments, selectedCustody, isAgouza, bosttaUploadNets]);
 
 
   const current = custodyAnalytics.find((c) => c.id === selectedCustody);
