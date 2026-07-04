@@ -153,10 +153,14 @@ Deno.serve(async (req) => {
 
 
         // 4. Commit — deducts stock + writes inventory_movements
+        // If reservation had shortages, commit may fail. We swallow that so the
+        // order is still marked delivered; stock will go negative or stay put
+        // and be corrected during physical inventory reconciliation.
         const { error: commitErr } = await supabase.rpc("commit_agouza_stock_on_delivery", {
           p_order_id: order.id,
         });
-        if (commitErr) throw new Error(`commit: ${commitErr.message}`);
+        const commit_skipped = commitErr ? commitErr.message : null;
+
 
         // 5. Update order status
         const routerLog = {
