@@ -115,6 +115,15 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
 
   const getDeliveryKind = useMemo(() => makeGetDeliveryKind(warehouseId), [warehouseId]);
 
+  const isMainWarehouse = warehouseId === DEFAULT_MAIN_WAREHOUSE_ID;
+  const courierGroupLabel = isMainWarehouse ? "🛵 كيمو (توصيل رئيسي)" : "🛵 مناديب مخزن العجوزة";
+  const courierBadgeLabel = isMainWarehouse ? "🛵 كيمو" : "🛵 مندوب العجوزة";
+  const pickupGroupLabel = isMainWarehouse ? "🏬 استلام من الرئيسي" : "🏬 استلام من العجوزة";
+  const pickupBadgeLabel = isMainWarehouse ? "🏬 استلام رئيسي" : "🏬 استلام عجوزة";
+  const statementTabLabel = isMainWarehouse ? "كشف كيمو حسب العميل" : "كشف المندوب حسب العميل";
+  const statementCardTitle = isMainWarehouse ? "كشف كيمو — مفصل حسب العميل" : "كشف مندوب العجوزة — مفصل حسب العميل";
+  const courierNamePlaceholder = isMainWarehouse ? "مثال: كيمو" : "مثال: مندوب العجوزة";
+
 
   const chunkArray = <T,>(arr: T[], size: number) => {
     const chunks: T[][] = [];
@@ -476,7 +485,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
               <div className="space-y-3">
                 <div>
                   <Label>اسم المندوب *</Label>
-                  <Input value={newCourierName} onChange={(e) => setNewCourierName(e.target.value)} placeholder="مثال: كيمو" />
+                  <Input value={newCourierName} onChange={(e) => setNewCourierName(e.target.value)} placeholder={courierNamePlaceholder} />
                 </div>
                 <div>
                   <Label>ملاحظات (اختياري)</Label>
@@ -524,7 +533,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
         <TabsList>
           <TabsTrigger value="prepare"><Package className="h-4 w-4 ml-1" />تجهيز الخط</TabsTrigger>
           <TabsTrigger value="summary"><FileText className="h-4 w-4 ml-1" />ملخص الصرف</TabsTrigger>
-          <TabsTrigger value="statement"><Users className="h-4 w-4 ml-1" />كشف كيمو حسب العميل</TabsTrigger>
+          <TabsTrigger value="statement"><Users className="h-4 w-4 ml-1" />{statementTabLabel}</TabsTrigger>
         </TabsList>
 
         {/* Prepare tab */}
@@ -643,8 +652,8 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {([
                     { k: 'all' as const, label: 'الكل', count: dateScopedOrders.length, cls: 'bg-slate-100 text-slate-700 border-slate-300' },
-                    { k: 'kimo' as const, label: '🛵 كيمو (توصيل رئيسي)', count: deliveryCounts.kimo, cls: 'bg-purple-100 text-purple-700 border-purple-300' },
-                    { k: 'pickup_main' as const, label: '🏬 استلام من الرئيسي', count: deliveryCounts.pickup_main, cls: 'bg-orange-100 text-orange-700 border-orange-300' },
+                    { k: 'kimo' as const, label: courierGroupLabel, count: deliveryCounts.kimo, cls: 'bg-purple-100 text-purple-700 border-purple-300' },
+                    { k: 'pickup_main' as const, label: pickupGroupLabel, count: deliveryCounts.pickup_main, cls: 'bg-orange-100 text-orange-700 border-orange-300' },
                     { k: 'other' as const, label: 'غير ذلك', count: deliveryCounts.other, cls: 'bg-slate-50 text-slate-600 border-slate-200' },
                   ]).map(t => (
                     <button
@@ -691,8 +700,8 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
                               <TableCell>
                                 {(() => {
                                   const k = getDeliveryKind(o);
-                                  if (k === 'kimo') return <Badge className="bg-purple-100 text-purple-700 border border-purple-300 text-[10px]">🛵 كيمو</Badge>;
-                                  if (k === 'pickup_main') return <Badge className="bg-orange-100 text-orange-700 border border-orange-300 text-[10px]">🏬 استلام رئيسي</Badge>;
+                                  if (k === 'kimo') return <Badge className="bg-purple-100 text-purple-700 border border-purple-300 text-[10px]">{courierBadgeLabel}</Badge>;
+                                  if (k === 'pickup_main') return <Badge className="bg-orange-100 text-orange-700 border border-orange-300 text-[10px]">{pickupBadgeLabel}</Badge>;
                                   return <Badge variant="outline" className="text-[10px]">—</Badge>;
                                 })()}
                               </TableCell>
@@ -841,7 +850,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
         {/* Customer statement tab */}
         <TabsContent value="statement">
           <Card>
-            <CardHeader><CardTitle className="text-base">كشف كيمو — مفصل حسب العميل</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">{statementCardTitle}</CardTitle></CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
