@@ -157,15 +157,14 @@ export function parseProductText(
 ): ParsedProductLine {
   const original = String(text || "");
   let norm = normalizeArabic(original);
-  // Merge "digit + space + ك/كيلو" into a single qty token: "٢ ك" -> "2ك", "3 كيلو" -> "3كيلو"
-  norm = norm.replace(/(\d+)\s+(ك(?:يلو)?)\b/g, "$1$2");
-  // Expand Arabic dual (تثنية) shortcuts to "2ك <word>"
-  norm = norm
-    .replace(/\bدبوسين\b/g, "2ك دبوس")
-    .replace(/\bبيضتين\b/g, "2ك بيض")
-    .replace(/\bرقبتين\b/g, "2ك رقاب")
-    .replace(/\bكيلوين\b/g, "2ك")
-    .replace(/\bكيلوهين\b/g, "2ك");
+  // Merge "digit + space + ك/كيلو" into a single qty token: "2 ك" -> "2ك", "3 كيلو" -> "3كيلو"
+  norm = norm.replace(/(\d+)\s+(كيلو|ك)(?=\s|$)/g, "$1$2");
+  // Expand Arabic dual (تثنية) shortcuts to "2ك <word>" (space-delimited since \b doesn't work on Arabic)
+  const dualMap: Record<string,string> = {
+    "دبوسين":"2ك دبوس","بيضتين":"2ك بيض","رقبتين":"2ك رقاب","كيلوين":"2ك","كيلوهين":"2ك",
+  };
+  norm = norm.split(" ").map(w => dualMap[w] || w).join(" ");
+
   const tokens = norm.split(" ").filter(Boolean);
 
 
