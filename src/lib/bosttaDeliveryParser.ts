@@ -68,7 +68,10 @@ export function normalizeArabic(s: string): string {
 const ALIASES: Record<string, string> = {
   // half-kilo variants often written slightly different
   "لحم": "لحم قطع",
+  "لحمه": "لحم قطع",
+  "لحمة": "لحم قطع",
   "لحم قطع": "لحم قطع",
+
   "قطع لحم": "لحم قطع",
   "استيك": "استيك",
   "موزه": "موزه",
