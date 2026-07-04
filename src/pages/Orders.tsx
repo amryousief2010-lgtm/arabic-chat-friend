@@ -2337,19 +2337,31 @@ const Orders = () => {
                       </button>
                     </TableCell>
                     <TableCell>
-                      <button
-                        type="button"
-                        onClick={() => openMixedDialog(order.id)}
-                        className="text-right hover:underline focus:outline-none"
-                        title="ضبط التحصيل"
-                      >
-                        {order.customer_name}
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openMixedDialog(order.id)}
+                          className="text-right hover:underline focus:outline-none"
+                          title="ضبط التحصيل"
+                        >
+                          {order.customer_name}
+                        </button>
+                        {canManageOrders && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setEditCustomerOrder(order); }}
+                            className="text-muted-foreground hover:text-primary p-0.5"
+                            title="تعديل بيانات العميل"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
                     </TableCell>
 
                     <TableCell className="font-mono text-sm" dir="ltr">
                       {order.customer_phone ? (
-                        <a href={`tel:${order.customer_phone}`} className="hover:underline">{order.customer_phone}</a>
+                        <PhoneWithCopy phone={order.customer_phone} className="text-sm" />
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
