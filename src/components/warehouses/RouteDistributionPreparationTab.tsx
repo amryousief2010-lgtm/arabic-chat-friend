@@ -129,7 +129,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
     try {
       const { data, error } = await (supabase as any)
         .from("courier_goods_custodies")
-        .insert({ courier_name: name, notes: newCustodyNotes.trim() || null, opened_by: user?.id ?? null, status: "open" })
+        .insert({ courier_name: name, notes: newCustodyNotes.trim() || null, opened_by: user?.id ?? null, status: "open", warehouse_id: warehouseId })
         .select("id, courier_name, status, opened_at")
         .single();
       if (error) throw error;
