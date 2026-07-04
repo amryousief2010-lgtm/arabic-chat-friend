@@ -369,9 +369,9 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           const o: any = orders.find((x) => x.id === a.order_id);
           if (!o) return;
           const deliveredStatus = ["delivered", "collected", "completed"].includes(o.status);
-          const nonCash = isNonCashAssignment(a, o);
+          const nonCash = isAgouza ? false : isNonCashAssignment(a, o);
           if (!nonCash) {
-            if (o.collection_method === "mixed_payment") totalValue += Number(o.courier_cash_due || 0);
+            if (!isAgouza && o.collection_method === "mixed_payment") totalValue += Number(o.courier_cash_due || 0);
             else totalValue += Number(o.total || 0);
           }
           vodafone += Number(o.vodafone_cash_amount || 0);
@@ -380,7 +380,8 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           other += Number(o.other_amount || 0);
           free += Number(o.free_amount || 0);
           if (deliveredStatus && !nonCash) {
-            cashDue += o.collection_method === "mixed_payment" ? Number(o.courier_cash_due || 0) : Number(o.total || 0);
+            if (isAgouza) cashDue += Number(o.total || 0);
+            else cashDue += o.collection_method === "mixed_payment" ? Number(o.courier_cash_due || 0) : Number(o.total || 0);
           }
           if (deliveredStatus && o.collection_method === "mixed_payment") {
             const sum = Number(o.courier_cash_due || 0) + Number(o.vodafone_cash_amount || 0) + Number(o.instapay_amount || 0) +
