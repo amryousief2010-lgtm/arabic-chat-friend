@@ -277,13 +277,13 @@ export function BulkDeliveryUploadButton() {
                           </Button>
                         </AlertDescription>
                       </Alert>
-                      <ShipmentTable shipments={unregistered} />
+                      <ShipmentTable shipments={unregistered} phoneToModerator={phoneToModerator} />
                     </>
                   )}
                 </TabsContent>
 
                 <TabsContent value="ready">
-                  <ShipmentTable shipments={readyItems} />
+                  <ShipmentTable shipments={readyItems} phoneToModerator={phoneToModerator} />
                 </TabsContent>
                 <TabsContent value="warnings">
                   {withWarnings.length === 0 ? (
@@ -296,7 +296,7 @@ export function BulkDeliveryUploadButton() {
                           الشحنات دي فيها منتجات مش اتعرفت — اتحطّت في الأوردر بدونها. راجعهم قبل الاعتماد.
                         </AlertDescription>
                       </Alert>
-                      <ShipmentTable shipments={withWarnings} showUnknown />
+                      <ShipmentTable shipments={withWarnings} showUnknown phoneToModerator={phoneToModerator} />
                     </>
                   )}
                 </TabsContent>
@@ -311,7 +311,7 @@ export function BulkDeliveryUploadButton() {
                           الشحنات دي مش هتتحدّث لأن كل منتجاتها مش موجودة في الكاتالوج.
                         </AlertDescription>
                       </Alert>
-                      <ShipmentTable shipments={skipped} showUnknown />
+                      <ShipmentTable shipments={skipped} showUnknown phoneToModerator={phoneToModerator} />
                     </>
                   )}
                 </TabsContent>
