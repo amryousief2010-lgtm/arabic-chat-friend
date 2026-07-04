@@ -2233,14 +2233,20 @@ export default function MainWarehouseTreasuryTab() {
                   const day = new Date(d.deposit_date).toLocaleDateString("ar-EG", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
                   return (
                     <label key={d.id} className={`flex items-start gap-3 p-3 border-b cursor-pointer hover:bg-muted/30 ${selected ? "bg-emerald-50" : ""}`}>
-                      <input type="checkbox" checked={selected} onChange={() => toggleDeposit(d.id, Number(d.amount || 0))} className="mt-1" />
+                      <input type="checkbox" checked={selected} onChange={() => toggleDeposit(d.id, Number(d.total_amount ?? d.amount ?? 0))} className="mt-1" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <div className="font-semibold text-sm">{day}</div>
-                          <Badge className="bg-emerald-600 text-white">{fmt(Number(d.amount || 0))} ج.م</Badge>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {Number(d.amount || 0) > 0 && <Badge className="bg-emerald-600 text-white">كاش {fmt(Number(d.amount || 0))} ج.م</Badge>}
+                            {Number(d.non_cash_amount || 0) > 0 && <Badge className="bg-sky-600 text-white">إلكتروني {fmt(Number(d.non_cash_amount || 0))} ج.م</Badge>}
+                          </div>
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">
                           المندوب: <b>{d.courier_name || "—"}</b> • عدد الأوردرات: <b>{d.orders_count}</b>
+                          {Number(d.amount || 0) === 0 && Number(d.non_cash_amount || 0) > 0 && (
+                            <span className="ml-1 text-sky-700"> • حركة إلكترونية فقط (بدون كاش)</span>
+                          )}
                         </div>
                         {Array.isArray(d.order_numbers) && d.order_numbers.length > 0 && (
                           <div className="text-[10px] text-muted-foreground mt-1 truncate" title={d.order_numbers.join(", ")}>
