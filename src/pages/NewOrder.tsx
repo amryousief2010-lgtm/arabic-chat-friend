@@ -1054,7 +1054,7 @@ const NewOrder = () => {
           moderator: moderatorName,
           source: (source === 'أخرى' ? sourceCustom.trim() : source) || null,
           shipping_company: effectiveShippingCompany,
-          shipping_bill_no: shippingBillNo.trim() ? shippingBillNo.trim().toUpperCase() : null,
+          shipping_bill_no: null,
           extra_charge: Number(extraCharge) || 0,
           extra_charge_reason: extraChargeReason.trim() || null,
           fulfillment_type: fulfillmentType,
