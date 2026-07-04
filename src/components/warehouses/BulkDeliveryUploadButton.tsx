@@ -189,10 +189,11 @@ export function BulkDeliveryUploadButton() {
   };
 
   const copyUnregisteredToClipboard = async () => {
-    const lines = unregistered.map(
-      (s) => `${s.phone} — ${s.customer_name} — ${s.cod} ج — ${s.raw_products}`,
-    );
-    const text = `شحنات محتاجة تسجيل (${unregistered.length}):\n\n${lines.join("\n")}`;
+    const lines = unregistered.map((s) => {
+      const mod = phoneToModerator.get(s.phone) || "غير معروف";
+      return `${s.phone} — ${s.customer_name} — ${s.cod} ج — ${s.raw_products} — البنت: ${mod}`;
+    });
+    const text = `شحنات محتاجة تسجيل (${unregistered.length}):\n\n${lines.join("\n\n")}`;
     try {
       await navigator.clipboard.writeText(text);
       toast.success("تم نسخ القائمة — ابعتها للبنات يسجّلوا الأوردرات");
