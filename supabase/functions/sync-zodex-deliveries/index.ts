@@ -430,6 +430,116 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ----- Closed invoices processing -----
+    // Group delivery rows by invoice_no; for each new invoice, upsert record,
+    // link matched orders, and assign each matched order to Agouza courier custody.
+    const invoiceGroups = new Map<string, ZodexRow[]>();
+    for (const row of allRows) {
+      if (row.operation_type !== OP_DELIVERY) continue;
+      if (!row.invoice_no) continue;
+      const list = invoiceGroups.get(row.invoice_no) || [];
+      list.push(row);
+      invoiceGroups.set(row.invoice_no, list);
+    }
+    const closedInvoiceStats = { invoices_processed: 0, orders_assigned_to_custody: 0, invoices_new: 0 };
+    let sharedCustodyId: string | null = null;
+    for (const [invoiceNo, invRows] of invoiceGroups.entries()) {
+      const totalAmount = invRows.reduce((sum, r) => sum + Number(r.cod_amount || 0), 0);
+      // Upsert invoice header
+      const { data: existingInv } = await supabase.from("zodex_closed_invoices")
+        .select("id, custody_id, processed_at").eq("invoice_no", invoiceNo).eq("shipper_id", SHIPPER_ID).maybeSingle();
+      let invoiceId: string;
+      let isNew = false;
+      if (existingInv) {
+        invoiceId = existingInv.id;
+        await supabase.from("zodex_closed_invoices").update({
+          total_amount: totalAmount,
+          orders_count: invRows.length,
+          last_synced_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq("id", invoiceId);
+      } else {
+        const { data: created, error: cErr } = await supabase.from("zodex_closed_invoices").insert({
+          invoice_no: invoiceNo,
+          shipper_id: SHIPPER_ID,
+          shipper_name: "نعام العاصمة",
+          total_amount: totalAmount,
+          orders_count: invRows.length,
+        }).select("id").single();
+        if (cErr || !created) { errors.push(`invoice_insert ${invoiceNo}: ${cErr?.message}`); continue; }
+        invoiceId = created.id;
+        isNew = true;
+        closedInvoiceStats.invoices_new++;
+      }
+
+      // Process each line
+      let matchedCount = 0;
+      let missingCount = 0;
+      let assignedCount = 0;
+      for (const r of invRows) {
+        // Look up matched order via bill_no (freshly linked in main loop above)
+        const { data: ord } = await supabase.from("orders")
+          .select("id, order_number").eq("shipping_bill_no", r.bill_no).maybeSingle();
+        const matched = !!ord;
+        if (matched) matchedCount++; else missingCount++;
+
+        let custodyAssigned = false;
+        if (matched && ord) {
+          if (!sharedCustodyId) sharedCustodyId = await getOrCreateAgouzaCustody(supabase);
+          if (sharedCustodyId) {
+            const nowIso = new Date().toISOString();
+            const { error: asnErr } = await supabase
+              .from("courier_order_assignments")
+              .upsert({
+                custody_id: sharedCustodyId,
+                order_id: ord.id,
+                courier_name: AGOUZA_COURIER_NAME,
+                warehouse_id: AGOUZA_WAREHOUSE_ID,
+                status: "delivered",
+                assigned_at: nowIso,
+                delivered_at: nowIso,
+                notes: `فاتورة زودكس مقفولة ${invoiceNo} — بوليصة ${r.bill_no}`,
+              }, { onConflict: "order_id" });
+            if (!asnErr) { custodyAssigned = true; assignedCount++; }
+            else console.error("custody assign failed", ord.order_number, asnErr);
+          }
+        }
+
+        // Upsert invoice line
+        await supabase.from("zodex_closed_invoice_orders").upsert({
+          invoice_id: invoiceId,
+          order_id: ord?.id || null,
+          bill_no: r.bill_no,
+          customer_phone: r.customer_phone,
+          moderator_name: r.moderator_name,
+          cod_amount: r.cod_amount,
+          matched,
+          custody_assigned: custodyAssigned,
+        }, { onConflict: "invoice_id,bill_no" });
+      }
+
+      await supabase.from("zodex_closed_invoices").update({
+        orders_matched: matchedCount,
+        orders_missing: missingCount,
+        custody_id: sharedCustodyId,
+        processed_at: existingInv?.processed_at || new Date().toISOString(),
+      }).eq("id", invoiceId);
+
+      closedInvoiceStats.invoices_processed++;
+      closedInvoiceStats.orders_assigned_to_custody += assignedCount;
+
+      // Notify Alaa about the newly closed invoice
+      if (isNew) {
+        await supabase.from("notifications").insert({
+          title: `فاتورة زودكس مقفولة — ${invoiceNo}`,
+          description: `نعام العاصمة • ${invRows.length} أوردر • إجمالى ${totalAmount.toFixed(0)} ج • تم نقلها لعهدة مندوب العجوزة${missingCount ? ` • ⚠️ ${missingCount} أوردر مش مسجل عندنا` : ""}`,
+          type: "zodex_invoice_closed",
+          target_user_id: ALAA_USER_ID,
+        });
+      }
+    }
+    Object.assign(stats, { closed_invoices: closedInvoiceStats });
+
     // ----- Pipeline counts (Shipper Shipments page) -----
     // Extract `var shipments = [...]` from shippers_shipments page
     let pipelineCounts: Record<string, { count: number; total: number }> | null = null;
