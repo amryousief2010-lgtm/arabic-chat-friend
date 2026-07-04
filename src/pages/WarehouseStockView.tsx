@@ -86,10 +86,11 @@ const normalizeSearch = (value: unknown) =>
     .replace(/\s+/g, " ");
 
 const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
-  const { isExecutiveManager, isGeneralManager, canManageAgouzaStock, isAgouzaWarehouseKeeper } = useAuth();
+  const { isExecutiveManager, isGeneralManager, canManageAgouzaStock, isAgouzaWarehouseKeeper, isWarehouseSupervisor } = useAuth();
   const navigate = useNavigate();
   const canEditAll = isExecutiveManager || isGeneralManager;
-  const canEditAgouza = canManageAgouzaStock;
+  // Agouza keeper can view + upload delivery sheets, but CANNOT edit stock quantities directly
+  const canEditAgouza = canEditAll || isWarehouseSupervisor;
   const [products, setProducts] = useState<Product[]>([]);
   const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
   const [mainStock, setMainStock] = useState<Record<string, number>>({});
