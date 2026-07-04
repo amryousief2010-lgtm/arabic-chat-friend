@@ -97,6 +97,7 @@ interface Order {
   customer_id: string | null;
   customer_name: string;
   customer_phone: string;
+  customer_phone2?: string | null;
   status: OrderStatus;
   payment_method: string;
   payment_status: string;
@@ -582,7 +583,8 @@ const Orders = () => {
           order_number: order.order_number,
           customer_id: order.customer_id,
           customer_name: order.customers?.name || 'عميل غير معروف',
-          customer_phone: order.customers?.phone || '',
+          customer_phone: order.customers?.phone || order.customers?.phone2 || '',
+          customer_phone2: order.customers?.phone2 || null,
           status: order.status as OrderStatus,
           payment_method: order.payment_method,
           payment_status: order.payment_status,
@@ -676,11 +678,12 @@ const Orders = () => {
       if (debouncedSearch) {
         const term = debouncedSearch;
         const digits = term.replace(/[^\d]/g, "");
-        // 1) ابحث عن العملاء المطابقين بالاسم أو الهاتف
+        // 1) ابحث عن العملاء المطابقين بالاسم أو الهاتف الأساسي أو الهاتف الإضافي
         let custIds: string[] = [];
         const custFilters: string[] = [];
         if (term) custFilters.push(`name.ilike.%${term}%`);
         if (digits) custFilters.push(`phone.ilike.%${digits}%`);
+        if (digits) custFilters.push(`phone2.ilike.%${digits}%`);
         if (custFilters.length > 0) {
           const { data: cdata } = await supabase
             .from('customers')
@@ -689,20 +692,17 @@ const Orders = () => {
             .limit(500);
           custIds = (cdata || []).map((c: any) => c.id);
         }
-        // 2) جلب الطلبات: رقم طلب / اسم عميل / هاتف عميل مطابق أو ينتمي لعميل مطابق
+        // 2) جلب الطلبات: رقم طلب أو ينتمي لعميل مطابق.
+        // بيانات الاسم/الهاتف موجودة في جدول العملاء، لذلك لا نفلتر على أعمدة غير موجودة داخل orders.
         const orFilters: string[] = [
           `order_number.ilike.%${term}%`,
-          `customer_name.ilike.%${term}%`,
         ];
-        if (digits) {
-          orFilters.push(`customer_phone.ilike.%${digits}%`);
-        }
         if (custIds.length > 0) {
           orFilters.push(`customer_id.in.(${custIds.join(',')})`);
         }
         const { data, error } = await supabase
           .from('orders')
-          .select(`${ORDER_COLS}, customers (name, phone, governorate)`)
+          .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate)`)
           .or(orFilters.join(','))
           .order('created_at', { ascending: false })
           .limit(300);
@@ -737,7 +737,7 @@ const Orders = () => {
       const fetchPage = async (page: number) => {
         let q = supabase
           .from('orders')
-          .select(`${ORDER_COLS}, customers (name, phone, governorate)`)
+          .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate)`)
           .order('created_at', { ascending: false })
           .range(page * ORDERS_PAGE, (page + 1) * ORDERS_PAGE - 1);
         if (startDate) q = q.gte('created_at', startDate);
@@ -811,13 +811,17 @@ const Orders = () => {
     const q = debouncedSearch.trim().toLowerCase();
     const normalizedPhoneQuery = q.replace(/[^\d]/g, "");
     const normalizedOrderPhone = (order.customer_phone || "").replace(/[^\d]/g, "");
+    const normalizedOrderPhone2 = (order.customer_phone2 || "").replace(/[^\d]/g, "");
     const routeName = (order.route_name || "").toLowerCase();
     const matchesSearch =
       !q ||
       order.order_number.toLowerCase().includes(q) ||
       order.customer_name.toLowerCase().includes(q) ||
       routeName.includes(q) ||
-      (normalizedPhoneQuery.length > 0 && normalizedOrderPhone.includes(normalizedPhoneQuery));
+      (normalizedPhoneQuery.length > 0 && (
+        normalizedOrderPhone.includes(normalizedPhoneQuery) ||
+        normalizedOrderPhone2.includes(normalizedPhoneQuery)
+      ));
     // Use Cairo calendar for year/month classification so orders after
     // midnight Cairo (still previous UTC day) are bucketed correctly.
     const cairoYMD = toCairoDateString(order.created_at); // YYYY-MM-DD
