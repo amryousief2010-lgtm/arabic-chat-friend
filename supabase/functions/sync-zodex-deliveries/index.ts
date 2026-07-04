@@ -350,11 +350,11 @@ Deno.serve(async (req) => {
       } else {
         await supabase.from("zodex_missing_orders").insert({
           bill_no: row.bill_no,
-          customer_name: row.moderator_ref,
+          customer_name: row.customer_name,
           customer_phone: row.customer_phone,
           region: row.region,
           cod_amount: row.cod_amount,
-          moderator_name: row.customer_note,
+          moderator_name: row.moderator_name,
           zodex_status: row.shipment_status,
           operation_type: row.operation_type,
           shipment_date: row.shipment_date,
@@ -363,7 +363,7 @@ Deno.serve(async (req) => {
         // Notify Alaa
         await supabase.from("notifications").insert({
           title: "أوردر مسجل على زودكس وغير موجود عندنا",
-          description: `بوليصة ${row.bill_no} • ${row.moderator_ref || ""} • ${row.customer_phone || ""} • ${row.region || ""} • ${row.cod_amount} ج • تاريخ: ${row.raw_date_text}`,
+          description: `بوليصة ${row.bill_no} • العميل: ${row.customer_name || "—"} (${row.customer_phone || "—"}) • الموديرتور: ${row.moderator_name || "—"} • ${row.region || ""} • ${row.cod_amount} ج`,
           type: "zodex_missing",
           target_user_id: ALAA_USER_ID,
         });
