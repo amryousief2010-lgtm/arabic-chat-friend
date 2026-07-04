@@ -253,8 +253,10 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
       // orders that are already accounted for as a closed Mega invoice.
       const { data: closedInvs } = await (supabase as any)
         .from("zodex_closed_invoices")
-        .select("id")
-        .in("custody_id", cst.map((c) => c.id));
+        .select("id, invoice_no, total_amount, orders_count, custody_id, first_seen_at")
+        .in("custody_id", cst.map((c) => c.id))
+        .order("first_seen_at", { ascending: true });
+      setClosedInvoices((closedInvs || []) as any);
       const invIds = (closedInvs || []).map((r: any) => r.id);
       if (invIds.length) {
         const { data: closedOrders } = await (supabase as any)
@@ -269,6 +271,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
     } else {
       setDailyDeposits([]);
       setZodexClosedOrderIds(new Set());
+      setClosedInvoices([]);
     }
 
     if (isAgouza) {
