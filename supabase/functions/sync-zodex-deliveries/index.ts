@@ -234,17 +234,29 @@ Deno.serve(async (req) => {
 
     // Fetch pages
     const allRows: ZodexRow[] = [];
+    let firstPageDebug: any = null;
     for (let page = 1; page <= maxPages; page++) {
       const html = await client.get("/users.php", {
         action: "showBalance", id: SHIPPER_ID, account_type: "shipper",
         items: ITEMS_PER_PAGE, page, from: fromDate, to: toDate,
       });
       const rows = parseBalanceRows(html);
+      if (page === 1) {
+        firstPageDebug = {
+          html_len: html.length,
+          has_login_form: html.includes('id="email"') && html.includes('id="password"'),
+          zx_matches: (html.match(/ZX\d+/g) || []).length,
+          tr_count: (html.match(/<tr/g) || []).length,
+          parsed_rows: rows.length,
+          from: fromDate, to: toDate,
+        };
+      }
       if (!rows.length) break;
       allRows.push(...rows);
       if (rows.length < ITEMS_PER_PAGE) break;
     }
     stats.total_rows = allRows.length;
+    (stats as any).debug = firstPageDebug;
 
     // Process each row
     for (const row of allRows) {
