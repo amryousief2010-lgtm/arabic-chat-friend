@@ -344,6 +344,19 @@ Deno.serve(async (req) => {
           stats.returned_matched++;
         }
         await supabase.from("orders").update(patch).eq("id", matchedOrder.id);
+
+        // Auto-resolve any prior "missing" row for this bill
+        const { data: priorMissing } = await supabase.from("zodex_missing_orders")
+          .select("id, status").eq("bill_no", row.bill_no).maybeSingle();
+        if (priorMissing && priorMissing.status !== "resolved") {
+          await supabase.from("zodex_missing_orders").update({
+            status: "resolved",
+            resolved_order_id: matchedOrder.id,
+            resolved_at: new Date().toISOString(),
+            ignored_reason: "auto-linked by sync",
+          }).eq("id", priorMissing.id);
+          stats.missing_auto_resolved++;
+        }
         continue;
       }
 
