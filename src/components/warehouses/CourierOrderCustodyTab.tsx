@@ -245,11 +245,32 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         .in("custody_id", cst.map((c) => c.id))
         .order("deposit_date", { ascending: false });
       setDailyDeposits(depRows || []);
+
+      // Load order IDs already tied to a closed Mega/Zodex invoice for these custodies.
+      // We exclude them from the day-grouping so the "not deposited" count doesn't include
+      // orders that are already accounted for as a closed Mega invoice.
+      const { data: closedInvs } = await (supabase as any)
+        .from("zodex_closed_invoices")
+        .select("id")
+        .in("custody_id", cst.map((c) => c.id));
+      const invIds = (closedInvs || []).map((r: any) => r.id);
+      if (invIds.length) {
+        const { data: closedOrders } = await (supabase as any)
+          .from("zodex_closed_invoice_orders")
+          .select("order_id")
+          .in("invoice_id", invIds)
+          .not("order_id", "is", null);
+        setZodexClosedOrderIds(new Set((closedOrders || []).map((r: any) => r.order_id).filter(Boolean)));
+      } else {
+        setZodexClosedOrderIds(new Set());
+      }
     } else {
       setDailyDeposits([]);
+      setZodexClosedOrderIds(new Set());
     }
 
     if (isAgouza) {
+
       const { data: uploadRows } = await (supabase as any)
         .from("bostta_delivery_uploads")
         .select("id, filename, summary, created_at")
