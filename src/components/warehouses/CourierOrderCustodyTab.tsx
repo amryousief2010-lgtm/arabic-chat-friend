@@ -372,7 +372,8 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           const deliveredStatus = ["delivered", "collected", "completed"].includes(o.status);
           const nonCash = isAgouza ? false : isNonCashAssignment(a, o);
           if (!nonCash) {
-            if (!isAgouza && o.collection_method === "mixed_payment") totalValue += Number(o.courier_cash_due || 0);
+            if (isAgouza) totalValue += Math.max(0, Number(o.total || 0) - Number(o.delivery_fee || 0));
+            else if (o.collection_method === "mixed_payment") totalValue += Number(o.courier_cash_due || 0);
             else totalValue += Number(o.total || 0);
           }
           vodafone += Number(o.vodafone_cash_amount || 0);
