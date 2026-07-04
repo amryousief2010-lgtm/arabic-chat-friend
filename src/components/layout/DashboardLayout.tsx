@@ -69,6 +69,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     <div className="min-h-screen bg-background">
       <PendingApprovalsAlert />
       <ExecutiveApprovalsAlert />
+      <MegaDiscrepancyAlert />
+
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
         <AppSidebar />
