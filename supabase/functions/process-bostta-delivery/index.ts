@@ -34,6 +34,19 @@ interface Shipment {
 
 const AGOUZA_WAREHOUSE_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
 
+function getUserIdFromJwt(jwt: string): string | null {
+  try {
+    const payload = jwt.split(".")[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(normalized.length + ((4 - normalized.length % 4) % 4), "=");
+    const claims = JSON.parse(atob(padded));
+    return typeof claims?.sub === "string" && claims.sub ? claims.sub : null;
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -43,22 +56,24 @@ Deno.serve(async (req) => {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { autoRefreshToken: false, persistSession: false } },
     );
 
-    // JWT check — validate the caller's token via service-role client
+    // The function gateway verifies the JWT before this code runs. Avoid auth.getUser(jwt)
+    // here because stale-but-gateway-accepted sessions can fail with
+    // "Session from session_id claim in JWT does not exist" and block warehouse work.
     if (!jwt) {
       return new Response(JSON.stringify({ error: "Unauthorized: missing token" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const { data: userRes, error: userErr } = await supabase.auth.getUser(jwt);
-    if (userErr || !userRes?.user) {
-      console.error("auth.getUser failed", userErr?.message);
-      return new Response(JSON.stringify({ error: "Unauthorized", detail: userErr?.message }), {
+
+    const userId = getUserIdFromJwt(jwt);
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "Unauthorized: invalid token" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = userRes.user.id;
 
     const body = await req.json();
     const shipments: Shipment[] = Array.isArray(body?.shipments) ? body.shipments : [];
