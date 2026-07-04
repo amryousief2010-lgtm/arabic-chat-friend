@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
   const password = Deno.env.get("ZODEX_PASSWORD")!;
   const client = new ZodexClient();
   await client.login(email, password);
-  const html = await client.get(`${ZODEX_BASE}/users.php?action=showBalance&id=215&account_type=shipper`);
+  const html = await client.get("/users.php", { action: "showBalance", id: 215, account_type: "shipper" });
   const idx = html.indexOf(search);
   const slice = idx >= 0 ? html.slice(Math.max(0, idx - 1500), idx + 4000) : "not found";
   // Count invoice-like rows (numbers appearing as bold totals)
