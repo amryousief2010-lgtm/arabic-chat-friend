@@ -59,15 +59,28 @@ export default function MegaDiscrepancyAlert() {
       if (error) throw error;
       const ids = (data || []).map((d: any) => d.order_id);
       if (ids.length === 0) return [] as OpenRow[];
-      const [{ data: orders }, { data: customers }] = await Promise.all([
-        supabase.from("orders").select("id, order_number, total, shipping_bill_no, customer_id").in("id", ids),
-        supabase.from("customers").select("id, name").in("id", (await supabase.from("orders").select("customer_id").in("id", ids)).data?.map((o: any) => o.customer_id).filter(Boolean) || []),
-      ]);
+      const { data: orders } = await supabase
+        .from("orders")
+        .select("id, order_number, total, shipping_bill_no, customer_id")
+        .in("id", ids);
+      const custIds = Array.from(new Set((orders || []).map((o: any) => o.customer_id).filter(Boolean)));
+      const { data: customers } = custIds.length
+        ? await supabase.from("customers").select("id, name").in("id", custIds)
+        : { data: [] as any[] };
       const custMap = new Map((customers || []).map((c: any) => [c.id, c.name]));
       const orderMap = new Map(
-        (orders || []).map((o: any) => [o.id, { order_number: o.order_number, total: Number(o.total || 0), shipping_bill_no: o.shipping_bill_no, customer_name: (custMap.get(o.customer_id) as string) || null }])
+        (orders || []).map((o: any) => [
+          o.id,
+          {
+            order_number: o.order_number,
+            total: Number(o.total || 0),
+            shipping_bill_no: o.shipping_bill_no,
+            customer_name: (custMap.get(o.customer_id) as string) || null,
+          },
+        ])
       );
       return (data || []).map((d: any) => ({ ...d, order: orderMap.get(d.order_id) })) as OpenRow[];
+
     },
   });
 
