@@ -417,6 +417,42 @@ Deno.serve(async (req) => {
       errors.push(`pipeline_counts: ${e instanceof Error ? e.message : String(e)}`);
     }
 
+    // ----- Pickup count (Shippings Grouping page) -----
+    // The shippings_grouping page lists shippers with pickup shipment counts.
+    // Row contains shipper name (نعام العاصمة) plus a numeric count. Extract row and pull number.
+    let pickupCount: number | null = null;
+    try {
+      const html = await client.get("/shippings.php", { action: "shippings_grouping" });
+      // Find the row containing نعام العاصمة (or matching shipper_id link)
+      // Rows look like: <tr>...<td>نعام العاصمة</td>...<td>N</td>...<a href="...shipper_id=215..."></a></tr>
+      const idxShipper = html.indexOf(`shipper_id=${SHIPPER_ID}`);
+      const idxName = html.indexOf("نعام العاصمة");
+      const anchor = idxShipper >= 0 ? idxShipper : idxName;
+      if (anchor >= 0) {
+        // Walk back to nearest <tr, forward to </tr>
+        const trStart = html.lastIndexOf("<tr", anchor);
+        const trEnd = html.indexOf("</tr>", anchor);
+        if (trStart >= 0 && trEnd > trStart) {
+          const rowHtml = html.slice(trStart, trEnd);
+          const cells = [...rowHtml.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)]
+            .map((mm) => mm[1].replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim());
+          // Find numeric cells; pick the largest plausible count (pickup total)
+          const nums = cells
+            .map((c) => {
+              const nm = c.match(/^\d+$/);
+              return nm ? parseInt(nm[0], 10) : null;
+            })
+            .filter((n): n is number => n !== null);
+          if (nums.length) pickupCount = Math.max(...nums);
+        }
+      }
+    } catch (e) {
+      errors.push(`pickup_count: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    if (pipelineCounts && pickupCount !== null) {
+      pipelineCounts["بيك أب"] = { count: pickupCount, total: 0 };
+    }
+
     await supabase.from("zodex_sync_runs").update({
       status: "success", finished_at: new Date().toISOString(),
       ...stats, pipeline_counts: pipelineCounts, summary: { errors },
