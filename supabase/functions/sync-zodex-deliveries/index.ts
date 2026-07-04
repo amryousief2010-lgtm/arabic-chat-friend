@@ -205,13 +205,49 @@ function parseBalanceRows(html: string): ZodexRow[] {
     const get = (i: number) => cells[base + i] ?? "";
     const iso = parseZodexDate(get(14)) || new Date().toISOString();
     const mod = splitNameAndPhone(get(6));
-    // Invoice number: appears in one of the trailing cells as "<shipper name>-<invoice_no>"
-    // Match on any cell ending with "-<digits>" where digits are 4-7 long.
+
+    // -------- Row color detection (green = closed/invoiced, white = still in pickup) --------
+    // Collect all styling hints from <tr> and its <td>s.
+    const trAny = tr as any;
+    const styleBlob = (
+      (trAny.getAttribute?.("class") || "") + " " +
+      (trAny.getAttribute?.("style") || "") + " " +
+      (trAny.getAttribute?.("bgcolor") || "") + " " +
+      Array.from(tds).map((td) => {
+        const a = td as any;
+        return (a.getAttribute?.("class") || "") + " " +
+               (a.getAttribute?.("style") || "") + " " +
+               (a.getAttribute?.("bgcolor") || "");
+      }).join(" ")
+    ).toLowerCase();
+
+    // Consider row "green" if any known green marker appears. Covers:
+    //  - Bootstrap-style classes: success, table-success, bg-success, alert-success
+    //  - Literal word "green" in class / style / bgcolor
+    //  - Common green hex codes (#d4edda #c8e6c9 #a5d6a7 #dff0d8 #b6d7a8 #90ee90 #98fb98 #00ff00)
+    //  - rgb(...) with a clearly green channel
+    const isGreen =
+      /\b(success|table-success|bg-success|alert-success|row-success|closed)\b/.test(styleBlob) ||
+      /\bgreen\b/.test(styleBlob) ||
+      /#(d4edda|c8e6c9|a5d6a7|dff0d8|b6d7a8|90ee90|98fb98|00ff00|3c763d|2ecc71|28a745|198754|4caf50)/.test(styleBlob) ||
+      /rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/.test(styleBlob) && (() => {
+        const m = styleBlob.match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
+        if (!m) return false;
+        const r = +m[1], g = +m[2], b = +m[3];
+        return g > 150 && g > r + 30 && g > b + 30;
+      })();
+
+    // Invoice number: only meaningful for green rows (rows with a closed payment invoice).
+    // White rows appear on the balance page even though they still sit in the pickup queue,
+    // and their trailing "<shipper>-<num>" cell (if any) is not a real closed-invoice number.
     let invoiceNo: string | null = null;
-    for (let i = cells.length - 1; i >= 0; i--) {
-      const mInv = cells[i].match(/-(\d{4,7})\s*$/);
-      if (mInv) { invoiceNo = mInv[1]; break; }
+    if (isGreen) {
+      for (let i = cells.length - 1; i >= 0; i--) {
+        const mInv = cells[i].match(/-(\d{4,7})\s*$/);
+        if (mInv) { invoiceNo = mInv[1]; break; }
+      }
     }
+
     rows.push({
       bill_no: get(5),
       zodex_receiver: get(3),
