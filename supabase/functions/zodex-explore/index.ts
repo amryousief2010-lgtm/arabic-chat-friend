@@ -78,5 +78,34 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ path, tables: out }, null, 2), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
+  if (mode === "status_counts") {
+    // parse main table, find header cell "حالة الشحنة", tally values in that column
+    const tblRe = /<table[\s\S]*?<\/table>/gi;
+    let best: string | null = null;
+    let bestRows = 0;
+    let m: RegExpExecArray | null;
+    while ((m = tblRe.exec(html)) !== null) {
+      const r = (m[0].match(/<tr/gi) || []).length;
+      if (r > bestRows) { bestRows = r; best = m[0]; }
+    }
+    if (!best) return new Response(JSON.stringify({ counts: {}, total: 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const headerCells = [...best.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/gi)].map(x => x[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim());
+    const idx = headerCells.findIndex(h => /حال[ةه]\s*الشحن[ةه]/.test(h));
+    const counts: Record<string, number> = {};
+    let total = 0;
+    const rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+    let rowMatch: RegExpExecArray | null;
+    let first = true;
+    while ((rowMatch = rowRe.exec(best)) !== null) {
+      if (first) { first = false; continue; } // skip header row
+      const tds = [...rowMatch[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map(x => x[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+      if (!tds.length) continue;
+      const status = (tds[idx] || "").trim() || "غير محدد";
+      counts[status] = (counts[status] || 0) + 1;
+      total++;
+    }
+    return new Response(JSON.stringify({ header_index: idx, headers: headerCells, counts, total }, null, 2), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+
   return new Response("unknown mode", { headers: corsHeaders });
 });
