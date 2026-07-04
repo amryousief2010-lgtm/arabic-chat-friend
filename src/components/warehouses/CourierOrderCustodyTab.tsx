@@ -381,7 +381,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           other += Number(o.other_amount || 0);
           free += Number(o.free_amount || 0);
           if (deliveredStatus && !nonCash) {
-            if (isAgouza) cashDue += Number(o.total || 0);
+            if (isAgouza) cashDue += Math.max(0, Number(o.total || 0) - Number(o.delivery_fee || 0));
             else cashDue += o.collection_method === "mixed_payment" ? Number(o.courier_cash_due || 0) : Number(o.total || 0);
           }
           if (deliveredStatus && o.collection_method === "mixed_payment") {
