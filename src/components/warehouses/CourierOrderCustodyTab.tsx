@@ -373,7 +373,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           const nonCash = isAgouza ? false : isNonCashAssignment(a, o);
           if (!nonCash) {
             if (isAgouza) {
-              const isGift = o.update_status_marker === "gift" || o.collection_method === "none";
+              const isGift = isGiftAssignment(a, o);
               // للعجوزة: إجمالي اليوم = مجموع (قيمة الأوردر − مصاريف الشحن) للأوردرات المدفوعة،
               // بينما الهدايا المجانية تُحسب بقيمتها الكاملة (لا يوجد شحن يخصم منها).
               totalValue += isGift ? Number(o.total || 0) : Math.max(0, Number(o.total || 0) - Number(o.delivery_fee || 0));
