@@ -511,22 +511,39 @@ export default function MainWarehouseTreasuryTab() {
           .from("courier_daily_cash_deposits")
           .select("id,courier_name,deposit_date,amount,orders_count,order_numbers,treasury_txn_id,notes")
           .is("transferred_txn_id", null)
-          .gt("amount", 0)
           .order("deposit_date", { ascending: false });
-        setPendingDeposits(data || []);
+        const deps = (data || []) as any[];
+        // include vodafone/instapay/bank-transfer only days too — user can log them as a movement
+        // even without actual cash transferred
+        const ids = deps.map((d) => d.id);
+        const nonCashByDep: Record<string, number> = {};
+        if (ids.length) {
+          const { data: lines } = await (supabase as any)
+            .from("courier_daily_cash_deposit_lines")
+            .select("deposit_id,vodafone_cash_amount,instapay_amount,bank_transfer_amount")
+            .in("deposit_id", ids);
+          for (const l of (lines || []) as any[]) {
+            const nc = Number(l.vodafone_cash_amount || 0) + Number(l.instapay_amount || 0) + Number(l.bank_transfer_amount || 0);
+            nonCashByDep[l.deposit_id] = (nonCashByDep[l.deposit_id] || 0) + nc;
+          }
+        }
+        const enriched = deps
+          .map((d) => ({ ...d, non_cash_amount: nonCashByDep[d.id] || 0, total_amount: Number(d.amount || 0) + (nonCashByDep[d.id] || 0) }))
+          .filter((d) => d.total_amount > 0);
+        setPendingDeposits(enriched);
       } catch { setPendingDeposits([]); }
       finally { setLoadingDeposits(false); }
     })();
   }, [transferOpen]);
 
-  const toggleDeposit = (id: string, amount: number) => {
+  const toggleDeposit = (id: string, _amount: number) => {
     setSelectedDepositIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
-      // auto-sum amount
+      // sum cash + non-cash so vodafone/instapay-only days can be logged as a movement
       const total = pendingDeposits
         .filter((d) => next.has(d.id))
-        .reduce((s, d) => s + Number(d.amount || 0), 0);
+        .reduce((s, d) => s + Number(d.total_amount ?? d.amount ?? 0), 0);
       setTransferAmt(total > 0 ? String(total) : "");
       return next;
     });
@@ -560,7 +577,11 @@ export default function MainWarehouseTreasuryTab() {
       if (selectedDeps.length) {
         const lines = selectedDeps.map((d) => {
           const day = new Date(d.deposit_date).toLocaleDateString("ar-EG");
-          return `• يوم ${day} — ${d.courier_name || ""} — ${fmt(Number(d.amount || 0))} ج.م — ${d.orders_count} أوردر${Array.isArray(d.order_numbers) && d.order_numbers.length ? ` [${d.order_numbers.join(", ")}]` : ""}`;
+          const cash = Number(d.amount || 0);
+          const nc = Number(d.non_cash_amount || 0);
+          const totalD = cash + nc;
+          const breakdown = nc > 0 ? ` (كاش ${fmt(cash)} + إلكتروني ${fmt(nc)})` : "";
+          return `• يوم ${day} — ${d.courier_name || ""} — ${fmt(totalD)} ج.م${breakdown} — ${d.orders_count} أوردر${Array.isArray(d.order_numbers) && d.order_numbers.length ? ` [${d.order_numbers.join(", ")}]` : ""}`;
         });
         autoNotes = `${isReconcile ? "تسوية" : "تحويل"} ${selectedDeps.length} يوم/أيام توريد:\n` + lines.join("\n");
       }
@@ -2216,14 +2237,20 @@ export default function MainWarehouseTreasuryTab() {
                   const day = new Date(d.deposit_date).toLocaleDateString("ar-EG", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
                   return (
                     <label key={d.id} className={`flex items-start gap-3 p-3 border-b cursor-pointer hover:bg-muted/30 ${selected ? "bg-emerald-50" : ""}`}>
-                      <input type="checkbox" checked={selected} onChange={() => toggleDeposit(d.id, Number(d.amount || 0))} className="mt-1" />
+                      <input type="checkbox" checked={selected} onChange={() => toggleDeposit(d.id, Number(d.total_amount ?? d.amount ?? 0))} className="mt-1" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <div className="font-semibold text-sm">{day}</div>
-                          <Badge className="bg-emerald-600 text-white">{fmt(Number(d.amount || 0))} ج.م</Badge>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {Number(d.amount || 0) > 0 && <Badge className="bg-emerald-600 text-white">كاش {fmt(Number(d.amount || 0))} ج.م</Badge>}
+                            {Number(d.non_cash_amount || 0) > 0 && <Badge className="bg-sky-600 text-white">إلكتروني {fmt(Number(d.non_cash_amount || 0))} ج.م</Badge>}
+                          </div>
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">
                           المندوب: <b>{d.courier_name || "—"}</b> • عدد الأوردرات: <b>{d.orders_count}</b>
+                          {Number(d.amount || 0) === 0 && Number(d.non_cash_amount || 0) > 0 && (
+                            <span className="ml-1 text-sky-700"> • حركة إلكترونية فقط (بدون كاش)</span>
+                          )}
                         </div>
                         {Array.isArray(d.order_numbers) && d.order_numbers.length > 0 && (
                           <div className="text-[10px] text-muted-foreground mt-1 truncate" title={d.order_numbers.join(", ")}>
