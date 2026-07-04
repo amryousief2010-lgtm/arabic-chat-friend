@@ -103,12 +103,15 @@ export function BulkDeliveryUploadButton() {
   const handleConfirm = async () => {
     setSubmitting(true);
     try {
-      // Send only shipments with parseable items (ready + warnings)
-      const send = [...readyItems, ...withWarnings].map((s) => ({
+      // Send all shipments (with items OR without) — server queues no-item ones too
+      const send = shipments.map((s) => ({
         phone: s.phone,
         cod: s.cod,
         bill_no: s.bill_no,
         shipment_date: s.shipment_date,
+        customer_name: s.customer_name,
+        raw_products: s.raw_products,
+        unknown_tokens: s.unknown_tokens,
         items: s.items.map((i) => ({
           product_id: i.product_id,
           product_name: i.product_name,
@@ -117,6 +120,7 @@ export function BulkDeliveryUploadButton() {
           is_gift: i.is_gift,
         })),
       }));
+
       const { data, error } = await supabase.functions.invoke("process-bostta-delivery", {
         body: { filename, shipments: send },
       });
@@ -339,6 +343,19 @@ function ResultView({ result, onClose }: { result: any; onClose: () => void }) {
         </div>
       </div>
 
+      {result.unregistered_queued?.length > 0 && (
+        <Alert className="bg-blue-50 border-blue-300">
+          <AlertTriangle className="w-4 h-4 text-blue-700" />
+          <AlertTitle>
+            {result.unregistered_queued.length} شحنة اتحطّت في قائمة "شحنات محتاجة تسجيل"
+          </AlertTitle>
+          <AlertDescription>
+            الموبايلات دي مش موجودة في العملاء — البنات لازم يسجّلوا الأوردرات دي من صفحة
+            <b className="mx-1">"شحنات محتاجة تسجيل"</b>. بعدها هيتحسبوا تسليم ناجح تلقائي.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {result.unmatched?.length > 0 && (
         <details className="border rounded p-2 text-xs">
           <summary className="cursor-pointer font-bold text-red-700">
@@ -353,6 +370,7 @@ function ResultView({ result, onClose }: { result: any; onClose: () => void }) {
           </ul>
         </details>
       )}
+
 
       {result.errors?.length > 0 && (
         <details className="border rounded p-2 text-xs" open>

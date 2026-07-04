@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BulkDeliveryUploadButton } from "@/components/warehouses/BulkDeliveryUploadButton";
+import { UnregisteredShipmentsButton } from "@/components/warehouses/UnregisteredShipmentsButton";
+
 
 import { MAIN_WAREHOUSE_ID as DEFAULT_MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
 
@@ -636,7 +638,9 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
                   <div className="flex items-center gap-2 flex-wrap">
                     <CardTitle className="text-base">طلبات قسم التسويق</CardTitle>
                     <BulkDeliveryUploadButton />
+                    <UnregisteredShipmentsButton />
                   </div>
+
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className="flex items-center gap-1">
                       <Label className="text-xs whitespace-nowrap">من تاريخ:</Label>

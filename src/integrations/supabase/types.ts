@@ -17832,6 +17832,83 @@ export type Database = {
         }
         Relationships: []
       }
+      unregistered_bostta_shipments: {
+        Row: {
+          bill_no: string
+          cod: number
+          created_at: string
+          customer_name: string
+          dismissed_at: string | null
+          dismissed_by: string | null
+          dismissed_reason: string | null
+          id: string
+          parsed_items: Json
+          phone: string
+          raw_products: string | null
+          registered_at: string | null
+          registered_by: string | null
+          registered_order_id: string | null
+          shipment_date: string | null
+          status: string
+          unknown_tokens: Json
+          updated_at: string
+          uploaded_by: string | null
+          uploaded_from_filename: string | null
+        }
+        Insert: {
+          bill_no: string
+          cod?: number
+          created_at?: string
+          customer_name: string
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          dismissed_reason?: string | null
+          id?: string
+          parsed_items?: Json
+          phone: string
+          raw_products?: string | null
+          registered_at?: string | null
+          registered_by?: string | null
+          registered_order_id?: string | null
+          shipment_date?: string | null
+          status?: string
+          unknown_tokens?: Json
+          updated_at?: string
+          uploaded_by?: string | null
+          uploaded_from_filename?: string | null
+        }
+        Update: {
+          bill_no?: string
+          cod?: number
+          created_at?: string
+          customer_name?: string
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          dismissed_reason?: string | null
+          id?: string
+          parsed_items?: Json
+          phone?: string
+          raw_products?: string | null
+          registered_at?: string | null
+          registered_by?: string | null
+          registered_order_id?: string | null
+          shipment_date?: string | null
+          status?: string
+          unknown_tokens?: Json
+          updated_at?: string
+          uploaded_by?: string | null
+          uploaded_from_filename?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unregistered_bostta_shipments_registered_order_id_fkey"
+            columns: ["registered_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_presence: {
         Row: {
           created_at: string

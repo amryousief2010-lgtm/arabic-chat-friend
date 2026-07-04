@@ -25,8 +25,12 @@ interface Shipment {
   cod: number;
   shipment_date?: string;
   bill_no?: string;
+  customer_name?: string;
+  raw_products?: string;
+  unknown_tokens?: string[];
   items: ShipmentItem[];
 }
+
 
 const AGOUZA_WAREHOUSE_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
 
@@ -68,9 +72,11 @@ Deno.serve(async (req) => {
       updated: [] as any[],
       product_diffs: [] as any[],
       unmatched: [] as any[],
+      unregistered_queued: [] as any[],
       already_delivered: [] as any[],
       errors: [] as any[],
     };
+
 
     for (const s of shipments) {
       try {
@@ -80,10 +86,27 @@ Deno.serve(async (req) => {
         const { data: customers } = await supabase
           .from("customers").select("id, name").eq("phone", s.phone).limit(5);
         if (!customers || customers.length === 0) {
-          results.unmatched.push({ shipment: s, reason: "phone_not_in_customers" });
+          // Queue as unregistered shipment (moderator needs to create the order)
+          if (s.bill_no) {
+            await supabase.from("unregistered_bostta_shipments").upsert({
+              bill_no: s.bill_no,
+              phone: s.phone,
+              customer_name: s.customer_name || "غير معروف",
+              cod: s.cod,
+              shipment_date: s.shipment_date || null,
+              raw_products: s.raw_products || null,
+              parsed_items: s.items,
+              unknown_tokens: s.unknown_tokens || [],
+              status: "pending",
+              uploaded_from_filename: filename,
+              uploaded_by: userId,
+            }, { onConflict: "bill_no", ignoreDuplicates: false });
+          }
+          results.unregistered_queued.push({ shipment: s });
           continue;
         }
         const customerIds = customers.map((c: any) => c.id);
+
 
         // find candidate orders
         const shipDate = s.shipment_date ? new Date(s.shipment_date) : new Date();
@@ -213,8 +236,9 @@ Deno.serve(async (req) => {
       shipments_total: shipments.length,
       updated_count: results.updated.length,
       product_diffs_count: results.product_diffs.length,
-      unmatched_count: results.unmatched.length,
+      unmatched_count: results.unmatched.length + results.unregistered_queued.length,
       warnings_count: results.already_delivered.length + results.errors.length,
+
       summary: results,
     });
 
