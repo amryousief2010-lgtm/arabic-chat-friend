@@ -20,11 +20,13 @@ class ZodexClient {
       redirect: "manual",
     });
     this.captureCookies(p); await p.text();
-    // hit index to confirm session
-    await this.get(`${ZODEX_BASE}/index.php`);
+    const idx = await this.get("/index.php");
+    if (idx.includes('id="email"') && idx.includes('id="password"')) throw new Error("login failed");
   }
-  async get(url: string) {
-    const r = await fetch(url, { headers: { "User-Agent":"Mozilla/5.0", "Cookie": this.cookieHeader() } });
+  async get(path: string, params?: Record<string,string|number>): Promise<string> {
+    const url = new URL(`${ZODEX_BASE}${path}`);
+    if (params) for (const [k,v] of Object.entries(params)) url.searchParams.set(k, String(v));
+    const r = await fetch(url.toString(), { headers: { "User-Agent":"Mozilla/5.0", "Cookie": this.cookieHeader() } });
     this.captureCookies(r); return await r.text();
   }
 }
