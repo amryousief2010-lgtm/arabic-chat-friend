@@ -210,6 +210,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
   // Order IDs already accounted for via a closed Mega/Zodex invoice for the selected custody.
   // These are excluded from the per-day courier groups (they show up in the closed-invoices card instead).
   const [zodexClosedOrderIds, setZodexClosedOrderIds] = useState<Set<string>>(new Set());
+  const [closedInvoices, setClosedInvoices] = useState<Array<{ id: string; invoice_no: string; total_amount: number; orders_count: number; custody_id: string | null; first_seen_at: string }>>([]);
 
 
   const printStatement = async (fmt: "pdf" | "xlsx") => {
