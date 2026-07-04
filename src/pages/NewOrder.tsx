@@ -2117,6 +2117,18 @@ const NewOrder = () => {
                     </div>
 
 
+                    {/* Mega / Zodex shipping bill number (optional at creation, enables exact auto-match on sync) */}
+                    <div className="space-y-2">
+                      <Label>رقم بوليصة ميجا / زودكس <span className="text-xs text-muted-foreground">(اختيارى — يُدخل من ميجا لربط الأوردر تلقائياً)</span></Label>
+                      <Input
+                        placeholder="مثال: ZX80418554"
+                        value={shippingBillNo}
+                        onChange={(e) => setShippingBillNo(e.target.value)}
+                        dir="ltr"
+                        className="font-mono text-left"
+                      />
+                    </div>
+
                     {/* Notes */}
                     <div className="space-y-2">
                       <Label>ملاحظات</Label>
@@ -2127,6 +2139,7 @@ const NewOrder = () => {
                         rows={2}
                       />
                     </div>
+
 
                     {/* Totals */}
                     <div className="border-t pt-4 space-y-2">
