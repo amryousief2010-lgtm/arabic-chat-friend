@@ -148,36 +148,38 @@ function stripTags(s: string): string {
 
 function parseBalanceRows(html: string): ZodexRow[] {
   const rows: ZodexRow[] = [];
-  // Isolate main table by finding <tr> blocks that contain a ZX bill number
-  const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  let m: RegExpExecArray | null;
-  while ((m = trRegex.exec(html)) !== null) {
-    const inner = m[1];
-    if (!/ZX\d/.test(inner)) continue;
-    const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-    const cells: string[] = [];
-    let td: RegExpExecArray | null;
-    while ((td = tdRegex.exec(inner)) !== null) cells.push(stripTags(td[1]));
-    if (cells.length < 15) continue;
-    // Column layout (observed):
-    // 0 checkbox | 1 admin | 2 من (shipper) | 3 إلي (recipient name) | 4 operation type
-    // 5 waybill | 6 order-ref | 7 shipment status | 8 recipient phone | 9 shipping fee
-    // 10 region | 11 cod value | 12 confirmation | 13 notes | 14 date | 15 image | 16 report
-    const billMatch = cells[5].match(/ZX\d+/);
-    if (!billMatch) continue;
-    const iso = parseZodexDate(cells[14]) || new Date().toISOString();
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  if (!doc) return rows;
+  // Find the largest table (main data table)
+  let mainTable: Element | null = null;
+  let maxCount = 0;
+  for (const t of doc.querySelectorAll("table") as unknown as Element[]) {
+    const cnt = (t.textContent || "").match(/ZX\d+/g)?.length || 0;
+    if (cnt > maxCount) { maxCount = cnt; mainTable = t; }
+  }
+  if (!mainTable) return rows;
+  for (const tr of mainTable.querySelectorAll("tr") as unknown as Element[]) {
+    const tds = tr.querySelectorAll(":scope > td") as unknown as Element[];
+    const cells = Array.from(tds).map((td) => (td.textContent || "").replace(/\s+/g, " ").trim());
+    // Find waybill cell containing ZX...
+    const billIdx = cells.findIndex((c) => /^ZX\d+$/.test(c));
+    if (billIdx < 0) continue;
+    // Given column layout, waybill is index 5 → offset backwards to derive other columns
+    const base = billIdx - 5;
+    const get = (i: number) => cells[base + i] ?? "";
+    const iso = parseZodexDate(get(14)) || new Date().toISOString();
     rows.push({
-      bill_no: billMatch[0],
-      moderator_ref: cells[3],
-      customer_note: cells[6],
-      customer_phone: normalizePhone(cells[8]),
-      region: cells[10],
-      cod_amount: parseFloat(cells[11].replace(/[^\d.-]/g, "")) || 0,
-      shipping_fee: parseFloat(cells[9].replace(/[^\d.-]/g, "")) || 0,
-      operation_type: cells[4],
-      shipment_status: cells[7],
+      bill_no: get(5),
+      moderator_ref: get(3),
+      customer_note: get(6),
+      customer_phone: normalizePhone(get(8)),
+      region: get(10),
+      cod_amount: parseFloat(get(11).replace(/[^\d.-]/g, "")) || 0,
+      shipping_fee: parseFloat(get(9).replace(/[^\d.-]/g, "")) || 0,
+      operation_type: get(4),
+      shipment_status: get(7),
       shipment_date: iso,
-      raw_date_text: cells[14],
+      raw_date_text: get(14),
     });
   }
   return rows;
