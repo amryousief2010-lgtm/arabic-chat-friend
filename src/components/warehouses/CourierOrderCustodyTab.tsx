@@ -17,7 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { fetchCourierStatementLines, printCourierStatement, exportCourierStatementExcel } from "@/lib/courierStatement";
 import { openPrintWindow } from "@/lib/printPdf";
 import { Switch } from "@/components/ui/switch";
-import { ZodexClosedInvoicesCard } from "@/components/warehouses/ZodexClosedInvoicesCard";
+
 
 /**
  * Order-based custody layer (طبقة عهدة الأوردرات للمندوب) — built on top of:
