@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BulkDeliveryUploadButton } from "@/components/warehouses/BulkDeliveryUploadButton";
+import { ZodexSyncButton } from "@/components/warehouses/ZodexSyncButton";
 import { UnregisteredShipmentsButton } from "@/components/warehouses/UnregisteredShipmentsButton";
 import { openPrintWindow, escapeHtml } from "@/lib/printPdf";
 
