@@ -130,16 +130,22 @@ class ZodexClient {
 // ----- HTML parsing -----
 interface ZodexRow {
   bill_no: string;
-  moderator_ref: string; // Zodex "to" column (recipient name they typed)
-  customer_note: string; // Zodex "order number" free text (often contains moderator name)
-  customer_phone: string;
+  moderator_name: string;   // Zodex "إلي" column - the moderator/staff who registered
+  customer_name: string;    // extracted from "رقم الطلب" (name + phone) minus the phone
+  customer_ref: string;     // raw text of "رقم الطلب"
+  customer_phone: string;   // "رقم المرسل اليه"
   region: string;
   cod_amount: number;
   shipping_fee: number;
   operation_type: string;
   shipment_status: string;
-  shipment_date: string; // ISO
+  shipment_date: string;
   raw_date_text: string;
+}
+
+function extractCustomerName(text: string): string {
+  // "رقم الطلب" typically contains: "customer_name phone_number"; strip the phone
+  return (text || "").replace(/[\d٠-٩+\-()\s]{7,}/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function stripTags(s: string): string {
