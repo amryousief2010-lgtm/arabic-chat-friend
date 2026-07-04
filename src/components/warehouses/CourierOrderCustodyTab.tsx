@@ -206,6 +206,10 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
   const [dailyDeposits, setDailyDeposits] = useState<Array<{ id: string; custody_id: string; deposit_date: string; amount: number; orders_count: number; treasury_txn_id: string | null; performed_by_name: string | null; created_at: string }>>([]);
   const [bosttaUploadNets, setBosttaUploadNets] = useState<BosttaUploadNet[]>([]);
   const [depositingDay, setDepositingDay] = useState<string | null>(null);
+  // Order IDs already accounted for via a closed Mega/Zodex invoice for the selected custody.
+  // These are excluded from the per-day courier groups (they show up in the closed-invoices card instead).
+  const [zodexClosedOrderIds, setZodexClosedOrderIds] = useState<Set<string>>(new Set());
+
 
   const printStatement = async (fmt: "pdf" | "xlsx") => {
     if (!selectedCustody) return;
@@ -241,11 +245,32 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         .in("custody_id", cst.map((c) => c.id))
         .order("deposit_date", { ascending: false });
       setDailyDeposits(depRows || []);
+
+      // Load order IDs already tied to a closed Mega/Zodex invoice for these custodies.
+      // We exclude them from the day-grouping so the "not deposited" count doesn't include
+      // orders that are already accounted for as a closed Mega invoice.
+      const { data: closedInvs } = await (supabase as any)
+        .from("zodex_closed_invoices")
+        .select("id")
+        .in("custody_id", cst.map((c) => c.id));
+      const invIds = (closedInvs || []).map((r: any) => r.id);
+      if (invIds.length) {
+        const { data: closedOrders } = await (supabase as any)
+          .from("zodex_closed_invoice_orders")
+          .select("order_id")
+          .in("invoice_id", invIds)
+          .not("order_id", "is", null);
+        setZodexClosedOrderIds(new Set((closedOrders || []).map((r: any) => r.order_id).filter(Boolean)));
+      } else {
+        setZodexClosedOrderIds(new Set());
+      }
     } else {
       setDailyDeposits([]);
+      setZodexClosedOrderIds(new Set());
     }
 
     if (isAgouza) {
+
       const { data: uploadRows } = await (supabase as any)
         .from("bostta_delivery_uploads")
         .select("id, filename, summary, created_at")
@@ -425,11 +450,18 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
   // Group by assignment date (YYYY-MM-DD)
   const groupedByDay = useMemo(() => {
     const map = new Map<string, Assignment[]>();
+    // Count how many assignments per day were skipped because they belong to a closed Mega invoice.
+    const skippedByDay = new Map<string, number>();
     currentAssignments.forEach((a) => {
       const day = (a.assigned_at || "").slice(0, 10);
+      if (zodexClosedOrderIds.has(a.order_id)) {
+        skippedByDay.set(day, (skippedByDay.get(day) || 0) + 1);
+        return; // exclude from the day-group; handled by the closed Mega invoices card
+      }
       if (!map.has(day)) map.set(day, []);
       map.get(day)!.push(a);
     });
+
     const depByDay = new Map(dailyDeposits.filter((d) => d.custody_id === selectedCustody).map((d) => [d.deposit_date, d]));
     return Array.from(map.entries())
       .sort((a, b) => (a[0] < b[0] ? 1 : -1))
@@ -500,10 +532,12 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           cashDue: finalCashDue, vodafone, instapay, bank, other, free,
           sheetNetAmount,
           missingBreakdown, undelivered, deposit,
+          megaClosedCount: skippedByDay.get(day) || 0,
           canDeposit: undelivered === 0 && missingBreakdown === 0 && items.length > 0 && !deposit,
         };
       });
-  }, [currentAssignments, orders, collections, dailyDeposits, selectedCustody, isAgouza, bosttaUploadNets]);
+  }, [currentAssignments, orders, collections, dailyDeposits, selectedCustody, isAgouza, bosttaUploadNets, zodexClosedOrderIds]);
+
 
 
   // ── Actions ─────────────────────────────────────────────────────────────
@@ -1267,6 +1301,12 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                   ) : (
                                     <Badge variant="outline" className="text-[10px]">لم يتم التوريد</Badge>
                                   )}
+                                  {grp.megaClosedCount > 0 && (
+                                    <Badge className="bg-indigo-100 text-indigo-800 border border-indigo-300 text-[10px]" title="مستبعد لأنه ضمن فاتورة ميجا مقفولة">
+                                      {grp.megaClosedCount} ضمن فاتورة ميجا مقفولة
+                                    </Badge>
+                                  )}
+
                                 </div>
                                 <div className="text-[10px] text-muted-foreground font-normal flex flex-wrap gap-2">
                                   <span>💵 كاش مع {courierLabel}: <b className="text-emerald-700">{fmt(grp.cashDue)}</b></span>
