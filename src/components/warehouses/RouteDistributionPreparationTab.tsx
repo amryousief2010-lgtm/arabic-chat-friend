@@ -633,7 +633,10 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
             </Alert>
           )}
 
+          <ZodexClosedInvoicesCard />
+
           <div className="grid lg:grid-cols-3 gap-3">
+
             {/* Orders list */}
             <Card className="lg:col-span-2">
               <CardHeader className="pb-3 space-y-2">
