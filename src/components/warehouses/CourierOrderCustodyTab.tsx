@@ -141,7 +141,11 @@ interface CourierOrderCustodyTabProps {
   warehouseId?: string;
 }
 
+const AGOUZA_WAREHOUSE_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
+
 export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WAREHOUSE_ID }: CourierOrderCustodyTabProps = {}) {
+  const isAgouza = warehouseId === AGOUZA_WAREHOUSE_ID;
+  const courierLabel = isAgouza ? "شركة الشحن" : "كيمو";
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
