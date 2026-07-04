@@ -92,8 +92,26 @@ export function BulkDeliveryUploadButton() {
         });
       }
       setShipments(parsed);
+
+      // Fetch known customer phones to detect unregistered shipments
+      const phones = Array.from(new Set(parsed.map((p) => p.phone).filter(Boolean)));
+      const known = new Set<string>();
+      if (phones.length > 0) {
+        const chunkSize = 500;
+        for (let i = 0; i < phones.length; i += chunkSize) {
+          const chunk = phones.slice(i, i + chunkSize);
+          const { data: custs } = await supabase
+            .from("customers").select("phone").in("phone", chunk);
+          (custs || []).forEach((c: any) => c.phone && known.add(normalizePhone(c.phone)));
+        }
+      }
+      setKnownPhones(known);
+
       setOpen(true);
-      toast.success(`تم تحليل ${parsed.length} شحنة من ${file.name}`);
+      const missing = parsed.filter((p) => p.phone && !known.has(p.phone)).length;
+      toast.success(
+        `تم تحليل ${parsed.length} شحنة${missing > 0 ? ` — ${missing} محتاجة تسجيل` : ""}`,
+      );
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || "فشل قراءة الملف");
