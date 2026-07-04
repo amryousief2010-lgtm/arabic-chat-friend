@@ -126,16 +126,13 @@ Deno.serve(async (req) => {
         const customerIds = customers.map((c: any) => c.id);
 
 
-        // find candidate orders
-        const shipDate = s.shipment_date ? new Date(s.shipment_date) : new Date();
-        const upperBound = new Date(shipDate.getTime() + 24 * 3600 * 1000).toISOString();
-
+        // find candidate orders — match any Agouza order for this customer
+        // (date filter removed: shipment sheet date may precede order creation time)
         const { data: candidates } = await supabase
           .from("orders")
           .select("id, order_number, status, total, created_at, source_warehouse_id, stock_status")
           .in("customer_id", customerIds)
           .eq("source_warehouse_id", AGOUZA_WAREHOUSE_ID)
-          .lte("created_at", upperBound)
           .order("created_at", { ascending: true });
 
         const pending = (candidates || []).filter((o: any) => o.status === "pending");
