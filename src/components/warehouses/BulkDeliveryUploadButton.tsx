@@ -209,19 +209,54 @@ export function BulkDeliveryUploadButton() {
 
           {!result ? (
             <>
-              <div className="grid grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-5 gap-3 mb-4">
                 <StatBox label="إجمالي الشحنات" value={shipments.length} color="slate" />
+                <StatBox label="محتاجة تسجيل" value={unregistered.length} color="blue" />
                 <StatBox label="جاهز للتحديث" value={readyItems.length} color="emerald" />
                 <StatBox label="تحذيرات" value={withWarnings.length} color="amber" />
                 <StatBox label="متجاهَل" value={skipped.length} color="red" />
               </div>
 
-              <Tabs defaultValue="ready" className="w-full">
+              <Tabs defaultValue={unregistered.length > 0 ? "unregistered" : "ready"} className="w-full">
                 <TabsList>
+                  <TabsTrigger value="unregistered" className="data-[state=active]:bg-blue-100">
+                    محتاجة تسجيل ({unregistered.length})
+                  </TabsTrigger>
                   <TabsTrigger value="ready">جاهز ({readyItems.length})</TabsTrigger>
                   <TabsTrigger value="warnings">تحذيرات ({withWarnings.length})</TabsTrigger>
                   <TabsTrigger value="skipped">متجاهَل ({skipped.length})</TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="unregistered">
+                  {unregistered.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">
+                      كل الشحنات موبايلاتها موجودة في العملاء — مفيش حاجة محتاجة تسجيل
+                    </p>
+                  ) : (
+                    <>
+                      <Alert className="mb-3 bg-blue-50 border-blue-300">
+                        <AlertTriangle className="w-4 h-4 text-blue-700" />
+                        <AlertTitle>الشحنات دي موبايلاتها مش موجودة في العملاء</AlertTitle>
+                        <AlertDescription className="space-y-2">
+                          <div>
+                            البنات لازم يسجّلوا الأوردرات دي الأول على السيستم. ابعتلهم القائمة
+                            وبعدين ارفع الشيت تاني — أو كمّل واعتمد الباقي دلوقتي والشحنات دي هتتحط
+                            في قائمة <b>"شحنات محتاجة تسجيل"</b> ويسجّلوها من هناك.
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-blue-500 text-blue-700 hover:bg-blue-100"
+                            onClick={copyUnregisteredToClipboard}
+                          >
+                            📋 نسخ القائمة للبنات
+                          </Button>
+                        </AlertDescription>
+                      </Alert>
+                      <ShipmentTable shipments={unregistered} />
+                    </>
+                  )}
+                </TabsContent>
 
                 <TabsContent value="ready">
                   <ShipmentTable shipments={readyItems} />
