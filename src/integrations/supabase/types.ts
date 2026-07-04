@@ -18527,6 +18527,7 @@ export type Database = {
       }
       zodex_missing_orders: {
         Row: {
+          alaa_notified_at: string | null
           bill_no: string
           cod_amount: number | null
           created_at: string
@@ -18549,6 +18550,7 @@ export type Database = {
           zodex_status: string | null
         }
         Insert: {
+          alaa_notified_at?: string | null
           bill_no: string
           cod_amount?: number | null
           created_at?: string
@@ -18571,6 +18573,7 @@ export type Database = {
           zodex_status?: string | null
         }
         Update: {
+          alaa_notified_at?: string | null
           bill_no?: string
           cod_amount?: number | null
           created_at?: string
