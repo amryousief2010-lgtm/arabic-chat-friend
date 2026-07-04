@@ -1,0 +1,377 @@
+import { useState, useRef } from "react";
+import * as XLSX from "xlsx";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Upload, Loader2, CheckCircle2, AlertTriangle, FileSpreadsheet, X } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  buildProductLookup,
+  parseProductText,
+  consolidateItems,
+  normalizePhone,
+  type CatalogProduct,
+  type ParsedItem,
+} from "@/lib/bosttaDeliveryParser";
+
+interface ParsedShipment {
+  bill_no: string;
+  shipment_date: string;
+  customer_name: string;
+  phone: string;
+  cod: number;
+  raw_products: string;
+  items: ParsedItem[];
+  unknown_tokens: string[];
+}
+
+export function BulkDeliveryUploadButton() {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [filename, setFilename] = useState("");
+  const [shipments, setShipments] = useState<ParsedShipment[]>([]);
+  const [result, setResult] = useState<any>(null);
+
+  const readyItems = shipments.filter((s) => s.items.length > 0 && s.unknown_tokens.length === 0);
+  const withWarnings = shipments.filter((s) => s.unknown_tokens.length > 0 && s.items.length > 0);
+  const skipped = shipments.filter((s) => s.items.length === 0);
+
+  const handleFile = async (file: File) => {
+    setLoading(true);
+    setFilename(file.name);
+    setResult(null);
+    try {
+      // Fetch catalog
+      const { data: productsRaw, error: pErr } = await supabase
+        .from("products").select("id, name, unit, price").eq("is_active", true);
+      if (pErr) throw pErr;
+      const catalog: CatalogProduct[] = (productsRaw || []).map((p: any) => ({
+        id: p.id, name: p.name, unit: p.unit || "كيلو", price: Number(p.price || 0),
+      }));
+      const lookup = buildProductLookup(catalog);
+
+      // Read xlsx
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: null });
+
+      // Detect column names (support both Bostta formats)
+      const parsed: ParsedShipment[] = [];
+      for (const r of rows) {
+        const bill = String(r["رقم البوليصة"] || r["رقم البوليصه"] || "");
+        if (!bill.startsWith("ZX")) continue; // skip summary rows
+
+        const phone = normalizePhone(
+          r["رقم الموبايل"] ?? r["موبايل 1"] ?? r["رقم الهاتف المرسل اليه"] ?? "",
+        );
+        const cod = Number(r["COD"] ?? r["مبلغ التحصيل"] ?? 0);
+        const name = String(r["المرسل اليه"] || "");
+        const dateVal = r["تاريخ انشاء الشحنة"] ?? r["التاريخ"] ?? "";
+        const dateStr = dateVal instanceof Date ? dateVal.toISOString() : String(dateVal || "");
+        const productText = String(r["اسم المنتج"] || "");
+
+        const parsedProducts = parseProductText(productText, lookup);
+        parsed.push({
+          bill_no: bill,
+          shipment_date: dateStr.slice(0, 10),
+          customer_name: name,
+          phone,
+          cod,
+          raw_products: productText,
+          items: consolidateItems(parsedProducts.items),
+          unknown_tokens: parsedProducts.unknown_tokens,
+        });
+      }
+      setShipments(parsed);
+      setOpen(true);
+      toast.success(`تم تحليل ${parsed.length} شحنة من ${file.name}`);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || "فشل قراءة الملف");
+    } finally {
+      setLoading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  const handleConfirm = async () => {
+    setSubmitting(true);
+    try {
+      // Send only shipments with parseable items (ready + warnings)
+      const send = [...readyItems, ...withWarnings].map((s) => ({
+        phone: s.phone,
+        cod: s.cod,
+        bill_no: s.bill_no,
+        shipment_date: s.shipment_date,
+        items: s.items.map((i) => ({
+          product_id: i.product_id,
+          product_name: i.product_name,
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+          is_gift: i.is_gift,
+        })),
+      }));
+      const { data, error } = await supabase.functions.invoke("process-bostta-delivery", {
+        body: { filename, shipments: send },
+      });
+      if (error) throw error;
+      setResult(data?.results ?? null);
+      toast.success(`تم تحديث ${data?.results?.updated?.length ?? 0} أوردر بنجاح`);
+    } catch (e: any) {
+      toast.error(e?.message || "فشل التحديث");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const reset = () => {
+    setShipments([]);
+    setResult(null);
+    setFilename("");
+    setOpen(false);
+  };
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".xlsx,.xls"
+        className="hidden"
+        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+      />
+      <Button
+        variant="outline"
+        className="border-blue-500 text-blue-700 hover:bg-blue-50"
+        onClick={() => inputRef.current?.click()}
+        disabled={loading}
+      >
+        {loading ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Upload className="w-4 h-4 ml-2" />}
+        رفع شيت تسليمات بوسطة
+      </Button>
+
+      <Dialog open={open} onOpenChange={(v) => !v && reset()}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5 text-blue-600" />
+              مراجعة شيت تسليمات بوسطة — {filename}
+            </DialogTitle>
+            <DialogDescription>
+              راجع الأوردرات قبل التأكيد. المنتجات في الشيت هتحلّ محل منتجات النظام (لو مختلفة) وهيتخصم المخزون من العجوزة.
+            </DialogDescription>
+          </DialogHeader>
+
+          {!result ? (
+            <>
+              <div className="grid grid-cols-4 gap-3 mb-4">
+                <StatBox label="إجمالي الشحنات" value={shipments.length} color="slate" />
+                <StatBox label="جاهز للتحديث" value={readyItems.length} color="emerald" />
+                <StatBox label="تحذيرات" value={withWarnings.length} color="amber" />
+                <StatBox label="متجاهَل" value={skipped.length} color="red" />
+              </div>
+
+              <Tabs defaultValue="ready" className="w-full">
+                <TabsList>
+                  <TabsTrigger value="ready">جاهز ({readyItems.length})</TabsTrigger>
+                  <TabsTrigger value="warnings">تحذيرات ({withWarnings.length})</TabsTrigger>
+                  <TabsTrigger value="skipped">متجاهَل ({skipped.length})</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="ready">
+                  <ShipmentTable shipments={readyItems} />
+                </TabsContent>
+                <TabsContent value="warnings">
+                  {withWarnings.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">لا توجد تحذيرات</p>
+                  ) : (
+                    <>
+                      <Alert className="mb-3 bg-amber-50 border-amber-300">
+                        <AlertTriangle className="w-4 h-4" />
+                        <AlertDescription>
+                          الشحنات دي فيها منتجات مش اتعرفت — اتحطّت في الأوردر بدونها. راجعهم قبل الاعتماد.
+                        </AlertDescription>
+                      </Alert>
+                      <ShipmentTable shipments={withWarnings} showUnknown />
+                    </>
+                  )}
+                </TabsContent>
+                <TabsContent value="skipped">
+                  {skipped.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">لا يوجد متجاهَل</p>
+                  ) : (
+                    <>
+                      <Alert variant="destructive" className="mb-3">
+                        <X className="w-4 h-4" />
+                        <AlertDescription>
+                          الشحنات دي مش هتتحدّث لأن كل منتجاتها مش موجودة في الكاتالوج.
+                        </AlertDescription>
+                      </Alert>
+                      <ShipmentTable shipments={skipped} showUnknown />
+                    </>
+                  )}
+                </TabsContent>
+              </Tabs>
+
+              <DialogFooter className="mt-4">
+                <Button variant="ghost" onClick={reset}>إلغاء</Button>
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  disabled={submitting || readyItems.length + withWarnings.length === 0}
+                  onClick={handleConfirm}
+                >
+                  {submitting ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 ml-2" />}
+                  تأكيد وتحديث {readyItems.length + withWarnings.length} أوردر
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <ResultView result={result} onClose={reset} />
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function StatBox({ label, value, color }: { label: string; value: number; color: string }) {
+  const cls: Record<string, string> = {
+    slate: "bg-slate-50 border-slate-200 text-slate-800",
+    emerald: "bg-emerald-50 border-emerald-200 text-emerald-800",
+    amber: "bg-amber-50 border-amber-200 text-amber-800",
+    red: "bg-red-50 border-red-200 text-red-800",
+  };
+  return (
+    <div className={`border rounded p-3 text-center ${cls[color]}`}>
+      <div className="text-2xl font-bold">{value}</div>
+      <div className="text-xs">{label}</div>
+    </div>
+  );
+}
+
+function ShipmentTable({ shipments, showUnknown }: { shipments: ParsedShipment[]; showUnknown?: boolean }) {
+  if (shipments.length === 0) {
+    return <p className="text-sm text-muted-foreground text-center py-6">لا توجد شحنات</p>;
+  }
+  return (
+    <div className="border rounded overflow-x-auto max-h-[50vh]">
+      <table className="w-full text-xs text-right">
+        <thead className="bg-muted/60 sticky top-0">
+          <tr>
+            <th className="p-2">البوليصة</th>
+            <th className="p-2">التاريخ</th>
+            <th className="p-2">العميل</th>
+            <th className="p-2">الموبايل</th>
+            <th className="p-2">COD</th>
+            <th className="p-2">المنتجات المُعرَّفة</th>
+            {showUnknown && <th className="p-2 text-amber-700">غير معرَّف</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {shipments.map((s, i) => (
+            <tr key={s.bill_no + i} className="border-t hover:bg-muted/30">
+              <td className="p-2 font-mono">{s.bill_no}</td>
+              <td className="p-2 whitespace-nowrap">{s.shipment_date}</td>
+              <td className="p-2">{s.customer_name}</td>
+              <td className="p-2 font-mono">{s.phone}</td>
+              <td className="p-2 font-bold">{s.cod}</td>
+              <td className="p-2">
+                {s.items.length === 0 ? (
+                  <span className="text-red-600">لا شيء</span>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {s.items.map((it, j) => (
+                      <Badge key={j} variant="outline" className={it.is_gift ? "border-purple-400 text-purple-700" : "border-emerald-400 text-emerald-700"}>
+                        {it.quantity} × {it.product_name}{it.is_gift ? " 🎁" : ""}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </td>
+              {showUnknown && (
+                <td className="p-2 text-amber-700 text-xs max-w-xs">
+                  {s.unknown_tokens.length === 0 ? "—" : s.unknown_tokens.join("، ")}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ResultView({ result, onClose }: { result: any; onClose: () => void }) {
+  return (
+    <div className="space-y-3">
+      <Alert className="bg-emerald-50 border-emerald-300">
+        <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+        <AlertTitle>تمت العملية بنجاح</AlertTitle>
+        <AlertDescription>
+          تم تحديث <b>{result.updated?.length ?? 0}</b> أوردر إلى تسليم ناجح وخصم المخزون من العجوزة.
+        </AlertDescription>
+      </Alert>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center text-xs">
+        <div className="bg-emerald-50 border border-emerald-200 rounded p-2">
+          <div className="text-lg font-bold text-emerald-700">{result.updated?.length ?? 0}</div>
+          <div>تم التحديث</div>
+        </div>
+        <div className="bg-blue-50 border border-blue-200 rounded p-2">
+          <div className="text-lg font-bold text-blue-700">{result.product_diffs?.length ?? 0}</div>
+          <div>فيها فروقات منتجات</div>
+        </div>
+        <div className="bg-amber-50 border border-amber-200 rounded p-2">
+          <div className="text-lg font-bold text-amber-700">{result.already_delivered?.length ?? 0}</div>
+          <div>مسلَّم مسبقاً</div>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded p-2">
+          <div className="text-lg font-bold text-red-700">
+            {(result.unmatched?.length ?? 0) + (result.errors?.length ?? 0)}
+          </div>
+          <div>مش لاقيالها / أخطاء</div>
+        </div>
+      </div>
+
+      {result.unmatched?.length > 0 && (
+        <details className="border rounded p-2 text-xs">
+          <summary className="cursor-pointer font-bold text-red-700">
+            شحنات مش لاقيالها أوردر ({result.unmatched.length})
+          </summary>
+          <ul className="mt-2 space-y-1">
+            {result.unmatched.map((u: any, i: number) => (
+              <li key={i}>
+                • {u.shipment.customer_name} — {u.shipment.phone} — {u.shipment.cod} ج ({u.reason})
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {result.errors?.length > 0 && (
+        <details className="border rounded p-2 text-xs" open>
+          <summary className="cursor-pointer font-bold text-red-700">
+            أخطاء ({result.errors.length})
+          </summary>
+          <ul className="mt-2 space-y-1">
+            {result.errors.map((e: any, i: number) => (
+              <li key={i}>
+                • {e.shipment?.customer_name || "—"} ({e.shipment?.phone}) → {e.reason}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      <DialogFooter>
+        <Button onClick={onClose}>تم</Button>
+      </DialogFooter>
+    </div>
+  );
+}
