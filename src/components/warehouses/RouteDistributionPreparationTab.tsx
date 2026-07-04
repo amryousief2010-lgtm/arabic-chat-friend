@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
+import { MAIN_WAREHOUSE_ID as DEFAULT_MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
 
 interface OrderRow {
   id: string;
@@ -32,10 +32,10 @@ interface OrderRow {
 }
 
 type DeliveryKind = 'kimo' | 'pickup_main' | 'other';
-const getDeliveryKind = (o: Pick<OrderRow, 'fulfillment_type' | 'source_warehouse_id'>): DeliveryKind => {
-  const isMain = o.source_warehouse_id === MAIN_WAREHOUSE_ID;
-  if (isMain && o.fulfillment_type === 'delivery') return 'kimo';
-  if (isMain && o.fulfillment_type === 'pickup') return 'pickup_main';
+const makeGetDeliveryKind = (warehouseId: string) => (o: Pick<OrderRow, 'fulfillment_type' | 'source_warehouse_id'>): DeliveryKind => {
+  const isOwn = o.source_warehouse_id === warehouseId;
+  if (isOwn && o.fulfillment_type === 'delivery') return 'kimo';
+  if (isOwn && o.fulfillment_type === 'pickup') return 'pickup_main';
   if (o.fulfillment_type === 'delivery_main') return 'kimo';
   if (o.fulfillment_type === 'pickup_main') return 'pickup_main';
   return 'other';
@@ -85,7 +85,12 @@ const LINE_TYPE_META: Record<string, { label: string; icon: any; color: string }
   collection: { label: "تحصيل", icon: Coins, color: "bg-green-100 text-green-700" },
 };
 
-export default function RouteDistributionPreparationTab() {
+interface RouteDistributionPreparationTabProps {
+  warehouseId?: string;
+  warehouseLabel?: string;
+}
+
+export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_MAIN_WAREHOUSE_ID, warehouseLabel }: RouteDistributionPreparationTabProps = {}) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -108,7 +113,8 @@ export default function RouteDistributionPreparationTab() {
   const [idempotencyKey, setIdempotencyKey] = useState<string>("");
   const [lastDispatch, setLastDispatch] = useState<{ courierName: string; ordersCount: number; customersCount: number; itemsCount: number; at: string; reference: string; movementsCreated: number; unresolved: string[] } | null>(null);
 
-  const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
+  const getDeliveryKind = useMemo(() => makeGetDeliveryKind(warehouseId), [warehouseId]);
+
 
   const chunkArray = <T,>(arr: T[], size: number) => {
     const chunks: T[][] = [];
@@ -123,7 +129,7 @@ export default function RouteDistributionPreparationTab() {
     try {
       const { data, error } = await (supabase as any)
         .from("courier_goods_custodies")
-        .insert({ courier_name: name, notes: newCustodyNotes.trim() || null, opened_by: user?.id ?? null, status: "open" })
+        .insert({ courier_name: name, notes: newCustodyNotes.trim() || null, opened_by: user?.id ?? null, status: "open", warehouse_id: warehouseId })
         .select("id, courier_name, status, opened_at")
         .single();
       if (error) throw error;
@@ -150,16 +156,19 @@ export default function RouteDistributionPreparationTab() {
           .from("orders")
           .select("id, order_number, status, total, customer_id, delivery_address, created_at, fulfillment_type, source_warehouse_id, customers(name, phone)")
           .in("status", ["pending", "processing", "shipped", "confirmed"])
+          .eq("source_warehouse_id", warehouseId)
           .order("created_at", { ascending: false })
           .limit(500),
         (supabase as any)
           .from("courier_goods_custodies")
           .select("id, courier_name, status, opened_at")
           .eq("status", "open")
+          .eq("warehouse_id", warehouseId)
           .order("opened_at", { ascending: false }),
         (supabase as any)
           .from("courier_order_assignments")
-          .select("order_id, status"),
+          .select("order_id, status")
+          .eq("warehouse_id", warehouseId),
       ]);
       if (rawOrdersRes.error) toast.error("خطأ قراءة الطلبات: " + rawOrdersRes.error.message);
 
@@ -357,7 +366,7 @@ export default function RouteDistributionPreparationTab() {
 
       const { data, error } = await (supabase as any).rpc("approve_distribution_dispatch", {
         p_custody_id: selectedCustodyId,
-        p_warehouse_id: MAIN_WAREHOUSE_ID,
+        p_warehouse_id: warehouseId,
         p_order_ids: orderIds,
         p_idempotency_key: idem,
       });

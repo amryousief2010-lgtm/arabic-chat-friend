@@ -40,7 +40,7 @@ import WarehouseOpeningBalance from "@/pages/modules/WarehouseOpeningBalance";
 import WarehouseOperationalDates from "@/pages/modules/WarehouseOperationalDates";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import WarehousesDashboardPanel from "@/components/warehouses/WarehousesDashboardPanel";
-import { MAIN_WAREHOUSE_ID, getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow } from "@/lib/warehouseItemFilters";
+import { MAIN_WAREHOUSE_ID, AGOUZA_WAREHOUSE_ID, getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow } from "@/lib/warehouseItemFilters";
 
 
 const qualityLabelText: Record<string, string> = {
@@ -1553,6 +1553,8 @@ const Warehouses = () => {
             ];
             const AGOUZA_TOOLS = [
               { key: "treasury", label: "خزنة مخزن العجوزة", Icon: Wallet },
+              { key: "courier-orders", label: "عهدة أوردرات مندوب العجوزة", Icon: Truck },
+              { key: "route-prep", label: "تجهيز خط توزيع العجوزة", Icon: Truck },
               { key: "recon", label: "مطابقة خزنة العجوزة", Icon: ClipboardCheck },
               { key: "closure", label: "إقفال يوم العجوزة", Icon: ClipboardCheck },
               { key: "daily-recon", label: "تسوية عهدة اليوم", Icon: ClipboardCheck },
@@ -1609,6 +1611,8 @@ const Warehouses = () => {
             const renderAgouzaSubview = () => {
               switch (agouzaSubview) {
                 case "treasury": return <AgouzaTreasuryTab />;
+                case "courier-orders": return <CourierOrderCustodyTab warehouseId={AGOUZA_WAREHOUSE_ID} />;
+                case "route-prep": return <RouteDistributionPreparationTab warehouseId={AGOUZA_WAREHOUSE_ID} warehouseLabel="مخزن العجوزة" />;
                 case "recon": return <AgouzaReconciliationTab />;
                 case "closure": return <AgouzaDailyClosureTab />;
                 case "daily-recon": return <DailyCustodyReconciliationTab />;

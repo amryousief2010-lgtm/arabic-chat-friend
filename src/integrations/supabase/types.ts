@@ -2605,6 +2605,7 @@ export type Database = {
           paid_at: string
           performed_by: string | null
           treasury_txn_id: string | null
+          warehouse_id: string | null
         }
         Insert: {
           amount: number
@@ -2615,6 +2616,7 @@ export type Database = {
           paid_at?: string
           performed_by?: string | null
           treasury_txn_id?: string | null
+          warehouse_id?: string | null
         }
         Update: {
           amount?: number
@@ -2625,6 +2627,7 @@ export type Database = {
           paid_at?: string
           performed_by?: string | null
           treasury_txn_id?: string | null
+          warehouse_id?: string | null
         }
         Relationships: []
       }
@@ -2667,6 +2670,7 @@ export type Database = {
           status: string | null
           update_status_marker: string | null
           vodafone_cash_amount: number
+          warehouse_id: string | null
         }
         Insert: {
           bank_transfer_amount?: number
@@ -2685,6 +2689,7 @@ export type Database = {
           status?: string | null
           update_status_marker?: string | null
           vodafone_cash_amount?: number
+          warehouse_id?: string | null
         }
         Update: {
           bank_transfer_amount?: number
@@ -2703,6 +2708,7 @@ export type Database = {
           status?: string | null
           update_status_marker?: string | null
           vodafone_cash_amount?: number
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -2731,6 +2737,7 @@ export type Database = {
           transferred_txn_id: string | null
           treasury_txn_id: string | null
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
           amount: number
@@ -2748,6 +2755,7 @@ export type Database = {
           transferred_txn_id?: string | null
           treasury_txn_id?: string | null
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
           amount?: number
@@ -2765,6 +2773,7 @@ export type Database = {
           transferred_txn_id?: string | null
           treasury_txn_id?: string | null
           updated_at?: string
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -2810,6 +2819,7 @@ export type Database = {
           reopened_by: string | null
           sales_value: number
           status: string
+          warehouse_id: string | null
         }
         Insert: {
           cash_collected?: number
@@ -2830,6 +2840,7 @@ export type Database = {
           reopened_by?: string | null
           sales_value?: number
           status?: string
+          warehouse_id?: string | null
         }
         Update: {
           cash_collected?: number
@@ -2850,6 +2861,7 @@ export type Database = {
           reopened_by?: string | null
           sales_value?: number
           status?: string
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -2873,6 +2885,7 @@ export type Database = {
           opened_by: string | null
           status: string
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
           closed_at?: string | null
@@ -2885,6 +2898,7 @@ export type Database = {
           opened_by?: string | null
           status?: string
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
           closed_at?: string | null
@@ -2897,6 +2911,7 @@ export type Database = {
           opened_by?: string | null
           status?: string
           updated_at?: string
+          warehouse_id?: string | null
         }
         Relationships: []
       }
@@ -3045,6 +3060,7 @@ export type Database = {
           returned_at: string | null
           status: string
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
           assigned_at?: string
@@ -3060,6 +3076,7 @@ export type Database = {
           returned_at?: string | null
           status?: string
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
           assigned_at?: string
@@ -3075,6 +3092,7 @@ export type Database = {
           returned_at?: string | null
           status?: string
           updated_at?: string
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -3104,6 +3122,7 @@ export type Database = {
           notes: string | null
           updated_at: string
           updated_by: string | null
+          warehouse_id: string | null
         }
         Insert: {
           commission_type?: string
@@ -3115,6 +3134,7 @@ export type Database = {
           notes?: string | null
           updated_at?: string
           updated_by?: string | null
+          warehouse_id?: string | null
         }
         Update: {
           commission_type?: string
@@ -3126,6 +3146,7 @@ export type Database = {
           notes?: string | null
           updated_at?: string
           updated_by?: string | null
+          warehouse_id?: string | null
         }
         Relationships: []
       }
@@ -3300,6 +3321,7 @@ export type Database = {
           variance_amount: number | null
           variance_reason: string | null
           vodafone_cash_amount: number
+          warehouse_id: string | null
         }
         Insert: {
           actual_total?: number
@@ -3316,6 +3338,7 @@ export type Database = {
           variance_amount?: number | null
           variance_reason?: string | null
           vodafone_cash_amount?: number
+          warehouse_id?: string | null
         }
         Update: {
           actual_total?: number
@@ -3332,6 +3355,7 @@ export type Database = {
           variance_amount?: number | null
           variance_reason?: string | null
           vodafone_cash_amount?: number
+          warehouse_id?: string | null
         }
         Relationships: []
       }
@@ -14300,6 +14324,7 @@ export type Database = {
           order_id: string
           status: Database["public"]["Enums"]["pc_collection_status"]
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
           amount_collected?: number
@@ -14313,6 +14338,7 @@ export type Database = {
           order_id: string
           status?: Database["public"]["Enums"]["pc_collection_status"]
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
           amount_collected?: number
@@ -14326,6 +14352,7 @@ export type Database = {
           order_id?: string
           status?: Database["public"]["Enums"]["pc_collection_status"]
           updated_at?: string
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -14346,6 +14373,7 @@ export type Database = {
           notes: string
           order_id: string
           reason: Database["public"]["Enums"]["pc_failed_reason"]
+          warehouse_id: string | null
         }
         Insert: {
           created_at?: string
@@ -14355,6 +14383,7 @@ export type Database = {
           notes: string
           order_id: string
           reason: Database["public"]["Enums"]["pc_failed_reason"]
+          warehouse_id?: string | null
         }
         Update: {
           created_at?: string
@@ -14364,6 +14393,7 @@ export type Database = {
           notes?: string
           order_id?: string
           reason?: Database["public"]["Enums"]["pc_failed_reason"]
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -14438,6 +14468,7 @@ export type Database = {
           last_updated_by: string | null
           order_id: string
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
           courier_id?: string | null
@@ -14448,6 +14479,7 @@ export type Database = {
           last_updated_by?: string | null
           order_id: string
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
           courier_id?: string | null
@@ -14458,6 +14490,7 @@ export type Database = {
           last_updated_by?: string | null
           order_id?: string
           updated_at?: string
+          warehouse_id?: string | null
         }
         Relationships: [
           {

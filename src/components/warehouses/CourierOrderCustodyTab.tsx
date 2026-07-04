@@ -135,7 +135,13 @@ type Tracking = { order_id: string; courier_status: string | null };
 type Collection = { id: string; order_id: string; amount_due: number; amount_collected: number; status: string; collected_at: string };
 type FailedAttempt = { id: string; order_id: string; reason: string; notes: string | null; created_at: string };
 
-export default function CourierOrderCustodyTab() {
+import { MAIN_WAREHOUSE_ID as DEFAULT_MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
+
+interface CourierOrderCustodyTabProps {
+  warehouseId?: string;
+}
+
+export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WAREHOUSE_ID }: CourierOrderCustodyTabProps = {}) {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -190,8 +196,8 @@ export default function CourierOrderCustodyTab() {
   const load = async () => {
     setLoading(true);
     const [cstRes, asnRes] = await Promise.all([
-      (supabase as any).from("courier_goods_custodies").select("*").eq("status", "open").order("opened_at", { ascending: false }),
-      (supabase as any).from("courier_order_assignments").select("*").order("assigned_at", { ascending: false }).limit(2000),
+      (supabase as any).from("courier_goods_custodies").select("*").eq("status", "open").eq("warehouse_id", warehouseId).order("opened_at", { ascending: false }),
+      (supabase as any).from("courier_order_assignments").select("*").eq("warehouse_id", warehouseId).order("assigned_at", { ascending: false }).limit(2000),
     ]);
     const cst: Custody[] = cstRes.data || [];
     const asn: Assignment[] = asnRes.data || [];
@@ -217,6 +223,7 @@ export default function CourierOrderCustodyTab() {
       (supabase as any).from("orders")
         .select("id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, courier_cash_due, vodafone_cash_amount, instapay_amount, bank_transfer_amount, other_amount, free_amount, transfer_reference, collection_note, customers!orders_customer_id_fkey(name, phone)")
         .in("status", ["pending", "processing", "shipped"])
+        .eq("source_warehouse_id", warehouseId)
         .order("created_at", { ascending: false })
         .limit(500),
       assignedOrderIds.length
@@ -407,6 +414,7 @@ export default function CourierOrderCustodyTab() {
         courier_name: courier,
         assigned_by: user?.id ?? null,
         status: "with_courier",
+        warehouse_id: warehouseId,
       }));
       const { error: asnErr } = await (supabase as any).from("courier_order_assignments").insert(rows);
       if (asnErr) throw asnErr;

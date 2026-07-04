@@ -22,6 +22,7 @@ export interface WarehouseDropdownItem {
 }
 
 export const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
+export const AGOUZA_WAREHOUSE_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
 
 export const isWarehouseItemActive = (item: WarehouseDropdownItem): boolean =>
   item.is_active !== false;
