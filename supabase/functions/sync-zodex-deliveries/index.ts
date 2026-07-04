@@ -176,11 +176,12 @@ function parseBalanceRows(html: string): ZodexRow[] {
     const base = billIdx - 5;
     const get = (i: number) => cells[base + i] ?? "";
     const iso = parseZodexDate(get(14)) || new Date().toISOString();
+    const mod = splitNameAndPhone(get(6));
     rows.push({
       bill_no: get(5),
-      moderator_name: get(3),
-      customer_ref: get(6),
-      customer_name: extractCustomerName(get(6)),
+      zodex_receiver: get(3),
+      moderator_name: mod.name,
+      moderator_phone: mod.phone,
       customer_phone: normalizePhone(get(8)),
       region: get(10),
       cod_amount: parseFloat(get(11).replace(/[^\d.-]/g, "")) || 0,
