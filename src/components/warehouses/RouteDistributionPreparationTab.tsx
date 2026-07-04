@@ -156,16 +156,19 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
           .from("orders")
           .select("id, order_number, status, total, customer_id, delivery_address, created_at, fulfillment_type, source_warehouse_id, customers(name, phone)")
           .in("status", ["pending", "processing", "shipped", "confirmed"])
+          .eq("source_warehouse_id", warehouseId)
           .order("created_at", { ascending: false })
           .limit(500),
         (supabase as any)
           .from("courier_goods_custodies")
           .select("id, courier_name, status, opened_at")
           .eq("status", "open")
+          .eq("warehouse_id", warehouseId)
           .order("opened_at", { ascending: false }),
         (supabase as any)
           .from("courier_order_assignments")
-          .select("order_id, status"),
+          .select("order_id, status")
+          .eq("warehouse_id", warehouseId),
       ]);
       if (rawOrdersRes.error) toast.error("خطأ قراءة الطلبات: " + rawOrdersRes.error.message);
 
