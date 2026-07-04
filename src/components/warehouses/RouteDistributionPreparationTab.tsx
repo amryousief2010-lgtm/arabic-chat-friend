@@ -652,8 +652,8 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {([
                     { k: 'all' as const, label: 'الكل', count: dateScopedOrders.length, cls: 'bg-slate-100 text-slate-700 border-slate-300' },
-                    { k: 'kimo' as const, label: '🛵 كيمو (توصيل رئيسي)', count: deliveryCounts.kimo, cls: 'bg-purple-100 text-purple-700 border-purple-300' },
-                    { k: 'pickup_main' as const, label: '🏬 استلام من الرئيسي', count: deliveryCounts.pickup_main, cls: 'bg-orange-100 text-orange-700 border-orange-300' },
+                    { k: 'kimo' as const, label: courierGroupLabel, count: deliveryCounts.kimo, cls: 'bg-purple-100 text-purple-700 border-purple-300' },
+                    { k: 'pickup_main' as const, label: pickupGroupLabel, count: deliveryCounts.pickup_main, cls: 'bg-orange-100 text-orange-700 border-orange-300' },
                     { k: 'other' as const, label: 'غير ذلك', count: deliveryCounts.other, cls: 'bg-slate-50 text-slate-600 border-slate-200' },
                   ]).map(t => (
                     <button
