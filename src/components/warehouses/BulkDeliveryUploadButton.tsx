@@ -100,16 +100,26 @@ export function BulkDeliveryUploadButton() {
       const phoneMod = new Map<string, string>();
       if (phones.length > 0) {
         const chunkSize = 500;
-        const custIdToPhone = new Map<string, string>();
+        // Map custId -> array of phones (phone + phone2)
+        const custIdToPhones = new Map<string, string[]>();
         for (let i = 0; i < phones.length; i += chunkSize) {
           const chunk = phones.slice(i, i + chunkSize);
+          const orExpr = `phone.in.(${chunk.join(",")}),phone2.in.(${chunk.join(",")})`;
           const { data: custs } = await supabase
-            .from("customers").select("id, phone").in("phone", chunk);
+            .from("customers").select("id, phone, phone2").or(orExpr);
           (custs || []).forEach((c: any) => {
-            if (!c.phone) return;
-            const p = normalizePhone(c.phone);
-            known.add(p);
-            custIdToPhone.set(c.id, p);
+            const list: string[] = [];
+            if (c.phone) {
+              const p = normalizePhone(c.phone);
+              known.add(p);
+              list.push(p);
+            }
+            if (c.phone2) {
+              const p2 = normalizePhone(c.phone2);
+              known.add(p2);
+              list.push(p2);
+            }
+            if (list.length > 0) custIdToPhones.set(c.id, list);
           });
         }
         // Fetch latest moderator per customer
