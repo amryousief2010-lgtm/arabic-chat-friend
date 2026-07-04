@@ -1128,8 +1128,8 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                               <div class="t-row"><span>إجمالي تحويل بنكي:</span><b>${fmt(sumBank)} ج.م</b></div>
                               ${sumOther ? `<div class="t-row"><span>إجمالي أخرى:</span><b>${fmt(sumOther)} ج.م</b></div>` : ""}
                               <div class="t-row"><span>إجمالي المجاني / الهدايا:</span><b>${fmt(sumFree)} ج.م</b></div>
-                              <div class="t-row highlight"><span>💵 إجمالي النقدية المطلوب استلامها من كيمو:</span><b>${fmt(sumCash)} ج.م</b></div>
-                              <div class="note">ملاحظة: التحويلات (فودافون/إنستاباي/بنكي) والأوردرات المجانية تظهر للإثبات فقط ولا تدخل نقدًا مع المندوب. المبلغ الفعلي الذي يدخل خزنة المخزن الرئيسي = النقدية المطلوبة من كيمو فقط (مجموع courier_cash_due).</div>
+                              <div class="t-row highlight"><span>💵 إجمالي النقدية المطلوب استلامها من ${courierLabel}:</span><b>${fmt(sumCash)} ج.م</b></div>
+                              <div class="note">ملاحظة: التحويلات (فودافون/إنستاباي/بنكي) والأوردرات المجانية تظهر للإثبات فقط ولا تدخل نقدًا مع المندوب. المبلغ الفعلي الذي يدخل خزنة المخزن الرئيسي = النقدية المطلوبة من ${courierLabel} فقط (مجموع courier_cash_due).</div>
                             </div>`;
                           const css = `
                             .meta { display:flex; gap:20px; flex-wrap:wrap; margin-bottom:12px; font-size:12px; padding:8px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:4px; }
