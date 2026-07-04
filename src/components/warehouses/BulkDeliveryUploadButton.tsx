@@ -317,6 +317,7 @@ export function BulkDeliveryUploadButton() {
 function StatBox({ label, value, color }: { label: string; value: number; color: string }) {
   const cls: Record<string, string> = {
     slate: "bg-slate-50 border-slate-200 text-slate-800",
+    blue: "bg-blue-50 border-blue-200 text-blue-800",
     emerald: "bg-emerald-50 border-emerald-200 text-emerald-800",
     amber: "bg-amber-50 border-amber-200 text-amber-800",
     red: "bg-red-50 border-red-200 text-red-800",
