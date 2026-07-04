@@ -305,6 +305,7 @@ Deno.serve(async (req) => {
           phone: s.phone,
           cod: s.cod,
           product_diff: hasProductDiff,
+          custody_assigned,
         });
         if (hasProductDiff) {
           results.product_diffs.push({
