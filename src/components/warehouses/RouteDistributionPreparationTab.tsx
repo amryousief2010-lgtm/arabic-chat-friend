@@ -634,7 +634,10 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
             </Alert>
           )}
 
+          <ZodexPipelineReconcile localInFlightCount={debug.raw} />
+
           <ZodexClosedInvoicesCard />
+
 
           <div className="grid lg:grid-cols-3 gap-3">
 
