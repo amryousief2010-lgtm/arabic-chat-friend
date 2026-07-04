@@ -36,6 +36,7 @@ interface OrderRow {
   created_at: string;
   fulfillment_type: string | null;
   source_warehouse_id: string | null;
+  with_courier_name?: string | null;
 }
 
 type DeliveryKind = 'kimo' | 'pickup_main' | 'other';
