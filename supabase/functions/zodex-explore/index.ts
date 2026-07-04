@@ -36,6 +36,16 @@ Deno.serve(async (req) => {
   const html = await c.get(path);
 
   if (mode === "raw") {
+    const q = url.searchParams.get("q");
+    if (q) {
+      // return only lines containing q
+      const lines = html.split("\n");
+      const hits: string[] = [];
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes(q)) hits.push(`L${i}: ${lines[i].trim().slice(0, 400)}`);
+      }
+      return new Response(hits.slice(0, 200).join("\n"), { headers: { ...corsHeaders, "Content-Type": "text/plain; charset=utf-8" } });
+    }
     return new Response(html.slice(0, 20000), { headers: { ...corsHeaders, "Content-Type": "text/plain; charset=utf-8" } });
   }
 
