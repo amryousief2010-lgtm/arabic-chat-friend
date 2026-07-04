@@ -3177,6 +3177,22 @@ const Orders = () => {
         />
       )}
 
+      {editCustomerOrder && (
+        <EditCustomerInfoDialog
+          open={!!editCustomerOrder}
+          onOpenChange={(o) => !o && setEditCustomerOrder(null)}
+          orderId={editCustomerOrder.id}
+          customerId={editCustomerOrder.customer_id}
+          initialName={editCustomerOrder.customer_name}
+          initialPhone={editCustomerOrder.customer_phone}
+          initialAddress={editCustomerOrder.delivery_address}
+          onSaved={(next) => {
+            setOrders((prev) => prev.map((o) => o.id === editCustomerOrder.id ? { ...o, ...next } : o));
+            setEditCustomerOrder(null);
+          }}
+        />
+      )}
+
       {swapOfferOrder && (
         <SwapOfferDialog
           open={!!swapOfferOrder}
