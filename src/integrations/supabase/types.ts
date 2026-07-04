@@ -449,6 +449,48 @@ export type Database = {
         }
         Relationships: []
       }
+      bostta_delivery_uploads: {
+        Row: {
+          created_at: string
+          filename: string
+          id: string
+          product_diffs_count: number
+          shipments_total: number
+          summary: Json | null
+          unmatched_count: number
+          updated_count: number
+          uploaded_at: string
+          uploaded_by: string | null
+          warnings_count: number
+        }
+        Insert: {
+          created_at?: string
+          filename: string
+          id?: string
+          product_diffs_count?: number
+          shipments_total?: number
+          summary?: Json | null
+          unmatched_count?: number
+          updated_count?: number
+          uploaded_at?: string
+          uploaded_by?: string | null
+          warnings_count?: number
+        }
+        Update: {
+          created_at?: string
+          filename?: string
+          id?: string
+          product_diffs_count?: number
+          shipments_total?: number
+          summary?: Json | null
+          unmatched_count?: number
+          updated_count?: number
+          uploaded_at?: string
+          uploaded_by?: string | null
+          warnings_count?: number
+        }
+        Relationships: []
+      }
       branches: {
         Row: {
           address: string | null
