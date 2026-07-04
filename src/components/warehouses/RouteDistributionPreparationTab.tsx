@@ -366,7 +366,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
 
       const { data, error } = await (supabase as any).rpc("approve_distribution_dispatch", {
         p_custody_id: selectedCustodyId,
-        p_warehouse_id: MAIN_WAREHOUSE_ID,
+        p_warehouse_id: warehouseId,
         p_order_ids: orderIds,
         p_idempotency_key: idem,
       });
