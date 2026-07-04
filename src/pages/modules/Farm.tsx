@@ -123,7 +123,7 @@ const Farm = () => {
 
         <Tabs defaultValue="dashboard" dir="rtl">
           <div className="w-full overflow-x-auto -mx-1 px-1">
-            <TabsList className="inline-flex md:grid md:grid-cols-8 w-max md:w-full gap-1 h-auto p-1">
+            <TabsList className="inline-flex lg:grid lg:grid-cols-8 w-max lg:w-full gap-1 h-auto p-1">
               <TabsTrigger value="dashboard" className="whitespace-nowrap text-xs md:text-sm px-3 py-2"><LayoutDashboard className="w-4 h-4 ml-1" />لوحة التحكم</TabsTrigger>
               <TabsTrigger value="families" className="whitespace-nowrap text-xs md:text-sm px-3 py-2"><Users className="w-4 h-4 ml-1" />الأسر</TabsTrigger>
               <TabsTrigger value="eggs" className="whitespace-nowrap text-xs md:text-sm px-3 py-2"><Egg className="w-4 h-4 ml-1" />الإنتاج اليومي</TabsTrigger>
