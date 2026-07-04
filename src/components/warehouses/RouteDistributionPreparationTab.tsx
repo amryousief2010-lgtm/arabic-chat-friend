@@ -371,13 +371,16 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
   }, [selectedOrders, items]);
 
   const toggleOrder = (id: string) => {
+    const o = orders.find(x => x.id === id);
+    if (o?.with_courier_name != null) return; // locked: already with courier
     const next = new Set(selectedOrderIds);
     if (next.has(id)) next.delete(id); else next.add(id);
     setSelectedOrderIds(next);
   };
   const toggleAll = () => {
-    if (selectedOrderIds.size === filteredOrders.length) setSelectedOrderIds(new Set());
-    else setSelectedOrderIds(new Set(filteredOrders.map(o => o.id)));
+    const selectable = filteredOrders.filter(o => o.with_courier_name == null);
+    if (selectedOrderIds.size === selectable.length) setSelectedOrderIds(new Set());
+    else setSelectedOrderIds(new Set(selectable.map(o => o.id)));
   };
 
   const approveDispatch = async () => {
