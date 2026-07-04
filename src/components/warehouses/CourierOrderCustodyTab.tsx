@@ -196,8 +196,8 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
   const load = async () => {
     setLoading(true);
     const [cstRes, asnRes] = await Promise.all([
-      (supabase as any).from("courier_goods_custodies").select("*").eq("status", "open").order("opened_at", { ascending: false }),
-      (supabase as any).from("courier_order_assignments").select("*").order("assigned_at", { ascending: false }).limit(2000),
+      (supabase as any).from("courier_goods_custodies").select("*").eq("status", "open").eq("warehouse_id", warehouseId).order("opened_at", { ascending: false }),
+      (supabase as any).from("courier_order_assignments").select("*").eq("warehouse_id", warehouseId).order("assigned_at", { ascending: false }).limit(2000),
     ]);
     const cst: Custody[] = cstRes.data || [];
     const asn: Assignment[] = asnRes.data || [];
