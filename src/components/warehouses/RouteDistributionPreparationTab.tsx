@@ -17,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BulkDeliveryUploadButton } from "@/components/warehouses/BulkDeliveryUploadButton";
 import { ZodexSyncButton } from "@/components/warehouses/ZodexSyncButton";
 import { ZodexClosedInvoicesCard } from "@/components/warehouses/ZodexClosedInvoicesCard";
+import { ZodexPipelineReconcile } from "@/components/warehouses/ZodexPipelineReconcile";
 import { UnregisteredShipmentsButton } from "@/components/warehouses/UnregisteredShipmentsButton";
 import { openPrintWindow, escapeHtml } from "@/lib/printPdf";
 
