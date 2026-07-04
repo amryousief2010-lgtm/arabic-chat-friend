@@ -5,6 +5,3 @@ verify_jwt = false
 
 [functions.process-email-queue]
 verify_jwt = true
-
-[functions.process-bostta-delivery]
-verify_jwt = true
