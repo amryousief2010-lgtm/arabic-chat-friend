@@ -141,6 +141,7 @@ interface ZodexRow {
   shipment_date: string;
   raw_date_text: string;
   zodex_receiver: string;   // column 3 "إلي" - the Zodex-side admin (informational)
+  invoice_no: string | null; // e.g. "55811" if row is part of a closed payment invoice
 }
 
 function splitNameAndPhone(text: string): { name: string; phone: string } {
