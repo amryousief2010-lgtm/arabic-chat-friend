@@ -638,7 +638,9 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
                   <div className="flex items-center gap-2 flex-wrap">
                     <CardTitle className="text-base">طلبات قسم التسويق</CardTitle>
                     <BulkDeliveryUploadButton />
+                    <UnregisteredShipmentsButton />
                   </div>
+
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className="flex items-center gap-1">
                       <Label className="text-xs whitespace-nowrap">من تاريخ:</Label>
