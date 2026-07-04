@@ -850,7 +850,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
         {/* Customer statement tab */}
         <TabsContent value="statement">
           <Card>
-            <CardHeader><CardTitle className="text-base">كشف كيمو — مفصل حسب العميل</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">{statementCardTitle}</CardTitle></CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
