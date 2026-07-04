@@ -83,6 +83,27 @@ const STATUS_ICON: Record<string, string> = {
 
 const fmt = (n: number) => new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 2 }).format(n || 0);
 
+const normalizeDigits = (value: string) => value
+  .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+  .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)));
+
+const parseBosttaSheetNetAmount = (filename?: string | null) => {
+  const base = normalizeDigits(String(filename || "").replace(/\.[^.]+$/, ""));
+  const matches = Array.from(base.matchAll(/(?:^|\D)(\d{4,8})(?=\D|$)/g)).map((m) => Number(m[1]));
+  return matches.length ? matches[matches.length - 1] : null;
+};
+
+const extractBosttaOrderNumbers = (summary: any) => {
+  const nums = new Set<string>();
+  ["updated", "already_delivered"].forEach((key) => {
+    const rows = Array.isArray(summary?.[key]) ? summary[key] : [];
+    rows.forEach((row: any) => {
+      if (row?.order_number) nums.add(String(row.order_number));
+    });
+  });
+  return Array.from(nums);
+};
+
 const isGiftAssignment = (
   a: { notes?: string | null; order_id?: string } | null | undefined,
   order?: { update_status_marker?: string | null; collection_method?: string | null } | null,
@@ -135,6 +156,7 @@ type Order = {
 type Tracking = { order_id: string; courier_status: string | null };
 type Collection = { id: string; order_id: string; amount_due: number; amount_collected: number; status: string; collected_at: string };
 type FailedAttempt = { id: string; order_id: string; reason: string; notes: string | null; created_at: string };
+type BosttaUploadNet = { id: string; filename: string; netAmount: number; orderNumbers: string[]; created_at: string };
 
 import { MAIN_WAREHOUSE_ID as DEFAULT_MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
 
@@ -182,6 +204,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
   const [handoverNotes, setHandoverNotes] = useState("");
   const [handoverBusy, setHandoverBusy] = useState(false);
   const [dailyDeposits, setDailyDeposits] = useState<Array<{ id: string; custody_id: string; deposit_date: string; amount: number; orders_count: number; treasury_txn_id: string | null; performed_by_name: string | null; created_at: string }>>([]);
+  const [bosttaUploadNets, setBosttaUploadNets] = useState<BosttaUploadNet[]>([]);
   const [depositingDay, setDepositingDay] = useState<string | null>(null);
 
   const printStatement = async (fmt: "pdf" | "xlsx") => {
@@ -220,6 +243,25 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
       setDailyDeposits(depRows || []);
     } else {
       setDailyDeposits([]);
+    }
+
+    if (isAgouza) {
+      const { data: uploadRows } = await (supabase as any)
+        .from("bostta_delivery_uploads")
+        .select("id, filename, summary, created_at")
+        .order("created_at", { ascending: false })
+        .limit(25);
+      setBosttaUploadNets((uploadRows || [])
+        .map((row: any) => ({
+          id: row.id,
+          filename: row.filename,
+          netAmount: parseBosttaSheetNetAmount(row.filename),
+          orderNumbers: extractBosttaOrderNumbers(row.summary),
+          created_at: row.created_at,
+        }))
+        .filter((row: BosttaUploadNet) => Number(row.netAmount) > 0 && row.orderNumbers.length > 0));
+    } else {
+      setBosttaUploadNets([]);
     }
 
     // Pull orders that are: (a) prepared/ready for assignment, (b) currently assigned
@@ -277,11 +319,25 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
       const giftOrderIds = new Set(myAsn.filter((a) => isNonCashAssignment(a, orders.find((o) => o.id === a.order_id) as any)).map((a) => a.order_id));
       const myOrderIds = new Set(myAsn.map((a) => a.order_id));
       const myOrders = orders.filter((o) => myOrderIds.has(o.id));
-      const totalValue = myOrders.reduce((s, o) => {
+      let totalValue = myOrders.reduce((s, o) => {
         if (giftOrderIds.has(o.id)) return s;
         if ((o as any).collection_method === 'mixed_payment') return s + Number((o as any).courier_cash_due || 0);
         return s + Number(o.total || 0);
       }, 0);
+      if (isAgouza && myOrders.length > 0 && bosttaUploadNets.length > 0) {
+        const myOrderNumbers = myOrders.map((o) => o.order_number).filter(Boolean);
+        const myOrderNumberSet = new Set(myOrderNumbers);
+        const matched = new Set<string>();
+        let sheetTotal = 0;
+        bosttaUploadNets.forEach((upload) => {
+          const uploadInsideThisCustody = upload.orderNumbers.length > 0 && upload.orderNumbers.every((no) => myOrderNumberSet.has(no));
+          const overlapsAlreadyMatched = upload.orderNumbers.some((no) => matched.has(no));
+          if (!uploadInsideThisCustody || overlapsAlreadyMatched) return;
+          upload.orderNumbers.forEach((no) => matched.add(no));
+          sheetTotal += Number(upload.netAmount || 0);
+        });
+        if (matched.size === myOrderNumbers.length && sheetTotal > 0) totalValue = sheetTotal;
+      }
       const myCols = collections.filter((cl) => myOrderIds.has(cl.order_id));
       const collected = myCols.reduce((s, cl) => s + Number(cl.amount_collected || 0), 0);
       const delivered = myAsn.filter((a) => ["delivered", "collected", "completed"].includes(a.status)).length;
@@ -300,7 +356,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         returns,
       };
     });
-  }, [custodies, assignments, orders, collections]);
+  }, [custodies, assignments, orders, collections, isAgouza, bosttaUploadNets]);
 
   const dashboard = useMemo(() => {
     const totals = custodyAnalytics.reduce(
@@ -342,8 +398,22 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         if (Math.abs(sum - Number(o.total || 0)) > 0.01) acc.missingBreakdown += 1;
       }
     });
+    if (isAgouza && relevant.length > 0 && bosttaUploadNets.length > 0) {
+      const relevantOrderNumbers = relevant.map((o) => o.order_number).filter(Boolean);
+      const relevantSet = new Set(relevantOrderNumbers);
+      const matched = new Set<string>();
+      let sheetTotal = 0;
+      bosttaUploadNets.forEach((upload) => {
+        const uploadInsideScope = upload.orderNumbers.length > 0 && upload.orderNumbers.every((no) => relevantSet.has(no));
+        const overlapsAlreadyMatched = upload.orderNumbers.some((no) => matched.has(no));
+        if (!uploadInsideScope || overlapsAlreadyMatched) return;
+        upload.orderNumbers.forEach((no) => matched.add(no));
+        sheetTotal += Number(upload.netAmount || 0);
+      });
+      if (matched.size === relevantOrderNumbers.length && sheetTotal > 0) acc.cashDue = sheetTotal;
+    }
     return acc;
-  }, [orders, assignments, selectedCustody]);
+  }, [orders, assignments, selectedCustody, isAgouza, bosttaUploadNets]);
 
 
   const current = custodyAnalytics.find((c) => c.id === selectedCustody);
@@ -366,9 +436,11 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
       .map(([day, items]) => {
         let totalValue = 0, cashDue = 0, vodafone = 0, instapay = 0, bank = 0, other = 0, free = 0;
         let missingBreakdown = 0, undelivered = 0;
+        const groupOrders: Order[] = [];
         items.forEach((a) => {
           const o: any = orders.find((x) => x.id === a.order_id);
           if (!o) return;
+          groupOrders.push(o);
           const deliveredStatus = ["delivered", "collected", "completed"].includes(o.status);
           const nonCash = isAgouza ? false : isNonCashAssignment(a, o);
           if (!nonCash) {
@@ -396,6 +468,25 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           }
           if (!["delivered", "collected", "completed", "cancelled", "partially_returned", "fully_returned"].includes(o.status)) undelivered += 1;
         });
+
+        const groupOrderNumbers = groupOrders.map((o) => o.order_number).filter(Boolean);
+        let sheetNetAmount: number | null = null;
+        if (isAgouza && groupOrderNumbers.length > 0 && bosttaUploadNets.length > 0) {
+          const groupSet = new Set(groupOrderNumbers);
+          const matched = new Set<string>();
+          let sheetTotal = 0;
+          bosttaUploadNets.forEach((upload) => {
+            const uploadInsideThisGroup = upload.orderNumbers.length > 0 && upload.orderNumbers.every((no) => groupSet.has(no));
+            const overlapsAlreadyMatched = upload.orderNumbers.some((no) => matched.has(no));
+            if (!uploadInsideThisGroup || overlapsAlreadyMatched) return;
+            upload.orderNumbers.forEach((no) => matched.add(no));
+            sheetTotal += Number(upload.netAmount || 0);
+          });
+          if (matched.size === groupOrderNumbers.length && sheetTotal > 0) sheetNetAmount = sheetTotal;
+        }
+
+        const finalTotalValue = sheetNetAmount ?? totalValue;
+        const finalCashDue = sheetNetAmount ?? cashDue;
         const collected = items.reduce((s, a) => {
           const c = collections.find((cl) => cl.order_id === a.order_id);
           return s + Number(c?.amount_collected || 0);
@@ -404,14 +495,15 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         const returns = items.filter((a) => ["partially_returned", "fully_returned"].includes(a.status)).length;
         const deposit = depByDay.get(day) || null;
         return {
-          day, items, totalValue, collected, delivered, returns,
-          remaining: Math.max(0, totalValue - collected),
-          cashDue, vodafone, instapay, bank, other, free,
+          day, items, totalValue: finalTotalValue, collected, delivered, returns,
+          remaining: Math.max(0, finalTotalValue - collected),
+          cashDue: finalCashDue, vodafone, instapay, bank, other, free,
+          sheetNetAmount,
           missingBreakdown, undelivered, deposit,
           canDeposit: undelivered === 0 && missingBreakdown === 0 && items.length > 0 && !deposit,
         };
       });
-  }, [currentAssignments, orders, collections, dailyDeposits, selectedCustody]);
+  }, [currentAssignments, orders, collections, dailyDeposits, selectedCustody, isAgouza, bosttaUploadNets]);
 
 
   // ── Actions ─────────────────────────────────────────────────────────────
