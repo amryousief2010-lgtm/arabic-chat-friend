@@ -86,10 +86,27 @@ Deno.serve(async (req) => {
         const { data: customers } = await supabase
           .from("customers").select("id, name").eq("phone", s.phone).limit(5);
         if (!customers || customers.length === 0) {
-          results.unmatched.push({ shipment: s, reason: "phone_not_in_customers" });
+          // Queue as unregistered shipment (moderator needs to create the order)
+          if (s.bill_no) {
+            await supabase.from("unregistered_bostta_shipments").upsert({
+              bill_no: s.bill_no,
+              phone: s.phone,
+              customer_name: s.customer_name || "غير معروف",
+              cod: s.cod,
+              shipment_date: s.shipment_date || null,
+              raw_products: s.raw_products || null,
+              parsed_items: s.items,
+              unknown_tokens: s.unknown_tokens || [],
+              status: "pending",
+              uploaded_from_filename: filename,
+              uploaded_by: userId,
+            }, { onConflict: "bill_no", ignoreDuplicates: false });
+          }
+          results.unregistered_queued.push({ shipment: s });
           continue;
         }
         const customerIds = customers.map((c: any) => c.id);
+
 
         // find candidate orders
         const shipDate = s.shipment_date ? new Date(s.shipment_date) : new Date();
