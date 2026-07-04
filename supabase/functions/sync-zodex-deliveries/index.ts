@@ -505,18 +505,24 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // 4) Missing → upsert & notify Alaa (once per new bill)
+      // 4) Missing → upsert. Only notify Alaa once, and only after a 24h grace period
+      //    so the moderator has a chance to register the order in our system first.
+      const GRACE_MS = 24 * 60 * 60 * 1000;
+      const nowIso = new Date().toISOString();
       const { data: existing } = await supabase.from("zodex_missing_orders")
-        .select("id").eq("bill_no", row.bill_no).maybeSingle();
+        .select("id, first_seen_at, alaa_notified_at, status").eq("bill_no", row.bill_no).maybeSingle();
+
+      let missingRow: { id: string; first_seen_at: string; alaa_notified_at: string | null; status: string } | null = existing as any;
+
       if (existing) {
         await supabase.from("zodex_missing_orders").update({
-          last_seen_at: new Date().toISOString(),
+          last_seen_at: nowIso,
           zodex_status: row.shipment_status,
           cod_amount: row.cod_amount,
         }).eq("id", existing.id);
         stats.missing_updated++;
       } else {
-        await supabase.from("zodex_missing_orders").insert({
+        const { data: inserted } = await supabase.from("zodex_missing_orders").insert({
           bill_no: row.bill_no,
           customer_name: null,
           customer_phone: row.customer_phone,
@@ -527,17 +533,29 @@ Deno.serve(async (req) => {
           operation_type: row.operation_type,
           shipment_date: row.shipment_date,
           raw_row: row,
-        });
-        // Notify Alaa (once per new bill)
+        }).select("id, first_seen_at, alaa_notified_at, status").maybeSingle();
+        missingRow = inserted as any;
+        stats.missing_created++;
+      }
+
+      // 24h-grace notification: only once per bill, only if still pending and >24h since first_seen_at
+      if (
+        missingRow &&
+        missingRow.status === "pending" &&
+        !missingRow.alaa_notified_at &&
+        new Date(missingRow.first_seen_at).getTime() <= Date.now() - GRACE_MS
+      ) {
         await supabase.from("notifications").insert({
-          title: "أوردر مسجل على زودكس وغير موجود عندنا",
+          title: "أوردر مسجل على زودكس وغير موجود عندنا (تخطى 24 ساعة)",
           description: `بوليصة ${row.bill_no} • تليفون العميل: ${row.customer_phone || "—"} • الموديرتور: ${row.moderator_name || "—"} • ${row.region || ""} • ${row.cod_amount} ج • ${row.raw_date_text}`,
           type: "zodex_missing",
           target_user_id: ALAA_USER_ID,
         });
-        stats.missing_created++;
+        await supabase.from("zodex_missing_orders").update({ alaa_notified_at: nowIso }).eq("id", missingRow.id);
+        (stats as any).missing_notified = ((stats as any).missing_notified || 0) + 1;
       }
     }
+
 
     // ----- Closed invoices processing -----
     // Group delivery rows by invoice_no; for each new invoice, upsert record,
