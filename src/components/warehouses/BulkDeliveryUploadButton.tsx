@@ -123,7 +123,7 @@ export function BulkDeliveryUploadButton() {
           });
         }
         // Fetch latest moderator per customer
-        const custIds = Array.from(custIdToPhone.keys());
+        const custIds: string[] = Array.from(custIdToPhones.keys());
         for (let i = 0; i < custIds.length; i += chunkSize) {
           const chunk = custIds.slice(i, i + chunkSize);
           const { data: ords } = await supabase
@@ -133,8 +133,10 @@ export function BulkDeliveryUploadButton() {
             .not("moderator", "is", null)
             .order("created_at", { ascending: false });
           (ords || []).forEach((o: any) => {
-            const p = custIdToPhone.get(o.customer_id);
-            if (p && !phoneMod.has(p)) phoneMod.set(p, o.moderator);
+            const list = custIdToPhones.get(o.customer_id) || [];
+            list.forEach((p) => {
+              if (!phoneMod.has(p)) phoneMod.set(p, o.moderator);
+            });
           });
         }
       }
