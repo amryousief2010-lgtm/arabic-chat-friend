@@ -700,8 +700,8 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
                               <TableCell>
                                 {(() => {
                                   const k = getDeliveryKind(o);
-                                  if (k === 'kimo') return <Badge className="bg-purple-100 text-purple-700 border border-purple-300 text-[10px]">🛵 كيمو</Badge>;
-                                  if (k === 'pickup_main') return <Badge className="bg-orange-100 text-orange-700 border border-orange-300 text-[10px]">🏬 استلام رئيسي</Badge>;
+                                  if (k === 'kimo') return <Badge className="bg-purple-100 text-purple-700 border border-purple-300 text-[10px]">{courierBadgeLabel}</Badge>;
+                                  if (k === 'pickup_main') return <Badge className="bg-orange-100 text-orange-700 border border-orange-300 text-[10px]">{pickupBadgeLabel}</Badge>;
                                   return <Badge variant="outline" className="text-[10px]">—</Badge>;
                                 })()}
                               </TableCell>
