@@ -1611,6 +1611,8 @@ const Warehouses = () => {
             const renderAgouzaSubview = () => {
               switch (agouzaSubview) {
                 case "treasury": return <AgouzaTreasuryTab />;
+                case "courier-orders": return <CourierOrderCustodyTab warehouseId={AGOUZA_WAREHOUSE_ID} />;
+                case "route-prep": return <RouteDistributionPreparationTab warehouseId={AGOUZA_WAREHOUSE_ID} warehouseLabel="مخزن العجوزة" />;
                 case "recon": return <AgouzaReconciliationTab />;
                 case "closure": return <AgouzaDailyClosureTab />;
                 case "daily-recon": return <DailyCustodyReconciliationTab />;
