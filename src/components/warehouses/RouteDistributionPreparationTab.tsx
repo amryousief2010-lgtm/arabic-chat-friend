@@ -485,7 +485,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
               <div className="space-y-3">
                 <div>
                   <Label>اسم المندوب *</Label>
-                  <Input value={newCourierName} onChange={(e) => setNewCourierName(e.target.value)} placeholder="مثال: كيمو" />
+                  <Input value={newCourierName} onChange={(e) => setNewCourierName(e.target.value)} placeholder={courierNamePlaceholder} />
                 </div>
                 <div>
                   <Label>ملاحظات (اختياري)</Label>
