@@ -32,10 +32,10 @@ interface OrderRow {
 }
 
 type DeliveryKind = 'kimo' | 'pickup_main' | 'other';
-const getDeliveryKind = (o: Pick<OrderRow, 'fulfillment_type' | 'source_warehouse_id'>): DeliveryKind => {
-  const isMain = o.source_warehouse_id === MAIN_WAREHOUSE_ID;
-  if (isMain && o.fulfillment_type === 'delivery') return 'kimo';
-  if (isMain && o.fulfillment_type === 'pickup') return 'pickup_main';
+const makeGetDeliveryKind = (warehouseId: string) => (o: Pick<OrderRow, 'fulfillment_type' | 'source_warehouse_id'>): DeliveryKind => {
+  const isOwn = o.source_warehouse_id === warehouseId;
+  if (isOwn && o.fulfillment_type === 'delivery') return 'kimo';
+  if (isOwn && o.fulfillment_type === 'pickup') return 'pickup_main';
   if (o.fulfillment_type === 'delivery_main') return 'kimo';
   if (o.fulfillment_type === 'pickup_main') return 'pickup_main';
   return 'other';
