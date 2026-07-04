@@ -147,21 +147,20 @@ Deno.serve(async (req) => {
           p_order_id: order.id,
         });
         if (reserveErr) throw new Error(`reserve: ${reserveErr.message}`);
-        if (reserveRes && !(reserveRes as any).ok) {
-          results.errors.push({
-            shipment: s,
-            order_number: order.order_number,
-            reason: "reservation_shortage",
-            shortages: (reserveRes as any).shortages,
-          });
-          continue;
-        }
+        // NOTE: shortages are IGNORED here — user requested to allow negative stock
+        // in Agouza until the physical inventory is reconciled on the system.
+        const shortages = reserveRes && !(reserveRes as any).ok ? (reserveRes as any).shortages : null;
+
 
         // 4. Commit — deducts stock + writes inventory_movements
+        // If reservation had shortages, commit may fail. We swallow that so the
+        // order is still marked delivered; stock will go negative or stay put
+        // and be corrected during physical inventory reconciliation.
         const { error: commitErr } = await supabase.rpc("commit_agouza_stock_on_delivery", {
           p_order_id: order.id,
         });
-        if (commitErr) throw new Error(`commit: ${commitErr.message}`);
+        const commit_skipped = commitErr ? commitErr.message : null;
+
 
         // 5. Update order status
         const routerLog = {
@@ -174,8 +173,11 @@ Deno.serve(async (req) => {
             old_items: existingItems || [],
             new_items: s.items,
             cod: s.cod,
+            shortages,
+            commit_skipped,
           },
         };
+
         const { error: updErr } = await supabase.from("orders").update({
           status: "delivered",
           delivered_at: new Date().toISOString(),
