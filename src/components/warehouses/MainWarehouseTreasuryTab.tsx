@@ -511,22 +511,39 @@ export default function MainWarehouseTreasuryTab() {
           .from("courier_daily_cash_deposits")
           .select("id,courier_name,deposit_date,amount,orders_count,order_numbers,treasury_txn_id,notes")
           .is("transferred_txn_id", null)
-          .gt("amount", 0)
           .order("deposit_date", { ascending: false });
-        setPendingDeposits(data || []);
+        const deps = (data || []) as any[];
+        // include vodafone/instapay/bank-transfer only days too — user can log them as a movement
+        // even without actual cash transferred
+        const ids = deps.map((d) => d.id);
+        const nonCashByDep: Record<string, number> = {};
+        if (ids.length) {
+          const { data: lines } = await (supabase as any)
+            .from("courier_daily_cash_deposit_lines")
+            .select("deposit_id,vodafone_cash_amount,instapay_amount,bank_transfer_amount")
+            .in("deposit_id", ids);
+          for (const l of (lines || []) as any[]) {
+            const nc = Number(l.vodafone_cash_amount || 0) + Number(l.instapay_amount || 0) + Number(l.bank_transfer_amount || 0);
+            nonCashByDep[l.deposit_id] = (nonCashByDep[l.deposit_id] || 0) + nc;
+          }
+        }
+        const enriched = deps
+          .map((d) => ({ ...d, non_cash_amount: nonCashByDep[d.id] || 0, total_amount: Number(d.amount || 0) + (nonCashByDep[d.id] || 0) }))
+          .filter((d) => d.total_amount > 0);
+        setPendingDeposits(enriched);
       } catch { setPendingDeposits([]); }
       finally { setLoadingDeposits(false); }
     })();
   }, [transferOpen]);
 
-  const toggleDeposit = (id: string, amount: number) => {
+  const toggleDeposit = (id: string, _amount: number) => {
     setSelectedDepositIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
-      // auto-sum amount
+      // sum cash + non-cash so vodafone/instapay-only days can be logged as a movement
       const total = pendingDeposits
         .filter((d) => next.has(d.id))
-        .reduce((s, d) => s + Number(d.amount || 0), 0);
+        .reduce((s, d) => s + Number(d.total_amount ?? d.amount ?? 0), 0);
       setTransferAmt(total > 0 ? String(total) : "");
       return next;
     });
