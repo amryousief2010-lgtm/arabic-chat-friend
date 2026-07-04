@@ -37,8 +37,9 @@ Deno.serve(async (req) => {
 
   if (mode === "raw") {
     const q = url.searchParams.get("q");
+    const start = parseInt(url.searchParams.get("start") || "0", 10);
+    const len = parseInt(url.searchParams.get("len") || "20000", 10);
     if (q) {
-      // return only lines containing q
       const lines = html.split("\n");
       const hits: string[] = [];
       for (let i = 0; i < lines.length; i++) {
@@ -46,7 +47,7 @@ Deno.serve(async (req) => {
       }
       return new Response(hits.slice(0, 200).join("\n"), { headers: { ...corsHeaders, "Content-Type": "text/plain; charset=utf-8" } });
     }
-    return new Response(html.slice(0, 20000), { headers: { ...corsHeaders, "Content-Type": "text/plain; charset=utf-8" } });
+    return new Response(html.slice(start, start + len), { headers: { ...corsHeaders, "Content-Type": "text/plain; charset=utf-8" } });
   }
 
   if (mode === "links") {
