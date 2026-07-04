@@ -42,16 +42,24 @@ export interface ParsedProductLine {
  */
 export function normalizeArabic(s: string): string {
   if (!s) return "";
+  // Convert Arabic-Indic + Extended-Arabic digits to ASCII
+  const digitMap: Record<string, string> = {
+    "٠":"0","١":"1","٢":"2","٣":"3","٤":"4","٥":"5","٦":"6","٧":"7","٨":"8","٩":"9",
+    "۰":"0","۱":"1","۲":"2","۳":"3","۴":"4","۵":"5","۶":"6","۷":"7","۸":"8","۹":"9",
+  };
   return s
+    .replace(/[٠-٩۰-۹]/g, (d) => digitMap[d] || d)
     .replace(/[\u064B-\u0652\u0670\u0640]/g, "") // diacritics + tatweel
     .replace(/[إأآٱ]/g, "ا")
     .replace(/ى/g, "ي")
     .replace(/ة/g, "ه")
     .replace(/ؤ/g, "و")
     .replace(/ئ/g, "ي")
+    .replace(/،/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
+
 
 /**
  * Aliases: normalized keyword → canonical catalog product name.
