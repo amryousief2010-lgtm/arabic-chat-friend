@@ -21,6 +21,33 @@ const NAME_MATCH_THRESHOLD = 0.75;
 const OP_DELIVERY = "تكلفة التوصيل";
 const OP_RETURN = "مرتجعات";
 const STATUS_SUCCESS = "تسليم ناجح";
+const AGOUZA_WAREHOUSE_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
+const AGOUZA_COURIER_NAME = "مندوب العجوزة";
+
+async function getOrCreateAgouzaCustody(admin: any): Promise<string | null> {
+  const { data: existing } = await admin
+    .from("courier_goods_custodies")
+    .select("id")
+    .eq("warehouse_id", AGOUZA_WAREHOUSE_ID)
+    .eq("courier_name", AGOUZA_COURIER_NAME)
+    .eq("status", "open")
+    .order("opened_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (existing?.id) return existing.id;
+  const { data: created, error } = await admin
+    .from("courier_goods_custodies")
+    .insert({
+      courier_name: AGOUZA_COURIER_NAME,
+      status: "open",
+      warehouse_id: AGOUZA_WAREHOUSE_ID,
+      notes: "تم فتحها تلقائياً من مزامنة زودكس (فاتورة مقفولة)",
+    })
+    .select("id")
+    .single();
+  if (error) { console.error("failed to auto-open Agouza custody", error); return null; }
+  return created?.id ?? null;
+}
 
 // ----- helpers -----
 function normalizePhone(s: string | null | undefined): string {
