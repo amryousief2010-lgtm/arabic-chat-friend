@@ -25,8 +25,12 @@ interface Shipment {
   cod: number;
   shipment_date?: string;
   bill_no?: string;
+  customer_name?: string;
+  raw_products?: string;
+  unknown_tokens?: string[];
   items: ShipmentItem[];
 }
+
 
 const AGOUZA_WAREHOUSE_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
 
