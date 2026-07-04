@@ -354,54 +354,92 @@ function StatBox({ label, value, color }: { label: string; value: number; color:
   );
 }
 
-function ShipmentTable({ shipments, showUnknown }: { shipments: ParsedShipment[]; showUnknown?: boolean }) {
+function ShipmentTable({
+  shipments,
+  showUnknown,
+  phoneToModerator,
+}: {
+  shipments: ParsedShipment[];
+  showUnknown?: boolean;
+  phoneToModerator?: Map<string, string>;
+}) {
   if (shipments.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-6">لا توجد شحنات</p>;
   }
+  // Group by moderator for summary
+  const modCounts = new Map<string, number>();
+  shipments.forEach((s) => {
+    const m = phoneToModerator?.get(s.phone) || "— غير معروف —";
+    modCounts.set(m, (modCounts.get(m) || 0) + 1);
+  });
+  const modSummary = Array.from(modCounts.entries()).sort((a, b) => b[1] - a[1]);
+
   return (
-    <div className="border rounded overflow-x-auto max-h-[50vh]">
-      <table className="w-full text-xs text-right">
-        <thead className="bg-muted/60 sticky top-0">
-          <tr>
-            <th className="p-2">البوليصة</th>
-            <th className="p-2">التاريخ</th>
-            <th className="p-2">العميل</th>
-            <th className="p-2">الموبايل</th>
-            <th className="p-2">COD</th>
-            <th className="p-2">المنتجات المُعرَّفة</th>
-            {showUnknown && <th className="p-2 text-amber-700">غير معرَّف</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {shipments.map((s, i) => (
-            <tr key={s.bill_no + i} className="border-t hover:bg-muted/30">
-              <td className="p-2 font-mono">{s.bill_no}</td>
-              <td className="p-2 whitespace-nowrap">{s.shipment_date}</td>
-              <td className="p-2">{s.customer_name}</td>
-              <td className="p-2 font-mono">{s.phone}</td>
-              <td className="p-2 font-bold">{s.cod}</td>
-              <td className="p-2">
-                {s.items.length === 0 ? (
-                  <span className="text-red-600">لا شيء</span>
-                ) : (
-                  <div className="flex flex-wrap gap-1">
-                    {s.items.map((it, j) => (
-                      <Badge key={j} variant="outline" className={it.is_gift ? "border-purple-400 text-purple-700" : "border-emerald-400 text-emerald-700"}>
-                        {it.quantity} × {it.product_name}{it.is_gift ? " 🎁" : ""}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </td>
-              {showUnknown && (
-                <td className="p-2 text-amber-700 text-xs max-w-xs">
-                  {s.unknown_tokens.length === 0 ? "—" : s.unknown_tokens.join("، ")}
-                </td>
-              )}
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2 text-xs">
+        {modSummary.map(([mod, count]) => (
+          <Badge key={mod} variant="outline" className="border-purple-400 text-purple-800 bg-purple-50">
+            👩 {mod}: {count} شحنة
+          </Badge>
+        ))}
+      </div>
+      <div className="border rounded overflow-x-auto max-h-[50vh]">
+        <table className="w-full text-xs text-right">
+          <thead className="bg-muted/60 sticky top-0">
+            <tr>
+              <th className="p-2">البوليصة</th>
+              <th className="p-2">التاريخ</th>
+              <th className="p-2">البنت</th>
+              <th className="p-2">العميل</th>
+              <th className="p-2">الموبايل</th>
+              <th className="p-2">COD</th>
+              <th className="p-2">المنتجات المُعرَّفة</th>
+              {showUnknown && <th className="p-2 text-amber-700">غير معرَّف</th>}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {shipments.map((s, i) => {
+              const mod = phoneToModerator?.get(s.phone);
+              return (
+                <tr key={s.bill_no + i} className="border-t hover:bg-muted/30">
+                  <td className="p-2 font-mono">{s.bill_no}</td>
+                  <td className="p-2 whitespace-nowrap">{s.shipment_date}</td>
+                  <td className="p-2">
+                    {mod ? (
+                      <Badge variant="outline" className="border-purple-400 text-purple-800 bg-purple-50">
+                        {mod}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="p-2">{s.customer_name}</td>
+                  <td className="p-2 font-mono">{s.phone}</td>
+                  <td className="p-2 font-bold">{s.cod}</td>
+                  <td className="p-2">
+                    {s.items.length === 0 ? (
+                      <span className="text-red-600">لا شيء</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {s.items.map((it, j) => (
+                          <Badge key={j} variant="outline" className={it.is_gift ? "border-purple-400 text-purple-700" : "border-emerald-400 text-emerald-700"}>
+                            {it.quantity} × {it.product_name}{it.is_gift ? " 🎁" : ""}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  {showUnknown && (
+                    <td className="p-2 text-amber-700 text-xs max-w-xs">
+                      {s.unknown_tokens.length === 0 ? "—" : s.unknown_tokens.join("، ")}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
