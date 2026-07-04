@@ -1301,6 +1301,12 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                   ) : (
                                     <Badge variant="outline" className="text-[10px]">لم يتم التوريد</Badge>
                                   )}
+                                  {grp.megaClosedCount > 0 && (
+                                    <Badge className="bg-indigo-100 text-indigo-800 border border-indigo-300 text-[10px]" title="مستبعد لأنه ضمن فاتورة ميجا مقفولة">
+                                      {grp.megaClosedCount} ضمن فاتورة ميجا مقفولة
+                                    </Badge>
+                                  )}
+
                                 </div>
                                 <div className="text-[10px] text-muted-foreground font-normal flex flex-wrap gap-2">
                                   <span>💵 كاش مع {courierLabel}: <b className="text-emerald-700">{fmt(grp.cashDue)}</b></span>
