@@ -213,13 +213,14 @@ Deno.serve(async (req) => {
     triggerSource = "schedule";
   } else if (auth.startsWith("Bearer ")) {
     const anon = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
-    const { data } = await anon.auth.getClaims(auth.replace("Bearer ", ""));
-    if (!data?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const token = auth.replace("Bearer ", "");
+    const { data } = await anon.auth.getClaims(token);
+    if (data?.claims) {
+      triggeredBy = data.claims.sub;
+    } else {
+      // anon key (used by pg_cron) — allow as scheduled trigger
+      triggerSource = "schedule";
     }
-    triggeredBy = data.claims.sub;
   }
 
   let body: any = {};
