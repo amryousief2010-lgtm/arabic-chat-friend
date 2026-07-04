@@ -236,8 +236,9 @@ Deno.serve(async (req) => {
       shipments_total: shipments.length,
       updated_count: results.updated.length,
       product_diffs_count: results.product_diffs.length,
-      unmatched_count: results.unmatched.length,
+      unmatched_count: results.unmatched.length + results.unregistered_queued.length,
       warnings_count: results.already_delivered.length + results.errors.length,
+
       summary: results,
     });
 
