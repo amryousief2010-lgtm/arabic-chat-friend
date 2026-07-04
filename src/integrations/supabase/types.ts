@@ -18427,6 +18427,104 @@ export type Database = {
         }
         Relationships: []
       }
+      zodex_closed_invoice_orders: {
+        Row: {
+          bill_no: string
+          cod_amount: number
+          created_at: string
+          custody_assigned: boolean
+          customer_phone: string | null
+          id: string
+          invoice_id: string
+          matched: boolean
+          moderator_name: string | null
+          order_id: string | null
+        }
+        Insert: {
+          bill_no: string
+          cod_amount?: number
+          created_at?: string
+          custody_assigned?: boolean
+          customer_phone?: string | null
+          id?: string
+          invoice_id: string
+          matched?: boolean
+          moderator_name?: string | null
+          order_id?: string | null
+        }
+        Update: {
+          bill_no?: string
+          cod_amount?: number
+          created_at?: string
+          custody_assigned?: boolean
+          customer_phone?: string | null
+          id?: string
+          invoice_id?: string
+          matched?: boolean
+          moderator_name?: string | null
+          order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zodex_closed_invoice_orders_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "zodex_closed_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zodex_closed_invoices: {
+        Row: {
+          created_at: string
+          custody_id: string | null
+          first_seen_at: string
+          id: string
+          invoice_no: string
+          last_synced_at: string
+          orders_count: number
+          orders_matched: number
+          orders_missing: number
+          processed_at: string | null
+          shipper_id: number
+          shipper_name: string | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          custody_id?: string | null
+          first_seen_at?: string
+          id?: string
+          invoice_no: string
+          last_synced_at?: string
+          orders_count?: number
+          orders_matched?: number
+          orders_missing?: number
+          processed_at?: string | null
+          shipper_id?: number
+          shipper_name?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          custody_id?: string | null
+          first_seen_at?: string
+          id?: string
+          invoice_no?: string
+          last_synced_at?: string
+          orders_count?: number
+          orders_matched?: number
+          orders_missing?: number
+          processed_at?: string | null
+          shipper_id?: number
+          shipper_name?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       zodex_missing_orders: {
         Row: {
           bill_no: string
