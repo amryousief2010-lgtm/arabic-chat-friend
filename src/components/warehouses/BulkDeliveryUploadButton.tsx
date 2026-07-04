@@ -103,12 +103,15 @@ export function BulkDeliveryUploadButton() {
   const handleConfirm = async () => {
     setSubmitting(true);
     try {
-      // Send only shipments with parseable items (ready + warnings)
-      const send = [...readyItems, ...withWarnings].map((s) => ({
+      // Send all shipments (with items OR without) — server queues no-item ones too
+      const send = shipments.map((s) => ({
         phone: s.phone,
         cod: s.cod,
         bill_no: s.bill_no,
         shipment_date: s.shipment_date,
+        customer_name: s.customer_name,
+        raw_products: s.raw_products,
+        unknown_tokens: s.unknown_tokens,
         items: s.items.map((i) => ({
           product_id: i.product_id,
           product_name: i.product_name,
@@ -117,6 +120,7 @@ export function BulkDeliveryUploadButton() {
           is_gift: i.is_gift,
         })),
       }));
+
       const { data, error } = await supabase.functions.invoke("process-bostta-delivery", {
         body: { filename, shipments: send },
       });
