@@ -164,12 +164,28 @@ export function parseProductText(
   const buckets: Bucket[] = [];
   let current: Bucket | null = null;
 
-  const qtyRegex = /^(\d+)?ك$/; // e.g. "ك", "2ك", "3ك"
+  const qtyRegex = /^(\d+)?ك$/; // "ك", "2ك", "3ك"
+  const kiloWordRegex = /^(\d+)?كيلو$/; // "كيلو", "2كيلو"
 
-  for (const t of tokens) {
-    if (t === "نص") {
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+
+    // "نص" alone → 0.5 (but if previous bucket just opened with qty and no words yet, add to it: e.g. "كيلو ونص")
+    if (t === "نص" || t === "ونص") {
+      if (current && current.words.length === 0) {
+        current.qty += 0.5;
+      } else {
+        if (current) buckets.push(current);
+        current = { qty: 0.5, words: [], isGiftHint: false };
+      }
+      continue;
+    }
+    // "كيلو" or "Nكيلو"
+    const km = t.match(kiloWordRegex);
+    if (km) {
       if (current) buckets.push(current);
-      current = { qty: 0.5, words: [], isGiftHint: false };
+      const n = km[1] ? parseInt(km[1], 10) : 1;
+      current = { qty: n, words: [], isGiftHint: false };
       continue;
     }
     const m = t.match(qtyRegex);
@@ -184,12 +200,12 @@ export function parseProductText(
       continue;
     }
     if (!current) {
-      // Text before any qty token — treat as unknown noise
       unknown.push(t);
       continue;
     }
     current.words.push(t);
   }
+
   if (current) buckets.push(current);
 
   // Resolve each bucket → best matching product using ALIASES first, then longest-substring match against catalog
