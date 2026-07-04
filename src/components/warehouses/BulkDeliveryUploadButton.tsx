@@ -36,6 +36,7 @@ export function BulkDeliveryUploadButton() {
   const [filename, setFilename] = useState("");
   const [shipments, setShipments] = useState<ParsedShipment[]>([]);
   const [knownPhones, setKnownPhones] = useState<Set<string>>(new Set());
+  const [phoneToModerator, setPhoneToModerator] = useState<Map<string, string>>(new Map());
   const [result, setResult] = useState<any>(null);
 
   const unregistered = shipments.filter((s) => s.phone && !knownPhones.has(s.phone));
@@ -93,19 +94,42 @@ export function BulkDeliveryUploadButton() {
       }
       setShipments(parsed);
 
-      // Fetch known customer phones to detect unregistered shipments
+      // Fetch known customer phones + moderator for each phone (from latest order)
       const phones = Array.from(new Set(parsed.map((p) => p.phone).filter(Boolean)));
       const known = new Set<string>();
+      const phoneMod = new Map<string, string>();
       if (phones.length > 0) {
         const chunkSize = 500;
+        const custIdToPhone = new Map<string, string>();
         for (let i = 0; i < phones.length; i += chunkSize) {
           const chunk = phones.slice(i, i + chunkSize);
           const { data: custs } = await supabase
-            .from("customers").select("phone").in("phone", chunk);
-          (custs || []).forEach((c: any) => c.phone && known.add(normalizePhone(c.phone)));
+            .from("customers").select("id, phone").in("phone", chunk);
+          (custs || []).forEach((c: any) => {
+            if (!c.phone) return;
+            const p = normalizePhone(c.phone);
+            known.add(p);
+            custIdToPhone.set(c.id, p);
+          });
+        }
+        // Fetch latest moderator per customer
+        const custIds = Array.from(custIdToPhone.keys());
+        for (let i = 0; i < custIds.length; i += chunkSize) {
+          const chunk = custIds.slice(i, i + chunkSize);
+          const { data: ords } = await supabase
+            .from("orders")
+            .select("customer_id, moderator, created_at")
+            .in("customer_id", chunk)
+            .not("moderator", "is", null)
+            .order("created_at", { ascending: false });
+          (ords || []).forEach((o: any) => {
+            const p = custIdToPhone.get(o.customer_id);
+            if (p && !phoneMod.has(p)) phoneMod.set(p, o.moderator);
+          });
         }
       }
       setKnownPhones(known);
+      setPhoneToModerator(phoneMod);
 
       setOpen(true);
       const missing = parsed.filter((p) => p.phone && !known.has(p.phone)).length;
@@ -158,6 +182,7 @@ export function BulkDeliveryUploadButton() {
   const reset = () => {
     setShipments([]);
     setKnownPhones(new Set());
+    setPhoneToModerator(new Map());
     setResult(null);
     setFilename("");
     setOpen(false);
@@ -253,13 +278,13 @@ export function BulkDeliveryUploadButton() {
                           </Button>
                         </AlertDescription>
                       </Alert>
-                      <ShipmentTable shipments={unregistered} />
+                      <ShipmentTable shipments={unregistered} phoneToModerator={phoneToModerator} />
                     </>
                   )}
                 </TabsContent>
 
                 <TabsContent value="ready">
-                  <ShipmentTable shipments={readyItems} />
+                  <ShipmentTable shipments={readyItems} phoneToModerator={phoneToModerator} />
                 </TabsContent>
                 <TabsContent value="warnings">
                   {withWarnings.length === 0 ? (
@@ -272,7 +297,7 @@ export function BulkDeliveryUploadButton() {
                           الشحنات دي فيها منتجات مش اتعرفت — اتحطّت في الأوردر بدونها. راجعهم قبل الاعتماد.
                         </AlertDescription>
                       </Alert>
-                      <ShipmentTable shipments={withWarnings} showUnknown />
+                      <ShipmentTable shipments={withWarnings} showUnknown phoneToModerator={phoneToModerator} />
                     </>
                   )}
                 </TabsContent>
@@ -287,7 +312,7 @@ export function BulkDeliveryUploadButton() {
                           الشحنات دي مش هتتحدّث لأن كل منتجاتها مش موجودة في الكاتالوج.
                         </AlertDescription>
                       </Alert>
-                      <ShipmentTable shipments={skipped} showUnknown />
+                      <ShipmentTable shipments={skipped} showUnknown phoneToModerator={phoneToModerator} />
                     </>
                   )}
                 </TabsContent>
@@ -330,54 +355,92 @@ function StatBox({ label, value, color }: { label: string; value: number; color:
   );
 }
 
-function ShipmentTable({ shipments, showUnknown }: { shipments: ParsedShipment[]; showUnknown?: boolean }) {
+function ShipmentTable({
+  shipments,
+  showUnknown,
+  phoneToModerator,
+}: {
+  shipments: ParsedShipment[];
+  showUnknown?: boolean;
+  phoneToModerator?: Map<string, string>;
+}) {
   if (shipments.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-6">لا توجد شحنات</p>;
   }
+  // Group by moderator for summary
+  const modCounts = new Map<string, number>();
+  shipments.forEach((s) => {
+    const m = phoneToModerator?.get(s.phone) || "— غير معروف —";
+    modCounts.set(m, (modCounts.get(m) || 0) + 1);
+  });
+  const modSummary = Array.from(modCounts.entries()).sort((a, b) => b[1] - a[1]);
+
   return (
-    <div className="border rounded overflow-x-auto max-h-[50vh]">
-      <table className="w-full text-xs text-right">
-        <thead className="bg-muted/60 sticky top-0">
-          <tr>
-            <th className="p-2">البوليصة</th>
-            <th className="p-2">التاريخ</th>
-            <th className="p-2">العميل</th>
-            <th className="p-2">الموبايل</th>
-            <th className="p-2">COD</th>
-            <th className="p-2">المنتجات المُعرَّفة</th>
-            {showUnknown && <th className="p-2 text-amber-700">غير معرَّف</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {shipments.map((s, i) => (
-            <tr key={s.bill_no + i} className="border-t hover:bg-muted/30">
-              <td className="p-2 font-mono">{s.bill_no}</td>
-              <td className="p-2 whitespace-nowrap">{s.shipment_date}</td>
-              <td className="p-2">{s.customer_name}</td>
-              <td className="p-2 font-mono">{s.phone}</td>
-              <td className="p-2 font-bold">{s.cod}</td>
-              <td className="p-2">
-                {s.items.length === 0 ? (
-                  <span className="text-red-600">لا شيء</span>
-                ) : (
-                  <div className="flex flex-wrap gap-1">
-                    {s.items.map((it, j) => (
-                      <Badge key={j} variant="outline" className={it.is_gift ? "border-purple-400 text-purple-700" : "border-emerald-400 text-emerald-700"}>
-                        {it.quantity} × {it.product_name}{it.is_gift ? " 🎁" : ""}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </td>
-              {showUnknown && (
-                <td className="p-2 text-amber-700 text-xs max-w-xs">
-                  {s.unknown_tokens.length === 0 ? "—" : s.unknown_tokens.join("، ")}
-                </td>
-              )}
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2 text-xs">
+        {modSummary.map(([mod, count]) => (
+          <Badge key={mod} variant="outline" className="border-purple-400 text-purple-800 bg-purple-50">
+            👩 {mod}: {count} شحنة
+          </Badge>
+        ))}
+      </div>
+      <div className="border rounded overflow-x-auto max-h-[50vh]">
+        <table className="w-full text-xs text-right">
+          <thead className="bg-muted/60 sticky top-0">
+            <tr>
+              <th className="p-2">البوليصة</th>
+              <th className="p-2">التاريخ</th>
+              <th className="p-2">البنت</th>
+              <th className="p-2">العميل</th>
+              <th className="p-2">الموبايل</th>
+              <th className="p-2">COD</th>
+              <th className="p-2">المنتجات المُعرَّفة</th>
+              {showUnknown && <th className="p-2 text-amber-700">غير معرَّف</th>}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {shipments.map((s, i) => {
+              const mod = phoneToModerator?.get(s.phone);
+              return (
+                <tr key={s.bill_no + i} className="border-t hover:bg-muted/30">
+                  <td className="p-2 font-mono">{s.bill_no}</td>
+                  <td className="p-2 whitespace-nowrap">{s.shipment_date}</td>
+                  <td className="p-2">
+                    {mod ? (
+                      <Badge variant="outline" className="border-purple-400 text-purple-800 bg-purple-50">
+                        {mod}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="p-2">{s.customer_name}</td>
+                  <td className="p-2 font-mono">{s.phone}</td>
+                  <td className="p-2 font-bold">{s.cod}</td>
+                  <td className="p-2">
+                    {s.items.length === 0 ? (
+                      <span className="text-red-600">لا شيء</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {s.items.map((it, j) => (
+                          <Badge key={j} variant="outline" className={it.is_gift ? "border-purple-400 text-purple-700" : "border-emerald-400 text-emerald-700"}>
+                            {it.quantity} × {it.product_name}{it.is_gift ? " 🎁" : ""}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  {showUnknown && (
+                    <td className="p-2 text-amber-700 text-xs max-w-xs">
+                      {s.unknown_tokens.length === 0 ? "—" : s.unknown_tokens.join("، ")}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
