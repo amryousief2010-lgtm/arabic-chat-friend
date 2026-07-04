@@ -173,8 +173,11 @@ Deno.serve(async (req) => {
             old_items: existingItems || [],
             new_items: s.items,
             cod: s.cod,
+            shortages,
+            commit_skipped,
           },
         };
+
         const { error: updErr } = await supabase.from("orders").update({
           status: "delivered",
           delivered_at: new Date().toISOString(),
