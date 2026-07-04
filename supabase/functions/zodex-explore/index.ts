@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
       const href = m[1];
       const text = m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
       if (!text) continue;
-      if (!/shipment|pickup|showBalance|deferred|delayed|operation|بيك|شحن|مخزن|توصيل|مؤجل|متأخر|قيد/i.test(href + " " + text)) continue;
+      if (href.startsWith("#") || href.startsWith("javascript")) continue;
       links.push({ href, text });
     }
     return new Response(JSON.stringify({ path, len: html.length, count: links.length, links: links.slice(0, 200) }, null, 2), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
