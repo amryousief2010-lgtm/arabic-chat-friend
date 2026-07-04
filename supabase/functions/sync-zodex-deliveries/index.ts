@@ -130,10 +130,9 @@ class ZodexClient {
 // ----- HTML parsing -----
 interface ZodexRow {
   bill_no: string;
-  moderator_name: string;   // Zodex "إلي" column - the moderator/staff who registered
-  customer_name: string;    // extracted from "رقم الطلب" (name + phone) minus the phone
-  customer_ref: string;     // raw text of "رقم الطلب"
-  customer_phone: string;   // "رقم المرسل اليه"
+  moderator_name: string;   // extracted from column 6 (name + phone), e.g. "نورا"
+  moderator_phone: string;  // extracted from column 6
+  customer_phone: string;   // column 8 "رقم المرسل اليه"
   region: string;
   cod_amount: number;
   shipping_fee: number;
@@ -141,11 +140,14 @@ interface ZodexRow {
   shipment_status: string;
   shipment_date: string;
   raw_date_text: string;
+  zodex_receiver: string;   // column 3 "إلي" - the Zodex-side admin (informational)
 }
 
-function extractCustomerName(text: string): string {
-  // "رقم الطلب" typically contains: "customer_name phone_number"; strip the phone
-  return (text || "").replace(/[\d٠-٩+\-()\s]{7,}/g, " ").replace(/\s+/g, " ").trim();
+function splitNameAndPhone(text: string): { name: string; phone: string } {
+  const phoneMatch = (text || "").match(/[\d٠-٩]{7,}/);
+  const phone = phoneMatch ? normalizePhone(phoneMatch[0]) : "";
+  const name = (text || "").replace(/[\d٠-٩+\-()]/g, " ").replace(/\s+/g, " ").trim();
+  return { name, phone };
 }
 
 function stripTags(s: string): string {
