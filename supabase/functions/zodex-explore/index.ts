@@ -11,18 +11,18 @@ class ZodexClient {
     for (const line of list) { const m = line.match(/^\s*([^=;]+)=([^;]*)/); if (m) this.cookies.set(m[1].trim(), m[2].trim()); }
   }
   async login(email: string, password: string) {
-    const g = await fetch(`${ZODEX_BASE}/login.php`, { redirect: "manual" });
+    const g = await fetch(`${ZODEX_BASE}/login.php`, { headers: { "User-Agent":"Mozilla/5.0" }, redirect: "manual" });
     this.captureCookies(g); await g.text();
     const p = await fetch(`${ZODEX_BASE}/login.php`, {
       method: "POST",
-      headers: { "Content-Type":"application/x-www-form-urlencoded", "Cookie": this.cookieHeader() },
+      headers: { "User-Agent":"Mozilla/5.0", "Content-Type":"application/x-www-form-urlencoded", "Cookie": this.cookieHeader() },
       body: new URLSearchParams({ email, password, location:"", authorize:"1", "remember-me":"1" }),
       redirect: "manual",
     });
     this.captureCookies(p); await p.text();
   }
   async get(url: string) {
-    const r = await fetch(url, { headers: { "Cookie": this.cookieHeader() } });
+    const r = await fetch(url, { headers: { "User-Agent":"Mozilla/5.0", "Cookie": this.cookieHeader() } });
     this.captureCookies(r); return await r.text();
   }
 }
