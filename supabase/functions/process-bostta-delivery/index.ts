@@ -39,21 +39,22 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization") || "";
+    const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
     );
 
-    // JWT check
-    const anonClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: userRes, error: userErr } = await anonClient.auth.getUser();
+    // JWT check — validate the caller's token via service-role client
+    if (!jwt) {
+      return new Response(JSON.stringify({ error: "Unauthorized: missing token" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: userRes, error: userErr } = await supabase.auth.getUser(jwt);
     if (userErr || !userRes?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      console.error("auth.getUser failed", userErr?.message);
+      return new Response(JSON.stringify({ error: "Unauthorized", detail: userErr?.message }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
