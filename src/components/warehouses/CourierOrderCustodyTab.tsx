@@ -135,7 +135,13 @@ type Tracking = { order_id: string; courier_status: string | null };
 type Collection = { id: string; order_id: string; amount_due: number; amount_collected: number; status: string; collected_at: string };
 type FailedAttempt = { id: string; order_id: string; reason: string; notes: string | null; created_at: string };
 
-export default function CourierOrderCustodyTab() {
+import { MAIN_WAREHOUSE_ID as DEFAULT_MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
+
+interface CourierOrderCustodyTabProps {
+  warehouseId?: string;
+}
+
+export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WAREHOUSE_ID }: CourierOrderCustodyTabProps = {}) {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
