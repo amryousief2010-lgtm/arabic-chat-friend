@@ -1904,8 +1904,11 @@ const Orders = () => {
                           {order.customer_name}
                         </button>
                         {order.customer_phone && (
-                          <div className="text-right">
+                          <div className="text-right space-y-0.5">
                             <PhoneWithCopy phone={order.customer_phone} className="text-[11px] text-muted-foreground" />
+                            {order.customer_phone2 && order.customer_phone2 !== order.customer_phone && (
+                              <PhoneWithCopy phone={order.customer_phone2} className="text-[11px] text-muted-foreground" />
+                            )}
                           </div>
                         )}
                         {canManageOrders && (
@@ -2368,7 +2371,12 @@ const Orders = () => {
 
                     <TableCell className="font-mono text-sm" dir="ltr">
                       {order.customer_phone ? (
-                        <PhoneWithCopy phone={order.customer_phone} className="text-sm" />
+                        <div className="space-y-1">
+                          <PhoneWithCopy phone={order.customer_phone} className="text-sm" />
+                          {order.customer_phone2 && order.customer_phone2 !== order.customer_phone && (
+                            <PhoneWithCopy phone={order.customer_phone2} className="text-xs text-muted-foreground" />
+                          )}
+                        </div>
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
@@ -2756,7 +2764,12 @@ const Orders = () => {
                     )}
                   </div>
                   {selectedOrder.customer_phone && (
-                    <PhoneWithCopy phone={selectedOrder.customer_phone} className="text-xs text-primary" />
+                    <div className="space-y-1">
+                      <PhoneWithCopy phone={selectedOrder.customer_phone} className="text-xs text-primary" />
+                      {selectedOrder.customer_phone2 && selectedOrder.customer_phone2 !== selectedOrder.customer_phone && (
+                        <PhoneWithCopy phone={selectedOrder.customer_phone2} className="text-xs text-muted-foreground" />
+                      )}
+                    </div>
                   )}
                 </div>
                 <div>
