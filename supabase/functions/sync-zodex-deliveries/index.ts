@@ -6,6 +6,7 @@
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { DOMParser, Element } from "https://deno.land/x/deno_dom@v0.1.45/deno-dom-wasm.ts";
 
 // ----- config -----
 const ZODEX_BASE = "https://zodex-eg.com/admin-area";
