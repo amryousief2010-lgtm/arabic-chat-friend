@@ -414,6 +414,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         courier_name: courier,
         assigned_by: user?.id ?? null,
         status: "with_courier",
+        warehouse_id: warehouseId,
       }));
       const { error: asnErr } = await (supabase as any).from("courier_order_assignments").insert(rows);
       if (asnErr) throw asnErr;
