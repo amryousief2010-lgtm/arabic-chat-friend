@@ -36,6 +36,7 @@ export function BulkDeliveryUploadButton() {
   const [filename, setFilename] = useState("");
   const [shipments, setShipments] = useState<ParsedShipment[]>([]);
   const [knownPhones, setKnownPhones] = useState<Set<string>>(new Set());
+  const [phoneToModerator, setPhoneToModerator] = useState<Map<string, string>>(new Map());
   const [result, setResult] = useState<any>(null);
 
   const unregistered = shipments.filter((s) => s.phone && !knownPhones.has(s.phone));
