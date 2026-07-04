@@ -115,6 +115,15 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
 
   const getDeliveryKind = useMemo(() => makeGetDeliveryKind(warehouseId), [warehouseId]);
 
+  const isMainWarehouse = warehouseId === DEFAULT_MAIN_WAREHOUSE_ID;
+  const courierGroupLabel = isMainWarehouse ? "🛵 كيمو (توصيل رئيسي)" : "🛵 مناديب مخزن العجوزة";
+  const courierBadgeLabel = isMainWarehouse ? "🛵 كيمو" : "🛵 مندوب العجوزة";
+  const pickupGroupLabel = isMainWarehouse ? "🏬 استلام من الرئيسي" : "🏬 استلام من العجوزة";
+  const pickupBadgeLabel = isMainWarehouse ? "🏬 استلام رئيسي" : "🏬 استلام عجوزة";
+  const statementTabLabel = isMainWarehouse ? "كشف كيمو حسب العميل" : "كشف المندوب حسب العميل";
+  const statementCardTitle = isMainWarehouse ? "كشف كيمو — مفصل حسب العميل" : "كشف مندوب العجوزة — مفصل حسب العميل";
+  const courierNamePlaceholder = isMainWarehouse ? "مثال: كيمو" : "مثال: مندوب العجوزة";
+
 
   const chunkArray = <T,>(arr: T[], size: number) => {
     const chunks: T[][] = [];
