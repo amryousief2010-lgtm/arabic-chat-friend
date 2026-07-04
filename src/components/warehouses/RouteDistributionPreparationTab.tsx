@@ -719,10 +719,9 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
                                 <div className="text-xs text-muted-foreground">{o.customer_phone}</div>
                               </TableCell>
                               <TableCell className="text-xs">
-                                {oItems.slice(0, 3).map(i => (
-                                  <div key={i.id}>{i.product_name} — {i.quantity}{i.unit || ""}</div>
-                                ))}
-                                {oItems.length > 3 && <div className="text-muted-foreground">+{oItems.length - 3}</div>}
+                                <div className="whitespace-nowrap overflow-hidden text-ellipsis max-w-[420px]" title={oItems.map(i => `${i.product_name} — ${i.quantity}${i.unit || ""}`).join("، ")}>
+                                  {oItems.map(i => `${i.product_name} (${i.quantity}${i.unit || ""})`).join("، ") || "—"}
+                                </div>
                               </TableCell>
                               <TableCell className="font-bold">{Number(o.total || 0).toLocaleString("ar-EG")}</TableCell>
                             </TableRow>
