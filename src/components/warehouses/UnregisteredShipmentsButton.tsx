@@ -147,7 +147,7 @@ function UnregisteredDialog({ open, onClose }: { open: boolean; onClose: () => v
           fulfillment_type: "delivery",
           stock_status: "dispatched",
           created_by: user.id,
-          notes: `تم إنشاؤه من شيت بوسطة — بوليصة ${r.bill_no}`,
+          notes: `تم إنشاؤه من شيت شركة الشحن — بوليصة ${r.bill_no}`,
           stock_router_log: {
             bostta_unregistered: {
               bill_no: r.bill_no,
