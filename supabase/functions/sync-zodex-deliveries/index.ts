@@ -344,7 +344,16 @@ Deno.serve(async (req) => {
     stats.total_rows = allRows.length;
     (stats as any).debug = firstPageDebug;
 
-    // Process each row
+    // Process rows in chronological order (oldest Zodex shipment first) so that when a
+    // customer has multiple identical orders, the earliest-created order gets paired
+    // with the earliest Zodex waybill (FIFO). This handles the frequent case where the
+    // same customer places several orders in a month with the same name/phone/amount.
+    allRows.sort((a, b) => new Date(a.shipment_date).getTime() - new Date(b.shipment_date).getTime());
+
+    // Track orders we've already assigned within this run so we don't hand one order
+    // to two different Zodex rows.
+    const claimedInThisRun = new Set<string>();
+
     for (const row of allRows) {
       // Skip anything other than delivery or return operations
       if (row.operation_type !== OP_DELIVERY && row.operation_type !== OP_RETURN) {
@@ -361,9 +370,9 @@ Deno.serve(async (req) => {
         if (data) matchedOrder = data;
       }
 
-      // 2) Match by phone + amount + moderator (STRICT — must be a UNIQUE match).
-      //    Otherwise we'd risk assigning a Zodex waybill to the wrong order when the
-      //    same customer / same amount / same moderator has multiple orders in the window.
+      // 2) Auto-match by phone + amount + moderator, with FIFO tie-breaker.
+      //    Same customer can order many times a month with identical name/phone/amount,
+      //    so we pick the earliest-created candidate that hasn't been claimed yet.
       if (!matchedOrder && row.customer_phone) {
         const winStart = new Date(new Date(row.shipment_date).getTime() - DATE_WINDOW_DAYS * 86400_000).toISOString();
         const winEnd = new Date(new Date(row.shipment_date).getTime() + DATE_WINDOW_DAYS * 86400_000).toISOString();
@@ -374,19 +383,27 @@ Deno.serve(async (req) => {
           .lte("created_at", winEnd);
         const list = (candidates || []) as any[];
 
-        // Strict pass: phone exact + amount close + moderator name match. Require unique hit.
+        // Strict filter: phone exact + amount close + moderator name match,
+        // and NOT already claimed by an earlier Zodex row in this run.
         const strictHits = list.filter((c) => {
+          if (claimedInThisRun.has(c.id)) return false;
           const cp = normalizePhone(c.customers?.phone);
           const amountOk = Math.abs(Number(c.total || 0) - row.cod_amount) <= PHONE_MATCH_AMOUNT_TOLERANCE;
           const modScore = tokenSetRatio(c.moderator || "", row.moderator_name);
           return cp === row.customer_phone && amountOk && modScore >= 0.5;
         });
-        if (strictHits.length === 1) {
+
+        if (strictHits.length >= 1) {
+          // FIFO: pick the earliest-created candidate. Because we're iterating Zodex
+          // rows in chronological order, the earliest order lines up with the earliest
+          // waybill even when several look identical.
+          strictHits.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
           matchedOrder = strictHits[0];
+          claimedInThisRun.add(matchedOrder.id);
         }
-        // If 0 or >1 strict hits → do NOT auto-match. Will fall through to the
-        // "missing" branch so the moderator can manually assign the waybill.
       }
+
+
 
 
 
