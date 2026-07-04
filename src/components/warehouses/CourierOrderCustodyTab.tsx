@@ -372,8 +372,12 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           const deliveredStatus = ["delivered", "collected", "completed"].includes(o.status);
           const nonCash = isAgouza ? false : isNonCashAssignment(a, o);
           if (!nonCash) {
-            if (isAgouza) totalValue += Math.max(0, Number(o.total || 0) - Number(o.delivery_fee || 0));
-            else if (o.collection_method === "mixed_payment") totalValue += Number(o.courier_cash_due || 0);
+            if (isAgouza) {
+              const isGift = o.update_status_marker === "gift" || o.collection_method === "none";
+              // للعجوزة: إجمالي اليوم = مجموع (قيمة الأوردر − مصاريف الشحن) للأوردرات المدفوعة،
+              // بينما الهدايا المجانية تُحسب بقيمتها الكاملة (لا يوجد شحن يخصم منها).
+              totalValue += isGift ? Number(o.total || 0) : Math.max(0, Number(o.total || 0) - Number(o.delivery_fee || 0));
+            } else if (o.collection_method === "mixed_payment") totalValue += Number(o.courier_cash_due || 0);
             else totalValue += Number(o.total || 0);
           }
           vodafone += Number(o.vodafone_cash_amount || 0);
