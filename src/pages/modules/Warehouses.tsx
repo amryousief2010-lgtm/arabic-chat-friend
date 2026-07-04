@@ -1553,6 +1553,8 @@ const Warehouses = () => {
             ];
             const AGOUZA_TOOLS = [
               { key: "treasury", label: "خزنة مخزن العجوزة", Icon: Wallet },
+              { key: "courier-orders", label: "عهدة أوردرات مندوب العجوزة", Icon: Truck },
+              { key: "route-prep", label: "تجهيز خط توزيع العجوزة", Icon: Truck },
               { key: "recon", label: "مطابقة خزنة العجوزة", Icon: ClipboardCheck },
               { key: "closure", label: "إقفال يوم العجوزة", Icon: ClipboardCheck },
               { key: "daily-recon", label: "تسوية عهدة اليوم", Icon: ClipboardCheck },
