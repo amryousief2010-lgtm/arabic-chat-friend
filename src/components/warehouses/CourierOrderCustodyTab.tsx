@@ -1070,10 +1070,10 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                             const other = Number(o?.other_amount || 0);
                             const freeAmt = isGift ? orderTotal : Number(o?.free_amount || 0);
                             let cashFromCourier = 0;
+                            const shipFee = Number(o?.delivery_fee || 0);
                             if (isAgouza) {
-                              // Agouza sheet upload sets order.total = shipping-company COD.
-                              // Cash-due must equal that total exactly (no gift/transfer deductions).
-                              cashFromCourier = orderTotal;
+                              // Agouza sheet upload: cash = COD − shipping fee (courier keeps the shipping).
+                              cashFromCourier = Math.max(0, orderTotal - shipFee);
                             } else if (isGift) cashFromCourier = 0;
                             else if (cm === "mixed_payment") cashFromCourier = Number(o?.courier_cash_due || 0);
                             else if (cm === "vodafone_cash" || cm === "instapay" || cm === "bank_transfer") cashFromCourier = 0;
