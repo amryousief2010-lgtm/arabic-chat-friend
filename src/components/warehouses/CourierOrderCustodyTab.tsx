@@ -128,6 +128,7 @@ type Order = {
   other_amount?: number | null;
   transfer_reference?: string | null;
   free_amount?: number | null;
+  delivery_fee?: number | null;
   collection_note?: string | null;
 };
 
