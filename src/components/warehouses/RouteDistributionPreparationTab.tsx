@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { BulkDeliveryUploadButton } from "@/components/warehouses/BulkDeliveryUploadButton";
 
 import { MAIN_WAREHOUSE_ID as DEFAULT_MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
 
@@ -632,7 +633,10 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
             <Card className="lg:col-span-2">
               <CardHeader className="pb-3 space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <CardTitle className="text-base">طلبات قسم التسويق</CardTitle>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <CardTitle className="text-base">طلبات قسم التسويق</CardTitle>
+                    <BulkDeliveryUploadButton />
+                  </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className="flex items-center gap-1">
                       <Label className="text-xs whitespace-nowrap">من تاريخ:</Label>

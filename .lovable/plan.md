@@ -1,76 +1,100 @@
 
-# نسخة العجوزة المستقلة (تجهيز الخط + عهدة الأوردرات + الخزنة)
+# نظام تحديث تسليمات مخزن العجوزة من شيت بوسطة
 
-## الفكرة العامة
-عمل طبقة مستقلة لمخزن العجوزة موازية للمخزن الرئيسي، بنفس الوظائف بالظبط لكن ببيانات ومناديب ومنطق منفصل تمامًا — أوردر مسحوب من العجوزة لا يظهر في شاشات الرئيسي والعكس صحيح.
+## المكان
+في صفحة **طلبات قسم التسويق / دفتر عهدة مندوب العجوزة** (الصفحة اللي في الصورة)، جنب "اعتماد الصرف للمندوب" — نضيف زر جديد:
 
-## 1) قاعدة البيانات
-الجداول الحالية (courier_goods_custodies / courier_order_assignments / pc_order_tracking / courier_daily_cash_deposits …) ما تحتوي حاليًا على عمود `warehouse_id`. الحل الأنظف والأقل مخاطر:
+**🔵 رفع شيت تسليمات بوسطة**
 
-- إضافة عمود `warehouse_id uuid` على الجداول التالية مع default = ID المخزن الرئيسي (لحفظ التوافق الرجعي مع البيانات القديمة):
-  - `courier_goods_custodies`
-  - `courier_order_assignments`
-  - `pc_order_tracking`
-  - `pc_collections`
-  - `pc_failed_attempts`
-  - `courier_daily_cash_deposits`
-  - `courier_daily_cash_deposit_lines`
-  - `courier_daily_closures`
-  - `delivery_collection_batches`
-  - `courier_commission_payouts`
-- Backfill لكل الصفوف الموجودة → `warehouse_id = MAIN_WAREHOUSE_ID`.
-- Indexes على `(warehouse_id, status)` و `(warehouse_id, opened_at)`.
-- تحديث الـ RLS policies المرتبطة عشان تفلتر على `warehouse_id` عند الحاجة (بس بدون كسر الصلاحيات الحالية).
+## سير العمل (5 خطوات)
 
-- جدول `courier_profiles` نضيف له عمود `warehouse_id uuid` عشان كل مندوب يبقى تابع لمخزن واحد (رئيسي أو عجوزة). Backfill الحاليين على الرئيسي.
-
-## 2) دور أمين العجوزة والمناديب
-- المناديب اللي حيبقى ليهم `warehouse_id = agouza` يظهروا فقط في شاشات العجوزة.
-- شاشة إضافة مندوب تتعدل عشان تختار المخزن التابع له.
-
-## 3) المكونات (UI)
-- إعادة تصميم 3 مكونات لتقبل prop `warehouseId`:
-  - `RouteDistributionPreparationTab({ warehouseId })`
-  - `CourierOrderCustodyTab({ warehouseId })`
-  - `MainWarehouseTreasuryTab` → إعادة تسميته `WarehouseTreasuryTab({ warehouseId, label })`
-- المنطق الداخلي:
-  - `getDeliveryKind` يعتمد على `source_warehouse_id === warehouseId` بدل الثابت.
-  - كل استعلام على الجداول أعلاه يضيف `.eq("warehouse_id", warehouseId)`.
-  - كل insert يمرر `warehouse_id: warehouseId`.
-  - RPC calls (لو موجودة) نضيف باراميتر warehouse_id.
-
-## 4) شريط الأدوات في صفحة المخازن
-تحديث `AGOUZA_TOOLS` في `src/pages/modules/Warehouses.tsx` ليصبح:
+```text
+[1] رفع الشيت (xlsx)
+      ↓
+[2] parsing + مطابقة بالموبايل مع أوردرات pending في العجوزة
+      ↓
+[3] مقارنة منتجات الشيت مقابل منتجات الأوردر في النظام
+      ↓  (عرض جدول موحّد — كل شحنة سطر — مع تمييز الفروقات)
+[4] المستخدم يراجع ويأكّد
+      ↓
+[5] تحديث دفعة واحدة:
+    • تحديث order_items لتطابق الشيت (لو مختلفة)
+    • تحديث orders.total من COD
+    • stock_status = dispatched  → خصم من مخزن العجوزة
+    • status = delivered + delivered_at = now()
+    • تسجيل حركة inventory_movements لكل صنف
+    • تقرير في الآخر بالمتجاهَل والفروقات
 ```
-[
-  { key: "treasury",       label: "خزنة مخزن العجوزة",     Icon: Wallet },
-  { key: "courier-orders", label: "عهدة أوردرات مندوب العجوزة", Icon: Truck },
-  { key: "route-prep",     label: "تجهيز خط توزيع العجوزة", Icon: Truck },
-  { key: "recon",          label: "مطابقة خزنة العجوزة",   Icon: ClipboardCheck },
-  { key: "closure",        label: "إقفال يوم العجوزة",     Icon: ClipboardCheck },
-  { key: "daily-recon",    label: "تسوية عهدة اليوم",      Icon: ClipboardCheck },
-]
+
+## المطابقة والمنتجات
+
+**مطابقة الأوردر:**
+- بالموبايل → أقرب أوردر `pending` في مخزن العجوزة قبل تاريخ الشحنة
+- لو أكتر من أوردر لنفس الرقم → الأقرب في التاريخ + قيمة COD
+
+**مطابقة المنتجات (المفتاح):**
+الشيت فيه عمود "اسم المنتج" نصّي زي: `نص لحم نص استيك نص موزه نص كفته مفروم`
+- بارسر يحوّله لقائمة `{اسم منتج، كمية}`
+- الوحدات: `نص` = 0.5 كيلو، `ك` = 1 كيلو، `2ك` = 2 كيلو، إلخ
+- كل اسم يتربط بمنتج من catalog (fuzzy match على أسماء products)
+- لو الاسم مش موجود في الكاتالوج → يتعرض في التقرير ويتخطى
+
+**استبدال منتجات الأوردر:**
+- الشيت هو مصدر الحقيقة — يحل محل منتجات الأوردر الحالية
+- Log الفروقات في `stock_router_log` (jsonb موجود بالفعل)
+
+## التعامل مع الحالات الشاذة
+
+| الحالة | الإجراء |
+|---|---|
+| موبايل مش موجود في أي أوردر | يتخطى ويظهر في تقرير "لم يتم المطابقة" |
+| منتج من الشيت مش موجود في الكاتالوج | يتخطى الأوردر كله ويظهر في تقرير "منتجات غير معروفة" |
+| كمية مطلوبة أكبر من المتاح في العجوزة | يعرض تحذير — المستخدم يقرر يخصم رصيد سالب أو يتخطى |
+| أوردر متطابق بس مش pending (مثلاً delivered قبل كده) | يظهر تحذير "متسلّم مسبقاً" |
+
+## واجهة المراجعة
+
+**Dialog مودال** بعد رفع الشيت، فيه 3 تبويبات:
+
+1. **جاهز للتحديث (X)** — جدول: الأوردر، العميل، المنتجات القديمة → المنتجات الجديدة (فروقات ملوّنة)، COD القديم → الجديد
+2. **تحذيرات (Y)** — منتجات متغيّرة، كميات ناقصة من المخزن، أوردرات مسلّمة قبل كده
+3. **متجاهَل (Z)** — موبايلات مش موجودة، منتجات غير معروفة
+
+زرارين: **إلغاء** — **تأكيد وتحديث الكل**
+
+## التفاصيل التقنية
+
+**Frontend:**
+- زر جديد `<BulkDeliveryUploadButton />` في صفحة courier custody / marketing
+- يستخدم `xlsx` (موجود في المشروع) لقراءة الملف
+- Dialog جديد `BulkDeliveryReviewDialog.tsx` للمراجعة
+- helper module جديد `src/lib/bosttaDeliveryParser.ts` لبارسنج نص المنتجات وربطها بالكاتالوج
+
+**Backend (Edge Function جديدة):**
+`supabase/functions/process-bostta-delivery/index.ts` تستقبل:
+```json
+{ "shipments": [{ "phone", "cod", "items": [{"product_id","quantity"}], "shipment_date", "bill_no" }] }
 ```
-و `renderAgouzaSubview` يمرر `warehouseId={AGOUZA_WAREHOUSE_ID}` للمكونات الثلاثة.
+وتنفّذ في transaction لكل شحنة:
+1. Find matching pending order (phone + Agouza + created_at ≤ shipment_date)
+2. Replace order_items بالمنتجات من الشيت
+3. Update orders: total, status=delivered, delivered_at, stock_status=dispatched
+4. Insert inventory_movements لخصم مخزن العجوزة
+5. Log القديم/الجديد في stock_router_log
 
-## 5) خزنة العجوزة الحالية
-`AgouzaTreasuryTab` الموجودة حاليًا تعمل على `agouza_warehouse_treasury_txns` وهو منفصل عن `main_warehouse_treasury_txns`. الاقتراح: نستبدلها بنسخة من `MainWarehouseTreasuryTab` (بعد جعلها warehouse-aware) عشان الأمين يشوف نفس الواجهة والمميزات (إيداعات المندوب، ربط بحركات المخزن، طباعة، إلخ) — لكن بجدول العجوزة.
+**قاعدة البيانات:**
+- لا حاجة لجداول جديدة
+- استخدام `stock_router_log` (jsonb) لتوثيق الفروقات
+- (اختياري) جدول جديد `bostta_delivery_uploads` لتاريخ الرفعات لو حبيت audit trail لاحقاً — أضيفه لو أكدت
 
-**نقطة تحتاج قرار**: هل نبقى على جدول `agouza_warehouse_treasury_txns` المنفصل، ولا ندمج الاثنين في `main_warehouse_treasury_txns` مع عمود `warehouse_id`؟ الأنظف تقنيًا هو الدمج، لكن يحتاج migration data وأثره أوسع.
+## متطلبات الشيت (فورمات ثابت)
+الأعمدة المطلوبة: `رقم البوليصة`، `تاريخ انشاء الشحنة`، `المرسل اليه`، `رقم الموبايل`، `اسم المنتج`، `COD`  
+(نفس فورمات الشيتات اللي بعتها لي)
 
-## 6) اختبارات
-- إضافة مندوب جديد للعجوزة، فتح عهدة، صرف أوردر مسحوب من العجوزة، تحصيل، إيداع في خزنة العجوزة، إقفال.
-- التأكد إن نفس الأوردر لا يظهر في شاشات الرئيسي.
-- إن أوردرات الرئيسي القديمة والجديدة تفضل تشتغل زي ما هي.
+## أسئلة أخيرة قبل التنفيذ
 
-## تقدير الحجم
-- Migration واحد كبير (5-10 جداول).
-- تعديل 3 مكونات كبيرة (~2000 سطر إجمالاً).
-- تعديل صفحة الـ Warehouses وصفحة المناديب.
-- خطر عالي لو حصل مسح غلط، عشان كده migration تجريبي أولاً.
+1. لو منتج في الشيت مش موجود في الكاتالوج → **أتخطى الأوردر كله**؟ ولا أضيف السطر بدون product_id (يظهر تحذير في الأوردر)؟
+2. لو المطابقة بالموبايل لقت أكتر من أوردر pending → **يختار الأقدم تلقائياً**؟ ولا يعرضهم للمستخدم يختار؟
+3. عايز audit trail (جدول يخزن كل رفعة شيت + النتيجة) ولا يكفي log عادي؟
 
-## سؤال قبل التنفيذ
-هل توافق على المسار ده؟ خصوصًا:
-1. إضافة `warehouse_id` للجداول المذكورة بدل ما ننشئ جداول مكررة (agouza_courier_custodies إلخ).
-2. جعل كل مندوب تابع لمخزن واحد (main أو agouza).
-3. الإبقاء على `agouza_warehouse_treasury_txns` كما هو، ولا دمجه مع `main_warehouse_treasury_txns`؟
+جاوبنى على الـ 3 دول وأبدأ التنفيذ فوراً.
