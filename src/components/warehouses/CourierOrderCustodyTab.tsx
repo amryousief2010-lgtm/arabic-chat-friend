@@ -206,6 +206,10 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
   const [dailyDeposits, setDailyDeposits] = useState<Array<{ id: string; custody_id: string; deposit_date: string; amount: number; orders_count: number; treasury_txn_id: string | null; performed_by_name: string | null; created_at: string }>>([]);
   const [bosttaUploadNets, setBosttaUploadNets] = useState<BosttaUploadNet[]>([]);
   const [depositingDay, setDepositingDay] = useState<string | null>(null);
+  // Order IDs already accounted for via a closed Mega/Zodex invoice for the selected custody.
+  // These are excluded from the per-day courier groups (they show up in the closed-invoices card instead).
+  const [zodexClosedOrderIds, setZodexClosedOrderIds] = useState<Set<string>>(new Set());
+
 
   const printStatement = async (fmt: "pdf" | "xlsx") => {
     if (!selectedCustody) return;
