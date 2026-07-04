@@ -11,7 +11,7 @@ const STATUS_META: Record<string, { label: string; icon: any; className: string 
   "تم الاستلام في المخزن": { label: "بالمخزن", icon: Warehouse, className: "bg-blue-50 text-blue-700 border-blue-200" },
   "قيد التوصيل": { label: "قيد التوصيل", icon: Truck, className: "bg-orange-50 text-orange-700 border-orange-200" },
   "شحنة مؤجلة": { label: "مؤجلة", icon: Clock, className: "bg-amber-50 text-amber-700 border-amber-200" },
-  "بيك اب": { label: "بيك أب", icon: Package, className: "bg-purple-50 text-purple-700 border-purple-200" },
+  "بيك أب": { label: "بيك أب", icon: Package, className: "bg-purple-50 text-purple-700 border-purple-200" },
 };
 
 export function ZodexSyncButton() {
