@@ -36,6 +36,7 @@ interface OrderRow {
   created_at: string;
   fulfillment_type: string | null;
   source_warehouse_id: string | null;
+  with_courier_name?: string | null;
 }
 
 type DeliveryKind = 'kimo' | 'pickup_main' | 'other';
@@ -190,14 +191,22 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
 
 
       const rawOrders: any[] = rawOrdersRes.data ?? [];
-      const assignedIds = new Set<string>(
+      // Only hide orders that are fully closed on the courier side (delivered/completed/cancelled/fully_returned).
+      // Orders currently with courier (with_courier) are still "in flight" and should remain visible here,
+      // marked as read-only, to reconcile with Mega's pipeline count.
+      const CLOSED_ASSIGN = new Set(["delivered", "completed", "fully_returned", "cancelled"]);
+      const closedAssignedIds = new Set<string>(
         (assignmentsRes.data ?? [])
-          .filter((a: any) => !["fully_returned", "cancelled"].includes(a.status))
+          .filter((a: any) => CLOSED_ASSIGN.has(a.status))
           .map((a: any) => a.order_id)
       );
+      const withCourierMap = new Map<string, string>();
+      for (const a of (assignmentsRes.data ?? [])) {
+        if (a.status === "with_courier") withCourierMap.set(a.order_id, a.courier_name || "");
+      }
 
       const ordersData: OrderRow[] = rawOrders
-        .filter(o => !assignedIds.has(o.id))
+        .filter(o => !closedAssignedIds.has(o.id))
         .map(o => ({
           id: o.id,
           order_number: o.order_number,
@@ -210,6 +219,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
           created_at: o.created_at,
           fulfillment_type: o.fulfillment_type ?? null,
           source_warehouse_id: o.source_warehouse_id ?? null,
+          with_courier_name: withCourierMap.get(o.id) ?? null,
         }));
 
       const statusCounts: Record<string, number> = {};
@@ -361,13 +371,16 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
   }, [selectedOrders, items]);
 
   const toggleOrder = (id: string) => {
+    const o = orders.find(x => x.id === id);
+    if (o?.with_courier_name != null) return; // locked: already with courier
     const next = new Set(selectedOrderIds);
     if (next.has(id)) next.delete(id); else next.add(id);
     setSelectedOrderIds(next);
   };
   const toggleAll = () => {
-    if (selectedOrderIds.size === filteredOrders.length) setSelectedOrderIds(new Set());
-    else setSelectedOrderIds(new Set(filteredOrders.map(o => o.id)));
+    const selectable = filteredOrders.filter(o => o.with_courier_name == null);
+    if (selectedOrderIds.size === selectable.length) setSelectedOrderIds(new Set());
+    else setSelectedOrderIds(new Set(selectable.map(o => o.id)));
   };
 
   const approveDispatch = async () => {
@@ -749,10 +762,24 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
                       <TableBody>
                         {filteredOrders.map(o => {
                           const oItems = items.filter(i => i.order_id === o.id);
+                          const withCourier = o.with_courier_name != null;
                           return (
-                            <TableRow key={o.id} className={selectedOrderIds.has(o.id) ? "bg-purple-50/60" : ""}>
-                              <TableCell><Checkbox checked={selectedOrderIds.has(o.id)} onCheckedChange={() => toggleOrder(o.id)} /></TableCell>
-                              <TableCell className="font-mono text-xs">{o.order_number}</TableCell>
+                            <TableRow key={o.id} className={withCourier ? "bg-amber-50/60 opacity-80" : (selectedOrderIds.has(o.id) ? "bg-purple-50/60" : "")}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedOrderIds.has(o.id)}
+                                  onCheckedChange={() => toggleOrder(o.id)}
+                                  disabled={withCourier}
+                                />
+                              </TableCell>
+                              <TableCell className="font-mono text-xs">
+                                {o.order_number}
+                                {withCourier && (
+                                  <Badge className="mr-1 bg-amber-100 text-amber-800 border border-amber-300 text-[10px]">
+                                    🛵 مع {o.with_courier_name || "المندوب"}
+                                  </Badge>
+                                )}
+                              </TableCell>
                               <TableCell>
                                 {(() => {
                                   const k = getDeliveryKind(o);
