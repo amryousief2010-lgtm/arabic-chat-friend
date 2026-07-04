@@ -954,8 +954,6 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                 </div>
               )}
 
-              {/* بداية العهدة — فواتير ميجا المقفولة (نقطة البداية 55811 وأى فواتير لاحقة) */}
-              <ZodexClosedInvoicesCard />
 
               {/* Group toggle */}
               <div className="flex items-center justify-end gap-2 text-xs">
