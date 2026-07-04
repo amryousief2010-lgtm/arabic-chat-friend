@@ -303,11 +303,11 @@ Deno.serve(async (req) => {
             break;
           }
         }
-        // pass 2: fuzzy customer name + moderator name (if refs contain moderator hints)
+        // pass 2: fuzzy customer name + moderator name
         if (!matchedOrder) {
           for (const c of list) {
-            const nameScore = tokenSetRatio(c.customers?.name || "", row.moderator_ref);
-            const modScore = tokenSetRatio(c.moderator || "", row.customer_note);
+            const nameScore = tokenSetRatio(c.customers?.name || "", row.customer_name);
+            const modScore = tokenSetRatio(c.moderator || "", row.moderator_name);
             if (nameScore >= NAME_MATCH_THRESHOLD && modScore >= 0.4) {
               matchedOrder = c;
               break;
