@@ -450,11 +450,18 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
   // Group by assignment date (YYYY-MM-DD)
   const groupedByDay = useMemo(() => {
     const map = new Map<string, Assignment[]>();
+    // Count how many assignments per day were skipped because they belong to a closed Mega invoice.
+    const skippedByDay = new Map<string, number>();
     currentAssignments.forEach((a) => {
       const day = (a.assigned_at || "").slice(0, 10);
+      if (zodexClosedOrderIds.has(a.order_id)) {
+        skippedByDay.set(day, (skippedByDay.get(day) || 0) + 1);
+        return; // exclude from the day-group; handled by the closed Mega invoices card
+      }
       if (!map.has(day)) map.set(day, []);
       map.get(day)!.push(a);
     });
+
     const depByDay = new Map(dailyDeposits.filter((d) => d.custody_id === selectedCustody).map((d) => [d.deposit_date, d]));
     return Array.from(map.entries())
       .sort((a, b) => (a[0] < b[0] ? 1 : -1))
