@@ -40,7 +40,7 @@ import WarehouseOpeningBalance from "@/pages/modules/WarehouseOpeningBalance";
 import WarehouseOperationalDates from "@/pages/modules/WarehouseOperationalDates";
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import WarehousesDashboardPanel from "@/components/warehouses/WarehousesDashboardPanel";
-import { MAIN_WAREHOUSE_ID, getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow } from "@/lib/warehouseItemFilters";
+import { MAIN_WAREHOUSE_ID, AGOUZA_WAREHOUSE_ID, getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow } from "@/lib/warehouseItemFilters";
 
 
 const qualityLabelText: Record<string, string> = {
