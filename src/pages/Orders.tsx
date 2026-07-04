@@ -1897,13 +1897,19 @@ const Orders = () => {
                           {order.customer_name}
                         </button>
                         {order.customer_phone && (
-                          <a
-                            href={`tel:${order.customer_phone}`}
-                            dir="ltr"
-                            className="block text-[11px] font-mono text-muted-foreground hover:underline text-right"
+                          <div className="text-right">
+                            <PhoneWithCopy phone={order.customer_phone} className="text-[11px] text-muted-foreground" />
+                          </div>
+                        )}
+                        {canManageOrders && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setEditCustomerOrder(order); }}
+                            className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary"
+                            title="تعديل بيانات العميل"
                           >
-                            {order.customer_phone}
-                          </a>
+                            <Pencil className="w-3 h-3" /> تعديل بيانات العميل
+                          </button>
                         )}
                       </div>
                       {canReassignOwner ? (
