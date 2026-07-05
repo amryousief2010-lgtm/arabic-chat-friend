@@ -337,7 +337,7 @@ export default function FeedWarehouses() {
     queryKey: ["feed-sales"],
     queryFn: async () => {
       // رفع الحد لاستيعاب كل فواتير المبيعات من بداية العام (داخلية + خارجية + توريد للمزرعة/المجزر/التحضين)
-      const { data, error } = await supabase.from("feed_sales").select("*, feed_sale_items(*, feed_products(name), feed_raw_materials(name,unit))").order("sale_date", { ascending: false }).limit(5000);
+      const { data, error } = await supabase.from("feed_sales").select("*, feed_sale_items(*, feed_products(name), feed_raw_materials(name,unit))").order("sale_date", { ascending: false }).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(5000);
       if (error) throw error; return data || [];
     },
   });
