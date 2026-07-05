@@ -610,12 +610,25 @@ Deno.serve(async (req) => {
       for (const r of invRows) {
         // Look up matched order via bill_no (freshly linked in main loop above)
         const { data: ord } = await supabase.from("orders")
-          .select("id, order_number").eq("shipping_bill_no", r.bill_no).maybeSingle();
+          .select("id, order_number, customer_id, customers(phone)")
+          .eq("shipping_bill_no", r.bill_no).maybeSingle();
         const matched = !!ord;
         if (matched) matchedCount++; else missingCount++;
 
+        // Safeguards before creating a courier custody line:
+        //  (a) Zodex shipment status must be "تسليم ناجح" (not "مؤجل" / "معلق" / etc.)
+        //  (b) The order's current customer phone must still match the Zodex row phone.
+        //      Protects against wrong auto-matches (same amount + moderator but different
+        //      real customer) and against later customer edits/merges.
+        const isSuccessfulDelivery = (r as any).shipment_status
+          ? String((r as any).shipment_status).trim() === STATUS_SUCCESS
+          : true; // closed invoices default to success when status field is absent
+        const orderPhone = normalizePhone((ord as any)?.customers?.phone || "");
+        const zodexPhone = normalizePhone(r.customer_phone || "");
+        const phoneOk = !orderPhone || !zodexPhone || orderPhone === zodexPhone;
+
         let custodyAssigned = false;
-        if (matched && ord) {
+        if (matched && ord && isSuccessfulDelivery && phoneOk) {
           if (!sharedCustodyId) sharedCustodyId = await getOrCreateAgouzaCustody(supabase);
           if (sharedCustodyId) {
             const nowIso = new Date().toISOString();
@@ -634,6 +647,8 @@ Deno.serve(async (req) => {
             if (!asnErr) { custodyAssigned = true; assignedCount++; }
             else console.error("custody assign failed", ord.order_number, asnErr);
           }
+        } else if (matched && !phoneOk) {
+          console.warn(`skip custody: phone mismatch bill=${r.bill_no} order=${(ord as any)?.order_number} orderPhone=${orderPhone} zodexPhone=${zodexPhone}`);
         }
 
         // Upsert invoice line
