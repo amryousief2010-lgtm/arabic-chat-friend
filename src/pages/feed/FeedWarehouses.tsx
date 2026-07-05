@@ -368,7 +368,7 @@ export default function FeedWarehouses() {
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("feed_production_invoices")
         .select("*, feed_products(name,stage), feed_production_invoice_items(*, feed_raw_materials(name,unit))")
-        .order("prod_date", { ascending: false }).limit(100);
+        .order("prod_date", { ascending: false }).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(100);
       if (error) throw error; return data || [];
     },
   });
