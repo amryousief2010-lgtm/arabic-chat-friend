@@ -15,6 +15,9 @@ const ITEMS_PER_PAGE = 100;
 const DEFAULT_MAX_PAGES = 5;
 const LOOKBACK_DAYS_FOR_ORDER_MATCH = 30;
 const AMOUNT_TOLERANCE = 5; // EGP
+// Main warehouse system took over on 2026-07-01 (Cairo). Only match orders
+// created on/after this date; earlier orders were handled by the old system.
+const MAIN_WAREHOUSE_START_DATE = "2026-06-30T22:00:00.000Z"; // 2026-07-01 00:00 Cairo
 
 function normalizePhone(s: string | null | undefined): string {
   if (!s) return "";
