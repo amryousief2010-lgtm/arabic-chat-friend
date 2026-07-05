@@ -36,13 +36,26 @@ export function ZodexSyncButton() {
   const sync = async () => {
     setLoading(true);
     try {
+      // 1) Reconcile delivered / returned invoices (closed rows)
       const { data, error } = await supabase.functions.invoke("sync-zodex-deliveries", {
         body: { lookback_days: 14, max_pages: 5 },
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "فشلت المزامنة");
+
+      // 2) Link waybill numbers for pending pickups (open rows on shippings.php)
+      let linkedBills = 0;
+      try {
+        const { data: shipData } = await supabase.functions.invoke("sync-zodex-shipments", {
+          body: { max_pages: 5 },
+        });
+        linkedBills = shipData?.stats?.linked || 0;
+      } catch (e) {
+        console.warn("shipments sync warning", e);
+      }
+
       toast.success(
-        `تمت المزامنة: ${data.delivered_matched} تسليم • ${data.returned_matched} مرتجع • ${data.missing_created} مفقود`,
+        `تمت المزامنة: ${data.delivered_matched} تسليم • ${data.returned_matched} مرتجع • ${linkedBills} بوليصة جديدة • ${data.missing_created} مفقود`,
       );
       loadStatus();
     } catch (e: any) {
