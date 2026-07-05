@@ -23,6 +23,7 @@ import FeedInvoiceDetailsDialog, { printInvoice as printFeedInvoice } from "@/co
 import FeedFactoryTreasuryPanel from "@/components/feed/FeedFactoryTreasuryPanel";
 import ProductionOrphanChecker from "@/components/feed/ProductionOrphanChecker";
 import FeedProductionApprovals from "@/components/feed/FeedProductionApprovals";
+import FeedProductionEditDialog from "@/components/feed/FeedProductionEditDialog";
 
 type Line = { id: string; ref_id: string; qty: number; price: number };
 const newLine = (): Line => ({ id: crypto.randomUUID(), ref_id: "", qty: 0, price: 0 });
