@@ -1,0 +1,2 @@
+ALTER TABLE public.feed_production_invoices DROP CONSTRAINT IF EXISTS feed_prod_invoices_status_chk;
+ALTER TABLE public.feed_production_invoices ADD CONSTRAINT feed_prod_invoices_status_chk CHECK (status = ANY (ARRAY['pending_approval'::text, 'approved'::text, 'rejected'::text, 'cancelled'::text, 'editing'::text]));
