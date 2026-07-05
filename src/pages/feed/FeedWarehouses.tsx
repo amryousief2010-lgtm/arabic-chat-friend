@@ -23,6 +23,7 @@ import FeedInvoiceDetailsDialog, { printInvoice as printFeedInvoice } from "@/co
 import FeedFactoryTreasuryPanel from "@/components/feed/FeedFactoryTreasuryPanel";
 import ProductionOrphanChecker from "@/components/feed/ProductionOrphanChecker";
 import FeedProductionApprovals from "@/components/feed/FeedProductionApprovals";
+import FeedProductionEditDialog from "@/components/feed/FeedProductionEditDialog";
 
 type Line = { id: string; ref_id: string; qty: number; price: number };
 const newLine = (): Line => ({ id: crypto.randomUUID(), ref_id: "", qty: 0, price: 0 });
@@ -176,6 +177,7 @@ export default function FeedWarehouses() {
   const [showArchivedRaw, setShowArchivedRaw] = useState(false);
   const [treasuryOpen, setTreasuryOpen] = useState(false);
   const [productionOpen, setProductionOpen] = useState(false);
+  const [prodEdit, setProdEdit] = useState<any | null>(null);
   const [detailsInv, setDetailsInv] = useState<any | null>(null);
   const [salesFilter, setSalesFilter] = useState<"all" | "internal" | "external">("all");
   const [internalDept, setInternalDept] = useState<"all" | "brooding_feed_store" | "slaughterhouse_feed_store" | "mother_farm_feed_store">("all");
@@ -896,6 +898,7 @@ export default function FeedWarehouses() {
                               const { data: exps } = await (supabase as any).from("feed_production_invoice_expenses").select("*").eq("invoice_id", p.id);
                               printFeedInvoice(p, p.feed_production_invoice_items || [], exps || []);
                             }}><Printer className="h-4 w-4 ml-1"/>طباعة</Button>
+                            {canManageAll && p.status === 'approved' && <Button size="icon" variant="ghost" title="تعديل بعد الاعتماد" onClick={() => setProdEdit(p)}><Pencil className="h-4 w-4" /></Button>}
                             {canManageAll && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delProduction(p)}><Trash2 className="h-4 w-4" /></Button>}
                           </div>
                         </TableCell>
@@ -1147,6 +1150,19 @@ export default function FeedWarehouses() {
         {canTreasury && <TreasuryDialog open={treasuryOpen} onOpenChange={setTreasuryOpen} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-treasury"] })} />}
         {canProduce && <ProductionDialog open={productionOpen} onOpenChange={setProductionOpen} rawMaterials={rawQ.data || []} products={prodQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] }); qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-products"] }); }} />}
         <FeedInvoiceDetailsDialog open={!!detailsInv} onOpenChange={(o) => !o && setDetailsInv(null)} invoice={detailsInv} />
+        {canManageAll && (
+          <FeedProductionEditDialog
+            invoice={prodEdit}
+            rawMaterials={rawQ.data || []}
+            onOpenChange={(o) => !o && setProdEdit(null)}
+            onSaved={() => {
+              qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] });
+              qc.invalidateQueries({ queryKey: ["feed-raw-materials"] });
+              qc.invalidateQueries({ queryKey: ["feed-products"] });
+              qc.invalidateQueries({ queryKey: ["feed-treasury"] });
+            }}
+          />
+        )}
       </div>
     </DashboardLayout>
   );
