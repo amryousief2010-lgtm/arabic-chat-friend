@@ -949,24 +949,28 @@ const Orders = () => {
     [filteredOrders]
   );
 
-  // Detect duplicate orders by customer phone — every order after the earliest one
-  // for the same normalized phone *in the same Cairo month* is flagged as duplicate.
+  // Detect duplicate orders by customer phone — only flag orders placed on the
+  // same phone within a short window (24 hours). Repeat customers ordering
+  // again after that are legitimate re-orders, not duplicates.
   const duplicatePhoneOrderIds = useMemo(() => {
+    const DUP_WINDOW_MS = 24 * 60 * 60 * 1000; // 24h
     const groups = new Map<string, { id: string; created_at: string }[]>();
     for (const o of orders) {
       const norm = (o.customer_phone || "").replace(/[^\d]/g, "");
       if (norm.length < 6) continue;
-      const monthKey = toCairoDateString(o.created_at).slice(0, 7); // YYYY-MM
-      const key = `${norm}#${monthKey}`;
-      const arr = groups.get(key) || [];
+      const arr = groups.get(norm) || [];
       arr.push({ id: o.id, created_at: o.created_at });
-      groups.set(key, arr);
+      groups.set(norm, arr);
     }
     const dups = new Set<string>();
     for (const arr of groups.values()) {
       if (arr.length < 2) continue;
       arr.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-      for (let i = 1; i < arr.length; i++) dups.add(arr[i].id);
+      for (let i = 1; i < arr.length; i++) {
+        const prev = new Date(arr[i - 1].created_at).getTime();
+        const curr = new Date(arr[i].created_at).getTime();
+        if (curr - prev <= DUP_WINDOW_MS) dups.add(arr[i].id);
+      }
     }
     return dups;
   }, [orders]);
