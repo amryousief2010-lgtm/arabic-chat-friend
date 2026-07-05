@@ -175,7 +175,7 @@ export const useReportsData = (period: ReportPeriod) => {
         orders: count,
       }))
       .sort((a, b) => b.orders - a.orders)
-      .slice(0, 6);
+      .slice(0, 15);
 
     // Shipping companies
     const shipMap: Record<string, number> = {};

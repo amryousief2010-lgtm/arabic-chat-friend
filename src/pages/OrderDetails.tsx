@@ -98,6 +98,7 @@ interface Order {
   created_by: string | null;
   created_by_name: string | null;
   source_warehouse_name: string | null;
+  source: string | null;
   items: OrderItem[];
   collection_method?: string | null;
   courier_cash_due?: number;
@@ -303,6 +304,7 @@ const OrderDetails = () => {
         created_by: orderData.created_by,
         created_by_name: createdByName,
         source_warehouse_name: sourceWarehouseName,
+        source: (orderData as any).source ?? null,
         collection_method: (orderData as any).collection_method ?? null,
         courier_cash_due: Number((orderData as any).courier_cash_due ?? 0),
         vodafone_cash_amount: Number((orderData as any).vodafone_cash_amount ?? 0),
@@ -748,6 +750,14 @@ const OrderDetails = () => {
                       عنوان التوصيل
                     </p>
                     <p className="font-semibold">{order.delivery_address}</p>
+                  </div>
+                )}
+                {order.source && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">مصدر العميل</p>
+                    <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 mt-1">
+                      📞 {order.source}
+                    </Badge>
                   </div>
                 )}
               </CardContent>
