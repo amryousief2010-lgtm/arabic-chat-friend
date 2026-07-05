@@ -635,6 +635,7 @@ const Orders = () => {
           free_amount: (order as any).free_amount != null ? Number((order as any).free_amount) : 0,
           transfer_reference: (order as any).transfer_reference ?? null,
           collection_updated_at: (order as any).collection_updated_at ?? null,
+          shipping_bill_no: (order as any).shipping_bill_no ?? null,
         }));
 
       const loadLookups = async (orders: any[], items: any[]) => {
@@ -1877,6 +1878,14 @@ const Orders = () => {
                         >
                           {order.order_number}
                         </button>
+                        {order.shipping_bill_no && (
+                          <span
+                            className="font-mono text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 border border-orange-300 truncate"
+                            title="رقم بوليصة زودكس"
+                          >
+                            {order.shipping_bill_no}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {isDuplicatePhone && (
