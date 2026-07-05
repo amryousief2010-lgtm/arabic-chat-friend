@@ -651,7 +651,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
 
           <ZodexPipelineReconcile localInFlightCount={debug.raw + debug.withCourier} localBreakdown={{ warehouse: debug.raw, withCourier: debug.withCourier }} />
 
-          <ZodexClosedInvoicesCard />
+          
 
 
           <div className="grid lg:grid-cols-3 gap-3">
@@ -664,7 +664,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
                     <CardTitle className="text-base">طلبات قسم التسويق</CardTitle>
                     <BulkDeliveryUploadButton />
                     <ZodexSyncButton />
-                    <UnregisteredShipmentsButton />
+                    
                     <Button size="sm" variant="outline" className="h-8" onClick={() => {
                       const rowsSource = selectedOrderIds.size > 0
                         ? filteredOrders.filter(o => selectedOrderIds.has(o.id))
