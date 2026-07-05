@@ -860,7 +860,7 @@ export default function FeedWarehouses() {
           {/* PRODUCTION INVOICES */}
           <TabsContent value="production" className="space-y-4">
             <FeedProductionApprovals onChanged={() => { qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] }); qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-products"] }); }} />
-            <ProductionOrphanChecker />
+            {/* <ProductionOrphanChecker /> - مخفي بناءً على طلب المستخدم */}
 
 
             <Card>
