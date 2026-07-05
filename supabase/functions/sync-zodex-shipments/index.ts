@@ -246,7 +246,9 @@ Deno.serve(async (req) => {
 
 
     const claimedThisRun = new Set<string>();
-    const minCreated = new Date(Date.now() - LOOKBACK_DAYS_FOR_ORDER_MATCH * 86400_000).toISOString();
+    const lookbackMin = new Date(Date.now() - LOOKBACK_DAYS_FOR_ORDER_MATCH * 86400_000).toISOString();
+    // Never match orders older than the main-warehouse cutover date.
+    const minCreated = lookbackMin > MAIN_WAREHOUSE_START_DATE ? lookbackMin : MAIN_WAREHOUSE_START_DATE;
 
     for (const row of allRows) {
       // Skip rows without any phone (rare - templated messages hid them)
