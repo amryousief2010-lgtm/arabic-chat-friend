@@ -20799,6 +20799,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
+      is_manal_reviewer: { Args: { _uid: string }; Returns: boolean }
       is_message_participant: {
         Args: { _message_id: string; _user_id: string }
         Returns: boolean
@@ -21164,8 +21165,13 @@ export type Database = {
       next_feed_factory_movement_no: { Args: never; Returns: string }
       next_feed_transfer_ref: { Args: never; Returns: string }
       normalize_ar: { Args: { s: string }; Returns: string }
+      normalize_ar_name: { Args: { txt: string }; Returns: string }
       normalize_match_text: { Args: { input: string }; Returns: string }
       normalize_phone_eg: { Args: { input: string }; Returns: string }
+      order_is_nora_or_aya: {
+        Args: { _created_by: string; _moderator: string }
+        Returns: boolean
+      }
       order_items_signature_from_json: {
         Args: { p_items: Json }
         Returns: string
