@@ -80,7 +80,7 @@ export function ZodexSyncButton() {
       {pipelineEntries.length > 0 && (
         <div className="rounded-lg border bg-card p-2">
           <div className="flex items-center justify-between mb-1.5 px-1">
-            <span className="text-xs font-semibold text-muted-foreground">حالة الشحن على زودكس</span>
+            <span className="text-xs font-semibold text-muted-foreground">حالة الشحن على مخزن العجوزة</span>
             <span className="text-[11px] text-muted-foreground">
               إجمالى: <b>{totalCount}</b> شحنة • <b>{totalMoney.toLocaleString("ar-EG")}</b> ج
             </span>
