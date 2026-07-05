@@ -407,9 +407,19 @@ Deno.serve(async (req) => {
       let matchedOrder: any = null;
       {
         const { data } = await supabase.from("orders")
-          .select("id, total, delivered_at, status, collection_status, created_at")
+          .select("id, total, delivered_at, status, collection_status, created_at, customer_id, customers(phone)")
           .eq("shipping_bill_no", row.bill_no).maybeSingle();
-        if (data) matchedOrder = data;
+        if (data) {
+          // Verify current customer phone still matches the Zodex row phone.
+          // If they diverged (customer merge / edit after previous sync), unlink
+          // and let the auto-matcher pick a fresh candidate.
+          const orderPhone = normalizePhone((data as any).customers?.phone || "");
+          if (orderPhone && row.customer_phone && orderPhone !== row.customer_phone) {
+            await supabase.from("orders").update({ shipping_bill_no: null }).eq("id", data.id);
+          } else {
+            matchedOrder = data;
+          }
+        }
       }
 
       // 2) Auto-match by phone + amount + moderator, with product-aware FIFO tie-breaker.
