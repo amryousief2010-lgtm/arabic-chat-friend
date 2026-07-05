@@ -18495,6 +18495,60 @@ export type Database = {
         }
         Relationships: []
       }
+      zodex_bill_link_audit: {
+        Row: {
+          bill_no: string
+          created_at: string
+          id: string
+          linked_by: string | null
+          linked_by_name: string | null
+          match_reason: string | null
+          match_score: number | null
+          missing_id: string | null
+          order_id: string
+          previous_bill_no: string | null
+        }
+        Insert: {
+          bill_no: string
+          created_at?: string
+          id?: string
+          linked_by?: string | null
+          linked_by_name?: string | null
+          match_reason?: string | null
+          match_score?: number | null
+          missing_id?: string | null
+          order_id: string
+          previous_bill_no?: string | null
+        }
+        Update: {
+          bill_no?: string
+          created_at?: string
+          id?: string
+          linked_by?: string | null
+          linked_by_name?: string | null
+          match_reason?: string | null
+          match_score?: number | null
+          missing_id?: string | null
+          order_id?: string
+          previous_bill_no?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zodex_bill_link_audit_missing_id_fkey"
+            columns: ["missing_id"]
+            isOneToOne: false
+            referencedRelation: "zodex_missing_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zodex_bill_link_audit_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       zodex_closed_invoice_orders: {
         Row: {
           bill_no: string
@@ -20834,6 +20888,16 @@ export type Database = {
           p_advance_id: string
           p_lines: Json
           p_returned_amount?: number
+        }
+        Returns: Json
+      }
+      link_zodex_bill_to_order: {
+        Args: {
+          p_bill_no: string
+          p_match_reason?: string
+          p_match_score?: number
+          p_missing_id?: string
+          p_order_id: string
         }
         Returns: Json
       }
