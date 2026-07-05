@@ -5190,6 +5190,9 @@ export type Database = {
           client_request_id: string | null
           created_at: string
           created_by: string | null
+          edit_reason: string | null
+          edited_after_approval_at: string | null
+          edited_after_approval_by: string | null
           flag_reasons: Json | null
           id: string
           labor_cost: number
@@ -5203,6 +5206,7 @@ export type Database = {
           rejection_reason: string | null
           review_note: string | null
           status: string
+          stock_applied_at: string | null
           total_cost: number
           unit_cost: number
           updated_at: string
@@ -5215,6 +5219,9 @@ export type Database = {
           client_request_id?: string | null
           created_at?: string
           created_by?: string | null
+          edit_reason?: string | null
+          edited_after_approval_at?: string | null
+          edited_after_approval_by?: string | null
           flag_reasons?: Json | null
           id?: string
           labor_cost?: number
@@ -5228,6 +5235,7 @@ export type Database = {
           rejection_reason?: string | null
           review_note?: string | null
           status?: string
+          stock_applied_at?: string | null
           total_cost?: number
           unit_cost?: number
           updated_at?: string
@@ -5240,6 +5248,9 @@ export type Database = {
           client_request_id?: string | null
           created_at?: string
           created_by?: string | null
+          edit_reason?: string | null
+          edited_after_approval_at?: string | null
+          edited_after_approval_by?: string | null
           flag_reasons?: Json | null
           id?: string
           labor_cost?: number
@@ -5253,6 +5264,7 @@ export type Database = {
           rejection_reason?: string | null
           review_note?: string | null
           status?: string
+          stock_applied_at?: string | null
           total_cost?: number
           unit_cost?: number
           updated_at?: string
@@ -20331,6 +20343,19 @@ export type Database = {
           p_total_cost: number
         }
         Returns: string
+      }
+      edit_approved_feed_production_invoice: {
+        Args: {
+          p_bags: number
+          p_edit_reason: string
+          p_invoice_id: string
+          p_items: Json
+          p_labor_cost: number
+          p_notes: string
+          p_prod_date: string
+          p_qty_produced: number
+        }
+        Returns: undefined
       }
       email_queue_dispatch: { Args: never; Returns: undefined }
       enqueue_email: {
