@@ -1150,6 +1150,19 @@ export default function FeedWarehouses() {
         {canTreasury && <TreasuryDialog open={treasuryOpen} onOpenChange={setTreasuryOpen} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-treasury"] })} />}
         {canProduce && <ProductionDialog open={productionOpen} onOpenChange={setProductionOpen} rawMaterials={rawQ.data || []} products={prodQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] }); qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-products"] }); }} />}
         <FeedInvoiceDetailsDialog open={!!detailsInv} onOpenChange={(o) => !o && setDetailsInv(null)} invoice={detailsInv} />
+        {canManageAll && (
+          <FeedProductionEditDialog
+            invoice={prodEdit}
+            rawMaterials={rawQ.data || []}
+            onOpenChange={(o) => !o && setProdEdit(null)}
+            onSaved={() => {
+              qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] });
+              qc.invalidateQueries({ queryKey: ["feed-raw-materials"] });
+              qc.invalidateQueries({ queryKey: ["feed-products"] });
+              qc.invalidateQueries({ queryKey: ["feed-treasury"] });
+            }}
+          />
+        )}
       </div>
     </DashboardLayout>
   );
