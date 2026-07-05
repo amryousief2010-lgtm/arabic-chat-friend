@@ -15,6 +15,9 @@ const ITEMS_PER_PAGE = 100;
 const DEFAULT_MAX_PAGES = 5;
 const LOOKBACK_DAYS_FOR_ORDER_MATCH = 30;
 const AMOUNT_TOLERANCE = 5; // EGP
+// Main warehouse system took over on 2026-07-01 (Cairo). Only match orders
+// created on/after this date; earlier orders were handled by the old system.
+const MAIN_WAREHOUSE_START_DATE = "2026-06-30T22:00:00.000Z"; // 2026-07-01 00:00 Cairo
 
 function normalizePhone(s: string | null | undefined): string {
   if (!s) return "";
@@ -243,7 +246,9 @@ Deno.serve(async (req) => {
 
 
     const claimedThisRun = new Set<string>();
-    const minCreated = new Date(Date.now() - LOOKBACK_DAYS_FOR_ORDER_MATCH * 86400_000).toISOString();
+    const lookbackMin = new Date(Date.now() - LOOKBACK_DAYS_FOR_ORDER_MATCH * 86400_000).toISOString();
+    // Never match orders older than the main-warehouse cutover date.
+    const minCreated = lookbackMin > MAIN_WAREHOUSE_START_DATE ? lookbackMin : MAIN_WAREHOUSE_START_DATE;
 
     for (const row of allRows) {
       // Skip rows without any phone (rare - templated messages hid them)
