@@ -1094,6 +1094,9 @@ const Orders = () => {
     if (isPrivateDeliveryRep) return approvedEditOrderIds.has(order.id);
     if (!canEditOrderItems) return false;
     if (isSalesModerator && order.collection_status === 'collected') return false;
+    // Sales moderators can only edit orders they created themselves.
+    // (e.g. Manal can review Nora & Aya's orders but cannot modify them.)
+    if (isSalesModerator && user?.id && order.created_by && order.created_by !== user.id) return false;
     return true;
   };
 
