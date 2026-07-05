@@ -696,16 +696,26 @@ Deno.serve(async (req) => {
     }
     Object.assign(stats, { closed_invoices: closedInvoiceStats });
 
-    // ----- Pipeline counts (Shipper Shipments page) -----
-    // Extract `var shipments = [...]` from shippers_shipments page
+    // ----- Pipeline counts + Active-shipment matching (Shipper Shipments page) -----
+    // Extract `var shipments = [...]` and (a) aggregate counts by status, and
+    // (b) link waybill numbers onto local orders even BEFORE the invoice is closed —
+    // as soon as the moderator registers the order on Zodex, our order gets its ZX.
     let pipelineCounts: Record<string, { count: number; total: number }> | null = null;
+    let activeLinked = 0;
+    let activeAlreadyLinked = 0;
+    let activeUnmatched = 0;
     try {
       const html = await client.get("/shippers_shipments.php", {
         action: "shippers_shipments", shipper_id: SHIPPER_ID,
       });
       const m = html.match(/var\s+shipments\s*=\s*(\[[\s\S]*?\]);/);
       if (m) {
-        const arr = JSON.parse(m[1]) as Array<{ status?: string; price?: number }>;
+        const arr = JSON.parse(m[1]) as Array<{
+          waybill?: string; status?: string; price?: number;
+          phone_1?: string; order_id?: string; client_name?: string;
+          date_added?: string; area?: string; product_name?: string;
+        }>;
+        // (a) counts
         const agg: Record<string, { count: number; total: number }> = {};
         for (const s of arr) {
           const key = (s.status || "غير محدد").trim();
@@ -714,10 +724,52 @@ Deno.serve(async (req) => {
           agg[key].total += Number(s.price || 0);
         }
         pipelineCounts = agg;
+
+        // (b) match active waybills to local orders lacking shipping_bill_no
+        for (const s of arr) {
+          const bill = (s.waybill || "").trim();
+          const phone = normalizePhone(s.phone_1 || "");
+          const amount = Number(s.price || 0);
+          if (!bill || !phone) { activeUnmatched++; continue; }
+
+          // Skip if any order already links this waybill
+          const { data: already } = await supabase.from("orders")
+            .select("id").eq("shipping_bill_no", bill).maybeSingle();
+          if (already) { activeAlreadyLinked++; continue; }
+
+          // moderator name is inside order_id text (e.g. "منال ٠١٠٤٠٨٠٥٦٩٦")
+          const modText = (s.order_id || "").replace(/[\d٠-٩]/g, "").trim();
+
+          // candidate orders: no waybill yet, phone matches, amount close, within window
+          const winStart = new Date(Date.now() - 30 * 86400_000).toISOString();
+          const { data: candidates } = await supabase.from("orders")
+            .select("id, total, moderator, created_at, customers!inner(phone)")
+            .is("shipping_bill_no", null)
+            .gte("created_at", winStart)
+            .order("created_at", { ascending: true });
+          const hits = (candidates || []).filter((c: any) => {
+            const cp = normalizePhone(c.customers?.phone);
+            const amountOk = Math.abs(Number(c.total || 0) - amount) <= PHONE_MATCH_AMOUNT_TOLERANCE;
+            const modOk = !modText || tokenSetRatio(c.moderator || "", modText) >= 0.5;
+            return cp === phone && amountOk && modOk;
+          });
+          if (hits.length >= 1) {
+            await supabase.from("orders").update({
+              shipping_bill_no: bill,
+              zodex_synced_at: new Date().toISOString(),
+            }).eq("id", hits[0].id);
+            activeLinked++;
+          } else {
+            activeUnmatched++;
+          }
+        }
       }
     } catch (e) {
       errors.push(`pipeline_counts: ${e instanceof Error ? e.message : String(e)}`);
     }
+    (stats as any).active_linked = activeLinked;
+    (stats as any).active_already_linked = activeAlreadyLinked;
+    (stats as any).active_unmatched = activeUnmatched;
 
     // ----- Pickup count (Shippings Grouping page) -----
     // The shippings_grouping page lists shippers with pickup shipment counts.
