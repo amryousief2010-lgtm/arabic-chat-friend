@@ -357,9 +357,9 @@ export default function ZodexMissingOrders() {
     <div className="container mx-auto p-4 space-y-4" dir="rtl">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold">البوالص غير المربوطة (زودكس)</h1>
+          <h1 className="text-2xl font-bold">البوالص غير المربوطة (مخزن العجوزة)</h1>
           <p className="text-sm text-muted-foreground">
-            بوالص زودكس ملهاش أوردر مربوط عندنا — اضغط على أي بوليصة لعرض الأوردرات المحتملة وربطها بضغطة واحدة.
+            بوالص مخزن العجوزة ملهاش أوردر مربوط عندنا — اضغط على أي بوليصة لعرض الأوردرات المحتملة وربطها بضغطة واحدة.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -511,11 +511,11 @@ export default function ZodexMissingOrders() {
           </DialogHeader>
           {linkDialog && (
             <div className="text-sm space-y-2 border rounded p-3 bg-muted/30">
-              <div className="flex justify-between"><span className="text-muted-foreground">العميل بزودكس:</span><span>{linkDialog.row.customer_name || "—"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">العميل بمخزن العجوزة:</span><span>{linkDialog.row.customer_name || "—"}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">العميل عندنا:</span><span>{linkDialog.cand.customer_name || "—"}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">موبايل زودكس:</span><span className="font-mono">{linkDialog.row.customer_phone || "—"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">موبايل مخزن العجوزة:</span><span className="font-mono">{linkDialog.row.customer_phone || "—"}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">موبايل عندنا:</span><span className="font-mono">{linkDialog.cand.customer_phone || "—"}{linkDialog.cand.customer_phone2 ? ` / ${linkDialog.cand.customer_phone2}` : ""}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">مبلغ زودكس:</span><span className="tabular-nums">{Number(linkDialog.row.cod_amount || 0).toLocaleString("ar-EG")}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">مبلغ مخزن العجوزة:</span><span className="tabular-nums">{Number(linkDialog.row.cod_amount || 0).toLocaleString("ar-EG")}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">مبلغ الأوردر:</span><span className="tabular-nums">{Number(linkDialog.cand.total || 0).toLocaleString("ar-EG")}</span></div>
               <div className="text-xs text-muted-foreground pt-1">درجة التطابق: {linkDialog.cand.score}% — {linkDialog.cand.reasons.join(" • ")}</div>
             </div>

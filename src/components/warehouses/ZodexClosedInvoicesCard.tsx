@@ -69,10 +69,10 @@ export function ZodexClosedInvoicesCard() {
           <div>
             <CardTitle className="text-base flex items-center gap-2">
               <FileText className="h-4 w-4 text-emerald-700" />
-              فواتير زودكس المقفولة — نعام العاصمة
+              فواتير مخزن العجوزة المقفولة — نعام العاصمة
             </CardTitle>
             <CardDescription className="text-xs mt-1">
-              كل فاتورة تسوية بتقفلها زودكس بتظهر هنا. أوردراتها بتتنقل تلقائى لعهدة مندوب العجوزة.
+              كل فاتورة تسوية بيقفلها مخزن العجوزة بتظهر هنا. أوردراتها بتتنقل تلقائى لعهدة مندوب العجوزة.
             </CardDescription>
           </div>
           <Button variant="ghost" size="sm" onClick={load} disabled={loading}>

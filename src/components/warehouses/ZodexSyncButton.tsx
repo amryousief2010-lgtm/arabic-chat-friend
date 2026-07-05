@@ -61,7 +61,7 @@ export function ZodexSyncButton() {
       <div className="flex items-center gap-2 flex-wrap">
         <Button size="sm" variant="outline" className="h-8 gap-1" onClick={sync} disabled={loading}>
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          مزامنة زودكس
+          مزامنة مخزن العجوزة
         </Button>
         {lastSyncAt && (
           <span className="text-[11px] text-muted-foreground">
@@ -80,7 +80,7 @@ export function ZodexSyncButton() {
       {pipelineEntries.length > 0 && (
         <div className="rounded-lg border bg-card p-2">
           <div className="flex items-center justify-between mb-1.5 px-1">
-            <span className="text-xs font-semibold text-muted-foreground">حالة الشحن على زودكس</span>
+            <span className="text-xs font-semibold text-muted-foreground">حالة الشحن على مخزن العجوزة</span>
             <span className="text-[11px] text-muted-foreground">
               إجمالى: <b>{totalCount}</b> شحنة • <b>{totalMoney.toLocaleString("ar-EG")}</b> ج
             </span>

@@ -1891,7 +1891,7 @@ const Orders = () => {
                         {order.shipping_bill_no && (
                           <span
                             className="font-mono text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 border border-orange-300 truncate"
-                            title="رقم بوليصة زودكس"
+                            title="رقم بوليصة مخزن العجوزة"
                           >
                             {order.shipping_bill_no}
                           </span>
