@@ -473,15 +473,19 @@ Deno.serve(async (req) => {
           shipping_bill_no: row.bill_no,
           zodex_synced_at: new Date().toISOString(),
         };
-        if (row.operation_type === OP_DELIVERY && row.invoice_no) {
+        // Safeguard: only flip to delivered when Zodex shipment status itself is a
+        // successful delivery. "مؤجل / معلق / مرتجع جزئى" rows can still appear on
+        // closed invoices but MUST NOT auto-mark the order as delivered.
+        const isSuccessfulDelivery = (row.shipment_status || "").trim() === STATUS_SUCCESS;
+        if (row.operation_type === OP_DELIVERY && row.invoice_no && isSuccessfulDelivery) {
           patch.status = "delivered";
           patch.collection_status = "collected";
           patch.total_at_delivery = row.cod_amount;
           if (!matchedOrder.delivered_at) patch.delivered_at = row.shipment_date;
           stats.delivered_matched++;
         } else if (row.operation_type === OP_DELIVERY) {
-          // White/open Mega/Zodex pickup rows can carry the same delivery operation label
-          // before the shipment is truly closed. Link the bill, but never flip the order to delivered.
+          // White/open Mega/Zodex pickup rows, or postponed rows on a closed invoice.
+          // Link the bill for traceability, but never flip the order to delivered.
           (stats as any).pickup_linked = ((stats as any).pickup_linked || 0) + 1;
         } else if (row.operation_type === OP_RETURN) {
           patch.status = "returned";
