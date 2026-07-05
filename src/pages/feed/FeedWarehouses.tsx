@@ -252,10 +252,14 @@ export default function FeedWarehouses() {
       const { data, error } = await supabase.from("feed_raw_materials").select("*").eq("is_active", true).order("name");
       if (error) throw error; return data || [];
     },
+    staleTime: 0,
   });
   useEffect(() => {
-    if (productionOpen || prodEdit) rawQ.refetch();
-  }, [productionOpen, prodEdit, rawQ.refetch]);
+    if (productionOpen || prodEdit) {
+      qc.invalidateQueries({ queryKey: ["feed-raw-materials"] });
+      rawQ.refetch();
+    }
+  }, [productionOpen, prodEdit]);
 
   const productionRawMaterials = useMemo(() => {
     return [...(rawQ.data || [])].sort((a: any, b: any) => {
