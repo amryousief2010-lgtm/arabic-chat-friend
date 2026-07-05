@@ -845,7 +845,11 @@ const Orders = () => {
       order.items.some((it) => it.product_name === filterProduct);
     const matchesModerator =
       filterModerator === "all" ||
-      order.moderator_name === filterModerator;
+      (() => {
+        const mod = findModeratorByName(filterModerator);
+        if (!mod) return order.moderator_name === filterModerator;
+        return isOrderForModerator(mod, order.moderator_name, order.moderator_name);
+      })();
     const matchesGovernorate =
       filterGovernorate === "all" ||
       (order.governorate || "").trim() === filterGovernorate;
