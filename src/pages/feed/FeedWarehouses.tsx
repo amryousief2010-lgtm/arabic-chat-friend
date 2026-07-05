@@ -177,6 +177,7 @@ export default function FeedWarehouses() {
   const [showArchivedRaw, setShowArchivedRaw] = useState(false);
   const [treasuryOpen, setTreasuryOpen] = useState(false);
   const [productionOpen, setProductionOpen] = useState(false);
+  const [prodEdit, setProdEdit] = useState<any | null>(null);
   const [detailsInv, setDetailsInv] = useState<any | null>(null);
   const [salesFilter, setSalesFilter] = useState<"all" | "internal" | "external">("all");
   const [internalDept, setInternalDept] = useState<"all" | "brooding_feed_store" | "slaughterhouse_feed_store" | "mother_farm_feed_store">("all");
