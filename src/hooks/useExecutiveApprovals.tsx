@@ -51,11 +51,19 @@ async function resolveProfiles(ids: string[]): Promise<Record<string, string>> {
   return map;
 }
 
+// Users explicitly excluded from receiving/approving executive approvals
+// (financial / treasury / expense flows) regardless of any role they may hold.
+const EXCLUDED_APPROVER_IDS = new Set<string>([
+  "77b71c5f-cfa8-42bc-85de-ae536a3ec1c1", // م. آلاء حامد
+]);
+
 export function useExecutiveApprovals() {
   const { user, roles, isGeneralManager, isExecutiveManager } = useAuth();
-  const isApprover = isGeneralManager || isExecutiveManager;
+  const isExcluded = !!user?.id && EXCLUDED_APPROVER_IDS.has(user.id);
+  const isApprover = (isGeneralManager || isExecutiveManager) && !isExcluded;
   const queryClient = useQueryClient();
   const enabled = !!user && isApprover;
+
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["executive-approvals"],
