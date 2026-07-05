@@ -28,6 +28,7 @@ import FeedProductionEditDialog from "@/components/feed/FeedProductionEditDialog
 type Line = { id: string; ref_id: string; qty: number; price: number };
 const newLine = (): Line => ({ id: crypto.randomUUID(), ref_id: "", qty: 0, price: 0 });
 const fmt = (n: number) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
+const isVitaminCMaterial = (r: any) => /فيتامين\s*c/i.test(String(r?.name || "")) || /vitamin\s*c/i.test(String(r?.name || ""));
 
 // ============ PRINT HELPERS ============
 const esc = (s: any) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -252,6 +253,18 @@ export default function FeedWarehouses() {
       if (error) throw error; return data || [];
     },
   });
+  useEffect(() => {
+    if (productionOpen || prodEdit) rawQ.refetch();
+  }, [productionOpen, prodEdit, rawQ.refetch]);
+
+  const productionRawMaterials = useMemo(() => {
+    return [...(rawQ.data || [])].sort((a: any, b: any) => {
+      const av = isVitaminCMaterial(a);
+      const bv = isVitaminCMaterial(b);
+      if (av !== bv) return av ? -1 : 1;
+      return String(a.name || "").localeCompare(String(b.name || ""), "ar");
+    });
+  }, [rawQ.data]);
   const archivedRawQ = useQuery({
     queryKey: ["feed-raw-materials-archived"],
     enabled: showArchivedRaw,
@@ -1148,12 +1161,12 @@ export default function FeedWarehouses() {
         {canEditStock && <ProductDialog item={editProd} onClose={() => setEditProd(null)} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-products"] })} />}
         {canStockCount && <StockCountDialog open={countOpen} onOpenChange={setCountOpen} rawMaterials={rawQ.data || []} products={prodQ.data || []} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-stock-counts"] })} />}
         {canTreasury && <TreasuryDialog open={treasuryOpen} onOpenChange={setTreasuryOpen} onSaved={() => qc.invalidateQueries({ queryKey: ["feed-treasury"] })} />}
-        {canProduce && <ProductionDialog open={productionOpen} onOpenChange={setProductionOpen} rawMaterials={rawQ.data || []} products={prodQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] }); qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-products"] }); }} />}
+        {canProduce && <ProductionDialog open={productionOpen} onOpenChange={setProductionOpen} rawMaterials={productionRawMaterials} products={prodQ.data || []} onSaved={() => { qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] }); qc.invalidateQueries({ queryKey: ["feed-raw-materials"] }); qc.invalidateQueries({ queryKey: ["feed-products"] }); }} />}
         <FeedInvoiceDetailsDialog open={!!detailsInv} onOpenChange={(o) => !o && setDetailsInv(null)} invoice={detailsInv} />
         {canManageAll && (
           <FeedProductionEditDialog
             invoice={prodEdit}
-            rawMaterials={rawQ.data || []}
+            rawMaterials={productionRawMaterials}
             onOpenChange={(o) => !o && setProdEdit(null)}
             onSaved={() => {
               qc.invalidateQueries({ queryKey: ["feed-prod-invoices"] });
