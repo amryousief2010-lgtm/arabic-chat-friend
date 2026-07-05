@@ -413,7 +413,7 @@ export default function ZodexMissingOrders() {
                   const cands = candidates[r.id];
                   const loadingC = !!loadingCands[r.id];
                   return (
-                    <>
+                    <Fragment key={r.id}>
                       <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => toggleExpand(r)}>
                         <TableCell className="px-2">
                           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
