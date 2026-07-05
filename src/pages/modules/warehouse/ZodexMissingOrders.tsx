@@ -357,9 +357,9 @@ export default function ZodexMissingOrders() {
     <div className="container mx-auto p-4 space-y-4" dir="rtl">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold">البوالص غير المربوطة (زودكس)</h1>
+          <h1 className="text-2xl font-bold">البوالص غير المربوطة (مخزن العجوزة)</h1>
           <p className="text-sm text-muted-foreground">
-            بوالص زودكس ملهاش أوردر مربوط عندنا — اضغط على أي بوليصة لعرض الأوردرات المحتملة وربطها بضغطة واحدة.
+            بوالص مخزن العجوزة ملهاش أوردر مربوط عندنا — اضغط على أي بوليصة لعرض الأوردرات المحتملة وربطها بضغطة واحدة.
           </p>
         </div>
         <div className="flex items-center gap-2">
