@@ -51,8 +51,6 @@ export default function EditCustomerInfoDialog({
     setSaving(true);
     try {
       const orderPatch: any = {
-        customer_name: cleanName,
-        customer_phone: cleanPhone,
         delivery_address: address.trim() || null,
       };
       const { error: oErr } = await supabase.from("orders").update(orderPatch).eq("id", orderId);
