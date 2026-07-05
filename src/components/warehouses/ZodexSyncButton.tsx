@@ -61,7 +61,7 @@ export function ZodexSyncButton() {
       <div className="flex items-center gap-2 flex-wrap">
         <Button size="sm" variant="outline" className="h-8 gap-1" onClick={sync} disabled={loading}>
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          مزامنة زودكس
+          مزامنة مخزن العجوزة
         </Button>
         {lastSyncAt && (
           <span className="text-[11px] text-muted-foreground">
