@@ -491,7 +491,7 @@ export default function ZodexMissingOrders() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </TableBody>
