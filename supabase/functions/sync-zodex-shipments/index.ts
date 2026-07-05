@@ -226,27 +226,20 @@ Deno.serve(async (req) => {
     );
 
     const allRows: ShipRow[] = [];
-    const pageDebug: any[] = [];
+    let pagesFetched = 0;
     for (let page = 1; page <= maxPages; page++) {
       const html = await client.get("/shippings.php", {
         items: ITEMS_PER_PAGE, page,
       });
-      const dbg: any = {};
-      const rows = parseShippingRows(html, dbg);
-      pageDebug.push({
-        page, html_len: html.length,
-        zx_count_in_html: (html.match(/ZX\d+/g) || []).length,
-        tr_count: (html.match(/<tr\b/g) || []).length,
-        parsed_rows: rows.length,
-        first_row: rows[0] || null,
-        dbg,
-      });
+      const rows = parseShippingRows(html);
+      pagesFetched++;
       if (!rows.length) break;
       allRows.push(...rows);
-      if (rows.length < ITEMS_PER_PAGE / 2) break; // last page
+      if (rows.length < ITEMS_PER_PAGE / 2) break; // last page reached
     }
     stats.total_rows = allRows.length;
-    stats.page_debug = pageDebug;
+    stats.pages_fetched = pagesFetched;
+
 
 
     const claimedThisRun = new Set<string>();
