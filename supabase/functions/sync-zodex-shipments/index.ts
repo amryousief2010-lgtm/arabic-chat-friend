@@ -132,9 +132,15 @@ function parseShippingRows(html: string, dbg?: any): ShipRow[] {
     if (seen.has(bill)) continue;
     seen.add(bill);
 
+    // Collect ONLY the customer phones (columns موبايل 1 / موبايل 2). We do
+    // this by requiring the cell to contain nothing except digits / +, spaces
+    // and dashes. Cells like "نورا 01008853026" (moderator name + phone) are
+    // excluded — otherwise we'd wrongly match orders belonging to a customer
+    // whose phone happens to equal a moderator's phone.
     const phoneSet = new Set<string>();
     for (const c of cells) {
-      if (c.length > 60) continue;
+      if (!c) continue;
+      if (!/^[\d\s+()\-]{10,20}$/.test(c)) continue;
       const compact = c.replace(/[^\d]/g, "");
       if (/^01\d{9}$/.test(compact)) phoneSet.add(compact);
     }
