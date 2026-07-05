@@ -131,6 +131,7 @@ interface Order {
   free_amount?: number | null;
   transfer_reference?: string | null;
   collection_updated_at?: string | null;
+  shipping_bill_no?: string | null;
 }
 
 // آخر زر تحديث تم استخدامه على الأوردر (عرض فقط، لا يمس منطق المخزون/المالية).
@@ -566,7 +567,7 @@ const Orders = () => {
         'shipping_company','fulfillment_type','source_warehouse_id','route_id',
         'update_status_marker','update_status_updated_at',
         'collection_method','courier_cash_due','collection_updated_at',
-        'vodafone_cash_amount','instapay_amount','free_amount',
+        'vodafone_cash_amount','instapay_amount','free_amount','shipping_bill_no',
       ].join(',');
       const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg';
 
@@ -634,6 +635,7 @@ const Orders = () => {
           free_amount: (order as any).free_amount != null ? Number((order as any).free_amount) : 0,
           transfer_reference: (order as any).transfer_reference ?? null,
           collection_updated_at: (order as any).collection_updated_at ?? null,
+          shipping_bill_no: (order as any).shipping_bill_no ?? null,
         }));
 
       const loadLookups = async (orders: any[], items: any[]) => {
@@ -1876,6 +1878,14 @@ const Orders = () => {
                         >
                           {order.order_number}
                         </button>
+                        {order.shipping_bill_no && (
+                          <span
+                            className="font-mono text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 border border-orange-300 truncate"
+                            title="رقم بوليصة زودكس"
+                          >
+                            {order.shipping_bill_no}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {isDuplicatePhone && (
