@@ -114,6 +114,7 @@ interface Order {
   moderator_name: string;
   governorate: string | null;
   shipping_company: string | null;
+  source: string | null;
   fulfillment_type: string | null;
   source_warehouse_id: string | null;
   source_warehouse_name: string | null;
@@ -564,7 +565,7 @@ const Orders = () => {
         'id','order_number','customer_id','status','payment_method','payment_status',
         'collection_status','subtotal','discount','delivery_fee','total','notes',
         'delivery_address','created_at','delivered_at','created_by','moderator',
-        'shipping_company','fulfillment_type','source_warehouse_id','route_id',
+        'shipping_company','source','fulfillment_type','source_warehouse_id','route_id',
         'update_status_marker','update_status_updated_at',
         'collection_method','courier_cash_due','collection_updated_at',
         'vodafone_cash_amount','instapay_amount','free_amount','shipping_bill_no',
@@ -605,6 +606,7 @@ const Orders = () => {
             '-',
           governorate: (order.customers as any)?.governorate ?? null,
           shipping_company: order.shipping_company ?? null,
+          source: (order as any).source ?? null,
           fulfillment_type: (order as any).fulfillment_type ?? null,
           source_warehouse_id: (order as any).source_warehouse_id ?? null,
           source_warehouse_name: (order as any).source_warehouse_id
@@ -1992,6 +1994,15 @@ const Orders = () => {
                           <span className="inline-flex items-center gap-0.5">
                             <MapPin className="w-3 h-3" /> {order.governorate}
                           </span>
+                        )}
+                        {order.source && (
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] py-0 font-normal bg-primary/10 text-primary border-primary/20"
+                            title="مصدر العميل"
+                          >
+                            📞 {order.source}
+                          </Badge>
                         )}
                         {(order.source_warehouse_name || order.shipping_company) && (() => {
                           const wn = order.source_warehouse_name || '';

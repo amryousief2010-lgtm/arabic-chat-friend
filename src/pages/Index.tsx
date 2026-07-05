@@ -680,6 +680,36 @@ const DashboardContent = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* Ranked Sources — most requested channels */}
+          {!reportData.isLoading && reportData.sourceData.length > 0 && (
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-primary" />
+                  الطلبات الأكثر حسب مصدر العميل
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {reportData.sourceData.map((src, i) => (
+                    <div key={src.name} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold" style={{ backgroundColor: COLORS[i % COLORS.length], color: "white" }}>
+                          {i + 1}
+                        </div>
+                        <div>
+                          <p className="font-semibold">{src.name}</p>
+                          <p className="text-sm text-muted-foreground">{src.orders} طلب</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-sm">{src.value}%</Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Regions Tab */}
