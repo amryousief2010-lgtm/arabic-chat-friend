@@ -407,9 +407,19 @@ Deno.serve(async (req) => {
       let matchedOrder: any = null;
       {
         const { data } = await supabase.from("orders")
-          .select("id, total, delivered_at, status, collection_status, created_at")
+          .select("id, total, delivered_at, status, collection_status, created_at, customer_id, customers(phone)")
           .eq("shipping_bill_no", row.bill_no).maybeSingle();
-        if (data) matchedOrder = data;
+        if (data) {
+          // Verify current customer phone still matches the Zodex row phone.
+          // If they diverged (customer merge / edit after previous sync), unlink
+          // and let the auto-matcher pick a fresh candidate.
+          const orderPhone = normalizePhone((data as any).customers?.phone || "");
+          if (orderPhone && row.customer_phone && orderPhone !== row.customer_phone) {
+            await supabase.from("orders").update({ shipping_bill_no: null }).eq("id", data.id);
+          } else {
+            matchedOrder = data;
+          }
+        }
       }
 
       // 2) Auto-match by phone + amount + moderator, with product-aware FIFO tie-breaker.
@@ -473,15 +483,19 @@ Deno.serve(async (req) => {
           shipping_bill_no: row.bill_no,
           zodex_synced_at: new Date().toISOString(),
         };
-        if (row.operation_type === OP_DELIVERY && row.invoice_no) {
+        // Safeguard: only flip to delivered when Zodex shipment status itself is a
+        // successful delivery. "مؤجل / معلق / مرتجع جزئى" rows can still appear on
+        // closed invoices but MUST NOT auto-mark the order as delivered.
+        const isSuccessfulDelivery = (row.shipment_status || "").trim() === STATUS_SUCCESS;
+        if (row.operation_type === OP_DELIVERY && row.invoice_no && isSuccessfulDelivery) {
           patch.status = "delivered";
           patch.collection_status = "collected";
           patch.total_at_delivery = row.cod_amount;
           if (!matchedOrder.delivered_at) patch.delivered_at = row.shipment_date;
           stats.delivered_matched++;
         } else if (row.operation_type === OP_DELIVERY) {
-          // White/open Mega/Zodex pickup rows can carry the same delivery operation label
-          // before the shipment is truly closed. Link the bill, but never flip the order to delivered.
+          // White/open Mega/Zodex pickup rows, or postponed rows on a closed invoice.
+          // Link the bill for traceability, but never flip the order to delivered.
           (stats as any).pickup_linked = ((stats as any).pickup_linked || 0) + 1;
         } else if (row.operation_type === OP_RETURN) {
           patch.status = "returned";
@@ -606,12 +620,25 @@ Deno.serve(async (req) => {
       for (const r of invRows) {
         // Look up matched order via bill_no (freshly linked in main loop above)
         const { data: ord } = await supabase.from("orders")
-          .select("id, order_number").eq("shipping_bill_no", r.bill_no).maybeSingle();
+          .select("id, order_number, customer_id, customers(phone)")
+          .eq("shipping_bill_no", r.bill_no).maybeSingle();
         const matched = !!ord;
         if (matched) matchedCount++; else missingCount++;
 
+        // Safeguards before creating a courier custody line:
+        //  (a) Zodex shipment status must be "تسليم ناجح" (not "مؤجل" / "معلق" / etc.)
+        //  (b) The order's current customer phone must still match the Zodex row phone.
+        //      Protects against wrong auto-matches (same amount + moderator but different
+        //      real customer) and against later customer edits/merges.
+        const isSuccessfulDelivery = (r as any).shipment_status
+          ? String((r as any).shipment_status).trim() === STATUS_SUCCESS
+          : true; // closed invoices default to success when status field is absent
+        const orderPhone = normalizePhone((ord as any)?.customers?.phone || "");
+        const zodexPhone = normalizePhone(r.customer_phone || "");
+        const phoneOk = !orderPhone || !zodexPhone || orderPhone === zodexPhone;
+
         let custodyAssigned = false;
-        if (matched && ord) {
+        if (matched && ord && isSuccessfulDelivery && phoneOk) {
           if (!sharedCustodyId) sharedCustodyId = await getOrCreateAgouzaCustody(supabase);
           if (sharedCustodyId) {
             const nowIso = new Date().toISOString();
@@ -630,6 +657,8 @@ Deno.serve(async (req) => {
             if (!asnErr) { custodyAssigned = true; assignedCount++; }
             else console.error("custody assign failed", ord.order_number, asnErr);
           }
+        } else if (matched && !phoneOk) {
+          console.warn(`skip custody: phone mismatch bill=${r.bill_no} order=${(ord as any)?.order_number} orderPhone=${orderPhone} zodexPhone=${zodexPhone}`);
         }
 
         // Upsert invoice line
