@@ -898,6 +898,7 @@ export default function FeedWarehouses() {
                               const { data: exps } = await (supabase as any).from("feed_production_invoice_expenses").select("*").eq("invoice_id", p.id);
                               printFeedInvoice(p, p.feed_production_invoice_items || [], exps || []);
                             }}><Printer className="h-4 w-4 ml-1"/>طباعة</Button>
+                            {canManageAll && p.status === 'approved' && <Button size="icon" variant="ghost" title="تعديل بعد الاعتماد" onClick={() => setProdEdit(p)}><Pencil className="h-4 w-4" /></Button>}
                             {canManageAll && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => delProduction(p)}><Trash2 className="h-4 w-4" /></Button>}
                           </div>
                         </TableCell>
