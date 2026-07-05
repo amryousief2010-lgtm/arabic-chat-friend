@@ -131,6 +131,7 @@ interface Order {
   free_amount?: number | null;
   transfer_reference?: string | null;
   collection_updated_at?: string | null;
+  shipping_bill_no?: string | null;
 }
 
 // آخر زر تحديث تم استخدامه على الأوردر (عرض فقط، لا يمس منطق المخزون/المالية).
@@ -566,7 +567,7 @@ const Orders = () => {
         'shipping_company','fulfillment_type','source_warehouse_id','route_id',
         'update_status_marker','update_status_updated_at',
         'collection_method','courier_cash_due','collection_updated_at',
-        'vodafone_cash_amount','instapay_amount','free_amount',
+        'vodafone_cash_amount','instapay_amount','free_amount','shipping_bill_no',
       ].join(',');
       const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg';
 
