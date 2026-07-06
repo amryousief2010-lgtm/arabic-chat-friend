@@ -281,7 +281,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         .select("id, filename, summary, created_at")
         .order("created_at", { ascending: false })
         .limit(25);
-      setBosttaUploadNets((uploadRows || [])
+      const mapped = (uploadRows || [])
         .map((row: any) => ({
           id: row.id,
           filename: row.filename,
@@ -289,7 +289,17 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           orderNumbers: extractBosttaOrderNumbers(row.summary),
           created_at: row.created_at,
         }))
-        .filter((row: BosttaUploadNet) => Number(row.netAmount) > 0 && row.orderNumbers.length > 0));
+        .filter((row: BosttaUploadNet) => Number(row.netAmount) > 0 && row.orderNumbers.length > 0);
+      // Dedupe by filename — keep the most recent upload only (latest re-run wins)
+      const dedupedByFilename = new Map<string, BosttaUploadNet>();
+      mapped.forEach((row: BosttaUploadNet) => {
+        const key = String(row.filename || "").trim().toLowerCase();
+        const existing = dedupedByFilename.get(key);
+        if (!existing || new Date(row.created_at) > new Date(existing.created_at)) {
+          dedupedByFilename.set(key, row);
+        }
+      });
+      setBosttaUploadNets(Array.from(dedupedByFilename.values()));
     } else {
       setBosttaUploadNets([]);
     }
