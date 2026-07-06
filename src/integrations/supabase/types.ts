@@ -21591,6 +21591,17 @@ export type Database = {
         Args: { p_output_id: string; p_reason?: string }
         Returns: Json
       }
+      save_order_items_edit: {
+        Args: {
+          p_delivery_fee?: number
+          p_discount: number
+          p_items: Json
+          p_order_id: string
+          p_subtotal: number
+          p_total: number
+        }
+        Returns: undefined
+      }
       set_opening_live_ostrich_cost: {
         Args: {
           p_live_batch_id: string
