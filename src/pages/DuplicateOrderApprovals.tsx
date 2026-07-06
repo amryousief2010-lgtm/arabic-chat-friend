@@ -165,6 +165,8 @@ const DuplicateOrderApprovals = () => {
       const userIds = Array.from(new Set([
         ...approvalsList.map((row) => row.requested_by).filter(Boolean),
         ...approvalsList.map((row) => row.decided_by).filter(Boolean),
+        ...approvalsList.map((row) => row.marketing_decided_by).filter(Boolean),
+        ...approvalsList.map((row) => row.executive_decided_by).filter(Boolean),
         ...auditsList.map((row) => row.attempted_by).filter(Boolean),
         ...auditsList.map((row) => row.decision_by).filter(Boolean),
       ])) as string[];
