@@ -303,17 +303,17 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
       });
       setBosttaUploadNets(Array.from(dedupedByFilename.values()));
 
-      // Detect which Bostta sheets have already been handed over to main treasury
-      // (agouza_warehouse_treasury_txns rows with notes containing the sheet filename).
-      const { data: handoverRows } = await (supabase as any)
+      // Detect which Bostta sheets have already been deposited into Agouza treasury
+      // (cash_in rows) or already handed over to main treasury (handover_to_main rows).
+      const { data: txnRows } = await (supabase as any)
         .from("agouza_warehouse_treasury_txns")
-        .select("notes, status")
-        .eq("txn_type", "handover_to_main")
-        .in("status", ["pending", "approved"])
+        .select("notes, status, txn_type")
+        .in("txn_type", ["cash_in", "handover_to_main"])
+        .in("status", ["pending", "approved", "posted"])
         .order("created_at", { ascending: false })
-        .limit(200);
+        .limit(400);
       const deposited = new Set<string>();
-      (handoverRows || []).forEach((r: any) => {
+      (txnRows || []).forEach((r: any) => {
         const notes = String(r?.notes || "");
         dedupedByFilename.forEach((upload, key) => {
           if (upload.filename && notes.includes(upload.filename)) deposited.add(key);
@@ -806,20 +806,28 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
   const depositBosttaSheet = async (upload: BosttaUploadNet) => {
     const amt = Number(upload.netAmount || 0);
     if (!amt || amt <= 0) { toast({ title: "المبلغ غير صالح", variant: "destructive" }); return; }
-    if (!confirm(`سيتم توريد ${fmt(amt)} ج.م إلى خزنة المخزن الرئيسي (محمد شعلة) عن كشف: ${upload.filename}. متابعة؟`)) return;
+    if (!confirm(`سيتم إضافة ${fmt(amt)} ج.م كتحصيل نقدي إلى خزينة مخزن العجوزة عن كشف: ${upload.filename}. متابعة؟`)) return;
     setDepositingBosttaId(upload.id);
     try {
-      const { error } = await (supabase as any).rpc("submit_agouza_cash_handover", {
-        p_amount: amt,
-        p_notes: `توريد كشف بُسطة — ${upload.filename} (${upload.orderNumbers.length} أوردر)`,
+      const txnNo = `AGZ-BOSTTA-${new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14)}-${upload.id.slice(0, 6)}`;
+      const { error } = await (supabase as any).from("agouza_warehouse_treasury_txns").insert({
+        txn_no: txnNo,
+        txn_date: new Date().toISOString(),
+        txn_type: "cash_in",
+        direction: "in",
+        amount: amt,
+        status: "approved",
+        notes: `تحصيل كشف بُسطة — ${upload.filename} (${upload.orderNumbers.length} أوردر)`,
+        created_by: user?.id,
       });
       if (error) throw error;
-      toast({ title: "تم إرسال التوريد للاعتماد", description: `المبلغ: ${fmt(amt)} ج.م — بانتظار اعتماد محمد شعلة` });
+      toast({ title: "تم التوريد لخزينة العجوزة", description: `المبلغ: ${fmt(amt)} ج.م — تقدر بعدها تحوّله لخزنة محمد شعلة` });
       await load();
     } catch (e: any) {
       toast({ title: "تعذّر التوريد", description: e?.message || "", variant: "destructive" });
     } finally { setDepositingBosttaId(null); }
   };
+
 
 
 
@@ -1262,6 +1270,13 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                       // matching Zodex Mega invoices. Show all uploads for Agouza custody view.
                       const bosttaRows: JSX.Element[] = isAgouza
                         ? bosttaUploadNets.map((upload) => {
+                            // Hide Bostta sheets whose extracted amount matches an existing
+                            // Zodex/Mega closed invoice number — that means it's already been
+                            // settled through Mega and doesn't need a separate deposit.
+                            const matchesClosedInvoice = closedInvoices.some(
+                              (inv) => String(inv.invoice_no).trim() === String(upload.netAmount)
+                            );
+                            if (matchesClosedInvoice) return null;
                             const matchedOrders = orders.filter((o) =>
                               o.order_number && upload.orderNumbers.includes(String(o.order_number))
                             );
