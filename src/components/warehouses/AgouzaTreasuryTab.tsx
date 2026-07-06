@@ -192,6 +192,21 @@ export default function AgouzaTreasuryTab() {
   const approvedHandovers = txns.filter(t => t.txn_type === "handover_to_main" && t.status === "approved");
   const rejectedHandovers = txns.filter(t => t.txn_type === "handover_to_main" && t.status === "rejected");
 
+  // Bostta collection sheets not yet handed over to Main — used to prefill the handover dialog
+  const pendingBosttaSheets = useMemo(() => {
+    const allHandoverNotes = txns
+      .filter(t => t.txn_type === "handover_to_main" && ["pending", "approved", "posted"].includes(t.status))
+      .map(t => String(t.notes || ""));
+    const extractFilename = (n: string) => {
+      const m = n.match(/كشف بُسطة\s*[—-]\s*([^()]+?)(?:\s*\(|$)/);
+      return m ? m[1].trim() : "";
+    };
+    return txns
+      .filter(t => t.txn_type === "cash_in" && String(t.notes || "").includes("كشف بُسطة") && ["approved", "posted"].includes(t.status))
+      .map(t => ({ id: t.id, amount: Number(t.amount || 0), notes: String(t.notes || ""), filename: extractFilename(String(t.notes || "")), created_at: t.created_at }))
+      .filter(row => row.filename && !allHandoverNotes.some(hn => hn.includes(row.filename)));
+  }, [txns]);
+
   return (
     <div className="space-y-6" dir="rtl">
       {/* KPIs */}
