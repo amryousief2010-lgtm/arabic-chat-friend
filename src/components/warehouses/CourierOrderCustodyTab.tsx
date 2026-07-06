@@ -1288,11 +1288,14 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                               return !!asn;
                             });
                             if (selectedCustody && matchedInSelectedCustody.length === 0) return null;
-                            // Sheet count = true number of Bostta rows (includes duplicates
-                            // when the same order appears under two bills). Only fall back to
-                            // matched-orders count when filtering by a specific custody.
+                            // Sheet count = true number of Bostta rows (duplicates preserved).
+                            // When a custody is selected, count every sheet occurrence whose
+                            // order belongs to that custody, not the de-duplicated orders array.
+                            const selectedCustodyOrderNumbers = new Set(
+                              matchedInSelectedCustody.map((o) => String(o.order_number)).filter(Boolean)
+                            );
                             const displayCount = selectedCustody
-                              ? matchedInSelectedCustody.length
+                              ? upload.orderNumbers.filter((no) => selectedCustodyOrderNumbers.has(String(no))).length
                               : (upload.orderNumbers.length || matchedOrders.length);
                             const key = String(upload.filename || "").trim().toLowerCase();
                             const isDeposited = depositedBosttaFilenames.has(key);
