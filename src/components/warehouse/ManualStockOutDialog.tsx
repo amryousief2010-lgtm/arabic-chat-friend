@@ -761,19 +761,31 @@ const ManualStockOutDialog = ({
               <ShieldAlert className="h-4 w-4 text-rose-700" />
               <AlertDescription className="text-xs text-rose-900 dark:text-rose-200 space-y-2">
                 <div className="font-bold">
-                  ⚠️ هذا الصرف سيجعل المتاح بالسالب لبعض الأصناف.
+                  {isMainWarehouse
+                    ? "⚠️ بعض الكميات المطلوب صرفها محجوزة لأوردرات قائمة. يمكن المتابعة مع تسجيل السبب."
+                    : "⚠️ هذا الصرف سيجعل المتاح بالسالب لبعض الأصناف."}
                 </div>
-                {!isManager ? (
-                  <div>الحفظ يتطلب صلاحية المدير العام أو المدير التنفيذي.</div>
+                {!canOverrideReserved ? (
+                  <div>
+                    {isMainWarehouse
+                      ? "الحفظ يتطلب صلاحية مسؤول المخزن الرئيسي أو المدير."
+                      : "الحفظ يتطلب صلاحية المدير العام أو المدير التنفيذي."}
+                  </div>
                 ) : (
                   <>
                     <label className="flex items-center gap-2">
                       <input type="checkbox" checked={overrideNegative}
                              onChange={(e) => setOverrideNegative(e.target.checked)} />
-                      <span>أؤكد كمدير الصرف بالسالب على مسؤوليتي.</span>
+                      <span>
+                        {isMainWarehouse
+                          ? "أؤكد الصرف رغم وجود حجز على بعض الكميات على مسؤوليتي."
+                          : "أؤكد كمدير الصرف بالسالب على مسؤوليتي."}
+                      </span>
                     </label>
                     <Input
-                      placeholder="سبب اعتماد المدير للصرف بالسالب (إجباري)"
+                      placeholder={isMainWarehouse
+                        ? "سبب الصرف رغم الحجز (إجباري)"
+                        : "سبب اعتماد المدير للصرف بالسالب (إجباري)"}
                       value={overrideReason}
                       onChange={(e) => setOverrideReason(e.target.value)}
                       maxLength={300}
