@@ -201,11 +201,12 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const startDate = cairoMonthStartUTC(selectedYear, selectedMonth - 1).toISOString();
       const endDate = cairoMonthStartUTC(selectedYear, selectedMonth).toISOString();
       const empty = GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
+      // الكتاكيت تُحسب حسب تاريخ التسليم (updated_at) وليس تاريخ التسجيل.
       const { data: rows, error } = await supabase
         .from('chick_orders')
         .select('chick_count, created_by')
-        .gte('created_at', startDate)
-        .lt('created_at', endDate)
+        .gte('updated_at', startDate)
+        .lt('updated_at', endDate)
         .eq('status', 'delivered');
       if (error) throw error;
       const userIds = Array.from(new Set((rows || []).map(r => r.created_by).filter(Boolean))) as string[];
