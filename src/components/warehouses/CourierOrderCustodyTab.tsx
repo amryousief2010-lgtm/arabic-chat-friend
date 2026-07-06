@@ -303,17 +303,17 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
       });
       setBosttaUploadNets(Array.from(dedupedByFilename.values()));
 
-      // Detect which Bostta sheets have already been handed over to main treasury
-      // (agouza_warehouse_treasury_txns rows with notes containing the sheet filename).
-      const { data: handoverRows } = await (supabase as any)
+      // Detect which Bostta sheets have already been deposited into Agouza treasury
+      // (cash_in rows) or already handed over to main treasury (handover_to_main rows).
+      const { data: txnRows } = await (supabase as any)
         .from("agouza_warehouse_treasury_txns")
-        .select("notes, status")
-        .eq("txn_type", "handover_to_main")
-        .in("status", ["pending", "approved"])
+        .select("notes, status, txn_type")
+        .in("txn_type", ["cash_in", "handover_to_main"])
+        .in("status", ["pending", "approved", "posted"])
         .order("created_at", { ascending: false })
-        .limit(200);
+        .limit(400);
       const deposited = new Set<string>();
-      (handoverRows || []).forEach((r: any) => {
+      (txnRows || []).forEach((r: any) => {
         const notes = String(r?.notes || "");
         dedupedByFilename.forEach((upload, key) => {
           if (upload.filename && notes.includes(upload.filename)) deposited.add(key);
