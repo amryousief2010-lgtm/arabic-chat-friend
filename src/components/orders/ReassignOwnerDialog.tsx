@@ -149,6 +149,7 @@ export default function ReassignOwnerDialog({
                 <SelectValue placeholder={loading ? "جارِ التحميل..." : "اختر المسوقة"} />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="__company__">🏢 الشركة (بدون تخصيص لمسوقة)</SelectItem>
                 {candidates.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}
