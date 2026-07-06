@@ -56,7 +56,10 @@ type ApprovalRow = {
     fulfillment_type: string | null;
     delivery_address: string | null;
     products_summary: string;
+    total?: number | null;
+    notes?: string | null;
   };
+
 };
 
 type AuditRow = {
@@ -175,8 +178,9 @@ const DuplicateOrderApprovals = () => {
         customerIds.length ? supabase.from("customers").select("id, name, phone").in("id", customerIds) : Promise.resolve({ data: [] as any[] }),
         userIds.length ? supabase.from("profile_directory").select("id, full_name").in("id", userIds) : Promise.resolve({ data: [] as any[] }),
         orderIds.length
-          ? supabase.from("orders").select("id, order_number, customer_id, created_at, status, shipping_company, fulfillment_type, delivery_address, created_by").in("id", orderIds)
+          ? supabase.from("orders").select("id, order_number, customer_id, created_at, status, shipping_company, fulfillment_type, delivery_address, created_by, total, notes").in("id", orderIds)
           : Promise.resolve({ data: [] as any[] }),
+
         orderIds.length
           ? supabase.from("order_items").select("order_id, product_name, quantity, offer_name").in("order_id", orderIds)
           : Promise.resolve({ data: [] as any[] }),
@@ -211,7 +215,10 @@ const DuplicateOrderApprovals = () => {
           fulfillment_type: order.fulfillment_type,
           delivery_address: order.delivery_address,
           products_summary: orderSummaryMap.get(order.id) || "—",
+          total: order.total,
+          notes: order.notes,
         };
+
       };
 
       setRows(approvalsList.map((row) => ({
@@ -275,35 +282,56 @@ const DuplicateOrderApprovals = () => {
     fetchData();
   };
 
-  const renderOrderCard = (title: string, data: { customer_name?: string; customer_phone?: string; delivery_address?: string | null; shipping_company?: string | null; fulfillment_type?: string | null; products_summary?: string; order_number?: string; moderator_name?: string; created_at?: string; status?: string } | null | undefined) => (
-    <div className="rounded-lg border p-3 space-y-2 bg-muted/20">
+  const renderOrderCard = (title: string, data: { customer_name?: string; customer_phone?: string; delivery_address?: string | null; shipping_company?: string | null; fulfillment_type?: string | null; products_summary?: string; order_number?: string; moderator_name?: string; created_at?: string; status?: string; total?: number | null; notes?: string | null } | null | undefined, highlight?: "old" | "new") => (
+    <div className={`rounded-lg border p-3 space-y-2 ${highlight === "new" ? "bg-purple-50 border-purple-300" : highlight === "old" ? "bg-blue-50 border-blue-300" : "bg-muted/20"}`}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="font-semibold">{title}</div>
         {data?.order_number && <Badge variant="outline">{data.order_number}</Badge>}
       </div>
       <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+        <div>الموظفة: <span className="text-foreground font-semibold">{data?.moderator_name || "—"}</span></div>
         <div>العميل: <span className="text-foreground font-medium">{data?.customer_name || "—"}</span></div>
         <div>الهاتف: <span className="text-foreground font-medium">{data?.customer_phone || "—"}</span></div>
-        <div>المودريتور: <span className="text-foreground font-medium">{data?.moderator_name || "—"}</span></div>
         <div>الوقت: <span className="text-foreground font-medium">{fmt(data?.created_at)}</span></div>
         <div>الحالة: <span className="text-foreground font-medium">{data?.status || "—"}</span></div>
         <div>التسليم: <span className="text-foreground font-medium">{data?.shipping_company || data?.fulfillment_type || "—"}</span></div>
         <div className="md:col-span-2">العنوان: <span className="text-foreground font-medium">{data?.delivery_address || "—"}</span></div>
         <div className="md:col-span-2">المنتجات: <span className="text-foreground font-medium">{data?.products_summary || "—"}</span></div>
+        {data?.total != null && <div className="md:col-span-2">الإجمالي: <span className="text-foreground font-bold">{Number(data.total).toLocaleString("ar-EG")} ج</span></div>}
+        {data?.notes && <div className="md:col-span-2">ملاحظات: <span className="text-foreground font-medium">{data.notes}</span></div>}
       </div>
     </div>
   );
 
-  const renderApprovalRow = (row: ApprovalRow) => (
+
+  const renderApprovalRow = (row: ApprovalRow) => {
+    const newRepName = row.requester_name || "—";
+    const oldRepName = row.matched_order?.moderator_name || "—";
+    const customerDisplay = row.matched_order?.customer_name || row.customer_name || row.proposed_order?.customer_name || "—";
+    const proposedTotal = (row.proposed_items || []).reduce(
+      (s: number, it: any) => s + Number(it?.unit_price || 0) * Number(it?.quantity || 0), 0,
+    );
+
+    return (
     <div key={row.id} className="border rounded-lg p-4 bg-card space-y-3">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div>
-          <div className="font-semibold">{row.customer_name || row.proposed_order?.customer_name || "—"}</div>
-          <div className="text-sm text-muted-foreground">
-            المودريتور الأولى: <span className="text-foreground font-medium">{row.matched_order?.moderator_name || "—"}</span>
-            {" • "}
-            المودريتور الثانية: <span className="text-foreground font-medium">{row.requester_name || "—"}</span>
+      <div className="rounded-md border-2 border-amber-400 bg-amber-50 p-3 text-sm">
+        <div className="flex items-start gap-2">
+          <ShieldAlert className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <div className="font-bold text-amber-900">محاولة تسجيل أوردر لعميل موجود مسبقاً عند موظفة أخرى</div>
+            <div className="text-amber-900">
+              <span className="font-semibold">{newRepName}</span> تحاول تسجيل أوردر جديد للعميل{" "}
+              <span className="font-semibold">{customerDisplay}</span>، لكن نفس العميل / نفس رقم الموبايل مسجل قبل كده بواسطة{" "}
+              <span className="font-semibold">{oldRepName}</span>.
+            </div>
+            <div className="text-amber-900 font-medium">هل توافق على تسجيل الأوردر الجديد؟</div>
           </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="text-xs text-muted-foreground">
+          طلب اعتماد رقم <span className="font-mono">#{row.id.slice(0, 8)}</span> • وقت المحاولة: {fmt(row.created_at)}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge>
@@ -312,7 +340,8 @@ const DuplicateOrderApprovals = () => {
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
-        {renderOrderCard("الطلب الجديد المقترح", {
+        {renderOrderCard("الأوردر القديم (مسجل بالفعل)", row.matched_order, "old")}
+        {renderOrderCard("الأوردر الجديد المطلوب تسجيله", {
           customer_name: row.proposed_order?.customer_name || row.customer_name,
           customer_phone: row.proposed_order?.customer_phone || row.customer_phone,
           delivery_address: row.proposed_order?.delivery_address,
@@ -322,9 +351,11 @@ const DuplicateOrderApprovals = () => {
           moderator_name: row.requester_name,
           created_at: row.created_at,
           status: row.status,
-        })}
-        {renderOrderCard("الطلب المشابه الموجود", row.matched_order)}
+          total: proposedTotal || undefined,
+          notes: row.note || row.proposed_order?.note,
+        }, "new")}
       </div>
+
 
       <div className="grid gap-2 md:grid-cols-2">
         <div className={`rounded-md border p-2 text-sm ${row.marketing_decision === 'approved' ? 'bg-emerald-50 border-emerald-300' : row.marketing_decision === 'rejected' ? 'bg-rose-50 border-rose-300' : 'bg-amber-50 border-amber-300'}`}>
@@ -370,7 +401,9 @@ const DuplicateOrderApprovals = () => {
         </div>
       )}
     </div>
-  );
+    );
+  };
+
 
   const renderAuditRow = (row: AuditRow) => (
     <div key={row.id} className="rounded-lg border p-4 space-y-2 bg-card">
