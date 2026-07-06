@@ -20,6 +20,25 @@ const extractBosttaFilenameFromNotes = (notes?: string | null): string => {
   return m ? m[1].trim() : "";
 };
 
+const countBosttaOrderOccurrences = (summary: any): number => {
+  let count = 0;
+  ["updated", "already_delivered"].forEach((key) => {
+    const rows = Array.isArray(summary?.[key]) ? summary[key] : [];
+    rows.forEach((row: any) => {
+      if (row?.order_number) count += 1;
+    });
+  });
+  return count;
+};
+
+const extractOrderCountFromNotes = (notes?: string | null): number | null => {
+  const normalized = String(notes || "")
+    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)));
+  const match = normalized.match(/\((\d+)\s*أوردر\)/);
+  return match ? Number(match[1]) : null;
+};
+
 async function printBosttaHandoverInvoice(txn: { id: string; txn_no: string | null; txn_date: string; amount: number; notes: string | null }) {
   const filename = extractBosttaFilenameFromNotes(txn.notes);
   if (!filename) {
@@ -165,6 +184,7 @@ export default function AgouzaTreasuryTab() {
   const [handoverNotes, setHandoverNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [selectedBosttaId, setSelectedBosttaId] = useState<string | null>(null);
+  const [bosttaOrderCountsByFilename, setBosttaOrderCountsByFilename] = useState<Record<string, number>>({});
 
   // simple cash movement (income/expense) dialog
   const [moveOpen, setMoveOpen] = useState(false);
@@ -189,6 +209,29 @@ export default function AgouzaTreasuryTab() {
       return;
     }
     setTxns((data as any[]) as Txn[]);
+
+    const bosttaFilenames = Array.from(new Set(
+      ((data as any[]) || [])
+        .filter(t => String(t.notes || "").includes("كشف بُسطة"))
+        .map(t => extractBosttaFilenameFromNotes(t.notes))
+        .filter(Boolean)
+    ));
+    if (bosttaFilenames.length) {
+      const { data: uploads } = await supabase
+        .from("bostta_delivery_uploads")
+        .select("filename, summary, created_at")
+        .in("filename", bosttaFilenames)
+        .order("created_at", { ascending: false });
+      const counts: Record<string, number> = {};
+      (uploads || []).forEach((upload: any) => {
+        const key = String(upload.filename || "").trim().toLowerCase();
+        if (!key || counts[key] != null) return;
+        counts[key] = countBosttaOrderOccurrences(upload.summary);
+      });
+      setBosttaOrderCountsByFilename(counts);
+    } else {
+      setBosttaOrderCountsByFilename({});
+    }
   };
 
   useEffect(() => { load(); }, []);
@@ -304,9 +347,14 @@ export default function AgouzaTreasuryTab() {
     };
     return txns
       .filter(t => t.txn_type === "cash_in" && String(t.notes || "").includes("كشف بُسطة") && ["approved", "posted"].includes(t.status))
-      .map(t => ({ id: t.id, amount: Number(t.amount || 0), notes: String(t.notes || ""), filename: extractFilename(String(t.notes || "")), created_at: t.txn_date }))
+      .map(t => {
+        const notes = String(t.notes || "");
+        const filename = extractFilename(notes);
+        const orderCount = bosttaOrderCountsByFilename[filename.trim().toLowerCase()] ?? extractOrderCountFromNotes(notes) ?? null;
+        return { id: t.id, amount: Number(t.amount || 0), notes, filename, orderCount, created_at: t.txn_date };
+      })
       .filter(row => row.filename && !allHandoverNotes.some(hn => hn.includes(row.filename)));
-  }, [txns]);
+  }, [txns, bosttaOrderCountsByFilename]);
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -445,7 +493,11 @@ export default function AgouzaTreasuryTab() {
                       onClick={() => {
                         setSelectedBosttaId(sheet.id);
                         setHandoverAmount(String(sheet.amount));
-                        setHandoverNotes(`توريد ${sheet.notes}`);
+                        setHandoverNotes(
+                          sheet.orderCount
+                            ? `توريد تحصيل كشف بُسطة — ${sheet.filename} (${sheet.orderCount} أوردر)`
+                            : `توريد ${sheet.notes}`
+                        );
                       }}
                       className={`w-full text-right px-3 py-2 rounded border text-xs transition ${
                         selectedBosttaId === sheet.id
@@ -455,7 +507,9 @@ export default function AgouzaTreasuryTab() {
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate">📄 {sheet.filename}</span>
-                        <span className="font-mono font-bold whitespace-nowrap">{sheet.amount.toLocaleString("ar-EG")} ج</span>
+                        <span className="font-mono font-bold whitespace-nowrap">
+                          {sheet.orderCount ? `${sheet.orderCount} أوردر · ` : ""}{sheet.amount.toLocaleString("ar-EG")} ج
+                        </span>
                       </div>
                     </button>
                   ))}
