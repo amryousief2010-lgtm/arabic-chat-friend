@@ -335,18 +335,25 @@ const ManualStockOutDialog = ({
       return;
     }
     if (hasNegativeAfter) {
-      if (!isManager) {
+      if (!canOverrideReserved) {
         toast({
-          title: "صرف يجعل المتاح بالسالب — يتطلب صلاحية المدير العام أو التنفيذي",
+          title: isMainWarehouse
+            ? "الصرف مع وجود حجز يتطلب صلاحية مسؤول المخزن الرئيسي أو المدير"
+            : "صرف يجعل المتاح بالسالب — يتطلب صلاحية المدير العام أو التنفيذي",
           variant: "destructive",
         });
         return;
       }
       if (!overrideNegative || overrideReason.trim().length < 3) {
         toast({
-          title: "فعّل تأكيد المدير وسجّل سببًا واضحًا (≥ ٣ حروف) للصرف بالسالب",
+          title: "فعّل تأكيد التجاوز وسجّل سببًا واضحًا (≥ ٣ حروف) للصرف رغم الحجز",
           variant: "destructive",
         });
+        return;
+      }
+      // Explicit confirmation dialog for reserved-conflict override
+      const confirmMsg = "تنبيه: بعض الكميات التي سيتم صرفها محجوزة لأوردرات قائمة.\nهل تريد المتابعة؟";
+      if (typeof window !== "undefined" && !window.confirm(confirmMsg)) {
         return;
       }
     }
