@@ -282,24 +282,27 @@ const DuplicateOrderApprovals = () => {
     fetchData();
   };
 
-  const renderOrderCard = (title: string, data: { customer_name?: string; customer_phone?: string; delivery_address?: string | null; shipping_company?: string | null; fulfillment_type?: string | null; products_summary?: string; order_number?: string; moderator_name?: string; created_at?: string; status?: string } | null | undefined) => (
-    <div className="rounded-lg border p-3 space-y-2 bg-muted/20">
+  const renderOrderCard = (title: string, data: { customer_name?: string; customer_phone?: string; delivery_address?: string | null; shipping_company?: string | null; fulfillment_type?: string | null; products_summary?: string; order_number?: string; moderator_name?: string; created_at?: string; status?: string; total?: number | null; notes?: string | null } | null | undefined, highlight?: "old" | "new") => (
+    <div className={`rounded-lg border p-3 space-y-2 ${highlight === "new" ? "bg-purple-50 border-purple-300" : highlight === "old" ? "bg-blue-50 border-blue-300" : "bg-muted/20"}`}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="font-semibold">{title}</div>
         {data?.order_number && <Badge variant="outline">{data.order_number}</Badge>}
       </div>
       <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+        <div>الموظفة: <span className="text-foreground font-semibold">{data?.moderator_name || "—"}</span></div>
         <div>العميل: <span className="text-foreground font-medium">{data?.customer_name || "—"}</span></div>
         <div>الهاتف: <span className="text-foreground font-medium">{data?.customer_phone || "—"}</span></div>
-        <div>المودريتور: <span className="text-foreground font-medium">{data?.moderator_name || "—"}</span></div>
         <div>الوقت: <span className="text-foreground font-medium">{fmt(data?.created_at)}</span></div>
         <div>الحالة: <span className="text-foreground font-medium">{data?.status || "—"}</span></div>
         <div>التسليم: <span className="text-foreground font-medium">{data?.shipping_company || data?.fulfillment_type || "—"}</span></div>
         <div className="md:col-span-2">العنوان: <span className="text-foreground font-medium">{data?.delivery_address || "—"}</span></div>
         <div className="md:col-span-2">المنتجات: <span className="text-foreground font-medium">{data?.products_summary || "—"}</span></div>
+        {data?.total != null && <div className="md:col-span-2">الإجمالي: <span className="text-foreground font-bold">{Number(data.total).toLocaleString("ar-EG")} ج</span></div>}
+        {data?.notes && <div className="md:col-span-2">ملاحظات: <span className="text-foreground font-medium">{data.notes}</span></div>}
       </div>
     </div>
   );
+
 
   const renderApprovalRow = (row: ApprovalRow) => (
     <div key={row.id} className="border rounded-lg p-4 bg-card space-y-3">
