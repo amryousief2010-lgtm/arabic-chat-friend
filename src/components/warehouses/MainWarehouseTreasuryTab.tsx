@@ -554,11 +554,17 @@ export default function MainWarehouseTreasuryTab() {
     if (!amt || amt <= 0) {
       toast({ title: "أدخل مبلغًا صحيحًا", variant: "destructive" }); return;
     }
+    const isReconcile = transferMode === "reconcile";
+    if (!isReconcile && selectedDepositIds.size === 0) {
+      toast({ title: "اختر أيام التوريد", description: "لازم تحدد يوم/أيام التوريد المرتبطة بالتحويل حتى تظهر الأوردرات في طباعة المسؤول المالي", variant: "destructive" });
+      return;
+    }
     if (amt > kpis.balance) {
       if (!window.confirm(`المبلغ (${fmt(amt)}) أكبر من الرصيد الحالي (${fmt(kpis.balance)}). متابعة؟`)) return;
     }
 
-    const isReconcile = transferMode === "reconcile";
+
+
     if (isReconcile) {
       if (!canReconcile) {
         toast({ title: "غير مصرح", description: "التسوية متاحة للمدير العام / التنفيذي / المسؤول المالي فقط", variant: "destructive" });

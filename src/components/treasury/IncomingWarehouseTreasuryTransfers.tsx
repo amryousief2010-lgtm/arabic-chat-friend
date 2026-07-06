@@ -116,7 +116,25 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
     const dayStr = new Date(r.performed_at).toLocaleDateString("ar-EG", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
     const notes = r.notes || "";
-    const orderNumbers = Array.from(new Set((notes.match(/ORD-\d+-\d+/g) || [])));
+    // Primary source: deposits linked to this transfer (authoritative).
+    // Fallback: parse ORD-... numbers from the notes text.
+    let orderNumbers: string[] = [];
+    let linkedDeposits: Array<{ deposit_date: string; courier_name: string | null; amount: number; orders_count: number; order_numbers: string[] | null }> = [];
+    try {
+      const { data: deps } = await (supabase as any)
+        .from("courier_daily_cash_deposits")
+        .select("deposit_date, courier_name, amount, orders_count, order_numbers")
+        .eq("transferred_txn_id", r.id)
+        .order("deposit_date", { ascending: false });
+      linkedDeposits = (deps || []) as any;
+      linkedDeposits.forEach((d) => {
+        (d.order_numbers || []).forEach((n) => { if (n) orderNumbers.push(n); });
+      });
+    } catch { /* ignore */ }
+    if (orderNumbers.length === 0) {
+      orderNumbers = (notes.match(/ORD-\d+-\d+/g) || []) as string[];
+    }
+    orderNumbers = Array.from(new Set(orderNumbers));
 
     type OrderRow = {
       id: string; order_number: string; total: number | null; courier_cash_due: number | null;
