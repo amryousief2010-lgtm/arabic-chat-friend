@@ -119,6 +119,8 @@ const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | '
   lab_treasury_approver: 'default',
   slaughterhouse_custody_keeper: 'outline',
   social_media_manager: 'secondary',
+  marketing_sales_viewer: 'outline',
+  lab_treasury_viewer: 'outline',
 };
 
 const roleIcons: Record<AppRole, React.ElementType> = {
