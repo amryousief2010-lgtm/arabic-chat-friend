@@ -1,50 +1,38 @@
-## الهدف
-لما نرفع شيت بوسطة ونلاقي شحنات بموبايلات مش موجودة في العملاء (يعني البنات سجلوها على بوسطة ومسجلوهاش على السيستم)، السيستم يحفظها في قائمة انتظار، تظهر للبنات كـ **مهام تسجيل ناقصة**، ولما البنت تسجل العميل + الأوردر، الشحنة تتحسب delivered تلقائي وتتشال من القائمة.
+## المطلوب
+تعديل نظام موافقة الأوردر المكرر ليصبح **موافقة مزدوجة** (المهندسة آلاء حامد + المدير التنفيذي) بدلاً من موافقة فردية، ثم اختبار عملي كامل بحساب آية ثم منال.
 
-## الخطوات
+## التغييرات
 
-### 1. جدول جديد `unregistered_bostta_shipments`
-يخزّن كل شحنة من الشيت ماتلاقيلهاش أوردر:
-- `bill_no` (unique) — رقم البوليصة
-- `phone`, `customer_name`, `cod`, `shipment_date`, `raw_products`, `parsed_items` (jsonb)
-- `status`: `pending` / `registered` / `dismissed`
-- `uploaded_from_filename`, `uploaded_by`, `registered_order_id`, `registered_by`, `registered_at`, `dismissed_reason`
+### 1. قاعدة البيانات
+- إضافة أعمدة على `duplicate_order_approvals`:
+  - `marketing_decision` (pending/approved/rejected) + `marketing_decided_by` + `marketing_decided_at` + `marketing_reason`
+  - `executive_decision` (pending/approved/rejected) + `executive_decided_by` + `executive_decided_at` + `executive_reason`
+- الحقل `status` يظل نهائي: `pending` → `approved` (لما الاتنين يوافقوا) / `rejected` (لأول رفض).
+- تعديل RPC `decide_duplicate_order_approval` بحيث:
+  - يحدد دور المستخدم (marketing_sales_manager أو executive_manager) ويحدّث الخانة المناسبة فقط.
+  - لو الاتنين approved → يحدث `status='approved'`.
+  - لو أي واحد rejected → `status='rejected'` فوراً.
+- تعديل RLS: السماح للـ `executive_manager` بالـ SELECT/UPDATE على الجدول.
+- تعديل trigger `enforce_duplicate_order_approval` بحيث يقبل الأوردر فقط لما `status='approved'` (نفس السلوك الحالي، ما يحتاجش تغيير).
+- إشعارات: عند إنشاء الطلب يبعت للاتنين. عند اعتماد واحد يبعت للتاني إشعار "مستني اعتمادك".
 
-### 2. تعديل الـ Edge Function `process-bostta-delivery`
-لما شحنة تطلع `phone_not_in_customers`:
-- بدل ما نتجاهلها، نـ upsert في `unregistered_bostta_shipments` (بالـ bill_no)
-- الـ status الافتراضي `pending`
-- ترجع للـ UI كـ "محتاجة تسجيل" مش "unmatched نهائي"
+### 2. الواجهة
+- `src/pages/DuplicateOrderApprovals.tsx`: عرض خانتين منفصلتين (موافقة التسويق / موافقة التنفيذي) مع تلوين واضح، وإخفاء زر الاعتماد للـ role اللي وافق بالفعل.
+- `src/pages/NewOrder.tsx`: تحديث نص الحوار للبنت ليقول "بانتظار موافقة آلاء حامد والمدير التنفيذي معاً".
 
-### 3. صفحة/تبويب جديد **"شحنات محتاجة تسجيل"**
-مكانها: نفس صفحة `/modules/warehouses` أو تبويب في صفحة الأوردرات، تعرض:
-- كل الشحنات `pending`
-- لكل شحنة: زر **"سجّل الأوردر"** يفتح فورم أوردر جديد مبدأياً معبّي بـ (الاسم/الموبايل/COD/المنتجات المفكوكة من الشيت)
-- زر **"تجاهُل"** (لو مثلاً شحنة ملغية) → `dismissed`
-- Badge على التبويب بعدد الـ pending
+### 3. الاختبار العملي (Playwright)
+- Login بحساب آية → إنشاء عميل تجريبي + أوردر.
+- Logout ثم Login بحساب منال → محاولة إنشاء نفس الأوردر → يجب أن يظهر Dialog التكرار.
+- إرسال طلب الموافقة.
+- Login بحساب آلاء → الموافقة → التحقق أن الأوردر ما زال معلقاً.
+- Login بحساب المدير التنفيذي → الموافقة → التحقق أن الأوردر انتقل لـ approved.
+- سيناريو رفض: تكرار بأوردر مختلف واحد يرفض.
 
-### 4. لما البنت تسجل الأوردر من الفورم ده
-- ينشئ customer جديد (لو ماكانش موجود بالموبايل ده) + order (delivered فوراً + خصم استوك العجوزة)
-- يعلّم الشحنة `registered` ويربطها بالـ `registered_order_id`
-- تختفي من قائمة الـ pending
+### تنبيه
+- محتاج بيانات دخول للحسابات الأربعة (آية، منال، آلاء، المدير التنفيذي) عشان أقدر أعمل اختبار Playwright فعلي. لو مش متاحة، هعمل الاختبار على مستوى SQL/RPC مباشرة وأورّي النتيجة.
 
-### 5. تحديث الـ Review Dialog للـ Upload
-- تاب رابع "محتاجة تسجيل" بدل ما يكونوا في "متجاهَل"
-- توضّح إن دي مش خطأ، دي مهمة للبنات
-
-## تفاصيل تقنية
-
-- **Table:** `public.unregistered_bostta_shipments` + RLS للـ authenticated (نفس صلاحيات Agouza fulfillment)
-- **Uniqueness:** `bill_no` unique — عشان رفع نفس الشيت مرتين ما يعملش تكرار
-- **Auto-resolve:** كل مرة نرفع شيت جديد، لو شحنة `pending` بقى ليها order فعلاً في السيستم (بعد ما البنت سجلته) → تتعلّم `registered` تلقائي
-- **RBAC:** التسجيل مسموح للـ Moderator / Warehouse / Manager / GM
-- **Notification:** إشعار real-time للـ Moderators لما شحنات pending تتضاف
-
-## ملفات هتتعمل / تتعدل
-
-- Migration: `unregistered_bostta_shipments` + RLS + trigger
-- `supabase/functions/process-bostta-delivery/index.ts` — تعديل السلوك على phone_not_in_customers
-- `src/pages/warehouses/UnregisteredShipmentsTab.tsx` (جديد)
-- `src/components/warehouses/RegisterMissingOrderDialog.tsx` (جديد) — فورم التسجيل
-- `src/components/warehouses/BulkDeliveryReviewDialog` — تاب "محتاجة تسجيل" بدل "متجاهَل"
-- إشعار real-time (استخدام `notifications` الموجود)
+## الملفات المتأثرة
+- Migration جديد (schema + RPC + policies + trigger)
+- `src/pages/DuplicateOrderApprovals.tsx`
+- `src/pages/NewOrder.tsx` (نص فقط)
+- Playwright script تحت `/tmp/browser/dup-approval-e2e/`
