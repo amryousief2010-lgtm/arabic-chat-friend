@@ -2407,7 +2407,7 @@ const NewOrder = () => {
                   if (error) {
                     toast.error('تعذر إرسال طلب الموافقة');
                   } else {
-                    toast.success('تم إرسال طلب الموافقة لمديرة التسويق آلاء حامد');
+                    toast.success('تم إرسال طلب الموافقة لمديرة التسويق والمدير التنفيذي');
                     setApprovalDialog((s) => ({ ...s, open: false, status: 'pending' }));
                   }
                 }}
