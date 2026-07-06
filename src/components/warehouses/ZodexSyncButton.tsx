@@ -65,7 +65,9 @@ export function ZodexSyncButton() {
     }
   };
 
-  const pipelineEntries = pipeline ? Object.entries(pipeline) : [];
+  const pipelineEntries = (pipeline ? Object.entries(pipeline) : [])
+    .filter(([, v]) => v && typeof v === "object" && ("count" in v || "total" in v))
+    .map(([k, v]) => [k, { count: Number((v as any)?.count ?? 0), total: Number((v as any)?.total ?? 0) }] as const);
   const totalCount = pipelineEntries.reduce((s, [, v]) => s + v.count, 0);
   const totalMoney = pipelineEntries.reduce((s, [, v]) => s + v.total, 0);
 
