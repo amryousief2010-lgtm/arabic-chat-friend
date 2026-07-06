@@ -1207,6 +1207,48 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                           </TableRow>
                         ));
 
+                      // Bostta delivery uploads → render each sheet as a closed-invoice-style row
+                      // matching Zodex Mega invoices. Show all uploads for Agouza custody view.
+                      const bosttaRows: JSX.Element[] = isAgouza
+                        ? bosttaUploadNets.map((upload) => {
+                            const matchedOrders = orders.filter((o) =>
+                              o.order_number && upload.orderNumbers.includes(String(o.order_number))
+                            );
+                            const matchedInSelectedCustody = matchedOrders.filter((o) => {
+                              const asn = assignments.find((a) => a.order_id === o.id && a.custody_id === selectedCustody);
+                              return !!asn;
+                            });
+                            if (selectedCustody && matchedInSelectedCustody.length === 0) return null;
+                            const displayCount = selectedCustody
+                              ? matchedInSelectedCustody.length
+                              : (matchedOrders.length || upload.orderNumbers.length);
+                            return (
+                              <TableRow key={`bostta-${upload.id}`} className="bg-sky-50/60 hover:bg-sky-100/60 font-medium border-t-2 border-sky-300">
+                                <TableCell className="font-bold">
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-sky-900">📄 كشف تسليم بُسطة — {upload.filename}</span>
+                                      <Badge variant="secondary" className="text-xs">{displayCount} أوردر</Badge>
+                                      <Badge className="bg-sky-600 text-white text-[10px]">✓ مُسدَّد عبر بُسطة</Badge>
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground font-normal">
+                                      نقطة البداية — تم تحصيلها من خلال تسوية بُسطة
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground">—</TableCell>
+                                <TableCell className="font-mono font-bold text-sky-700">{fmt(Number(upload.netAmount))}</TableCell>
+                                <TableCell className="text-xs text-sky-700">مُسدَّد بالكامل</TableCell>
+                                <TableCell className="font-mono text-xs text-sky-700">{fmt(Number(upload.netAmount))}</TableCell>
+                                <TableCell className="text-xs">{new Date(upload.created_at).toLocaleDateString("ar-EG")}</TableCell>
+                                <TableCell className="text-xs text-muted-foreground">—</TableCell>
+                              </TableRow>
+                            );
+                          }).filter(Boolean) as JSX.Element[]
+                        : [];
+                      invoiceRows.push(...bosttaRows);
+
+
                       return [...groupedByDay.filter((g) => g.megaClosedCount === 0).flatMap((grp) => {
                         const isOpen = expandedDays[grp.day] ?? false;
                         const courierName = custodies.find((c) => c.id === selectedCustody)?.courier_name || "—";
