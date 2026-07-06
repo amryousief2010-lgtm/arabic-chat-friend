@@ -313,7 +313,9 @@ Deno.serve(async (req) => {
     });
   } catch (e: any) {
     await supabase.from("zodex_sync_runs").update({
-      status: "failed", stats, errors: [String(e?.message || e), ...errors],
+      status: "failed",
+      summary: stats,
+      error_message: String(e?.message || e).slice(0, 2000),
       finished_at: new Date().toISOString(),
     }).eq("id", run!.id);
     return new Response(JSON.stringify({ success: false, error: String(e?.message || e), stats }), {
