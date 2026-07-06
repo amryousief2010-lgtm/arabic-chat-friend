@@ -175,8 +175,9 @@ const DuplicateOrderApprovals = () => {
         customerIds.length ? supabase.from("customers").select("id, name, phone").in("id", customerIds) : Promise.resolve({ data: [] as any[] }),
         userIds.length ? supabase.from("profile_directory").select("id, full_name").in("id", userIds) : Promise.resolve({ data: [] as any[] }),
         orderIds.length
-          ? supabase.from("orders").select("id, order_number, customer_id, created_at, status, shipping_company, fulfillment_type, delivery_address, created_by").in("id", orderIds)
+          ? supabase.from("orders").select("id, order_number, customer_id, created_at, status, shipping_company, fulfillment_type, delivery_address, created_by, total, notes").in("id", orderIds)
           : Promise.resolve({ data: [] as any[] }),
+
         orderIds.length
           ? supabase.from("order_items").select("order_id, product_name, quantity, offer_name").in("order_id", orderIds)
           : Promise.resolve({ data: [] as any[] }),
