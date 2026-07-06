@@ -94,15 +94,18 @@ const parseBosttaSheetNetAmount = (filename?: string | null) => {
   return matches.length ? matches[matches.length - 1] : null;
 };
 
+// Returns every order_number occurrence from the sheet (duplicates preserved).
+// The Bostta sheet can legitimately list the same order_number more than once
+// (two bills → same order). We show the sheet's true row count, not unique orders.
 const extractBosttaOrderNumbers = (summary: any) => {
-  const nums = new Set<string>();
+  const list: string[] = [];
   ["updated", "already_delivered"].forEach((key) => {
     const rows = Array.isArray(summary?.[key]) ? summary[key] : [];
     rows.forEach((row: any) => {
-      if (row?.order_number) nums.add(String(row.order_number));
+      if (row?.order_number) list.push(String(row.order_number));
     });
   });
-  return Array.from(nums);
+  return list;
 };
 
 const isGiftAssignment = (
