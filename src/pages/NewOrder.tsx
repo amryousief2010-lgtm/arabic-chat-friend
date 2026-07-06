@@ -2329,9 +2329,9 @@ const NewOrder = () => {
       <Dialog open={approvalDialog.open} onOpenChange={(o) => setApprovalDialog((s) => ({ ...s, open: o }))}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>يلزم موافقة مديرة التسويق</DialogTitle>
+            <DialogTitle>يلزم موافقة مزدوجة (التسويق + التنفيذي)</DialogTitle>
             <DialogDescription>
-              يوجد طلب مشابه مسجل بالفعل لهذا العميل اليوم. لا يمكن تسجيل الطلب مرة أخرى إلا بعد موافقة مديرة التسويق.
+              يوجد طلب مشابه مسجل بالفعل لهذا العميل اليوم. لا يمكن تسجيل الطلب إلا بعد موافقة كل من مديرة التسويق (م. آلاء حامد) والمدير التنفيذي معاً.
             </DialogDescription>
           </DialogHeader>
 
