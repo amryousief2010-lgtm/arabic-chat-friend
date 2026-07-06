@@ -401,7 +401,9 @@ const DuplicateOrderApprovals = () => {
         </div>
       )}
     </div>
-  );
+    );
+  };
+
 
   const renderAuditRow = (row: AuditRow) => (
     <div key={row.id} className="rounded-lg border p-4 space-y-2 bg-card">
