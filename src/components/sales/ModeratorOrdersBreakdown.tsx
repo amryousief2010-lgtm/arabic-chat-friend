@@ -86,12 +86,14 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
         .lt('created_at', endDate);
       if (error) throw error;
 
+      // الكتاكيت المسلَّمة تُحسب حسب تاريخ التسليم (updated_at بعد تغيير الحالة)
+      // وليس تاريخ التسجيل، حتى تُنسب لشهر التسليم الصحيح.
       const { data: chickOrders } = await supabase
         .from('chick_orders')
         .select('status, chick_count, created_by')
         .eq('status', 'delivered')
-        .gte('created_at', startDate)
-        .lt('created_at', endDate);
+        .gte('updated_at', startDate)
+        .lt('updated_at', endDate);
 
       const userIds = Array.from(new Set([
         ...((orders || []).map(o => o.created_by).filter(Boolean) as string[]),
