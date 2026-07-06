@@ -231,7 +231,7 @@ const ModeratorPerformance = () => {
       <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
         <Header
           title="أداء الموديراتور"
-          subtitle="فريق المبيعات: آية، سارة، نورا، منال"
+          subtitle="فريق المبيعات: آية، نورا، منال"
         />
         <div className="flex items-center gap-2 flex-wrap">
           <Tabs value={yearFilter} onValueChange={(v) => setYearFilter(v as YearFilter)}>
