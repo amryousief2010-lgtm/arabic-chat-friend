@@ -261,8 +261,8 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
   <button onclick="window.close()">إغلاق</button>
 </div>
 <div class="header">
-  <span class="item">المندوب: <b>${r.courier_name || "—"}</b></span>
-  <span class="item">اليوم: <b>${dayStr}</b></span>
+  <span class="item">المندوب: <b>${r.courier_name || (linkedDeposits[0]?.courier_name) || "—"}</b></span>
+  <span class="item">اليوم: <b>${linkedDeposits[0]?.deposit_date ? new Date(linkedDeposits[0].deposit_date).toLocaleDateString("ar-EG", { weekday: "long", year: "numeric", month: "long", day: "numeric" }) : dayStr}</b></span>
   <span class="item">عدد الأوردرات: <b>${orderedOrders.length}</b></span>
   <span class="item">مجاني: <b>${freeCount}</b></span>
   <span class="item">مختلط: <b>${mixedCount}</b></span>
