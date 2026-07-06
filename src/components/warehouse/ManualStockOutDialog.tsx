@@ -475,7 +475,10 @@ const ManualStockOutDialog = ({
           `القائم بالتوريد: ${reason.trim()}`,
           `تاريخ التوريد: ${deliveryDate}`,
           reservedNow > 0 ? `محجوز للطلبات: ${reservedNow} ${unit}` : null,
-          availableAfter < 0 ? `⚠️ المتاح بعد الصرف: ${availableAfter} ${unit} — اعتماد مدير: ${profile?.full_name || ""} • سبب: ${overrideReason.trim()}` : null,
+          (reservedNow > 0 && overrideNegative)
+            ? `⚠️ تم الصرف رغم وجود حجز على الأصناف — اعتماد: ${profile?.full_name || ""} • سبب: ${overrideReason.trim()}`
+            : null,
+          availableAfter < 0 ? `⚠️ المتاح بعد الصرف: ${availableAfter} ${unit} — اعتماد: ${profile?.full_name || ""} • سبب: ${overrideReason.trim()}` : null,
           notes.trim() ? `ملاحظات: ${notes.trim()}` : null,
           `قبل: ${stockBefore} ${unit}`,
           `بعد: ${stockAfter} ${unit}`,
