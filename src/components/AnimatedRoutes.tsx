@@ -273,7 +273,7 @@ const AnimatedRoutes = () => {
             <ProtectedRoute><PageTransition><QuickGuide /></PageTransition></ProtectedRoute>
           } />
           <Route path="/products" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'warehouse_supervisor', 'marketing_sales_manager', 'quality_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'warehouse_supervisor', 'marketing_sales_manager', 'quality_manager', 'marketing_sales_viewer']}>
               <PageTransition><Products /></PageTransition>
             </ProtectedRoute>
           } />
@@ -283,27 +283,27 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/chick-orders" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'accountant', 'financial_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'accountant', 'financial_manager', 'marketing_sales_viewer']}>
               <PageTransition><ChickOrders /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/orders/new" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><NewOrder /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/duplicate-order-approvals" element={
-            <ProtectedRoute allowedRoles={['marketing_sales_manager']}>
+            <ProtectedRoute allowedRoles={['marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><DuplicateOrderApprovals /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/warehouse-stock" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor', 'marketing_sales_viewer']}>
               <PageTransition><WarehouseStockView /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/warehouse-stock/agouza" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'marketing_sales_viewer']}>
               <PageTransition><WarehouseStockView scope="agouza" /></PageTransition>
             </ProtectedRoute>
           } />
@@ -318,17 +318,17 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/private-courier" element={
-            <ProtectedRoute allowedRoles={['general_manager','executive_manager','sales_manager','marketing_sales_manager','accountant','warehouse_supervisor','private_delivery_rep']}>
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','sales_manager','marketing_sales_manager','accountant','warehouse_supervisor','private_delivery_rep', 'marketing_sales_viewer']}>
               <PageTransition><PCDashboard /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/private-courier/planning" element={
-            <ProtectedRoute allowedRoles={['general_manager','executive_manager','sales_manager','marketing_sales_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','sales_manager','marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><PCPlanning /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/private-courier/routes" element={
-            <ProtectedRoute allowedRoles={['general_manager','executive_manager','sales_manager','marketing_sales_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','sales_manager','marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><PCRoutesPage /></PageTransition>
             </ProtectedRoute>
           } />
@@ -348,7 +348,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/warehouse-stock/main" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor', 'marketing_sales_viewer']}>
               <PageTransition><WarehouseStockView scope="main" /></PageTransition>
             </ProtectedRoute>
           } />
@@ -369,12 +369,12 @@ const AnimatedRoutes = () => {
           } />
 
           <Route path="/warehouse-stock/moderator/:slug" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor', 'marketing_sales_viewer']}>
               <PageTransition><ModeratorWarehouseStock /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/orders/moderator/:slug" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'private_delivery_rep']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'private_delivery_rep', 'marketing_sales_viewer']}>
               <PageTransition><ModeratorOrdersLog /></PageTransition>
             </ProtectedRoute>
           } />
@@ -384,7 +384,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/customers" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><Customers /></PageTransition>
             </ProtectedRoute>
           } />
@@ -405,42 +405,42 @@ const AnimatedRoutes = () => {
           } />
 
           <Route path="/social-media/daily" element={
-            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager', 'marketing_sales_viewer']}>
               <PageTransition><SocialMediaDailyReport /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/social-media/weekly" element={
-            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager', 'marketing_sales_viewer']}>
               <PageTransition><SocialMediaWeeklyReport /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/social-media/my-reports" element={
-            <ProtectedRoute allowedRoles={['social_media_manager','general_manager','executive_manager','marketing_sales_manager']}>
+            <ProtectedRoute allowedRoles={['social_media_manager','general_manager','executive_manager','marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><SocialMediaMyReports /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/social-media/review" element={
-            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><SocialMediaReportsReview /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/social-media/dashboard" element={
-            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager', 'marketing_sales_viewer']}>
               <PageTransition><SocialMediaDashboard /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/social-media/export" element={
-            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><SocialMediaExport /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/social-media/marketing-dashboard" element={
-            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><SocialMediaMarketingDashboard /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/social-media/expenses" element={
-            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><SocialMediaExpenses /></PageTransition>
             </ProtectedRoute>
           } />
@@ -455,22 +455,22 @@ const AnimatedRoutes = () => {
               'sales_manager','marketing_sales_manager','sales_moderator',
               'hatchery_manager','farm_manager','production_manager',
               'accountant','financial_manager','private_delivery_rep'
-            ]}>
+            , 'marketing_sales_viewer']}>
               <PageTransition><AiOperationsAssistant /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/reports" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'quality_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'quality_manager', 'marketing_sales_viewer']}>
               <PageTransition><Reports /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/sales/daily-performance-analysis" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant', 'marketing_sales_viewer']}>
               <PageTransition><DailyPerformanceAnalysis /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/reports/excel-comparison" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'marketing_sales_viewer']}>
               <PageTransition><ExcelComparison /></PageTransition>
             </ProtectedRoute>
           } />
@@ -480,7 +480,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/reports/customer-weight" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'warehouse_supervisor']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'warehouse_supervisor', 'marketing_sales_viewer']}>
               <PageTransition><CustomerWeightReport /></PageTransition>
             </ProtectedRoute>
           } />
@@ -500,17 +500,17 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/team-performance" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><TeamPerformance /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/sales-targets" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><SalesTargets /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/offer-boxes" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><OfferBoxes /></PageTransition>
             </ProtectedRoute>
           } />
@@ -520,7 +520,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/low-stock" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'marketing_sales_manager', 'production_manager', 'quality_manager', 'sales_moderator']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'marketing_sales_manager', 'production_manager', 'quality_manager', 'sales_moderator', 'marketing_sales_viewer']}>
               <PageTransition><LowStock /></PageTransition>
             </ProtectedRoute>
           } />
@@ -701,7 +701,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/reports/order-half-kg" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'warehouse_supervisor', 'marketing_sales_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'warehouse_supervisor', 'marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><OrderHalfKgReport /></PageTransition>
             </ProtectedRoute>
           } />
@@ -711,7 +711,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/order-status-audit" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'financial_manager', 'marketing_sales_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'financial_manager', 'marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><OrderStatusAudit /></PageTransition>
             </ProtectedRoute>
           } />
@@ -754,7 +754,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/moderator-performance" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><ModeratorPerformance /></PageTransition>
             </ProtectedRoute>
           } />
@@ -774,32 +774,32 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/lab-treasury" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_treasury_viewer']}>
               <PageTransition><LabTreasury /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/lab-treasury/historical-receivables" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_external_collector', 'slaughterhouse_manager', 'slaughterhouse_custody_keeper']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_external_collector', 'slaughterhouse_manager', 'slaughterhouse_custody_keeper', 'lab_treasury_viewer']}>
               <PageTransition><LabHistoricalReceivables /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/lab-treasury/external-receivables" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'accountant', 'financial_manager', 'slaughterhouse_manager', 'slaughterhouse_custody_keeper']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'accountant', 'financial_manager', 'slaughterhouse_manager', 'slaughterhouse_custody_keeper', 'lab_treasury_viewer']}>
               <PageTransition><LabExternalReceivables /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/lab-treasury/customer-debts" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_treasury_viewer']}>
               <PageTransition><LabCustomerDebts /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/lab-treasury/customer-statement" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_viewer']}>
               <PageTransition><LabCustomerStatement /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/lab-treasury/customer-balances" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_viewer']}>
               <PageTransition><LabCustomerBalances /></PageTransition>
             </ProtectedRoute>
           } />
@@ -834,7 +834,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/hatchery/operational-statement" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_treasury_viewer']}>
               <PageTransition><HatcheryOperationalStatement /></PageTransition>
             </ProtectedRoute>
           } />
@@ -999,7 +999,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/management-hub" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'production_manager', 'quality_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager', 'accountant', 'financial_manager']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'production_manager', 'quality_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager', 'accountant', 'financial_manager', 'marketing_sales_viewer']}>
               <PageTransition><WarehouseManagementHub /></PageTransition>
             </ProtectedRoute>
           } />
@@ -1095,7 +1095,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/executive-dashboards" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant', 'marketing_sales_viewer']}>
               <PageTransition><ExecutiveDashboards /></PageTransition>
             </ProtectedRoute>
           } />
@@ -1116,7 +1116,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/private-delivery-pricing" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'private_delivery_rep', 'sales_moderator']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'private_delivery_rep', 'sales_moderator', 'marketing_sales_viewer']}>
               <PageTransition><PrivateDeliveryPricing /></PageTransition>
             </ProtectedRoute>
           } />
