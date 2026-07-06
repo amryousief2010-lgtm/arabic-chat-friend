@@ -43,7 +43,9 @@ export function BulkDeliveryUploadButton() {
   const registered = shipments.filter((s) => s.phone && knownPhones.has(s.phone));
   const readyItems = registered.filter((s) => s.items.length > 0 && s.unknown_tokens.length === 0);
   const withWarnings = registered.filter((s) => s.unknown_tokens.length > 0 && s.items.length > 0);
-  const skipped = registered.filter((s) => s.items.length === 0);
+  // "noItems" = the sheet's products aren't in our catalog. We still deliver
+  // the order as-is (customer received and paid) without changing its items.
+  const noItems = registered.filter((s) => s.items.length === 0);
 
   const handleFile = async (file: File) => {
     setLoading(true);
@@ -252,7 +254,7 @@ export function BulkDeliveryUploadButton() {
                 <StatBox label="محتاجة تسجيل" value={unregistered.length} color="blue" />
                 <StatBox label="جاهز للتحديث" value={readyItems.length} color="emerald" />
                 <StatBox label="تحذيرات" value={withWarnings.length} color="amber" />
-                <StatBox label="متجاهَل" value={skipped.length} color="red" />
+                <StatBox label="بدون تعديل منتجات" value={noItems.length} color="amber" />
               </div>
 
               <Tabs defaultValue={unregistered.length > 0 ? "unregistered" : "ready"} className="w-full">
@@ -262,7 +264,7 @@ export function BulkDeliveryUploadButton() {
                   </TabsTrigger>
                   <TabsTrigger value="ready">جاهز ({readyItems.length})</TabsTrigger>
                   <TabsTrigger value="warnings">تحذيرات ({withWarnings.length})</TabsTrigger>
-                  <TabsTrigger value="skipped">متجاهَل ({skipped.length})</TabsTrigger>
+                  <TabsTrigger value="skipped">بدون تعديل ({noItems.length})</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="unregistered">
@@ -315,17 +317,17 @@ export function BulkDeliveryUploadButton() {
                   )}
                 </TabsContent>
                 <TabsContent value="skipped">
-                  {skipped.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-6">لا يوجد متجاهَل</p>
+                  {noItems.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">لا توجد شحنات في هذه الفئة</p>
                   ) : (
                     <>
-                      <Alert variant="destructive" className="mb-3">
-                        <X className="w-4 h-4" />
+                      <Alert className="mb-3 bg-amber-50 border-amber-300">
+                        <AlertTriangle className="w-4 h-4" />
                         <AlertDescription>
-                          الشحنات دي مش هتتحدّث لأن كل منتجاتها مش موجودة في الكاتالوج.
+                          الشحنات دي منتجاتها مش موجودة في الكاتالوج — هيتم تحديث حالة الأوردر لـ "تم التسليم" وتحصيل المبلغ من غير ما نغيّر منتجات الأوردر الأصلية.
                         </AlertDescription>
                       </Alert>
-                      <ShipmentTable shipments={skipped} showUnknown phoneToModerator={phoneToModerator} />
+                      <ShipmentTable shipments={noItems} showUnknown phoneToModerator={phoneToModerator} />
                     </>
                   )}
                 </TabsContent>
@@ -335,11 +337,11 @@ export function BulkDeliveryUploadButton() {
                 <Button variant="ghost" onClick={reset}>إلغاء</Button>
                 <Button
                   className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                  disabled={submitting || readyItems.length + withWarnings.length === 0}
+                  disabled={submitting || readyItems.length + withWarnings.length + noItems.length === 0}
                   onClick={handleConfirm}
                 >
                   {submitting ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 ml-2" />}
-                  تأكيد وتحديث {readyItems.length + withWarnings.length} أوردر
+                  تأكيد وتحديث {readyItems.length + withWarnings.length + noItems.length} أوردر
                 </Button>
               </DialogFooter>
             </>
