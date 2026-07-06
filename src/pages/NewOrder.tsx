@@ -995,12 +995,60 @@ const NewOrder = () => {
 
     setSubmitting(true);
 
-    // Duplicate-order approval flow removed.
-    // Sales reps can now create the order directly; a database trigger will
-    // notify the sales manager if the same customer phone already has another
-    // order in the same calendar month.
-    void duplicateItemsPayload;
-    void duplicateApprovalMeta;
+    // Duplicate-order pre-check: if this attempt matches an existing order,
+    // either (a) auto-use an already-approved dual-approval request, or
+    // (b) surface a friendly dialog and BLOCK insertion until both approvers agree.
+    try {
+      const { data: dupData, error: dupErr } = await supabase.rpc('check_duplicate_order_attempt', {
+        p_customer_id: selectedCustomer.id,
+        p_customer_name: selectedCustomer.name,
+        p_customer_phone: selectedCustomer.phone,
+        p_delivery_address: deliveryAddress.trim() || selectedCustomer.address || undefined,
+        p_fulfillment_type: fulfillmentType,
+        p_items: duplicateItemsPayload as any,
+        p_note: notes.trim() || undefined,
+        p_shipping_company: effectiveShippingCompany || undefined,
+      });
+      if (!dupErr && dupData) {
+        const d = dupData as unknown as DuplicateCheckResponse;
+        if (d.is_duplicate) {
+          const existing = d.existing_request;
+          if (existing?.status === 'approved') {
+            approvedDuplicateRequestId = existing.id;
+            duplicateApprovalMeta = {
+              decided_by: null,
+              decided_at: existing.decided_at,
+              reason: existing.reason,
+            };
+            toast.success('تم اعتماد هذا الطلب من التسويق والتنفيذي، جاري تسجيله الآن.');
+          } else {
+            setApprovalDialog({
+              open: true,
+              status: existing?.status === 'pending' ? 'pending'
+                    : existing?.status === 'rejected' ? 'rejected' : 'idle',
+              reason: existing?.reason || undefined,
+              attemptId: d.attempt_id || undefined,
+              requestId: existing?.id,
+              candidates: d.candidates || [],
+            });
+            if (existing?.status === 'pending') {
+              toast.message('هذا الطلب مكرر — طلب الاعتماد مرسل بالفعل وبانتظار موافقة م. آلاء حامد والمدير التنفيذي معاً.');
+            } else if (existing?.status === 'rejected') {
+              toast.error('هذا الطلب مكرر وتم رفضه من الإدارة، لا يمكن تسجيله.');
+            } else {
+              toast.message('هذا الطلب مكرر ولن يتم تسجيله إلا بعد موافقة م. آلاء حامد والمدير التنفيذي.');
+            }
+            setSubmitting(false);
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      // Non-fatal: fall back to server-side trigger enforcement below.
+      console.warn('duplicate pre-check failed', e);
+    }
+
+
 
 
     try {
@@ -1182,10 +1230,32 @@ const NewOrder = () => {
       console.error('Error creating order:', error);
       const msg = String(error?.message || '');
       if (msg.includes('DUPLICATE_ORDER_REQUIRES_APPROVAL')) {
-        setApprovalDialog((prev) => ({ ...prev, open: true, status: prev.status === 'pending' ? 'pending' : 'idle' }));
+        // Fallback path — server trigger caught a duplicate we missed in pre-check.
+        // Fetch candidates so the user sees a clean, friendly dialog (never DB error text).
+        try {
+          const { data: cData } = await supabase.rpc('find_duplicate_order_candidates', {
+            p_customer_id: selectedCustomer.id,
+            p_customer_name: selectedCustomer.name,
+            p_customer_phone: selectedCustomer.phone,
+            p_delivery_address: (deliveryAddress.trim() || selectedCustomer.address || null) as any,
+            p_shipping_company: effectiveShippingCompany as any,
+            p_fulfillment_type: fulfillmentType,
+            p_items: duplicateItemsPayload as any,
+          } as any);
+          setApprovalDialog((prev) => ({
+            ...prev,
+            open: true,
+            status: prev.status === 'pending' ? 'pending' : 'idle',
+            candidates: (Array.isArray(cData) ? (cData as any as DuplicateCandidate[]) : []),
+          }));
+        } catch {
+          setApprovalDialog((prev) => ({ ...prev, open: true, status: prev.status === 'pending' ? 'pending' : 'idle' }));
+        }
+        toast.message('هذا الطلب مكرر ولن يتم تسجيله إلا بعد موافقة م. آلاء حامد والمدير التنفيذي معاً.');
       } else {
         toast.error('حدث خطأ أثناء إنشاء الطلب');
       }
+
     } finally {
       setSubmitting(false);
     }
