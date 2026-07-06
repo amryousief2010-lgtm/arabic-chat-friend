@@ -129,7 +129,7 @@ export default function AgouzaTreasuryTab() {
     }
     toast({ title: "تم تسجيل التوريد", description: "بانتظار اعتماد المدير العام / التنفيذي" });
     setHandoverOpen(false);
-    setHandoverAmount(""); setHandoverNotes("");
+    setHandoverAmount(""); setHandoverNotes(""); setSelectedBosttaId(null);
     load();
   };
 
