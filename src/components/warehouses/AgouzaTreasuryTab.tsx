@@ -11,8 +11,91 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, ArrowDownCircle, ArrowUpCircle, Send, CheckCircle2, XCircle, Clock, Loader2 } from "lucide-react";
+import { Wallet, ArrowDownCircle, ArrowUpCircle, Send, CheckCircle2, XCircle, Clock, Loader2, Printer } from "lucide-react";
 import { formatDateTime } from "@/lib/dateFormat";
+import { openPrintWindow, PRINT_BASE_CSS, COMPANY_AR, COMPANY_EN } from "@/lib/printPdf";
+
+const extractBosttaFilenameFromNotes = (notes?: string | null): string => {
+  const m = String(notes || "").match(/كشف بُسطة\s*[—-]\s*([^()]+?)(?:\s*\(|$)/);
+  return m ? m[1].trim() : "";
+};
+
+async function printBosttaHandoverInvoice(txn: { id: string; txn_no: string | null; txn_date: string; amount: number; notes: string | null }) {
+  const filename = extractBosttaFilenameFromNotes(txn.notes);
+  if (!filename) {
+    alert("لا يوجد كشف بُسطة مرتبط بهذا التوريد.");
+    return;
+  }
+  // Find the matching upload (latest with same filename)
+  const { data: uploads } = await supabase
+    .from("bostta_delivery_uploads")
+    .select("id, filename, summary, created_at")
+    .ilike("filename", filename)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const upload: any = uploads?.[0];
+  if (!upload) { alert("لم يتم العثور على كشف بُسطة بالاسم: " + filename); return; }
+
+  // Extract order numbers from summary
+  const orderNumbers = new Set<string>();
+  ["updated", "already_delivered"].forEach((k) => {
+    const rows = Array.isArray(upload.summary?.[k]) ? upload.summary[k] : [];
+    rows.forEach((r: any) => { if (r?.order_number) orderNumbers.add(String(r.order_number)); });
+  });
+  const nums = Array.from(orderNumbers);
+  if (!nums.length) { alert("لا توجد أوردرات مرتبطة بهذا الكشف."); return; }
+
+  const { data: orders } = await supabase
+    .from("orders")
+    .select("id, order_number, total, courier_cash_due, delivery_fee, created_at, customers(name, phone)")
+    .in("order_number", nums);
+  const list = (orders || []) as any[];
+  const grand = list.reduce((s, o) => s + Number(o.courier_cash_due ?? o.total ?? 0), 0);
+
+  const rows = list.map((o, i) => `
+    <tr>
+      <td class="num">${i + 1}</td>
+      <td class="num">${o.order_number || "—"}</td>
+      <td>${o.customers?.name || "—"}</td>
+      <td class="num">${o.customers?.phone || "—"}</td>
+      <td class="num">${Number(o.total || 0).toLocaleString("ar-EG")}</td>
+      <td class="num">${Number(o.courier_cash_due ?? o.total ?? 0).toLocaleString("ar-EG")}</td>
+    </tr>`).join("");
+
+  const body = `
+    <header>
+      <div>
+        <h1>${COMPANY_AR}</h1>
+        <div class="en">${COMPANY_EN}</div>
+        <div style="margin-top:6px;font-size:13px;font-weight:bold;">فاتورة توريد نقدية — كشف بُسطة</div>
+      </div>
+      <div class="meta">
+        <div>رقم التوريد: <b>${txn.txn_no || "—"}</b></div>
+        <div>التاريخ: ${formatDateTime(txn.txn_date)}</div>
+        <div>الكشف: ${filename}</div>
+      </div>
+    </header>
+    <div class="stats">
+      <div class="stat"><div class="k">عدد الأوردرات</div><div class="v num">${list.length}</div></div>
+      <div class="stat"><div class="k">مبلغ التوريد المسجّل</div><div class="v num">${Number(txn.amount).toLocaleString("ar-EG")} ج.م</div></div>
+      <div class="stat"><div class="k">إجمالي مستحق المندوب</div><div class="v num">${grand.toLocaleString("ar-EG")} ج.م</div></div>
+      <div class="stat"><div class="k">من ← إلى</div><div class="v" style="font-size:11px;">خزنة العجوزة ← الخزنة الرئيسية</div></div>
+    </div>
+    <h2>تفاصيل الأوردرات</h2>
+    <table>
+      <thead><tr>
+        <th>#</th><th>رقم الأوردر</th><th>العميل</th><th>الهاتف</th>
+        <th>إجمالي الطلب</th><th>المستحق على المندوب</th>
+      </tr></thead>
+      <tbody>${rows || `<tr><td colspan="6" style="text-align:center;color:#999;">لا توجد بيانات</td></tr>`}</tbody>
+    </table>
+    <div style="margin-top:16px;display:flex;justify-content:space-between;gap:20px;font-size:11px;">
+      <div>المسلِّم (خزنة العجوزة): ................................</div>
+      <div>المستلم (أ. محمد شعلة — الخزنة الرئيسية): ................................</div>
+    </div>
+    <footer>${COMPANY_AR} — ${COMPANY_EN}</footer>`;
+  openPrintWindow(`فاتورة توريد ${txn.txn_no || filename}`, body, PRINT_BASE_CSS);
+}
 
 type Txn = {
   id: string;
@@ -454,11 +537,13 @@ function HandoverTable({
               <TableHead>الملاحظات</TableHead>
               {kind === "approved" && <TableHead>المعتمد</TableHead>}
               {kind === "rejected" && <TableHead>سبب الرفض</TableHead>}
-              {kind === "pending" && <TableHead className="text-left">إجراء</TableHead>}
+              <TableHead className="text-left">إجراء</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map(t => (
+            {rows.map(t => {
+              const hasSheet = !!extractBosttaFilenameFromNotes(t.notes);
+              return (
               <TableRow key={t.id}>
                 <TableCell className="text-xs whitespace-nowrap">{formatDateTime(t.txn_date)}</TableCell>
                 <TableCell className="font-mono text-xs">{t.txn_no}</TableCell>
@@ -470,24 +555,32 @@ function HandoverTable({
                 {kind === "rejected" && (
                   <TableCell className="text-xs text-rose-600">{t.rejection_reason}</TableCell>
                 )}
-                {kind === "pending" && (
-                  <TableCell className="text-left">
-                    {canApprove ? (
-                      <div className="flex gap-2 justify-end">
-                        <Button size="sm" onClick={() => onApprove?.(t.id)}>
-                          <CheckCircle2 className="w-4 h-4 ml-1" /> اعتماد
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => onReject?.(t.id)}>
-                          <XCircle className="w-4 h-4 ml-1" /> رفض
-                        </Button>
-                      </div>
-                    ) : (
-                      <Badge variant="outline">بانتظار الإدارة</Badge>
+                <TableCell className="text-left">
+                  <div className="flex gap-2 justify-end flex-wrap">
+                    {hasSheet && (
+                      <Button size="sm" variant="outline" onClick={() => printBosttaHandoverInvoice(t)} title="طباعة فاتورة التوريد بأوردراتها">
+                        <Printer className="w-4 h-4 ml-1" /> طباعة الفاتورة
+                      </Button>
                     )}
-                  </TableCell>
-                )}
+                    {kind === "pending" && (
+                      canApprove ? (
+                        <>
+                          <Button size="sm" onClick={() => onApprove?.(t.id)}>
+                            <CheckCircle2 className="w-4 h-4 ml-1" /> اعتماد
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => onReject?.(t.id)}>
+                            <XCircle className="w-4 h-4 ml-1" /> رفض
+                          </Button>
+                        </>
+                      ) : (
+                        <Badge variant="outline">بانتظار الإدارة</Badge>
+                      )
+                    )}
+                  </div>
+                </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
             {rows.length === 0 && (
               <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا يوجد</TableCell></TableRow>
             )}
