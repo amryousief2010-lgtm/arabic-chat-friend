@@ -396,7 +396,7 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
           جميع الكميات تُحسب تلقائياً من الأوردرات المسلَّمة. (اللحوم: قطع، استيك، موزة، فراشة، قطعية الدبوس، تربيانكو، اسكالوب، رول، كباب، طبق — اللحوم بالعظم: دبوس 6 كيلو، فخدة نعام، نعامة صندوق — المصنعات: شاورما، شيش، كفتة، سجق، برجر، طرب، حواشي، مفروم، كفتة أرز، برجر بالجبنة).
         </p>
 
-        <div>
+        <div id="girls-sales-quantity-table">
           <Table className="w-full text-xs md:text-sm">
             <TableHeader>
               <TableRow className="bg-[hsl(140_60%_85%)] hover:bg-[hsl(140_60%_80%)]">
