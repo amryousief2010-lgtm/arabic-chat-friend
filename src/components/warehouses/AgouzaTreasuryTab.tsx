@@ -37,30 +37,48 @@ async function printBosttaHandoverInvoice(txn: { id: string; txn_no: string | nu
   if (!upload) { alert("لم يتم العثور على كشف بُسطة بالاسم: " + filename); return; }
 
   // Extract order numbers from summary
-  const orderNumbers = new Set<string>();
+  // Collect every occurrence (duplicates preserved) — one sheet row = one line on the invoice.
+  const occurrences: Array<{ order_number: string; bill_no?: string; cod?: number; phone?: string }> = [];
   ["updated", "already_delivered"].forEach((k) => {
     const rows = Array.isArray(upload.summary?.[k]) ? upload.summary[k] : [];
-    rows.forEach((r: any) => { if (r?.order_number) orderNumbers.add(String(r.order_number)); });
+    rows.forEach((r: any) => {
+      if (r?.order_number) occurrences.push({
+        order_number: String(r.order_number),
+        bill_no: r.bill_no ? String(r.bill_no) : undefined,
+        cod: r.cod != null ? Number(r.cod) : undefined,
+        phone: r.phone ? String(r.phone) : undefined,
+      });
+    });
   });
-  const nums = Array.from(orderNumbers);
-  if (!nums.length) { alert("لا توجد أوردرات مرتبطة بهذا الكشف."); return; }
+  if (!occurrences.length) { alert("لا توجد أوردرات مرتبطة بهذا الكشف."); return; }
+  const uniqueNums = Array.from(new Set(occurrences.map(o => o.order_number)));
 
   const { data: orders } = await supabase
     .from("orders")
     .select("id, order_number, total, courier_cash_due, delivery_fee, created_at, customers(name, phone)")
-    .in("order_number", nums);
-  const list = (orders || []) as any[];
-  const grand = list.reduce((s, o) => s + Number(o.courier_cash_due ?? o.total ?? 0), 0);
+    .in("order_number", uniqueNums);
+  const orderMap = new Map<string, any>((orders || []).map((o: any) => [o.order_number, o]));
 
-  const rows = list.map((o, i) => `
+  // Build one row per sheet occurrence (keeps duplicates visible).
+  const rowsHtml = occurrences.map((occ, i) => {
+    const o = orderMap.get(occ.order_number);
+    const cod = occ.cod ?? Number(o?.courier_cash_due ?? o?.total ?? 0);
+    return `
     <tr>
       <td class="num">${i + 1}</td>
-      <td class="num">${o.order_number || "—"}</td>
-      <td>${o.customers?.name || "—"}</td>
-      <td class="num">${o.customers?.phone || "—"}</td>
-      <td class="num">${Number(o.total || 0).toLocaleString("ar-EG")}</td>
-      <td class="num">${Number(o.courier_cash_due ?? o.total ?? 0).toLocaleString("ar-EG")}</td>
-    </tr>`).join("");
+      <td class="num">${occ.order_number || "—"}</td>
+      <td class="num">${occ.bill_no || "—"}</td>
+      <td>${o?.customers?.name || "—"}</td>
+      <td class="num">${o?.customers?.phone || occ.phone || "—"}</td>
+      <td class="num">${Number(o?.total || 0).toLocaleString("ar-EG")}</td>
+      <td class="num">${Number(cod || 0).toLocaleString("ar-EG")}</td>
+    </tr>`;
+  }).join("");
+  const grand = occurrences.reduce((s, occ) => {
+    const o = orderMap.get(occ.order_number);
+    return s + Number(occ.cod ?? o?.courier_cash_due ?? o?.total ?? 0);
+  }, 0);
+  const dupCount = occurrences.length - uniqueNums.length;
 
   const body = `
     <header>
@@ -76,7 +94,7 @@ async function printBosttaHandoverInvoice(txn: { id: string; txn_no: string | nu
       </div>
     </header>
     <div class="stats">
-      <div class="stat"><div class="k">عدد الأوردرات</div><div class="v num">${list.length}</div></div>
+      <div class="stat"><div class="k">عدد صفوف الكشف</div><div class="v num">${occurrences.length}${dupCount ? ` <span style="font-size:9px;color:#b45309;">(${dupCount} مكرر)</span>` : ""}</div></div>
       <div class="stat"><div class="k">مبلغ التوريد المسجّل</div><div class="v num">${Number(txn.amount).toLocaleString("ar-EG")} ج.م</div></div>
       <div class="stat"><div class="k">إجمالي مستحق المندوب</div><div class="v num">${grand.toLocaleString("ar-EG")} ج.م</div></div>
       <div class="stat"><div class="k">من ← إلى</div><div class="v" style="font-size:11px;">خزنة العجوزة ← الخزنة الرئيسية</div></div>
@@ -84,10 +102,10 @@ async function printBosttaHandoverInvoice(txn: { id: string; txn_no: string | nu
     <h2>تفاصيل الأوردرات</h2>
     <table>
       <thead><tr>
-        <th>#</th><th>رقم الأوردر</th><th>العميل</th><th>الهاتف</th>
+        <th>#</th><th>رقم الأوردر</th><th>رقم البوليصة</th><th>العميل</th><th>الهاتف</th>
         <th>إجمالي الطلب</th><th>المستحق على المندوب</th>
       </tr></thead>
-      <tbody>${rows || `<tr><td colspan="6" style="text-align:center;color:#999;">لا توجد بيانات</td></tr>`}</tbody>
+      <tbody>${rowsHtml || `<tr><td colspan="7" style="text-align:center;color:#999;">لا توجد بيانات</td></tr>`}</tbody>
     </table>
     <div style="margin-top:16px;display:flex;justify-content:space-between;gap:20px;font-size:11px;">
       <div>المسلِّم (خزنة العجوزة): ................................</div>
