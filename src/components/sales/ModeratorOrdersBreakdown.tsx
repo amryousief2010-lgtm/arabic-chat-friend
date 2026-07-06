@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { findModeratorByName } from '@/constants/moderators';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 
-const GIRLS = ['اية', 'نورا', 'سارة', 'منال'];
+const GIRLS = ['اية', 'نورا', 'منال'];
 
 const months = [
   { value: 1, label: 'يناير' },
