@@ -13839,7 +13839,7 @@ export type Database = {
           changed_by: string
           changed_by_name: string | null
           id: string
-          new_owner_id: string
+          new_owner_id: string | null
           new_owner_name: string | null
           old_owner_id: string | null
           old_owner_name: string | null
@@ -13852,7 +13852,7 @@ export type Database = {
           changed_by: string
           changed_by_name?: string | null
           id?: string
-          new_owner_id: string
+          new_owner_id?: string | null
           new_owner_name?: string | null
           old_owner_id?: string | null
           old_owner_name?: string | null
@@ -13865,7 +13865,7 @@ export type Database = {
           changed_by?: string
           changed_by_name?: string | null
           id?: string
-          new_owner_id?: string
+          new_owner_id?: string | null
           new_owner_name?: string | null
           old_owner_id?: string | null
           old_owner_name?: string | null

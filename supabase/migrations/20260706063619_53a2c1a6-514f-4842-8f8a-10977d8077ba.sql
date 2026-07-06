@@ -1,0 +1,1 @@
+ALTER TABLE public.order_owner_reassignment_audit ALTER COLUMN new_owner_id DROP NOT NULL;
