@@ -803,6 +803,26 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
     } finally { setDepositingDay(null); }
   };
 
+  const depositBosttaSheet = async (upload: BosttaUploadNet) => {
+    const amt = Number(upload.netAmount || 0);
+    if (!amt || amt <= 0) { toast({ title: "المبلغ غير صالح", variant: "destructive" }); return; }
+    if (!confirm(`سيتم توريد ${fmt(amt)} ج.م إلى خزنة المخزن الرئيسي (محمد شعلة) عن كشف: ${upload.filename}. متابعة؟`)) return;
+    setDepositingBosttaId(upload.id);
+    try {
+      const { error } = await (supabase as any).rpc("submit_agouza_cash_handover", {
+        p_amount: amt,
+        p_notes: `توريد كشف بُسطة — ${upload.filename} (${upload.orderNumbers.length} أوردر)`,
+      });
+      if (error) throw error;
+      toast({ title: "تم إرسال التوريد للاعتماد", description: `المبلغ: ${fmt(amt)} ج.م — بانتظار اعتماد محمد شعلة` });
+      await load();
+    } catch (e: any) {
+      toast({ title: "تعذّر التوريد", description: e?.message || "", variant: "destructive" });
+    } finally { setDepositingBosttaId(null); }
+  };
+
+
+
 
   const submitCorrection = async () => {
     if (!correctOpen) return;
