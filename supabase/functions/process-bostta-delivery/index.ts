@@ -227,25 +227,34 @@ Deno.serve(async (req) => {
           .select("id, product_id, product_name, quantity, unit_price")
           .eq("order_id", order.id);
 
+        // If the sheet has no recognized products, keep the order's existing
+        // items untouched — the customer received and paid, we just mark it
+        // delivered against the current cart. Only replace items when the
+        // sheet actually carries a parsed product list.
+        const replaceItems = Array.isArray(s.items) && s.items.length > 0;
         const oldSig = JSON.stringify((existingItems || []).map((i: any) => `${i.product_id}:${i.quantity}`).sort());
-        const newSig = JSON.stringify(s.items.map((i) => `${i.product_id}:${i.quantity}`).sort());
-        const hasProductDiff = oldSig !== newSig;
+        const newSig = replaceItems
+          ? JSON.stringify(s.items.map((i) => `${i.product_id}:${i.quantity}`).sort())
+          : oldSig;
+        const hasProductDiff = replaceItems && oldSig !== newSig;
 
-        // 1. Delete existing items
-        await supabase.from("order_items").delete().eq("order_id", order.id);
+        if (replaceItems) {
+          // 1. Delete existing items
+          await supabase.from("order_items").delete().eq("order_id", order.id);
 
-        // 2. Insert new items
-        const rows = s.items.map((it) => ({
-          order_id: order.id,
-          product_id: it.product_id,
-          product_name: it.product_name,
-          quantity: it.quantity,
-          unit_price: it.unit_price,
-          total_price: it.quantity * it.unit_price,
-        }));
-        if (rows.length > 0) {
-          const { error: insErr } = await supabase.from("order_items").insert(rows);
-          if (insErr) throw new Error(`insert order_items: ${insErr.message}`);
+          // 2. Insert new items
+          const rows = s.items.map((it) => ({
+            order_id: order.id,
+            product_id: it.product_id,
+            product_name: it.product_name,
+            quantity: it.quantity,
+            unit_price: it.unit_price,
+            total_price: it.quantity * it.unit_price,
+          }));
+          if (rows.length > 0) {
+            const { error: insErr } = await supabase.from("order_items").insert(rows);
+            if (insErr) throw new Error(`insert order_items: ${insErr.message}`);
+          }
         }
 
         // 3. Reserve Agouza stock (fresh — releases old if any)
