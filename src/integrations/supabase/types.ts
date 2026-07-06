@@ -21716,6 +21716,8 @@ export type Database = {
         | "main_treasury_accountant"
         | "main_treasury_approver"
         | "social_media_manager"
+        | "marketing_sales_viewer"
+        | "lab_treasury_viewer"
       brooding_batch_status:
         | "active"
         | "completed"
@@ -22040,6 +22042,8 @@ export const Constants = {
         "main_treasury_accountant",
         "main_treasury_approver",
         "social_media_manager",
+        "marketing_sales_viewer",
+        "lab_treasury_viewer",
       ],
       brooding_batch_status: [
         "active",
