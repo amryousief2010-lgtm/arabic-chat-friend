@@ -21271,6 +21271,10 @@ export type Database = {
         Args: { p_new_owner_id: string; p_order_id: string; p_reason: string }
         Returns: string
       }
+      reassign_order_to_company: {
+        Args: { p_order_id: string; p_reason: string }
+        Returns: string
+      }
       recalc_brooding_batch: { Args: { _batch_id: string }; Returns: undefined }
       recalc_feed_invoice_totals: {
         Args: { _invoice_id: string }
