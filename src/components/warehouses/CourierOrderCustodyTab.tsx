@@ -1273,6 +1273,9 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                             const displayCount = selectedCustody
                               ? matchedInSelectedCustody.length
                               : (matchedOrders.length || upload.orderNumbers.length);
+                            const key = String(upload.filename || "").trim().toLowerCase();
+                            const isDeposited = depositedBosttaFilenames.has(key);
+                            const isDepositing = depositingBosttaId === upload.id;
                             return (
                               <TableRow key={`bostta-${upload.id}`} className="bg-sky-50/60 hover:bg-sky-100/60 font-medium border-t-2 border-sky-300">
                                 <TableCell className="font-bold">
@@ -1281,6 +1284,9 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                       <span className="text-sky-900">📄 كشف تسليم بُسطة — {upload.filename}</span>
                                       <Badge variant="secondary" className="text-xs">{displayCount} أوردر</Badge>
                                       <Badge className="bg-sky-600 text-white text-[10px]">✓ مُسدَّد عبر بُسطة</Badge>
+                                      {isDeposited && (
+                                        <Badge className="bg-emerald-600 text-white text-[10px]">✓ تم التوريد</Badge>
+                                      )}
                                     </div>
                                     <div className="text-[10px] text-muted-foreground font-normal">
                                       نقطة البداية — تم تحصيلها من خلال تسوية بُسطة
@@ -1292,7 +1298,22 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                 <TableCell className="text-xs text-sky-700">مُسدَّد بالكامل</TableCell>
                                 <TableCell className="font-mono text-xs text-sky-700">{fmt(Number(upload.netAmount))}</TableCell>
                                 <TableCell className="text-xs">{new Date(upload.created_at).toLocaleDateString("ar-EG")}</TableCell>
-                                <TableCell className="text-xs text-muted-foreground">—</TableCell>
+                                <TableCell className="text-xs">
+                                  {isDeposited ? (
+                                    <span className="text-emerald-700 text-xs font-medium">تم التوريد</span>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs"
+                                      disabled={isDepositing}
+                                      onClick={() => depositBosttaSheet(upload)}
+                                      title="توريد كامل مبلغ الكشف لخزنة المخزن الرئيسي (محمد شعلة)"
+                                    >
+                                      <Coins className="w-3 h-3 ml-1" />
+                                      {isDepositing ? "جارٍ..." : `توريد ${fmt(Number(upload.netAmount))}`}
+                                    </Button>
+                                  )}
+                                </TableCell>
                               </TableRow>
                             );
                           }).filter(Boolean) as JSX.Element[]
