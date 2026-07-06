@@ -212,7 +212,10 @@ const DuplicateOrderApprovals = () => {
           fulfillment_type: order.fulfillment_type,
           delivery_address: order.delivery_address,
           products_summary: orderSummaryMap.get(order.id) || "—",
+          total: order.total,
+          notes: order.notes,
         };
+
       };
 
       setRows(approvalsList.map((row) => ({
