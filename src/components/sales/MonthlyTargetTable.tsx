@@ -167,10 +167,18 @@ const MonthlyTargetTable = () => {
                 </TableCell>
               ))}
             </TableRow>
+            <TableRow>
+              <TableCell className="text-center font-bold border bg-muted/30 whitespace-nowrap px-1 md:px-2">
+                اللحوم بالعظم
+              </TableCell>
+              <TableCell colSpan={4} className="text-center border font-semibold">
+                3.5 ج/كجم
+              </TableCell>
+            </TableRow>
           </TableBody>
         </Table>
         <p className="text-[10px] md:text-xs text-muted-foreground mt-3">
-          * "أساسي" يمثل المرتب الأساسي الثابت لكل مرحلة. "البونص" يُحتسب عند بلوغ "قيمة المبيعات" المقابلة.
+          * "أساسي" يمثل المرتب الأساسي الثابت لكل مرحلة. "البونص" يُحتسب عند بلوغ "قيمة المبيعات" المقابلة. بونص اللحوم بالعظم ثابت 3.5 ج لكل كجم.
         </p>
       </CardContent>
     </Card>
