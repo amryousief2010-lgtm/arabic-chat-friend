@@ -11,13 +11,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 
-const GIRLS = ['اية', 'نورا', 'سارة', 'منال'] as const;
+const GIRLS = ['اية', 'نورا', 'منال'] as const;
 type Girl = typeof GIRLS[number];
 
 const BASE_SALARY: Record<Girl, number> = {
   اية: 3000,
   نورا: 2500,
-  سارة: 2500,
   منال: 2500,
 };
 
