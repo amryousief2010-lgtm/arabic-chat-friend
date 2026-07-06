@@ -1258,19 +1258,25 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                               return `<tr><td>${name}</td><td style="text-align:center">${qty}</td><td style="text-align:left;font-family:monospace">${fmt(up)}</td><td style="text-align:left;font-family:monospace">${fmt(tp)}</td></tr>`;
                             }).join("") || `<tr><td colspan="4" style="text-align:center;color:#999">لا توجد أصناف</td></tr>`;
                             const cashBg = cashFromCourier > 0 ? "background:#ecfdf5;color:#065f46" : "background:#f3f4f6;color:#666";
+                            const vodaBadge = voda > 0 ? `<span class="pay-badge voda">📱 فودافون كاش: ${fmt(voda)} ج.م</span>` : "";
+                            const instaBadge = insta > 0 ? `<span class="pay-badge insta">💳 إنستاباي: ${fmt(insta)} ج.م</span>` : "";
+                            const bankBadge = bank > 0 ? `<span class="pay-badge bank">🏦 تحويل بنكي: ${fmt(bank)} ج.م</span>` : "";
+                            const otherBadge = other > 0 ? `<span class="pay-badge other">💠 أخرى: ${fmt(other)} ج.م</span>` : "";
+                            const freeBadge = freeAmt > 0 ? `<span class="pay-badge free">🎁 مجاني: ${fmt(freeAmt)} ج.م</span>` : "";
                             return `
                               <div class="order-block">
                                 <div class="oh">
                                   <div><span class="lbl">#${i + 1}</span> <b>${o?.order_number ?? a.order_id.slice(0, 8)}</b> — ${o?.customer_name ?? "—"} <span class="st">${statusLabel}</span></div>
+                                  ${(vodaBadge || instaBadge || bankBadge || otherBadge || freeBadge) ? `<div class="badges">${vodaBadge}${instaBadge}${bankBadge}${otherBadge}${freeBadge}</div>` : ""}
                                 </div>
                                 <div class="ol">
                                   <div><span>إجمالي الأوردر:</span> <b>${fmt(orderTotal)}</b></div>
-                                  <div style="${cashBg};padding:2px 8px;border-radius:4px"><span>💵 نقدي مطلوب من ${courierLabel}:</span> <b>${fmt(cashFromCourier)}</b></div>
-                                  ${voda ? `<div><span>📱 فودافون:</span> <b>${fmt(voda)}</b></div>` : ""}
-                                  ${insta ? `<div><span>💳 إنستاباي:</span> <b>${fmt(insta)}</b></div>` : ""}
-                                  ${bank ? `<div><span>🏦 بنكي:</span> <b>${fmt(bank)}</b></div>` : ""}
-                                  ${other ? `<div><span>💠 أخرى:</span> <b>${fmt(other)}</b></div>` : ""}
-                                  ${freeAmt ? `<div><span>🎁 مجاني:</span> <b>${fmt(freeAmt)}</b></div>` : ""}
+                                  ${voda > 0 ? `<div class="pay-line voda"><span>📱 فودافون كاش:</span> <b>${fmt(voda)} ج.م</b></div>` : ""}
+                                  ${insta > 0 ? `<div class="pay-line insta"><span>💳 إنستاباي:</span> <b>${fmt(insta)} ج.م</b></div>` : ""}
+                                  ${bank > 0 ? `<div class="pay-line bank"><span>🏦 تحويل بنكي:</span> <b>${fmt(bank)} ج.م</b></div>` : ""}
+                                  ${other > 0 ? `<div class="pay-line other"><span>💠 أخرى:</span> <b>${fmt(other)} ج.م</b></div>` : ""}
+                                  ${freeAmt > 0 ? `<div class="pay-line free"><span>🎁 مجاني/هدايا:</span> <b>${fmt(freeAmt)} ج.م</b></div>` : ""}
+                                  <div class="pay-line cash" style="${cashBg};padding:2px 8px;border-radius:4px"><span>💵 المطلوب نقدي من ${courierLabel}:</span> <b>${fmt(cashFromCourier)} ج.م</b></div>
                                   ${remaining ? `<div style="color:#b45309"><span>⚠️ متبقي:</span> <b>${fmt(remaining)}</b></div>` : ""}
                                 </div>
                                 <table class="items">
