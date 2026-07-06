@@ -359,6 +359,16 @@ const ChickOrders = () => {
                   )}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                  <div className="col-span-2 md:col-span-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground border-b pb-2">
+                    <span>📅 تاريخ التسجيل:</span>
+                    <span className="font-medium text-foreground">
+                      {new Date(o.created_at).toLocaleDateString('ar-EG', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    </span>
+                    <span>⏰</span>
+                    <span className="font-medium text-foreground" dir="ltr">
+                      {new Date(o.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
                   <div>
                     <div className="text-xs text-muted-foreground">الهاتف</div>
                     <a href={`tel:${o.phone_primary}`} dir="ltr" className="text-primary font-medium">{o.phone_primary}</a>
