@@ -43,7 +43,9 @@ export function BulkDeliveryUploadButton() {
   const registered = shipments.filter((s) => s.phone && knownPhones.has(s.phone));
   const readyItems = registered.filter((s) => s.items.length > 0 && s.unknown_tokens.length === 0);
   const withWarnings = registered.filter((s) => s.unknown_tokens.length > 0 && s.items.length > 0);
-  const skipped = registered.filter((s) => s.items.length === 0);
+  // "noItems" = the sheet's products aren't in our catalog. We still deliver
+  // the order as-is (customer received and paid) without changing its items.
+  const noItems = registered.filter((s) => s.items.length === 0);
 
   const handleFile = async (file: File) => {
     setLoading(true);
