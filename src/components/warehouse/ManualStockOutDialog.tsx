@@ -296,7 +296,12 @@ const ManualStockOutDialog = ({
   const hasReservedConflict = reservationAnalysis.some((r) => r.reservedFlag);
   const hasNegativeAfter = reservationAnalysis.some((r) => r.negative);
   const exceedRows = reservationAnalysis.filter((r) => r.requested > r.stock).map((r) => r.itemId);
-  const negativeBlocked = hasNegativeAfter && (!isManager || !overrideNegative || overrideReason.trim().length < 3);
+  // In the main warehouse, the warehouse supervisor (and managers) can dispatch
+  // even when the requested qty exceeds the "available-after-reservation" number,
+  // as long as it does NOT exceed the actual physical stock. Other warehouses keep
+  // the stricter manager-only override behavior.
+  const canOverrideReserved = isMainWarehouse && (isManager || isWarehouseSupervisor);
+  const negativeBlocked = hasNegativeAfter && (!canOverrideReserved || !overrideNegative || overrideReason.trim().length < 3);
 
   const validRows = rows.length > 0 && rows.every(r => r.itemId && rowQty(r) > 0);
   const canSave = validDest
