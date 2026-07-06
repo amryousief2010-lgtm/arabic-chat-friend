@@ -1010,7 +1010,13 @@ const NewOrder = () => {
         p_shipping_company: effectiveShippingCompany || undefined,
       });
       if (!dupErr && dupData) {
-        const d = dupData as unknown as DuplicateCheckResponse;
+        const d = dupData as unknown as (DuplicateCheckResponse & { is_double_submit?: boolean });
+        if (d.is_double_submit) {
+          toast.error('لقد سجلتِ نفس الأوردر لهذا العميل خلال آخر دقيقتين. تم منع التسجيل المكرر بالخطأ.');
+          setSubmitting(false);
+          return;
+        }
+
         if (d.is_duplicate) {
           const existing = d.existing_request;
           if (existing?.status === 'approved') {
