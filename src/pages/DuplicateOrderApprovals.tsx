@@ -30,10 +30,20 @@ type ApprovalRow = {
   proposed_order: any;
   proposed_items: any[];
   resolved_order_id: string | null;
+  marketing_decision: "pending" | "approved" | "rejected";
+  marketing_decided_by: string | null;
+  marketing_decided_at: string | null;
+  marketing_reason: string | null;
+  executive_decision: "pending" | "approved" | "rejected";
+  executive_decided_by: string | null;
+  executive_decided_at: string | null;
+  executive_reason: string | null;
   customer_name?: string;
   customer_phone?: string;
   requester_name?: string;
   decider_name?: string;
+  marketing_decider_name?: string;
+  executive_decider_name?: string;
   matched_order?: {
     id: string;
     order_number: string;
@@ -155,6 +165,8 @@ const DuplicateOrderApprovals = () => {
       const userIds = Array.from(new Set([
         ...approvalsList.map((row) => row.requested_by).filter(Boolean),
         ...approvalsList.map((row) => row.decided_by).filter(Boolean),
+        ...approvalsList.map((row) => row.marketing_decided_by).filter(Boolean),
+        ...approvalsList.map((row) => row.executive_decided_by).filter(Boolean),
         ...auditsList.map((row) => row.attempted_by).filter(Boolean),
         ...auditsList.map((row) => row.decision_by).filter(Boolean),
       ])) as string[];
@@ -208,6 +220,8 @@ const DuplicateOrderApprovals = () => {
         customer_phone: customerMap.get(row.customer_id)?.phone,
         requester_name: profileMap.get(row.requested_by),
         decider_name: row.decided_by ? profileMap.get(row.decided_by) : undefined,
+        marketing_decider_name: row.marketing_decided_by ? profileMap.get(row.marketing_decided_by) : undefined,
+        executive_decider_name: row.executive_decided_by ? profileMap.get(row.executive_decided_by) : undefined,
         matched_order: mapOrderCard(row.matched_order_id),
       })));
 
@@ -312,12 +326,36 @@ const DuplicateOrderApprovals = () => {
         {renderOrderCard("الطلب المشابه الموجود", row.matched_order)}
       </div>
 
+      <div className="grid gap-2 md:grid-cols-2">
+        <div className={`rounded-md border p-2 text-sm ${row.marketing_decision === 'approved' ? 'bg-emerald-50 border-emerald-300' : row.marketing_decision === 'rejected' ? 'bg-rose-50 border-rose-300' : 'bg-amber-50 border-amber-300'}`}>
+          <div className="font-semibold mb-1">مديرة التسويق (آلاء حامد)</div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant={row.marketing_decision === 'approved' ? 'default' : row.marketing_decision === 'rejected' ? 'destructive' : 'secondary'}>
+              {row.marketing_decision === 'approved' ? 'موافقة' : row.marketing_decision === 'rejected' ? 'رفض' : 'بانتظار القرار'}
+            </Badge>
+            {row.marketing_decider_name && <span className="text-xs text-muted-foreground">— {row.marketing_decider_name}</span>}
+            {row.marketing_decided_at && <span className="text-xs text-muted-foreground">• {fmt(row.marketing_decided_at)}</span>}
+          </div>
+          {row.marketing_reason && <div className="text-xs mt-1 text-muted-foreground">السبب: {row.marketing_reason}</div>}
+        </div>
+        <div className={`rounded-md border p-2 text-sm ${row.executive_decision === 'approved' ? 'bg-emerald-50 border-emerald-300' : row.executive_decision === 'rejected' ? 'bg-rose-50 border-rose-300' : 'bg-amber-50 border-amber-300'}`}>
+          <div className="font-semibold mb-1">المدير التنفيذي</div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant={row.executive_decision === 'approved' ? 'default' : row.executive_decision === 'rejected' ? 'destructive' : 'secondary'}>
+              {row.executive_decision === 'approved' ? 'موافقة' : row.executive_decision === 'rejected' ? 'رفض' : 'بانتظار القرار'}
+            </Badge>
+            {row.executive_decider_name && <span className="text-xs text-muted-foreground">— {row.executive_decider_name}</span>}
+            {row.executive_decided_at && <span className="text-xs text-muted-foreground">• {fmt(row.executive_decided_at)}</span>}
+          </div>
+          {row.executive_reason && <div className="text-xs mt-1 text-muted-foreground">السبب: {row.executive_reason}</div>}
+        </div>
+      </div>
+
       {row.note && <div className="text-sm">ملاحظة المودريتور: <span className="text-muted-foreground">{row.note}</span></div>}
-      {row.reason && <div className="text-sm">سبب القرار: <span className="text-muted-foreground">{row.reason}</span></div>}
+      {row.reason && <div className="text-sm">القرار النهائي: <span className="text-muted-foreground">{row.reason}</span></div>}
       <div className="text-xs text-muted-foreground">
         وقت الطلب: {fmt(row.created_at)}
-        {row.decided_at && <> • وقت القرار: {fmt(row.decided_at)}</>}
-        {row.decider_name && <> • بواسطة: {row.decider_name}</>}
+        {row.decided_at && <> • وقت القرار النهائي: {fmt(row.decided_at)}</>}
       </div>
 
       {row.status === "pending" && new Date(row.expires_at) > new Date() && (
@@ -328,6 +366,7 @@ const DuplicateOrderApprovals = () => {
           <Button size="sm" variant="destructive" onClick={() => setDecision({ open: true, row, approve: false, reason: "" })}>
             <XCircle className="w-4 h-4 ms-1" /> رفض
           </Button>
+          <span className="text-xs text-muted-foreground self-center">لازم موافقة الاتنين لإتمام الأوردر</span>
         </div>
       )}
     </div>

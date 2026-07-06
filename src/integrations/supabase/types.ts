@@ -3438,8 +3438,16 @@ export type Database = {
           decided_at: string | null
           decided_by: string | null
           duplicate_score: number | null
+          executive_decided_at: string | null
+          executive_decided_by: string | null
+          executive_decision: string
+          executive_reason: string | null
           expires_at: string
           id: string
+          marketing_decided_at: string | null
+          marketing_decided_by: string | null
+          marketing_decision: string
+          marketing_reason: string | null
           matched_order_id: string | null
           note: string | null
           proposed_items: Json
@@ -3456,8 +3464,16 @@ export type Database = {
           decided_at?: string | null
           decided_by?: string | null
           duplicate_score?: number | null
+          executive_decided_at?: string | null
+          executive_decided_by?: string | null
+          executive_decision?: string
+          executive_reason?: string | null
           expires_at?: string
           id?: string
+          marketing_decided_at?: string | null
+          marketing_decided_by?: string | null
+          marketing_decision?: string
+          marketing_reason?: string | null
           matched_order_id?: string | null
           note?: string | null
           proposed_items?: Json
@@ -3474,8 +3490,16 @@ export type Database = {
           decided_at?: string | null
           decided_by?: string | null
           duplicate_score?: number | null
+          executive_decided_at?: string | null
+          executive_decided_by?: string | null
+          executive_decision?: string
+          executive_reason?: string | null
           expires_at?: string
           id?: string
+          marketing_decided_at?: string | null
+          marketing_decided_by?: string | null
+          marketing_decision?: string
+          marketing_reason?: string | null
           matched_order_id?: string | null
           note?: string | null
           proposed_items?: Json
@@ -20286,8 +20310,16 @@ export type Database = {
           decided_at: string | null
           decided_by: string | null
           duplicate_score: number | null
+          executive_decided_at: string | null
+          executive_decided_by: string | null
+          executive_decision: string
+          executive_reason: string | null
           expires_at: string
           id: string
+          marketing_decided_at: string | null
+          marketing_decided_by: string | null
+          marketing_decision: string
+          marketing_reason: string | null
           matched_order_id: string | null
           note: string | null
           proposed_items: Json
@@ -20917,8 +20949,16 @@ export type Database = {
           decided_at: string | null
           decided_by: string | null
           duplicate_score: number | null
+          executive_decided_at: string | null
+          executive_decided_by: string | null
+          executive_decision: string
+          executive_reason: string | null
           expires_at: string
           id: string
+          marketing_decided_at: string | null
+          marketing_decided_by: string | null
+          marketing_decision: string
+          marketing_reason: string | null
           matched_order_id: string | null
           note: string | null
           proposed_items: Json
