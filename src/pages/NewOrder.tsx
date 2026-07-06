@@ -1230,10 +1230,32 @@ const NewOrder = () => {
       console.error('Error creating order:', error);
       const msg = String(error?.message || '');
       if (msg.includes('DUPLICATE_ORDER_REQUIRES_APPROVAL')) {
-        setApprovalDialog((prev) => ({ ...prev, open: true, status: prev.status === 'pending' ? 'pending' : 'idle' }));
+        // Fallback path — server trigger caught a duplicate we missed in pre-check.
+        // Fetch candidates so the user sees a clean, friendly dialog (never DB error text).
+        try {
+          const { data: cData } = await supabase.rpc('find_duplicate_order_candidates', {
+            p_customer_id: selectedCustomer.id,
+            p_customer_name: selectedCustomer.name,
+            p_customer_phone: selectedCustomer.phone,
+            p_delivery_address: (deliveryAddress.trim() || selectedCustomer.address || null) as any,
+            p_shipping_company: effectiveShippingCompany as any,
+            p_fulfillment_type: fulfillmentType,
+            p_items: duplicateItemsPayload as any,
+          } as any);
+          setApprovalDialog((prev) => ({
+            ...prev,
+            open: true,
+            status: prev.status === 'pending' ? 'pending' : 'idle',
+            candidates: (Array.isArray(cData) ? (cData as any as DuplicateCandidate[]) : []),
+          }));
+        } catch {
+          setApprovalDialog((prev) => ({ ...prev, open: true, status: prev.status === 'pending' ? 'pending' : 'idle' }));
+        }
+        toast.message('هذا الطلب مكرر ولن يتم تسجيله إلا بعد موافقة م. آلاء حامد والمدير التنفيذي معاً.');
       } else {
         toast.error('حدث خطأ أثناء إنشاء الطلب');
       }
+
     } finally {
       setSubmitting(false);
     }
