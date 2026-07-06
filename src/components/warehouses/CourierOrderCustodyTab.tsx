@@ -206,6 +206,8 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
   const [handoverBusy, setHandoverBusy] = useState(false);
   const [dailyDeposits, setDailyDeposits] = useState<Array<{ id: string; custody_id: string; deposit_date: string; amount: number; orders_count: number; treasury_txn_id: string | null; performed_by_name: string | null; created_at: string }>>([]);
   const [bosttaUploadNets, setBosttaUploadNets] = useState<BosttaUploadNet[]>([]);
+  const [depositedBosttaFilenames, setDepositedBosttaFilenames] = useState<Set<string>>(new Set());
+  const [depositingBosttaId, setDepositingBosttaId] = useState<string | null>(null);
   const [depositingDay, setDepositingDay] = useState<string | null>(null);
   // Order IDs already accounted for via a closed Mega/Zodex invoice for the selected custody.
   // These are excluded from the per-day courier groups (they show up in the closed-invoices card instead).
@@ -281,7 +283,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         .select("id, filename, summary, created_at")
         .order("created_at", { ascending: false })
         .limit(25);
-      setBosttaUploadNets((uploadRows || [])
+      const mapped = (uploadRows || [])
         .map((row: any) => ({
           id: row.id,
           filename: row.filename,
@@ -289,9 +291,38 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           orderNumbers: extractBosttaOrderNumbers(row.summary),
           created_at: row.created_at,
         }))
-        .filter((row: BosttaUploadNet) => Number(row.netAmount) > 0 && row.orderNumbers.length > 0));
+        .filter((row: BosttaUploadNet) => Number(row.netAmount) > 0 && row.orderNumbers.length > 0);
+      // Dedupe by filename — keep the most recent upload only (latest re-run wins)
+      const dedupedByFilename = new Map<string, BosttaUploadNet>();
+      mapped.forEach((row: BosttaUploadNet) => {
+        const key = String(row.filename || "").trim().toLowerCase();
+        const existing = dedupedByFilename.get(key);
+        if (!existing || new Date(row.created_at) > new Date(existing.created_at)) {
+          dedupedByFilename.set(key, row);
+        }
+      });
+      setBosttaUploadNets(Array.from(dedupedByFilename.values()));
+
+      // Detect which Bostta sheets have already been handed over to main treasury
+      // (agouza_warehouse_treasury_txns rows with notes containing the sheet filename).
+      const { data: handoverRows } = await (supabase as any)
+        .from("agouza_warehouse_treasury_txns")
+        .select("notes, status")
+        .eq("txn_type", "handover_to_main")
+        .in("status", ["pending", "approved"])
+        .order("created_at", { ascending: false })
+        .limit(200);
+      const deposited = new Set<string>();
+      (handoverRows || []).forEach((r: any) => {
+        const notes = String(r?.notes || "");
+        dedupedByFilename.forEach((upload, key) => {
+          if (upload.filename && notes.includes(upload.filename)) deposited.add(key);
+        });
+      });
+      setDepositedBosttaFilenames(deposited);
     } else {
       setBosttaUploadNets([]);
+      setDepositedBosttaFilenames(new Set());
     }
 
     // Pull orders that are: (a) prepared/ready for assignment, (b) currently assigned
@@ -772,6 +803,26 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
     } finally { setDepositingDay(null); }
   };
 
+  const depositBosttaSheet = async (upload: BosttaUploadNet) => {
+    const amt = Number(upload.netAmount || 0);
+    if (!amt || amt <= 0) { toast({ title: "المبلغ غير صالح", variant: "destructive" }); return; }
+    if (!confirm(`سيتم توريد ${fmt(amt)} ج.م إلى خزنة المخزن الرئيسي (محمد شعلة) عن كشف: ${upload.filename}. متابعة؟`)) return;
+    setDepositingBosttaId(upload.id);
+    try {
+      const { error } = await (supabase as any).rpc("submit_agouza_cash_handover", {
+        p_amount: amt,
+        p_notes: `توريد كشف بُسطة — ${upload.filename} (${upload.orderNumbers.length} أوردر)`,
+      });
+      if (error) throw error;
+      toast({ title: "تم إرسال التوريد للاعتماد", description: `المبلغ: ${fmt(amt)} ج.م — بانتظار اعتماد محمد شعلة` });
+      await load();
+    } catch (e: any) {
+      toast({ title: "تعذّر التوريد", description: e?.message || "", variant: "destructive" });
+    } finally { setDepositingBosttaId(null); }
+  };
+
+
+
 
   const submitCorrection = async () => {
     if (!correctOpen) return;
@@ -1222,6 +1273,9 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                             const displayCount = selectedCustody
                               ? matchedInSelectedCustody.length
                               : (matchedOrders.length || upload.orderNumbers.length);
+                            const key = String(upload.filename || "").trim().toLowerCase();
+                            const isDeposited = depositedBosttaFilenames.has(key);
+                            const isDepositing = depositingBosttaId === upload.id;
                             return (
                               <TableRow key={`bostta-${upload.id}`} className="bg-sky-50/60 hover:bg-sky-100/60 font-medium border-t-2 border-sky-300">
                                 <TableCell className="font-bold">
@@ -1230,6 +1284,9 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                       <span className="text-sky-900">📄 كشف تسليم بُسطة — {upload.filename}</span>
                                       <Badge variant="secondary" className="text-xs">{displayCount} أوردر</Badge>
                                       <Badge className="bg-sky-600 text-white text-[10px]">✓ مُسدَّد عبر بُسطة</Badge>
+                                      {isDeposited && (
+                                        <Badge className="bg-emerald-600 text-white text-[10px]">✓ تم التوريد</Badge>
+                                      )}
                                     </div>
                                     <div className="text-[10px] text-muted-foreground font-normal">
                                       نقطة البداية — تم تحصيلها من خلال تسوية بُسطة
@@ -1241,7 +1298,22 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                 <TableCell className="text-xs text-sky-700">مُسدَّد بالكامل</TableCell>
                                 <TableCell className="font-mono text-xs text-sky-700">{fmt(Number(upload.netAmount))}</TableCell>
                                 <TableCell className="text-xs">{new Date(upload.created_at).toLocaleDateString("ar-EG")}</TableCell>
-                                <TableCell className="text-xs text-muted-foreground">—</TableCell>
+                                <TableCell className="text-xs">
+                                  {isDeposited ? (
+                                    <span className="text-emerald-700 text-xs font-medium">تم التوريد</span>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs"
+                                      disabled={isDepositing}
+                                      onClick={() => depositBosttaSheet(upload)}
+                                      title="توريد كامل مبلغ الكشف لخزنة المخزن الرئيسي (محمد شعلة)"
+                                    >
+                                      <Coins className="w-3 h-3 ml-1" />
+                                      {isDepositing ? "جارٍ..." : `توريد ${fmt(Number(upload.netAmount))}`}
+                                    </Button>
+                                  )}
+                                </TableCell>
                               </TableRow>
                             );
                           }).filter(Boolean) as JSX.Element[]
