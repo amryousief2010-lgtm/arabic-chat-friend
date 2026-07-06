@@ -563,7 +563,8 @@ export default function MainWarehouseTreasuryTab() {
       if (!window.confirm(`المبلغ (${fmt(amt)}) أكبر من الرصيد الحالي (${fmt(kpis.balance)}). متابعة؟`)) return;
     }
 
-    const isReconcile = transferMode === "reconcile";
+
+
     if (isReconcile) {
       if (!canReconcile) {
         toast({ title: "غير مصرح", description: "التسوية متاحة للمدير العام / التنفيذي / المسؤول المالي فقط", variant: "destructive" });
