@@ -227,11 +227,14 @@ Deno.serve(async (req) => {
           .select("id, product_id, product_name, quantity, unit_price")
           .eq("order_id", order.id);
 
-        // If the sheet has no recognized products, keep the order's existing
-        // items untouched — the customer received and paid, we just mark it
-        // delivered against the current cart. Only replace items when the
-        // sheet actually carries a parsed product list.
-        const replaceItems = Array.isArray(s.items) && s.items.length > 0;
+        // Keep the order's existing items untouched when either:
+        //  - the sheet has no recognized products, OR
+        //  - the sheet has unknown tokens (products not in the catalog)
+        // In both cases the customer received & paid for the original cart,
+        // so we only mark it delivered without altering items. We only
+        // replace items when every token in the sheet was recognized.
+        const hasUnknown = Array.isArray(s.unknown_tokens) && s.unknown_tokens.length > 0;
+        const replaceItems = Array.isArray(s.items) && s.items.length > 0 && !hasUnknown;
         const oldSig = JSON.stringify((existingItems || []).map((i: any) => `${i.product_id}:${i.quantity}`).sort());
         const newSig = replaceItems
           ? JSON.stringify(s.items.map((i) => `${i.product_id}:${i.quantity}`).sort())
