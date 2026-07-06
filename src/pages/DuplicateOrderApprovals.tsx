@@ -30,10 +30,20 @@ type ApprovalRow = {
   proposed_order: any;
   proposed_items: any[];
   resolved_order_id: string | null;
+  marketing_decision: "pending" | "approved" | "rejected";
+  marketing_decided_by: string | null;
+  marketing_decided_at: string | null;
+  marketing_reason: string | null;
+  executive_decision: "pending" | "approved" | "rejected";
+  executive_decided_by: string | null;
+  executive_decided_at: string | null;
+  executive_reason: string | null;
   customer_name?: string;
   customer_phone?: string;
   requester_name?: string;
   decider_name?: string;
+  marketing_decider_name?: string;
+  executive_decider_name?: string;
   matched_order?: {
     id: string;
     order_number: string;
