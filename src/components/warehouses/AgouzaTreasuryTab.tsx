@@ -203,7 +203,7 @@ export default function AgouzaTreasuryTab() {
     };
     return txns
       .filter(t => t.txn_type === "cash_in" && String(t.notes || "").includes("كشف بُسطة") && ["approved", "posted"].includes(t.status))
-      .map(t => ({ id: t.id, amount: Number(t.amount || 0), notes: String(t.notes || ""), filename: extractFilename(String(t.notes || "")), created_at: t.created_at }))
+      .map(t => ({ id: t.id, amount: Number(t.amount || 0), notes: String(t.notes || ""), filename: extractFilename(String(t.notes || "")), created_at: t.txn_date }))
       .filter(row => row.filename && !allHandoverNotes.some(hn => hn.includes(row.filename)));
   }, [txns]);
 
