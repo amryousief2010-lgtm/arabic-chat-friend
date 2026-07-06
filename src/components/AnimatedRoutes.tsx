@@ -4,6 +4,7 @@ import { AnimatePresence } from "framer-motion";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PageTransition from "@/components/layout/PageTransition";
 import RoleLanding from "@/components/RoleLanding";
+import ViewOnlySection from "@/components/ViewOnlySection";
 
 // Wrap lazy() so that when a dynamically-imported chunk is missing (e.g. after a
 // new deploy invalidated old chunk hashes), we force a single hard reload instead
