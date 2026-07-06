@@ -63,6 +63,7 @@ export default function AgouzaTreasuryTab() {
   const [handoverAmount, setHandoverAmount] = useState("");
   const [handoverNotes, setHandoverNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [selectedBosttaId, setSelectedBosttaId] = useState<string | null>(null);
 
   // simple cash movement (income/expense) dialog
   const [moveOpen, setMoveOpen] = useState(false);
@@ -128,7 +129,7 @@ export default function AgouzaTreasuryTab() {
     }
     toast({ title: "تم تسجيل التوريد", description: "بانتظار اعتماد المدير العام / التنفيذي" });
     setHandoverOpen(false);
-    setHandoverAmount(""); setHandoverNotes("");
+    setHandoverAmount(""); setHandoverNotes(""); setSelectedBosttaId(null);
     load();
   };
 
@@ -190,6 +191,21 @@ export default function AgouzaTreasuryTab() {
   const pendingHandovers = txns.filter(t => t.txn_type === "handover_to_main" && t.status === "pending");
   const approvedHandovers = txns.filter(t => t.txn_type === "handover_to_main" && t.status === "approved");
   const rejectedHandovers = txns.filter(t => t.txn_type === "handover_to_main" && t.status === "rejected");
+
+  // Bostta collection sheets not yet handed over to Main — used to prefill the handover dialog
+  const pendingBosttaSheets = useMemo(() => {
+    const allHandoverNotes = txns
+      .filter(t => t.txn_type === "handover_to_main" && ["pending", "approved", "posted"].includes(t.status))
+      .map(t => String(t.notes || ""));
+    const extractFilename = (n: string) => {
+      const m = n.match(/كشف بُسطة\s*[—-]\s*([^()]+?)(?:\s*\(|$)/);
+      return m ? m[1].trim() : "";
+    };
+    return txns
+      .filter(t => t.txn_type === "cash_in" && String(t.notes || "").includes("كشف بُسطة") && ["approved", "posted"].includes(t.status))
+      .map(t => ({ id: t.id, amount: Number(t.amount || 0), notes: String(t.notes || ""), filename: extractFilename(String(t.notes || "")), created_at: t.txn_date }))
+      .filter(row => row.filename && !allHandoverNotes.some(hn => hn.includes(row.filename)));
+  }, [txns]);
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -315,9 +331,40 @@ export default function AgouzaTreasuryTab() {
             <DialogDescription>سيتم تسجيل التوريد كـ <b>معلّق</b> ولن يدخل خزنة الرئيسي إلا بعد اعتماد المدير العام / التنفيذي.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {pendingBosttaSheets.length > 0 && (
+              <div className="rounded-md border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+                <div className="text-xs font-semibold text-sky-900">
+                  كشوف بُسطة تم تحصيلها ولم يتم توريدها بعد ({pendingBosttaSheets.length})
+                </div>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {pendingBosttaSheets.map(sheet => (
+                    <button
+                      key={sheet.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedBosttaId(sheet.id);
+                        setHandoverAmount(String(sheet.amount));
+                        setHandoverNotes(`توريد ${sheet.notes}`);
+                      }}
+                      className={`w-full text-right px-3 py-2 rounded border text-xs transition ${
+                        selectedBosttaId === sheet.id
+                          ? "bg-sky-600 text-white border-sky-700"
+                          : "bg-white border-sky-200 hover:border-sky-400"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate">📄 {sheet.filename}</span>
+                        <span className="font-mono font-bold whitespace-nowrap">{sheet.amount.toLocaleString("ar-EG")} ج</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="text-[10px] text-sky-800">اضغط على كشف لتعبئة المبلغ والملاحظات تلقائيًا.</div>
+              </div>
+            )}
             <div>
               <Label>المبلغ (ج.م)</Label>
-              <Input type="number" min="0" step="0.01" value={handoverAmount} onChange={e => setHandoverAmount(e.target.value)} />
+              <Input type="number" min="0" step="0.01" value={handoverAmount} onChange={e => { setHandoverAmount(e.target.value); setSelectedBosttaId(null); }} />
             </div>
             <div>
               <Label>ملاحظات (اختياري)</Label>
