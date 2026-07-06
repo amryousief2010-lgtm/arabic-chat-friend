@@ -28,7 +28,9 @@ export type AppRole =
   | 'lab_external_collector'
   | 'lab_treasury_approver'
   | 'slaughterhouse_custody_keeper'
-  | 'social_media_manager';
+  | 'social_media_manager'
+  | 'marketing_sales_viewer'
+  | 'lab_treasury_viewer';
 
 interface UserProfile {
   id: string;
