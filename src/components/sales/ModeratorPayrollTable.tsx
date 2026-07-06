@@ -413,6 +413,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         </div>
       </CardHeader>
       <CardContent className="p-2 md:p-4">
+        <div id="moderator-payroll-table">
         <Table className="w-full border text-xs md:text-sm">
           <TableHeader>
             <TableRow className="bg-muted/50">
@@ -534,6 +535,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
             </TableRow>
           </TableBody>
         </Table>
+        </div>
         <p className="text-xs text-muted-foreground mt-3">
           * المبيعات تُحسب من الأوردرات المسلَّمة. الأسعار المستخدمة (لحوم/بالعظم/مصنعات) تتبع الأسعار في "جدول مبيعات المسوقات".<br />
           * بونص اللحوم = (بونص التارجت × كجم اللحوم) + ({BONE_BONUS_PER_KG} ج × كجم اللحوم بالعظم).

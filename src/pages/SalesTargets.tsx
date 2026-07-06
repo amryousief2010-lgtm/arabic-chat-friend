@@ -33,7 +33,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Target, Plus, TrendingUp, TrendingDown, Award, Users, BarChart3, FileDown, RefreshCw } from 'lucide-react';
+import { Target, Plus, TrendingUp, TrendingDown, Award, Users, BarChart3, FileDown, RefreshCw, FileSpreadsheet } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -280,6 +281,33 @@ const SalesTargets = () => {
     toast({ title: 'تم تصدير التقرير بنجاح' });
   };
 
+  const exportTablesToExcel = () => {
+    const monthName = months.find(m => m.value === selectedMonth)?.label || '';
+    const wb = XLSX.utils.book_new();
+
+    const bayanEl = document.querySelector<HTMLTableElement>('#girls-sales-quantity-table table');
+    const qabdEl = document.querySelector<HTMLTableElement>('#moderator-payroll-table table');
+
+    if (!bayanEl && !qabdEl) {
+      toast({ title: 'الجداول غير متاحة للتحميل', variant: 'destructive' });
+      return;
+    }
+
+    if (bayanEl) {
+      const ws = XLSX.utils.table_to_sheet(bayanEl, { raw: false });
+      ws['!cols'] = Array.from({ length: bayanEl.rows[0]?.cells.length || 5 }, () => ({ wch: 20 }));
+      XLSX.utils.book_append_sheet(wb, ws, 'جدول البيان');
+    }
+    if (qabdEl) {
+      const ws = XLSX.utils.table_to_sheet(qabdEl, { raw: false });
+      ws['!cols'] = Array.from({ length: qabdEl.rows[0]?.cells.length || 5 }, () => ({ wch: 20 }));
+      XLSX.utils.book_append_sheet(wb, ws, 'جدول القبض');
+    }
+
+    XLSX.writeFile(wb, `تارجت-البنات-${monthName}-${selectedYear}.xlsx`);
+    toast({ title: 'تم تحميل الشيت بنجاح' });
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -323,6 +351,18 @@ const SalesTargets = () => {
                 >
                   <RefreshCw className="h-4 w-4" />
                 </Button>
+                {!isModerator && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={exportTablesToExcel}
+                    title="تحميل جدول البيان وجدول القبض"
+                    className="gap-1"
+                  >
+                    <FileSpreadsheet className="h-4 w-4" />
+                    تحميل Excel
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
