@@ -649,7 +649,11 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
             </Alert>
           )}
 
-          <ZodexPipelineReconcile localInFlightCount={debug.raw + debug.withCourier} localBreakdown={{ warehouse: debug.raw, withCourier: debug.withCourier }} />
+          {!isMainWarehouse && (
+            <ZodexPipelineReconcile localInFlightCount={debug.raw + debug.withCourier} localBreakdown={{ warehouse: debug.raw, withCourier: debug.withCourier }} />
+          )}
+
+
 
           
 
@@ -663,7 +667,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
                   <div className="flex items-center gap-2 flex-wrap">
                     <CardTitle className="text-base">طلبات قسم التسويق</CardTitle>
                     <BulkDeliveryUploadButton />
-                    <ZodexSyncButton />
+                    {!isMainWarehouse && <ZodexSyncButton />}
                     
                     <Button size="sm" variant="outline" className="h-8" onClick={() => {
                       const rowsSource = selectedOrderIds.size > 0
