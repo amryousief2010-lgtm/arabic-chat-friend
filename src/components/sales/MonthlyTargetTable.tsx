@@ -88,7 +88,7 @@ const MonthlyTargetTable = () => {
         <Input
           type="number"
           defaultValue={row[field]}
-          className="h-8 text-center w-24 mx-auto"
+          className="h-8 text-center w-full px-1 text-xs"
           onBlur={(e) => {
             const v = Number(e.target.value);
             if (v !== Number(row[field])) {
@@ -104,65 +104,73 @@ const MonthlyTargetTable = () => {
   return (
     <Card className="glass-card mb-6">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 flex-wrap text-sm md:text-base">
           <Target className="w-5 h-5 text-primary" />
-          جدول التارجت — التارجت الشهري لموديريتور نعام العاصمة
+          جدول التارجت الشهري لموديريتور نعام العاصمة
           {canEdit && (
             <span className="text-xs font-normal text-muted-foreground mr-2">
-              (يمكنك تعديل القيم بالنقر على الخانة)
+              (اضغط على الخانة للتعديل)
             </span>
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
-        <Table className="min-w-[900px] border">
+      <CardContent className="p-2 md:p-4">
+        <Table className="border w-full text-xs md:text-sm">
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead rowSpan={2} className="text-center font-bold border align-middle">
+              <TableHead rowSpan={2} className="text-center font-bold border align-middle px-1 md:px-2">
                 التارجت
               </TableHead>
-              {tiers.map((t) => (
-                <TableHead key={t} colSpan={2} className="text-center font-bold border text-primary">
-                  {t}
+              {categories.map((cat) => (
+                <TableHead key={cat} colSpan={2} className="text-center font-bold border text-primary px-1 md:px-2">
+                  {cat}
                 </TableHead>
               ))}
             </TableRow>
             <TableRow className="bg-muted/30">
-              {tiers.map((t) => (
-                <Fragment key={t}>
-                  <TableHead key={`${t}-s`} className="text-center border text-xs">قيمة المبيعات</TableHead>
-                  <TableHead key={`${t}-b`} className="text-center border text-xs">مبلغ البونص</TableHead>
+              {categories.map((cat) => (
+                <Fragment key={cat}>
+                  <TableHead key={`${cat}-s`} className="text-center border text-[10px] md:text-xs px-1">
+                    قيمة المبيعات
+                  </TableHead>
+                  <TableHead key={`${cat}-b`} className="text-center border text-[10px] md:text-xs px-1">
+                    البونص
+                  </TableHead>
                 </Fragment>
               ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {categories.map((cat) => (
-              <TableRow key={cat}>
-                <TableCell className="text-center font-bold border bg-muted/30">{cat}</TableCell>
-                {Array.from({ length: 7 }).map((_, i) => {
+            {tiers.map((t, i) => (
+              <TableRow key={t}>
+                <TableCell className="text-center font-bold border bg-muted/30 whitespace-nowrap px-1 md:px-2">
+                  {t}
+                </TableCell>
+                {categories.map((cat) => {
                   const row = grouped[cat].find((r) => r.tier === i + 1);
                   return (
-                    <Fragment key={i}>
-                      <TableCell className="text-center border">{renderCell(row, "sales_amount")}</TableCell>
-                      <TableCell className="text-center border">{renderCell(row, "bonus_amount")}</TableCell>
+                    <Fragment key={`${cat}-${i}`}>
+                      <TableCell className="text-center border p-1">{renderCell(row, "sales_amount")}</TableCell>
+                      <TableCell className="text-center border p-1">{renderCell(row, "bonus_amount")}</TableCell>
                     </Fragment>
                   );
                 })}
               </TableRow>
             ))}
             <TableRow>
-              <TableCell className="text-center font-bold border bg-muted/30">أساسي</TableCell>
-              {tiers.map((t) => (
-                <TableCell key={t} colSpan={2} className="text-center border font-semibold">
+              <TableCell className="text-center font-bold border bg-muted/30 whitespace-nowrap px-1 md:px-2">
+                أساسي
+              </TableCell>
+              {categories.map((cat) => (
+                <TableCell key={cat} colSpan={2} className="text-center border font-semibold">
                   2,500
                 </TableCell>
               ))}
             </TableRow>
           </TableBody>
         </Table>
-        <p className="text-xs text-muted-foreground mt-3">
-          * "أساسي" يمثل المرتب الأساسي الثابت لكل مرحلة. "مبلغ البونص" يُحتسب عند بلوغ "قيمة المبيعات" المقابلة.
+        <p className="text-[10px] md:text-xs text-muted-foreground mt-3">
+          * "أساسي" يمثل المرتب الأساسي الثابت لكل مرحلة. "البونص" يُحتسب عند بلوغ "قيمة المبيعات" المقابلة.
         </p>
       </CardContent>
     </Card>
