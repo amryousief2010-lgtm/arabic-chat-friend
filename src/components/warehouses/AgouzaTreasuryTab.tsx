@@ -537,11 +537,13 @@ function HandoverTable({
               <TableHead>الملاحظات</TableHead>
               {kind === "approved" && <TableHead>المعتمد</TableHead>}
               {kind === "rejected" && <TableHead>سبب الرفض</TableHead>}
-              {kind === "pending" && <TableHead className="text-left">إجراء</TableHead>}
+              <TableHead className="text-left">إجراء</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map(t => (
+            {rows.map(t => {
+              const hasSheet = !!extractBosttaFilenameFromNotes(t.notes);
+              return (
               <TableRow key={t.id}>
                 <TableCell className="text-xs whitespace-nowrap">{formatDateTime(t.txn_date)}</TableCell>
                 <TableCell className="font-mono text-xs">{t.txn_no}</TableCell>
@@ -553,24 +555,32 @@ function HandoverTable({
                 {kind === "rejected" && (
                   <TableCell className="text-xs text-rose-600">{t.rejection_reason}</TableCell>
                 )}
-                {kind === "pending" && (
-                  <TableCell className="text-left">
-                    {canApprove ? (
-                      <div className="flex gap-2 justify-end">
-                        <Button size="sm" onClick={() => onApprove?.(t.id)}>
-                          <CheckCircle2 className="w-4 h-4 ml-1" /> اعتماد
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => onReject?.(t.id)}>
-                          <XCircle className="w-4 h-4 ml-1" /> رفض
-                        </Button>
-                      </div>
-                    ) : (
-                      <Badge variant="outline">بانتظار الإدارة</Badge>
+                <TableCell className="text-left">
+                  <div className="flex gap-2 justify-end flex-wrap">
+                    {hasSheet && (
+                      <Button size="sm" variant="outline" onClick={() => printBosttaHandoverInvoice(t)} title="طباعة فاتورة التوريد بأوردراتها">
+                        <Printer className="w-4 h-4 ml-1" /> طباعة الفاتورة
+                      </Button>
                     )}
-                  </TableCell>
-                )}
+                    {kind === "pending" && (
+                      canApprove ? (
+                        <>
+                          <Button size="sm" onClick={() => onApprove?.(t.id)}>
+                            <CheckCircle2 className="w-4 h-4 ml-1" /> اعتماد
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => onReject?.(t.id)}>
+                            <XCircle className="w-4 h-4 ml-1" /> رفض
+                          </Button>
+                        </>
+                      ) : (
+                        <Badge variant="outline">بانتظار الإدارة</Badge>
+                      )
+                    )}
+                  </div>
+                </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
             {rows.length === 0 && (
               <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا يوجد</TableCell></TableRow>
             )}
