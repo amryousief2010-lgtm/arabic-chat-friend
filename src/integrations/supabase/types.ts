@@ -20728,6 +20728,26 @@ export type Database = {
         Args: { p_from?: string; p_to?: string }
         Returns: Json
       }
+      get_top_offer_boxes_by_days: {
+        Args: { p_days?: number; p_limit?: number }
+        Returns: {
+          items_count: number
+          offer_name: string
+          orders_count: number
+          total_sales: number
+        }[]
+      }
+      get_top_products_by_days: {
+        Args: { p_days?: number; p_limit?: number }
+        Returns: {
+          orders_count: number
+          product_id: string
+          product_name: string
+          quantity: number
+          total_sales: number
+          unit: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -21570,6 +21590,17 @@ export type Database = {
       reverse_slaughter_receipt: {
         Args: { p_output_id: string; p_reason?: string }
         Returns: Json
+      }
+      save_order_items_edit: {
+        Args: {
+          p_delivery_fee?: number
+          p_discount: number
+          p_items: Json
+          p_order_id: string
+          p_subtotal: number
+          p_total: number
+        }
+        Returns: undefined
       }
       set_opening_live_ostrich_cost: {
         Args: {

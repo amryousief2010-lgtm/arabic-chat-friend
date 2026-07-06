@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -73,6 +73,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   const [discount, setDiscount] = useState<number>(0);
   const [originalDiscount, setOriginalDiscount] = useState<number>(0);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   // offer_name -> (group -> unit price) derived from offer_boxes
   const [offerGroupPrices, setOfferGroupPrices] = useState<
     Record<string, Partial<Record<OfferPriceGroup, number>>>
@@ -205,6 +206,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   };
 
   const handleSave = async () => {
+    if (savingRef.current) return;
     // Validate (skip synthetic shipping lines — they have no product_id by design)
     for (const it of items) {
       if (it._deleted) continue;
@@ -223,6 +225,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
       }
     }
 
+    savingRef.current = true;
     setSaving(true);
     try {
       // Compute final totals from the SAME state the UI shows (preview === save).
@@ -239,83 +242,31 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         );
       }
 
-      // Deletes
-      const toDelete = itemsForWrite
-        .filter((it) => it.id && it._deleted)
-        .map((it) => it.id!);
-      if (toDelete.length) {
-        const { error } = await supabase.from("order_items").delete().in("id", toDelete);
-        if (error) throw error;
-      }
+      // Persist all item changes in one backend call. This avoids several
+      // sequential requests/triggers on mobile networks and prevents timeout
+      // errors while keeping the UI preview and DB row on the same totals.
+      const deliveryFee = finalTotals.hasOfferItems || initialItems.some((it) => it.offer_name) ? 0 : undefined;
+      const payload = itemsForWrite.map((it) => ({
+        id: it.id ?? null,
+        product_id: it.product_id,
+        product_name: it.product_name,
+        quantity: Number(it.quantity || 0),
+        unit_price: Number(it.unit_price || 0),
+        offer_name: it.offer_name ?? null,
+        is_half_kg: !!it.is_half_kg,
+        is_gift: !!it.is_gift,
+        _deleted: !!it._deleted,
+      }));
 
-      // Updates (existing not deleted, with changes)
-      const toUpdate = itemsForWrite.filter(
-        (it) =>
-          it.id &&
-          !it._deleted &&
-          it._original &&
-          (it._original.product_id !== it.product_id ||
-            Number(it._original.quantity) !== Number(it.quantity) ||
-            Number(it._original.unit_price) !== Number(it.unit_price))
-      );
-      for (const it of toUpdate) {
-        const total = Number(it.quantity) * Number(it.unit_price);
-        const { error } = await supabase
-          .from("order_items")
-          .update({
-            product_id: it.product_id,
-            product_name: it.product_name,
-            quantity: it.quantity,
-            unit_price: it.unit_price,
-            total_price: total,
-            is_gift: !!it.is_gift,
-          })
-          .eq("id", it.id!);
-        if (error) throw error;
-      }
-
-      // Inserts
-      const toInsert = itemsForWrite
-        .filter((it) => !it.id && !it._deleted)
-        .map((it) => ({
-          order_id: orderId,
-          product_id: it.product_id,
-          product_name: it.product_name,
-          quantity: it.quantity,
-          unit_price: it.unit_price,
-          total_price: Number(it.quantity) * Number(it.unit_price),
-          is_gift: !!it.is_gift,
-        }));
-      if (toInsert.length) {
-        const { error } = await supabase.from("order_items").insert(toInsert);
-        if (error) throw error;
-      }
-
-      // Always persist totals — UI preview and DB row must agree.
-      // For offer orders, the bundled shipping lives inside order_items, so
-      // delivery_fee on the order row stays 0 (and is forced to 0 if the
-      // last offer item was removed).
-      const update: {
-        subtotal: number;
-        discount: number;
-        total: number;
-        delivery_fee?: number;
-      } = {
-        subtotal: finalTotals.subtotal,
-        discount: Number(discount) || 0,
-        total: finalTotals.total,
-      };
-      if (finalTotals.hasOfferItems) {
-        update.delivery_fee = 0;
-      } else if (initialItems.some((it) => it.offer_name)) {
-        // We just removed the last offer line → clear any residual delivery fee.
-        update.delivery_fee = 0;
-      }
-      const { error: uerr } = await supabase
-        .from("orders")
-        .update(update)
-        .eq("id", orderId);
-      if (uerr) throw uerr;
+      const { error: saveError } = await supabase.rpc("save_order_items_edit", {
+        p_order_id: orderId,
+        p_items: payload,
+        p_subtotal: finalTotals.subtotal,
+        p_discount: Number(discount) || 0,
+        p_total: finalTotals.total,
+        p_delivery_fee: deliveryFee,
+      });
+      if (saveError) throw saveError;
 
       // M4-B: re-reserve Agouza stock if this order is sourced from Agouza warehouse.
       // No effect on Main warehouse, Kimo, couriers, or any other source.
@@ -333,6 +284,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
       console.error(err);
       toast.error(err.message || "حدث خطأ أثناء الحفظ");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
