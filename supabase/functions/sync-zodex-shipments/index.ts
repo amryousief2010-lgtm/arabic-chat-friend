@@ -301,7 +301,11 @@ Deno.serve(async (req) => {
 
     await supabase.from("zodex_sync_runs").update({
       status: errors.length ? "completed_with_errors" : "success",
-      stats, errors, finished_at: new Date().toISOString(),
+      summary: stats,
+      pipeline_counts: { linked: stats.linked, already_linked: stats.already_linked, total_rows: stats.total_rows },
+      total_rows: stats.total_rows,
+      error_message: errors.length ? errors.join(" | ").slice(0, 2000) : null,
+      finished_at: new Date().toISOString(),
     }).eq("id", run!.id);
 
     return new Response(JSON.stringify({ success: true, stats, errors }), {
@@ -309,7 +313,9 @@ Deno.serve(async (req) => {
     });
   } catch (e: any) {
     await supabase.from("zodex_sync_runs").update({
-      status: "failed", stats, errors: [String(e?.message || e), ...errors],
+      status: "failed",
+      summary: stats,
+      error_message: String(e?.message || e).slice(0, 2000),
       finished_at: new Date().toISOString(),
     }).eq("id", run!.id);
     return new Response(JSON.stringify({ success: false, error: String(e?.message || e), stats }), {
