@@ -88,6 +88,8 @@ const roleLabels: Record<AppRole, string> = {
   lab_treasury_approver: 'معتمد خزنة المعمل والحضانات',
   slaughterhouse_custody_keeper: 'أمين عهدة المجزر',
   social_media_manager: 'مسؤول السوشيال ميديا',
+  marketing_sales_viewer: 'مشاهد قسم التسويق (عرض فقط)',
+  lab_treasury_viewer: 'مشاهد خزنة المعمل (عرض فقط)',
 };
 
 const roleBadgeVariants: Record<AppRole, 'default' | 'secondary' | 'outline' | 'destructive'> = {
