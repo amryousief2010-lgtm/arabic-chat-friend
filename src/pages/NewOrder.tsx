@@ -2370,7 +2370,7 @@ const NewOrder = () => {
 
           {approvalDialog.status === 'pending' && (
             <div className="rounded-md border bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-800 dark:text-amber-200">
-              طلب الموافقة اتبعت بالفعل ومستنى الرد. هترجعى تسجلى الطلب أول ما يتم القبول.
+              طلب الموافقة اتبعت بالفعل ومستنى موافقة مديرة التسويق والمدير التنفيذي. هترجعى تسجلى الطلب أول ما الاتنين يوافقوا.
             </div>
           )}
           {approvalDialog.status === 'rejected' && (
