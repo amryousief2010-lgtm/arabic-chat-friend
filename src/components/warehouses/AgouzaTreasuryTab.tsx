@@ -63,6 +63,7 @@ export default function AgouzaTreasuryTab() {
   const [handoverAmount, setHandoverAmount] = useState("");
   const [handoverNotes, setHandoverNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [selectedBosttaId, setSelectedBosttaId] = useState<string | null>(null);
 
   // simple cash movement (income/expense) dialog
   const [moveOpen, setMoveOpen] = useState(false);
