@@ -95,11 +95,17 @@ export default function ReassignOwnerDialog({
       return;
     }
     setSaving(true);
-    const { error } = await supabase.rpc("reassign_order_owner", {
-      p_order_id: orderId,
-      p_new_owner_id: newOwnerId,
-      p_reason: reason.trim(),
-    });
+    const isCompany = newOwnerId === "__company__";
+    const { error } = isCompany
+      ? await supabase.rpc("reassign_order_to_company", {
+          p_order_id: orderId,
+          p_reason: reason.trim(),
+        })
+      : await supabase.rpc("reassign_order_owner", {
+          p_order_id: orderId,
+          p_new_owner_id: newOwnerId,
+          p_reason: reason.trim(),
+        });
     setSaving(false);
     if (error) {
       const msg = error.message || "";
@@ -114,7 +120,7 @@ export default function ReassignOwnerDialog({
       else toast.error("تعذر نقل الأوردر: " + msg);
       return;
     }
-    toast.success("تم نقل الأوردر إلى المسؤولة الجديدة");
+    toast.success(isCompany ? "تم نقل الأوردر إلى الشركة" : "تم نقل الأوردر إلى المسؤولة الجديدة");
     onOpenChange(false);
     onDone?.();
   };
