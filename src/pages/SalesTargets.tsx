@@ -351,6 +351,18 @@ const SalesTargets = () => {
                 >
                   <RefreshCw className="h-4 w-4" />
                 </Button>
+                {!isModerator && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={exportTablesToExcel}
+                    title="تحميل جدول البيان وجدول القبض"
+                    className="gap-1"
+                  >
+                    <FileSpreadsheet className="h-4 w-4" />
+                    تحميل Excel
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
