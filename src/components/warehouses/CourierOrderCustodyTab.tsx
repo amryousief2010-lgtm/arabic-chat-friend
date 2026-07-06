@@ -302,8 +302,27 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         }
       });
       setBosttaUploadNets(Array.from(dedupedByFilename.values()));
+
+      // Detect which Bostta sheets have already been handed over to main treasury
+      // (agouza_warehouse_treasury_txns rows with notes containing the sheet filename).
+      const { data: handoverRows } = await (supabase as any)
+        .from("agouza_warehouse_treasury_txns")
+        .select("notes, status")
+        .eq("txn_type", "handover_to_main")
+        .in("status", ["pending", "approved"])
+        .order("created_at", { ascending: false })
+        .limit(200);
+      const deposited = new Set<string>();
+      (handoverRows || []).forEach((r: any) => {
+        const notes = String(r?.notes || "");
+        dedupedByFilename.forEach((upload, key) => {
+          if (upload.filename && notes.includes(upload.filename)) deposited.add(key);
+        });
+      });
+      setDepositedBosttaFilenames(deposited);
     } else {
       setBosttaUploadNets([]);
+      setDepositedBosttaFilenames(new Set());
     }
 
     // Pull orders that are: (a) prepared/ready for assignment, (b) currently assigned
