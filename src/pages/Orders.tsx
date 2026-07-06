@@ -1707,7 +1707,7 @@ const Orders = () => {
                   <SelectItem value="all">جميع المسوقات</SelectItem>
                   <SelectItem value="أية">آية</SelectItem>
                   <SelectItem value="نورا">نورا</SelectItem>
-                  <SelectItem value="سارة">سارة</SelectItem>
+                  
                   <SelectItem value="منال">منال</SelectItem>
                 </SelectContent>
               </Select>
