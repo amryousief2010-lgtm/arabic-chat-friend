@@ -1270,6 +1270,13 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                       // matching Zodex Mega invoices. Show all uploads for Agouza custody view.
                       const bosttaRows: JSX.Element[] = isAgouza
                         ? bosttaUploadNets.map((upload) => {
+                            // Hide Bostta sheets whose extracted amount matches an existing
+                            // Zodex/Mega closed invoice number — that means it's already been
+                            // settled through Mega and doesn't need a separate deposit.
+                            const matchesClosedInvoice = closedInvoices.some(
+                              (inv) => String(inv.invoice_no).trim() === String(upload.netAmount)
+                            );
+                            if (matchesClosedInvoice) return null;
                             const matchedOrders = orders.filter((o) =>
                               o.order_number && upload.orderNumbers.includes(String(o.order_number))
                             );
