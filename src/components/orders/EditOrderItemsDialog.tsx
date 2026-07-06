@@ -245,7 +245,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
       // Persist all item changes in one backend call. This avoids several
       // sequential requests/triggers on mobile networks and prevents timeout
       // errors while keeping the UI preview and DB row on the same totals.
-      const deliveryFee = finalTotals.hasOfferItems || initialItems.some((it) => it.offer_name) ? 0 : null;
+      const deliveryFee = finalTotals.hasOfferItems || initialItems.some((it) => it.offer_name) ? 0 : undefined;
       const payload = itemsForWrite.map((it) => ({
         id: it.id ?? null,
         product_id: it.product_id,
@@ -258,11 +258,6 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         _deleted: !!it._deleted,
       }));
 
-      if (finalTotals.hasOfferItems) {
-        // offer shipping is included as an item line
-      } else if (initialItems.some((it) => it.offer_name)) {
-        // We just removed the last offer line → clear any residual delivery fee.
-      }
       const { error: saveError } = await supabase.rpc("save_order_items_edit", {
         p_order_id: orderId,
         p_items: payload,
