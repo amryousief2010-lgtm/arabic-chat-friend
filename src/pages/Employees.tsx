@@ -150,6 +150,8 @@ const roleIcons: Record<AppRole, React.ElementType> = {
   lab_treasury_approver: Shield,
   slaughterhouse_custody_keeper: Calculator,
   social_media_manager: Megaphone,
+  marketing_sales_viewer: Users,
+  lab_treasury_viewer: Calculator,
 };
 
 const addEmployeeSchema = z.object({
