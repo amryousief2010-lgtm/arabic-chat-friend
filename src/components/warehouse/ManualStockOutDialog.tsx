@@ -296,7 +296,12 @@ const ManualStockOutDialog = ({
   const hasReservedConflict = reservationAnalysis.some((r) => r.reservedFlag);
   const hasNegativeAfter = reservationAnalysis.some((r) => r.negative);
   const exceedRows = reservationAnalysis.filter((r) => r.requested > r.stock).map((r) => r.itemId);
-  const negativeBlocked = hasNegativeAfter && (!isManager || !overrideNegative || overrideReason.trim().length < 3);
+  // In the main warehouse, the warehouse supervisor (and managers) can dispatch
+  // even when the requested qty exceeds the "available-after-reservation" number,
+  // as long as it does NOT exceed the actual physical stock. Other warehouses keep
+  // the stricter manager-only override behavior.
+  const canOverrideReserved = isMainWarehouse && (isManager || isWarehouseSupervisor);
+  const negativeBlocked = hasNegativeAfter && (!canOverrideReserved || !overrideNegative || overrideReason.trim().length < 3);
 
   const validRows = rows.length > 0 && rows.every(r => r.itemId && rowQty(r) > 0);
   const canSave = validDest
@@ -330,18 +335,25 @@ const ManualStockOutDialog = ({
       return;
     }
     if (hasNegativeAfter) {
-      if (!isManager) {
+      if (!canOverrideReserved) {
         toast({
-          title: "صرف يجعل المتاح بالسالب — يتطلب صلاحية المدير العام أو التنفيذي",
+          title: isMainWarehouse
+            ? "الصرف مع وجود حجز يتطلب صلاحية مسؤول المخزن الرئيسي أو المدير"
+            : "صرف يجعل المتاح بالسالب — يتطلب صلاحية المدير العام أو التنفيذي",
           variant: "destructive",
         });
         return;
       }
       if (!overrideNegative || overrideReason.trim().length < 3) {
         toast({
-          title: "فعّل تأكيد المدير وسجّل سببًا واضحًا (≥ ٣ حروف) للصرف بالسالب",
+          title: "فعّل تأكيد التجاوز وسجّل سببًا واضحًا (≥ ٣ حروف) للصرف رغم الحجز",
           variant: "destructive",
         });
+        return;
+      }
+      // Explicit confirmation dialog for reserved-conflict override
+      const confirmMsg = "تنبيه: بعض الكميات التي سيتم صرفها محجوزة لأوردرات قائمة.\nهل تريد المتابعة؟";
+      if (typeof window !== "undefined" && !window.confirm(confirmMsg)) {
         return;
       }
     }
@@ -463,7 +475,10 @@ const ManualStockOutDialog = ({
           `القائم بالتوريد: ${reason.trim()}`,
           `تاريخ التوريد: ${deliveryDate}`,
           reservedNow > 0 ? `محجوز للطلبات: ${reservedNow} ${unit}` : null,
-          availableAfter < 0 ? `⚠️ المتاح بعد الصرف: ${availableAfter} ${unit} — اعتماد مدير: ${profile?.full_name || ""} • سبب: ${overrideReason.trim()}` : null,
+          (reservedNow > 0 && overrideNegative)
+            ? `⚠️ تم الصرف رغم وجود حجز على الأصناف — اعتماد: ${profile?.full_name || ""} • سبب: ${overrideReason.trim()}`
+            : null,
+          availableAfter < 0 ? `⚠️ المتاح بعد الصرف: ${availableAfter} ${unit} — اعتماد: ${profile?.full_name || ""} • سبب: ${overrideReason.trim()}` : null,
           notes.trim() ? `ملاحظات: ${notes.trim()}` : null,
           `قبل: ${stockBefore} ${unit}`,
           `بعد: ${stockAfter} ${unit}`,
@@ -746,19 +761,31 @@ const ManualStockOutDialog = ({
               <ShieldAlert className="h-4 w-4 text-rose-700" />
               <AlertDescription className="text-xs text-rose-900 dark:text-rose-200 space-y-2">
                 <div className="font-bold">
-                  ⚠️ هذا الصرف سيجعل المتاح بالسالب لبعض الأصناف.
+                  {isMainWarehouse
+                    ? "⚠️ بعض الكميات المطلوب صرفها محجوزة لأوردرات قائمة. يمكن المتابعة مع تسجيل السبب."
+                    : "⚠️ هذا الصرف سيجعل المتاح بالسالب لبعض الأصناف."}
                 </div>
-                {!isManager ? (
-                  <div>الحفظ يتطلب صلاحية المدير العام أو المدير التنفيذي.</div>
+                {!canOverrideReserved ? (
+                  <div>
+                    {isMainWarehouse
+                      ? "الحفظ يتطلب صلاحية مسؤول المخزن الرئيسي أو المدير."
+                      : "الحفظ يتطلب صلاحية المدير العام أو المدير التنفيذي."}
+                  </div>
                 ) : (
                   <>
                     <label className="flex items-center gap-2">
                       <input type="checkbox" checked={overrideNegative}
                              onChange={(e) => setOverrideNegative(e.target.checked)} />
-                      <span>أؤكد كمدير الصرف بالسالب على مسؤوليتي.</span>
+                      <span>
+                        {isMainWarehouse
+                          ? "أؤكد الصرف رغم وجود حجز على بعض الكميات على مسؤوليتي."
+                          : "أؤكد كمدير الصرف بالسالب على مسؤوليتي."}
+                      </span>
                     </label>
                     <Input
-                      placeholder="سبب اعتماد المدير للصرف بالسالب (إجباري)"
+                      placeholder={isMainWarehouse
+                        ? "سبب الصرف رغم الحجز (إجباري)"
+                        : "سبب اعتماد المدير للصرف بالسالب (إجباري)"}
                       value={overrideReason}
                       onChange={(e) => setOverrideReason(e.target.value)}
                       maxLength={300}
