@@ -331,9 +331,40 @@ export default function AgouzaTreasuryTab() {
             <DialogDescription>سيتم تسجيل التوريد كـ <b>معلّق</b> ولن يدخل خزنة الرئيسي إلا بعد اعتماد المدير العام / التنفيذي.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {pendingBosttaSheets.length > 0 && (
+              <div className="rounded-md border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+                <div className="text-xs font-semibold text-sky-900">
+                  كشوف بُسطة تم تحصيلها ولم يتم توريدها بعد ({pendingBosttaSheets.length})
+                </div>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {pendingBosttaSheets.map(sheet => (
+                    <button
+                      key={sheet.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedBosttaId(sheet.id);
+                        setHandoverAmount(String(sheet.amount));
+                        setHandoverNotes(`توريد ${sheet.notes}`);
+                      }}
+                      className={`w-full text-right px-3 py-2 rounded border text-xs transition ${
+                        selectedBosttaId === sheet.id
+                          ? "bg-sky-600 text-white border-sky-700"
+                          : "bg-white border-sky-200 hover:border-sky-400"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate">📄 {sheet.filename}</span>
+                        <span className="font-mono font-bold whitespace-nowrap">{sheet.amount.toLocaleString("ar-EG")} ج</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="text-[10px] text-sky-800">اضغط على كشف لتعبئة المبلغ والملاحظات تلقائيًا.</div>
+              </div>
+            )}
             <div>
               <Label>المبلغ (ج.م)</Label>
-              <Input type="number" min="0" step="0.01" value={handoverAmount} onChange={e => setHandoverAmount(e.target.value)} />
+              <Input type="number" min="0" step="0.01" value={handoverAmount} onChange={e => { setHandoverAmount(e.target.value); setSelectedBosttaId(null); }} />
             </div>
             <div>
               <Label>ملاحظات (اختياري)</Label>
