@@ -220,6 +220,8 @@ const DuplicateOrderApprovals = () => {
         customer_phone: customerMap.get(row.customer_id)?.phone,
         requester_name: profileMap.get(row.requested_by),
         decider_name: row.decided_by ? profileMap.get(row.decided_by) : undefined,
+        marketing_decider_name: row.marketing_decided_by ? profileMap.get(row.marketing_decided_by) : undefined,
+        executive_decider_name: row.executive_decided_by ? profileMap.get(row.executive_decided_by) : undefined,
         matched_order: mapOrderCard(row.matched_order_id),
       })));
 
