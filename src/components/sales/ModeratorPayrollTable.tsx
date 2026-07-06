@@ -412,8 +412,8 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
-        <Table className="min-w-[800px] border">
+      <CardContent className="p-2 md:p-4">
+        <Table className="w-full border text-xs md:text-sm">
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead className="text-right font-bold border">البيان</TableHead>
