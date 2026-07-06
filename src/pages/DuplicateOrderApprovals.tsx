@@ -56,7 +56,10 @@ type ApprovalRow = {
     fulfillment_type: string | null;
     delivery_address: string | null;
     products_summary: string;
+    total?: number | null;
+    notes?: string | null;
   };
+
 };
 
 type AuditRow = {
