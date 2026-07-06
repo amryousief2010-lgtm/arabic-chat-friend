@@ -32,14 +32,6 @@ export const MODERATORS: ModeratorConfig[] = [
     iconBg: "bg-secondary",
   },
   {
-    slug: "sara",
-    displayName: "سارة",
-    canonicalModerator: "سارة",
-    aliases: ["سارة", "ساره", "سارا"],
-    gradient: "from-success to-success/70",
-    iconBg: "bg-success",
-  },
-  {
     slug: "manal",
     displayName: "منال",
     canonicalModerator: "منال",
