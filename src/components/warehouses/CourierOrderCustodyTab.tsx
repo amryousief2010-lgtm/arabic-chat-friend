@@ -1310,8 +1310,21 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                             .oh { font-size:13px; padding-bottom:6px; border-bottom:1px solid #e5e7eb; margin-bottom:6px; }
                             .oh .lbl { background:#6366f1; color:#fff; padding:1px 6px; border-radius:3px; font-size:11px; }
                             .oh .st { color:#059669; font-size:11px; margin-right:6px; }
+                            .badges { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+                            .pay-badge { display:inline-block; font-size:10px; padding:2px 6px; border-radius:10px; font-weight:bold; border:1px solid; }
+                            .pay-badge.voda { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
+                            .pay-badge.insta { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+                            .pay-badge.bank { background:#f0fdf4; color:#166534; border-color:#bbf7d0; }
+                            .pay-badge.other { background:#faf5ff; color:#7e22ce; border-color:#e9d5ff; }
+                            .pay-badge.free { background:#fefce8; color:#a16207; border-color:#fef08a; }
                             .ol { display:flex; flex-wrap:wrap; gap:8px 14px; font-size:11px; margin-bottom:6px; }
                             .ol b { font-family:monospace; }
+                            .pay-line { padding:2px 6px; border-radius:4px; border:1px solid transparent; }
+                            .pay-line.voda { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
+                            .pay-line.insta { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+                            .pay-line.bank { background:#f0fdf4; color:#166534; border-color:#bbf7d0; }
+                            .pay-line.other { background:#faf5ff; color:#7e22ce; border-color:#e9d5ff; }
+                            .pay-line.free { background:#fefce8; color:#a16207; border-color:#fef08a; }
                             table.items { width:100%; border-collapse:collapse; font-size:11px; }
                             table.items th, table.items td { border:1px solid #d1d5db; padding:3px 6px; text-align:right; }
                             table.items thead th { background:#f3f4f6; }
