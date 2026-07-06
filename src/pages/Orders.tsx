@@ -2046,7 +2046,12 @@ const Orders = () => {
                           );
                         })()}
                       </div>
-                      <span className="shrink-0">{formatDate(order.created_at)}</span>
+                      <span className="shrink-0 flex items-center gap-1">
+                        <span>{formatDate(order.created_at)}</span>
+                        <span className="text-muted-foreground text-[11px]" dir="ltr">
+                          {new Date(order.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </span>
                     </div>
 
                     {/* شريط الأزرار */}
