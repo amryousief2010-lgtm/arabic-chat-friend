@@ -413,6 +413,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         </div>
       </CardHeader>
       <CardContent className="p-2 md:p-4">
+        <div id="moderator-payroll-table">
         <Table className="w-full border text-xs md:text-sm">
           <TableHeader>
             <TableRow className="bg-muted/50">
