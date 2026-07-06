@@ -407,42 +407,42 @@ const AnimatedRoutes = () => {
 
           <Route path="/social-media/daily" element={
             <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager', 'marketing_sales_viewer']}>
-              <PageTransition><SocialMediaDailyReport /></PageTransition>
+              <ViewOnlySection section="marketing"><PageTransition><SocialMediaDailyReport /></PageTransition></ViewOnlySection>
             </ProtectedRoute>
           } />
           <Route path="/social-media/weekly" element={
             <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager', 'marketing_sales_viewer']}>
-              <PageTransition><SocialMediaWeeklyReport /></PageTransition>
+              <ViewOnlySection section="marketing"><PageTransition><SocialMediaWeeklyReport /></PageTransition></ViewOnlySection>
             </ProtectedRoute>
           } />
           <Route path="/social-media/my-reports" element={
             <ProtectedRoute allowedRoles={['social_media_manager','general_manager','executive_manager','marketing_sales_manager', 'marketing_sales_viewer']}>
-              <PageTransition><SocialMediaMyReports /></PageTransition>
+              <ViewOnlySection section="marketing"><PageTransition><SocialMediaMyReports /></PageTransition></ViewOnlySection>
             </ProtectedRoute>
           } />
           <Route path="/social-media/review" element={
             <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager', 'marketing_sales_viewer']}>
-              <PageTransition><SocialMediaReportsReview /></PageTransition>
+              <ViewOnlySection section="marketing"><PageTransition><SocialMediaReportsReview /></PageTransition></ViewOnlySection>
             </ProtectedRoute>
           } />
           <Route path="/social-media/dashboard" element={
             <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager', 'marketing_sales_viewer']}>
-              <PageTransition><SocialMediaDashboard /></PageTransition>
+              <ViewOnlySection section="marketing"><PageTransition><SocialMediaDashboard /></PageTransition></ViewOnlySection>
             </ProtectedRoute>
           } />
           <Route path="/social-media/export" element={
             <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager', 'marketing_sales_viewer']}>
-              <PageTransition><SocialMediaExport /></PageTransition>
+              <ViewOnlySection section="marketing"><PageTransition><SocialMediaExport /></PageTransition></ViewOnlySection>
             </ProtectedRoute>
           } />
           <Route path="/social-media/marketing-dashboard" element={
             <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager', 'marketing_sales_viewer']}>
-              <PageTransition><SocialMediaMarketingDashboard /></PageTransition>
+              <ViewOnlySection section="marketing"><PageTransition><SocialMediaMarketingDashboard /></PageTransition></ViewOnlySection>
             </ProtectedRoute>
           } />
           <Route path="/social-media/expenses" element={
             <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager', 'marketing_sales_viewer']}>
-              <PageTransition><SocialMediaExpenses /></PageTransition>
+              <ViewOnlySection section="marketing"><PageTransition><SocialMediaExpenses /></PageTransition></ViewOnlySection>
             </ProtectedRoute>
           } />
 
@@ -776,32 +776,32 @@ const AnimatedRoutes = () => {
           } />
           <Route path="/lab-treasury" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_treasury_viewer']}>
-              <PageTransition><LabTreasury /></PageTransition>
+              <ViewOnlySection section="lab-treasury"><PageTransition><LabTreasury /></PageTransition></ViewOnlySection>
             </ProtectedRoute>
           } />
           <Route path="/lab-treasury/historical-receivables" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_external_collector', 'slaughterhouse_manager', 'slaughterhouse_custody_keeper', 'lab_treasury_viewer']}>
-              <PageTransition><LabHistoricalReceivables /></PageTransition>
+              <ViewOnlySection section="lab-treasury"><PageTransition><LabHistoricalReceivables /></PageTransition></ViewOnlySection>
             </ProtectedRoute>
           } />
           <Route path="/lab-treasury/external-receivables" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'accountant', 'financial_manager', 'slaughterhouse_manager', 'slaughterhouse_custody_keeper', 'lab_treasury_viewer']}>
-              <PageTransition><LabExternalReceivables /></PageTransition>
+              <ViewOnlySection section="lab-treasury"><PageTransition><LabExternalReceivables /></PageTransition></ViewOnlySection>
             </ProtectedRoute>
           } />
           <Route path="/lab-treasury/customer-debts" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_treasury_viewer']}>
-              <PageTransition><LabCustomerDebts /></PageTransition>
+              <ViewOnlySection section="lab-treasury"><PageTransition><LabCustomerDebts /></PageTransition></ViewOnlySection>
             </ProtectedRoute>
           } />
           <Route path="/lab-treasury/customer-statement" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_viewer']}>
-              <PageTransition><LabCustomerStatement /></PageTransition>
+              <ViewOnlySection section="lab-treasury"><PageTransition><LabCustomerStatement /></PageTransition></ViewOnlySection>
             </ProtectedRoute>
           } />
           <Route path="/lab-treasury/customer-balances" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_viewer']}>
-              <PageTransition><LabCustomerBalances /></PageTransition>
+              <ViewOnlySection section="lab-treasury"><PageTransition><LabCustomerBalances /></PageTransition></ViewOnlySection>
             </ProtectedRoute>
           } />
           <Route path="/my-lab-collections" element={
