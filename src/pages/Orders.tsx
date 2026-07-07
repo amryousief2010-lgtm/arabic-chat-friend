@@ -1623,12 +1623,23 @@ const Orders = () => {
             )}
           </CardTitle>
           <div className="flex flex-wrap items-center gap-3">
-            <Input
-              placeholder="بحث برقم الطلب (كامل أو آخر 6 أرقام) أو اسم العميل أو رقم الهاتف..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-64 input-modern"
-            />
+            <div className="flex items-center gap-1">
+              <Input
+                placeholder="ابحث برقم الطلب / رقم الموبايل / اسم العميل / المحافظة"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); triggerSearchNow(); } }}
+                className="w-72 input-modern"
+              />
+              <Button size="sm" variant="outline" onClick={triggerSearchNow} title="بحث">
+                <Search className="w-4 h-4" />
+              </Button>
+              {searchQuery && (
+                <Button size="sm" variant="ghost" onClick={() => { setSearchQuery(""); setDebouncedSearch(""); }} title="مسح">
+                  <XCircle className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
             <Select value={filterMonth} onValueChange={setFilterMonth}>
               <SelectTrigger className="w-36 input-modern">
                 <SelectValue placeholder="الشهر" />
