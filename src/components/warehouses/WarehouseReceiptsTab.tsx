@@ -393,6 +393,7 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
             date: ts,
             source_label: sourceLabel,
             destination_label: m?.warehouse?.name || "—",
+            dest_warehouse_id: m.warehouse_id ?? null,
             items_count: 0,
             total_qty: 0,
             quality: "مقبول",
