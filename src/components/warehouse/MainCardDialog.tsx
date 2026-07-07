@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PackageCheck, AlertTriangle, Download, Eye } from "lucide-react";
+import { PackageCheck, AlertTriangle, Download, Eye, ArrowLeftRight } from "lucide-react";
 import { formatDateTime } from "@/lib/dateFormat";
 
 interface Product { id: string; name: string; unit: string; }
@@ -22,11 +22,17 @@ interface Props {
   onSearch: (s: string) => void;
   onOpenReserved: (productId: string, name: string, total: number) => void;
   warehouseName?: string;
+  onOpenDistribute?: (product: Product, actual: number, reserved: number) => void;
 }
+
+const fmtNum = (n: number) => {
+  if (!isFinite(n)) return "0";
+  return String(Math.round(n * 1000) / 1000);
+};
 
 export default function MainCardDialog({
   mode, onClose, products, mainStock, mainPending, mainCost, mainSku, mainLastMove,
-  search, onSearch, onOpenReserved, warehouseName,
+  search, onSearch, onOpenReserved, warehouseName, onOpenDistribute,
 }: Props) {
   const whLabel = warehouseName || "المخزن الرئيسي";
 
