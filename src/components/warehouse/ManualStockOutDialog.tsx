@@ -801,8 +801,8 @@ const ManualStockOutDialog = ({
                     <th className="p-2 text-right">وزن العبوة</th>
                     <th className="p-2 text-right">الكمية (كجم)</th>
                     {canManualKg && <th className="p-2 text-right">يدوي</th>}
-                    <th className="p-2 text-right">الرصيد</th>
-                    <th className="p-2 text-right">بعد</th>
+                    <th className="p-2 text-right">الرصيد (عبوة)</th>
+                    <th className="p-2 text-right">بعد (عبوة)</th>
                     <th className="p-2"></th>
                   </tr>
                 </thead>
