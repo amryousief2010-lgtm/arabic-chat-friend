@@ -1035,6 +1035,58 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Shortage override dialog — appears when RPC reports products with insufficient stock */}
+      <Dialog open={!!shortageDialog} onOpenChange={(o) => !o && setShortageDialog(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              تحذير: أصناف رصيدها أقل من المطلوب
+            </DialogTitle>
+            <DialogDescription>
+              الأصناف التالية رصيدها في المخزن الرئيسي أقل من كمية الصرف. لو اعتمدت، رصيد الأصناف دي هيبقى بالسالب في المخزن الرئيسي.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-72 overflow-auto border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>الصنف</TableHead>
+                  <TableHead className="text-center">المطلوب</TableHead>
+                  <TableHead className="text-center">المتاح</TableHead>
+                  <TableHead className="text-center text-destructive">النقص</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(shortageDialog?.shortages || []).map((s, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">{s.product_name}</TableCell>
+                    <TableCell className="text-center">{Number(s.required).toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{Number(s.available).toFixed(2)}</TableCell>
+                    <TableCell className="text-center font-bold text-destructive">-{Number(s.shortage).toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <Alert variant="destructive" className="mt-2">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>تنبيه</AlertTitle>
+            <AlertDescription>
+              اعتماد الصرف مع النقص هيخلي رصيد الأصناف دي بالسالب. تأكد إن ده مقصود قبل الموافقة.
+            </AlertDescription>
+          </Alert>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShortageDialog(null)} disabled={saving}>
+              لا، إلغاء
+            </Button>
+            <Button variant="destructive" onClick={() => approveDispatch(true)} disabled={saving}>
+              {saving ? <><Loader2 className="h-4 w-4 ml-1 animate-spin" />جاري التنفيذ…</> : <>نعم، اعتمد مع السماح بالسالب</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
