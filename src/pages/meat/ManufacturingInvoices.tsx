@@ -127,7 +127,16 @@ export default function ManufacturingInvoices() {
       setMainWarehouses(main);
       if (factory[0]) setFactoryWarehouseId(prev => prev || factory[0].id);
     }
-    if (inv.data) setInvoices(inv.data as any);
+    if (inv.data) {
+      setInvoices(inv.data as any);
+      const tids = Array.from(new Set((inv.data as any[]).map((i: any) => i.transfer_id).filter(Boolean)));
+      if (tids.length) {
+        const { data: trs } = await supabase.from("warehouse_transfers").select("id,status").in("id", tids);
+        const map: Record<string, string> = {};
+        (trs || []).forEach((t: any) => { map[t.id] = t.status; });
+        setTransferStatusMap(map);
+      } else setTransferStatusMap({});
+    }
     if (ri.data) setItems(ri.data as any);
     if (mp.data) setMappings(mp.data as any);
     if (cd.data) setAvailableCarryovers(cd.data as any);
