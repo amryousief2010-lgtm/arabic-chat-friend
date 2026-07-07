@@ -1255,7 +1255,7 @@ export default function ManufacturingInvoices() {
                     <div className="grid grid-cols-3 gap-2">
                       <div><b>المنتج:</b> {viewing.product_name}</div>
                       <div><b>الكمية:</b> {fmt(viewing.finished_qty)} {viewing.unit}</div>
-                      <div><b>الحالة:</b> {statusBadge(viewing.status)}</div>
+                      <div><b>الحالة:</b> {statusBadge(viewing.status, viewing)}</div>
                       <div><b>إجمالي الخامات:</b> {fmt(viewing.raw_cost)}</div>
                       <div><b>إجمالي البهارات:</b> {fmt(viewing.spice_cost)}</div>
                       <div><b>إجمالي التغليف:</b> {fmt(viewing.packaging_cost)}</div>
