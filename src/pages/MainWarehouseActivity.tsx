@@ -190,6 +190,8 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
         source_name: m.source_warehouse_id ? whMap.get(m.source_warehouse_id) : undefined,
         destination_name: m.destination_warehouse_id ? whMap.get(m.destination_warehouse_id) : undefined,
         performed_by_name: m.performed_by ? userMap.get(m.performed_by) : undefined,
+        unit_cost: m.unit_cost != null ? Number(m.unit_cost) : null,
+        total_cost: m.total_cost != null ? Number(m.total_cost) : null,
       })));
     } finally {
       setLoading(false);
