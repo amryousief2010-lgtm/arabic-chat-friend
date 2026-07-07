@@ -504,7 +504,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
     return (
       <div className="flex flex-col items-end gap-0.5">
         <div className="flex items-center gap-1">
-          <Badge variant="outline" className="font-bold">{kgValue} كجم</Badge>
+          <Badge variant="outline" className="font-bold">{fmtKg(kgValue)} كجم</Badge>
           {canEditFor(wh) && (
             <button
               className="text-muted-foreground hover:text-primary opacity-60 hover:opacity-100"
