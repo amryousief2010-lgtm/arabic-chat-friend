@@ -145,7 +145,7 @@ function printReceipt(row: ReceiptRow) {
   openPrintWindow(`محضر استلام ${row.batch_no}`, body);
 }
 
-export default function WarehouseReceiptsTab() {
+export default function WarehouseReceiptsTab({ warehouseId, warehouseName, startDate }: WarehouseReceiptsTabProps = {}) {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<ReceiptRow[]>([]);
   const [activeSub, setActiveSub] = useState<ReceiptKind>("slaughter");
