@@ -459,6 +459,13 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
   const canEditFor = (wh: SingleWh) => wh === "agouza" ? canEditAgouza : canEditAll;
 
+  // Format kg values: strip float artefacts (e.g. 14.100000000000001 → 14.1), 2 decimals max.
+  const fmtKg = (v: number) => {
+    if (v == null || isNaN(v)) return "0";
+    const rounded = Math.round(v * 100) / 100;
+    return String(rounded);
+  };
+
 
   // خلية الرصيد الفعلي (قابلة للتعديل) — تعرض عدد العبوات والكيلو
   const ActualCell = ({ wh, pid, name, kgValue }: { wh: SingleWh; pid: string; name: string; kgValue: number }) => {
