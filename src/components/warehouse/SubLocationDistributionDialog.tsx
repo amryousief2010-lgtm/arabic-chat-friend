@@ -42,6 +42,22 @@ const fmt = (n: number) => {
   return Number(r).toString();
 };
 
+// كيلوجرامات لكل عبوة (نفس منطق شاشة المخزن)
+const kgPerPackage = (name: string): number => {
+  const n = (name || "").trim();
+  if (n.includes("6ك") || n.includes("دبوس بالعظم")) return 6;
+  if (n.includes("نعامة صندوق")) return 6;
+  return 0.5;
+};
+
+const fmtPkgs = (kg: number, name: string): string => {
+  const per = kgPerPackage(name);
+  if (!per || per <= 0) return "";
+  const p = Math.round((kg / per) * 100) / 100;
+  return `${p} عبوة`;
+};
+
+
 export default function SubLocationDistributionDialog({
   open, onClose, warehouseId, warehouseName, productId, productName, unit,
   mainActual, mainReserved,
