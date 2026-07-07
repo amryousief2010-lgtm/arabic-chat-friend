@@ -282,7 +282,7 @@ export default function SubLocationDistributionDialog({
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">
-                    الكمية {fromSub ? `(المتاح: ${fmt(stockBySub[fromSub] || 0)} ${unit})` : ""}
+                    الكمية {fromSub ? `(المتاح: ${fmt(stockBySub[fromSub] || 0)} ${unit} • ${fmtPkgs(stockBySub[fromSub] || 0, productName)})` : ""}
                   </label>
                   <Input
                     type="number"
@@ -293,7 +293,11 @@ export default function SubLocationDistributionDialog({
                     onChange={(e) => setQty(e.target.value)}
                     placeholder="0"
                   />
+                  {qty && Number(qty) > 0 && (
+                    <div className="text-[10px] text-muted-foreground mt-1">= {fmtPkgs(Number(qty), productName)}</div>
+                  )}
                 </div>
+
                 <div className="flex items-end">
                   <Button className="w-full" disabled={!canTransfer || busy} onClick={submitTransfer}>
                     {busy ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : <ArrowLeftRight className="w-4 h-4 ml-1" />}
