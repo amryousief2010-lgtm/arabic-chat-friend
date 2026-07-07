@@ -150,7 +150,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
     setLoading(true);
     try {
       const [pRes, wRes] = await Promise.all([
-        supabase.from("products").select("id, name, unit, category, barcode").eq("is_active", true).order("name"),
+        supabase.from("products").select("id, name, unit, category, barcode, image_url").eq("is_active", true).order("name"),
         supabase.from("warehouses").select("id, name").eq("is_active", true),
       ]);
       setProducts((pRes.data || []) as Product[]);
