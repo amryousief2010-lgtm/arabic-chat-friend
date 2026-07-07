@@ -1212,7 +1212,7 @@ const Orders = () => {
   const saveMixedBreakdown = async () => {
     const id = mixedDlgOrderId;
     if (!id) return;
-    const target = orders.find((o) => o.id === id);
+    const target = orders.find((o) => o.id === id) ?? mixedDlgOrderSnap;
     if (!target) return;
     const cash = Number(mixedCash) || 0;
     const vod = Number(mixedVod) || 0;
@@ -1220,13 +1220,14 @@ const Orders = () => {
     const bank = Number(mixedBank) || 0;
     const other = Number(mixedOther) || 0;
     const free = Number(mixedFree) || 0;
-    const sum = cash + vod + insta + bank + other + free;
+    const deposit = Number(mixedDeposit) || 0;
+    const sum = cash + vod + insta + bank + other + free + deposit;
     const totalVal = Number(target.total || 0);
     if (Math.abs(sum - totalVal) > 0.01) {
       toast.error(`مجموع مبالغ التحصيل (${sum.toFixed(2)}) لا يساوي قيمة الأوردر (${totalVal.toFixed(2)}).`);
       return;
     }
-    if ([cash, vod, insta, bank, other, free].some((v) => v < 0)) {
+    if ([cash, vod, insta, bank, other, free, deposit].some((v) => v < 0)) {
       toast.error('لا يمكن إدخال مبالغ سالبة.');
       return;
     }
@@ -1240,6 +1241,7 @@ const Orders = () => {
         bank_transfer_amount: bank,
         other_amount: other,
         free_amount: free,
+        deposit_amount: deposit,
         transfer_reference: mixedRef || null,
         collection_note: mixedNote || null,
         collection_updated_at: nowIso,
@@ -1263,6 +1265,8 @@ const Orders = () => {
         new_other_amount: other,
         old_free_amount: target.free_amount ?? 0,
         new_free_amount: free,
+        old_deposit_amount: (target as any).deposit_amount ?? 0,
+        new_deposit_amount: deposit,
         transfer_reference: mixedRef || null,
         note: mixedNote || null,
         changed_by: user?.id ?? null,
@@ -1275,10 +1279,13 @@ const Orders = () => {
         bank_transfer_amount: bank,
         other_amount: other,
         free_amount: free,
+        deposit_amount: deposit,
         transfer_reference: mixedRef || null,
         collection_updated_at: nowIso,
-      } : o));
+      } as any : o));
       setMixedDlgOrderId(null);
+      setMixedDlgOrderSnap(null);
+
       toast.success('تم حفظ توزيع التحصيل المختلط ✅');
       // إن كانت النافذة فُتحت أثناء تدفق التسليم، تابع الآن.
       if (deliverAfterMixedSave) {
