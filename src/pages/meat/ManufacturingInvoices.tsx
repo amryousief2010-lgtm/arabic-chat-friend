@@ -1402,12 +1402,19 @@ export default function ManufacturingInvoices() {
         </Dialog>
 
         <Dialog open={!!transferInv} onOpenChange={(v) => !v && setTransferInv(null)}>
-          <DialogContent dir="rtl">
+          <DialogContent dir="rtl" className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>تحويل {transferInv?.product_name} ({fmt(transferInv?.finished_qty)} {transferInv?.unit}) للمخزن الرئيسي</DialogTitle>
+              <DialogTitle>مراجعة توريد للمخزن الرئيسي — {transferInv?.invoice_no}</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">لن يزيد رصيد المخزن الرئيسي إلا بعد موافقة مسؤول المخزن على الاستلام.</p>
+              <div className="rounded-lg border-2 border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 p-3 space-y-2">
+                <div className="text-sm font-semibold text-blue-900 dark:text-blue-200">الكميات المطلوب توريدها:</div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div><b>المنتج:</b> {transferInv?.product_name}</div>
+                  <div><b>الكمية:</b> {fmt(transferInv?.finished_qty)} {transferInv?.unit}</div>
+                  <div className="col-span-2"><b>رقم فاتورة التصنيع:</b> <span className="font-mono">{transferInv?.invoice_no}</span></div>
+                </div>
+              </div>
               <div>
                 <Label>المخزن الرئيسي المستلِم</Label>
                 <Select value={transferDestId} onValueChange={setTransferDestId}>
@@ -1415,12 +1422,15 @@ export default function ManufacturingInvoices() {
                   <SelectContent>{mainWarehouses.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+              <p className="text-xs text-amber-800 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 rounded p-2">
+                ⚠️ لن يزيد رصيد المخزن الرئيسي إلا بعد موافقة مسؤول المخزن على الاستلام. الفاتورة لا يمكن توريدها مرتين.
+              </p>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setTransferInv(null)}>إلغاء</Button>
               <Button onClick={submitTransfer} disabled={busy} className="bg-blue-600 hover:bg-blue-700">
                 {busy ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Send className="w-4 h-4 ml-1" />}
-                إرسال التحويل
+                تأكيد التوريد للمخزن الرئيسي
               </Button>
             </DialogFooter>
           </DialogContent>
