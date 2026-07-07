@@ -120,6 +120,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState<string>("");
   const [lastDispatch, setLastDispatch] = useState<{ courierName: string; ordersCount: number; customersCount: number; itemsCount: number; at: string; reference: string; movementsCreated: number; unresolved: string[] } | null>(null);
+  const [shortageDialog, setShortageDialog] = useState<null | { shortages: Array<{ product_name: string; required: number; available: number; shortage: number }> }>(null);
 
   const getDeliveryKind = useMemo(() => makeGetDeliveryKind(warehouseId), [warehouseId]);
 
