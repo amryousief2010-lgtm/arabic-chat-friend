@@ -71,12 +71,14 @@ export default function SubLocationDistributionDialog({
 
       const { data: mRows } = await supabase
         .from("sublocation_movements")
-        .select("id, qty, created_at, from_sublocation_id, to_sublocation_id, created_by")
+        .select("id, qty, created_at, from_sublocation_id, to_sublocation_id, created_by, source, notes")
         .eq("product_id", productId)
-        .in("from_sublocation_id", subIds)
         .order("created_at", { ascending: false })
-        .limit(30);
-      const moveList = (mRows || []) as Move[];
+        .limit(50);
+      const moveList = ((mRows || []) as any[]).filter(
+        (m) => (m.from_sublocation_id && subIds.includes(m.from_sublocation_id))
+          || (m.to_sublocation_id && subIds.includes(m.to_sublocation_id)),
+      ) as Move[];
       setMoves(moveList);
 
       const uids = Array.from(new Set(moveList.map((m) => m.created_by).filter(Boolean))) as string[];
