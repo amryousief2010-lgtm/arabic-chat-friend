@@ -95,6 +95,8 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
   const [mainStock, setMainStock] = useState<Record<string, number>>({});
+  const [mainFreezers, setMainFreezers] = useState<Record<string, number>>({});
+  const [mainFridge, setMainFridge] = useState<Record<string, number>>({});
   const [agouzaItemIds, setAgouzaItemIds] = useState<Record<string, string>>({});
   const [mainItemIds, setMainItemIds] = useState<Record<string, string>>({});
   const [agouzaWhId, setAgouzaWhId] = useState<string | null>(null);
