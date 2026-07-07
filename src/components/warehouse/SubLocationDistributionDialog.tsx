@@ -272,6 +272,7 @@ export default function SubLocationDistributionDialog({
                     <TableHeader>
                       <TableRow>
                         <TableHead>التاريخ</TableHead>
+                        <TableHead>النوع</TableHead>
                         <TableHead>من</TableHead>
                         <TableHead>إلى</TableHead>
                         <TableHead>الكمية</TableHead>
@@ -279,15 +280,23 @@ export default function SubLocationDistributionDialog({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {moves.map((m) => (
-                        <TableRow key={m.id}>
-                          <TableCell className="text-xs whitespace-nowrap">{formatDateTime(m.created_at)}</TableCell>
-                          <TableCell>{subName(m.from_sublocation_id)}</TableCell>
-                          <TableCell>{subName(m.to_sublocation_id)}</TableCell>
-                          <TableCell>{fmt(Number(m.qty))} {unit}</TableCell>
-                          <TableCell className="text-xs">{m.created_by ? (userNames[m.created_by] || "—") : "—"}</TableCell>
-                        </TableRow>
-                      ))}
+                      {moves.map((m) => {
+                        const kind = m.from_sublocation_id && m.to_sublocation_id
+                          ? { label: "نقل داخلي", cls: "" }
+                          : m.from_sublocation_id
+                          ? { label: "خصم تلقائي", cls: "text-destructive" }
+                          : { label: "إضافة تلقائية", cls: "text-green-600" };
+                        return (
+                          <TableRow key={m.id}>
+                            <TableCell className="text-xs whitespace-nowrap">{formatDateTime(m.created_at)}</TableCell>
+                            <TableCell className={`text-xs font-medium ${kind.cls}`}>{kind.label}</TableCell>
+                            <TableCell>{m.from_sublocation_id ? subName(m.from_sublocation_id) : "—"}</TableCell>
+                            <TableCell>{m.to_sublocation_id ? subName(m.to_sublocation_id) : "—"}</TableCell>
+                            <TableCell>{fmt(Number(m.qty))} {unit}</TableCell>
+                            <TableCell className="text-xs">{m.created_by ? (userNames[m.created_by] || "—") : "—"}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
