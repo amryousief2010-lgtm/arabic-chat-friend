@@ -1198,80 +1198,8 @@ const Warehouses = () => {
           </TabsContent>
 
 
-          {/* RECEIPTS — top-level grouped receipts hub (includes pending slaughter batches) */}
-          <TabsContent value="receipts" className="space-y-4">
-            {pendingBatches.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Beef className="w-5 h-5 text-primary" />
-                  <h3 className="font-bold">دفعات المجزر بانتظار الاستلام <Badge variant="destructive" className="mr-1">{pendingBatches.length}</Badge></h3>
-                </div>
-                {pendingBatches.map((b: any) => {
-                  const totalKg = b.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
-                  const accepted = b.outputs.filter((o: any) => o.quality_status === 'accepted').length;
-                  const rejected = b.outputs.filter((o: any) => o.quality_status === 'rejected').length;
-                  return (
-                    <Card key={b.batch_id} className="border-primary/30">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between gap-3 flex-wrap">
-                          <div>
-                            <CardTitle className="flex items-center gap-2 text-base">
-                              <Beef className="w-5 h-5 text-primary" /> الدفعة {b.batch_number}
-                              {b.status && <Badge variant="outline">{b.status === 'completed' ? 'مكتملة' : b.status === 'in_progress' ? 'جارية' : b.status}</Badge>}
-                            </CardTitle>
-                            <CardDescription>
-                              تاريخ الذبح: {b.slaughter_date || '—'} • {b.outputs.length} صنف • إجمالي {totalKg.toFixed(2)} كجم
-                              {accepted > 0 && <> • مقبول: {accepted}</>}
-                              {rejected > 0 && <> • مرفوض: {rejected}</>}
-                            </CardDescription>
-                          </div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Button variant="outline" size="sm" onClick={() => exportPendingBatchPDF(b)}>
-                              <Printer className="w-4 h-4 ml-1" /> طباعة / PDF
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => exportPendingBatchExcel(b)}>
-                              <FileSpreadsheet className="w-4 h-4 ml-1 text-emerald-600" /> Excel
-                            </Button>
-                            {canManageWarehouses && (
-                              <Button onClick={() => openReceiveBatch(b)}>
-                                <ArrowDown className="w-4 h-4 ml-1" /> استلام الدفعة
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>الصنف</TableHead>
-                              <TableHead>الكمية (كجم)</TableHead>
-                              <TableHead>التكلفة/كجم</TableHead>
-                              <TableHead>الجودة</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {b.outputs.map((o: any) => {
-                              const q = qualityLabels[o.quality_status] || qualityLabels.accepted;
-                              return (
-                                <TableRow key={o.id}>
-                                  <TableCell className="font-medium">{o.cut_name_ar}</TableCell>
-                                  <TableCell>{Number(o.actual_weight_kg).toFixed(2)}</TableCell>
-                                  <TableCell>{Number(o.unit_cost || 0).toFixed(2)}</TableCell>
-                                  <TableCell><Badge variant={q.variant}>{q.label}</Badge></TableCell>
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-            <WarehouseReceiptsTab />
-          </TabsContent>
+          {/* الاستلامات العامة أُلغيت من هنا. الاستلامات صارت داخل كل مخزن (المخزن الرئيسي / مخزن العجوزة). */}
+
 
 
           {/* MOVEMENTS */}
