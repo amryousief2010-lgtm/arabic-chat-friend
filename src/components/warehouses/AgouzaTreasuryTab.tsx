@@ -39,7 +39,7 @@ const extractOrderCountFromNotes = (notes?: string | null): number | null => {
   return match ? Number(match[1]) : null;
 };
 
-async function printBosttaHandoverInvoice(txn: { id: string; txn_no: string | null; txn_date: string; amount: number; notes: string | null }) {
+export async function printBosttaHandoverInvoice(txn: { id: string; txn_no: string | null; txn_date: string; amount: number; notes: string | null }) {
   const filename = extractBosttaFilenameFromNotes(txn.notes);
   if (!filename) {
     alert("لا يوجد كشف بُسطة مرتبط بهذا التوريد.");
