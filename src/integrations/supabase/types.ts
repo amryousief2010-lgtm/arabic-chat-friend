@@ -8692,6 +8692,69 @@ export type Database = {
           },
         ]
       }
+      inventory_sublocation_items: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          stock: number
+          sublocation_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          stock?: number
+          sublocation_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          stock?: number
+          sublocation_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_sublocation_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_sublocation_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_agouza_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "inventory_sublocation_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "inventory_sublocation_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_reconciliation"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "inventory_sublocation_items_sublocation_id_fkey"
+            columns: ["sublocation_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_sublocations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lab_customer_ledger: {
         Row: {
           batch_number: string | null
@@ -17658,6 +17721,82 @@ export type Database = {
           },
         ]
       }
+      sublocation_movements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          from_sublocation_id: string
+          id: string
+          notes: string | null
+          product_id: string
+          qty: number
+          to_sublocation_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          from_sublocation_id: string
+          id?: string
+          notes?: string | null
+          product_id: string
+          qty: number
+          to_sublocation_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          from_sublocation_id?: string
+          id?: string
+          notes?: string | null
+          product_id?: string
+          qty?: number
+          to_sublocation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sublocation_movements_from_sublocation_id_fkey"
+            columns: ["from_sublocation_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_sublocations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sublocation_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sublocation_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_agouza_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "sublocation_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "sublocation_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_reconciliation"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "sublocation_movements_to_sublocation_id_fkey"
+            columns: ["to_sublocation_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_sublocations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -18248,6 +18387,54 @@ export type Database = {
           warehouse_id?: string
         }
         Relationships: []
+      }
+      warehouse_sublocations: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name_ar: string
+          sort_order: number
+          updated_at: string
+          warehouse_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name_ar: string
+          sort_order?: number
+          updated_at?: string
+          warehouse_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          sort_order?: number
+          updated_at?: string
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warehouse_sublocations_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["warehouse_id"]
+          },
+          {
+            foreignKeyName: "warehouse_sublocations_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       warehouse_transfer_items: {
         Row: {
@@ -21670,6 +21857,16 @@ export type Database = {
       }
       suggest_hatch_batch_for_shipment: {
         Args: { p_shipment_id: string }
+        Returns: string
+      }
+      transfer_between_sublocations: {
+        Args: {
+          p_from_sublocation_id: string
+          p_notes?: string
+          p_product_id: string
+          p_qty: number
+          p_to_sublocation_id: string
+        }
         Returns: string
       }
       transfer_meat_invoice_to_warehouse: {
