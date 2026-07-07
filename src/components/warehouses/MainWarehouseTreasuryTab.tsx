@@ -195,6 +195,9 @@ export default function MainWarehouseTreasuryTab() {
   const [depDetailsMeta, setDepDetailsMeta] = useState<any>(null);
   const [depDetailsLines, setDepDetailsLines] = useState<any[]>([]);
 
+  // === Balance composition dialog ===
+  const [balanceOpen, setBalanceOpen] = useState(false);
+
   const openDepositDetails = async (txn: Txn) => {
     setDepDetailsOpen(true);
     setDepDetailsLoading(true);
