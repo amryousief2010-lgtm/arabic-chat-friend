@@ -338,7 +338,11 @@ export default function SubLocationDistributionDialog({
                             <TableCell className={`text-xs font-medium ${kind.cls}`}>{kind.label}</TableCell>
                             <TableCell>{m.from_sublocation_id ? subName(m.from_sublocation_id) : "—"}</TableCell>
                             <TableCell>{m.to_sublocation_id ? subName(m.to_sublocation_id) : "—"}</TableCell>
-                            <TableCell>{fmt(Number(m.qty))} {unit}</TableCell>
+                            <TableCell>
+                              <div>{fmt(Number(m.qty))} {unit}</div>
+                              <div className="text-[10px] text-muted-foreground">{fmtPkgs(Number(m.qty), productName)}</div>
+                            </TableCell>
+
                             <TableCell className="text-xs text-muted-foreground">{m.source_ref || "—"}</TableCell>
                             <TableCell className="text-xs">{m.created_by ? (userNames[m.created_by] || "—") : "—"}</TableCell>
                           </TableRow>
