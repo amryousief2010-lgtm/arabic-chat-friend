@@ -12179,6 +12179,7 @@ export type Database = {
           finished_qty: number
           id: string
           invoice_no: string
+          legacy_transferred: boolean
           manufacturing_invoice_uuid: string
           materials_total_cost: number
           notes: string | null
@@ -12211,6 +12212,7 @@ export type Database = {
           finished_qty: number
           id?: string
           invoice_no: string
+          legacy_transferred?: boolean
           manufacturing_invoice_uuid?: string
           materials_total_cost?: number
           notes?: string | null
@@ -12243,6 +12245,7 @@ export type Database = {
           finished_qty?: number
           id?: string
           invoice_no?: string
+          legacy_transferred?: boolean
           manufacturing_invoice_uuid?: string
           materials_total_cost?: number
           notes?: string | null
