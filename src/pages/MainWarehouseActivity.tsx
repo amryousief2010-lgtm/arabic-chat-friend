@@ -35,6 +35,8 @@ interface Row {
   source_name?: string;
   destination_name?: string;
   performed_by_name?: string;
+  unit_cost?: number | null;
+  total_cost?: number | null;
 }
 
 const formatDate = (iso: string) =>
@@ -124,7 +126,7 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
 
       let q = supabase
         .from("inventory_movements")
-        .select("id, performed_at, movement_type, quantity, notes, reason, party, item_id, warehouse_id, source_warehouse_id, destination_warehouse_id, performed_by, reference_type, reference, package_count, package_weight_kg")
+        .select("id, performed_at, movement_type, quantity, notes, reason, party, item_id, warehouse_id, source_warehouse_id, destination_warehouse_id, performed_by, reference_type, reference, package_count, package_weight_kg, unit_cost, total_cost")
         .or(`warehouse_id.eq.${wh.id},source_warehouse_id.eq.${wh.id},destination_warehouse_id.eq.${wh.id}`)
         .order("performed_at", { ascending: false })
         .limit(1000);
@@ -188,6 +190,8 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
         source_name: m.source_warehouse_id ? whMap.get(m.source_warehouse_id) : undefined,
         destination_name: m.destination_warehouse_id ? whMap.get(m.destination_warehouse_id) : undefined,
         performed_by_name: m.performed_by ? userMap.get(m.performed_by) : undefined,
+        unit_cost: m.unit_cost != null ? Number(m.unit_cost) : null,
+        total_cost: m.total_cost != null ? Number(m.total_cost) : null,
       })));
     } finally {
       setLoading(false);
@@ -292,6 +296,8 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
       quantity: Number(r.quantity || 0),
       stockBefore: Number(parseNoteField(r.notes, "قبل").replace(/[^\d.\-]/g, "")) || null,
       stockAfter: Number(parseNoteField(r.notes, "بعد").replace(/[^\d.\-]/g, "")) || null,
+      unitPrice: r.unit_cost ?? null,
+      totalPrice: r.total_cost ?? (r.unit_cost != null ? Number(r.unit_cost) * Number(r.quantity || 0) : null),
     }));
     printWarehouseSlip({
       kind: g.direction,
