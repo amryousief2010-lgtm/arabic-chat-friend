@@ -1127,7 +1127,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           open={!!distDlg}
           onClose={() => setDistDlg(null)}
           warehouseId={distDlg.warehouseId}
-          warehouseName={currentWhLabel}
+          warehouseName={currentWhLabel || "المخزن الرئيسي"}
           productId={distDlg.productId}
           productName={distDlg.productName}
           unit={distDlg.unit}
