@@ -123,6 +123,8 @@ export interface PrintStockRow {
   agouza_reserved?: number;
   main_actual?: number;
   main_reserved?: number;
+  main_freezers?: number;    // توزيع داخلي للمخزن الرئيسي — الفريزرات
+  main_fridge?: number;      // توزيع داخلي للمخزن الرئيسي — ثلاجة التجميد
 }
 
 export type StockPrintMode = "both" | "agouza" | "main";
