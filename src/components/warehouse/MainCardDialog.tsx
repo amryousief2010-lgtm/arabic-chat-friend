@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PackageCheck, AlertTriangle, Download, Eye } from "lucide-react";
+import { PackageCheck, AlertTriangle, Download, Eye, ArrowLeftRight } from "lucide-react";
 import { formatDateTime } from "@/lib/dateFormat";
 
 interface Product { id: string; name: string; unit: string; }
@@ -22,11 +22,17 @@ interface Props {
   onSearch: (s: string) => void;
   onOpenReserved: (productId: string, name: string, total: number) => void;
   warehouseName?: string;
+  onOpenDistribute?: (product: Product, actual: number, reserved: number) => void;
 }
+
+const fmtNum = (n: number) => {
+  if (!isFinite(n)) return "0";
+  return String(Math.round(n * 1000) / 1000);
+};
 
 export default function MainCardDialog({
   mode, onClose, products, mainStock, mainPending, mainCost, mainSku, mainLastMove,
-  search, onSearch, onOpenReserved, warehouseName,
+  search, onSearch, onOpenReserved, warehouseName, onOpenDistribute,
 }: Props) {
   const whLabel = warehouseName || "المخزن الرئيسي";
 
@@ -129,6 +135,7 @@ export default function MainCardDialog({
                     </>
                   )}
                   <TableHead>آخر حركة</TableHead>
+                  {!isOver && onOpenDistribute && <TableHead>إجراءات</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -136,9 +143,10 @@ export default function MainCardDialog({
                   const isKg = /كيلو|كجم|kg/i.test(r.unit || "");
                   const pw = 0.5; // وزن العبوة الافتراضي
                   const fmtQty = (v: number) => {
-                    if (!isKg) return String(v);
+                    const s = fmtNum(v);
+                    if (!isKg) return s;
                     const pkg = pw > 0 ? +(v / pw).toFixed(2) : 0;
-                    return `${v} كجم • ${pkg} عبوة`;
+                    return `${s} كجم • ${pkg} عبوة`;
                   };
                   return (
                   <TableRow key={r.id} className={isOver ? "bg-destructive/5" : ""}>
@@ -166,6 +174,17 @@ export default function MainCardDialog({
                     <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                       {r.lastMove ? formatDateTime(r.lastMove) : "—"}
                     </TableCell>
+                    {!isOver && onOpenDistribute && (
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onOpenDistribute({ id: r.id, name: r.name, unit: r.unit }, r.actual, r.reserved)}
+                        >
+                          <ArrowLeftRight className="w-4 h-4 ml-1" /> توزيع
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                   );
                 })}

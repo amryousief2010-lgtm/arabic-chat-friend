@@ -18,6 +18,7 @@ import ReservedDetailsDialog from "@/components/warehouse/ReservedDetailsDialog"
 import ManualStockAdditionDialog from "@/components/warehouse/ManualStockAdditionDialog";
 import ManualStockOutDialog from "@/components/warehouse/ManualStockOutDialog";
 import MainCardDialog from "@/components/warehouse/MainCardDialog";
+import SubLocationDistributionDialog from "@/components/warehouse/SubLocationDistributionDialog";
 import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
 import companyLogo from "@/assets/company-logo.jpg";
 
@@ -139,6 +140,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
   // Additional drill-down filters (open the items table filtered to subset)
   const [tableFilter, setTableFilter] = useState<null | "all" | "withStock" | "lowStock" | "overReserved">(null);
   const [cardSearch, setCardSearch] = useState("");
+  const [distDlg, setDistDlg] = useState<null | { warehouseId: string; productId: string; productName: string; unit: string; actual: number; reserved: number }>(null);
   const [showItemsTable, setShowItemsTable] = useState(false);
   const [movDlg, setMovDlg] = useState<null | { itemId: string; name: string; unit: string; stock: number; whId: string; whLabel: string }>(null);
 
@@ -1089,6 +1091,26 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           onSearch={setCardSearch}
           onOpenReserved={(pid, name, total) => setReservedDlg({ wh: currentSingleScope, productId: pid, productName: name, total })}
           warehouseName={currentWhLabel}
+          onOpenDistribute={
+            currentSingleScope === "main" && currentWhId
+              ? (product, actual, reserved) =>
+                  setDistDlg({ warehouseId: currentWhId, productId: product.id, productName: product.name, unit: product.unit, actual, reserved })
+              : undefined
+          }
+        />
+      )}
+
+      {distDlg && (
+        <SubLocationDistributionDialog
+          open={!!distDlg}
+          onClose={() => setDistDlg(null)}
+          warehouseId={distDlg.warehouseId}
+          warehouseName={currentWhLabel}
+          productId={distDlg.productId}
+          productName={distDlg.productName}
+          unit={distDlg.unit}
+          mainActual={distDlg.actual}
+          mainReserved={distDlg.reserved}
         />
       )}
 
