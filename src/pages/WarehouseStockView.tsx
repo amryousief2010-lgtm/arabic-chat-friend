@@ -22,7 +22,7 @@ import SubLocationDistributionDialog from "@/components/warehouse/SubLocationDis
 import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
 import companyLogo from "@/assets/company-logo.jpg";
 
-interface Product { id: string; name: string; unit: string; category?: string | null; barcode?: string | null; }
+interface Product { id: string; name: string; unit: string; category?: string | null; barcode?: string | null; image_url?: string | null; }
 
 interface WarehouseDialogItem {
   id: string;
