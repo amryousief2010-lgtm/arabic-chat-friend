@@ -3118,7 +3118,12 @@ const Orders = () => {
                     <label className="text-xs text-muted-foreground block mb-1">🎁 مجاني / معفى</label>
                     <Input type="number" min={0} step="0.01" value={mixedFree} onChange={(e) => setMixedFree(e.target.value)} />
                   </div>
+                  <div className="col-span-2">
+                    <label className="text-xs text-amber-700 font-semibold block mb-1">🪙 عربون محوّل مقدماً</label>
+                    <Input type="number" min={0} step="0.01" value={mixedDeposit} onChange={(e) => setMixedDeposit(e.target.value)} placeholder="0" className="border-amber-300 focus-visible:ring-amber-400" />
+                  </div>
                 </div>
+
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">🔖 رقم مرجع التحويل (اختياري)</label>
                   <Input value={mixedRef} onChange={(e) => setMixedRef(e.target.value)} placeholder="رقم عملية / رقم مرجع البنك" />
