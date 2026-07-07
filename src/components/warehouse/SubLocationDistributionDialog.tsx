@@ -23,7 +23,18 @@ interface Props {
 }
 
 interface SubLoc { id: string; name_ar: string; code: string; sort_order: number; }
-interface Move { id: string; qty: number; created_at: string; from_sublocation_id: string | null; to_sublocation_id: string | null; created_by: string | null; source?: string | null; notes?: string | null; }
+interface Move { id: string; qty: number; created_at: string; from_sublocation_id: string | null; to_sublocation_id: string | null; created_by: string | null; source?: string | null; source_ref?: string | null; notes?: string | null; }
+
+const SOURCE_LABELS: Record<string, { label: string; cls: string }> = {
+  manual_transfer: { label: "نقل داخلي", cls: "" },
+  order_dispatch: { label: "صرف أوردر", cls: "text-destructive" },
+  sales_return: { label: "مرتجع مبيعات", cls: "text-green-600" },
+  stock_in: { label: "دخول مخزون", cls: "text-green-600" },
+  stock_out: { label: "صرف مخزون", cls: "text-destructive" },
+  opening_balance: { label: "رصيد افتتاحي", cls: "text-blue-600" },
+  manual_adjustment: { label: "تعديل يدوي", cls: "text-amber-600" },
+  auto_sync: { label: "مزامنة تلقائية", cls: "text-muted-foreground" },
+};
 
 const fmt = (n: number) => {
   if (!isFinite(n)) return "0";
