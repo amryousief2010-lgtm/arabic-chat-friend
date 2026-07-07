@@ -132,16 +132,24 @@ export default function MainCardDialog({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((r) => (
+                {rows.map((r) => {
+                  const isKg = /كيلو|كجم|kg/i.test(r.unit || "");
+                  const pw = 0.5; // وزن العبوة الافتراضي
+                  const fmtQty = (v: number) => {
+                    if (!isKg) return String(v);
+                    const pkg = pw > 0 ? +(v / pw).toFixed(2) : 0;
+                    return `${v} كجم • ${pkg} عبوة`;
+                  };
+                  return (
                   <TableRow key={r.id} className={isOver ? "bg-destructive/5" : ""}>
                     <TableCell className="font-medium">{r.name}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{r.sku || "—"}</TableCell>
                     <TableCell>{r.unit}</TableCell>
-                    <TableCell className={isOver ? "text-destructive font-bold" : ""}>{r.actual}</TableCell>
-                    <TableCell>{r.reserved}</TableCell>
+                    <TableCell className={isOver ? "text-destructive font-bold" : ""}>{fmtQty(r.actual)}</TableCell>
+                    <TableCell>{fmtQty(r.reserved)}</TableCell>
                     {isOver ? (
                       <>
-                        <TableCell className="text-destructive font-bold">-{r.deficit}</TableCell>
+                        <TableCell className="text-destructive font-bold">-{fmtQty(r.deficit)}</TableCell>
                         <TableCell>
                           <Button size="sm" variant="ghost" onClick={() => onOpenReserved(r.id, r.name, r.reserved)}>
                             <Eye className="w-4 h-4 ml-1" /> عرض
@@ -150,7 +158,7 @@ export default function MainCardDialog({
                       </>
                     ) : (
                       <>
-                        <TableCell className={r.available < 0 ? "text-destructive" : ""}>{r.available}</TableCell>
+                        <TableCell className={r.available < 0 ? "text-destructive" : ""}>{fmtQty(r.available)}</TableCell>
                         <TableCell>{r.cost.toFixed(2)}</TableCell>
                         <TableCell className="font-semibold">{r.value.toFixed(2)}</TableCell>
                       </>
@@ -159,7 +167,8 @@ export default function MainCardDialog({
                       {r.lastMove ? formatDateTime(r.lastMove) : "—"}
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
