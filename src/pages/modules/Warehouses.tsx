@@ -1533,8 +1533,10 @@ const Warehouses = () => {
             );
 
             const renderMainSubview = () => {
+              const mainWh = warehouses.find((w) => /رئيسي|main/i.test(w.name));
               switch (mainSubview) {
                 case "activity": return <MainWarehouseActivity embedded />;
+                case "receipts": return <WarehouseReceiptsTab warehouseId={mainWh?.id ?? null} warehouseName="المخزن الرئيسي" startDate={RECEIPTS_START_DATE} />;
                 case "treasury": return <MainWarehouseTreasuryTab />;
                 case "courier-orders": return <CourierOrderCustodyTab />;
                 case "route-prep": return <RouteDistributionPreparationTab />;
@@ -1543,6 +1545,7 @@ const Warehouses = () => {
             };
             const renderAgouzaSubview = () => {
               switch (agouzaSubview) {
+                case "receipts": return <WarehouseReceiptsTab warehouseId={AGOUZA_WAREHOUSE_ID} warehouseName="مخزن العجوزة" startDate={RECEIPTS_START_DATE} />;
                 case "treasury": return <AgouzaTreasuryTab />;
                 case "courier-orders": return <CourierOrderCustodyTab warehouseId={AGOUZA_WAREHOUSE_ID} />;
                 case "route-prep": return <RouteDistributionPreparationTab warehouseId={AGOUZA_WAREHOUSE_ID} warehouseLabel="مخزن العجوزة" />;
