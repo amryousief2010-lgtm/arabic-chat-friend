@@ -983,6 +983,21 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                                 </TooltipTrigger>
                                 <TooltipContent side="top">سجل حركة الصنف</TooltipContent>
                               </Tooltip>
+                              {whKey === "main" && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="h-8 px-2 inline-flex items-center justify-center gap-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-semibold text-xs"
+                                      onClick={() => setDistDlg({ warehouseId: whId, productId: p.id, productName: p.name, unit: p.unit, actual: mActual, reserved: mPend })}
+                                    >
+                                      <Boxes className="w-4 h-4" />
+                                      <span>توزيع</span>
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">توزيع الكمية بين الفريزرات وثلاجة التجميد</TooltipContent>
+                                </Tooltip>
+                              )}
                               {hasReserved && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
