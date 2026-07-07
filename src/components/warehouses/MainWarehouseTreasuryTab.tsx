@@ -2710,6 +2710,104 @@ export default function MainWarehouseTreasuryTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Balance composition dialog */}
+      <Dialog open={balanceOpen} onOpenChange={setBalanceOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>تفاصيل مكوّنات الرصيد الحالي — خزنة المخزن الرئيسي</DialogTitle>
+            <DialogDescription>
+              كل مبلغ داخل الخزنة مرتبط بمصدره (أوردر / توريد مندوب / تحويل / تسوية…). يعرض هنا الحركات المعتمدة فقط.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="rounded-md border p-3 bg-emerald-50">
+              <div className="text-xs text-muted-foreground">إجمالي الوارد</div>
+              <div className="text-xl font-bold text-emerald-700">+{fmt(balanceBreakdown.totalIn)} ج.م</div>
+            </div>
+            <div className="rounded-md border p-3 bg-rose-50">
+              <div className="text-xs text-muted-foreground">إجمالي الصادر</div>
+              <div className="text-xl font-bold text-rose-700">-{fmt(balanceBreakdown.totalOut)} ج.م</div>
+            </div>
+            <div className="rounded-md border p-3 bg-muted/40">
+              <div className="text-xs text-muted-foreground">الرصيد = الوارد − الصادر</div>
+              <div className={`text-xl font-bold ${balanceBreakdown.balance >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                {fmt(balanceBreakdown.balance)} ج.م
+              </div>
+            </div>
+          </div>
+
+          {balanceBreakdown.list.length === 0 ? (
+            <div className="p-6 text-center text-sm text-muted-foreground border rounded-md">
+              لا توجد حركات معتمدة بعد.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {balanceBreakdown.list.map((g) => (
+                <div key={g.key} className="border rounded-lg overflow-hidden">
+                  <div className={`flex items-center justify-between px-3 py-2 text-sm font-semibold ${g.direction === "in" ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800"}`}>
+                    <div className="flex items-center gap-2">
+                      {g.direction === "in" ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
+                      <span>{g.label}</span>
+                      <Badge variant="outline" className="text-[10px]">{g.txns.length} حركة</Badge>
+                    </div>
+                    <div className="font-mono">
+                      {g.direction === "in" ? "+" : "-"}{fmt(g.total)} ج.م
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-right text-xs">
+                      <thead className="bg-muted/50 text-[11px]">
+                        <tr>
+                          <th className="p-2">التاريخ</th>
+                          <th className="p-2">المرجع (أوردر / فاتورة)</th>
+                          <th className="p-2">العميل / المندوب</th>
+                          <th className="p-2">ملاحظات / السبب</th>
+                          <th className="p-2">المبلغ</th>
+                          <th className="p-2">بواسطة</th>
+                          <th className="p-2">تفاصيل</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {g.txns.map((t) => (
+                          <tr key={t.id} className="border-t hover:bg-muted/30">
+                            <td className="p-2 whitespace-nowrap text-muted-foreground">{fmtDate(t.performed_at)}</td>
+                            <td className="p-2 font-mono">{t.reference || "—"}</td>
+                            <td className="p-2">
+                              {t.courier_name ? <span className="text-sky-700 font-semibold">{t.courier_name}</span> : "—"}
+                            </td>
+                            <td className="p-2 text-muted-foreground max-w-[280px] truncate" title={t.notes || ""}>
+                              {t.notes || (t.category === "manual_adjust" || t.category === "other" ? "إيداع/حركة يدوية" : "—")}
+                            </td>
+                            <td className={`p-2 font-mono font-bold ${g.direction === "in" ? "text-emerald-700" : "text-rose-700"}`}>
+                              {g.direction === "in" ? "+" : "-"}{fmt(Number(t.amount || 0))}
+                            </td>
+                            <td className="p-2">{t.performed_by_name || "—"}</td>
+                            <td className="p-2">
+                              {t.category === "courier_deposit" ? (
+                                <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={() => { setBalanceOpen(false); openDepositDetails(t); }}>
+                                  أوردرات اليوم
+                                </Button>
+                              ) : (
+                                <span className="text-muted-foreground text-[10px]">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setBalanceOpen(false)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
 
 
