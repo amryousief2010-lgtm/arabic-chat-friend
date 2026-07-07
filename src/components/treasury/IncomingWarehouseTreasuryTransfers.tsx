@@ -441,6 +441,45 @@ ${missing.length ? `<div class="muted" style="color:#b91c1c;text-align:center;ma
                 )}
               </div>
             </div>
+            {(() => {
+              const list = ordersByTxn[r.id] || [];
+              if (!list.length) return null;
+              const sumTotal = list.reduce((s, o) => s + o.total, 0);
+              const sumCash = list.reduce((s, o) => s + o.courier_cash_due, 0);
+              return (
+                <div className="border rounded-md overflow-hidden">
+                  <div className="bg-purple-50 text-purple-800 text-xs font-bold px-3 py-1.5 flex justify-between">
+                    <span>تفاصيل الأوردرات ({list.length})</span>
+                    <span>إجمالي الفاتورة: {fmt(sumTotal)} ج.م • نقدي: {fmt(sumCash)} ج.م</span>
+                  </div>
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/40">
+                      <tr>
+                        <th className="px-2 py-1 text-right">رقم الأوردر</th>
+                        <th className="px-2 py-1 text-right">العميل</th>
+                        <th className="px-2 py-1 text-center">إجمالي الأوردر</th>
+                        <th className="px-2 py-1 text-center">نقدي المندوب</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {list.map((o) => (
+                        <tr key={o.order_number} className="border-t">
+                          <td className="px-2 py-1 font-mono">{o.order_number}</td>
+                          <td className="px-2 py-1">{o.customer_name || "—"}</td>
+                          <td className="px-2 py-1 text-center font-bold">{fmt(o.total)}</td>
+                          <td className="px-2 py-1 text-center text-emerald-700">{fmt(o.courier_cash_due)}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t bg-emerald-50 font-bold">
+                        <td className="px-2 py-1" colSpan={2}>الإجمالي</td>
+                        <td className="px-2 py-1 text-center">{fmt(sumTotal)}</td>
+                        <td className="px-2 py-1 text-center text-emerald-700">{fmt(sumCash)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
             {r.notes && <pre className="whitespace-pre-wrap text-xs bg-muted/40 rounded p-2 font-sans leading-relaxed">{r.notes}</pre>}
           </div>
         ))}
