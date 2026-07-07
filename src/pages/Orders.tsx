@@ -2646,6 +2646,18 @@ const Orders = () => {
                             </Badge>
                           )
                         )}
+                        {canSetCollectionMethod && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 w-full text-[11px] gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                            onClick={() => openMixedDialog(order.id)}
+                            title="فتح شاشة ضبط التحصيل (فودافون كاش / إنستا / كاش)"
+                          >
+                            <Wallet className="w-3 h-3" />
+                            ضبط التحصيل
+                          </Button>
+                        )}
                         <span className="text-[11px] text-muted-foreground">
                           {order.collection_method === 'cash_courier'
                             ? <>مطلوب: <span className="font-bold text-emerald-700">{Number(order.courier_cash_due || order.total).toLocaleString()} ج</span></>
@@ -2664,6 +2676,7 @@ const Orders = () => {
                         </span>
                       </div>
                     </TableCell>
+
                     <TableCell className="text-muted-foreground">
                       {formatDate(order.created_at)}
                     </TableCell>
