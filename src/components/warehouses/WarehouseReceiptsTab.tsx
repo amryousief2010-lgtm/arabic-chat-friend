@@ -33,6 +33,7 @@ interface ReceiptRow {
   date: string; // ISO
   source_label: string;
   destination_label: string;
+  dest_warehouse_id?: string | null;
   items_count: number;
   total_qty: number;
   quality: string; // مقبول / مرفوض / مقبول جزئيًا / —
@@ -40,6 +41,18 @@ interface ReceiptRow {
   receiver: string;
   notes?: string;
   lines: ReceiptLine[];
+}
+
+interface WarehouseReceiptsTabProps {
+  /** If provided, only receipts whose destination is this warehouse are shown. */
+  warehouseId?: string | null;
+  /** Optional label used in the header when scoped to a specific warehouse. */
+  warehouseName?: string | null;
+  /**
+   * If provided (YYYY-MM-DD or ISO), receipts before this date are hidden.
+   * Used to start a fresh receipts log per warehouse from a given date.
+   */
+  startDate?: string | null;
 }
 
 const STATUS_LABELS: Record<string, { label: string; variant: any }> = {
@@ -132,7 +145,7 @@ function printReceipt(row: ReceiptRow) {
   openPrintWindow(`محضر استلام ${row.batch_no}`, body);
 }
 
-export default function WarehouseReceiptsTab() {
+export default function WarehouseReceiptsTab({ warehouseId, warehouseName, startDate }: WarehouseReceiptsTabProps = {}) {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<ReceiptRow[]>([]);
   const [activeSub, setActiveSub] = useState<ReceiptKind>("slaughter");
@@ -237,6 +250,7 @@ export default function WarehouseReceiptsTab() {
             date: (o as any).received_at || batch?.slaughter_date || new Date().toISOString(),
             source_label: "المجزر",
             destination_label: "مخزون مصنع اللحوم / الخامات",
+            dest_warehouse_id: (o as any).received_warehouse_id ?? null,
             items_count: 0,
             total_qty: 0,
             quality: "—",
@@ -281,6 +295,7 @@ export default function WarehouseReceiptsTab() {
             date: (t as any).created_at,
             source_label: "مصنع اللحوم",
             destination_label: (t as any).warehouse?.name || "—",
+            dest_warehouse_id: (t as any).destination_warehouse_id ?? null,
             items_count: 0,
             total_qty: 0,
             quality: "مقبول",
@@ -306,7 +321,7 @@ export default function WarehouseReceiptsTab() {
       // ---------------- 3) Internal warehouse transfers (received) ----------------
       const { data: trs } = await supabase
         .from("warehouse_transfers")
-        .select("id, transfer_no, status, received_at, sent_at, notes, source:warehouses!warehouse_transfers_source_warehouse_id_fkey(name), destination:warehouses!warehouse_transfers_destination_warehouse_id_fkey(name), items:warehouse_transfer_items(id, item_name, unit, received_qty, sent_qty, receive_notes, line_status)")
+        .select("id, transfer_no, status, received_at, sent_at, notes, destination_warehouse_id, source:warehouses!warehouse_transfers_source_warehouse_id_fkey(name), destination:warehouses!warehouse_transfers_destination_warehouse_id_fkey(name), items:warehouse_transfer_items(id, item_name, unit, received_qty, sent_qty, receive_notes, line_status)")
         .in("status", ["received", "partial_received", "completed"])
         .order("received_at", { ascending: false })
         .limit(2000);
@@ -325,6 +340,7 @@ export default function WarehouseReceiptsTab() {
           date: (tr as any).received_at || (tr as any).sent_at,
           source_label: (tr as any).source?.name || "—",
           destination_label: (tr as any).destination?.name || "—",
+          dest_warehouse_id: (tr as any).destination_warehouse_id ?? null,
           items_count: items.length,
           total_qty: items.reduce((s, l) => s + Number(l.received_qty || 0), 0),
           quality: (tr as any).status === "partial_received" ? "مقبول جزئيًا" : "مقبول",
@@ -377,6 +393,7 @@ export default function WarehouseReceiptsTab() {
             date: ts,
             source_label: sourceLabel,
             destination_label: m?.warehouse?.name || "—",
+            dest_warehouse_id: m.warehouse_id ?? null,
             items_count: 0,
             total_qty: 0,
             quality: "مقبول",
@@ -411,7 +428,10 @@ export default function WarehouseReceiptsTab() {
 
 
   const filteredAll = useMemo(() => {
+    const startTs = startDate ? new Date(startDate.length <= 10 ? startDate + "T00:00:00" : startDate).getTime() : null;
     return rows.filter((r) => {
+      if (warehouseId && r.dest_warehouse_id !== warehouseId) return false;
+      if (startTs !== null && new Date(r.date).getTime() < startTs) return false;
       if (fromDate && new Date(r.date) < new Date(fromDate)) return false;
       if (toDate && new Date(r.date) > new Date(toDate + "T23:59:59")) return false;
       if (sourceFilter !== "all" && r.source_label !== sourceFilter) return false;
@@ -424,7 +444,7 @@ export default function WarehouseReceiptsTab() {
       }
       return true;
     });
-  }, [rows, fromDate, toDate, sourceFilter, destFilter, statusFilter, batchSearch, itemSearch]);
+  }, [rows, warehouseId, startDate, fromDate, toDate, sourceFilter, destFilter, statusFilter, batchSearch, itemSearch]);
 
   const filtered = useMemo(() => filteredAll.filter((r) => r.kind === activeSub), [filteredAll, activeSub]);
 
@@ -447,8 +467,11 @@ export default function WarehouseReceiptsTab() {
           <Inbox className="w-6 h-6 text-primary" />
         </div>
         <div>
-          <h2 className="text-xl font-bold">سجل الاستلامات</h2>
-          <p className="text-sm text-muted-foreground">عرض مجمّع لكل عمليات الاستلام حسب الدفعة</p>
+          <h2 className="text-xl font-bold">{warehouseName ? `استلامات ${warehouseName}` : "سجل الاستلامات"}</h2>
+          <p className="text-sm text-muted-foreground">
+            {warehouseName ? `عرض مقصور على استلامات ${warehouseName}` : "عرض مجمّع لكل عمليات الاستلام حسب الدفعة"}
+            {startDate ? ` — بداية من ${startDate.slice(0, 10)}` : ""}
+          </p>
         </div>
       </div>
 
