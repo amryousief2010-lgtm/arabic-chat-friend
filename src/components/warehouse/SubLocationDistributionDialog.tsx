@@ -42,6 +42,22 @@ const fmt = (n: number) => {
   return Number(r).toString();
 };
 
+// كيلوجرامات لكل عبوة (نفس منطق شاشة المخزن)
+const kgPerPackage = (name: string): number => {
+  const n = (name || "").trim();
+  if (n.includes("6ك") || n.includes("دبوس بالعظم")) return 6;
+  if (n.includes("نعامة صندوق")) return 6;
+  return 0.5;
+};
+
+const fmtPkgs = (kg: number, name: string): string => {
+  const per = kgPerPackage(name);
+  if (!per || per <= 0) return "";
+  const p = Math.round((kg / per) * 100) / 100;
+  return `${p} عبوة`;
+};
+
+
 export default function SubLocationDistributionDialog({
   open, onClose, warehouseId, warehouseName, productId, productName, unit,
   mainActual, mainReserved,
@@ -195,20 +211,37 @@ export default function SubLocationDistributionDialog({
                     return (
                       <TableRow key={s.id}>
                         <TableCell className="font-medium">{s.name_ar}</TableCell>
-                        <TableCell>{fmt(st)} {unit}</TableCell>
-                        <TableCell>{fmt(rv)} {unit}</TableCell>
+                        <TableCell>
+                          <div>{fmt(st)} {unit}</div>
+                          <div className="text-[10px] text-muted-foreground">{fmtPkgs(st, productName)}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div>{fmt(rv)} {unit}</div>
+                          <div className="text-[10px] text-muted-foreground">{fmtPkgs(rv, productName)}</div>
+                        </TableCell>
                         <TableCell className={st - rv < 0 ? "text-destructive" : ""}>
-                          {fmt(st - rv)} {unit}
+                          <div>{fmt(st - rv)} {unit}</div>
+                          <div className="text-[10px] text-muted-foreground">{fmtPkgs(st - rv, productName)}</div>
                         </TableCell>
                       </TableRow>
                     );
                   })}
                   <TableRow className="bg-muted/40 font-semibold">
                     <TableCell>الإجمالي (المخزن الرئيسي)</TableCell>
-                    <TableCell>{fmt(mainActual)} {unit}</TableCell>
-                    <TableCell>{fmt(mainReserved)} {unit}</TableCell>
-                    <TableCell>{fmt(mainActual - mainReserved)} {unit}</TableCell>
+                    <TableCell>
+                      <div>{fmt(mainActual)} {unit}</div>
+                      <div className="text-[10px] text-muted-foreground font-normal">{fmtPkgs(mainActual, productName)}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div>{fmt(mainReserved)} {unit}</div>
+                      <div className="text-[10px] text-muted-foreground font-normal">{fmtPkgs(mainReserved, productName)}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div>{fmt(mainActual - mainReserved)} {unit}</div>
+                      <div className="text-[10px] text-muted-foreground font-normal">{fmtPkgs(mainActual - mainReserved, productName)}</div>
+                    </TableCell>
                   </TableRow>
+
                 </TableBody>
               </Table>
             </div>
@@ -249,7 +282,7 @@ export default function SubLocationDistributionDialog({
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">
-                    الكمية {fromSub ? `(المتاح: ${fmt(stockBySub[fromSub] || 0)} ${unit})` : ""}
+                    الكمية {fromSub ? `(المتاح: ${fmt(stockBySub[fromSub] || 0)} ${unit} • ${fmtPkgs(stockBySub[fromSub] || 0, productName)})` : ""}
                   </label>
                   <Input
                     type="number"
@@ -260,7 +293,11 @@ export default function SubLocationDistributionDialog({
                     onChange={(e) => setQty(e.target.value)}
                     placeholder="0"
                   />
+                  {qty && Number(qty) > 0 && (
+                    <div className="text-[10px] text-muted-foreground mt-1">= {fmtPkgs(Number(qty), productName)}</div>
+                  )}
                 </div>
+
                 <div className="flex items-end">
                   <Button className="w-full" disabled={!canTransfer || busy} onClick={submitTransfer}>
                     {busy ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : <ArrowLeftRight className="w-4 h-4 ml-1" />}
@@ -301,7 +338,11 @@ export default function SubLocationDistributionDialog({
                             <TableCell className={`text-xs font-medium ${kind.cls}`}>{kind.label}</TableCell>
                             <TableCell>{m.from_sublocation_id ? subName(m.from_sublocation_id) : "—"}</TableCell>
                             <TableCell>{m.to_sublocation_id ? subName(m.to_sublocation_id) : "—"}</TableCell>
-                            <TableCell>{fmt(Number(m.qty))} {unit}</TableCell>
+                            <TableCell>
+                              <div>{fmt(Number(m.qty))} {unit}</div>
+                              <div className="text-[10px] text-muted-foreground">{fmtPkgs(Number(m.qty), productName)}</div>
+                            </TableCell>
+
                             <TableCell className="text-xs text-muted-foreground">{m.source_ref || "—"}</TableCell>
                             <TableCell className="text-xs">{m.created_by ? (userNames[m.created_by] || "—") : "—"}</TableCell>
                           </TableRow>
