@@ -436,6 +436,32 @@ export default function MainWarehouseTreasuryTab() {
     return { balance, todayIn, todayOut, pending, transferred };
   }, [rows]);
 
+  // Balance composition: posted transactions grouped by category, with totals
+  const balanceBreakdown = useMemo(() => {
+    const posted = rows.filter((t) => t.status === "posted");
+    const groups: Record<string, { label: string; direction: "in" | "out"; total: number; txns: Txn[] }> = {};
+    let totalIn = 0, totalOut = 0;
+    posted.forEach((t) => {
+      const amt = Number(t.amount || 0);
+      if (t.direction === "in") totalIn += amt; else totalOut += amt;
+      const key = `${t.direction}:${t.category}`;
+      if (!groups[key]) {
+        groups[key] = {
+          label: CATEGORY_LABELS[t.category] || t.category,
+          direction: t.direction,
+          total: 0,
+          txns: [],
+        };
+      }
+      groups[key].total += amt;
+      groups[key].txns.push(t);
+    });
+    const list = Object.entries(groups)
+      .map(([key, g]) => ({ key, ...g }))
+      .sort((a, b) => (a.direction === b.direction ? b.total - a.total : a.direction === "in" ? -1 : 1));
+    return { list, totalIn, totalOut, balance: totalIn - totalOut };
+  }, [rows]);
+
   const filtered = useMemo(() => {
     const q = search.trim();
     return rows.filter((r) => {
