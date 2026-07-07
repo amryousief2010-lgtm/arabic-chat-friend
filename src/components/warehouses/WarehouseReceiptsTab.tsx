@@ -428,7 +428,10 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
 
 
   const filteredAll = useMemo(() => {
+    const startTs = startDate ? new Date(startDate.length <= 10 ? startDate + "T00:00:00" : startDate).getTime() : null;
     return rows.filter((r) => {
+      if (warehouseId && r.dest_warehouse_id !== warehouseId) return false;
+      if (startTs !== null && new Date(r.date).getTime() < startTs) return false;
       if (fromDate && new Date(r.date) < new Date(fromDate)) return false;
       if (toDate && new Date(r.date) > new Date(toDate + "T23:59:59")) return false;
       if (sourceFilter !== "all" && r.source_label !== sourceFilter) return false;
@@ -441,7 +444,7 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
       }
       return true;
     });
-  }, [rows, fromDate, toDate, sourceFilter, destFilter, statusFilter, batchSearch, itemSearch]);
+  }, [rows, warehouseId, startDate, fromDate, toDate, sourceFilter, destFilter, statusFilter, batchSearch, itemSearch]);
 
   const filtered = useMemo(() => filteredAll.filter((r) => r.kind === activeSub), [filteredAll, activeSub]);
 
