@@ -490,7 +490,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
               if (e.key === "Escape") setEditingKey(null);
             }}
           />
-          <span className="text-[10px] text-muted-foreground whitespace-nowrap">= {previewKg} كجم</span>
+          <span className="text-[10px] text-muted-foreground whitespace-nowrap">= {fmtKg(previewKg)} كجم</span>
           <button className="text-green-600 disabled:opacity-50" disabled={saving} onClick={() => saveStock(wh, pid, previewKg)}>
             <Check className="w-4 h-4" />
           </button>
