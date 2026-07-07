@@ -1513,43 +1513,7 @@ export default function MainWarehouseTreasuryTab() {
       )}
 
 
-      {/* Pending approvals block */}
-      {pendingTransfers.length > 0 && (
-        <Card className="border-amber-400 bg-amber-50/40">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Clock className="w-4 h-4 text-amber-600" /> تحويلات بانتظار اعتماد محمد شعلة
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {pendingTransfers.map((t) => (
-                <div key={t.id} className="flex flex-wrap items-center justify-between gap-2 bg-background rounded-md p-3 border">
-                  <div className="text-sm">
-                    <div className="font-bold">{fmt(t.amount)} ج.م</div>
-                    <div className="text-xs text-muted-foreground">
-                      {fmtDate(t.performed_at)} • بواسطة: {t.performed_by_name || "—"}
-                      {t.notes ? ` • ${t.notes}` : ""}
-                    </div>
-                  </div>
-                  {canApprove ? (
-                    <div className="flex gap-1">
-                      <Button size="sm" disabled={busy} className="bg-emerald-600 hover:bg-emerald-700" onClick={() => approveTransfer(t)}>
-                        <CheckCircle2 className="w-3 h-3 ml-1" /> اعتماد
-                      </Button>
-                      <Button size="sm" disabled={busy} variant="outline" className="text-rose-600 border-rose-300" onClick={() => rejectTransfer(t)}>
-                        <XCircle className="w-3 h-3 ml-1" /> رفض
-                      </Button>
-                    </div>
-                  ) : (
-                    <Badge variant="outline" className="bg-amber-100 text-amber-700">بانتظار الموافقة</Badge>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Pending approvals moved to Main Treasury — hidden here */}
 
       {/* Reconciliation */}
       <Card>
