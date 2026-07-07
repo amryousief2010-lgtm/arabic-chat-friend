@@ -33,6 +33,7 @@ interface ReceiptRow {
   date: string; // ISO
   source_label: string;
   destination_label: string;
+  dest_warehouse_id?: string | null;
   items_count: number;
   total_qty: number;
   quality: string; // مقبول / مرفوض / مقبول جزئيًا / —
@@ -40,6 +41,18 @@ interface ReceiptRow {
   receiver: string;
   notes?: string;
   lines: ReceiptLine[];
+}
+
+interface WarehouseReceiptsTabProps {
+  /** If provided, only receipts whose destination is this warehouse are shown. */
+  warehouseId?: string | null;
+  /** Optional label used in the header when scoped to a specific warehouse. */
+  warehouseName?: string | null;
+  /**
+   * If provided (YYYY-MM-DD or ISO), receipts before this date are hidden.
+   * Used to start a fresh receipts log per warehouse from a given date.
+   */
+  startDate?: string | null;
 }
 
 const STATUS_LABELS: Record<string, { label: string; variant: any }> = {
