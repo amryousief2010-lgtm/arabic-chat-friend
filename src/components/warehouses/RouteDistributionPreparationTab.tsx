@@ -120,6 +120,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState<string>("");
   const [lastDispatch, setLastDispatch] = useState<{ courierName: string; ordersCount: number; customersCount: number; itemsCount: number; at: string; reference: string; movementsCreated: number; unresolved: string[] } | null>(null);
+  const [shortageDialog, setShortageDialog] = useState<null | { shortages: Array<{ product_name: string; required: number; available: number; shortage: number }> }>(null);
 
   const getDeliveryKind = useMemo(() => makeGetDeliveryKind(warehouseId), [warehouseId]);
 
@@ -383,7 +384,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
     else setSelectedOrderIds(new Set(selectable.map(o => o.id)));
   };
 
-  const approveDispatch = async () => {
+  const approveDispatch = async (overrideNegative: boolean = false) => {
     if (saving) return; // hard guard against double-click
     if (!selectedCustodyId) { toast.error("اختر عهدة مفتوحة أولاً"); return; }
     if (selectedOrders.length === 0) { toast.error("اختر طلبات أولاً"); return; }
@@ -400,10 +401,17 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
         p_warehouse_id: warehouseId,
         p_order_ids: orderIds,
         p_idempotency_key: idem,
+        p_override_negative: overrideNegative,
       });
       if (error) throw error;
 
-      const result = data as { reference: string; movement_ids: string[]; orders_count: number; items_count: number; unresolved: string[]; idempotent_hit: boolean };
+      // Backend detected shortages and user has not overridden yet — show warning dialog
+      if (data?.needs_override) {
+        setShortageDialog({ shortages: data.shortages || [] });
+        return;
+      }
+
+      const result = data as { reference: string; movement_ids: string[]; orders_count: number; items_count: number; unresolved: string[]; idempotent_hit: boolean; override_applied?: boolean };
       const unresolved: string[] = Array.isArray(result?.unresolved) ? result.unresolved : [];
 
       setLastDispatch({
@@ -418,6 +426,8 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
       });
       if (result?.idempotent_hit) {
         toast.info(`تم استدعاء التجهيز السابق نفسه (${result.reference}) — لم يتم تكرار الصرف`);
+      } else if (result?.override_applied) {
+        toast.warning(`تم الصرف مع السماح بالسالب (${result.reference}) — راجع أرصدة الأصناف الناقصة`);
       } else if (unresolved.length > 0) {
         toast.warning(`تم التجهيز مع ${unresolved.length} صنف بدون حركة مخزون (غير مرتبط بالمخزن الرئيسي)`);
       } else {
@@ -426,6 +436,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
       setSelectedOrderIds(new Set());
       setIdempotencyKey(""); // reset for next dispatch
       setConfirmOpen(false);
+      setShortageDialog(null);
       await loadCustodyLines(selectedCustodyId);
       await loadData();
     } catch (e: any) {
@@ -1018,8 +1029,60 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={saving}>إلغاء</Button>
-            <Button onClick={approveDispatch} disabled={saving || !canApprove} className="bg-purple-600 hover:bg-purple-700">
+            <Button onClick={() => approveDispatch(false)} disabled={saving || !canApprove} className="bg-purple-600 hover:bg-purple-700">
               {saving ? <><Loader2 className="h-4 w-4 ml-1 animate-spin" />جاري التنفيذ…</> : <><CheckCircle2 className="h-4 w-4 ml-1" />نعم، اعتمد الصرف</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shortage override dialog — appears when RPC reports products with insufficient stock */}
+      <Dialog open={!!shortageDialog} onOpenChange={(o) => !o && setShortageDialog(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              تحذير: أصناف رصيدها أقل من المطلوب
+            </DialogTitle>
+            <DialogDescription>
+              الأصناف التالية رصيدها في المخزن الرئيسي أقل من كمية الصرف. لو اعتمدت، رصيد الأصناف دي هيبقى بالسالب في المخزن الرئيسي.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-72 overflow-auto border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>الصنف</TableHead>
+                  <TableHead className="text-center">المطلوب</TableHead>
+                  <TableHead className="text-center">المتاح</TableHead>
+                  <TableHead className="text-center text-destructive">النقص</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(shortageDialog?.shortages || []).map((s, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">{s.product_name}</TableCell>
+                    <TableCell className="text-center">{Number(s.required).toFixed(2)}</TableCell>
+                    <TableCell className="text-center">{Number(s.available).toFixed(2)}</TableCell>
+                    <TableCell className="text-center font-bold text-destructive">-{Number(s.shortage).toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <Alert variant="destructive" className="mt-2">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>تنبيه</AlertTitle>
+            <AlertDescription>
+              اعتماد الصرف مع النقص هيخلي رصيد الأصناف دي بالسالب. تأكد إن ده مقصود قبل الموافقة.
+            </AlertDescription>
+          </Alert>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShortageDialog(null)} disabled={saving}>
+              لا، إلغاء
+            </Button>
+            <Button variant="destructive" onClick={() => approveDispatch(true)} disabled={saving}>
+              {saving ? <><Loader2 className="h-4 w-4 ml-1 animate-spin" />جاري التنفيذ…</> : <>نعم، اعتمد مع السماح بالسالب</>}
             </Button>
           </DialogFooter>
         </DialogContent>

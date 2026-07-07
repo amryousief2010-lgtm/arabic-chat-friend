@@ -19754,15 +19754,26 @@ export type Database = {
         Returns: string
       }
       approve_courier_discount: { Args: { _line_id: string }; Returns: string }
-      approve_distribution_dispatch: {
-        Args: {
-          p_custody_id: string
-          p_idempotency_key?: string
-          p_order_ids: string[]
-          p_warehouse_id: string
-        }
-        Returns: Json
-      }
+      approve_distribution_dispatch:
+        | {
+            Args: {
+              p_custody_id: string
+              p_idempotency_key?: string
+              p_order_ids: string[]
+              p_warehouse_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_custody_id: string
+              p_idempotency_key?: string
+              p_order_ids: string[]
+              p_override_negative?: boolean
+              p_warehouse_id: string
+            }
+            Returns: Json
+          }
       approve_feed_batch_cost: {
         Args: {
           p_batch: string
