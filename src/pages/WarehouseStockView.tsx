@@ -515,7 +515,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             </button>
           )}
         </div>
-        <span className="text-[10px] text-muted-foreground">{pkgs} عبوة</span>
+        <span className="text-[10px] text-muted-foreground">{fmtKg(pkgs)} عبوة</span>
       </div>
     );
   };
