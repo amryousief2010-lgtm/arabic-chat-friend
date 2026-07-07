@@ -3062,8 +3062,9 @@ const Orders = () => {
             <DialogTitle>🧩 توزيع التحصيل المختلط</DialogTitle>
           </DialogHeader>
           {(() => {
-            const t = orders.find((o) => o.id === mixedDlgOrderId);
-            if (!t) return null;
+            const t = orders.find((o) => o.id === mixedDlgOrderId) ?? mixedDlgOrderSnap;
+            if (!t) return <div className="p-4 text-sm text-muted-foreground text-center">جارٍ تحميل بيانات الأوردر…</div>;
+
             const cash = Number(mixedCash) || 0;
             const vod = Number(mixedVod) || 0;
             const insta = Number(mixedInsta) || 0;
