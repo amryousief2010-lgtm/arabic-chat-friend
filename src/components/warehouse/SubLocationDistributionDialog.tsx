@@ -23,7 +23,18 @@ interface Props {
 }
 
 interface SubLoc { id: string; name_ar: string; code: string; sort_order: number; }
-interface Move { id: string; qty: number; created_at: string; from_sublocation_id: string | null; to_sublocation_id: string | null; created_by: string | null; source?: string | null; notes?: string | null; }
+interface Move { id: string; qty: number; created_at: string; from_sublocation_id: string | null; to_sublocation_id: string | null; created_by: string | null; source?: string | null; source_ref?: string | null; notes?: string | null; }
+
+const SOURCE_LABELS: Record<string, { label: string; cls: string }> = {
+  manual_transfer: { label: "نقل داخلي", cls: "" },
+  order_dispatch: { label: "صرف أوردر", cls: "text-destructive" },
+  sales_return: { label: "مرتجع مبيعات", cls: "text-green-600" },
+  stock_in: { label: "دخول مخزون", cls: "text-green-600" },
+  stock_out: { label: "صرف مخزون", cls: "text-destructive" },
+  opening_balance: { label: "رصيد افتتاحي", cls: "text-blue-600" },
+  manual_adjustment: { label: "تعديل يدوي", cls: "text-amber-600" },
+  auto_sync: { label: "مزامنة تلقائية", cls: "text-muted-foreground" },
+};
 
 const fmt = (n: number) => {
   if (!isFinite(n)) return "0";
@@ -71,7 +82,7 @@ export default function SubLocationDistributionDialog({
 
       const { data: mRows } = await supabase
         .from("sublocation_movements")
-        .select("id, qty, created_at, from_sublocation_id, to_sublocation_id, created_by, source, notes")
+        .select("id, qty, created_at, from_sublocation_id, to_sublocation_id, created_by, source, source_ref, notes")
         .eq("product_id", productId)
         .order("created_at", { ascending: false })
         .limit(50);
@@ -276,16 +287,14 @@ export default function SubLocationDistributionDialog({
                         <TableHead>من</TableHead>
                         <TableHead>إلى</TableHead>
                         <TableHead>الكمية</TableHead>
+                        <TableHead>المرجع</TableHead>
                         <TableHead>المستخدم</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {moves.map((m) => {
-                        const kind = m.from_sublocation_id && m.to_sublocation_id
-                          ? { label: "نقل داخلي", cls: "" }
-                          : m.from_sublocation_id
-                          ? { label: "خصم تلقائي", cls: "text-destructive" }
-                          : { label: "إضافة تلقائية", cls: "text-green-600" };
+                        const src = m.source || (m.from_sublocation_id && m.to_sublocation_id ? "manual_transfer" : m.from_sublocation_id ? "auto_sync" : "auto_sync");
+                        const kind = SOURCE_LABELS[src] || { label: src, cls: "" };
                         return (
                           <TableRow key={m.id}>
                             <TableCell className="text-xs whitespace-nowrap">{formatDateTime(m.created_at)}</TableCell>
@@ -293,6 +302,7 @@ export default function SubLocationDistributionDialog({
                             <TableCell>{m.from_sublocation_id ? subName(m.from_sublocation_id) : "—"}</TableCell>
                             <TableCell>{m.to_sublocation_id ? subName(m.to_sublocation_id) : "—"}</TableCell>
                             <TableCell>{fmt(Number(m.qty))} {unit}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{m.source_ref || "—"}</TableCell>
                             <TableCell className="text-xs">{m.created_by ? (userNames[m.created_by] || "—") : "—"}</TableCell>
                           </TableRow>
                         );
