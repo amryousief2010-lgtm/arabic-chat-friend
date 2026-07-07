@@ -828,16 +828,25 @@ const Orders = () => {
   const filteredOrders = useMemo(() => orders.filter((order) => {
     const matchesStatus =
       filterStatus === "all" || order.status === filterStatus;
-    const q = debouncedSearch.trim().toLowerCase();
+    const qRaw = debouncedSearch.trim();
+    const q = qRaw.toLowerCase();
+    const qNorm = normalizeArabic(qRaw);
     const normalizedPhoneQuery = q.replace(/[^\d]/g, "");
     const normalizedOrderPhone = (order.customer_phone || "").replace(/[^\d]/g, "");
     const normalizedOrderPhone2 = (order.customer_phone2 || "").replace(/[^\d]/g, "");
+    const nameNorm = normalizeArabic(order.customer_name || "");
+    const govNorm = normalizeArabic(order.governorate || "");
+    const addrNorm = normalizeArabic(order.delivery_address || "");
     const routeName = (order.route_name || "").toLowerCase();
+    const routeNameNorm = normalizeArabic(order.route_name || "");
     const matchesSearch =
       !q ||
       order.order_number.toLowerCase().includes(q) ||
-      order.customer_name.toLowerCase().includes(q) ||
+      (qNorm && nameNorm.includes(qNorm)) ||
+      (qNorm && govNorm.includes(qNorm)) ||
+      (qNorm && addrNorm.includes(qNorm)) ||
       routeName.includes(q) ||
+      (qNorm && routeNameNorm.includes(qNorm)) ||
       (normalizedPhoneQuery.length > 0 && (
         normalizedOrderPhone.includes(normalizedPhoneQuery) ||
         normalizedOrderPhone2.includes(normalizedPhoneQuery)
