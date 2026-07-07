@@ -287,16 +287,14 @@ export default function SubLocationDistributionDialog({
                         <TableHead>من</TableHead>
                         <TableHead>إلى</TableHead>
                         <TableHead>الكمية</TableHead>
+                        <TableHead>المرجع</TableHead>
                         <TableHead>المستخدم</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {moves.map((m) => {
-                        const kind = m.from_sublocation_id && m.to_sublocation_id
-                          ? { label: "نقل داخلي", cls: "" }
-                          : m.from_sublocation_id
-                          ? { label: "خصم تلقائي", cls: "text-destructive" }
-                          : { label: "إضافة تلقائية", cls: "text-green-600" };
+                        const src = m.source || (m.from_sublocation_id && m.to_sublocation_id ? "manual_transfer" : m.from_sublocation_id ? "auto_sync" : "auto_sync");
+                        const kind = SOURCE_LABELS[src] || { label: src, cls: "" };
                         return (
                           <TableRow key={m.id}>
                             <TableCell className="text-xs whitespace-nowrap">{formatDateTime(m.created_at)}</TableCell>
@@ -304,6 +302,7 @@ export default function SubLocationDistributionDialog({
                             <TableCell>{m.from_sublocation_id ? subName(m.from_sublocation_id) : "—"}</TableCell>
                             <TableCell>{m.to_sublocation_id ? subName(m.to_sublocation_id) : "—"}</TableCell>
                             <TableCell>{fmt(Number(m.qty))} {unit}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{m.source_ref || "—"}</TableCell>
                             <TableCell className="text-xs">{m.created_by ? (userNames[m.created_by] || "—") : "—"}</TableCell>
                           </TableRow>
                         );
