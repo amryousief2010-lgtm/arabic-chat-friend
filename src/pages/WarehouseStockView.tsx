@@ -901,9 +901,99 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {/* Desktop table */}
+          {/* Simplified Main Warehouse Table */}
+          {scope === "main" && (
+            <div className="hidden md:block overflow-x-auto max-h-[70vh]">
+              <table className="w-full text-right text-sm border-collapse">
+                <thead className="sticky top-0 z-10 bg-muted/60 text-xs">
+                  <tr className="border-b">
+                    <th className="p-4 font-semibold text-muted-foreground">المنتج</th>
+                    <th className="p-4 font-semibold text-muted-foreground">الوحدة</th>
+                    <th className="p-4 font-semibold text-muted-foreground whitespace-nowrap">الرئيسي - الفعلي</th>
+                    <th className="p-4 font-semibold text-muted-foreground whitespace-nowrap">الرئيسي - المحجوز</th>
+                    <th className="p-4 font-semibold text-muted-foreground whitespace-nowrap">الرئيسي - المتاح</th>
+                    <th className="p-4 font-semibold text-muted-foreground text-center">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading && filtered.length === 0 && Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={`sk-m-${i}`} className="border-b">
+                      <td colSpan={6} className="p-3"><Skeleton className="h-8 w-full" /></td>
+                    </tr>
+                  ))}
+                  {filtered
+                    .filter((p) => {
+                      const a = mainStock[p.id] ?? 0;
+                      const r = mainPending[p.id] ?? 0;
+                      const lo = getLowMap("main")[p.id] ?? 0;
+                      if (tableFilter === "withStock") return a > 0;
+                      if (tableFilter === "lowStock") return lo > 0 && a <= lo;
+                      if (tableFilter === "overReserved") return r > a;
+                      return true;
+                    })
+                    .map((p) => {
+                      const mActual = mainStock[p.id] ?? 0;
+                      const mPend = mainPending[p.id] ?? 0;
+                      const mAvail = mActual - mPend;
+                      const whId = getWhId("main");
+                      const iid = mainItemIds[p.id];
+                      return (
+                        <tr key={p.id} className="border-b border-border/50 hover:bg-primary/[0.03] transition-colors">
+                          <td className="p-3">
+                            <div className="flex items-center gap-3">
+                              {p.image_url ? (
+                                <img src={p.image_url} alt={p.name} className="w-11 h-11 rounded-lg object-cover border" />
+                              ) : (
+                                <div className="w-11 h-11 rounded-lg bg-muted flex items-center justify-center">
+                                  <Package className="w-5 h-5 text-muted-foreground" />
+                                </div>
+                              )}
+                              <span className="font-semibold text-foreground">{p.name}</span>
+                            </div>
+                          </td>
+                          <td className="p-3 text-muted-foreground">{p.unit}</td>
+                          <td className="p-3 text-foreground">{fmtKg(mActual)} كجم</td>
+                          <td className="p-3 text-foreground">
+                            {mPend > 0 ? `${fmtKg(mPend)} كجم` : <span className="text-muted-foreground">—</span>}
+                          </td>
+                          <td className={`p-3 font-medium ${mAvail < 0 ? "text-destructive" : "text-foreground"}`}>{fmtKg(mAvail)} كجم</td>
+                          <td className="p-3 text-center">
+                            {iid && whId ? (
+                              <button
+                                type="button"
+                                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 hover:bg-primary/15 text-primary font-semibold text-xs px-4 py-2 transition-colors"
+                                onClick={() => setDistDlg({ warehouseId: whId, productId: p.id, productName: p.name, unit: p.unit, actual: mActual, reserved: mPend })}
+                              >
+                                <ArrowLeftRight className="w-3.5 h-3.5" />
+                                <span>توزيع</span>
+                              </button>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  {!loading && filtered.length === 0 && (
+                    <tr><td colSpan={6} className="p-12 text-center text-muted-foreground">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                          <Package className="w-6 h-6 opacity-50" />
+                        </div>
+                        <div className="text-sm">لا توجد منتجات مطابقة</div>
+                      </div>
+                    </td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Desktop table (other scopes) */}
+          {scope !== "main" && (
           <div className="hidden md:block overflow-x-auto max-h-[70vh]">
             <table className="w-full text-right text-sm border-collapse">
+
               <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur supports-[backdrop-filter]:bg-muted/60 text-xs">
                 <tr className="border-b">
                   <th className="p-3 font-semibold text-muted-foreground">المنتج</th>
