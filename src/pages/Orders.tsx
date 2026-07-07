@@ -1144,6 +1144,7 @@ const Orders = () => {
   // لا يمس أي منطق للمخزون أو التسليم أو الحركات المالية.
   // نافذة توزيع "التحصيل المختلط" — تُفتح عند اختيار طريقة mixed_payment.
   const [mixedDlgOrderId, setMixedDlgOrderId] = useState<string | null>(null);
+  const [mixedDlgOrderSnap, setMixedDlgOrderSnap] = useState<Order | null>(null);
   const [mixedCash, setMixedCash] = useState<string>('');
   const [mixedVod, setMixedVod] = useState<string>('');
   const [mixedInsta, setMixedInsta] = useState<string>('');
@@ -1166,8 +1167,10 @@ const Orders = () => {
     setMixedFree(String(t.free_amount ?? 0));
     setMixedRef(String(t.transfer_reference ?? ''));
     setMixedNote('');
+    setMixedDlgOrderSnap(t);
     setMixedDlgOrderId(orderId);
   };
+
 
   // Auto-open mixed collection dialog when navigated with ?mixed=<orderId>
   useEffect(() => {
