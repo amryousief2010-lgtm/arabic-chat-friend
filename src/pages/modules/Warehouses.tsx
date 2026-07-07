@@ -1473,13 +1473,18 @@ const Warehouses = () => {
             ] as const;
 
             // Sub-tool icon strip config per warehouse — fully scoped, no cross-leaks.
+            // بداية سجل الاستلامات الجديد لكل مخزن (نُخفي أي استلامات قديمة قبل هذا التاريخ)
+            const RECEIPTS_START_DATE = "2026-07-07";
+
             const MAIN_TOOLS = [
               { key: "activity", label: "سجل حركات المخزن الرئيسي", Icon: BarChart3 },
+              { key: "receipts", label: "استلامات المخزن الرئيسي", Icon: Inbox },
               { key: "treasury", label: "خزينة المخزن الرئيسي", Icon: Wallet },
               { key: "courier-orders", label: "عهدة أوردرات المندوب", Icon: Truck },
               { key: "route-prep", label: "تجهيز خط التوزيع", Icon: Truck },
             ];
             const AGOUZA_TOOLS = [
+              { key: "receipts", label: "استلامات مخزن العجوزة", Icon: Inbox },
               { key: "treasury", label: "خزنة مخزن العجوزة", Icon: Wallet },
               { key: "courier-orders", label: "عهدة أوردرات مندوب العجوزة", Icon: Truck },
               { key: "route-prep", label: "تجهيز خط توزيع العجوزة", Icon: Truck },
