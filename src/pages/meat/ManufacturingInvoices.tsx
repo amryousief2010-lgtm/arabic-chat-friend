@@ -76,6 +76,7 @@ export default function ManufacturingInvoices() {
   const [carryoverInQty, setCarryoverInQty] = useState<number>(0);
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [transferStatusMap, setTransferStatusMap] = useState<Record<string, string>>({});
   const [viewing, setViewing] = useState<Invoice | null>(null);
   const [viewLines, setViewLines] = useState<any[]>([]);
   const [transferInv, setTransferInv] = useState<Invoice | null>(null);
