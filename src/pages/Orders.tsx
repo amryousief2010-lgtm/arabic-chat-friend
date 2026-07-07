@@ -476,7 +476,11 @@ const Orders = () => {
   const [draftSearch, setDraftSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [quickDeliveryOpen, setQuickDeliveryOpen] = useState(false);
-  const triggerSearchNow = () => setAppliedSearch(draftSearch.trim());
+  const triggerSearchNow = () => {
+    const nextSearch = draftSearch.trim();
+    setAppliedSearch(nextSearch);
+    fetchOrders(nextSearch);
+  };
   const now = new Date();
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>("all");
@@ -507,7 +511,7 @@ const Orders = () => {
       const { data } = await supabase.from('delivery_routes').select('id,name,color').order('name', { ascending: true });
       setAvailableRoutes((data as any[]) || []);
     })();
-  }, [filterMonth, filterYear, yearGroup, appliedSearch]);
+  }, [filterMonth, filterYear, yearGroup]);
 
   // M4-B: Reload Agouza reservation status whenever the visible orders set changes.
   // Read-only; Agouza-only — other warehouses are skipped entirely.
@@ -540,7 +544,15 @@ const Orders = () => {
   }, [orders.length]);
 
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (searchOverride?: string) => {
+    const activeSearch = (searchOverride ?? appliedSearch).trim();
+    const restrictToCurrentMonthForFetch =
+      !activeSearch &&
+      filterMonth === "all" &&
+      filterYear === "all" &&
+      yearGroup === "all" &&
+      !isShippingCompany;
+
     setLoading(true);
     try {
       // طبّق فلتر التاريخ على الخادم فقط عندما يختاره المستخدم صراحةً.
@@ -565,7 +577,7 @@ const Orders = () => {
         startDate = cairoYearStartUTC(2026).toISOString();
       } else if (yearGroup === 'pre2026') {
         endDate = cairoYearStartUTC(2026).toISOString();
-      } else if (restrictToCurrentMonth) {
+      } else if (restrictToCurrentMonthForFetch) {
         const { year, monthIndex0 } = currentCairoYearMonth(now);
         startDate = cairoMonthStartUTC(year, monthIndex0).toISOString();
         endDate = cairoMonthStartUTC(year, monthIndex0 + 1).toISOString();
@@ -691,8 +703,8 @@ const Orders = () => {
       };
 
       // ====== فرع البحث: نجلب فقط الطلبات المطابقة بدل تحميل كل الشهر ======
-      if (appliedSearch) {
-        const term = appliedSearch;
+      if (activeSearch) {
+        const term = activeSearch;
         const termNorm = normalizeArabic(term);
         const digits = term.replace(/[^\d]/g, "");
         // 1) ابحث عن العملاء المطابقين بالاسم أو الهاتف الأساسي أو الهاتف الإضافي أو المحافظة
