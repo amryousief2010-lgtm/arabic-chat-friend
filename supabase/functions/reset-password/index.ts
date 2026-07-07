@@ -60,7 +60,20 @@ Deno.serve(async (req) => {
     const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
       password: newPassword,
     });
-    if (error) throw error;
+    if (error) {
+      const code = (error as any).code || "";
+      const status = (error as any).status || 400;
+      if (code === "weak_password" || status === 422) {
+        return new Response(
+          JSON.stringify({ error: "كلمة السر ضعيفة أو مسربة، اختر كلمة أقوى وغير شائعة", code: "weak_password" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ error: error.message || "تعذر تحديث كلمة السر" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     console.log(`Password reset by ${userData.user.id} for target ${userId}`);
 
@@ -69,7 +82,7 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error("reset-password error", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
+    return new Response(JSON.stringify({ error: (error as any)?.message || "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
