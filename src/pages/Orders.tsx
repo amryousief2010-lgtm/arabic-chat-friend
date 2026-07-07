@@ -3081,7 +3081,9 @@ const Orders = () => {
             const bank = Number(mixedBank) || 0;
             const other = Number(mixedOther) || 0;
             const free = Number(mixedFree) || 0;
-            const sum = cash + vod + insta + bank + other + free;
+            const deposit = Number(mixedDeposit) || 0;
+            const sum = cash + vod + insta + bank + other + free + deposit;
+
             const totalVal = Number(t.total || 0);
             const diff = totalVal - sum;
             const ok = Math.abs(diff) <= 0.01;
