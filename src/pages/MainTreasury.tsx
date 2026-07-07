@@ -844,7 +844,8 @@ export default function MainTreasury() {
 
         {/* Approve */}
         {isApprover && (
-          <TabsContent value="approve" className="mt-4">
+          <TabsContent value="approve" className="mt-4 space-y-3">
+            <IncomingWarehouseTreasuryTransfers onReceived={fetchAll} />
             <Card><CardContent className="p-0 overflow-x-auto">
               <Table>
                 <TableHeader><TableRow>
