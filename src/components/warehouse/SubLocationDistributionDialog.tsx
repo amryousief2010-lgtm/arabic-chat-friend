@@ -23,7 +23,7 @@ interface Props {
 }
 
 interface SubLoc { id: string; name_ar: string; code: string; sort_order: number; }
-interface Move { id: string; qty: number; created_at: string; from_sublocation_id: string; to_sublocation_id: string; created_by: string | null; }
+interface Move { id: string; qty: number; created_at: string; from_sublocation_id: string | null; to_sublocation_id: string | null; created_by: string | null; source?: string | null; notes?: string | null; }
 
 const fmt = (n: number) => {
   if (!isFinite(n)) return "0";
