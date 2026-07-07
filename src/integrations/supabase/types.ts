@@ -2701,6 +2701,7 @@ export type Database = {
           courier_cash_due: number
           created_at: string
           customer_name: string | null
+          deposit_amount: number
           deposit_id: string
           free_amount: number
           id: string
@@ -2720,6 +2721,7 @@ export type Database = {
           courier_cash_due?: number
           created_at?: string
           customer_name?: string | null
+          deposit_amount?: number
           deposit_id: string
           free_amount?: number
           id?: string
@@ -2739,6 +2741,7 @@ export type Database = {
           courier_cash_due?: number
           created_at?: string
           customer_name?: string | null
+          deposit_amount?: number
           deposit_id?: string
           free_amount?: number
           id?: string
