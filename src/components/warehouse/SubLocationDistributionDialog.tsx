@@ -144,8 +144,10 @@ export default function SubLocationDistributionDialog({
     return Math.round((mainReserved * st / subTotal) * 100) / 100;
   };
 
-  const canTransfer = fromSub && toSub && fromSub !== toSub && Number(qty) > 0
-    && Number(qty) <= (stockBySub[fromSub] || 0);
+  const perKg = kgPerPackage(productName) || 0.5;
+  const qtyKg = Number(qty) * perKg;
+  const canTransfer = fromSub && toSub && fromSub !== toSub && qtyKg > 0
+    && qtyKg <= (stockBySub[fromSub] || 0) + 1e-6;
 
   const submitTransfer = async () => {
     if (!canTransfer) return;
@@ -155,7 +157,7 @@ export default function SubLocationDistributionDialog({
         p_product_id: productId,
         p_from_sublocation_id: fromSub,
         p_to_sublocation_id: toSub,
-        p_qty: Number(qty),
+        p_qty: qtyKg,
         p_notes: null,
       });
       if (error) throw error;
@@ -168,6 +170,7 @@ export default function SubLocationDistributionDialog({
       setBusy(false);
     }
   };
+
 
   const subName = (id: string) => subs.find((s) => s.id === id)?.name_ar || "—";
 
@@ -282,19 +285,19 @@ export default function SubLocationDistributionDialog({
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">
-                    الكمية {fromSub ? `(المتاح: ${fmt(stockBySub[fromSub] || 0)} ${unit} • ${fmtPkgs(stockBySub[fromSub] || 0, productName)})` : ""}
+                    الكمية (عبوات) {fromSub ? `— المتاح: ${fmtPkgs(stockBySub[fromSub] || 0, productName)} (${fmt(stockBySub[fromSub] || 0)} ${unit})` : ""}
                   </label>
                   <Input
                     type="number"
                     inputMode="decimal"
                     min={0}
-                    step="0.001"
+                    step="1"
                     value={qty}
                     onChange={(e) => setQty(e.target.value)}
                     placeholder="0"
                   />
                   {qty && Number(qty) > 0 && (
-                    <div className="text-[10px] text-muted-foreground mt-1">= {fmtPkgs(Number(qty), productName)}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">= {fmt(qtyKg)} {unit}</div>
                   )}
                 </div>
 
@@ -305,10 +308,12 @@ export default function SubLocationDistributionDialog({
                   </Button>
                 </div>
               </div>
-              {qty && Number(qty) > (stockBySub[fromSub] || 0) && (
+              {qty && qtyKg > (stockBySub[fromSub] || 0) + 1e-6 && (
                 <div className="text-xs text-destructive">الكمية المطلوبة أكبر من المتاح في المكان.</div>
               )}
             </div>
+
+
 
             <div className="mt-4">
               <div className="text-sm font-semibold mb-2">سجل الحركات الداخلية <Badge variant="outline">{moves.length}</Badge></div>
