@@ -1206,7 +1206,7 @@ export default function ManufacturingInvoices() {
                           <TableCell>{fmt(inv.packaging_cost)}</TableCell>
                           <TableCell>{fmt(inv.total_manufacturing_cost || inv.materials_total_cost)}</TableCell>
                           <TableCell>{inv.unit_cost ? fmt(inv.unit_cost) : "—"}</TableCell>
-                          <TableCell>{statusBadge(inv.status)}</TableCell>
+                          <TableCell>{statusBadge(inv.status, inv)}</TableCell>
                           <TableCell className="space-x-1 space-x-reverse">
                             <Button size="sm" variant="outline" onClick={() => openView(inv)}><Eye className="w-3 h-3 ml-1" />عرض</Button>
                             <Button size="sm" variant="outline" onClick={() => printInvoice(inv)}><Printer className="w-3 h-3 ml-1" />طباعة</Button>
@@ -1217,10 +1217,10 @@ export default function ManufacturingInvoices() {
                             )}
                             {inv.status === "approved" && (
                               <Button size="sm" onClick={() => openTransfer(inv)} className="bg-blue-600 hover:bg-blue-700">
-                                <Send className="w-3 h-3 ml-1" />توريد للرئيسي
+                                <Send className="w-3 h-3 ml-1" />توريد الرئيسي
                               </Button>
                             )}
-                            {inv.status === "transferred" && inv.transfer_no && (
+                            {inv.status === "transferred" && !inv.legacy_transferred && inv.transfer_no && inv.transfer_no !== "LEGACY" && (
                               <span className="text-xs text-muted-foreground">#{inv.transfer_no}</span>
                             )}
                             {isApprover && (inv.status === "draft" || inv.status === "approved") && (
