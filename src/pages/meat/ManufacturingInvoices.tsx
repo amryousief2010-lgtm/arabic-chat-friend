@@ -31,8 +31,8 @@ type Invoice = {
   status: string; raw_cost: number; spice_cost: number; packaging_cost: number; extra_cost: number;
   materials_total_cost: number; total_manufacturing_cost: number; unit_cost: number | null;
   factory_warehouse_id: string; finished_item_id: string | null; destination_kind: string;
-  transfer_no: string | null; created_at: string; approved_at: string | null; approved_by: string | null;
-  notes: string | null;
+  transfer_id: string | null; transfer_no: string | null; created_at: string; approved_at: string | null; approved_by: string | null;
+  notes: string | null; legacy_transferred?: boolean;
 };
 
 const KIND_LABEL: Record<Kind,string> = { raw: "خامة", spice: "بهارات", packaging: "تغليف" };
@@ -76,6 +76,7 @@ export default function ManufacturingInvoices() {
   const [carryoverInQty, setCarryoverInQty] = useState<number>(0);
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [transferStatusMap, setTransferStatusMap] = useState<Record<string, string>>({});
   const [viewing, setViewing] = useState<Invoice | null>(null);
   const [viewLines, setViewLines] = useState<any[]>([]);
   const [transferInv, setTransferInv] = useState<Invoice | null>(null);
@@ -126,7 +127,16 @@ export default function ManufacturingInvoices() {
       setMainWarehouses(main);
       if (factory[0]) setFactoryWarehouseId(prev => prev || factory[0].id);
     }
-    if (inv.data) setInvoices(inv.data as any);
+    if (inv.data) {
+      setInvoices(inv.data as any);
+      const tids = Array.from(new Set((inv.data as any[]).map((i: any) => i.transfer_id).filter(Boolean)));
+      if (tids.length) {
+        const { data: trs } = await supabase.from("warehouse_transfers").select("id,status").in("id", tids);
+        const map: Record<string, string> = {};
+        (trs || []).forEach((t: any) => { map[t.id] = t.status; });
+        setTransferStatusMap(map);
+      } else setTransferStatusMap({});
+    }
     if (ri.data) setItems(ri.data as any);
     if (mp.data) setMappings(mp.data as any);
     if (cd.data) setAvailableCarryovers(cd.data as any);
@@ -770,10 +780,15 @@ export default function ManufacturingInvoices() {
     w.document.close();
   };
 
-  const statusBadge = (s: string) => {
+  const statusBadge = (s: string, inv?: Invoice) => {
     if (s === "draft") return <Badge variant="outline">مسودة</Badge>;
     if (s === "approved") return <Badge className="bg-emerald-600">معتمدة</Badge>;
-    if (s === "transferred") return <Badge className="bg-blue-600">موردة للمخزن الرئيسي</Badge>;
+    if (s === "transferred") {
+      if (inv?.legacy_transferred) return <Badge className="bg-slate-500">تم توريدها سابقًا</Badge>;
+      const tstatus = inv?.transfer_id ? transferStatusMap[inv.transfer_id] : null;
+      if (tstatus === "received") return <Badge className="bg-emerald-700">تم الاستلام بالمخزن الرئيسي</Badge>;
+      return <Badge className="bg-amber-500">بانتظار استلام المخزن الرئيسي</Badge>;
+    }
     if (s === "rejected") return <Badge variant="destructive">مرفوضة</Badge>;
     if (s === "cancelled") return <Badge variant="secondary">ملغاة</Badge>;
     return <Badge>{s}</Badge>;
@@ -1191,7 +1206,7 @@ export default function ManufacturingInvoices() {
                           <TableCell>{fmt(inv.packaging_cost)}</TableCell>
                           <TableCell>{fmt(inv.total_manufacturing_cost || inv.materials_total_cost)}</TableCell>
                           <TableCell>{inv.unit_cost ? fmt(inv.unit_cost) : "—"}</TableCell>
-                          <TableCell>{statusBadge(inv.status)}</TableCell>
+                          <TableCell>{statusBadge(inv.status, inv)}</TableCell>
                           <TableCell className="space-x-1 space-x-reverse">
                             <Button size="sm" variant="outline" onClick={() => openView(inv)}><Eye className="w-3 h-3 ml-1" />عرض</Button>
                             <Button size="sm" variant="outline" onClick={() => printInvoice(inv)}><Printer className="w-3 h-3 ml-1" />طباعة</Button>
@@ -1202,10 +1217,10 @@ export default function ManufacturingInvoices() {
                             )}
                             {inv.status === "approved" && (
                               <Button size="sm" onClick={() => openTransfer(inv)} className="bg-blue-600 hover:bg-blue-700">
-                                <Send className="w-3 h-3 ml-1" />توريد للرئيسي
+                                <Send className="w-3 h-3 ml-1" />توريد الرئيسي
                               </Button>
                             )}
-                            {inv.status === "transferred" && inv.transfer_no && (
+                            {inv.status === "transferred" && !inv.legacy_transferred && inv.transfer_no && inv.transfer_no !== "LEGACY" && (
                               <span className="text-xs text-muted-foreground">#{inv.transfer_no}</span>
                             )}
                             {isApprover && (inv.status === "draft" || inv.status === "approved") && (
@@ -1240,7 +1255,7 @@ export default function ManufacturingInvoices() {
                     <div className="grid grid-cols-3 gap-2">
                       <div><b>المنتج:</b> {viewing.product_name}</div>
                       <div><b>الكمية:</b> {fmt(viewing.finished_qty)} {viewing.unit}</div>
-                      <div><b>الحالة:</b> {statusBadge(viewing.status)}</div>
+                      <div><b>الحالة:</b> {statusBadge(viewing.status, viewing)}</div>
                       <div><b>إجمالي الخامات:</b> {fmt(viewing.raw_cost)}</div>
                       <div><b>إجمالي البهارات:</b> {fmt(viewing.spice_cost)}</div>
                       <div><b>إجمالي التغليف:</b> {fmt(viewing.packaging_cost)}</div>
@@ -1387,12 +1402,19 @@ export default function ManufacturingInvoices() {
         </Dialog>
 
         <Dialog open={!!transferInv} onOpenChange={(v) => !v && setTransferInv(null)}>
-          <DialogContent dir="rtl">
+          <DialogContent dir="rtl" className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>تحويل {transferInv?.product_name} ({fmt(transferInv?.finished_qty)} {transferInv?.unit}) للمخزن الرئيسي</DialogTitle>
+              <DialogTitle>مراجعة توريد للمخزن الرئيسي — {transferInv?.invoice_no}</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">لن يزيد رصيد المخزن الرئيسي إلا بعد موافقة مسؤول المخزن على الاستلام.</p>
+              <div className="rounded-lg border-2 border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 p-3 space-y-2">
+                <div className="text-sm font-semibold text-blue-900 dark:text-blue-200">الكميات المطلوب توريدها:</div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div><b>المنتج:</b> {transferInv?.product_name}</div>
+                  <div><b>الكمية:</b> {fmt(transferInv?.finished_qty)} {transferInv?.unit}</div>
+                  <div className="col-span-2"><b>رقم فاتورة التصنيع:</b> <span className="font-mono">{transferInv?.invoice_no}</span></div>
+                </div>
+              </div>
               <div>
                 <Label>المخزن الرئيسي المستلِم</Label>
                 <Select value={transferDestId} onValueChange={setTransferDestId}>
@@ -1400,12 +1422,15 @@ export default function ManufacturingInvoices() {
                   <SelectContent>{mainWarehouses.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+              <p className="text-xs text-amber-800 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 rounded p-2">
+                ⚠️ لن يزيد رصيد المخزن الرئيسي إلا بعد موافقة مسؤول المخزن على الاستلام. الفاتورة لا يمكن توريدها مرتين.
+              </p>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setTransferInv(null)}>إلغاء</Button>
               <Button onClick={submitTransfer} disabled={busy} className="bg-blue-600 hover:bg-blue-700">
                 {busy ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Send className="w-4 h-4 ml-1" />}
-                إرسال التحويل
+                تأكيد التوريد للمخزن الرئيسي
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1517,7 +1542,7 @@ export default function ManufacturingInvoices() {
                 <div className="rounded border bg-amber-50 p-3 space-y-1 text-xs">
                   <div><b>رقم الفاتورة:</b> {cancelTarget.invoice_no || "—"}</div>
                   <div><b>المنتج النهائي:</b> {cancelTarget.product_name} — {fmt(cancelTarget.finished_qty)} {cancelTarget.unit}</div>
-                  <div><b>الحالة الحالية:</b> {statusBadge(cancelTarget.status)}</div>
+                  <div><b>الحالة الحالية:</b> {statusBadge(cancelTarget.status, cancelTarget)}</div>
                 </div>
 
                 {cancelTarget.status === "draft" ? (
