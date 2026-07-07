@@ -384,7 +384,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
     else setSelectedOrderIds(new Set(selectable.map(o => o.id)));
   };
 
-  const approveDispatch = async () => {
+  const approveDispatch = async (overrideNegative: boolean = false) => {
     if (saving) return; // hard guard against double-click
     if (!selectedCustodyId) { toast.error("اختر عهدة مفتوحة أولاً"); return; }
     if (selectedOrders.length === 0) { toast.error("اختر طلبات أولاً"); return; }
@@ -401,10 +401,17 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
         p_warehouse_id: warehouseId,
         p_order_ids: orderIds,
         p_idempotency_key: idem,
+        p_override_negative: overrideNegative,
       });
       if (error) throw error;
 
-      const result = data as { reference: string; movement_ids: string[]; orders_count: number; items_count: number; unresolved: string[]; idempotent_hit: boolean };
+      // Backend detected shortages and user has not overridden yet — show warning dialog
+      if (data?.needs_override) {
+        setShortageDialog({ shortages: data.shortages || [] });
+        return;
+      }
+
+      const result = data as { reference: string; movement_ids: string[]; orders_count: number; items_count: number; unresolved: string[]; idempotent_hit: boolean; override_applied?: boolean };
       const unresolved: string[] = Array.isArray(result?.unresolved) ? result.unresolved : [];
 
       setLastDispatch({
@@ -419,6 +426,8 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
       });
       if (result?.idempotent_hit) {
         toast.info(`تم استدعاء التجهيز السابق نفسه (${result.reference}) — لم يتم تكرار الصرف`);
+      } else if (result?.override_applied) {
+        toast.warning(`تم الصرف مع السماح بالسالب (${result.reference}) — راجع أرصدة الأصناف الناقصة`);
       } else if (unresolved.length > 0) {
         toast.warning(`تم التجهيز مع ${unresolved.length} صنف بدون حركة مخزون (غير مرتبط بالمخزن الرئيسي)`);
       } else {
@@ -427,6 +436,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
       setSelectedOrderIds(new Set());
       setIdempotencyKey(""); // reset for next dispatch
       setConfirmOpen(false);
+      setShortageDialog(null);
       await loadCustodyLines(selectedCustodyId);
       await loadData();
     } catch (e: any) {
