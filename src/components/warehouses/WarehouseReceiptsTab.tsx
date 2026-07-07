@@ -250,6 +250,7 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
             date: (o as any).received_at || batch?.slaughter_date || new Date().toISOString(),
             source_label: "المجزر",
             destination_label: "مخزون مصنع اللحوم / الخامات",
+            dest_warehouse_id: (o as any).received_warehouse_id ?? null,
             items_count: 0,
             total_qty: 0,
             quality: "—",
