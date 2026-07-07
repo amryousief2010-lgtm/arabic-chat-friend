@@ -552,9 +552,9 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           variant={avail < 0 ? "destructive" : "outline"}
           className={avail > 0 ? "bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30 font-bold" : avail === 0 ? "" : ""}
         >
-          {avail} كجم
+          {fmtKg(avail)} كجم
         </Badge>
-        <span className={`text-[10px] ${avail < 0 ? "text-destructive" : "text-muted-foreground"}`}>{pkgs} عبوة</span>
+        <span className={`text-[10px] ${avail < 0 ? "text-destructive" : "text-muted-foreground"}`}>{fmtKg(pkgs)} عبوة</span>
       </div>
     );
   };
