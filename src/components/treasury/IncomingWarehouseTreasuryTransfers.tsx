@@ -42,6 +42,7 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [names, setNames] = useState<Record<string, string>>({});
+  const [ordersByTxn, setOrdersByTxn] = useState<Record<string, Array<{ order_number: string; total: number; courier_cash_due: number; customer_name: string | null }>>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,10 +73,48 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
       (profs || []).forEach((p: any) => { map[p.id] = p.full_name || ""; });
       setNames(map);
     }
+
+    // Fetch orders per transfer
+    const nextOrdersByTxn: Record<string, Array<{ order_number: string; total: number; courier_cash_due: number; customer_name: string | null }>> = {};
+    for (const r of list) {
+      let orderNumbers: string[] = [];
+      try {
+        const { data: deps } = await (supabase as any)
+          .from("courier_daily_cash_deposits")
+          .select("order_numbers")
+          .eq("transferred_txn_id", r.id);
+        (deps || []).forEach((d: any) => (d.order_numbers || []).forEach((n: string) => { if (n) orderNumbers.push(n); }));
+      } catch { /* ignore */ }
+      if (orderNumbers.length === 0) orderNumbers = ((r.notes || "").match(/ORD-\d+-\d+/g) || []) as string[];
+      orderNumbers = Array.from(new Set(orderNumbers));
+      if (!orderNumbers.length) { nextOrdersByTxn[r.id] = []; continue; }
+
+      const { data: ords } = await (supabase as any)
+        .from("orders")
+        .select("order_number,total,courier_cash_due,customer_id")
+        .in("order_number", orderNumbers);
+      const cids = Array.from(new Set((ords || []).map((o: any) => o.customer_id).filter(Boolean))) as string[];
+      const custMap: Record<string, string> = {};
+      if (cids.length) {
+        const { data: cs } = await (supabase as any).from("customers").select("id,name").in("id", cids);
+        (cs || []).forEach((c: any) => { custMap[c.id] = c.name || ""; });
+      }
+      nextOrdersByTxn[r.id] = orderNumbers.map((n) => {
+        const o = (ords || []).find((x: any) => x.order_number === n);
+        return {
+          order_number: n,
+          total: Number(o?.total || 0),
+          courier_cash_due: Number(o?.courier_cash_due || 0),
+          customer_name: o?.customer_id ? (custMap[o.customer_id] || null) : null,
+        };
+      });
+    }
+    setOrdersByTxn(nextOrdersByTxn);
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
 
   const approve = async (r: Row) => {
     if (!canApprove) return;
