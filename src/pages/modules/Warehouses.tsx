@@ -1101,7 +1101,7 @@ const Warehouses = () => {
               <TabsTrigger value="dashboard-all"><BarChart3 />داشبورد المخازن</TabsTrigger>
               <TabsTrigger value="available"><Warehouse />المتاح في المخازن</TabsTrigger>
               <TabsTrigger value="items"><Package />الأصناف</TabsTrigger>
-              <TabsTrigger value="receipts"><Inbox />الاستلامات</TabsTrigger>
+              {/* الاستلامات العامة تم نقلها إلى داخل كل مخزن (المخزن الرئيسي / مخزن العجوزة) */}
               <TabsTrigger value="movements"><BarChart3 />الحركات</TabsTrigger>
               <TabsTrigger value="low">
                 <Warehouse />
