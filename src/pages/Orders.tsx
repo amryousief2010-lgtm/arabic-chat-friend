@@ -191,6 +191,20 @@ const fulfillmentOptions: { value: string; label: string }[] = [
 // Sales manager who must approve private-delivery-rep edits (م. آلاء حامد)
 const SALES_MANAGER_ID = '77b71c5f-cfa8-42bc-85de-ae536a3ec1c1';
 
+// Arabic normalization for search: strip diacritics/tatweel, unify hamza/ta-marbuta/alef-maksura.
+const normalizeArabic = (s: string): string =>
+  (s || "")
+    .toString()
+    .toLowerCase()
+    .replace(/[\u064B-\u0652\u0670\u0640]/g, "") // tashkeel + tatweel
+    .replace(/[إأآٱ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ؤ/g, "و")
+    .replace(/ئ/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const statusColors: Record<OrderStatus, string> = {
   pending: "bg-warning text-warning-foreground",
   processing: "bg-primary text-primary-foreground",
