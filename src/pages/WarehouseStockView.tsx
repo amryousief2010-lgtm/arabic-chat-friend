@@ -969,6 +969,23 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                           const stockVal = whKey === "main" ? mActual : whKey === "agouza" ? aActual : cActual;
                           const hasReserved = (whKey === "main" ? mPend : whKey === "agouza" ? aPend : cPend) > 0;
                           if (!iid || !whId) return <span className="text-muted-foreground text-xs">—</span>;
+
+                          // Simplified actions for the Main warehouse: single "توزيع" button
+                          if (scope === "main" && whKey === "main") {
+                            return (
+                              <div className="flex items-center justify-center">
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/15 text-primary font-semibold text-xs px-3 py-1.5 transition-colors"
+                                  onClick={() => setDistDlg({ warehouseId: whId, productId: p.id, productName: p.name, unit: p.unit, actual: mActual, reserved: mPend })}
+                                >
+                                  <ArrowLeftRight className="w-3.5 h-3.5" />
+                                  <span>توزيع</span>
+                                </button>
+                              </div>
+                            );
+                          }
+
                           return (
                             <div className="flex items-center justify-center gap-1">
                               <Tooltip>
@@ -1016,6 +1033,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                           );
                         })()}
                       </td>
+
                     </tr>
                   );
                 })}
