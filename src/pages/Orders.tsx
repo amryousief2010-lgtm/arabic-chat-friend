@@ -473,14 +473,10 @@ const Orders = () => {
   }, [rawChannelParam]);
   // فتح نافذة ضبط التحصيل تلقائيًا عند وجود ?mixed=<orderId>
   const mixedParam = searchParams.get("mixed");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [draftSearch, setDraftSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [quickDeliveryOpen, setQuickDeliveryOpen] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 1200);
-    return () => clearTimeout(t);
-  }, [searchQuery]);
-  const triggerSearchNow = () => setDebouncedSearch(searchQuery.trim());
+  const triggerSearchNow = () => setAppliedSearch(draftSearch.trim());
   const now = new Date();
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>("all");
@@ -496,7 +492,7 @@ const Orders = () => {
   // شركات الشحن قد لا يكون لديها طلبات في الشهر الحالي (مثلاً زودكس آخر طلب لها في 2025)
   // لتفادي ظهور صفحة فارغة افتراضياً، نحمّل لهم كل الطلبات المسموح بها بدلاً من تقييد الشهر الحالي.
   const restrictToCurrentMonth =
-    !debouncedSearch &&
+    !appliedSearch &&
     filterMonth === "all" &&
     filterYear === "all" &&
     yearGroup === "all" &&
@@ -511,7 +507,7 @@ const Orders = () => {
       const { data } = await supabase.from('delivery_routes').select('id,name,color').order('name', { ascending: true });
       setAvailableRoutes((data as any[]) || []);
     })();
-  }, [filterMonth, filterYear, yearGroup, debouncedSearch]);
+  }, [filterMonth, filterYear, yearGroup, appliedSearch]);
 
   // M4-B: Reload Agouza reservation status whenever the visible orders set changes.
   // Read-only; Agouza-only — other warehouses are skipped entirely.
@@ -695,8 +691,8 @@ const Orders = () => {
       };
 
       // ====== فرع البحث: نجلب فقط الطلبات المطابقة بدل تحميل كل الشهر ======
-      if (debouncedSearch) {
-        const term = debouncedSearch;
+      if (appliedSearch) {
+        const term = appliedSearch;
         const termNorm = normalizeArabic(term);
         const digits = term.replace(/[^\d]/g, "");
         // 1) ابحث عن العملاء المطابقين بالاسم أو الهاتف الأساسي أو الهاتف الإضافي أو المحافظة
@@ -835,7 +831,7 @@ const Orders = () => {
   const filteredOrders = useMemo(() => orders.filter((order) => {
     const matchesStatus =
       filterStatus === "all" || order.status === filterStatus;
-    const qRaw = debouncedSearch.trim();
+    const qRaw = appliedSearch.trim();
     const q = qRaw.toLowerCase();
     const qNorm = normalizeArabic(qRaw);
     const normalizedPhoneQuery = q.replace(/[^\d]/g, "");
@@ -956,7 +952,7 @@ const Orders = () => {
     const baseMatch = matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam;
     (order as any).__matchesBaseNoChip = baseMatch;
     return baseMatch && matchesWarehouseChip;
-  }), [orders, filterStatus, filterWarehouseChip, debouncedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
+  }), [orders, filterStatus, filterWarehouseChip, appliedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
 
   // Counts per warehouse chip that honor ALL other filters (including current status).
   const warehouseChipCounts = useMemo(() => {
@@ -1626,16 +1622,16 @@ const Orders = () => {
             <div className="flex items-center gap-1">
               <Input
                 placeholder="ابحث برقم الطلب / رقم الموبايل / اسم العميل / المحافظة"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={draftSearch}
+                onChange={(e) => setDraftSearch(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); triggerSearchNow(); } }}
                 className="w-72 input-modern"
               />
               <Button size="sm" variant="outline" onClick={triggerSearchNow} title="بحث">
                 <Search className="w-4 h-4" />
               </Button>
-              {searchQuery && (
-                <Button size="sm" variant="ghost" onClick={() => { setSearchQuery(""); setDebouncedSearch(""); }} title="مسح">
+              {draftSearch && (
+                <Button size="sm" variant="ghost" onClick={() => { setDraftSearch(""); setAppliedSearch(""); }} title="مسح">
                   <XCircle className="w-4 h-4" />
                 </Button>
               )}
