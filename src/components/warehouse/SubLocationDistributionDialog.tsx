@@ -144,8 +144,10 @@ export default function SubLocationDistributionDialog({
     return Math.round((mainReserved * st / subTotal) * 100) / 100;
   };
 
-  const canTransfer = fromSub && toSub && fromSub !== toSub && Number(qty) > 0
-    && Number(qty) <= (stockBySub[fromSub] || 0);
+  const perKg = kgPerPackage(productName) || 0.5;
+  const qtyKg = Number(qty) * perKg;
+  const canTransfer = fromSub && toSub && fromSub !== toSub && qtyKg > 0
+    && qtyKg <= (stockBySub[fromSub] || 0) + 1e-6;
 
   const submitTransfer = async () => {
     if (!canTransfer) return;
@@ -155,7 +157,7 @@ export default function SubLocationDistributionDialog({
         p_product_id: productId,
         p_from_sublocation_id: fromSub,
         p_to_sublocation_id: toSub,
-        p_qty: Number(qty),
+        p_qty: qtyKg,
         p_notes: null,
       });
       if (error) throw error;
@@ -168,6 +170,7 @@ export default function SubLocationDistributionDialog({
       setBusy(false);
     }
   };
+
 
   const subName = (id: string) => subs.find((s) => s.id === id)?.name_ar || "—";
 
