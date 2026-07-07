@@ -126,7 +126,7 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
 
       let q = supabase
         .from("inventory_movements")
-        .select("id, performed_at, movement_type, quantity, notes, reason, party, item_id, warehouse_id, source_warehouse_id, destination_warehouse_id, performed_by, reference_type, reference, package_count, package_weight_kg")
+        .select("id, performed_at, movement_type, quantity, notes, reason, party, item_id, warehouse_id, source_warehouse_id, destination_warehouse_id, performed_by, reference_type, reference, package_count, package_weight_kg, unit_cost, total_cost")
         .or(`warehouse_id.eq.${wh.id},source_warehouse_id.eq.${wh.id},destination_warehouse_id.eq.${wh.id}`)
         .order("performed_at", { ascending: false })
         .limit(1000);
