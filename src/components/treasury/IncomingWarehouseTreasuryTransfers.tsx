@@ -21,6 +21,13 @@ interface Row {
 const fmt = (n: number) =>
   new Intl.NumberFormat("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
 
+const esc = (value: unknown) => String(value ?? "")
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
+  .replace(/'/g, "&#039;");
+
 export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onReceived?: () => void }) {
   const { roles, isGeneralManager, isExecutiveManager } = useAuth();
   const rs = (roles || []) as string[];
@@ -34,7 +41,6 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
-
   const [names, setNames] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
@@ -46,12 +52,14 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
       .eq("direction", "out")
       .eq("status", "pending_approval")
       .order("performed_at", { ascending: false });
+
     if (error) {
       console.error("MWT load error", error);
-      toast.error(error.message || "تعذر تحميل تحويلات المخزن الرئيسي");
+      toast.error(error.message || "تعذر تحميل توريدات خزينة المخزن الرئيسي");
       setLoading(false);
       return;
     }
+
     const list = (data || []) as Row[];
     setRows(list);
     const ids = Array.from(new Set(list.map((r) => r.performed_by).filter(Boolean))) as string[];
@@ -67,13 +75,11 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const approve = async (r: Row) => {
     if (!canApprove) return;
-    if (!window.confirm(`اعتماد تحويل بمبلغ ${fmt(r.amount)} ج.م؟ سيُضاف للخزينة الرئيسية.`)) return;
+    if (!window.confirm(`اعتماد توريد بمبلغ ${fmt(r.amount)} ج.م؟ سيُضاف للخزنة الرئيسية.`)) return;
     setBusy(r.id);
     const { error } = await (supabase as any).rpc("approve_main_warehouse_transfer", { _txn_id: r.id });
     setBusy(null);
@@ -81,7 +87,7 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
       toast.error(error.message || "تعذر الاعتماد");
       return;
     }
-    toast.success("تم اعتماد التحويل وإضافته للخزينة الرئيسية");
+    toast.success("تم اعتماد التوريد وإضافته للخزنة الرئيسية");
     load();
     onReceived?.();
   };
@@ -103,7 +109,7 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
       toast.error(error.message || "تعذر الرفض");
       return;
     }
-    toast.success("تم رفض التحويل");
+    toast.success("تم رفض التوريد");
     load();
     onReceived?.();
   };
@@ -112,12 +118,11 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
     const w = window.open("", "_blank", "width=1000,height=1100");
     if (!w) return;
     w.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/><title>جاري التحميل...</title></head><body style="font-family:Cairo,Tahoma,sans-serif;padding:24px;text-align:center">جاري تحميل تفاصيل الأوردرات...</body></html>`);
+
     const performedBy = (r.performed_by && names[r.performed_by]) || "—";
     const dayStr = new Date(r.performed_at).toLocaleDateString("ar-EG", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-
     const notes = r.notes || "";
-    // Primary source: deposits linked to this transfer (authoritative).
-    // Fallback: parse ORD-... numbers from the notes text.
+
     let orderNumbers: string[] = [];
     let linkedDeposits: Array<{ deposit_date: string; courier_name: string | null; amount: number; orders_count: number; order_numbers: string[] | null }> = [];
     try {
@@ -127,30 +132,30 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
         .eq("transferred_txn_id", r.id)
         .order("deposit_date", { ascending: false });
       linkedDeposits = (deps || []) as any;
-      linkedDeposits.forEach((d) => {
-        (d.order_numbers || []).forEach((n) => { if (n) orderNumbers.push(n); });
-      });
-    } catch { /* ignore */ }
-    if (orderNumbers.length === 0) {
-      orderNumbers = (notes.match(/ORD-\d+-\d+/g) || []) as string[];
-    }
+      linkedDeposits.forEach((d) => (d.order_numbers || []).forEach((n) => { if (n) orderNumbers.push(n); }));
+    } catch { /* keep notes fallback */ }
+
+    if (orderNumbers.length === 0) orderNumbers = (notes.match(/ORD-\d+-\d+/g) || []) as string[];
     orderNumbers = Array.from(new Set(orderNumbers));
 
     type OrderRow = {
       id: string; order_number: string; total: number | null; courier_cash_due: number | null;
       collection_method: string | null; customer_id: string | null; status: string | null;
       vodafone_cash_amount: number | null; instapay_amount: number | null; bank_transfer_amount: number | null;
+      other_amount: number | null; free_amount: number | null; deposit_amount: number | null;
+      delivery_fee: number | null; transfer_reference: string | null; collection_note: string | null;
     };
     type ItemRow = { order_id: string; product_name: string | null; offer_name: string | null; quantity: number | null; unit_price: number | null; total_price: number | null; is_gift: boolean | null; is_half_kg: boolean | null; };
+    type CustomerRow = { name: string; phone: string; address: string; area: string; city: string; governorate: string };
 
     let orders: OrderRow[] = [];
-    let itemsByOrder: Record<string, ItemRow[]> = {};
-    let customerMap: Record<string, string> = {};
+    const itemsByOrder: Record<string, ItemRow[]> = {};
+    const customerMap: Record<string, CustomerRow> = {};
 
     if (orderNumbers.length) {
       const { data: ords } = await (supabase as any)
         .from("orders")
-        .select("id,order_number,total,courier_cash_due,collection_method,customer_id,status,vodafone_cash_amount,instapay_amount,bank_transfer_amount")
+        .select("id,order_number,total,courier_cash_due,collection_method,customer_id,status,vodafone_cash_amount,instapay_amount,bank_transfer_amount,other_amount,free_amount,deposit_amount,delivery_fee,transfer_reference,collection_note")
         .in("order_number", orderNumbers);
       orders = (ords || []) as OrderRow[];
 
@@ -167,35 +172,59 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
 
       const cids = Array.from(new Set(orders.map((o) => o.customer_id).filter(Boolean))) as string[];
       if (cids.length) {
-        const { data: custs } = await (supabase as any).from("customers").select("id,name").in("id", cids);
-        (custs || []).forEach((c: any) => { customerMap[c.id] = c.name || ""; });
+        const { data: custs } = await (supabase as any)
+          .from("customers")
+          .select("id,name,phone,address,area,city,governorate")
+          .in("id", cids);
+        (custs || []).forEach((c: any) => {
+          customerMap[c.id] = {
+            name: c.name || "",
+            phone: c.phone || "",
+            address: c.address || "",
+            area: c.area || "",
+            city: c.city || "",
+            governorate: c.governorate || "",
+          };
+        });
       }
     }
 
     const cmLabel = (m: string | null) => ({
       cash_with_courier: "كاش مع المندوب", vodafone_cash: "فودافون كاش", instapay: "إنستاباي",
-      bank_transfer: "تحويل بنكي", mixed: "مختلط", prepaid: "مدفوع مسبقًا", free: "مجاني", none: "لا يوجد",
+      bank_transfer: "تحويل بنكي", mixed: "مختلط", mixed_payment: "تحصيل مختلط", transfer: "تحويل مباشر",
+      prepaid: "مدفوع مسبقًا", free: "مجاني", none: "لا يوجد",
     } as any)[m || ""] || m || "—";
 
     const statusLabel = (s: string | null) => ({
-      delivered: "تم التسليم للعميل", pending: "قيد الانتظار", processing: "قيد التنفيذ",
-      shipped: "تم الشحن", cancelled: "ملغي", returned: "مرتجع",
+      delivered: "تم التسليم للعميل", collected: "تم التحصيل", completed: "مكتمل", pending: "قيد الانتظار",
+      processing: "قيد التنفيذ", shipped: "تم الشحن", cancelled: "ملغي", returned: "مرتجع",
+      partially_returned: "مرتجع جزئي", fully_returned: "مرتجع كامل",
     } as any)[s || ""] || s || "—";
 
-    // Ordered by orderNumbers order
-    const orderedOrders = orderNumbers
-      .map((n) => orders.find((o) => o.order_number === n))
-      .filter(Boolean) as OrderRow[];
+    const orderedOrders = orderNumbers.map((n) => orders.find((o) => o.order_number === n)).filter(Boolean) as OrderRow[];
+    const mixedCount = orderedOrders.filter((o) => o.collection_method === "mixed" || o.collection_method === "mixed_payment").length;
+    const freeCount = orderedOrders.filter((o) => o.collection_method === "free" || o.collection_method === "none" || Number(o.free_amount || 0) > 0).length;
 
-    const mixedCount = orderedOrders.filter((o) => o.collection_method === "mixed").length;
-    const freeCount = orderedOrders.filter((o) => o.collection_method === "free").length;
+    const depositsHtml = linkedDeposits.length ? `
+      <table class="deposits">
+        <thead><tr><th>يوم التوريد</th><th>المندوب</th><th>المبلغ النقدي</th><th>عدد الأوردرات</th></tr></thead>
+        <tbody>${linkedDeposits.map((d) => `<tr>
+          <td>${new Date(d.deposit_date).toLocaleDateString("ar-EG")}</td>
+          <td>${esc(d.courier_name || "—")}</td>
+          <td class="num strong">${fmt(Number(d.amount || 0))}</td>
+          <td class="num">${Number(d.orders_count || 0)}</td>
+        </tr>`).join("")}</tbody>
+      </table>
+    ` : "";
 
     const orderBlocks = orderedOrders.map((o, idx) => {
       const items = itemsByOrder[o.id] || [];
-      const customer = (o.customer_id && customerMap[o.customer_id]) || "—";
+      const customer = (o.customer_id && customerMap[o.customer_id]) || null;
+      const customerName = customer?.name || "—";
+      const customerAddress = [customer?.address, customer?.area, customer?.city, customer?.governorate].filter(Boolean).join(" - ");
       const itemsRows = items.length
         ? items.map((it) => `<tr>
-            <td>${(it.product_name || "—")}${it.offer_name ? ` <span class="muted">(${it.offer_name})</span>` : ""}${it.is_gift ? ' <span style="color:#059669">🎁</span>' : ""}${it.is_half_kg ? ' <span class="muted">½ك</span>' : ""}</td>
+            <td>${esc(it.product_name || "—")}${it.offer_name ? ` <span class="muted">(${esc(it.offer_name)})</span>` : ""}${it.is_gift ? ' <span style="color:#059669">🎁</span>' : ""}${it.is_half_kg ? ' <span class="muted">½ك</span>' : ""}</td>
             <td class="num">${Number(it.quantity || 0)}</td>
             <td class="num">${fmt(Number(it.unit_price || 0))}</td>
             <td class="num strong">${fmt(Number(it.total_price || 0))}</td>
@@ -203,24 +232,35 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
         : `<tr><td colspan="4" style="text-align:center;color:#888">لا توجد أصناف</td></tr>`;
 
       const paymentBadges: string[] = [];
+      if (Number(o.deposit_amount || 0) > 0) paymentBadges.push(`🧾 عربون: ${fmt(Number(o.deposit_amount))}`);
       if (Number(o.vodafone_cash_amount || 0) > 0) paymentBadges.push(`📱 فودافون: ${fmt(Number(o.vodafone_cash_amount))}`);
       if (Number(o.instapay_amount || 0) > 0) paymentBadges.push(`💳 إنستاباي: ${fmt(Number(o.instapay_amount))}`);
       if (Number(o.bank_transfer_amount || 0) > 0) paymentBadges.push(`🏦 تحويل: ${fmt(Number(o.bank_transfer_amount))}`);
+      if (Number(o.other_amount || 0) > 0) paymentBadges.push(`💠 أخرى: ${fmt(Number(o.other_amount))}`);
+      if (Number(o.free_amount || 0) > 0) paymentBadges.push(`🎁 مجاني: ${fmt(Number(o.free_amount))}`);
+      const paymentTotal = Number(o.courier_cash_due || 0) + Number(o.deposit_amount || 0) + Number(o.vodafone_cash_amount || 0) + Number(o.instapay_amount || 0) + Number(o.bank_transfer_amount || 0) + Number(o.other_amount || 0) + Number(o.free_amount || 0);
 
       return `<section class="order">
         <div class="order-head">
           <span class="badge">#${idx + 1}</span>
-          <b>${o.order_number}</b>
+          <b>${esc(o.order_number)}</b>
           <span class="muted">—</span>
-          <span>${customer}</span>
+          <span>${esc(customerName)}</span>
           <span class="status">${statusLabel(o.status)}</span>
+        </div>
+        <div class="customer-line">
+          <span>📞 ${esc(customer?.phone || "—")}</span>
+          <span>📍 ${esc(customerAddress || "—")}</span>
         </div>
         <div class="order-sub">
           <span>إجمالي الأوردر: <b>${fmt(Number(o.total || 0))}</b></span>
-          <span class="cash">💵 نقدي مطلوب من ${r.courier_name || "المندوب"}: <b>${fmt(Number(o.courier_cash_due || 0))}</b></span>
+          ${Number(o.delivery_fee || 0) > 0 ? `<span>شحن: <b>${fmt(Number(o.delivery_fee || 0))}</b></span>` : ""}
+          <span class="cash">💵 نقدي مطلوب من ${esc(r.courier_name || "المندوب")}: <b>${fmt(Number(o.courier_cash_due || 0))}</b></span>
           ${paymentBadges.map((b) => `<span class="pay">${b}</span>`).join("")}
           <span class="muted">طريقة التحصيل: ${cmLabel(o.collection_method)}</span>
+          <span class="muted">مجموع التفصيل: ${fmt(paymentTotal)}</span>
         </div>
+        ${(o.transfer_reference || o.collection_note) ? `<div class="note">${o.transfer_reference ? `مرجع التحويل: ${esc(o.transfer_reference)} ` : ""}${o.collection_note ? `ملاحظة: ${esc(o.collection_note)}` : ""}</div>` : ""}
         <table>
           <thead><tr><th>الصنف</th><th>الكمية</th><th>سعر الوحدة</th><th>إجمالي الصنف</th></tr></thead>
           <tbody>${itemsRows}</tbody>
@@ -230,9 +270,16 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
 
     const missing = orderNumbers.filter((n) => !orders.find((o) => o.order_number === n));
     const totalCash = orderedOrders.reduce((s, o) => s + Number(o.courier_cash_due || 0), 0);
+    const totalOrders = orderedOrders.reduce((s, o) => s + Number(o.total || 0), 0);
+    const totalDeposit = orderedOrders.reduce((s, o) => s + Number(o.deposit_amount || 0), 0);
+    const totalVoda = orderedOrders.reduce((s, o) => s + Number(o.vodafone_cash_amount || 0), 0);
+    const totalInsta = orderedOrders.reduce((s, o) => s + Number(o.instapay_amount || 0), 0);
+    const totalBank = orderedOrders.reduce((s, o) => s + Number(o.bank_transfer_amount || 0), 0);
+    const totalOther = orderedOrders.reduce((s, o) => s + Number(o.other_amount || 0), 0);
+    const totalFree = orderedOrders.reduce((s, o) => s + Number(o.free_amount || 0), 0);
 
     const html = `<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/>
-<title>تفاصيل التوريد ${r.reference || ""}</title>
+<title>تفاصيل التوريد ${esc(r.reference || "")}</title>
 <style>
   *{box-sizing:border-box}
   body{font-family:'Cairo','Tahoma',sans-serif;padding:20px;color:#111;background:#fff;}
@@ -241,6 +288,7 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
   .header{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;border-bottom:1px solid #eee;padding-bottom:10px;margin-bottom:14px;}
   .header .item{background:#f9fafb;padding:4px 10px;border-radius:6px;}
   .muted{color:#666;font-size:11px;}
+  .customer-line{display:flex;gap:12px;flex-wrap:wrap;color:#374151;font-size:12px;margin-bottom:7px;}
   .order{border:1px solid #eee;border-radius:8px;padding:12px;margin-bottom:14px;page-break-inside:avoid;}
   .order-head{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:6px;flex-wrap:wrap;}
   .badge{background:#7c3aed;color:#fff;padding:2px 8px;border-radius:6px;font-size:12px;}
@@ -248,36 +296,52 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
   .order-sub{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;margin-bottom:8px;padding:6px 8px;background:#fafafa;border-radius:6px;}
   .cash{background:#d1fae5;padding:2px 8px;border-radius:4px;}
   .pay{background:#dbeafe;padding:2px 8px;border-radius:4px;}
+  .note{font-size:11px;color:#4b5563;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:6px 8px;margin-bottom:8px;}
   table{width:100%;border-collapse:collapse;margin-top:6px;font-size:12px;}
   th,td{border:1px solid #e5e7eb;padding:5px 8px;text-align:right;}
   th{background:#faf5ff;color:#6b21a8;font-weight:700;}
-  td.num{font-family:monospace;text-align:center;} td.strong{font-weight:700;}
+  td.num,.num{font-family:monospace;text-align:center;} td.strong,.strong{font-weight:700;}
   .footer{text-align:center;color:#666;font-size:11px;margin-top:20px;padding-top:10px;border-top:1px solid #eee;}
-  .grand{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:14px;display:flex;justify-content:space-between;}
-  @media print{.top{display:none;}}
+  .grand{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:14px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;font-size:12px;}
+  .summary div{border:1px solid #e5e7eb;background:#fafafa;border-radius:8px;padding:8px;}
+  .deposits{margin-bottom:14px;}
+  @media print{.top{display:none;}.summary{grid-template-columns:repeat(4,1fr)}}
 </style></head><body>
 <div class="top">
   <button onclick="window.print()">طباعة / حفظ كـ PDF</button>
   <button onclick="window.close()">إغلاق</button>
 </div>
 <div class="header">
-  <span class="item">المندوب: <b>${r.courier_name || (linkedDeposits[0]?.courier_name) || "—"}</b></span>
+  <span class="item">المندوب: <b>${esc(r.courier_name || (linkedDeposits[0]?.courier_name) || "—")}</b></span>
   <span class="item">اليوم: <b>${linkedDeposits[0]?.deposit_date ? new Date(linkedDeposits[0].deposit_date).toLocaleDateString("ar-EG", { weekday: "long", year: "numeric", month: "long", day: "numeric" }) : dayStr}</b></span>
   <span class="item">عدد الأوردرات: <b>${orderedOrders.length}</b></span>
   <span class="item">مجاني: <b>${freeCount}</b></span>
   <span class="item">مختلط: <b>${mixedCount}</b></span>
-  <span class="item">بواسطة: <b>${performedBy}</b></span>
-  <span class="item">المرجع: <b>${r.reference || "—"}</b></span>
+  <span class="item">بواسطة: <b>${esc(performedBy)}</b></span>
+  <span class="item">المرجع: <b>${esc(r.reference || "—")}</b></span>
 </div>
 <div class="grand">
   <span>إجمالي التوريد</span>
   <b style="color:#059669">${fmt(Number(r.amount || 0))} ج.م</b>
   <span class="muted">مجموع النقدي على المندوب من الأوردرات: ${fmt(totalCash)}</span>
 </div>
+<div class="summary">
+  <div>إجمالي قيمة الأوردرات<br/><b>${fmt(totalOrders)}</b></div>
+  <div>نقدي من المندوب<br/><b>${fmt(totalCash)}</b></div>
+  <div>عربون<br/><b>${fmt(totalDeposit)}</b></div>
+  <div>إلكتروني / أخرى<br/><b>${fmt(totalVoda + totalInsta + totalBank + totalOther)}</b></div>
+  <div>فودافون<br/><b>${fmt(totalVoda)}</b></div>
+  <div>إنستاباي<br/><b>${fmt(totalInsta)}</b></div>
+  <div>بنكي<br/><b>${fmt(totalBank)}</b></div>
+  <div>مجاني<br/><b>${fmt(totalFree)}</b></div>
+</div>
+${depositsHtml}
 ${orderBlocks || '<div class="muted" style="text-align:center;padding:20px">لا توجد أوردرات</div>'}
-${missing.length ? `<div class="muted" style="color:#b91c1c;text-align:center;margin-top:10px">أوردرات غير موجودة: ${missing.join(", ")}</div>` : ""}
+${missing.length ? `<div class="muted" style="color:#b91c1c;text-align:center;margin-top:10px">أوردرات غير موجودة: ${missing.map(esc).join(", ")}</div>` : ""}
 <div class="footer">شركة نعم العاصمة — Na'am Al-Asimah • Capital Ostrich</div>
 </body></html>`;
+
     w.document.open();
     w.document.write(html);
     w.document.close();
@@ -288,7 +352,7 @@ ${missing.length ? `<div class="muted" style="color:#b91c1c;text-align:center;ma
       <Card className="border-sky-300 bg-sky-50/40">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <Warehouse className="w-4 h-4" /> تحويلات واردة من خزينة المخزن الرئيسي
+            <Warehouse className="w-4 h-4" /> توريدات واردة من خزينة المخزن الرئيسي
           </CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">جاري التحميل...</CardContent>
@@ -303,7 +367,7 @@ ${missing.length ? `<div class="muted" style="color:#b91c1c;text-align:center;ma
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
           <Warehouse className="w-4 h-4 text-sky-700" />
-          تحويلات واردة من خزينة المخزن الرئيسي
+          توريدات واردة من خزينة المخزن الرئيسي — بانتظار اعتماد الخزنة الرئيسية
           <Badge className="bg-amber-500 text-white">{rows.length}</Badge>
         </CardTitle>
       </CardHeader>
@@ -314,53 +378,31 @@ ${missing.length ? `<div class="muted" style="color:#b91c1c;text-align:center;ma
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge className="bg-emerald-600 text-white">{fmt(Number(r.amount || 0))} ج.م</Badge>
-                  {r.courier_name && (
-                    <Badge variant="outline" className="text-xs">المندوب: {r.courier_name}</Badge>
-                  )}
+                  {r.courier_name && <Badge variant="outline" className="text-xs">المندوب: {r.courier_name}</Badge>}
                   {r.reference && <span className="text-xs text-muted-foreground">{r.reference}</span>}
                 </div>
                 <div className="text-[11px] text-muted-foreground">
-                  بواسطة: <b>{(r.performed_by && names[r.performed_by]) || "—"}</b> •{" "}
-                  {new Date(r.performed_at).toLocaleString("ar-EG")}
+                  بواسطة: <b>{(r.performed_by && names[r.performed_by]) || "—"}</b> • {new Date(r.performed_at).toLocaleString("ar-EG")}
                 </div>
               </div>
               <div className="flex gap-2 flex-wrap">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => printTransfer(r)}
-                >
-                  <Printer className="w-4 h-4 ml-1" /> طباعة
+                <Button size="sm" variant="outline" onClick={() => printTransfer(r)}>
+                  <Printer className="w-4 h-4 ml-1" /> طباعة الأوردرات كاملة
                 </Button>
                 {canApprove && (
                   <>
-                    <Button
-                      size="sm"
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                      disabled={busy === r.id}
-                      onClick={() => approve(r)}
-                    >
+                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" disabled={busy === r.id} onClick={() => approve(r)}>
                       {busy === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 ml-1" />}
                       اعتماد
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-rose-700 border-rose-300 hover:bg-rose-50"
-                      disabled={busy === r.id}
-                      onClick={() => reject(r)}
-                    >
+                    <Button size="sm" variant="outline" className="text-rose-700 border-rose-300 hover:bg-rose-50" disabled={busy === r.id} onClick={() => reject(r)}>
                       <XCircle className="w-4 h-4 ml-1" /> رفض
                     </Button>
                   </>
                 )}
               </div>
             </div>
-            {r.notes && (
-              <pre className="whitespace-pre-wrap text-xs bg-muted/40 rounded p-2 font-sans leading-relaxed">
-                {r.notes}
-              </pre>
-            )}
+            {r.notes && <pre className="whitespace-pre-wrap text-xs bg-muted/40 rounded p-2 font-sans leading-relaxed">{r.notes}</pre>}
           </div>
         ))}
       </CardContent>
