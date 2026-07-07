@@ -321,7 +321,7 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
       // ---------------- 3) Internal warehouse transfers (received) ----------------
       const { data: trs } = await supabase
         .from("warehouse_transfers")
-        .select("id, transfer_no, status, received_at, sent_at, notes, source:warehouses!warehouse_transfers_source_warehouse_id_fkey(name), destination:warehouses!warehouse_transfers_destination_warehouse_id_fkey(name), items:warehouse_transfer_items(id, item_name, unit, received_qty, sent_qty, receive_notes, line_status)")
+        .select("id, transfer_no, status, received_at, sent_at, notes, destination_warehouse_id, source:warehouses!warehouse_transfers_source_warehouse_id_fkey(name), destination:warehouses!warehouse_transfers_destination_warehouse_id_fkey(name), items:warehouse_transfer_items(id, item_name, unit, received_qty, sent_qty, receive_notes, line_status)")
         .in("status", ["received", "partial_received", "completed"])
         .order("received_at", { ascending: false })
         .limit(2000);
