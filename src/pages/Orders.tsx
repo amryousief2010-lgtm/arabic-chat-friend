@@ -697,13 +697,17 @@ const Orders = () => {
       // ====== فرع البحث: نجلب فقط الطلبات المطابقة بدل تحميل كل الشهر ======
       if (debouncedSearch) {
         const term = debouncedSearch;
+        const termNorm = normalizeArabic(term);
         const digits = term.replace(/[^\d]/g, "");
-        // 1) ابحث عن العملاء المطابقين بالاسم أو الهاتف الأساسي أو الهاتف الإضافي
+        // 1) ابحث عن العملاء المطابقين بالاسم أو الهاتف الأساسي أو الهاتف الإضافي أو المحافظة
         let custIds: string[] = [];
         const custFilters: string[] = [];
         if (term) custFilters.push(`name.ilike.%${term}%`);
+        if (termNorm && termNorm !== term.toLowerCase()) custFilters.push(`name.ilike.%${termNorm}%`);
         if (digits) custFilters.push(`phone.ilike.%${digits}%`);
         if (digits) custFilters.push(`phone2.ilike.%${digits}%`);
+        if (term) custFilters.push(`governorate.ilike.%${term}%`);
+        if (termNorm && termNorm !== term.toLowerCase()) custFilters.push(`governorate.ilike.%${termNorm}%`);
         if (custFilters.length > 0) {
           const { data: cdata } = await supabase
             .from('customers')
@@ -712,11 +716,14 @@ const Orders = () => {
             .limit(500);
           custIds = (cdata || []).map((c: any) => c.id);
         }
-        // 2) جلب الطلبات: رقم طلب أو ينتمي لعميل مطابق.
-        // بيانات الاسم/الهاتف موجودة في جدول العملاء، لذلك لا نفلتر على أعمدة غير موجودة داخل orders.
+        // 2) جلب الطلبات: رقم طلب أو ينتمي لعميل مطابق أو عنوان تسليم مطابق.
         const orFilters: string[] = [
           `order_number.ilike.%${term}%`,
+          `delivery_address.ilike.%${term}%`,
         ];
+        if (termNorm && termNorm !== term.toLowerCase()) {
+          orFilters.push(`delivery_address.ilike.%${termNorm}%`);
+        }
         if (custIds.length > 0) {
           orFilters.push(`customer_id.in.(${custIds.join(',')})`);
         }
