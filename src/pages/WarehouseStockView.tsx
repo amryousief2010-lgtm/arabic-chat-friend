@@ -459,6 +459,13 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
   const canEditFor = (wh: SingleWh) => wh === "agouza" ? canEditAgouza : canEditAll;
 
+  // Format kg values: strip float artefacts (e.g. 14.100000000000001 → 14.1), 2 decimals max.
+  const fmtKg = (v: number) => {
+    if (v == null || isNaN(v)) return "0";
+    const rounded = Math.round(v * 100) / 100;
+    return String(rounded);
+  };
+
 
   // خلية الرصيد الفعلي (قابلة للتعديل) — تعرض عدد العبوات والكيلو
   const ActualCell = ({ wh, pid, name, kgValue }: { wh: SingleWh; pid: string; name: string; kgValue: number }) => {
@@ -483,7 +490,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
               if (e.key === "Escape") setEditingKey(null);
             }}
           />
-          <span className="text-[10px] text-muted-foreground whitespace-nowrap">= {previewKg} كجم</span>
+          <span className="text-[10px] text-muted-foreground whitespace-nowrap">= {fmtKg(previewKg)} كجم</span>
           <button className="text-green-600 disabled:opacity-50" disabled={saving} onClick={() => saveStock(wh, pid, previewKg)}>
             <Check className="w-4 h-4" />
           </button>
@@ -497,7 +504,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
     return (
       <div className="flex flex-col items-end gap-0.5">
         <div className="flex items-center gap-1">
-          <Badge variant="outline" className="font-bold">{kgValue} كجم</Badge>
+          <Badge variant="outline" className="font-bold">{fmtKg(kgValue)} كجم</Badge>
           {canEditFor(wh) && (
             <button
               className="text-muted-foreground hover:text-primary opacity-60 hover:opacity-100"
@@ -508,7 +515,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             </button>
           )}
         </div>
-        <span className="text-[10px] text-muted-foreground">{pkgs} عبوة</span>
+        <span className="text-[10px] text-muted-foreground">{fmtKg(pkgs)} عبوة</span>
       </div>
     );
   };
@@ -520,7 +527,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
     const badge = (
       <Badge className="bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/30 hover:bg-orange-500/25 cursor-pointer">
         <Lock className="w-3 h-3 ml-1" />
-        {pending} كجم
+        {fmtKg(pending)} كجم
       </Badge>
     );
     return (
@@ -530,7 +537,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             {badge}
           </button>
         ) : badge}
-        <span className="text-[10px] text-muted-foreground">{pkgs} عبوة</span>
+        <span className="text-[10px] text-muted-foreground">{fmtKg(pkgs)} عبوة</span>
       </div>
     );
   };
@@ -545,9 +552,9 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           variant={avail < 0 ? "destructive" : "outline"}
           className={avail > 0 ? "bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30 font-bold" : avail === 0 ? "" : ""}
         >
-          {avail} كجم
+          {fmtKg(avail)} كجم
         </Badge>
-        <span className={`text-[10px] ${avail < 0 ? "text-destructive" : "text-muted-foreground"}`}>{pkgs} عبوة</span>
+        <span className={`text-[10px] ${avail < 0 ? "text-destructive" : "text-muted-foreground"}`}>{fmtKg(pkgs)} عبوة</span>
       </div>
     );
   };
@@ -976,6 +983,21 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                                 </TooltipTrigger>
                                 <TooltipContent side="top">سجل حركة الصنف</TooltipContent>
                               </Tooltip>
+                              {whKey === "main" && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="h-8 px-2 inline-flex items-center justify-center gap-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-semibold text-xs"
+                                      onClick={() => setDistDlg({ warehouseId: whId, productId: p.id, productName: p.name, unit: p.unit, actual: mActual, reserved: mPend })}
+                                    >
+                                      <Boxes className="w-4 h-4" />
+                                      <span>توزيع</span>
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">توزيع الكمية بين الفريزرات وثلاجة التجميد</TooltipContent>
+                                </Tooltip>
+                              )}
                               {hasReserved && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -1105,7 +1127,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           open={!!distDlg}
           onClose={() => setDistDlg(null)}
           warehouseId={distDlg.warehouseId}
-          warehouseName={currentWhLabel}
+          warehouseName={currentWhLabel || "المخزن الرئيسي"}
           productId={distDlg.productId}
           productName={distDlg.productName}
           unit={distDlg.unit}
