@@ -527,7 +527,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
     const badge = (
       <Badge className="bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/30 hover:bg-orange-500/25 cursor-pointer">
         <Lock className="w-3 h-3 ml-1" />
-        {pending} كجم
+        {fmtKg(pending)} كجم
       </Badge>
     );
     return (
