@@ -301,7 +301,7 @@ const ManualStockOutDialog = ({
   // as long as it does NOT exceed the actual physical stock. Other warehouses keep
   // the stricter manager-only override behavior.
   const canOverrideReserved = isMainWarehouse && (isManager || isWarehouseSupervisor);
-  const negativeBlocked = hasNegativeAfter && (!canOverrideReserved || !overrideNegative || overrideReason.trim().length < 3);
+  const negativeBlocked = hasNegativeAfter && !canOverrideReserved;
 
   const validRows = rows.length > 0 && rows.every(r => r.itemId && rowQty(r) > 0);
   const canSave = validDest
@@ -342,18 +342,6 @@ const ManualStockOutDialog = ({
             : "صرف يجعل المتاح بالسالب — يتطلب صلاحية المدير العام أو التنفيذي",
           variant: "destructive",
         });
-        return;
-      }
-      if (!overrideNegative || overrideReason.trim().length < 3) {
-        toast({
-          title: "فعّل تأكيد التجاوز وسجّل سببًا واضحًا (≥ ٣ حروف) للصرف رغم الحجز",
-          variant: "destructive",
-        });
-        return;
-      }
-      // Explicit confirmation dialog for reserved-conflict override
-      const confirmMsg = "تنبيه: بعض الكميات التي سيتم صرفها محجوزة لأوردرات قائمة.\nهل تريد المتابعة؟";
-      if (typeof window !== "undefined" && !window.confirm(confirmMsg)) {
         return;
       }
     }
@@ -475,10 +463,10 @@ const ManualStockOutDialog = ({
           `القائم بالتوريد: ${reason.trim()}`,
           `تاريخ التوريد: ${deliveryDate}`,
           reservedNow > 0 ? `محجوز للطلبات: ${reservedNow} ${unit}` : null,
-          (reservedNow > 0 && overrideNegative)
-            ? `⚠️ تم الصرف رغم وجود حجز على الأصناف — اعتماد: ${profile?.full_name || ""} • سبب: ${overrideReason.trim()}`
+          (reservedNow > 0 && canOverrideReserved)
+            ? `⚠️ تم الصرف رغم وجود حجز على الأصناف — اعتماد: ${profile?.full_name || ""} • صلاحية: مسؤول المخزن/المدير`
             : null,
-          availableAfter < 0 ? `⚠️ المتاح بعد الصرف: ${availableAfter} ${unit} — اعتماد: ${profile?.full_name || ""} • سبب: ${overrideReason.trim()}` : null,
+          availableAfter < 0 ? `⚠️ المتاح بعد الصرف: ${availableAfter} ${unit} — اعتماد: ${profile?.full_name || ""}` : null,
           notes.trim() ? `ملاحظات: ${notes.trim()}` : null,
           `قبل: ${stockBefore} ${unit}`,
           `بعد: ${stockAfter} ${unit}`,
@@ -756,7 +744,7 @@ const ManualStockOutDialog = ({
             </Alert>
           )}
 
-          {hasNegativeAfter && (
+          {hasNegativeAfter && !canOverrideReserved && (
             <Alert className="border-rose-400 bg-rose-50 dark:bg-rose-950/30">
               <ShieldAlert className="h-4 w-4 text-rose-700" />
               <AlertDescription className="text-xs text-rose-900 dark:text-rose-200 space-y-2">
