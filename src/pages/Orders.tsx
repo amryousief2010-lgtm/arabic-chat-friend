@@ -1151,6 +1151,7 @@ const Orders = () => {
   const [mixedBank, setMixedBank] = useState<string>('');
   const [mixedOther, setMixedOther] = useState<string>('');
   const [mixedFree, setMixedFree] = useState<string>('');
+  const [mixedDeposit, setMixedDeposit] = useState<string>('');
   const [mixedRef, setMixedRef] = useState<string>('');
   const [mixedNote, setMixedNote] = useState<string>('');
   // إذا فُتحت النافذة أثناء تدفق تأكيد التسليم، نتابع التحويل إلى delivered بعد الحفظ.
@@ -1165,11 +1166,13 @@ const Orders = () => {
     setMixedBank(String(t.bank_transfer_amount ?? 0));
     setMixedOther(String(t.other_amount ?? 0));
     setMixedFree(String(t.free_amount ?? 0));
+    setMixedDeposit(String((t as any).deposit_amount ?? 0));
     setMixedRef(String(t.transfer_reference ?? ''));
     setMixedNote('');
     setMixedDlgOrderSnap(t);
     setMixedDlgOrderId(orderId);
   };
+
 
 
   // Auto-open mixed collection dialog when navigated with ?mixed=<orderId>
