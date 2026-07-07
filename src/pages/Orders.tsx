@@ -1552,8 +1552,12 @@ const Orders = () => {
       }
       const { error: itemsErr } = await supabase.from('order_items').delete().eq('order_id', orderId);
       if (itemsErr) throw itemsErr;
-      const { error } = await supabase.from('orders').delete().eq('id', orderId);
+      const { data: deleted, error } = await supabase.from('orders').delete().eq('id', orderId).select('id');
       if (error) throw error;
+      if (!deleted || deleted.length === 0) {
+        toast.error('ليس لديك صلاحية حذف هذا الطلب — تواصل مع المدير');
+        return;
+      }
       setOrders(orders.filter(o => o.id !== orderId));
       toast.success('تم حذف الطلب بنجاح');
     } catch (e) {
