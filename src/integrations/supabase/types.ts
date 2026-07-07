@@ -17725,32 +17725,38 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
-          from_sublocation_id: string
+          from_sublocation_id: string | null
           id: string
           notes: string | null
           product_id: string
           qty: number
-          to_sublocation_id: string
+          source: string | null
+          source_ref: string | null
+          to_sublocation_id: string | null
         }
         Insert: {
           created_at?: string
           created_by?: string | null
-          from_sublocation_id: string
+          from_sublocation_id?: string | null
           id?: string
           notes?: string | null
           product_id: string
           qty: number
-          to_sublocation_id: string
+          source?: string | null
+          source_ref?: string | null
+          to_sublocation_id?: string | null
         }
         Update: {
           created_at?: string
           created_by?: string | null
-          from_sublocation_id?: string
+          from_sublocation_id?: string | null
           id?: string
           notes?: string | null
           product_id?: string
           qty?: number
-          to_sublocation_id?: string
+          source?: string | null
+          source_ref?: string | null
+          to_sublocation_id?: string | null
         }
         Relationships: [
           {

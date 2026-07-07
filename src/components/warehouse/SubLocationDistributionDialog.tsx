@@ -23,7 +23,7 @@ interface Props {
 }
 
 interface SubLoc { id: string; name_ar: string; code: string; sort_order: number; }
-interface Move { id: string; qty: number; created_at: string; from_sublocation_id: string; to_sublocation_id: string; created_by: string | null; }
+interface Move { id: string; qty: number; created_at: string; from_sublocation_id: string | null; to_sublocation_id: string | null; created_by: string | null; source?: string | null; notes?: string | null; }
 
 const fmt = (n: number) => {
   if (!isFinite(n)) return "0";
@@ -71,12 +71,14 @@ export default function SubLocationDistributionDialog({
 
       const { data: mRows } = await supabase
         .from("sublocation_movements")
-        .select("id, qty, created_at, from_sublocation_id, to_sublocation_id, created_by")
+        .select("id, qty, created_at, from_sublocation_id, to_sublocation_id, created_by, source, notes")
         .eq("product_id", productId)
-        .in("from_sublocation_id", subIds)
         .order("created_at", { ascending: false })
-        .limit(30);
-      const moveList = (mRows || []) as Move[];
+        .limit(50);
+      const moveList = ((mRows || []) as any[]).filter(
+        (m) => (m.from_sublocation_id && subIds.includes(m.from_sublocation_id))
+          || (m.to_sublocation_id && subIds.includes(m.to_sublocation_id)),
+      ) as Move[];
       setMoves(moveList);
 
       const uids = Array.from(new Set(moveList.map((m) => m.created_by).filter(Boolean))) as string[];
@@ -270,6 +272,7 @@ export default function SubLocationDistributionDialog({
                     <TableHeader>
                       <TableRow>
                         <TableHead>التاريخ</TableHead>
+                        <TableHead>النوع</TableHead>
                         <TableHead>من</TableHead>
                         <TableHead>إلى</TableHead>
                         <TableHead>الكمية</TableHead>
@@ -277,15 +280,23 @@ export default function SubLocationDistributionDialog({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {moves.map((m) => (
-                        <TableRow key={m.id}>
-                          <TableCell className="text-xs whitespace-nowrap">{formatDateTime(m.created_at)}</TableCell>
-                          <TableCell>{subName(m.from_sublocation_id)}</TableCell>
-                          <TableCell>{subName(m.to_sublocation_id)}</TableCell>
-                          <TableCell>{fmt(Number(m.qty))} {unit}</TableCell>
-                          <TableCell className="text-xs">{m.created_by ? (userNames[m.created_by] || "—") : "—"}</TableCell>
-                        </TableRow>
-                      ))}
+                      {moves.map((m) => {
+                        const kind = m.from_sublocation_id && m.to_sublocation_id
+                          ? { label: "نقل داخلي", cls: "" }
+                          : m.from_sublocation_id
+                          ? { label: "خصم تلقائي", cls: "text-destructive" }
+                          : { label: "إضافة تلقائية", cls: "text-green-600" };
+                        return (
+                          <TableRow key={m.id}>
+                            <TableCell className="text-xs whitespace-nowrap">{formatDateTime(m.created_at)}</TableCell>
+                            <TableCell className={`text-xs font-medium ${kind.cls}`}>{kind.label}</TableCell>
+                            <TableCell>{m.from_sublocation_id ? subName(m.from_sublocation_id) : "—"}</TableCell>
+                            <TableCell>{m.to_sublocation_id ? subName(m.to_sublocation_id) : "—"}</TableCell>
+                            <TableCell>{fmt(Number(m.qty))} {unit}</TableCell>
+                            <TableCell className="text-xs">{m.created_by ? (userNames[m.created_by] || "—") : "—"}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
