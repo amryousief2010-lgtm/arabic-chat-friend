@@ -17727,6 +17727,7 @@ export type Database = {
           created_by: string | null
           from_sublocation_id: string | null
           id: string
+          inventory_movement_id: string | null
           notes: string | null
           product_id: string
           qty: number
@@ -17739,6 +17740,7 @@ export type Database = {
           created_by?: string | null
           from_sublocation_id?: string | null
           id?: string
+          inventory_movement_id?: string | null
           notes?: string | null
           product_id: string
           qty: number
@@ -17751,6 +17753,7 @@ export type Database = {
           created_by?: string | null
           from_sublocation_id?: string | null
           id?: string
+          inventory_movement_id?: string | null
           notes?: string | null
           product_id?: string
           qty?: number
@@ -17764,6 +17767,13 @@ export type Database = {
             columns: ["from_sublocation_id"]
             isOneToOne: false
             referencedRelation: "warehouse_sublocations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sublocation_movements_inventory_movement_id_fkey"
+            columns: ["inventory_movement_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_movements"
             referencedColumns: ["id"]
           },
           {
