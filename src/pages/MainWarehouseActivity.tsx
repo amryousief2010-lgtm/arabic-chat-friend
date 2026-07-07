@@ -35,6 +35,8 @@ interface Row {
   source_name?: string;
   destination_name?: string;
   performed_by_name?: string;
+  unit_cost?: number | null;
+  total_cost?: number | null;
 }
 
 const formatDate = (iso: string) =>
