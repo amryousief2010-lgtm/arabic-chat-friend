@@ -74,25 +74,77 @@ export async function printBosttaHandoverInvoice(txn: { id: string; txn_no: stri
 
   const { data: orders } = await supabase
     .from("orders")
-    .select("id, order_number, total, courier_cash_due, delivery_fee, created_at, customers(name, phone)")
+    .select("id, order_number, total, courier_cash_due, delivery_fee, collection_method, status, vodafone_cash_amount, instapay_amount, bank_transfer_amount, created_at, customers(name, phone)")
     .in("order_number", uniqueNums);
   const orderMap = new Map<string, any>((orders || []).map((o: any) => [o.order_number, o]));
 
-  // Build one row per sheet occurrence (keeps duplicates visible).
-  const rowsHtml = occurrences.map((occ, i) => {
+  // Fetch order items for full breakdown
+  const orderIds = (orders || []).map((o: any) => o.id);
+  const itemsByOrder: Record<string, any[]> = {};
+  if (orderIds.length) {
+    const { data: items } = await supabase
+      .from("order_items")
+      .select("order_id, product_name, offer_name, quantity, unit_price, total_price, is_gift, is_half_kg")
+      .in("order_id", orderIds);
+    (items || []).forEach((it: any) => {
+      (itemsByOrder[it.order_id] = itemsByOrder[it.order_id] || []).push(it);
+    });
+  }
+
+  const cmLabel = (m: string | null) => ({
+    cash_with_courier: "كاش مع المندوب", vodafone_cash: "فودافون كاش", instapay: "إنستاباي",
+    bank_transfer: "تحويل بنكي", mixed: "مختلط", prepaid: "مدفوع مسبقًا", free: "مجاني", none: "لا يوجد",
+  } as any)[m || ""] || m || "—";
+  const statusLabel = (s: string | null) => ({
+    delivered: "تم التسليم", pending: "قيد الانتظار", processing: "قيد التنفيذ",
+    shipped: "تم الشحن", cancelled: "ملغي", returned: "مرتجع",
+  } as any)[s || ""] || s || "—";
+
+  // Build one detailed block per sheet occurrence
+  const orderBlocks = occurrences.map((occ, i) => {
     const o = orderMap.get(occ.order_number);
     const cod = occ.cod ?? Number(o?.courier_cash_due ?? o?.total ?? 0);
+    const items = (o ? itemsByOrder[o.id] : null) || [];
+    const itemsRows = items.length
+      ? items.map((it: any) => `<tr>
+          <td>${(it.product_name || "—")}${it.offer_name ? ` <span style="color:#666;font-size:10px;">(${it.offer_name})</span>` : ""}${it.is_gift ? ' <span style="color:#059669;">🎁</span>' : ""}${it.is_half_kg ? ' <span style="color:#666;font-size:10px;">½ك</span>' : ""}</td>
+          <td class="num">${Number(it.quantity || 0)}</td>
+          <td class="num">${Number(it.unit_price || 0).toLocaleString("ar-EG")}</td>
+          <td class="num"><b>${Number(it.total_price || 0).toLocaleString("ar-EG")}</b></td>
+        </tr>`).join("")
+      : `<tr><td colspan="4" style="text-align:center;color:#999;">لا توجد أصناف</td></tr>`;
+
+    const payBadges: string[] = [];
+    if (Number(o?.vodafone_cash_amount || 0) > 0) payBadges.push(`فودافون: ${Number(o.vodafone_cash_amount).toLocaleString("ar-EG")}`);
+    if (Number(o?.instapay_amount || 0) > 0) payBadges.push(`إنستاباي: ${Number(o.instapay_amount).toLocaleString("ar-EG")}`);
+    if (Number(o?.bank_transfer_amount || 0) > 0) payBadges.push(`تحويل: ${Number(o.bank_transfer_amount).toLocaleString("ar-EG")}`);
+
     return `
-    <tr>
-      <td class="num">${i + 1}</td>
-      <td class="num">${occ.order_number || "—"}</td>
-      <td class="num">${occ.bill_no || "—"}</td>
-      <td>${o?.customers?.name || "—"}</td>
-      <td class="num">${o?.customers?.phone || occ.phone || "—"}</td>
-      <td class="num">${Number(o?.total || 0).toLocaleString("ar-EG")}</td>
-      <td class="num">${Number(cod || 0).toLocaleString("ar-EG")}</td>
-    </tr>`;
+    <section style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:10px;page-break-inside:avoid;">
+      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;margin-bottom:6px;">
+        <span style="background:#7c3aed;color:#fff;padding:2px 8px;border-radius:6px;">#${i + 1}</span>
+        <b>${occ.order_number || "—"}</b>
+        ${occ.bill_no ? `<span style="color:#666;">بوليصة: ${occ.bill_no}</span>` : ""}
+        <span style="color:#666;">—</span>
+        <span>${o?.customers?.name || "—"}</span>
+        <span style="color:#666;">${o?.customers?.phone || occ.phone || ""}</span>
+        <span style="margin-inline-start:auto;color:#059669;font-size:11px;">${statusLabel(o?.status)}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:11px;background:#fafafa;padding:6px 8px;border-radius:6px;margin-bottom:6px;">
+        <span>الإجمالي: <b>${Number(o?.total || 0).toLocaleString("ar-EG")}</b></span>
+        <span style="background:#d1fae5;padding:2px 6px;border-radius:4px;">💵 مستحق المندوب: <b>${Number(cod || 0).toLocaleString("ar-EG")}</b></span>
+        ${payBadges.map(b => `<span style="background:#dbeafe;padding:2px 6px;border-radius:4px;">${b}</span>`).join("")}
+        <span style="color:#666;">التحصيل: ${cmLabel(o?.collection_method)}</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr>
+          <th>الصنف</th><th style="width:70px;">الكمية</th><th style="width:90px;">سعر الوحدة</th><th style="width:100px;">إجمالي الصنف</th>
+        </tr></thead>
+        <tbody>${itemsRows}</tbody>
+      </table>
+    </section>`;
   }).join("");
+
   const grand = occurrences.reduce((s, occ) => {
     const o = orderMap.get(occ.order_number);
     return s + Number(occ.cod ?? o?.courier_cash_due ?? o?.total ?? 0);
@@ -119,13 +171,7 @@ export async function printBosttaHandoverInvoice(txn: { id: string; txn_no: stri
       <div class="stat"><div class="k">من ← إلى</div><div class="v" style="font-size:11px;">خزنة العجوزة ← الخزنة الرئيسية</div></div>
     </div>
     <h2>تفاصيل الأوردرات</h2>
-    <table>
-      <thead><tr>
-        <th>#</th><th>رقم الأوردر</th><th>رقم البوليصة</th><th>العميل</th><th>الهاتف</th>
-        <th>إجمالي الطلب</th><th>المستحق على المندوب</th>
-      </tr></thead>
-      <tbody>${rowsHtml || `<tr><td colspan="7" style="text-align:center;color:#999;">لا توجد بيانات</td></tr>`}</tbody>
-    </table>
+    ${orderBlocks || `<div style="text-align:center;color:#999;padding:20px;">لا توجد بيانات</div>`}
     <div style="margin-top:16px;display:flex;justify-content:space-between;gap:20px;font-size:11px;">
       <div>المسلِّم (خزنة العجوزة): ................................</div>
       <div>المستلم (أ. محمد شعلة — الخزنة الرئيسية): ................................</div>
