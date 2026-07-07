@@ -1029,7 +1029,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={saving}>إلغاء</Button>
-            <Button onClick={approveDispatch} disabled={saving || !canApprove} className="bg-purple-600 hover:bg-purple-700">
+            <Button onClick={() => approveDispatch(false)} disabled={saving || !canApprove} className="bg-purple-600 hover:bg-purple-700">
               {saving ? <><Loader2 className="h-4 w-4 ml-1 animate-spin" />جاري التنفيذ…</> : <><CheckCircle2 className="h-4 w-4 ml-1" />نعم، اعتمد الصرف</>}
             </Button>
           </DialogFooter>
