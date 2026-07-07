@@ -801,8 +801,8 @@ const ManualStockOutDialog = ({
                     <th className="p-2 text-right">وزن العبوة</th>
                     <th className="p-2 text-right">الكمية (كجم)</th>
                     {canManualKg && <th className="p-2 text-right">يدوي</th>}
-                    <th className="p-2 text-right">الرصيد</th>
-                    <th className="p-2 text-right">بعد</th>
+                    <th className="p-2 text-right">الرصيد (عبوة)</th>
+                    <th className="p-2 text-right">بعد (عبوة)</th>
                     <th className="p-2"></th>
                   </tr>
                 </thead>
@@ -886,9 +886,15 @@ const ManualStockOutDialog = ({
                             />
                           </td>
                         )}
-                        <td className="p-1">{it ? before : "—"}</td>
+                        <td className="p-1">{it ? (() => {
+                          const pw = Number(r.packageWeightKg) || 0;
+                          return pw > 0 ? `${+(before / pw).toFixed(2)} عبوة` : `${before} كجم`;
+                        })() : "—"}</td>
                         <td className={`p-1 font-semibold ${exceeds ? "text-destructive" : "text-rose-700"}`}>
-                          {it && q > 0 ? after : "—"}
+                          {it && q > 0 ? (() => {
+                            const pw = Number(r.packageWeightKg) || 0;
+                            return pw > 0 ? `${+(after / pw).toFixed(2)} عبوة` : `${after} كجم`;
+                          })() : "—"}
                         </td>
                         <td className="p-1">
                           <Button
