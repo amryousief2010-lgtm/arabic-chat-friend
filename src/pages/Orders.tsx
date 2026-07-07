@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin, Printer, AlertCircle, AlertTriangle, Wallet, Zap, UserCog } from "lucide-react";
+import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin, Printer, AlertCircle, AlertTriangle, Wallet, Zap, UserCog, Search } from "lucide-react";
 import { printOrderInvoice } from "@/lib/printUtils";
 import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth, cairoTodayStartUTC, toCairoDateString } from "@/lib/cairoDate";
 import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
@@ -190,6 +190,20 @@ const fulfillmentOptions: { value: string; label: string }[] = [
 
 // Sales manager who must approve private-delivery-rep edits (م. آلاء حامد)
 const SALES_MANAGER_ID = '77b71c5f-cfa8-42bc-85de-ae536a3ec1c1';
+
+// Arabic normalization for search: strip diacritics/tatweel, unify hamza/ta-marbuta/alef-maksura.
+const normalizeArabic = (s: string): string =>
+  (s || "")
+    .toString()
+    .toLowerCase()
+    .replace(/[\u064B-\u0652\u0670\u0640]/g, "") // tashkeel + tatweel
+    .replace(/[إأآٱ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ؤ/g, "و")
+    .replace(/ئ/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const statusColors: Record<OrderStatus, string> = {
   pending: "bg-warning text-warning-foreground",
@@ -463,9 +477,10 @@ const Orders = () => {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [quickDeliveryOpen, setQuickDeliveryOpen] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 800);
+    const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 1200);
     return () => clearTimeout(t);
   }, [searchQuery]);
+  const triggerSearchNow = () => setDebouncedSearch(searchQuery.trim());
   const now = new Date();
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>("all");
@@ -682,13 +697,17 @@ const Orders = () => {
       // ====== فرع البحث: نجلب فقط الطلبات المطابقة بدل تحميل كل الشهر ======
       if (debouncedSearch) {
         const term = debouncedSearch;
+        const termNorm = normalizeArabic(term);
         const digits = term.replace(/[^\d]/g, "");
-        // 1) ابحث عن العملاء المطابقين بالاسم أو الهاتف الأساسي أو الهاتف الإضافي
+        // 1) ابحث عن العملاء المطابقين بالاسم أو الهاتف الأساسي أو الهاتف الإضافي أو المحافظة
         let custIds: string[] = [];
         const custFilters: string[] = [];
         if (term) custFilters.push(`name.ilike.%${term}%`);
+        if (termNorm && termNorm !== term.toLowerCase()) custFilters.push(`name.ilike.%${termNorm}%`);
         if (digits) custFilters.push(`phone.ilike.%${digits}%`);
         if (digits) custFilters.push(`phone2.ilike.%${digits}%`);
+        if (term) custFilters.push(`governorate.ilike.%${term}%`);
+        if (termNorm && termNorm !== term.toLowerCase()) custFilters.push(`governorate.ilike.%${termNorm}%`);
         if (custFilters.length > 0) {
           const { data: cdata } = await supabase
             .from('customers')
@@ -697,11 +716,14 @@ const Orders = () => {
             .limit(500);
           custIds = (cdata || []).map((c: any) => c.id);
         }
-        // 2) جلب الطلبات: رقم طلب أو ينتمي لعميل مطابق.
-        // بيانات الاسم/الهاتف موجودة في جدول العملاء، لذلك لا نفلتر على أعمدة غير موجودة داخل orders.
+        // 2) جلب الطلبات: رقم طلب أو ينتمي لعميل مطابق أو عنوان تسليم مطابق.
         const orFilters: string[] = [
           `order_number.ilike.%${term}%`,
+          `delivery_address.ilike.%${term}%`,
         ];
+        if (termNorm && termNorm !== term.toLowerCase()) {
+          orFilters.push(`delivery_address.ilike.%${termNorm}%`);
+        }
         if (custIds.length > 0) {
           orFilters.push(`customer_id.in.(${custIds.join(',')})`);
         }
@@ -813,16 +835,25 @@ const Orders = () => {
   const filteredOrders = useMemo(() => orders.filter((order) => {
     const matchesStatus =
       filterStatus === "all" || order.status === filterStatus;
-    const q = debouncedSearch.trim().toLowerCase();
+    const qRaw = debouncedSearch.trim();
+    const q = qRaw.toLowerCase();
+    const qNorm = normalizeArabic(qRaw);
     const normalizedPhoneQuery = q.replace(/[^\d]/g, "");
     const normalizedOrderPhone = (order.customer_phone || "").replace(/[^\d]/g, "");
     const normalizedOrderPhone2 = (order.customer_phone2 || "").replace(/[^\d]/g, "");
+    const nameNorm = normalizeArabic(order.customer_name || "");
+    const govNorm = normalizeArabic(order.governorate || "");
+    const addrNorm = normalizeArabic(order.delivery_address || "");
     const routeName = (order.route_name || "").toLowerCase();
+    const routeNameNorm = normalizeArabic(order.route_name || "");
     const matchesSearch =
       !q ||
       order.order_number.toLowerCase().includes(q) ||
-      order.customer_name.toLowerCase().includes(q) ||
+      (qNorm && nameNorm.includes(qNorm)) ||
+      (qNorm && govNorm.includes(qNorm)) ||
+      (qNorm && addrNorm.includes(qNorm)) ||
       routeName.includes(q) ||
+      (qNorm && routeNameNorm.includes(qNorm)) ||
       (normalizedPhoneQuery.length > 0 && (
         normalizedOrderPhone.includes(normalizedPhoneQuery) ||
         normalizedOrderPhone2.includes(normalizedPhoneQuery)
@@ -1592,12 +1623,23 @@ const Orders = () => {
             )}
           </CardTitle>
           <div className="flex flex-wrap items-center gap-3">
-            <Input
-              placeholder="بحث برقم الطلب (كامل أو آخر 6 أرقام) أو اسم العميل أو رقم الهاتف..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-64 input-modern"
-            />
+            <div className="flex items-center gap-1">
+              <Input
+                placeholder="ابحث برقم الطلب / رقم الموبايل / اسم العميل / المحافظة"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); triggerSearchNow(); } }}
+                className="w-72 input-modern"
+              />
+              <Button size="sm" variant="outline" onClick={triggerSearchNow} title="بحث">
+                <Search className="w-4 h-4" />
+              </Button>
+              {searchQuery && (
+                <Button size="sm" variant="ghost" onClick={() => { setSearchQuery(""); setDebouncedSearch(""); }} title="مسح">
+                  <XCircle className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
             <Select value={filterMonth} onValueChange={setFilterMonth}>
               <SelectTrigger className="w-36 input-modern">
                 <SelectValue placeholder="الشهر" />
