@@ -296,6 +296,8 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
       quantity: Number(r.quantity || 0),
       stockBefore: Number(parseNoteField(r.notes, "قبل").replace(/[^\d.\-]/g, "")) || null,
       stockAfter: Number(parseNoteField(r.notes, "بعد").replace(/[^\d.\-]/g, "")) || null,
+      unitPrice: r.unit_cost ?? null,
+      totalPrice: r.total_cost ?? (r.unit_cost != null ? Number(r.unit_cost) * Number(r.quantity || 0) : null),
     }));
     printWarehouseSlip({
       kind: g.direction,
