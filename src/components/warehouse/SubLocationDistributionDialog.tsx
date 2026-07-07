@@ -211,20 +211,37 @@ export default function SubLocationDistributionDialog({
                     return (
                       <TableRow key={s.id}>
                         <TableCell className="font-medium">{s.name_ar}</TableCell>
-                        <TableCell>{fmt(st)} {unit}</TableCell>
-                        <TableCell>{fmt(rv)} {unit}</TableCell>
+                        <TableCell>
+                          <div>{fmt(st)} {unit}</div>
+                          <div className="text-[10px] text-muted-foreground">{fmtPkgs(st, productName)}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div>{fmt(rv)} {unit}</div>
+                          <div className="text-[10px] text-muted-foreground">{fmtPkgs(rv, productName)}</div>
+                        </TableCell>
                         <TableCell className={st - rv < 0 ? "text-destructive" : ""}>
-                          {fmt(st - rv)} {unit}
+                          <div>{fmt(st - rv)} {unit}</div>
+                          <div className="text-[10px] text-muted-foreground">{fmtPkgs(st - rv, productName)}</div>
                         </TableCell>
                       </TableRow>
                     );
                   })}
                   <TableRow className="bg-muted/40 font-semibold">
                     <TableCell>الإجمالي (المخزن الرئيسي)</TableCell>
-                    <TableCell>{fmt(mainActual)} {unit}</TableCell>
-                    <TableCell>{fmt(mainReserved)} {unit}</TableCell>
-                    <TableCell>{fmt(mainActual - mainReserved)} {unit}</TableCell>
+                    <TableCell>
+                      <div>{fmt(mainActual)} {unit}</div>
+                      <div className="text-[10px] text-muted-foreground font-normal">{fmtPkgs(mainActual, productName)}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div>{fmt(mainReserved)} {unit}</div>
+                      <div className="text-[10px] text-muted-foreground font-normal">{fmtPkgs(mainReserved, productName)}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div>{fmt(mainActual - mainReserved)} {unit}</div>
+                      <div className="text-[10px] text-muted-foreground font-normal">{fmtPkgs(mainActual - mainReserved, productName)}</div>
+                    </TableCell>
                   </TableRow>
+
                 </TableBody>
               </Table>
             </div>
