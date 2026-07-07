@@ -780,10 +780,15 @@ export default function ManufacturingInvoices() {
     w.document.close();
   };
 
-  const statusBadge = (s: string) => {
+  const statusBadge = (s: string, inv?: Invoice) => {
     if (s === "draft") return <Badge variant="outline">مسودة</Badge>;
     if (s === "approved") return <Badge className="bg-emerald-600">معتمدة</Badge>;
-    if (s === "transferred") return <Badge className="bg-blue-600">موردة للمخزن الرئيسي</Badge>;
+    if (s === "transferred") {
+      if (inv?.legacy_transferred) return <Badge className="bg-slate-500">تم توريدها سابقًا</Badge>;
+      const tstatus = inv?.transfer_id ? transferStatusMap[inv.transfer_id] : null;
+      if (tstatus === "received") return <Badge className="bg-emerald-700">تم الاستلام بالمخزن الرئيسي</Badge>;
+      return <Badge className="bg-amber-500">بانتظار استلام المخزن الرئيسي</Badge>;
+    }
     if (s === "rejected") return <Badge variant="destructive">مرفوضة</Badge>;
     if (s === "cancelled") return <Badge variant="secondary">ملغاة</Badge>;
     return <Badge>{s}</Badge>;
