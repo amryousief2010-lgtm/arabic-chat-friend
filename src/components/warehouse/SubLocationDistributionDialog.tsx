@@ -71,7 +71,7 @@ export default function SubLocationDistributionDialog({
 
       const { data: mRows } = await supabase
         .from("sublocation_movements")
-        .select("id, qty, created_at, from_sublocation_id, to_sublocation_id, created_by, source, notes")
+        .select("id, qty, created_at, from_sublocation_id, to_sublocation_id, created_by, source, source_ref, notes")
         .eq("product_id", productId)
         .order("created_at", { ascending: false })
         .limit(50);
