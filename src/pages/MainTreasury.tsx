@@ -21,6 +21,7 @@ import BankAccountPanel from "@/components/main-treasury/BankAccountPanel";
 import MainExpenseAnalytics from "@/components/treasury/MainExpenseAnalytics";
 import IncomingLabCustodyTransfers from "@/components/treasury/IncomingLabCustodyTransfers";
 import IncomingWarehouseTreasuryTransfers from "@/components/treasury/IncomingWarehouseTreasuryTransfers";
+import IncomingAgouzaHandovers from "@/components/treasury/IncomingAgouzaHandovers";
 import LogSummaryCards from "@/components/treasury/LogSummaryCards";
 
 type Account = { id: string; name: string; account_type: "cash"|"bank"|"wallet"; bank_name: string|null; opening_balance: number; is_active: boolean };
