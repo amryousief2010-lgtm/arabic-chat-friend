@@ -1127,6 +1127,8 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
               </tbody>
             </table>
           </div>
+          )}
+
 
 
           {/* Mobile cards */}
