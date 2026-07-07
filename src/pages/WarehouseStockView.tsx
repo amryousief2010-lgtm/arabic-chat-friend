@@ -1089,6 +1089,26 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           onSearch={setCardSearch}
           onOpenReserved={(pid, name, total) => setReservedDlg({ wh: currentSingleScope, productId: pid, productName: name, total })}
           warehouseName={currentWhLabel}
+          onOpenDistribute={
+            currentSingleScope === "main" && currentWhId
+              ? (product, actual, reserved) =>
+                  setDistDlg({ warehouseId: currentWhId, productId: product.id, productName: product.name, unit: product.unit, actual, reserved })
+              : undefined
+          }
+        />
+      )}
+
+      {distDlg && (
+        <SubLocationDistributionDialog
+          open={!!distDlg}
+          onClose={() => setDistDlg(null)}
+          warehouseId={distDlg.warehouseId}
+          warehouseName={currentWhLabel}
+          productId={distDlg.productId}
+          productName={distDlg.productName}
+          unit={distDlg.unit}
+          mainActual={distDlg.actual}
+          mainReserved={distDlg.reserved}
         />
       )}
 
