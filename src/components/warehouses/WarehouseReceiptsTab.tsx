@@ -467,8 +467,11 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
           <Inbox className="w-6 h-6 text-primary" />
         </div>
         <div>
-          <h2 className="text-xl font-bold">سجل الاستلامات</h2>
-          <p className="text-sm text-muted-foreground">عرض مجمّع لكل عمليات الاستلام حسب الدفعة</p>
+          <h2 className="text-xl font-bold">{warehouseName ? `استلامات ${warehouseName}` : "سجل الاستلامات"}</h2>
+          <p className="text-sm text-muted-foreground">
+            {warehouseName ? `عرض مقصور على استلامات ${warehouseName}` : "عرض مجمّع لكل عمليات الاستلام حسب الدفعة"}
+            {startDate ? ` — بداية من ${startDate.slice(0, 10)}` : ""}
+          </p>
         </div>
       </div>
 
