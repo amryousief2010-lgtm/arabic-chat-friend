@@ -477,9 +477,10 @@ const Orders = () => {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [quickDeliveryOpen, setQuickDeliveryOpen] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 800);
+    const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 1200);
     return () => clearTimeout(t);
   }, [searchQuery]);
+  const triggerSearchNow = () => setDebouncedSearch(searchQuery.trim());
   const now = new Date();
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>("all");
