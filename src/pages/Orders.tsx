@@ -1151,6 +1151,7 @@ const Orders = () => {
   const [mixedBank, setMixedBank] = useState<string>('');
   const [mixedOther, setMixedOther] = useState<string>('');
   const [mixedFree, setMixedFree] = useState<string>('');
+  const [mixedDeposit, setMixedDeposit] = useState<string>('');
   const [mixedRef, setMixedRef] = useState<string>('');
   const [mixedNote, setMixedNote] = useState<string>('');
   // إذا فُتحت النافذة أثناء تدفق تأكيد التسليم، نتابع التحويل إلى delivered بعد الحفظ.
@@ -1165,11 +1166,13 @@ const Orders = () => {
     setMixedBank(String(t.bank_transfer_amount ?? 0));
     setMixedOther(String(t.other_amount ?? 0));
     setMixedFree(String(t.free_amount ?? 0));
+    setMixedDeposit(String((t as any).deposit_amount ?? 0));
     setMixedRef(String(t.transfer_reference ?? ''));
     setMixedNote('');
     setMixedDlgOrderSnap(t);
     setMixedDlgOrderId(orderId);
   };
+
 
 
   // Auto-open mixed collection dialog when navigated with ?mixed=<orderId>
@@ -1209,7 +1212,7 @@ const Orders = () => {
   const saveMixedBreakdown = async () => {
     const id = mixedDlgOrderId;
     if (!id) return;
-    const target = orders.find((o) => o.id === id);
+    const target = orders.find((o) => o.id === id) ?? mixedDlgOrderSnap;
     if (!target) return;
     const cash = Number(mixedCash) || 0;
     const vod = Number(mixedVod) || 0;
@@ -1217,13 +1220,14 @@ const Orders = () => {
     const bank = Number(mixedBank) || 0;
     const other = Number(mixedOther) || 0;
     const free = Number(mixedFree) || 0;
-    const sum = cash + vod + insta + bank + other + free;
+    const deposit = Number(mixedDeposit) || 0;
+    const sum = cash + vod + insta + bank + other + free + deposit;
     const totalVal = Number(target.total || 0);
     if (Math.abs(sum - totalVal) > 0.01) {
       toast.error(`مجموع مبالغ التحصيل (${sum.toFixed(2)}) لا يساوي قيمة الأوردر (${totalVal.toFixed(2)}).`);
       return;
     }
-    if ([cash, vod, insta, bank, other, free].some((v) => v < 0)) {
+    if ([cash, vod, insta, bank, other, free, deposit].some((v) => v < 0)) {
       toast.error('لا يمكن إدخال مبالغ سالبة.');
       return;
     }
@@ -1237,6 +1241,7 @@ const Orders = () => {
         bank_transfer_amount: bank,
         other_amount: other,
         free_amount: free,
+        deposit_amount: deposit,
         transfer_reference: mixedRef || null,
         collection_note: mixedNote || null,
         collection_updated_at: nowIso,
@@ -1260,6 +1265,8 @@ const Orders = () => {
         new_other_amount: other,
         old_free_amount: target.free_amount ?? 0,
         new_free_amount: free,
+        old_deposit_amount: (target as any).deposit_amount ?? 0,
+        new_deposit_amount: deposit,
         transfer_reference: mixedRef || null,
         note: mixedNote || null,
         changed_by: user?.id ?? null,
@@ -1272,10 +1279,13 @@ const Orders = () => {
         bank_transfer_amount: bank,
         other_amount: other,
         free_amount: free,
+        deposit_amount: deposit,
         transfer_reference: mixedRef || null,
         collection_updated_at: nowIso,
-      } : o));
+      } as any : o));
       setMixedDlgOrderId(null);
+      setMixedDlgOrderSnap(null);
+
       toast.success('تم حفظ توزيع التحصيل المختلط ✅');
       // إن كانت النافذة فُتحت أثناء تدفق التسليم، تابع الآن.
       if (deliverAfterMixedSave) {
@@ -3071,7 +3081,9 @@ const Orders = () => {
             const bank = Number(mixedBank) || 0;
             const other = Number(mixedOther) || 0;
             const free = Number(mixedFree) || 0;
-            const sum = cash + vod + insta + bank + other + free;
+            const deposit = Number(mixedDeposit) || 0;
+            const sum = cash + vod + insta + bank + other + free + deposit;
+
             const totalVal = Number(t.total || 0);
             const diff = totalVal - sum;
             const ok = Math.abs(diff) <= 0.01;
@@ -3106,7 +3118,12 @@ const Orders = () => {
                     <label className="text-xs text-muted-foreground block mb-1">🎁 مجاني / معفى</label>
                     <Input type="number" min={0} step="0.01" value={mixedFree} onChange={(e) => setMixedFree(e.target.value)} />
                   </div>
+                  <div className="col-span-2">
+                    <label className="text-xs text-amber-700 font-semibold block mb-1">🪙 عربون محوّل مقدماً</label>
+                    <Input type="number" min={0} step="0.01" value={mixedDeposit} onChange={(e) => setMixedDeposit(e.target.value)} placeholder="0" className="border-amber-300 focus-visible:ring-amber-400" />
+                  </div>
                 </div>
+
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">🔖 رقم مرجع التحويل (اختياري)</label>
                   <Input value={mixedRef} onChange={(e) => setMixedRef(e.target.value)} placeholder="رقم عملية / رقم مرجع البنك" />

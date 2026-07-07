@@ -13978,6 +13978,7 @@ export type Database = {
           new_bank_transfer_amount: number | null
           new_cash_amount: number | null
           new_collection_method: string | null
+          new_deposit_amount: number | null
           new_free_amount: number | null
           new_instapay_amount: number | null
           new_other_amount: number | null
@@ -13986,6 +13987,7 @@ export type Database = {
           old_bank_transfer_amount: number | null
           old_cash_amount: number | null
           old_collection_method: string | null
+          old_deposit_amount: number | null
           old_free_amount: number | null
           old_instapay_amount: number | null
           old_other_amount: number | null
@@ -14000,6 +14002,7 @@ export type Database = {
           new_bank_transfer_amount?: number | null
           new_cash_amount?: number | null
           new_collection_method?: string | null
+          new_deposit_amount?: number | null
           new_free_amount?: number | null
           new_instapay_amount?: number | null
           new_other_amount?: number | null
@@ -14008,6 +14011,7 @@ export type Database = {
           old_bank_transfer_amount?: number | null
           old_cash_amount?: number | null
           old_collection_method?: string | null
+          old_deposit_amount?: number | null
           old_free_amount?: number | null
           old_instapay_amount?: number | null
           old_other_amount?: number | null
@@ -14022,6 +14026,7 @@ export type Database = {
           new_bank_transfer_amount?: number | null
           new_cash_amount?: number | null
           new_collection_method?: string | null
+          new_deposit_amount?: number | null
           new_free_amount?: number | null
           new_instapay_amount?: number | null
           new_other_amount?: number | null
@@ -14030,6 +14035,7 @@ export type Database = {
           old_bank_transfer_amount?: number | null
           old_cash_amount?: number | null
           old_collection_method?: string | null
+          old_deposit_amount?: number | null
           old_free_amount?: number | null
           old_instapay_amount?: number | null
           old_other_amount?: number | null
@@ -14148,6 +14154,7 @@ export type Database = {
           delivered_by: string | null
           delivery_address: string | null
           delivery_fee: number
+          deposit_amount: number
           deposit_receipt_name: string | null
           deposit_receipt_url: string | null
           discount: number
@@ -14206,6 +14213,7 @@ export type Database = {
           delivered_by?: string | null
           delivery_address?: string | null
           delivery_fee?: number
+          deposit_amount?: number
           deposit_receipt_name?: string | null
           deposit_receipt_url?: string | null
           discount?: number
@@ -14264,6 +14272,7 @@ export type Database = {
           delivered_by?: string | null
           delivery_address?: string | null
           delivery_fee?: number
+          deposit_amount?: number
           deposit_receipt_name?: string | null
           deposit_receipt_url?: string | null
           discount?: number
