@@ -458,7 +458,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
       if (o.status === 'delivered' && o.collection_method === 'mixed_payment') {
         const sum = Number(o.courier_cash_due || 0) + Number(o.vodafone_cash_amount || 0) +
           Number(o.instapay_amount || 0) + Number(o.bank_transfer_amount || 0) +
-          Number(o.other_amount || 0) + Number(o.free_amount || 0);
+          Number(o.other_amount || 0) + Number(o.free_amount || 0) + Number((o as any).deposit_amount || 0);
         if (Math.abs(sum - Number(o.total || 0)) > 0.01) acc.missingBreakdown += 1;
       }
     });
@@ -534,7 +534,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           }
           if (deliveredStatus && o.collection_method === "mixed_payment") {
             const sum = Number(o.courier_cash_due || 0) + Number(o.vodafone_cash_amount || 0) + Number(o.instapay_amount || 0) +
-                        Number(o.bank_transfer_amount || 0) + Number(o.other_amount || 0) + Number(o.free_amount || 0);
+                        Number(o.bank_transfer_amount || 0) + Number(o.other_amount || 0) + Number(o.free_amount || 0) + Number((o as any).deposit_amount || 0);
             if (Math.abs(sum - Number(o.total || 0)) > 0.01) missingBreakdown += 1;
           }
           if (!["delivered", "collected", "completed", "cancelled", "partially_returned", "fully_returned"].includes(o.status)) undelivered += 1;
