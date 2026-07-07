@@ -1144,6 +1144,7 @@ const Orders = () => {
   // لا يمس أي منطق للمخزون أو التسليم أو الحركات المالية.
   // نافذة توزيع "التحصيل المختلط" — تُفتح عند اختيار طريقة mixed_payment.
   const [mixedDlgOrderId, setMixedDlgOrderId] = useState<string | null>(null);
+  const [mixedDlgOrderSnap, setMixedDlgOrderSnap] = useState<Order | null>(null);
   const [mixedCash, setMixedCash] = useState<string>('');
   const [mixedVod, setMixedVod] = useState<string>('');
   const [mixedInsta, setMixedInsta] = useState<string>('');
@@ -1166,8 +1167,10 @@ const Orders = () => {
     setMixedFree(String(t.free_amount ?? 0));
     setMixedRef(String(t.transfer_reference ?? ''));
     setMixedNote('');
+    setMixedDlgOrderSnap(t);
     setMixedDlgOrderId(orderId);
   };
+
 
   // Auto-open mixed collection dialog when navigated with ?mixed=<orderId>
   useEffect(() => {
@@ -3051,15 +3054,17 @@ const Orders = () => {
       {/* توزيع مبالغ التحصيل المختلط */}
       <Dialog
         open={!!mixedDlgOrderId}
-        onOpenChange={(open) => { if (!open) setMixedDlgOrderId(null); }}
+        onOpenChange={(open) => { if (!open) { setMixedDlgOrderId(null); setMixedDlgOrderSnap(null); } }}
       >
+
         <DialogContent dir="rtl" className="max-w-md">
           <DialogHeader>
             <DialogTitle>🧩 توزيع التحصيل المختلط</DialogTitle>
           </DialogHeader>
           {(() => {
-            const t = orders.find((o) => o.id === mixedDlgOrderId);
-            if (!t) return null;
+            const t = orders.find((o) => o.id === mixedDlgOrderId) ?? mixedDlgOrderSnap;
+            if (!t) return <div className="p-4 text-sm text-muted-foreground text-center">جارٍ تحميل بيانات الأوردر…</div>;
+
             const cash = Number(mixedCash) || 0;
             const vod = Number(mixedVod) || 0;
             const insta = Number(mixedInsta) || 0;
