@@ -3054,8 +3054,9 @@ const Orders = () => {
       {/* توزيع مبالغ التحصيل المختلط */}
       <Dialog
         open={!!mixedDlgOrderId}
-        onOpenChange={(open) => { if (!open) setMixedDlgOrderId(null); }}
+        onOpenChange={(open) => { if (!open) { setMixedDlgOrderId(null); setMixedDlgOrderSnap(null); } }}
       >
+
         <DialogContent dir="rtl" className="max-w-md">
           <DialogHeader>
             <DialogTitle>🧩 توزيع التحصيل المختلط</DialogTitle>
