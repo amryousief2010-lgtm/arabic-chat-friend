@@ -1542,7 +1542,7 @@ export default function ManufacturingInvoices() {
                 <div className="rounded border bg-amber-50 p-3 space-y-1 text-xs">
                   <div><b>رقم الفاتورة:</b> {cancelTarget.invoice_no || "—"}</div>
                   <div><b>المنتج النهائي:</b> {cancelTarget.product_name} — {fmt(cancelTarget.finished_qty)} {cancelTarget.unit}</div>
-                  <div><b>الحالة الحالية:</b> {statusBadge(cancelTarget.status)}</div>
+                  <div><b>الحالة الحالية:</b> {statusBadge(cancelTarget.status, cancelTarget)}</div>
                 </div>
 
                 {cancelTarget.status === "draft" ? (
