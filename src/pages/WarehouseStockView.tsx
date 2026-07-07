@@ -971,7 +971,8 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                           if (!iid || !whId) return <span className="text-muted-foreground text-xs">—</span>;
 
                           // Simplified actions for the Main warehouse: single "توزيع" button
-                          if (scope === "main" && whKey === "main") {
+                          if (whKey === "main") {
+
                             return (
                               <div className="flex items-center justify-center">
                                 <button
