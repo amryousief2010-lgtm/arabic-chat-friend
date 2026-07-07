@@ -8,6 +8,8 @@ export interface SlipItemRow {
   quantity: number;
   stockBefore?: number | null;
   stockAfter?: number | null;
+  unitPrice?: number | null;
+  totalPrice?: number | null;
 }
 
 export interface SlipData {
