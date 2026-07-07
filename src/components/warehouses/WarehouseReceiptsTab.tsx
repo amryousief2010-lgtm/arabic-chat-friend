@@ -340,6 +340,7 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
           date: (tr as any).received_at || (tr as any).sent_at,
           source_label: (tr as any).source?.name || "—",
           destination_label: (tr as any).destination?.name || "—",
+          dest_warehouse_id: (tr as any).destination_warehouse_id ?? null,
           items_count: items.length,
           total_qty: items.reduce((s, l) => s + Number(l.received_qty || 0), 0),
           quality: (tr as any).status === "partial_received" ? "مقبول جزئيًا" : "مقبول",
