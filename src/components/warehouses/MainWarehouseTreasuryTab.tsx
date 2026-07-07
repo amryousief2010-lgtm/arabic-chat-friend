@@ -1501,10 +1501,14 @@ export default function MainWarehouseTreasuryTab() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card><CardContent className="p-4">
+        <Card
+          className="cursor-pointer hover:border-primary/40 hover:shadow-sm transition"
+          onClick={() => setBalanceOpen(true)}
+          title="اضغط لعرض تفاصيل مكوّنات الرصيد"
+        ><CardContent className="p-4">
           <p className="text-xs text-muted-foreground">الرصيد الحالي</p>
           <p className={`text-2xl font-bold ${kpis.balance >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{fmt(kpis.balance)}</p>
-          <p className="text-[10px] text-muted-foreground">ج.م</p>
+          <p className="text-[10px] text-muted-foreground">ج.م — اضغط للتفاصيل</p>
         </CardContent></Card>
         <Card><CardContent className="p-4">
           <p className="text-xs text-muted-foreground flex items-center gap-1"><ArrowDownLeft className="w-3 h-3 text-emerald-600" /> وارد اليوم</p>
