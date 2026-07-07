@@ -31,8 +31,8 @@ type Invoice = {
   status: string; raw_cost: number; spice_cost: number; packaging_cost: number; extra_cost: number;
   materials_total_cost: number; total_manufacturing_cost: number; unit_cost: number | null;
   factory_warehouse_id: string; finished_item_id: string | null; destination_kind: string;
-  transfer_no: string | null; created_at: string; approved_at: string | null; approved_by: string | null;
-  notes: string | null;
+  transfer_id: string | null; transfer_no: string | null; created_at: string; approved_at: string | null; approved_by: string | null;
+  notes: string | null; legacy_transferred?: boolean;
 };
 
 const KIND_LABEL: Record<Kind,string> = { raw: "خامة", spice: "بهارات", packaging: "تغليف" };
