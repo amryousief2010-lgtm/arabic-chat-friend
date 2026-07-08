@@ -210,7 +210,17 @@ export default function LabTreasury() {
   const isApprover = roles.includes('lab_treasury_approver');
   const isManager = isGeneralManager || isExecutiveManager; // full admin (delete/reopen)
   const canApprove = isManager || isApprover;
+  // محمد شعله (المُحصِّل الخارجي): يرى سجل الحركات فقط داخل خزنة المعمل
+  const isExternalCollectorOnly =
+    roles.includes('lab_external_collector') &&
+    !isManager &&
+    !isApprover &&
+    !roles.includes('lab_treasury_keeper') &&
+    !roles.includes('lab_treasury_viewer') &&
+    !roles.includes('accountant') &&
+    !roles.includes('financial_manager');
   const initialTab = (() => {
+    if (isExternalCollectorOnly) return 'log';
     const t = searchParams.get('tab');
     const aliases: Record<string, string> = { pending: 'approvals', approval: 'approvals' };
     return (t && (aliases[t] || t)) || 'dashboard';
