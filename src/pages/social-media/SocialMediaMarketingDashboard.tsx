@@ -76,6 +76,7 @@ import {
   type ExpenseRow,
   type MarketingKPIs,
 } from "@/lib/socialMediaAnalytics";
+import { ZodexUnregisteredCard } from "@/components/marketing/ZodexUnregisteredCard";
 
 const COLORS = ["#8b5cf6", "#f97316", "#0ea5e9", "#10b981", "#f43f5e", "#facc15", "#6366f1", "#14b8a6"];
 
@@ -334,8 +335,12 @@ export default function SocialMediaMarketingDashboard() {
           <KpiCard icon={ShieldAlert} title="مصروفات قيد المراجعة" value={fmtMoney(kpis.pendingExpenses)} color="text-amber-600" />
         </div>
 
+        {/* Zodex bills registered externally but missing in our system */}
+        <ZodexUnregisteredCard />
+
         {/* Budget status */}
         <BudgetStatusCard kpis={kpis} />
+
 
         {/* Daily chart */}
         <Card>
