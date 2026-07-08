@@ -57,6 +57,9 @@ import {
   useTodayOrdersBreakdown,
   useTodayWarehouseOrders,
 } from "@/hooks/useSalesAnalytics";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { cairoMonthStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
 import { useReportsData } from "@/hooks/useReportsData";
 import { useProductionStats } from "@/hooks/useProductionStats";
 import { Egg, Bird } from "lucide-react";
