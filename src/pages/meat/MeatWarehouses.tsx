@@ -443,14 +443,18 @@ export default function MeatWarehouses() {
 
           {/* STOCKTAKE */}
           <TabsContent value="stocktake" className="space-y-3 mt-3">
-            <div className="flex justify-end gap-2">
-              <Button onClick={()=>openStocktake("raw")}><ClipboardCheck className="h-4 w-4 ml-1" />جرد خامات</Button>
-              <Button onClick={()=>openStocktake("finished")} variant="secondary"><ClipboardCheck className="h-4 w-4 ml-1" />جرد جاهز</Button>
-            </div>
+            {isMeatFactoryManagerOnly ? (
+              <Card className="border-amber-300 bg-amber-50/40"><CardHeader><CardTitle className="text-amber-800 text-base">وضع العرض فقط للجرد</CardTitle><CardDescription className="text-amber-800">ليس لديك صلاحية تعديل رصيد المخزون. يمكنك استعراض سجل الجرد فقط.</CardDescription></CardHeader></Card>
+            ) : (
+              <div className="flex justify-end gap-2">
+                <Button onClick={()=>openStocktake("raw")}><ClipboardCheck className="h-4 w-4 ml-1" />جرد خامات</Button>
+                <Button onClick={()=>openStocktake("finished")} variant="secondary"><ClipboardCheck className="h-4 w-4 ml-1" />جرد جاهز</Button>
+              </div>
+            )}
             <Card><CardContent className="p-0"><Table><TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>النوع</TableHead><TableHead>عدد الأصناف</TableHead><TableHead>قيمة الفروقات</TableHead><TableHead>الحالة</TableHead><TableHead>إجراءات</TableHead></TableRow></TableHeader>
               <TableBody>{(stocks as any[]).map((s) => { const ln=s.meat_factory_stocktaking_lines||[]; const dv=ln.reduce((sm:number,l:any)=>sm+Number(l.diff_value||0),0); return (
                 <TableRow key={s.id}><TableCell>{s.taken_date}</TableCell><TableCell>{s.item_kind==="raw"?"خامات":"جاهز"}</TableCell><TableCell>{ln.length}</TableCell><TableCell className={dv<0?"text-red-600":"text-emerald-700"}>{fmt(dv)}</TableCell><TableCell>{statusBadge(s.status)}</TableCell>
-                  <TableCell>{s.status==="draft" && <Button size="sm" onClick={()=>approveStk(s.id)}><CheckCircle2 className="h-4 w-4 ml-1" />تطبيق</Button>}</TableCell></TableRow>
+                  <TableCell>{s.status==="draft" && !isMeatFactoryManagerOnly && <Button size="sm" onClick={()=>approveStk(s.id)}><CheckCircle2 className="h-4 w-4 ml-1" />تطبيق</Button>}</TableCell></TableRow>
               );})}{!stocks.length && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">لا توجد عمليات جرد</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
           </TabsContent>
 
