@@ -95,11 +95,14 @@ export default function WarehouseStocktaking() {
   // load warehouses
   useEffect(() => {
     sb.from("warehouses").select("id, name").eq("is_active", true).order("name").then(({ data }: any) => {
-      const list = (data || []) as any[];
+      let list = (data || []) as any[];
+      if (isWarehouseSupervisorOnly) {
+        list = list.filter((w) => w.id !== MAIN_WAREHOUSE_ID);
+      }
       setWarehouses(list);
       if (list.length && !activeWh) setActiveWh(list[0].id);
     });
-  }, []);
+  }, [isWarehouseSupervisorOnly]);
 
   const loadItems = useCallback(async (whId: string) => {
     if (!whId) return;
