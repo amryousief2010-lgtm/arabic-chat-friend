@@ -392,8 +392,8 @@ const DashboardContent = () => {
               <p className="text-sm text-muted-foreground">مبيعات الشهر</p>
               <Badge variant="outline" className="text-xs">{new Date().toLocaleDateString("en-GB", { month: "long" })}</Badge>
             </div>
-            <p className="text-2xl font-bold text-primary">{isLoading ? "..." : `${(stats?.salesMonth || 0).toLocaleString()} ج.م`}</p>
-            <p className="text-xs text-muted-foreground mt-1 underline decoration-dotted">{stats?.ordersMonth || 0} طلب هذا الشهر — اضغط للعرض والتصدير</p>
+            <p className="text-2xl font-bold text-primary">{monthAll ? `${monthAll.sales.toLocaleString()} ج.م` : (isLoading ? "..." : `${(stats?.salesMonth || 0).toLocaleString()} ج.م`)}</p>
+            <p className="text-xs text-muted-foreground mt-1 underline decoration-dotted">{(monthAll?.orders ?? stats?.ordersMonth ?? 0)} طلب هذا الشهر (شامل الملغي) — اضغط للعرض والتصدير</p>
           </CardContent>
         </Card>
         <MonthOrdersDialog open={monthOrdersOpen} onOpenChange={setMonthOrdersOpen} />
