@@ -64,9 +64,14 @@ export default function WarehouseStocktaking() {
   const canApprove = isGeneralManager || isExecutiveManager;
   // مشرف مخزن العجوزة لا يملك صلاحية جرد المخزن الرئيسي
   const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
+  const userRoles: string[] = (roles as any) || (role ? [role] : []);
   const isWarehouseSupervisorOnly =
-    (roles?.includes("warehouse_supervisor") ?? role === "warehouse_supervisor") &&
+    userRoles.includes("warehouse_supervisor") &&
     !isGeneralManager && !isExecutiveManager;
+  // صلاحية التعديل على الجرد: المدراء + مشرف المخزن فقط.
+  // أمين مخزن العجوزة (agouza_warehouse_keeper) وغيره: عرض فقط.
+  const canEditStocktaking =
+    isGeneralManager || isExecutiveManager || userRoles.includes("warehouse_supervisor");
 
   const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);
   const [activeWh, setActiveWh] = useState<string>("");
