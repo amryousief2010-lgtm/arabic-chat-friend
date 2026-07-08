@@ -476,8 +476,16 @@ export default function ZodexReview() {
                         <TableCell className="text-xs">
                           {c.bestCandidate ? (
                             <div>
-                              <div className="font-mono">{c.bestCandidate.order_number}</div>
-                              <div className="text-muted-foreground">
+                              <Link
+                                to={`/orders/${c.bestCandidate.id}`}
+                                target="_blank"
+                                className="font-mono text-primary hover:underline inline-flex items-center gap-1"
+                                title="فتح تفاصيل الأوردر عندنا"
+                              >
+                                {c.bestCandidate.order_number}
+                                <ExternalLink className="h-3 w-3" />
+                              </Link>
+                              <div className="text-muted-foreground mt-0.5">
                                 {c.bestCandidate.customer?.name} • {Number(c.bestCandidate.total || 0).toLocaleString("ar-EG")} ج
                               </div>
                             </div>
