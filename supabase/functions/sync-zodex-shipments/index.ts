@@ -218,22 +218,44 @@ Deno.serve(async (req) => {
     no_matching_order: 0,
     ambiguous_skipped: 0,
     linked_examples: [] as any[],
+    link_failures: [] as any[],
+    retries: 0,
   };
   const errors: string[] = [];
 
+  // Retry helper with exponential backoff (max 3 attempts)
+  async function withRetry<T>(label: string, fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
+    let lastErr: any;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await fn();
+      } catch (e: any) {
+        lastErr = e;
+        if (attempt >= maxAttempts) break;
+        stats.retries++;
+        const backoff = attempt === 1 ? 5000 : attempt === 2 ? 15000 : 45000;
+        console.warn(`[zodex] retry ${attempt}/${maxAttempts} for ${label}: ${e?.message || e}`);
+        await new Promise((r) => setTimeout(r, backoff));
+      }
+    }
+    throw lastErr;
+  }
+
   try {
     const client = new ZodexClient();
-    await client.login(
-      Deno.env.get("ZODEX_USERNAME")!,
-      Deno.env.get("ZODEX_PASSWORD")!,
+    await withRetry("login", () =>
+      client.login(
+        Deno.env.get("ZODEX_USERNAME")!,
+        Deno.env.get("ZODEX_PASSWORD")!,
+      )
     );
 
     const allRows: ShipRow[] = [];
     let pagesFetched = 0;
     for (let page = 1; page <= maxPages; page++) {
-      const html = await client.get("/shippings.php", {
-        items: ITEMS_PER_PAGE, page,
-      });
+      const html = await withRetry(`page ${page}`, () =>
+        client.get("/shippings.php", { items: ITEMS_PER_PAGE, page })
+      );
       const rows = parseShippingRows(html);
       pagesFetched++;
       if (!rows.length) break;
