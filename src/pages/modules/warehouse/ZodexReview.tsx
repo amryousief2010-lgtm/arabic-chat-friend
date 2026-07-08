@@ -545,8 +545,9 @@ export default function ZodexReview() {
                       const canForceFix = !!(cmp?.strongMatch && cand && !cand.shipping_bill_no);
 
                       return (
-                        <>
-                          <TableRow key={c.bill.id}>
+                        <Fragment key={c.bill.id}>
+                          <TableRow>
+
                             <TableCell className="font-mono text-xs" dir="ltr">
                               <button
                                 onClick={() => (isExpanded ? setExpandedId(null) : fetchZodexDetails(c))}
