@@ -1630,10 +1630,14 @@ export default function LabTreasury() {
                   </TableHeader>
                   <TableBody>
                     {loading ? (
-                      <TableRow><TableCell colSpan={10} className="text-center py-8">جارٍ التحميل...</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={12} className="text-center py-8">جارٍ التحميل...</TableCell></TableRow>
                     ) : filtered.length === 0 ? (
-                      <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
-                    ) : filtered.map((m) => (
+                      <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">لا توجد حركات</TableCell></TableRow>
+                    ) : filtered.map((m) => {
+                      const bAfter = m.balance_after;
+                      const signed = m.movement_type === "income" ? Number(m.amount) : -Number(m.amount);
+                      const bBefore = bAfter != null ? Number(bAfter) - signed : null;
+                      return (
                       <TableRow key={m.id} className={closedDates.has(m.movement_date) ? "bg-muted/30" : ""}>
                         <TableCell>
                           {m.movement_date}
@@ -1659,6 +1663,9 @@ export default function LabTreasury() {
                         <TableCell className="font-mono">{m.movement_type === "income" ? fmtNum(m.amount, 2) : "—"}</TableCell>
                         <TableCell className="font-mono">{m.movement_type === "expense" ? fmtNum(m.amount, 2) : "—"}</TableCell>
                         <TableCell>{PAYMENT_LABELS[m.payment_method]}</TableCell>
+                        <TableCell className="font-mono text-xs">{bBefore != null ? fmtNum(bBefore, 2) : "—"}</TableCell>
+                        <TableCell className="font-mono text-xs font-semibold">{bAfter != null ? fmtNum(Number(bAfter), 2) : "—"}</TableCell>
+
                         <TableCell><StatusBadge s={m.status} /></TableCell>
                         <TableCell className="text-xs">
                           {(() => {
