@@ -466,6 +466,11 @@ const AnimatedRoutes = () => {
               <PageTransition><Reports /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/marketing/whatsapp-campaigns" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'marketing_sales_viewer']}>
+              <PageTransition><WhatsAppCampaigns /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/sales/daily-performance-analysis" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant', 'marketing_sales_viewer']}>
               <PageTransition><DailyPerformanceAnalysis /></PageTransition>
