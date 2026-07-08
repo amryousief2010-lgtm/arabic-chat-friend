@@ -498,17 +498,51 @@ export default function ZodexMissingOrders() {
                       {isOpen && (
                         <TableRow key={r.id + "-cands"}>
                           <TableCell colSpan={10} className="bg-muted/20 p-3">
+                            {/* Bill summary from Zodex */}
+                            <div className="mb-3 rounded-lg border bg-background p-3">
+                              <div className="text-xs font-semibold text-muted-foreground mb-2">بيانات البوليصة من زودكس:</div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 text-sm">
+                                <div><span className="text-muted-foreground">البوليصة:</span> <span className="font-mono">{r.bill_no}</span></div>
+                                <div><span className="text-muted-foreground">العميل:</span> {r.customer_name || "—"}</div>
+                                <div><span className="text-muted-foreground">الموبايل:</span> <span className="font-mono">{r.customer_phone || "—"}</span></div>
+                                <div><span className="text-muted-foreground">القيمة (COD):</span> <span className="tabular-nums">{Number(r.cod_amount || 0).toLocaleString("ar-EG")} ج.م</span></div>
+                                <div><span className="text-muted-foreground">المنطقة:</span> {r.region || "—"}</div>
+                                <div><span className="text-muted-foreground">الموديريتور:</span> {r.moderator_name || "—"}</div>
+                                <div><span className="text-muted-foreground">تاريخ الشحن:</span> {r.shipment_date ? format(new Date(r.shipment_date), "yyyy-MM-dd HH:mm") : "—"}</div>
+                                <div><span className="text-muted-foreground">النوع:</span> {r.operation_type || "—"}</div>
+                              </div>
+                            </div>
+
                             {loadingC ? (
                               <div className="text-sm text-muted-foreground text-center py-3">
                                 <Loader2 className="h-4 w-4 animate-spin inline ml-1" /> جارِ البحث عن أوردرات مطابقة...
                               </div>
                             ) : !cands || cands.length === 0 ? (
-                              <div className="text-sm text-muted-foreground text-center py-3">
-                                مفيش اقتراحات تلقائية — جرّب البحث اليدوي.
+                              <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+                                <div className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                                  ⚠️ لا يوجد أوردر مطابق تلقائياً
+                                </div>
+                                {noMatchReasons[r.id] && noMatchReasons[r.id].length > 0 && (
+                                  <div className="text-xs text-muted-foreground space-y-0.5">
+                                    <div className="font-semibold">الأسباب المحتملة:</div>
+                                    {noMatchReasons[r.id].map((reason, i) => (
+                                      <div key={i}>{reason}</div>
+                                    ))}
+                                  </div>
+                                )}
+                                <div className="text-xs text-muted-foreground pt-1">
+                                  ➜ جرّب <b>البحث اليدوي</b> برقم الأوردر أو اسم آخر أو موبايل مختلف. لو الأوردر فعلاً غير موجود عندنا يمكنك <b>تجاهل</b> البوليصة.
+                                </div>
+                                <div className="flex gap-2 pt-1">
+                                  <Button size="sm" variant="outline" className="h-8 gap-1"
+                                    onClick={() => { setSearchDialog(r); setSearchTerm(""); setSearchResults([]); }}>
+                                    <Search className="h-3.5 w-3.5" /> بحث يدوي
+                                  </Button>
+                                </div>
                               </div>
                             ) : (
                               <div className="space-y-2">
-                                <div className="text-xs text-muted-foreground">أفضل الاقتراحات:</div>
+                                <div className="text-xs text-muted-foreground">أفضل الاقتراحات ({cands.length}):</div>
                                 {cands.map((c) => (
                                   <div key={c.id} className="flex items-center gap-3 rounded-lg border bg-background p-3 flex-wrap">
                                     <Badge variant="outline" className={scoreColor(c.score) + " font-mono"}>
