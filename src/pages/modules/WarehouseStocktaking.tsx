@@ -512,7 +512,7 @@ export default function WarehouseStocktaking() {
                               <TableCell className="font-mono">{sys.toLocaleString("ar-EG-u-nu-latn")}</TableCell>
                               <TableCell>
                                 <Input type="number" step="0.01" className="w-28"
-                                       disabled={!isDraft}
+                                       disabled={!isDraft || !canEditStocktaking}
                                        value={a ?? ""}
                                        onChange={(e) => setActuals((s) => ({ ...s, [it.id]: e.target.value }))} />
                               </TableCell>
@@ -522,7 +522,7 @@ export default function WarehouseStocktaking() {
                               <TableCell>
                                 <Select value={reasons[it.id] || ""}
                                         onValueChange={(v) => setReasons((s) => ({ ...s, [it.id]: v }))}
-                                        disabled={!isDraft}>
+                                        disabled={!isDraft || !canEditStocktaking}>
                                   <SelectTrigger className="w-40"><SelectValue placeholder="اختر السبب" /></SelectTrigger>
                                   <SelectContent>
                                     {REASONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
@@ -530,12 +530,12 @@ export default function WarehouseStocktaking() {
                                 </Select>
                               </TableCell>
                               <TableCell>
-                                <Input className="w-40" disabled={!isDraft} placeholder="ملاحظات"
+                                <Input className="w-40" disabled={!isDraft || !canEditStocktaking} placeholder="ملاحظات"
                                        value={noteBuf[it.id] || ""}
                                        onChange={(e) => setNoteBuf((s) => ({ ...s, [it.id]: e.target.value }))} />
                               </TableCell>
                               <TableCell className="text-left flex gap-1">
-                                <Button size="sm" disabled={!isDraft || busyItem === it.id || diff === null}
+                                <Button size="sm" disabled={!isDraft || !canEditStocktaking || busyItem === it.id || diff === null}
                                         onClick={() => saveLine(it)}>
                                   حفظ
                                 </Button>
