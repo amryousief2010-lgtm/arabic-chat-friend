@@ -1,0 +1,2 @@
+ALTER TABLE public.main_treasury_transactions DROP CONSTRAINT main_treasury_transactions_txn_type_check;
+ALTER TABLE public.main_treasury_transactions ADD CONSTRAINT main_treasury_transactions_txn_type_check CHECK (txn_type = ANY (ARRAY['deposit','withdrawal','expense','transfer_to_custody','adjustment','bank_deposit','bank_withdrawal','bank_fees','loan_installment','transfer_from_custody','transfer_to_sub_treasury','transfer_to_bank','settlement','balance_correction','incoming']));
