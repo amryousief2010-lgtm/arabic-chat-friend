@@ -187,6 +187,7 @@ export default function WarehouseStocktaking() {
   };
 
   const saveLine = async (it: Item) => {
+    if (!canEditStocktaking) { toast.error("ليس لديك صلاحية تعديل الجرد"); return; }
     if (!activeSessionId || !isDraft) return;
     const a = actuals[it.id];
     const reason = reasons[it.id];
