@@ -138,6 +138,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: UsersRound, label: "أداء الفريق", path: "/team-performance", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: UserCheck, label: "أداء الموديراتور", path: "/moderator-performance", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: BarChart3, label: "التقارير", path: "/reports", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'quality_manager','marketing_sales_viewer'] },
+      { icon: MessageSquare, label: "حملات واتساب", path: "/marketing/whatsapp-campaigns", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: TrendingUp, label: "تحليل الأداء اليومي وخطة الشهر", path: "/sales/daily-performance-analysis", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant','marketing_sales_viewer'] },
       { icon: Tag, label: "الأسعار الداخلية بين الأقسام", path: "/modules/internal-prices-settings", roles: ['general_manager', 'executive_manager', 'financial_manager', 'slaughterhouse_manager', 'production_manager'] },
       { icon: Upload, label: "استيراد البيانات", path: "/import-sales", roles: ['general_manager'] },

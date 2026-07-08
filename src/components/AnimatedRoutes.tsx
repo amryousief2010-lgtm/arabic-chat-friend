@@ -44,6 +44,7 @@ const InternalPricesSettings = lazy(() => import("@/pages/modules/InternalPrices
 const Orders = lazy(() => import("@/pages/Orders"));
 const Customers = lazy(() => import("@/pages/Customers"));
 const Reports = lazy(() => import("@/pages/Reports"));
+const WhatsAppCampaigns = lazy(() => import("@/pages/WhatsAppCampaigns"));
 const DailyPerformanceAnalysis = lazy(() => import("@/pages/sales/DailyPerformanceAnalysis"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const Employees = lazy(() => import("@/pages/Employees"));
@@ -463,6 +464,11 @@ const AnimatedRoutes = () => {
           <Route path="/reports" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'quality_manager', 'marketing_sales_viewer']}>
               <PageTransition><Reports /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/marketing/whatsapp-campaigns" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'marketing_sales_viewer']}>
+              <PageTransition><WhatsAppCampaigns /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/sales/daily-performance-analysis" element={
