@@ -787,7 +787,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
     } finally { setHandoverBusy(false); }
   };
 
-  const depositDayCash = async (day: string, amountPreview: number) => {
+  const depositDayCash = async (day: string, amountPreview: number, orderIds: string[] = []) => {
     if (!selectedCustody) return;
     const dayLabel = new Date(day).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" });
     if (!confirm(`سيتم توريد ${fmt(amountPreview)} ج.م إلى خزنة المخزن الرئيسي عن يوم ${dayLabel}. متابعة؟`)) return;
@@ -799,12 +799,29 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         p_notes: null,
       });
       if (error) throw error;
-      toast({ title: "تم التوريد بنجاح", description: `المبلغ: ${fmt(data?.amount || 0)} ج.م — ${data?.reference || ""}` });
+      // Rule: توريد يوم كامل = اعتبر كل أوردرات اليوم "تم التوصيل" تلقائياً
+      if (orderIds.length > 0) {
+        const nowIso = new Date().toISOString();
+        const { error: uErr } = await (supabase as any)
+          .from("orders")
+          .update({
+            status: "delivered",
+            delivered_at: nowIso,
+            payment_status: "paid",
+            collection_status: "collected",
+            collected_at: nowIso,
+          })
+          .in("id", orderIds)
+          .neq("status", "delivered");
+        if (uErr) console.warn("Auto-mark delivered failed:", uErr.message);
+      }
+      toast({ title: "تم التوريد بنجاح", description: `المبلغ: ${fmt(data?.amount || 0)} ج.م — ${data?.reference || ""} · تم تحديث ${orderIds.length} أوردر لحالة تم التوصيل` });
       await load();
     } catch (e: any) {
       toast({ title: "تعذّر التوريد", description: e?.message || "", variant: "destructive" });
     } finally { setDepositingDay(null); }
   };
+
 
   const depositBosttaSheet = async (upload: BosttaUploadNet) => {
     const amt = Number(upload.netAmount || 0);
