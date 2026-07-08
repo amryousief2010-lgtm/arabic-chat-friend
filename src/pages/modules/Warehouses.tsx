@@ -1114,10 +1114,10 @@ const Warehouses = () => {
               </TabsTrigger>
               <TabsTrigger value="distribution"><MapPin />التوزيع الجغرافي</TabsTrigger>
               <TabsTrigger value="wh-main"><Warehouse />المخزن الرئيسي</TabsTrigger>
-              <TabsTrigger value="wh-agouza"><Warehouse />مخزن العجوزة</TabsTrigger>
-              <TabsTrigger value="wh-hht"><Warehouse />هايبر هيلثي تيست</TabsTrigger>
-              <TabsTrigger value="wh-carrefour"><Warehouse />هايبر كارفور</TabsTrigger>
-              <TabsTrigger value="wh-packaging"><Package />التغليف والتعبئة</TabsTrigger>
+              {!mainOnlyScope && <TabsTrigger value="wh-agouza"><Warehouse />مخزن العجوزة</TabsTrigger>}
+              {!mainOnlyScope && <TabsTrigger value="wh-hht"><Warehouse />هايبر هيلثي تيست</TabsTrigger>}
+              {!mainOnlyScope && <TabsTrigger value="wh-carrefour"><Warehouse />هايبر كارفور</TabsTrigger>}
+              {!mainOnlyScope && <TabsTrigger value="wh-packaging"><Package />التغليف والتعبئة</TabsTrigger>}
               <TabsTrigger value="reports"><FileText />التقارير</TabsTrigger>
               <TabsTrigger value="menu"><UtensilsCrossed />المنيو</TabsTrigger>
               <TabsTrigger value="more"><Menu />المزيد</TabsTrigger>
