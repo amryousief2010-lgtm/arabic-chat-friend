@@ -11,11 +11,12 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import {
   ExternalLink, RefreshCw, Check, X, Loader2, ChevronDown, ChevronUp,
-  Link2, Search,
+  Link2, Search, Info,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 
 interface MissingRow {
