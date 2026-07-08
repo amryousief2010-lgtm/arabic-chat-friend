@@ -317,7 +317,16 @@ export default function WarehouseStocktaking() {
           </div>
         </div>
 
-        {!canApprove && (
+        {!canEditStocktaking && (
+          <Alert className="border-amber-300 bg-amber-50">
+            <Info className="h-4 w-4" />
+            <AlertDescription className="text-amber-900">
+              وضع العرض فقط — يمكنك تصفح جلسات الجرد والفروق، لكن لا يمكنك فتح مسودة أو إدخال/حذف أسطر أو الاعتماد.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {!canApprove && canEditStocktaking && (
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription>يمكنك تجهيز المسودة فقط. الاعتماد النهائي للمدير العام أو التنفيذي.</AlertDescription>
