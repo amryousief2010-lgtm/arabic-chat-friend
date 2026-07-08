@@ -136,6 +136,7 @@ const DashboardContent = () => {
   const { data: stats, isLoading } = useDashboardStats();
   const { data: todayBreakdown } = useTodayOrdersBreakdown();
   const [selectedTodayChannel, setSelectedTodayChannel] = useState<TodayOrdersChannel | null>(null);
+  const [monthOrdersOpen, setMonthOrdersOpen] = useState(false);
   const { data: selectedTodayOrders, isLoading: selectedTodayOrdersLoading } = useTodayWarehouseOrders(selectedTodayChannel);
   const { data: recentOrders, isLoading: ordersLoading } = useRecentOrders(5);
   const reportData = useReportsData("all");
