@@ -104,6 +104,39 @@ async function mapWithLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promi
   return results;
 }
 
+interface ZodexBillDetails {
+  bill_no: string;
+  receiver_name: string | null;
+  phone: string | null;
+  phone2: string | null;
+  region: string | null;
+  sub_region: string | null;
+  address: string | null;
+  cod_amount: number | null;
+  status: string | null;
+  shipment_date: string | null;
+  sender: string | null;
+  moderator_name: string | null;
+  task_type: string | null;
+  notes: string | null;
+}
+
+const SHIPPING_FEE = 110; // Zodex adds 110 EGP on non-box orders
+
+function normPhoneCmp(v?: string | null) {
+  return (v || "").replace(/\D+/g, "").replace(/^20/, "").slice(-11);
+}
+function normArabic(v?: string | null) {
+  return (v || "")
+    .replace(/[\u064B-\u065F\u0670]/g, "")
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 export default function ZodexReview() {
   const [tab, setTab] = useState("orphan-bills");
   const [loading, setLoading] = useState(true);
@@ -112,6 +145,10 @@ export default function ZodexReview() {
   const [noBillOrders, setNoBillOrders] = useState<OrderRow[]>([]);
   const [search, setSearch] = useState("");
   const [fixingId, setFixingId] = useState<string | null>(null);
+  const [detailsById, setDetailsById] = useState<Record<string, ZodexBillDetails>>({});
+  const [detailsErrById, setDetailsErrById] = useState<Record<string, string>>({});
+  const [fetchingId, setFetchingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
