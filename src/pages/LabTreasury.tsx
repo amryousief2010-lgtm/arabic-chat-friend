@@ -1619,10 +1619,13 @@ export default function LabTreasury() {
                       <TableHead>وارد</TableHead>
                       <TableHead>منصرف</TableHead>
                       <TableHead>طريقة</TableHead>
+                      <TableHead>الرصيد قبل</TableHead>
+                      <TableHead>الرصيد بعد</TableHead>
                       <TableHead>الحالة</TableHead>
                       <TableHead>المصدر</TableHead>
                       <TableHead>سجّل بواسطة</TableHead>
                       <TableHead>إجراءات</TableHead>
+
                     </TableRow>
                   </TableHeader>
                   <TableBody>
