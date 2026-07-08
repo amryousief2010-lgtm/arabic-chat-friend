@@ -44,6 +44,7 @@ const InternalPricesSettings = lazy(() => import("@/pages/modules/InternalPrices
 const Orders = lazy(() => import("@/pages/Orders"));
 const Customers = lazy(() => import("@/pages/Customers"));
 const Reports = lazy(() => import("@/pages/Reports"));
+const WhatsAppCampaigns = lazy(() => import("@/pages/WhatsAppCampaigns"));
 const DailyPerformanceAnalysis = lazy(() => import("@/pages/sales/DailyPerformanceAnalysis"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const Employees = lazy(() => import("@/pages/Employees"));
