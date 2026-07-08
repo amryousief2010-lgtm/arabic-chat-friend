@@ -359,7 +359,7 @@ export default function WarehouseStocktaking() {
                 <Input type="date" value={countDate} onChange={(e) => setCountDate(e.target.value)} />
               </div>
               <div className="flex items-end gap-2">
-                <Button onClick={createSession} disabled={busyAction === "create"}>
+                <Button onClick={createSession} disabled={!canEditStocktaking || busyAction === "create"}>
                   <Plus className="w-3 h-3 ml-1" /> فتح مسودة
                 </Button>
                 <Button variant="outline" onClick={printEmptyForm}>
