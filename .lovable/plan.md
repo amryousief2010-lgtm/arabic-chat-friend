@@ -1,38 +1,51 @@
-## المطلوب
-تعديل نظام موافقة الأوردر المكرر ليصبح **موافقة مزدوجة** (المهندسة آلاء حامد + المدير التنفيذي) بدلاً من موافقة فردية، ثم اختبار عملي كامل بحساب آية ثم منال.
+# تحسين تكامل زودكس
 
-## التغييرات
+## الوضع الحالي (أهم نقطة)
+التكامل مع زودكس **قراءة فقط** (scraping من `zodex-eg.com`). زودكس ما عندهمش REST API عندنا نقدر نبعتلهم منه أوردر ونستلم بوليصة فورًا. يعني:
+- تسجيل الأوردر على زودكس بيتم **يدوي** من الموظف على موقعهم.
+- النظام عندنا كل شوية بيسحب صفحة «كافة الشحنات» و«الشحنات المسلّمة» ويطابق البوليصة بالأوردر عن طريق **رقم موبايل العميل + مبلغ COD**.
+- بيانات الدخول محفوظة كـ Secrets في Edge Functions مش في الـ Frontend ✅.
 
-### 1. قاعدة البيانات
-- إضافة أعمدة على `duplicate_order_approvals`:
-  - `marketing_decision` (pending/approved/rejected) + `marketing_decided_by` + `marketing_decided_at` + `marketing_reason`
-  - `executive_decision` (pending/approved/rejected) + `executive_decided_by` + `executive_decided_at` + `executive_reason`
-- الحقل `status` يظل نهائي: `pending` → `approved` (لما الاتنين يوافقوا) / `rejected` (لأول رفض).
-- تعديل RPC `decide_duplicate_order_approval` بحيث:
-  - يحدد دور المستخدم (marketing_sales_manager أو executive_manager) ويحدّث الخانة المناسبة فقط.
-  - لو الاتنين approved → يحدث `status='approved'`.
-  - لو أي واحد rejected → `status='rejected'` فوراً.
-- تعديل RLS: السماح للـ `executive_manager` بالـ SELECT/UPDATE على الجدول.
-- تعديل trigger `enforce_duplicate_order_approval` بحيث يقبل الأوردر فقط لما `status='approved'` (نفس السلوك الحالي، ما يحتاجش تغيير).
-- إشعارات: عند إنشاء الطلب يبعت للاتنين. عند اعتماد واحد يبعت للتاني إشعار "مستني اعتمادك".
+يعني «إنشاء الشحنة تلقائي من ليفبول» مش ممكن حاليًا من غير API رسمي من زودكس. الباقي كله ممكن نحسّنه.
 
-### 2. الواجهة
-- `src/pages/DuplicateOrderApprovals.tsx`: عرض خانتين منفصلتين (موافقة التسويق / موافقة التنفيذي) مع تلوين واضح، وإخفاء زر الاعتماد للـ role اللي وافق بالفعل.
-- `src/pages/NewOrder.tsx`: تحديث نص الحوار للبنت ليقول "بانتظار موافقة آلاء حامد والمدير التنفيذي معاً".
+## اللي هبنيه
 
-### 3. الاختبار العملي (Playwright)
-- Login بحساب آية → إنشاء عميل تجريبي + أوردر.
-- Logout ثم Login بحساب منال → محاولة إنشاء نفس الأوردر → يجب أن يظهر Dialog التكرار.
-- إرسال طلب الموافقة.
-- Login بحساب آلاء → الموافقة → التحقق أن الأوردر ما زال معلقاً.
-- Login بحساب المدير التنفيذي → الموافقة → التحقق أن الأوردر انتقل لـ approved.
-- سيناريو رفض: تكرار بأوردر مختلف واحد يرفض.
+### 1. صفحة «أوردرات زودكس غير مكتملة»
+مسار جديد: `/modules/warehouses/zodex-incomplete`، فيه 3 تبويبات:
+- **بدون بوليصة**: أوردرات بعد 2026-07-01، حالتها ليست ملغاة/مرتجعة، عدى عليها > 24 ساعة بدون `shipping_bill_no`.
+- **حالة غير متطابقة**: عندنا بوليصة، وحالة زودكس (من `zodex_sync_runs.pipeline_counts` + آخر مطابقة) مختلفة عن حالة الأوردر عندنا.
+- **فشل الربط**: بوالص ظهرت على زودكس ومقدرناش نلاقيلها أوردر مطابق (من `zodex_missing_orders`).
 
-### تنبيه
-- محتاج بيانات دخول للحسابات الأربعة (آية، منال، آلاء، المدير التنفيذي) عشان أقدر أعمل اختبار Playwright فعلي. لو مش متاحة، هعمل الاختبار على مستوى SQL/RPC مباشرة وأورّي النتيجة.
+كل صف يعرض: رقم الأوردر، العميل، الموبايل، تاريخ الإنشاء، حالتنا، حالة زودكس، سبب عدم الربط، وأزرار:
+- **«إعادة مزامنة»** لكل صف (يستدعي `sync-zodex-shipments` فورًا).
+- **«ربط بوليصة يدوي»** (فتح Dialog لإدخال رقم `ZX...` وحفظه في `orders.shipping_bill_no` مع تسجيل الحركة في `zodex_bill_link_audit`).
 
-## الملفات المتأثرة
-- Migration جديد (schema + RPC + policies + trigger)
-- `src/pages/DuplicateOrderApprovals.tsx`
-- `src/pages/NewOrder.tsx` (نص فقط)
-- Playwright script تحت `/tmp/browser/dup-approval-e2e/`
+### 2. تحسين الـ Edge Functions
+- في `sync-zodex-shipments`: نسجّل في `zodex_sync_runs.summary.link_failures` الأوردرات المرشحة اللي فشل ربطها والسبب (رقم مختلف، مبلغ مختلف، أكثر من مرشح، ...) عشان يظهر في التقرير.
+- Retry policy: عند فشل login أو timeout، إعادة محاولة تلقائية (max 3, backoff 5s/15s/45s).
+- Idempotency: موجود بالفعل عن طريق `.is("shipping_bill_no", null)` guard — سنؤكده ونضيف check للـ audit log.
+- تسجيل صريح لكل request/response length في `summary` (بدون تسريب بيانات حساسة).
+
+### 3. جدولة تلقائية (pg_cron)
+- `sync-zodex-shipments`: كل 30 دقيقة.
+- `sync-zodex-deliveries`: كل ساعة.
+
+### 4. تحديث حالة الأوردر تلقائيًا
+حاليًا `sync-zodex-deliveries` بيحدّث «تسليم ناجح» و«مرتجع» على الأوردر عندنا. سنتأكد إن الـ mapping كامل ونعرضه في نفس صفحة الـ incomplete كـ audit، ولو حصل mismatch يتحول للتبويب الثاني.
+
+### 5. مخزن العجوزة
+هخلي **الوضع الحالي زي ما هو** (رفع شيت اعتماد يدوي). التحديث التلقائي للمخزن من غير مراجعة بشرية خطر لو زودكس رجّع بيانات غلط، والشيت هو ضمان.
+
+## اللي مش هبنيه (محتاج قرار / مستحيل حاليًا)
+- **إنشاء الشحنة تلقائي من ليفبول** → محتاج API رسمي من زودكس (يفضل نطلب مننهم مستندات API).
+- **دمج مخزن العجوزة تلقائي** → قرار تشغيلي، الأفضل يفضل بشيت اعتماد.
+
+## ملفات هتتعدّل / تتنشئ
+- `supabase/functions/sync-zodex-shipments/index.ts` (تحسين logging + retry)
+- `src/pages/modules/warehouses/ZodexIncompleteOrders.tsx` (جديد)
+- `src/components/warehouses/RelinkBillDialog.tsx` (جديد)
+- `src/components/AnimatedRoutes.tsx` (route)
+- `src/components/warehouses/ZodexSyncButton.tsx` (زر يفتح الصفحة الجديدة)
+- Migration: index على `orders(shipping_bill_no)` لو مش موجود + pg_cron jobs (عبر insert tool مش migration لأنه فيه بيانات مشروع).
+
+هبدأ بالتنفيذ لو موافق.

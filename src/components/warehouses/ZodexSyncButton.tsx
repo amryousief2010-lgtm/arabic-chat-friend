@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Loader2, Package, Truck, Warehouse, Clock } from "lucide-react";
+import { RefreshCw, Loader2, Package, Truck, Warehouse, Clock, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
@@ -90,6 +90,12 @@ export function ZodexSyncButton() {
             </Link>
           </Button>
         )}
+        <Button asChild size="sm" variant="outline" className="h-8 gap-1">
+          <Link to="/modules/warehouses/zodex-incomplete">
+            <AlertCircle className="h-3.5 w-3.5" />
+            أوردرات غير مكتملة
+          </Link>
+        </Button>
       </div>
 
       {pipelineEntries.length > 0 && (

@@ -218,22 +218,44 @@ Deno.serve(async (req) => {
     no_matching_order: 0,
     ambiguous_skipped: 0,
     linked_examples: [] as any[],
+    link_failures: [] as any[],
+    retries: 0,
   };
   const errors: string[] = [];
 
+  // Retry helper with exponential backoff (max 3 attempts)
+  async function withRetry<T>(label: string, fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
+    let lastErr: any;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await fn();
+      } catch (e: any) {
+        lastErr = e;
+        if (attempt >= maxAttempts) break;
+        stats.retries++;
+        const backoff = attempt === 1 ? 5000 : attempt === 2 ? 15000 : 45000;
+        console.warn(`[zodex] retry ${attempt}/${maxAttempts} for ${label}: ${e?.message || e}`);
+        await new Promise((r) => setTimeout(r, backoff));
+      }
+    }
+    throw lastErr;
+  }
+
   try {
     const client = new ZodexClient();
-    await client.login(
-      Deno.env.get("ZODEX_USERNAME")!,
-      Deno.env.get("ZODEX_PASSWORD")!,
+    await withRetry("login", () =>
+      client.login(
+        Deno.env.get("ZODEX_USERNAME")!,
+        Deno.env.get("ZODEX_PASSWORD")!,
+      )
     );
 
     const allRows: ShipRow[] = [];
     let pagesFetched = 0;
     for (let page = 1; page <= maxPages; page++) {
-      const html = await client.get("/shippings.php", {
-        items: ITEMS_PER_PAGE, page,
-      });
+      const html = await withRetry(`page ${page}`, () =>
+        client.get("/shippings.php", { items: ITEMS_PER_PAGE, page })
+      );
       const rows = parseShippingRows(html);
       pagesFetched++;
       if (!rows.length) break;
@@ -251,8 +273,14 @@ Deno.serve(async (req) => {
     const minCreated = lookbackMin > MAIN_WAREHOUSE_START_DATE ? lookbackMin : MAIN_WAREHOUSE_START_DATE;
 
     for (const row of allRows) {
+      const failure = (reason: string, extra: Record<string, any> = {}) => {
+        if (stats.link_failures.length < 50) {
+          stats.link_failures.push({ bill_no: row.bill_no, reason, phones: row.phones, cod: row.cod, ...extra });
+        }
+      };
+
       // Skip rows without any phone (rare - templated messages hid them)
-      if (!row.phones.length) { stats.no_phone_in_row++; continue; }
+      if (!row.phones.length) { stats.no_phone_in_row++; failure("no_phone_in_row"); continue; }
 
       // Is this bill already linked?
       const { data: existing } = await supabase.from("orders")
@@ -269,13 +297,21 @@ Deno.serve(async (req) => {
         .in("customers.phone", row.phones);
 
       let list = ((candidates || []) as any[]).filter((c) => !claimedThisRun.has(c.id));
-      if (!list.length) { stats.no_matching_order++; continue; }
+      if (!list.length) {
+        stats.no_matching_order++;
+        failure("no_matching_phone", { candidates_total: (candidates || []).length });
+        continue;
+      }
 
       // Prefer exact amount match if we captured a COD
+      let matchReason = "phone_only";
       if (row.cod > 0) {
         const closeAmount = list.filter((c) => Math.abs(Number(c.total || 0) - row.cod) <= AMOUNT_TOLERANCE);
-        if (closeAmount.length) list = closeAmount;
+        if (closeAmount.length) { list = closeAmount; matchReason = "phone_and_cod"; }
+        else failure("cod_mismatch", { candidate_totals: list.map((c) => c.total) });
       }
+
+      if (list.length > 1) matchReason += "_fifo";
 
       // If multiple still, take FIFO (oldest created_at) — matches the pickup-queue order
       list.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -285,15 +321,31 @@ Deno.serve(async (req) => {
         .update({ shipping_bill_no: row.bill_no })
         .eq("id", winner.id)
         .is("shipping_bill_no", null); // guard against races
-      if (updErr) { errors.push(`link ${row.bill_no}→${winner.order_number}: ${updErr.message}`); continue; }
+      if (updErr) {
+        errors.push(`link ${row.bill_no}→${winner.order_number}: ${updErr.message}`);
+        failure("update_error", { message: updErr.message });
+        continue;
+      }
       claimedThisRun.add(winner.id);
       stats.linked++;
+
+      // Audit
+      try {
+        await supabase.from("zodex_bill_link_audit").insert({
+          bill_no: row.bill_no,
+          order_id: winner.id,
+          match_reason: matchReason,
+          match_score: matchReason.includes("cod") ? 1 : 0.7,
+        });
+      } catch (_e) { /* non-fatal */ }
+
       if (stats.linked_examples.length < 20) {
         stats.linked_examples.push({
           bill_no: row.bill_no,
           order_number: winner.order_number,
           phone: row.phones[0],
           cod: row.cod,
+          reason: matchReason,
           candidates_considered: (candidates || []).length,
         });
       }

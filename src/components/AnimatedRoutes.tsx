@@ -162,6 +162,7 @@ const WarehouseDashboard = lazy(() => import("@/pages/modules/warehouse/Warehous
 const WarehouseDetail = lazy(() => import("@/pages/modules/warehouse/WarehouseDetail"));
 const InventoryImport = lazy(() => import("@/pages/modules/warehouse/InventoryImport"));
 const ZodexMissingOrders = lazy(() => import("@/pages/modules/warehouse/ZodexMissingOrders"));
+const ZodexIncompleteOrders = lazy(() => import("@/pages/modules/warehouse/ZodexIncompleteOrders"));
 const MegaOrdersReview = lazy(() => import("@/pages/orders/MegaOrdersReview"));
 const MegaOrderDiscrepancies = lazy(() => import("@/pages/orders/MegaOrderDiscrepancies"));
 
@@ -1073,6 +1074,11 @@ const AnimatedRoutes = () => {
           <Route path="/modules/warehouses/zodex-missing" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'sales_manager', 'agouza_warehouse_keeper']}>
               <PageTransition><ZodexMissingOrders /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/zodex-incomplete" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'sales_manager', 'agouza_warehouse_keeper']}>
+              <PageTransition><ZodexIncompleteOrders /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/orders/mega-review" element={
