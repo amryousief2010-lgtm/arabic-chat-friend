@@ -210,6 +210,7 @@ export default function WarehouseStocktaking() {
   };
 
   const deleteLine = async (lineId: string) => {
+    if (!canEditStocktaking) { toast.error("ليس لديك صلاحية تعديل الجرد"); return; }
     if (!isDraft) return;
     if (!confirm("حذف هذا السطر من المسودة؟")) return;
     try {
