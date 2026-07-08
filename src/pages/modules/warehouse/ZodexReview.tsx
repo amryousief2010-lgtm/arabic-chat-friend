@@ -692,7 +692,7 @@ export default function ZodexReview() {
                               </TableCell>
                             </TableRow>
                           )}
-                        </>
+                        </Fragment>
                       );
                     })}
                   </TableBody>
