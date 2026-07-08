@@ -46,6 +46,8 @@ export default function MeatWarehouses() {
   const qc = useQueryClient();
   const { user, roles } = useAuth();
   const isManager = roles?.some((r) => r === "general_manager" || r === "executive_manager");
+  // مدير مصنع اللحوم (بدون GM/Exec): يشتغل على المصنع لكن ممنوع من تعديل رصيد المخزون (جرد/تسوية)
+  const isMeatFactoryManagerOnly = !!roles?.includes("meat_factory_manager" as any) && !isManager;
 
   // ---------- DATA ----------
   const { data: rawItems = [] } = useQuery({
