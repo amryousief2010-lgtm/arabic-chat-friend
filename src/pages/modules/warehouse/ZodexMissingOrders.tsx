@@ -405,6 +405,21 @@ export default function ZodexMissingOrders() {
         </div>
       </div>
 
+      <Alert className="border-primary/30 bg-primary/5">
+        <Info className="h-4 w-4 text-primary" />
+        <AlertTitle className="text-primary">ما معنى هذه الشاشة؟</AlertTitle>
+        <AlertDescription className="text-sm space-y-1 mt-1">
+          <p>
+            هذه بوالص موجودة على <b>زودكس</b> على مخزن العجوزة، ولم يتم العثور على أوردر مطابق لها داخل نظامنا.
+            <b> لا يعني بالضرورة أن الأوردر غير موجود</b> — قد يكون الربط التلقائي فشل بسبب اختلاف في رقم الموبايل، الاسم، أو أن البوليصة أُنشئت يدوياً على زودكس.
+          </p>
+          <p>
+            <b>الخطوات:</b> اضغط السهم بجانب البوليصة → ستظهر الأوردرات المحتملة → اضغط "ربط" على الأوردر الصحيح.
+            لو مفيش اقتراحات، هيظهر لك السبب (رقم موبايل غير موجود / لا يوجد أوردر بنفس القيمة / إلخ) وتقدر تعمل بحث يدوي.
+          </p>
+        </AlertDescription>
+      </Alert>
+
       <Card>
         <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2 flex-wrap">
           <CardTitle className="text-base">القائمة ({filtered.length})</CardTitle>
