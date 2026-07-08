@@ -512,10 +512,67 @@ const OfferBoxes = () => {
               <FileSpreadsheet className="h-4 w-4 ml-1" />
               تصدير Excel
             </Button>
-            <Button variant="outline" size="sm" onClick={() => {
+            <Button variant="outline" size="sm" onClick={async () => {
               const statusLabel = (b: OfferBox) =>
                 !b.is_active ? 'موقوف' : isExpired(b.expires_at) ? 'منتهي' : isScheduled(b.starts_at) ? 'مجدول' : 'نشط';
               const totalActive = offerBoxes.filter(b => b.is_active && !isExpired(b.expires_at) && !isScheduled(b.starts_at)).length;
+
+              // Fetch all items for all boxes
+              const boxIds = offerBoxes.map(b => b.id);
+              const itemsByBox: Record<string, OfferBoxItem[]> = {};
+              if (boxIds.length) {
+                const { data: allItems } = await supabase
+                  .from('offer_box_items')
+                  .select('*')
+                  .in('offer_box_id', boxIds);
+                const pids = Array.from(new Set((allItems || []).map((i: any) => i.product_id)));
+                const { data: prods } = pids.length
+                  ? await supabase.from('products').select('id, name, price, image_url').in('id', pids)
+                  : { data: [] as any[] };
+                const pmap = new Map((prods || []).map((p: any) => [p.id, p]));
+                (allItems || []).forEach((it: any) => {
+                  const enriched = { ...it, product: pmap.get(it.product_id) } as OfferBoxItem;
+                  (itemsByBox[it.offer_box_id] ||= []).push(enriched);
+                });
+              }
+
+              const boxSections = offerBoxes.map((b, i) => {
+                const items = itemsByBox[b.id] || [];
+                const itemsHtml = items.length
+                  ? `<table>
+                      <thead><tr>
+                        <th>#</th><th>المنتج</th><th>الكمية</th><th>السعر داخل العرض</th><th>الإجمالي</th><th>هدية</th>
+                      </tr></thead>
+                      <tbody>
+                        ${items.map((it, k) => `
+                          <tr>
+                            <td>${k+1}</td>
+                            <td>${escapeHtml(it.product?.name || '—')}</td>
+                            <td class="num">${fmtNum(it.quantity)}</td>
+                            <td class="num">${it.is_gift ? 'هدية' : fmtNum(it.custom_price) + ' ج.م'}</td>
+                            <td class="num">${it.is_gift ? '—' : fmtNum(it.custom_price * it.quantity) + ' ج.م'}</td>
+                            <td>${it.is_gift ? '🎁 نعم' : '—'}</td>
+                          </tr>
+                        `).join('')}
+                      </tbody>
+                    </table>`
+                  : `<p style="color:#888;font-size:11px;margin:4px 0 10px">— لا توجد منتجات داخل هذا العرض —</p>`;
+                return `
+                  <div class="box-section">
+                    <h2>${i+1}. ${escapeHtml(b.name)}
+                      <span style="font-size:11px;color:#666;font-weight:normal">
+                        • ${statusLabel(b)}
+                        ${b.offer_price != null ? ` • سعر العرض: ${fmtNum(b.offer_price)} ج.م` : ''}
+                        ${b.shipping_cost != null ? ` • الشحن: ${fmtNum(b.shipping_cost)} ج.م` : ''}
+                        • عدد المنتجات: ${items.length}
+                      </span>
+                    </h2>
+                    ${b.description ? `<p style="font-size:11px;color:#555;margin:2px 0 6px">${escapeHtml(b.description)}</p>` : ''}
+                    ${itemsHtml}
+                  </div>
+                `;
+              }).join('');
+
               const body = `
                 <header>
                   <div><h1>صناديق العروض</h1><div class="en">Offer Boxes Report</div></div>
@@ -525,27 +582,8 @@ const OfferBoxes = () => {
                   <div class="stat"><div class="k">إجمالي العروض</div><div class="v">${fmtNum(offerBoxes.length)}</div></div>
                   <div class="stat"><div class="k">عروض نشطة</div><div class="v">${fmtNum(totalActive)}</div></div>
                 </div>
-                <table>
-                  <thead><tr>
-                    <th>#</th><th>اسم العرض</th><th>سعر العرض</th><th>الشحن</th>
-                    <th>عدد المنتجات</th><th>الحالة</th><th>البداية</th><th>الانتهاء</th>
-                  </tr></thead>
-                  <tbody>
-                    ${offerBoxes.map((b, i) => `
-                      <tr>
-                        <td>${i+1}</td>
-                        <td>${escapeHtml(b.name)}</td>
-                        <td class="num">${b.offer_price != null ? fmtNum(b.offer_price) + ' ج.م' : '—'}</td>
-                        <td class="num">${b.shipping_cost != null ? fmtNum(b.shipping_cost) + ' ج.م' : '—'}</td>
-                        <td class="num">${fmtNum(boxItemCounts[b.id] || 0)}</td>
-                        <td>${statusLabel(b)}</td>
-                        <td>${b.starts_at ? fmtDate(b.starts_at) : '—'}</td>
-                        <td>${b.expires_at ? fmtDate(b.expires_at) : '—'}</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>`;
-              openPrintWindow('صناديق العروض', body);
+                ${boxSections}`;
+              openPrintWindow('صناديق العروض', body, `.box-section{page-break-inside:avoid;margin-bottom:14px}`);
             }}>
               <FileText className="h-4 w-4 ml-1" />
               تصدير PDF
