@@ -1072,6 +1072,7 @@ export default function LabTreasury() {
               </div>
             </div>
           </div>
+          {!isExternalCollectorOnly && (
           <div className="flex gap-2 flex-wrap">
             <Button
               variant="outline"
@@ -1109,6 +1110,7 @@ export default function LabTreasury() {
               محضر جرد
             </Button>
           </div>
+          )}
         </div>
 
 
