@@ -775,7 +775,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/lab-treasury" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_treasury_viewer']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_treasury_viewer', 'lab_external_collector']}>
               <ViewOnlySection section="lab-treasury"><PageTransition><LabTreasury /></PageTransition></ViewOnlySection>
             </ProtectedRoute>
           } />
