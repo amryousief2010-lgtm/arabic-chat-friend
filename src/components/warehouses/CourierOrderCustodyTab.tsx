@@ -841,7 +841,26 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         created_by: user?.id,
       });
       if (error) throw error;
-      toast({ title: "تم التوريد لخزينة العجوزة", description: `المبلغ: ${fmt(amt)} ج.م — تقدر بعدها تحوّله لخزنة محمد شعلة` });
+      // Rule: توريد كشف بُسطة (العجوزة) = اعتبر كل أوردرات الكشف "تم التوصيل" تلقائياً
+      let markedCount = 0;
+      if (upload.orderNumbers.length > 0) {
+        const nowIso = new Date().toISOString();
+        const { data: updated, error: uErr } = await (supabase as any)
+          .from("orders")
+          .update({
+            status: "delivered",
+            delivered_at: nowIso,
+            payment_status: "paid",
+            collection_status: "collected",
+            collected_at: nowIso,
+          })
+          .in("order_number", upload.orderNumbers)
+          .neq("status", "delivered")
+          .select("id");
+        if (uErr) console.warn("Auto-mark Bostta orders delivered failed:", uErr.message);
+        else markedCount = (updated || []).length;
+      }
+      toast({ title: "تم التوريد لخزينة العجوزة", description: `المبلغ: ${fmt(amt)} ج.م · تم تحديث ${markedCount} أوردر لحالة تم التوصيل` });
       await load();
     } catch (e: any) {
       toast({ title: "تعذّر التوريد", description: e?.message || "", variant: "destructive" });
