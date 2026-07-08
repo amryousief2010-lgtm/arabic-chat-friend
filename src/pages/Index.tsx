@@ -138,6 +138,40 @@ const Index = () => {
 const DashboardContent = () => {
   const navigate = useNavigate();
   const { data: stats, isLoading } = useDashboardStats();
+
+  // Month totals INCLUDING cancelled orders — matches the popup dialog exactly.
+  const { data: monthAll } = useQuery({
+    queryKey: ["dashboard-month-including-cancelled"],
+    queryFn: async () => {
+      const { year, monthIndex0 } = currentCairoYearMonth();
+      const start = cairoMonthStartUTC(year, monthIndex0).toISOString();
+      const end = cairoMonthStartUTC(year, monthIndex0 + 1).toISOString();
+      let sales = 0;
+      let orders = 0;
+      let page = 0;
+      const size = 1000;
+      // Paginate to avoid the 1000-row cap
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from("orders")
+          .select("total")
+          .gte("created_at", start)
+          .lt("created_at", end)
+          .range(page * size, (page + 1) * size - 1);
+        if (error) throw error;
+        const rows = (data || []) as { total: number | null }[];
+        orders += rows.length;
+        sales += rows.reduce((s, r) => s + Number(r.total || 0), 0);
+        if (rows.length < size) break;
+        page++;
+      }
+      return { sales, orders };
+    },
+    staleTime: 60 * 1000,
+    refetchInterval: 2 * 60 * 1000,
+  });
+
   const { data: todayBreakdown } = useTodayOrdersBreakdown();
   const [selectedTodayChannel, setSelectedTodayChannel] = useState<TodayOrdersChannel | null>(null);
   const [monthOrdersOpen, setMonthOrdersOpen] = useState(false);
