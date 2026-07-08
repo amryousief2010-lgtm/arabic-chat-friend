@@ -462,7 +462,17 @@ export default function ZodexReview() {
                   <TableBody>
                     {filterBills(linkIssues).map((c) => (
                       <TableRow key={c.bill.id}>
-                        <TableCell className="font-mono text-xs" dir="ltr">{c.bill.bill_no}</TableCell>
+                        <TableCell className="font-mono text-xs" dir="ltr">
+                          <a
+                            href={`https://zodex-eg.com/admin-area/shippings.php?action=details&waybill=${c.bill.bill_no}`}
+                            target="_blank" rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                            title="فتح تفاصيل البوليصة على زودكس للمطابقة اليدوية"
+                          >
+                            {c.bill.bill_no}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </TableCell>
                         <TableCell className="text-xs">
                           {c.bestCandidate ? (
                             <div>
