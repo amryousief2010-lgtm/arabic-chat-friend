@@ -161,8 +161,7 @@ const FeedIssues = lazy(() => import("@/pages/modules/feed/Issues"));
 const WarehouseDashboard = lazy(() => import("@/pages/modules/warehouse/WarehouseDashboard"));
 const WarehouseDetail = lazy(() => import("@/pages/modules/warehouse/WarehouseDetail"));
 const InventoryImport = lazy(() => import("@/pages/modules/warehouse/InventoryImport"));
-const ZodexMissingOrders = lazy(() => import("@/pages/modules/warehouse/ZodexMissingOrders"));
-const ZodexIncompleteOrders = lazy(() => import("@/pages/modules/warehouse/ZodexIncompleteOrders"));
+const ZodexReview = lazy(() => import("@/pages/modules/warehouse/ZodexReview"));
 const MegaOrdersReview = lazy(() => import("@/pages/orders/MegaOrdersReview"));
 const MegaOrderDiscrepancies = lazy(() => import("@/pages/orders/MegaOrderDiscrepancies"));
 
