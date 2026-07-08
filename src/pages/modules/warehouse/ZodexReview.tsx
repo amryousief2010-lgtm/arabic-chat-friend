@@ -13,7 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import {
   RefreshCw, Loader2, Link2, ExternalLink, ArrowLeft, PackageX,
-  AlertTriangle, Info, Wrench,
+  AlertTriangle, Info, Wrench, Download, CheckCircle2, XCircle,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
