@@ -172,7 +172,7 @@ export default function MeatPackagingInventory() {
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" />Excel</Button>
             <Button variant="outline" size="sm" onClick={printReport}><Printer className="w-4 h-4 ml-1" />طباعة / PDF</Button>
-            <Button size="sm" onClick={() => setAddItemOpen(true)} className="bg-emerald-600 hover:bg-emerald-700"><Plus className="w-4 h-4 ml-1" />إضافة صنف تغليف</Button>
+            {!isMeatFactoryManagerOnly && <Button size="sm" onClick={() => setAddItemOpen(true)} className="bg-emerald-600 hover:bg-emerald-700"><Plus className="w-4 h-4 ml-1" />إضافة صنف تغليف</Button>}
           </div>
         </div>
 
