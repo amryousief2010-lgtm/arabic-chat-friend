@@ -294,6 +294,27 @@ export default function ZodexReview() {
     }
   };
 
+  const fetchZodexDetails = async (item: BillWithClassification) => {
+    setFetchingId(item.bill.id);
+    setDetailsErrById((s) => ({ ...s, [item.bill.id]: "" }));
+    setExpandedId(item.bill.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("zodex-bill-details", {
+        body: { bill_no: item.bill.bill_no },
+      });
+      if (error) throw error;
+      const res = data as any;
+      if (!res?.success) throw new Error(res?.error || "فشل جلب البيانات");
+      setDetailsById((s) => ({ ...s, [item.bill.id]: res.details }));
+    } catch (e: any) {
+      const msg = e?.message || String(e);
+      setDetailsErrById((s) => ({ ...s, [item.bill.id]: msg }));
+      toast.error(`فشل جلب بيانات زودكس: ${msg}`);
+    } finally {
+      setFetchingId(null);
+    }
+  };
+
   return (
     <div dir="rtl" className="container mx-auto p-4 space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
