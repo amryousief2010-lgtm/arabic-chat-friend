@@ -210,7 +210,10 @@ export default function SocialMediaMarketingDashboard() {
             <Megaphone className="h-6 w-6 text-purple-600" />
             <h1 className="text-2xl font-bold">لوحة التسويق والمبيعات</h1>
           </div>
-          {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+          <div className="flex items-center gap-2">
+            {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+            <ZodexSyncButton />
+          </div>
         </div>
 
         {/* Filters */}
