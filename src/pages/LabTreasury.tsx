@@ -1119,21 +1119,21 @@ export default function LabTreasury() {
             {(() => {
               const tabCls = "font-semibold text-foreground/80 hover:text-primary hover:bg-primary/10 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-colors";
               return <>
-                <TabsTrigger value="dashboard" className={tabCls}>لوحة الخزنة</TabsTrigger>
-                <TabsTrigger value="income" className={tabCls}>إضافة إيراد</TabsTrigger>
-                <TabsTrigger value="expense" className={tabCls}>إضافة مصروف</TabsTrigger>
+                {!isExternalCollectorOnly && <TabsTrigger value="dashboard" className={tabCls}>لوحة الخزنة</TabsTrigger>}
+                {!isExternalCollectorOnly && <TabsTrigger value="income" className={tabCls}>إضافة إيراد</TabsTrigger>}
+                {!isExternalCollectorOnly && <TabsTrigger value="expense" className={tabCls}>إضافة مصروف</TabsTrigger>}
                 <TabsTrigger value="log" className={tabCls}>سجل الحركات</TabsTrigger>
-                {canApprove && <TabsTrigger value="approvals" className={tabCls}>الاعتمادات</TabsTrigger>}
-                <TabsTrigger value="daily" className={tabCls}>التقرير اليومي</TabsTrigger>
-                <TabsTrigger value="closures" className={tabCls}>إقفال الأيام</TabsTrigger>
-                <TabsTrigger value="openings" className={tabCls}>الأرصدة الافتتاحية</TabsTrigger>
-                <TabsTrigger value="external" className={tabCls}>التحصيلات الخارجية</TabsTrigger>
-                <TabsTrigger value="advances" className={tabCls}>العُهد</TabsTrigger>
-                {canApprove && <TabsTrigger value="duplicates" className={tabCls}>المكررات</TabsTrigger>}
-                <TabsTrigger value="reconcile" className={tabCls}>مطابقة الخزنة</TabsTrigger>
-                <TabsTrigger value="analytics" className={tabCls}>تحليل المصروفات</TabsTrigger>
-                <TabsTrigger value="reports" className={tabCls}>التقارير</TabsTrigger>
-                {canApprove && <TabsTrigger value="audit" className={tabCls}>سجل التدقيق</TabsTrigger>}
+                {!isExternalCollectorOnly && canApprove && <TabsTrigger value="approvals" className={tabCls}>الاعتمادات</TabsTrigger>}
+                {!isExternalCollectorOnly && <TabsTrigger value="daily" className={tabCls}>التقرير اليومي</TabsTrigger>}
+                {!isExternalCollectorOnly && <TabsTrigger value="closures" className={tabCls}>إقفال الأيام</TabsTrigger>}
+                {!isExternalCollectorOnly && <TabsTrigger value="openings" className={tabCls}>الأرصدة الافتتاحية</TabsTrigger>}
+                {!isExternalCollectorOnly && <TabsTrigger value="external" className={tabCls}>التحصيلات الخارجية</TabsTrigger>}
+                {!isExternalCollectorOnly && <TabsTrigger value="advances" className={tabCls}>العُهد</TabsTrigger>}
+                {!isExternalCollectorOnly && canApprove && <TabsTrigger value="duplicates" className={tabCls}>المكررات</TabsTrigger>}
+                {!isExternalCollectorOnly && <TabsTrigger value="reconcile" className={tabCls}>مطابقة الخزنة</TabsTrigger>}
+                {!isExternalCollectorOnly && <TabsTrigger value="analytics" className={tabCls}>تحليل المصروفات</TabsTrigger>}
+                {!isExternalCollectorOnly && <TabsTrigger value="reports" className={tabCls}>التقارير</TabsTrigger>}
+                {!isExternalCollectorOnly && canApprove && <TabsTrigger value="audit" className={tabCls}>سجل التدقيق</TabsTrigger>}
               </>;
             })()}
           </TabsList>
