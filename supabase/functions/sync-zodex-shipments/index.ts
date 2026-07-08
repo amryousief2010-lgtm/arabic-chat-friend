@@ -272,6 +272,39 @@ Deno.serve(async (req) => {
     // Never match orders older than the main-warehouse cutover date.
     const minCreated = lookbackMin > MAIN_WAREHOUSE_START_DATE ? lookbackMin : MAIN_WAREHOUSE_START_DATE;
 
+    // ---- BATCH LOOKUPS (avoid per-row queries → CPU limit) ----
+    const allBillNos = [...new Set(allRows.map((r) => r.bill_no))];
+    const allPhones = [...new Set(allRows.flatMap((r) => r.phones))];
+
+    // 1) Bills already linked → one query
+    const alreadyLinkedSet = new Set<string>();
+    for (let i = 0; i < allBillNos.length; i += 500) {
+      const slice = allBillNos.slice(i, i + 500);
+      const { data } = await supabase.from("orders")
+        .select("shipping_bill_no")
+        .in("shipping_bill_no", slice);
+      for (const r of (data || [])) alreadyLinkedSet.add(String(r.shipping_bill_no));
+    }
+
+    // 2) Candidate orders (unlinked, in window, matching any of our phones) → batched query, index in memory
+    const candidatesByPhone = new Map<string, any[]>();
+    for (let i = 0; i < allPhones.length; i += 300) {
+      const slice = allPhones.slice(i, i + 300);
+      const { data } = await supabase.from("orders")
+        .select("id, order_number, total, created_at, customer_id, customers!inner(phone)")
+        .is("shipping_bill_no", null)
+        .gte("created_at", minCreated)
+        .in("customers.phone", slice);
+      for (const o of (data || []) as any[]) {
+        const p = o.customers?.phone;
+        if (!p) continue;
+        if (!candidatesByPhone.has(p)) candidatesByPhone.set(p, []);
+        candidatesByPhone.get(p)!.push(o);
+      }
+    }
+
+    // 3) Match in memory, then UPDATE only the winners
+    const auditInserts: any[] = [];
     for (const row of allRows) {
       const failure = (reason: string, extra: Record<string, any> = {}) => {
         if (stats.link_failures.length < 50) {
@@ -279,48 +312,40 @@ Deno.serve(async (req) => {
         }
       };
 
-      // Skip rows without any phone (rare - templated messages hid them)
       if (!row.phones.length) { stats.no_phone_in_row++; failure("no_phone_in_row"); continue; }
+      if (alreadyLinkedSet.has(row.bill_no)) { stats.already_linked++; continue; }
 
-      // Is this bill already linked?
-      const { data: existing } = await supabase.from("orders")
-        .select("id, order_number")
-        .eq("shipping_bill_no", row.bill_no)
-        .maybeSingle();
-      if (existing?.id) { stats.already_linked++; continue; }
+      const candidates: any[] = [];
+      const seenId = new Set<string>();
+      for (const ph of row.phones) {
+        for (const o of (candidatesByPhone.get(ph) || [])) {
+          if (seenId.has(o.id) || claimedThisRun.has(o.id)) continue;
+          seenId.add(o.id);
+          candidates.push(o);
+        }
+      }
 
-      // Find candidate local orders with matching customer phone + no bill yet
-      const { data: candidates } = await supabase.from("orders")
-        .select("id, order_number, total, created_at, status, customer_id, customers!inner(name, phone)")
-        .is("shipping_bill_no", null)
-        .gte("created_at", minCreated)
-        .in("customers.phone", row.phones);
-
-      let list = ((candidates || []) as any[]).filter((c) => !claimedThisRun.has(c.id));
-      if (!list.length) {
+      if (!candidates.length) {
         stats.no_matching_order++;
-        failure("no_matching_phone", { candidates_total: (candidates || []).length });
+        failure("no_matching_phone", { candidates_total: 0 });
         continue;
       }
 
-      // Prefer exact amount match if we captured a COD
+      let list = candidates;
       let matchReason = "phone_only";
       if (row.cod > 0) {
         const closeAmount = list.filter((c) => Math.abs(Number(c.total || 0) - row.cod) <= AMOUNT_TOLERANCE);
         if (closeAmount.length) { list = closeAmount; matchReason = "phone_and_cod"; }
         else failure("cod_mismatch", { candidate_totals: list.map((c) => c.total) });
       }
-
       if (list.length > 1) matchReason += "_fifo";
-
-      // If multiple still, take FIFO (oldest created_at) — matches the pickup-queue order
       list.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       const winner = list[0];
 
       const { error: updErr } = await supabase.from("orders")
         .update({ shipping_bill_no: row.bill_no })
         .eq("id", winner.id)
-        .is("shipping_bill_no", null); // guard against races
+        .is("shipping_bill_no", null);
       if (updErr) {
         errors.push(`link ${row.bill_no}→${winner.order_number}: ${updErr.message}`);
         failure("update_error", { message: updErr.message });
@@ -328,16 +353,12 @@ Deno.serve(async (req) => {
       }
       claimedThisRun.add(winner.id);
       stats.linked++;
-
-      // Audit
-      try {
-        await supabase.from("zodex_bill_link_audit").insert({
-          bill_no: row.bill_no,
-          order_id: winner.id,
-          match_reason: matchReason,
-          match_score: matchReason.includes("cod") ? 1 : 0.7,
-        });
-      } catch (_e) { /* non-fatal */ }
+      auditInserts.push({
+        bill_no: row.bill_no,
+        order_id: winner.id,
+        match_reason: matchReason,
+        match_score: matchReason.includes("cod") ? 1 : 0.7,
+      });
 
       if (stats.linked_examples.length < 20) {
         stats.linked_examples.push({
@@ -346,9 +367,14 @@ Deno.serve(async (req) => {
           phone: row.phones[0],
           cod: row.cod,
           reason: matchReason,
-          candidates_considered: (candidates || []).length,
+          candidates_considered: candidates.length,
         });
       }
+    }
+
+    // Batch audit insert
+    if (auditInserts.length) {
+      try { await supabase.from("zodex_bill_link_audit").insert(auditInserts); } catch (_e) { /* non-fatal */ }
     }
 
     await supabase.from("zodex_sync_runs").update({
