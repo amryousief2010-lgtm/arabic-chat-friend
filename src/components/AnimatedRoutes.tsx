@@ -1076,6 +1076,11 @@ const AnimatedRoutes = () => {
               <PageTransition><ZodexMissingOrders /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/modules/warehouses/zodex-incomplete" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'sales_manager', 'agouza_warehouse_keeper']}>
+              <PageTransition><ZodexIncompleteOrders /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/orders/mega-review" element={
             <ProtectedRoute>
               <PageTransition><MegaOrdersReview /></PageTransition>
