@@ -347,14 +347,14 @@ const DashboardContent = () => {
             )}
           </CardContent>
         </Card>
-        <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => navigate('/reports')} role="button" tabIndex={0}>
+        <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => setMonthOrdersOpen(true)} role="button" tabIndex={0}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm text-muted-foreground">مبيعات الشهر</p>
               <Badge variant="outline" className="text-xs">{new Date().toLocaleDateString("en-GB", { month: "long" })}</Badge>
             </div>
             <p className="text-2xl font-bold text-primary">{isLoading ? "..." : `${(stats?.salesMonth || 0).toLocaleString()} ج.م`}</p>
-            <p className="text-xs text-muted-foreground mt-1">{stats?.ordersMonth || 0} طلب هذا الشهر</p>
+            <p className="text-xs text-muted-foreground mt-1 underline decoration-dotted">{stats?.ordersMonth || 0} طلب هذا الشهر — اضغط للعرض والتصدير</p>
           </CardContent>
         </Card>
         <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => navigate('/reports')} role="button" tabIndex={0}>
