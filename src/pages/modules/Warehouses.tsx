@@ -590,9 +590,12 @@ const Warehouses = () => {
         .neq("status", "cancelled")
         .limit(1000),
     ]);
-    if (w.data) setWarehouses(w.data as WarehouseRow[]);
-    if (i.data) setItems(i.data as InventoryItem[]);
-    if (s.data) setSlaughterOutputs(s.data as any[]);
+    const MAIN_WH_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
+    const filterWh = (arr: any[]) => mainOnlyScope ? arr.filter((x) => x.id === MAIN_WH_ID) : arr;
+    const filterByWh = (arr: any[]) => mainOnlyScope ? arr.filter((x) => x.warehouse_id === MAIN_WH_ID) : arr;
+    if (w.data) setWarehouses(filterWh(w.data) as WarehouseRow[]);
+    if (i.data) setItems(filterByWh(i.data) as InventoryItem[]);
+    if (s.data) setSlaughterOutputs((mainOnlyScope ? (s.data as any[]).filter((x) => !x.received_warehouse_id || x.received_warehouse_id === MAIN_WH_ID) : s.data) as any[]);
     if (o.data) setRecentOrders(o.data as any[]);
 
     // Fetch movements PER warehouse (top 200 each) so per-warehouse KPIs never
