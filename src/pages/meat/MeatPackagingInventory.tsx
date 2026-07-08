@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Package as PackageIcon, Plus, Minus, RotateCcw, ClipboardList, PowerOff, AlertTriangle, Wallet, FileSpreadsheet, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { openPrintWindow } from "@/lib/printPdf";
+import { useAuth } from "@/hooks/useAuth";
 import * as XLSX from "xlsx";
 
 type Item = { id: string; name: string; unit: string; current_stock: number; avg_cost: number; low_stock_threshold: number | null; kind: string; is_active: boolean; notes: string | null; updated_at: string };
@@ -28,6 +29,8 @@ const ISSUE_REASONS = ["تصنيع", "تالف", "تجربة", "تسوية جر�
 
 export default function MeatPackagingInventory() {
   const qc = useQueryClient();
+  const { roles, isGeneralManager, isExecutiveManager } = useAuth();
+  const isMeatFactoryManagerOnly = (roles as string[])?.includes("meat_factory_manager") && !isGeneralManager && !isExecutiveManager;
   const [search, setSearch] = useState("");
   const [showOnlyActive, setShowOnlyActive] = useState(true);
 
@@ -169,7 +172,7 @@ export default function MeatPackagingInventory() {
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" />Excel</Button>
             <Button variant="outline" size="sm" onClick={printReport}><Printer className="w-4 h-4 ml-1" />طباعة / PDF</Button>
-            <Button size="sm" onClick={() => setAddItemOpen(true)} className="bg-emerald-600 hover:bg-emerald-700"><Plus className="w-4 h-4 ml-1" />إضافة صنف تغليف</Button>
+            {!isMeatFactoryManagerOnly && <Button size="sm" onClick={() => setAddItemOpen(true)} className="bg-emerald-600 hover:bg-emerald-700"><Plus className="w-4 h-4 ml-1" />إضافة صنف تغليف</Button>}
           </div>
         </div>
 
@@ -229,12 +232,13 @@ export default function MeatPackagingInventory() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 justify-center flex-wrap">
-                            <Button size="sm" variant="outline" onClick={() => setAddQtyItem(i)} className="h-7 px-2"><Plus className="w-3 h-3 ml-1" />إضافة</Button>
-                            <Button size="sm" variant="outline" onClick={() => setIssueItem(i)} className="h-7 px-2"><Minus className="w-3 h-3 ml-1" />صرف</Button>
-                            <Button size="sm" variant="outline" onClick={() => setAdjustItem(i)} className="h-7 px-2"><ClipboardList className="w-3 h-3 ml-1" />تسوية</Button>
-                            {i.is_active
+                            {!isMeatFactoryManagerOnly && <Button size="sm" variant="outline" onClick={() => setAddQtyItem(i)} className="h-7 px-2"><Plus className="w-3 h-3 ml-1" />إضافة</Button>}
+                            {!isMeatFactoryManagerOnly && <Button size="sm" variant="outline" onClick={() => setIssueItem(i)} className="h-7 px-2"><Minus className="w-3 h-3 ml-1" />صرف</Button>}
+                            {!isMeatFactoryManagerOnly && <Button size="sm" variant="outline" onClick={() => setAdjustItem(i)} className="h-7 px-2"><ClipboardList className="w-3 h-3 ml-1" />تسوية</Button>}
+                            {!isMeatFactoryManagerOnly && (i.is_active
                               ? <Button size="sm" variant="ghost" onClick={() => deactivateItem(i)} className="h-7 px-2 text-amber-700"><PowerOff className="w-3 h-3 ml-1" />تعطيل</Button>
-                              : <Button size="sm" variant="ghost" onClick={() => activateItem(i)} className="h-7 px-2 text-emerald-700"><PowerOff className="w-3 h-3 ml-1" />تفعيل</Button>}
+                              : <Button size="sm" variant="ghost" onClick={() => activateItem(i)} className="h-7 px-2 text-emerald-700"><PowerOff className="w-3 h-3 ml-1" />تفعيل</Button>)}
+                            {isMeatFactoryManagerOnly && <span className="text-xs text-muted-foreground">عرض فقط</span>}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -274,7 +278,7 @@ export default function MeatPackagingInventory() {
                         <TableCell className="text-xs">{fmt(m.stock_after)}</TableCell>
                         <TableCell className="text-xs max-w-[280px] truncate" title={`${m.reason || ""} | ${m.ref_table || ""}`}>{m.reason || "—"}</TableCell>
                         <TableCell>
-                          {(m.ref_table === "manual_adjustment" || m.ref_table === "reverse" || m.ref_table === "opening_balance_packaging") ? (
+                          {!isMeatFactoryManagerOnly && (m.ref_table === "manual_adjustment" || m.ref_table === "reverse" || m.ref_table === "opening_balance_packaging") ? (
                             <Button size="sm" variant="outline" onClick={() => setReverseMove(m)} className="h-7 px-2"><RotateCcw className="w-3 h-3 ml-1" />عكس</Button>
                           ) : <span className="text-xs text-muted-foreground">—</span>}
                         </TableCell>
