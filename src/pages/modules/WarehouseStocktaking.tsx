@@ -539,7 +539,7 @@ export default function WarehouseStocktaking() {
                                         onClick={() => saveLine(it)}>
                                   حفظ
                                 </Button>
-                                {existingLine && isDraft && (
+                                {existingLine && isDraft && canEditStocktaking && (
                                   <Button size="sm" variant="ghost" onClick={() => deleteLine(existingLine.id)}>
                                     حذف
                                   </Button>
