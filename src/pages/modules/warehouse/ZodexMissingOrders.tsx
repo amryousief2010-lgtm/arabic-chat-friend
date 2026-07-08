@@ -11,11 +11,12 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import {
   ExternalLink, RefreshCw, Check, X, Loader2, ChevronDown, ChevronUp,
-  Link2, Search,
+  Link2, Search, Info,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 
 interface MissingRow {
@@ -155,6 +156,7 @@ export default function ZodexMissingOrders() {
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [candidates, setCandidates] = useState<Record<string, Candidate[]>>({});
+  const [noMatchReasons, setNoMatchReasons] = useState<Record<string, string[]>>({});
   const [loadingCands, setLoadingCands] = useState<Record<string, boolean>>({});
   const [filter, setFilter] = useState("");
 
@@ -210,25 +212,37 @@ export default function ZodexMissingOrders() {
 
   const fetchCandidatesFor = async (row: MissingRow) => {
     setLoadingCands((s) => ({ ...s, [row.id]: true }));
+    const diagnostics: string[] = [];
     try {
       const phone = normPhone(row.customer_phone);
       const last9 = phone.slice(-9);
+      const cod = Number(row.cod_amount || 0);
+
       // Find customers by phone patterns
       const orClauses: string[] = [];
       if (phone) {
         orClauses.push(`phone.ilike.%${last9}`);
         orClauses.push(`phone2.ilike.%${last9}`);
+      } else {
+        diagnostics.push("• لا يوجد رقم موبايل على البوليصة يمكن البحث به.");
       }
       if (row.customer_name) {
         const nm = row.customer_name.trim().slice(0, 20).replace(/[%,]/g, " ");
         if (nm) orClauses.push(`name.ilike.%${nm}%`);
+      } else {
+        diagnostics.push("• لا يوجد اسم عميل على البوليصة يمكن البحث به.");
       }
+
       let customerIds: string[] = [];
       if (orClauses.length) {
         const { data: custs } = await supabase.from("customers").select("id").or(orClauses.join(",")).limit(50);
         customerIds = (custs || []).map((c: any) => c.id);
+        if (!customerIds.length) {
+          diagnostics.push("• لا يوجد أي عميل في النظام برقم الموبايل أو الاسم المذكور على البوليصة.");
+        }
       }
-      // Query orders: null bill AND (matching customer OR near amount within recent 90 days)
+
+      // Query orders: null bill AND (matching customer OR near amount)
       let query = supabase.from("orders")
         .select("id, order_number, total, created_at, moderator, shipping_bill_no, status, customer:customers(name, phone, phone2)")
         .is("shipping_bill_no", null)
@@ -238,27 +252,42 @@ export default function ZodexMissingOrders() {
       if (customerIds.length) {
         query = query.in("customer_id", customerIds);
       } else {
-        // fallback: match by amount ±5 in the last 60 days
-        const cod = Number(row.cod_amount || 0);
         if (cod > 0) {
           query = query.gte("total", cod - 5).lte("total", cod + 5);
         } else {
+          diagnostics.push("• لا يوجد قيمة تحصيل (COD) على البوليصة للبحث بها.");
           setCandidates((s) => ({ ...s, [row.id]: [] }));
+          setNoMatchReasons((s) => ({ ...s, [row.id]: diagnostics }));
           return;
         }
       }
       const { data: orders, error } = await query;
       if (error) throw error;
 
+      if (!orders || orders.length === 0) {
+        if (customerIds.length) {
+          diagnostics.push("• العميل موجود في النظام لكن لا يوجد له أوردر بدون بوليصة مربوطة.");
+        } else if (cod > 0) {
+          diagnostics.push(`• لا يوجد أي أوردر مفتوح بقيمة قريبة من ${cod.toLocaleString("ar-EG")} ج.م (±5).`);
+        }
+      }
+
       const scored = (orders || [])
         .map((o: any) => scoreCandidate(row, o))
         .filter((c) => c.score >= 20)
         .sort((a, b) => b.score - a.score)
         .slice(0, 5);
+
+      if (orders && orders.length > 0 && scored.length === 0) {
+        diagnostics.push(`• تم فحص ${orders.length} أوردر لكن لا يوجد تطابق كافٍ (أقل من 20%).`);
+      }
+
       setCandidates((s) => ({ ...s, [row.id]: scored }));
+      setNoMatchReasons((s) => ({ ...s, [row.id]: diagnostics }));
     } catch (e: any) {
       toast.error(`تعذر جلب الاقتراحات: ${e.message || e}`);
       setCandidates((s) => ({ ...s, [row.id]: [] }));
+      setNoMatchReasons((s) => ({ ...s, [row.id]: [`• خطأ: ${e.message || e}`] }));
     } finally {
       setLoadingCands((s) => ({ ...s, [row.id]: false }));
     }
@@ -376,6 +405,21 @@ export default function ZodexMissingOrders() {
         </div>
       </div>
 
+      <Alert className="border-primary/30 bg-primary/5">
+        <Info className="h-4 w-4 text-primary" />
+        <AlertTitle className="text-primary">ما معنى هذه الشاشة؟</AlertTitle>
+        <AlertDescription className="text-sm space-y-1 mt-1">
+          <p>
+            هذه بوالص موجودة على <b>زودكس</b> على مخزن العجوزة، ولم يتم العثور على أوردر مطابق لها داخل نظامنا.
+            <b> لا يعني بالضرورة أن الأوردر غير موجود</b> — قد يكون الربط التلقائي فشل بسبب اختلاف في رقم الموبايل، الاسم، أو أن البوليصة أُنشئت يدوياً على زودكس.
+          </p>
+          <p>
+            <b>الخطوات:</b> اضغط السهم بجانب البوليصة → ستظهر الأوردرات المحتملة → اضغط "ربط" على الأوردر الصحيح.
+            لو مفيش اقتراحات، هيظهر لك السبب (رقم موبايل غير موجود / لا يوجد أوردر بنفس القيمة / إلخ) وتقدر تعمل بحث يدوي.
+          </p>
+        </AlertDescription>
+      </Alert>
+
       <Card>
         <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2 flex-wrap">
           <CardTitle className="text-base">القائمة ({filtered.length})</CardTitle>
@@ -454,17 +498,51 @@ export default function ZodexMissingOrders() {
                       {isOpen && (
                         <TableRow key={r.id + "-cands"}>
                           <TableCell colSpan={10} className="bg-muted/20 p-3">
+                            {/* Bill summary from Zodex */}
+                            <div className="mb-3 rounded-lg border bg-background p-3">
+                              <div className="text-xs font-semibold text-muted-foreground mb-2">بيانات البوليصة من زودكس:</div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 text-sm">
+                                <div><span className="text-muted-foreground">البوليصة:</span> <span className="font-mono">{r.bill_no}</span></div>
+                                <div><span className="text-muted-foreground">العميل:</span> {r.customer_name || "—"}</div>
+                                <div><span className="text-muted-foreground">الموبايل:</span> <span className="font-mono">{r.customer_phone || "—"}</span></div>
+                                <div><span className="text-muted-foreground">القيمة (COD):</span> <span className="tabular-nums">{Number(r.cod_amount || 0).toLocaleString("ar-EG")} ج.م</span></div>
+                                <div><span className="text-muted-foreground">المنطقة:</span> {r.region || "—"}</div>
+                                <div><span className="text-muted-foreground">الموديريتور:</span> {r.moderator_name || "—"}</div>
+                                <div><span className="text-muted-foreground">تاريخ الشحن:</span> {r.shipment_date ? format(new Date(r.shipment_date), "yyyy-MM-dd HH:mm") : "—"}</div>
+                                <div><span className="text-muted-foreground">النوع:</span> {r.operation_type || "—"}</div>
+                              </div>
+                            </div>
+
                             {loadingC ? (
                               <div className="text-sm text-muted-foreground text-center py-3">
                                 <Loader2 className="h-4 w-4 animate-spin inline ml-1" /> جارِ البحث عن أوردرات مطابقة...
                               </div>
                             ) : !cands || cands.length === 0 ? (
-                              <div className="text-sm text-muted-foreground text-center py-3">
-                                مفيش اقتراحات تلقائية — جرّب البحث اليدوي.
+                              <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+                                <div className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                                  ⚠️ لا يوجد أوردر مطابق تلقائياً
+                                </div>
+                                {noMatchReasons[r.id] && noMatchReasons[r.id].length > 0 && (
+                                  <div className="text-xs text-muted-foreground space-y-0.5">
+                                    <div className="font-semibold">الأسباب المحتملة:</div>
+                                    {noMatchReasons[r.id].map((reason, i) => (
+                                      <div key={i}>{reason}</div>
+                                    ))}
+                                  </div>
+                                )}
+                                <div className="text-xs text-muted-foreground pt-1">
+                                  ➜ جرّب <b>البحث اليدوي</b> برقم الأوردر أو اسم آخر أو موبايل مختلف. لو الأوردر فعلاً غير موجود عندنا يمكنك <b>تجاهل</b> البوليصة.
+                                </div>
+                                <div className="flex gap-2 pt-1">
+                                  <Button size="sm" variant="outline" className="h-8 gap-1"
+                                    onClick={() => { setSearchDialog(r); setSearchTerm(""); setSearchResults([]); }}>
+                                    <Search className="h-3.5 w-3.5" /> بحث يدوي
+                                  </Button>
+                                </div>
                               </div>
                             ) : (
                               <div className="space-y-2">
-                                <div className="text-xs text-muted-foreground">أفضل الاقتراحات:</div>
+                                <div className="text-xs text-muted-foreground">أفضل الاقتراحات ({cands.length}):</div>
                                 {cands.map((c) => (
                                   <div key={c.id} className="flex items-center gap-3 rounded-lg border bg-background p-3 flex-wrap">
                                     <Badge variant="outline" className={scoreColor(c.score) + " font-mono"}>
