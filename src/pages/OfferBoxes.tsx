@@ -618,7 +618,8 @@ const OfferBoxes = () => {
                 </div>
               </DialogContent>
             </Dialog>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Offer Boxes Grid */}
