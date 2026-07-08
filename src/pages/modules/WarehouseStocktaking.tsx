@@ -60,8 +60,13 @@ const REASONS = [
 const sb = supabase as any;
 
 export default function WarehouseStocktaking() {
-  const { isGeneralManager, isExecutiveManager, profile, role } = useAuth();
+  const { isGeneralManager, isExecutiveManager, profile, role, roles } = useAuth();
   const canApprove = isGeneralManager || isExecutiveManager;
+  // مشرف مخزن العجوزة لا يملك صلاحية جرد المخزن الرئيسي
+  const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
+  const isWarehouseSupervisorOnly =
+    (roles?.includes("warehouse_supervisor") ?? role === "warehouse_supervisor") &&
+    !isGeneralManager && !isExecutiveManager;
 
   const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);
   const [activeWh, setActiveWh] = useState<string>("");
@@ -90,11 +95,14 @@ export default function WarehouseStocktaking() {
   // load warehouses
   useEffect(() => {
     sb.from("warehouses").select("id, name").eq("is_active", true).order("name").then(({ data }: any) => {
-      const list = (data || []) as any[];
+      let list = (data || []) as any[];
+      if (isWarehouseSupervisorOnly) {
+        list = list.filter((w) => w.id !== MAIN_WAREHOUSE_ID);
+      }
       setWarehouses(list);
       if (list.length && !activeWh) setActiveWh(list[0].id);
     });
-  }, []);
+  }, [isWarehouseSupervisorOnly]);
 
   const loadItems = useCallback(async (whId: string) => {
     if (!whId) return;
