@@ -156,6 +156,7 @@ export default function ZodexMissingOrders() {
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [candidates, setCandidates] = useState<Record<string, Candidate[]>>({});
+  const [noMatchReasons, setNoMatchReasons] = useState<Record<string, string[]>>({});
   const [loadingCands, setLoadingCands] = useState<Record<string, boolean>>({});
   const [filter, setFilter] = useState("");
 
