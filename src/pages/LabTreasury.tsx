@@ -1707,7 +1707,8 @@ export default function LabTreasury() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    );})}
+
                   </TableBody>
                 </Table>
               </CardContent>
