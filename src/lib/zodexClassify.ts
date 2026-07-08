@@ -87,10 +87,13 @@ export function scoreCandidate(row: MissingBill, o: OrderCandidate): ScoredCandi
   const cod = Number(row.cod_amount || 0);
   const total = Number(o.total || 0);
   if (cod > 0 && total > 0) {
-    const diff = Math.abs(cod - total);
-    if (diff < 0.5) { score += 25; reasons.push("المبلغ مطابق"); }
-    else if (diff <= Math.max(5, cod * 0.02)) { score += 15; reasons.push(`المبلغ قريب (فرق ${diff.toFixed(0)})`); }
-    else if (diff <= Math.max(20, cod * 0.05)) { score += 5; reasons.push(`المبلغ متقارب (فرق ${diff.toFixed(0)})`); }
+    const rawDiff = Math.abs(cod - total);
+    const shipDiff = Math.abs(cod - total - 110); // Zodex adds 110 EGP shipping on non-box orders
+    if (rawDiff < 0.5) { score += 25; reasons.push("المبلغ مطابق"); }
+    else if (shipDiff < 0.5) { score += 25; reasons.push("المبلغ مطابق (+110 شحن زودكس)"); }
+    else if (rawDiff <= Math.max(5, cod * 0.02)) { score += 15; reasons.push(`المبلغ قريب (فرق ${rawDiff.toFixed(0)})`); }
+    else if (shipDiff <= Math.max(5, cod * 0.02)) { score += 15; reasons.push(`المبلغ قريب مع شحن 110 (فرق ${shipDiff.toFixed(0)})`); }
+    else if (rawDiff <= Math.max(20, cod * 0.05)) { score += 5; reasons.push(`المبلغ متقارب (فرق ${rawDiff.toFixed(0)})`); }
   }
 
   const mod = nameCloseness(row.moderator_name, o.moderator);
