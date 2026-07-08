@@ -46,7 +46,7 @@ export async function updateOrderStatusShared(params: {
     updatePayload.notes = `${prefix}[مرتجع - ${stamp}] ${cancelReason.trim()}`;
   }
 
-  const { error: updErr } = await supabase
+  const { error: updErr } = await (supabase as any)
     .from("orders")
     .update(updatePayload)
     .eq("id", orderId);
