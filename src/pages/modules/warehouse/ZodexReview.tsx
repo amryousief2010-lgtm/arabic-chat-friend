@@ -164,7 +164,28 @@ export default function ZodexReview() {
         .limit(300);
 
       if (billsRes.error) throw billsRes.error;
-      const bills = (billsRes.data || []) as (MissingBill & { zodex_status: string | null })[];
+      let bills = (billsRes.data || []) as (MissingBill & { zodex_status: string | null })[];
+
+      // Safety filter: exclude any bill that is already linked to an order (self-heal ghost rows)
+      if (bills.length > 0) {
+        const billNos = Array.from(new Set(bills.map((b) => b.bill_no).filter(Boolean)));
+        const linkedRes = await supabase
+          .from("orders")
+          .select("shipping_bill_no")
+          .in("shipping_bill_no", billNos);
+        const linkedSet = new Set((linkedRes.data || []).map((r: any) => r.shipping_bill_no));
+        if (linkedSet.size > 0) {
+          const ghostIds = bills.filter((b) => linkedSet.has(b.bill_no)).map((b) => b.id);
+          bills = bills.filter((b) => !linkedSet.has(b.bill_no));
+          if (ghostIds.length > 0) {
+            supabase
+              .from("zodex_missing_orders")
+              .update({ status: "linked", updated_at: new Date().toISOString() })
+              .in("id", ghostIds)
+              .then(() => {}, () => {});
+          }
+        }
+      }
 
       // Duplicate bill_no map
       const billNoCount = new Map<string, number>();
