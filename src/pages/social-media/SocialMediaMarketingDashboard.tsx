@@ -334,8 +334,12 @@ export default function SocialMediaMarketingDashboard() {
           <KpiCard icon={ShieldAlert} title="مصروفات قيد المراجعة" value={fmtMoney(kpis.pendingExpenses)} color="text-amber-600" />
         </div>
 
+        {/* Zodex bills registered externally but missing in our system */}
+        <ZodexUnregisteredCard />
+
         {/* Budget status */}
         <BudgetStatusCard kpis={kpis} />
+
 
         {/* Daily chart */}
         <Card>
