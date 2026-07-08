@@ -64,9 +64,14 @@ export default function WarehouseStocktaking() {
   const canApprove = isGeneralManager || isExecutiveManager;
   // مشرف مخزن العجوزة لا يملك صلاحية جرد المخزن الرئيسي
   const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
+  const userRoles: string[] = (roles as any) || (role ? [role] : []);
   const isWarehouseSupervisorOnly =
-    (roles?.includes("warehouse_supervisor") ?? role === "warehouse_supervisor") &&
+    userRoles.includes("warehouse_supervisor") &&
     !isGeneralManager && !isExecutiveManager;
+  // صلاحية التعديل على الجرد: المدراء + مشرف المخزن فقط.
+  // أمين مخزن العجوزة (agouza_warehouse_keeper) وغيره: عرض فقط.
+  const canEditStocktaking =
+    isGeneralManager || isExecutiveManager || userRoles.includes("warehouse_supervisor");
 
   const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);
   const [activeWh, setActiveWh] = useState<string>("");
@@ -162,6 +167,7 @@ export default function WarehouseStocktaking() {
 
   // ============ ACTIONS ============
   const createSession = async () => {
+    if (!canEditStocktaking) { toast.error("ليس لديك صلاحية تعديل الجرد"); return; }
     if (!activeWh) { toast.error("اختر مخزن أولًا"); return; }
     if (!stocktaker.trim()) { toast.error("اكتب اسم القائم بالجرد"); return; }
     setBusyAction("create");
@@ -181,6 +187,7 @@ export default function WarehouseStocktaking() {
   };
 
   const saveLine = async (it: Item) => {
+    if (!canEditStocktaking) { toast.error("ليس لديك صلاحية تعديل الجرد"); return; }
     if (!activeSessionId || !isDraft) return;
     const a = actuals[it.id];
     const reason = reasons[it.id];
@@ -203,6 +210,7 @@ export default function WarehouseStocktaking() {
   };
 
   const deleteLine = async (lineId: string) => {
+    if (!canEditStocktaking) { toast.error("ليس لديك صلاحية تعديل الجرد"); return; }
     if (!isDraft) return;
     if (!confirm("حذف هذا السطر من المسودة؟")) return;
     try {
@@ -309,7 +317,16 @@ export default function WarehouseStocktaking() {
           </div>
         </div>
 
-        {!canApprove && (
+        {!canEditStocktaking && (
+          <Alert className="border-amber-300 bg-amber-50">
+            <Info className="h-4 w-4" />
+            <AlertDescription className="text-amber-900">
+              وضع العرض فقط — يمكنك تصفح جلسات الجرد والفروق، لكن لا يمكنك فتح مسودة أو إدخال/حذف أسطر أو الاعتماد.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {!canApprove && canEditStocktaking && (
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription>يمكنك تجهيز المسودة فقط. الاعتماد النهائي للمدير العام أو التنفيذي.</AlertDescription>
@@ -342,7 +359,7 @@ export default function WarehouseStocktaking() {
                 <Input type="date" value={countDate} onChange={(e) => setCountDate(e.target.value)} />
               </div>
               <div className="flex items-end gap-2">
-                <Button onClick={createSession} disabled={busyAction === "create"}>
+                <Button onClick={createSession} disabled={!canEditStocktaking || busyAction === "create"}>
                   <Plus className="w-3 h-3 ml-1" /> فتح مسودة
                 </Button>
                 <Button variant="outline" onClick={printEmptyForm}>
@@ -495,7 +512,7 @@ export default function WarehouseStocktaking() {
                               <TableCell className="font-mono">{sys.toLocaleString("ar-EG-u-nu-latn")}</TableCell>
                               <TableCell>
                                 <Input type="number" step="0.01" className="w-28"
-                                       disabled={!isDraft}
+                                       disabled={!isDraft || !canEditStocktaking}
                                        value={a ?? ""}
                                        onChange={(e) => setActuals((s) => ({ ...s, [it.id]: e.target.value }))} />
                               </TableCell>
@@ -505,7 +522,7 @@ export default function WarehouseStocktaking() {
                               <TableCell>
                                 <Select value={reasons[it.id] || ""}
                                         onValueChange={(v) => setReasons((s) => ({ ...s, [it.id]: v }))}
-                                        disabled={!isDraft}>
+                                        disabled={!isDraft || !canEditStocktaking}>
                                   <SelectTrigger className="w-40"><SelectValue placeholder="اختر السبب" /></SelectTrigger>
                                   <SelectContent>
                                     {REASONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
@@ -513,16 +530,16 @@ export default function WarehouseStocktaking() {
                                 </Select>
                               </TableCell>
                               <TableCell>
-                                <Input className="w-40" disabled={!isDraft} placeholder="ملاحظات"
+                                <Input className="w-40" disabled={!isDraft || !canEditStocktaking} placeholder="ملاحظات"
                                        value={noteBuf[it.id] || ""}
                                        onChange={(e) => setNoteBuf((s) => ({ ...s, [it.id]: e.target.value }))} />
                               </TableCell>
                               <TableCell className="text-left flex gap-1">
-                                <Button size="sm" disabled={!isDraft || busyItem === it.id || diff === null}
+                                <Button size="sm" disabled={!isDraft || !canEditStocktaking || busyItem === it.id || diff === null}
                                         onClick={() => saveLine(it)}>
                                   حفظ
                                 </Button>
-                                {existingLine && isDraft && (
+                                {existingLine && isDraft && canEditStocktaking && (
                                   <Button size="sm" variant="ghost" onClick={() => deleteLine(existingLine.id)}>
                                     حذف
                                   </Button>
