@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Package as PackageIcon, Plus, Minus, RotateCcw, ClipboardList, PowerOff, AlertTriangle, Wallet, FileSpreadsheet, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { openPrintWindow } from "@/lib/printPdf";
+import { useAuth } from "@/hooks/useAuth";
 import * as XLSX from "xlsx";
 
 type Item = { id: string; name: string; unit: string; current_stock: number; avg_cost: number; low_stock_threshold: number | null; kind: string; is_active: boolean; notes: string | null; updated_at: string };
