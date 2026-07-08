@@ -1557,7 +1557,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                         toast({ title: "لا يمكن التوريد الآن", description: grp.undelivered > 0 ? "لا يمكن التوريد قبل مراجعة تحصيل كل الأوردرات." : grp.missingBreakdown > 0 ? "يوجد أوردر دفع مختلط بدون breakdown مضبوط" : "لا توجد أوردرات لليوم", variant: "destructive" });
                                         return;
                                       }
-                                      depositDayCash(grp.day, grp.cashDue);
+                                      depositDayCash(grp.day, grp.cashDue, grp.items.map((a: any) => a.order_id));
                                     }}
                                     title="توريد اليوم لخزنة المخزن الرئيسي (حتى لو صفر نقدية)"
                                   >
