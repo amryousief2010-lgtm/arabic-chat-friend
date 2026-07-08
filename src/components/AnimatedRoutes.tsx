@@ -161,8 +161,7 @@ const FeedIssues = lazy(() => import("@/pages/modules/feed/Issues"));
 const WarehouseDashboard = lazy(() => import("@/pages/modules/warehouse/WarehouseDashboard"));
 const WarehouseDetail = lazy(() => import("@/pages/modules/warehouse/WarehouseDetail"));
 const InventoryImport = lazy(() => import("@/pages/modules/warehouse/InventoryImport"));
-const ZodexMissingOrders = lazy(() => import("@/pages/modules/warehouse/ZodexMissingOrders"));
-const ZodexIncompleteOrders = lazy(() => import("@/pages/modules/warehouse/ZodexIncompleteOrders"));
+const ZodexReview = lazy(() => import("@/pages/modules/warehouse/ZodexReview"));
 const MegaOrdersReview = lazy(() => import("@/pages/orders/MegaOrdersReview"));
 const MegaOrderDiscrepancies = lazy(() => import("@/pages/orders/MegaOrderDiscrepancies"));
 
@@ -1071,16 +1070,14 @@ const AnimatedRoutes = () => {
               <PageTransition><InventoryImport /></PageTransition>
             </ProtectedRoute>
           } />
-          <Route path="/modules/warehouses/zodex-missing" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'sales_manager', 'agouza_warehouse_keeper']}>
-              <PageTransition><ZodexMissingOrders /></PageTransition>
+          <Route path="/modules/warehouses/zodex-review" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'sales_manager', 'marketing_sales_manager', 'marketing_sales_viewer', 'agouza_warehouse_keeper']}>
+              <PageTransition><ZodexReview /></PageTransition>
             </ProtectedRoute>
           } />
-          <Route path="/modules/warehouses/zodex-incomplete" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'sales_manager', 'agouza_warehouse_keeper']}>
-              <PageTransition><ZodexIncompleteOrders /></PageTransition>
-            </ProtectedRoute>
-          } />
+          <Route path="/modules/warehouses/zodex-missing" element={<Navigate to="/modules/warehouses/zodex-review" replace />} />
+          <Route path="/modules/warehouses/zodex-incomplete" element={<Navigate to="/modules/warehouses/zodex-review" replace />} />
+
           <Route path="/orders/mega-review" element={
             <ProtectedRoute>
               <PageTransition><MegaOrdersReview /></PageTransition>

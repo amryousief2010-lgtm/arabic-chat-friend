@@ -85,15 +85,15 @@ export function ZodexSyncButton() {
         )}
         {missingCount > 0 && (
           <Button asChild size="sm" variant="destructive" className="h-8">
-            <Link to="/modules/warehouses/zodex-missing">
-              {missingCount} أوردر مفقود
+            <Link to="/modules/warehouses/zodex-review">
+              {missingCount} فرق للمراجعة
             </Link>
           </Button>
         )}
         <Button asChild size="sm" variant="outline" className="h-8 gap-1">
-          <Link to="/modules/warehouses/zodex-incomplete">
+          <Link to="/modules/warehouses/zodex-review">
             <AlertCircle className="h-3.5 w-3.5" />
-            أوردرات غير مكتملة
+            مراجعة زودكس
           </Link>
         </Button>
       </div>

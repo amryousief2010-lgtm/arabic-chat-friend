@@ -94,7 +94,7 @@ export function ZodexUnregisteredCard() {
               size="sm"
               variant="ghost"
               onClick={() =>
-                window.open("/modules/warehouses/zodex-incomplete", "_blank")
+                window.open("/modules/warehouses/zodex-review", "_blank")
               }
             >
               <ExternalLink className="h-4 w-4" />
