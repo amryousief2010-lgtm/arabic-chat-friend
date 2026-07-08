@@ -156,7 +156,9 @@ export function classifyLinkIssue(
   const nm = nameCloseness(bill.customer_name, best.customer?.name);
   const cod = Number(bill.cod_amount || 0);
   const total = Number(best.total || 0);
-  const amountDiff = cod > 0 && total > 0 ? Math.abs(cod - total) : 0;
+  const rawDiff = cod > 0 && total > 0 ? Math.abs(cod - total) : 0;
+  const shipDiff = cod > 0 && total > 0 ? Math.abs(cod - total - 110) : 0;
+  const amountDiff = cod > 0 && total > 0 ? Math.min(rawDiff, shipDiff) : 0;
   const amountMismatch = cod > 0 && total > 0 && amountDiff > Math.max(5, cod * 0.02);
 
   if (pc < 0.85 && bill.customer_phone && best.customer?.phone) {
@@ -172,7 +174,7 @@ export function classifyLinkIssue(
     return {
       kind: "amount_mismatch",
       label: "القيمة مختلفة",
-      detail: `COD: ${cod.toLocaleString("ar-EG")} ج | إجمالي الأوردر ${best.order_number}: ${total.toLocaleString("ar-EG")} ج (فرق ${amountDiff.toFixed(0)})`,
+      detail: `COD: ${cod.toLocaleString("ar-EG")} ج | إجمالي الأوردر ${best.order_number}: ${total.toLocaleString("ar-EG")} ج (فرق ${amountDiff.toFixed(0)}${shipDiff < rawDiff ? " بعد خصم 110 شحن" : ""})`,
       fixable: false,
     };
   }
