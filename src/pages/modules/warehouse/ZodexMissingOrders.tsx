@@ -212,25 +212,37 @@ export default function ZodexMissingOrders() {
 
   const fetchCandidatesFor = async (row: MissingRow) => {
     setLoadingCands((s) => ({ ...s, [row.id]: true }));
+    const diagnostics: string[] = [];
     try {
       const phone = normPhone(row.customer_phone);
       const last9 = phone.slice(-9);
+      const cod = Number(row.cod_amount || 0);
+
       // Find customers by phone patterns
       const orClauses: string[] = [];
       if (phone) {
         orClauses.push(`phone.ilike.%${last9}`);
         orClauses.push(`phone2.ilike.%${last9}`);
+      } else {
+        diagnostics.push("• لا يوجد رقم موبايل على البوليصة يمكن البحث به.");
       }
       if (row.customer_name) {
         const nm = row.customer_name.trim().slice(0, 20).replace(/[%,]/g, " ");
         if (nm) orClauses.push(`name.ilike.%${nm}%`);
+      } else {
+        diagnostics.push("• لا يوجد اسم عميل على البوليصة يمكن البحث به.");
       }
+
       let customerIds: string[] = [];
       if (orClauses.length) {
         const { data: custs } = await supabase.from("customers").select("id").or(orClauses.join(",")).limit(50);
         customerIds = (custs || []).map((c: any) => c.id);
+        if (!customerIds.length) {
+          diagnostics.push("• لا يوجد أي عميل في النظام برقم الموبايل أو الاسم المذكور على البوليصة.");
+        }
       }
-      // Query orders: null bill AND (matching customer OR near amount within recent 90 days)
+
+      // Query orders: null bill AND (matching customer OR near amount)
       let query = supabase.from("orders")
         .select("id, order_number, total, created_at, moderator, shipping_bill_no, status, customer:customers(name, phone, phone2)")
         .is("shipping_bill_no", null)
@@ -240,27 +252,42 @@ export default function ZodexMissingOrders() {
       if (customerIds.length) {
         query = query.in("customer_id", customerIds);
       } else {
-        // fallback: match by amount ±5 in the last 60 days
-        const cod = Number(row.cod_amount || 0);
         if (cod > 0) {
           query = query.gte("total", cod - 5).lte("total", cod + 5);
         } else {
+          diagnostics.push("• لا يوجد قيمة تحصيل (COD) على البوليصة للبحث بها.");
           setCandidates((s) => ({ ...s, [row.id]: [] }));
+          setNoMatchReasons((s) => ({ ...s, [row.id]: diagnostics }));
           return;
         }
       }
       const { data: orders, error } = await query;
       if (error) throw error;
 
+      if (!orders || orders.length === 0) {
+        if (customerIds.length) {
+          diagnostics.push("• العميل موجود في النظام لكن لا يوجد له أوردر بدون بوليصة مربوطة.");
+        } else if (cod > 0) {
+          diagnostics.push(`• لا يوجد أي أوردر مفتوح بقيمة قريبة من ${cod.toLocaleString("ar-EG")} ج.م (±5).`);
+        }
+      }
+
       const scored = (orders || [])
         .map((o: any) => scoreCandidate(row, o))
         .filter((c) => c.score >= 20)
         .sort((a, b) => b.score - a.score)
         .slice(0, 5);
+
+      if (orders && orders.length > 0 && scored.length === 0) {
+        diagnostics.push(`• تم فحص ${orders.length} أوردر لكن لا يوجد تطابق كافٍ (أقل من 20%).`);
+      }
+
       setCandidates((s) => ({ ...s, [row.id]: scored }));
+      setNoMatchReasons((s) => ({ ...s, [row.id]: diagnostics }));
     } catch (e: any) {
       toast.error(`تعذر جلب الاقتراحات: ${e.message || e}`);
       setCandidates((s) => ({ ...s, [row.id]: [] }));
+      setNoMatchReasons((s) => ({ ...s, [row.id]: [`• خطأ: ${e.message || e}`] }));
     } finally {
       setLoadingCands((s) => ({ ...s, [row.id]: false }));
     }
