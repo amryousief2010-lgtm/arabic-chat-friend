@@ -102,7 +102,8 @@ export default function WarehouseStocktaking() {
     sb.from("warehouses").select("id, name").eq("is_active", true).order("name").then(({ data }: any) => {
       let list = (data || []) as any[];
       if (isWarehouseSupervisorOnly) {
-        list = list.filter((w) => w.id !== MAIN_WAREHOUSE_ID);
+        // مشرف المخزن يعمل فقط على المخزن الرئيسي — يخفي كل المخازن الأخرى (العجوزة، تغليف، خامات، مخازن العملاء)
+        list = list.filter((w) => w.id === MAIN_WAREHOUSE_ID);
       }
       setWarehouses(list);
       if (list.length && !activeWh) setActiveWh(list[0].id);
