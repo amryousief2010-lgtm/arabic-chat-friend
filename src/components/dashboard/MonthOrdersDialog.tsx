@@ -52,8 +52,8 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
     rolesList.includes("sales_manager") ||
     isSalesModerator ||
     rolesList.includes("shipping_company") ||
-    rolesList.includes("private_delivery_rep") ||
-    rolesList.includes("courier");
+    rolesList.includes("private_delivery_rep" as any) ||
+    rolesList.includes("courier" as any);
 
   const { year, monthIndex0 } = currentCairoYearMonth();
   const monthLabel = `${MONTH_AR[monthIndex0]} ${year}`;
