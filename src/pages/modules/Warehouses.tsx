@@ -226,7 +226,12 @@ const movementTypeLabels: Record<string, { label: string; icon: typeof ArrowDown
 };
 
 const Warehouses = () => {
-  const { canManageWarehouses, user, isGeneralManager, isExecutiveManager } = useAuth();
+  const { canManageWarehouses, user, isGeneralManager, isExecutiveManager, roles, role } = useAuth();
+  const userRoles: string[] = (roles as any) || (role ? [role] : []);
+  // مشرف المخزن (بدون صلاحيات إدارية عليا) يعمل فقط على المخزن الرئيسي
+  // ولا يجب أن يرى مخزن العجوزة أو باقي المخازن.
+  const mainOnlyScope =
+    userRoles.includes("warehouse_supervisor") && !isGeneralManager && !isExecutiveManager;
   const { toast } = useToast();
   const [warehouses, setWarehouses] = useState<WarehouseRow[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
