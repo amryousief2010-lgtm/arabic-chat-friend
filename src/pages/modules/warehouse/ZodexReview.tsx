@@ -518,66 +518,182 @@ export default function ZodexReview() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filterBills(linkIssues).map((c) => (
-                      <TableRow key={c.bill.id}>
-                        <TableCell className="font-mono text-xs" dir="ltr">
-                          <a
-                            href={`https://zodex-eg.com/admin-area/shippings.php?action=details&waybill=${c.bill.bill_no}`}
-                            target="_blank" rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-primary hover:underline"
-                            title="فتح تفاصيل البوليصة على زودكس للمطابقة اليدوية"
-                          >
-                            {c.bill.bill_no}
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {c.bestCandidate ? (
-                            <div>
-                              <Link
-                                to={`/orders/${c.bestCandidate.id}`}
-                                target="_blank"
-                                className="font-mono text-primary hover:underline inline-flex items-center gap-1"
-                                title="فتح تفاصيل الأوردر عندنا"
+                    {filterBills(linkIssues).map((c) => {
+                      const zd = detailsById[c.bill.id];
+                      const zErr = detailsErrById[c.bill.id];
+                      const isExpanded = expandedId === c.bill.id;
+                      // Post-fetch scoring vs bestCandidate using +110 rule
+                      const cand = c.bestCandidate;
+                      const cmp = zd && cand ? (() => {
+                        const zp = normPhoneCmp(zd.phone);
+                        const zp2 = normPhoneCmp(zd.phone2);
+                        const cp = normPhoneCmp(cand.customer?.phone);
+                        const cp2 = normPhoneCmp(cand.customer?.phone2);
+                        const phoneMatch = !!zp && (zp === cp || zp === cp2 || zp2 === cp || zp2 === cp2);
+                        const zn = normArabic(zd.receiver_name);
+                        const cn = normArabic(cand.customer?.name);
+                        const nameMatch = !!zn && !!cn && (zn === cn || zn.includes(cn) || cn.includes(zn));
+                        const cod = Number(zd.cod_amount || 0);
+                        const total = Number(cand.total || 0);
+                        const raw = Math.abs(cod - total);
+                        const ship = Math.abs(cod - total - SHIPPING_FEE);
+                        const amountMatch = cod > 0 && total > 0 && (raw < 0.5 || ship < 0.5);
+                        const amountViaShipping = amountMatch && ship < raw;
+                        const strongMatch = phoneMatch && amountMatch;
+                        return { phoneMatch, nameMatch, amountMatch, amountViaShipping, strongMatch, cod, total };
+                      })() : null;
+                      const canForceFix = !!(cmp?.strongMatch && cand && !cand.shipping_bill_no);
+
+                      return (
+                        <>
+                          <TableRow key={c.bill.id}>
+                            <TableCell className="font-mono text-xs" dir="ltr">
+                              <button
+                                onClick={() => (isExpanded ? setExpandedId(null) : fetchZodexDetails(c))}
+                                className="inline-flex items-center gap-1 text-primary hover:underline"
+                                title="اسحب تفاصيل البوليصة من زودكس تلقائيًا"
                               >
-                                {c.bestCandidate.order_number}
+                                {c.bill.bill_no}
+                                {fetchingId === c.bill.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Download className="h-3 w-3" />
+                                )}
+                              </button>
+                              <a
+                                href={`https://zodex-eg.com/admin-area/shippings.php?action=details&waybill=${c.bill.bill_no}`}
+                                target="_blank" rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-muted-foreground hover:underline text-[10px] mr-2"
+                                title="فتح على زودكس"
+                              >
                                 <ExternalLink className="h-3 w-3" />
-                              </Link>
-                              <div className="text-muted-foreground mt-0.5">
-                                {c.bestCandidate.customer?.name} • {Number(c.bestCandidate.total || 0).toLocaleString("ar-EG")} ج
-                              </div>
-                            </div>
-                          ) : "—"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={c.issue?.fixable ? "default" : "destructive"}>
-                            {c.issue?.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground max-w-xs">
-                          {c.issue?.detail}
-                        </TableCell>
-                        <TableCell>
-                          {c.issue?.fixable ? (
-                            <Button
-                              size="sm"
-                              onClick={() => doFix(c)}
-                              disabled={fixingId === c.bill.id}
-                              className="gap-1"
-                            >
-                              {fixingId === c.bill.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              </a>
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {cand ? (
+                                <div>
+                                  <Link
+                                    to={`/orders/${cand.id}`}
+                                    target="_blank"
+                                    className="font-mono text-primary hover:underline inline-flex items-center gap-1"
+                                    title="فتح تفاصيل الأوردر عندنا"
+                                  >
+                                    {cand.order_number}
+                                    <ExternalLink className="h-3 w-3" />
+                                  </Link>
+                                  <div className="text-muted-foreground mt-0.5">
+                                    {cand.customer?.name} • {Number(cand.total || 0).toLocaleString("ar-EG")} ج
+                                  </div>
+                                </div>
+                              ) : "—"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={c.issue?.fixable || canForceFix ? "default" : "destructive"}>
+                                {c.issue?.label}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground max-w-xs">
+                              {c.issue?.detail}
+                            </TableCell>
+                            <TableCell>
+                              {c.issue?.fixable || canForceFix ? (
+                                <Button
+                                  size="sm"
+                                  onClick={() => doFix(c)}
+                                  disabled={fixingId === c.bill.id}
+                                  className="gap-1"
+                                >
+                                  {fixingId === c.bill.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Wrench className="h-3.5 w-3.5" />
+                                  )}
+                                  إصلاح الربط
+                                </Button>
                               ) : (
-                                <Wrench className="h-3.5 w-3.5" />
+                                <span className="text-xs text-muted-foreground">اسحب زودكس للتأكيد</span>
                               )}
-                              إصلاح الربط
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">تدخل يدوي</span>
+                            </TableCell>
+                          </TableRow>
+                          {isExpanded && (
+                            <TableRow key={`${c.bill.id}-details`}>
+                              <TableCell colSpan={5} className="bg-muted/30">
+                                {fetchingId === c.bill.id ? (
+                                  <div className="flex items-center gap-2 text-sm p-2">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    جاري جلب تفاصيل البوليصة من زودكس...
+                                  </div>
+                                ) : zErr ? (
+                                  <div className="p-2 space-y-2">
+                                    <Alert variant="destructive">
+                                      <AlertTriangle className="h-4 w-4" />
+                                      <AlertTitle>فشل جلب البيانات من زودكس</AlertTitle>
+                                      <AlertDescription className="text-xs">{zErr}</AlertDescription>
+                                    </Alert>
+                                    <Button size="sm" variant="outline" onClick={() => fetchZodexDetails(c)}>
+                                      <RefreshCw className="h-3.5 w-3.5 ml-1" />
+                                      إعادة جلب بيانات زودكس
+                                    </Button>
+                                  </div>
+                                ) : zd ? (
+                                  <div className="grid md:grid-cols-2 gap-3 p-2">
+                                    <div className="rounded border bg-background p-3 text-xs space-y-1">
+                                      <div className="font-semibold text-sm mb-2 flex items-center gap-2">
+                                        <Download className="h-4 w-4" /> بيانات زودكس
+                                      </div>
+                                      <div><span className="text-muted-foreground">الاسم:</span> {zd.receiver_name || "—"}</div>
+                                      <div dir="ltr"><span className="text-muted-foreground">الموبايل:</span> {zd.phone || "—"}{zd.phone2 ? ` / ${zd.phone2}` : ""}</div>
+                                      <div><span className="text-muted-foreground">المنطقة:</span> {[zd.region, zd.sub_region].filter(Boolean).join(" — ") || "—"}</div>
+                                      <div><span className="text-muted-foreground">القيمة:</span> {zd.cod_amount != null ? `${Number(zd.cod_amount).toLocaleString("ar-EG")} ج` : "—"}</div>
+                                      <div><span className="text-muted-foreground">الحالة:</span> {zd.status || "—"}</div>
+                                      <div><span className="text-muted-foreground">التاريخ:</span> {zd.shipment_date || "—"}</div>
+                                      {zd.sender && <div><span className="text-muted-foreground">الراسل:</span> {zd.sender}</div>}
+                                      {zd.task_type && <div><span className="text-muted-foreground">نوع التاسك:</span> {zd.task_type}</div>}
+                                    </div>
+                                    <div className="rounded border bg-background p-3 text-xs space-y-1">
+                                      <div className="font-semibold text-sm mb-2">مقارنة مع الأوردر {cand?.order_number}</div>
+                                      {cmp ? (
+                                        <>
+                                          <div className="flex items-center gap-2">
+                                            {cmp.phoneMatch ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-destructive" />}
+                                            <span>الموبايل {cmp.phoneMatch ? "مطابق" : "مختلف"}</span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            {cmp.nameMatch ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}
+                                            <span>الاسم {cmp.nameMatch ? "مطابق" : "مختلف"}</span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            {cmp.amountMatch ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-destructive" />}
+                                            <span>
+                                              القيمة {cmp.amountMatch ? "مطابقة" : "مختلفة"}
+                                              {cmp.amountViaShipping && " (بعد إضافة 110 ج شحن زودكس)"}
+                                            </span>
+                                          </div>
+                                          <div className="text-muted-foreground pt-1 border-t mt-2">
+                                            زودكس: {cmp.cod.toLocaleString("ar-EG")} ج • الأوردر: {cmp.total.toLocaleString("ar-EG")} ج
+                                            {cmp.amountViaShipping && ` • ${cmp.total.toLocaleString("ar-EG")} + 110 = ${(cmp.total + SHIPPING_FEE).toLocaleString("ar-EG")}`}
+                                          </div>
+                                          {cmp.strongMatch && (
+                                            <Alert className="mt-2">
+                                              <CheckCircle2 className="h-4 w-4" />
+                                              <AlertDescription className="text-xs">
+                                                التطابق قوي — اضغط "إصلاح الربط" لحفظ البوليصة داخل الأوردر.
+                                              </AlertDescription>
+                                            </Alert>
+                                          )}
+                                        </>
+                                      ) : (
+                                        <div className="text-muted-foreground">مفيش أوردر مرشح للمقارنة.</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : null}
+                              </TableCell>
+                            </TableRow>
                           )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                        </>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
