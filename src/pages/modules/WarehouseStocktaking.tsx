@@ -167,6 +167,7 @@ export default function WarehouseStocktaking() {
 
   // ============ ACTIONS ============
   const createSession = async () => {
+    if (!canEditStocktaking) { toast.error("ليس لديك صلاحية تعديل الجرد"); return; }
     if (!activeWh) { toast.error("اختر مخزن أولًا"); return; }
     if (!stocktaker.trim()) { toast.error("اكتب اسم القائم بالجرد"); return; }
     setBusyAction("create");
