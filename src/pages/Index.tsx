@@ -359,6 +359,7 @@ const DashboardContent = () => {
             <p className="text-xs text-muted-foreground mt-1 underline decoration-dotted">{stats?.ordersMonth || 0} طلب هذا الشهر — اضغط للعرض والتصدير</p>
           </CardContent>
         </Card>
+        <MonthOrdersDialog open={monthOrdersOpen} onOpenChange={setMonthOrdersOpen} />
         <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => navigate('/reports')} role="button" tabIndex={0}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
