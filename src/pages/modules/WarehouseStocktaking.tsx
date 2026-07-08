@@ -60,8 +60,13 @@ const REASONS = [
 const sb = supabase as any;
 
 export default function WarehouseStocktaking() {
-  const { isGeneralManager, isExecutiveManager, profile, role } = useAuth();
+  const { isGeneralManager, isExecutiveManager, profile, role, roles } = useAuth();
   const canApprove = isGeneralManager || isExecutiveManager;
+  // مشرف مخزن العجوزة لا يملك صلاحية جرد المخزن الرئيسي
+  const MAIN_WAREHOUSE_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
+  const isWarehouseSupervisorOnly =
+    (roles?.includes("warehouse_supervisor") ?? role === "warehouse_supervisor") &&
+    !isGeneralManager && !isExecutiveManager;
 
   const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);
   const [activeWh, setActiveWh] = useState<string>("");
