@@ -232,12 +232,13 @@ export default function MeatPackagingInventory() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 justify-center flex-wrap">
-                            <Button size="sm" variant="outline" onClick={() => setAddQtyItem(i)} className="h-7 px-2"><Plus className="w-3 h-3 ml-1" />إضافة</Button>
-                            <Button size="sm" variant="outline" onClick={() => setIssueItem(i)} className="h-7 px-2"><Minus className="w-3 h-3 ml-1" />صرف</Button>
-                            <Button size="sm" variant="outline" onClick={() => setAdjustItem(i)} className="h-7 px-2"><ClipboardList className="w-3 h-3 ml-1" />تسوية</Button>
-                            {i.is_active
+                            {!isMeatFactoryManagerOnly && <Button size="sm" variant="outline" onClick={() => setAddQtyItem(i)} className="h-7 px-2"><Plus className="w-3 h-3 ml-1" />إضافة</Button>}
+                            {!isMeatFactoryManagerOnly && <Button size="sm" variant="outline" onClick={() => setIssueItem(i)} className="h-7 px-2"><Minus className="w-3 h-3 ml-1" />صرف</Button>}
+                            {!isMeatFactoryManagerOnly && <Button size="sm" variant="outline" onClick={() => setAdjustItem(i)} className="h-7 px-2"><ClipboardList className="w-3 h-3 ml-1" />تسوية</Button>}
+                            {!isMeatFactoryManagerOnly && (i.is_active
                               ? <Button size="sm" variant="ghost" onClick={() => deactivateItem(i)} className="h-7 px-2 text-amber-700"><PowerOff className="w-3 h-3 ml-1" />تعطيل</Button>
-                              : <Button size="sm" variant="ghost" onClick={() => activateItem(i)} className="h-7 px-2 text-emerald-700"><PowerOff className="w-3 h-3 ml-1" />تفعيل</Button>}
+                              : <Button size="sm" variant="ghost" onClick={() => activateItem(i)} className="h-7 px-2 text-emerald-700"><PowerOff className="w-3 h-3 ml-1" />تفعيل</Button>)}
+                            {isMeatFactoryManagerOnly && <span className="text-xs text-muted-foreground">عرض فقط</span>}
                           </div>
                         </TableCell>
                       </TableRow>
