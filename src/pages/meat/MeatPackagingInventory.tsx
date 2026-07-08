@@ -278,7 +278,7 @@ export default function MeatPackagingInventory() {
                         <TableCell className="text-xs">{fmt(m.stock_after)}</TableCell>
                         <TableCell className="text-xs max-w-[280px] truncate" title={`${m.reason || ""} | ${m.ref_table || ""}`}>{m.reason || "—"}</TableCell>
                         <TableCell>
-                          {(m.ref_table === "manual_adjustment" || m.ref_table === "reverse" || m.ref_table === "opening_balance_packaging") ? (
+                          {!isMeatFactoryManagerOnly && (m.ref_table === "manual_adjustment" || m.ref_table === "reverse" || m.ref_table === "opening_balance_packaging") ? (
                             <Button size="sm" variant="outline" onClick={() => setReverseMove(m)} className="h-7 px-2"><RotateCcw className="w-3 h-3 ml-1" />عكس</Button>
                           ) : <span className="text-xs text-muted-foreground">—</span>}
                         </TableCell>
