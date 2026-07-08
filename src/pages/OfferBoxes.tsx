@@ -32,7 +32,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Gift, Plus, Edit, Trash2, Package, X, Clock, AlertTriangle, Bell, CalendarDays, Truck } from 'lucide-react';
+import { Gift, Plus, Edit, Trash2, Package, X, Clock, AlertTriangle, Bell, CalendarDays, Truck, FileSpreadsheet, FileText } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from '@/lib/printPdf';
 import { format, isPast, isFuture, parseISO, differenceInHours } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -489,7 +491,66 @@ const OfferBoxes = () => {
               <p className="text-muted-foreground">إنشاء وإدارة عروض المنتجات المجمعة</p>
             </div>
           </div>
-          {isManager && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={() => {
+              const rows = offerBoxes.map(b => ({
+                'اسم العرض': b.name,
+                'الوصف': b.description || '',
+                'سعر العرض (ج.م)': b.offer_price ?? '',
+                'الشحن (ج.م)': b.shipping_cost ?? '',
+                'عدد المنتجات': boxItemCounts[b.id] || 0,
+                'الحالة': !b.is_active ? 'موقوف' : isExpired(b.expires_at) ? 'منتهي' : isScheduled(b.starts_at) ? 'مجدول' : 'نشط',
+                'تاريخ البداية': b.starts_at ? new Date(b.starts_at).toLocaleString('ar-EG') : '',
+                'تاريخ الانتهاء': b.expires_at ? new Date(b.expires_at).toLocaleString('ar-EG') : '',
+                'تاريخ الإنشاء': new Date(b.created_at).toLocaleString('ar-EG'),
+              }));
+              const ws = XLSX.utils.json_to_sheet(rows);
+              const wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, 'صناديق العروض');
+              XLSX.writeFile(wb, `offer-boxes-${new Date().toISOString().slice(0,10)}.xlsx`);
+            }}>
+              <FileSpreadsheet className="h-4 w-4 ml-1" />
+              تصدير Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => {
+              const statusLabel = (b: OfferBox) =>
+                !b.is_active ? 'موقوف' : isExpired(b.expires_at) ? 'منتهي' : isScheduled(b.starts_at) ? 'مجدول' : 'نشط';
+              const totalActive = offerBoxes.filter(b => b.is_active && !isExpired(b.expires_at) && !isScheduled(b.starts_at)).length;
+              const body = `
+                <header>
+                  <div><h1>صناديق العروض</h1><div class="en">Offer Boxes Report</div></div>
+                  <div class="meta">${escapeHtml(new Date().toLocaleString('ar-EG'))}</div>
+                </header>
+                <div class="stats">
+                  <div class="stat"><div class="k">إجمالي العروض</div><div class="v">${fmtNum(offerBoxes.length)}</div></div>
+                  <div class="stat"><div class="k">عروض نشطة</div><div class="v">${fmtNum(totalActive)}</div></div>
+                </div>
+                <table>
+                  <thead><tr>
+                    <th>#</th><th>اسم العرض</th><th>سعر العرض</th><th>الشحن</th>
+                    <th>عدد المنتجات</th><th>الحالة</th><th>البداية</th><th>الانتهاء</th>
+                  </tr></thead>
+                  <tbody>
+                    ${offerBoxes.map((b, i) => `
+                      <tr>
+                        <td>${i+1}</td>
+                        <td>${escapeHtml(b.name)}</td>
+                        <td class="num">${b.offer_price != null ? fmtNum(b.offer_price) + ' ج.م' : '—'}</td>
+                        <td class="num">${b.shipping_cost != null ? fmtNum(b.shipping_cost) + ' ج.م' : '—'}</td>
+                        <td class="num">${fmtNum(boxItemCounts[b.id] || 0)}</td>
+                        <td>${statusLabel(b)}</td>
+                        <td>${b.starts_at ? fmtDate(b.starts_at) : '—'}</td>
+                        <td>${b.expires_at ? fmtDate(b.expires_at) : '—'}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>`;
+              openPrintWindow('صناديق العروض', body);
+            }}>
+              <FileText className="h-4 w-4 ml-1" />
+              تصدير PDF
+            </Button>
+            {isManager && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button onClick={() => handleOpenDialog()}>
@@ -557,7 +618,8 @@ const OfferBoxes = () => {
                 </div>
               </DialogContent>
             </Dialog>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Offer Boxes Grid */}
