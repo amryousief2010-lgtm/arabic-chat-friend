@@ -147,9 +147,19 @@ export function BulkDeliveryUploadButton() {
 
       setOpen(true);
       const missing = parsed.filter((p) => p.phone && !known.has(p.phone)).length;
+      const toProcess = parsed.length - missing;
       toast.success(
         `تم تحليل ${parsed.length} شحنة${missing > 0 ? ` — ${missing} محتاجة تسجيل` : ""}`,
       );
+
+      // Auto-confirm when there's nothing blocking:
+      // - no shipments need customer registration (all phones known)
+      // - at least one shipment to process
+      // Warnings and "no items" cases are safe (we deliver without changing items).
+      if (missing === 0 && toProcess > 0) {
+        // Trigger confirmation right away — no need to click.
+        setTimeout(() => autoConfirmRef.current?.(parsed), 50);
+      }
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || "فشل قراءة الملف");
