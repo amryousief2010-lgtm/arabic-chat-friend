@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -38,6 +38,7 @@ export function BulkDeliveryUploadButton() {
   const [knownPhones, setKnownPhones] = useState<Set<string>>(new Set());
   const [phoneToModerator, setPhoneToModerator] = useState<Map<string, string>>(new Map());
   const [result, setResult] = useState<any>(null);
+  const autoConfirmRef = useRef<((s: ParsedShipment[]) => void) | null>(null);
 
   const unregistered = shipments.filter((s) => s.phone && !knownPhones.has(s.phone));
   const registered = shipments.filter((s) => s.phone && knownPhones.has(s.phone));
@@ -147,9 +148,19 @@ export function BulkDeliveryUploadButton() {
 
       setOpen(true);
       const missing = parsed.filter((p) => p.phone && !known.has(p.phone)).length;
+      const toProcess = parsed.length - missing;
       toast.success(
         `تم تحليل ${parsed.length} شحنة${missing > 0 ? ` — ${missing} محتاجة تسجيل` : ""}`,
       );
+
+      // Auto-confirm when there's nothing blocking:
+      // - no shipments need customer registration (all phones known)
+      // - at least one shipment to process
+      // Warnings and "no items" cases are safe (we deliver without changing items).
+      if (missing === 0 && toProcess > 0) {
+        // Trigger confirmation right away — no need to click.
+        setTimeout(() => autoConfirmRef.current?.(parsed), 50);
+      }
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || "فشل قراءة الملف");
@@ -159,11 +170,11 @@ export function BulkDeliveryUploadButton() {
     }
   };
 
-  const handleConfirm = async () => {
+  const submitShipments = async (list: ParsedShipment[]) => {
     setSubmitting(true);
     try {
       // Send all shipments (with items OR without) — server queues no-item ones too
-      const send = shipments.map((s) => ({
+      const send = list.map((s) => ({
         phone: s.phone,
         cod: s.cod,
         bill_no: s.bill_no,
@@ -192,6 +203,14 @@ export function BulkDeliveryUploadButton() {
       setSubmitting(false);
     }
   };
+
+  const handleConfirm = () => submitShipments(shipments);
+
+  // Keep the auto-confirm ref pointing to the latest submitter so handleFile
+  // can trigger it without waiting for state to settle.
+  useEffect(() => {
+    autoConfirmRef.current = submitShipments;
+  });
 
   const reset = () => {
     setShipments([]);
