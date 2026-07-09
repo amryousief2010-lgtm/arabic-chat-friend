@@ -166,6 +166,12 @@ export function parseProductText(
   let norm = normalizeArabic(original);
   // Merge "digit + space + ك/كيلو" into a single qty token: "2 ك" -> "2ك", "3 كيلو" -> "3كيلو"
   norm = norm.replace(/(\d+)\s+(كيلو|ك)(?=\s|$)/g, "$1$2");
+  // Eggs are sold by count, not by kilo. Convert "N بيض/بيضة/بيضه/بيضات" -> "Nك بيض"
+  norm = norm.replace(/(\d+)\s*بيض(ه|ة|ات)?(?=\s|$)/g, "$1ك بيض");
+  // Bare "بيضه/بيضة" (single egg) -> "ك بيض"
+  norm = norm.replace(/(^|\s)بيض(ه|ة)(?=\s|$)/g, "$1ك بيض");
+  // "دبوس بالعضم/بالعظم" -> collapse to just "دبوس" so alias resolver catches it
+  norm = norm.replace(/دبوس\s+بال?ع[ضظ]م(ه)?/g, "دبوس");
   // Expand Arabic dual (تثنية) shortcuts to "2ك <word>" (space-delimited since \b doesn't work on Arabic)
   const dualMap: Record<string,string> = {
     "دبوسين":"2ك دبوس","بيضتين":"2ك بيض","رقبتين":"2ك رقاب","كيلوين":"2ك","كيلوهين":"2ك",
