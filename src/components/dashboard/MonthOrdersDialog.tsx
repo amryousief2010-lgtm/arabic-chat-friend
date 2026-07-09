@@ -5,16 +5,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { FileSpreadsheet, Loader2, CheckCircle2, Undo2 } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { FileSpreadsheet, Loader2, CheckCircle2, Undo2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from "xlsx";
-import {
-  cairoMonthStartUTC,
-  currentCairoYearMonth,
-} from "@/lib/cairoDate";
+import { cairoMonthStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { updateOrderStatusShared, type SharedOrderStatus } from "@/lib/orderStatusUpdate";
+import { updateOrderStatusShared } from "@/lib/orderStatusUpdate";
 
 interface Row {
   id: string;
@@ -25,14 +23,58 @@ interface Row {
   payment_status: string;
   moderator: string | null;
   created_at: string;
+  source_warehouse_id: string | null;
   customers: { name: string | null } | null;
 }
+
+const MAIN_WH_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
+const AGOUZA_WH_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
+
+type WhKey = "all" | "main" | "agouza" | "unknown";
+
+const WH_LABEL: Record<Exclude<WhKey, "all">, string> = {
+  main: "المخزن الرئيسي",
+  agouza: "مخزن العجوزة",
+  unknown: "غير محدد",
+};
 
 const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 const statusAR: Record<string, string> = {
   pending: "قيد الانتظار", processing: "جاري التجهيز", shipped: "تم الشحن",
   delivered: "تم التوصيل", cancelled: "مرتجع / ملغي",
 };
+
+function classifyWh(id: string | null): Exclude<WhKey, "all"> {
+  if (id === MAIN_WH_ID) return "main";
+  if (id === AGOUZA_WH_ID) return "agouza";
+  return "unknown";
+}
+
+function computeStats(rs: Row[]) {
+  const s = { count: 0, total: 0, delivered: 0, deliveredSum: 0, cancelled: 0, cancelledSum: 0, remaining: 0, remainingSum: 0 };
+  for (const r of rs) {
+    const t = Number(r.total || 0);
+    s.count++; s.total += t;
+    if (r.status === "delivered") { s.delivered++; s.deliveredSum += t; }
+    else if (r.status === "cancelled") { s.cancelled++; s.cancelledSum += t; }
+    else { s.remaining++; s.remainingSum += t; }
+  }
+  return s;
+}
+
+function StatBlock({ title, stats, tone }: { title: string; stats: ReturnType<typeof computeStats>; tone: string }) {
+  return (
+    <div className={`rounded-lg border p-3 ${tone}`}>
+      <div className="font-bold mb-2">{title} — {stats.count} طلب</div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        <div>إجمالي المبيعات: <b className="text-primary">{stats.total.toLocaleString()} ج.م</b></div>
+        <div>المُسلَّم: <b className="text-emerald-700">{stats.delivered} / {stats.deliveredSum.toLocaleString()} ج.م</b></div>
+        <div>المرتجع / ملغي: <b className="text-rose-700">{stats.cancelled} / {stats.cancelledSum.toLocaleString()} ج.م</b></div>
+        <div>المتبقي للتسليم: <b className="text-amber-700">{stats.remaining} / {stats.remainingSum.toLocaleString()} ج.م</b></div>
+      </div>
+    </div>
+  );
+}
 
 export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const [rows, setRows] = useState<Row[]>([]);
@@ -42,12 +84,12 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
   const [returnDialog, setReturnDialog] = useState<{ ids: string[] } | null>(null);
   const [returnReason, setReturnReason] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [tab, setTab] = useState<WhKey>("all");
 
   const { user, roles, isGeneralManager, isExecutiveManager, isSalesModerator } = useAuth();
   const rolesList = roles || [];
   const canUpdateStatus =
-    isGeneralManager ||
-    isExecutiveManager ||
+    isGeneralManager || isExecutiveManager ||
     rolesList.includes("marketing_sales_manager") ||
     rolesList.includes("sales_manager") ||
     isSalesModerator ||
@@ -61,6 +103,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
   useEffect(() => {
     if (!open) return;
     setSelected(new Set());
+    setTab("all");
     (async () => {
       setLoading(true);
       const start = cairoMonthStartUTC(year, monthIndex0).toISOString();
@@ -71,7 +114,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
       while (true) {
         const { data, error } = await supabase
           .from("orders")
-          .select("id, order_number, total, status, payment_method, payment_status, moderator, created_at, customers(name)")
+          .select("id, order_number, total, status, payment_method, payment_status, moderator, created_at, source_warehouse_id, customers(name)")
           .gte("created_at", start)
           .lt("created_at", end)
           .order("created_at", { ascending: false })
@@ -86,14 +129,29 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
     })();
   }, [open, year, monthIndex0]);
 
-  const totalSum = rows.reduce((s, r) => s + Number(r.total || 0), 0);
-  const deliveredSum = rows.filter(r => r.status === "delivered").reduce((s, r) => s + Number(r.total || 0), 0);
+  const buckets = useMemo(() => {
+    const b = { main: [] as Row[], agouza: [] as Row[], unknown: [] as Row[] };
+    for (const r of rows) b[classifyWh(r.source_warehouse_id)].push(r);
+    return b;
+  }, [rows]);
+
+  const stats = useMemo(() => ({
+    all: computeStats(rows),
+    main: computeStats(buckets.main),
+    agouza: computeStats(buckets.agouza),
+    unknown: computeStats(buckets.unknown),
+  }), [rows, buckets]);
+
+  const visibleRows = tab === "all" ? rows : buckets[tab];
+  const hasUnknown = buckets.unknown.length > 0;
 
   const exportExcel = () => {
-    const data = rows.map((r) => ({
+    const src = visibleRows;
+    const data = src.map((r) => ({
       "رقم الطلب": r.order_number,
       "العميل": r.customers?.name || "-",
       "الموديريتور": r.moderator || "-",
+      "المخزن": WH_LABEL[classifyWh(r.source_warehouse_id)],
       "الإجمالي": Number(r.total),
       "طريقة الدفع": r.payment_method === "cash" ? "نقدي" : "إلكتروني",
       "حالة الدفع": r.payment_status,
@@ -102,17 +160,15 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "طلبات الشهر");
-    XLSX.writeFile(wb, `طلبات-${monthLabel}.xlsx`);
+    const suffix = tab === "all" ? "الكل" : WH_LABEL[tab];
+    XLSX.utils.book_append_sheet(wb, ws, "طلبات");
+    XLSX.writeFile(wb, `طلبات-${monthLabel}-${suffix}.xlsx`);
   };
 
   const markDelivered = async (ids: string[]) => {
     if (!canUpdateStatus) { toast.error("ليس لديك صلاحية تحديث الحالة."); return; }
-    if (ids.length === 1) {
-      if (!window.confirm("هل تريد تأكيد تسليم هذا الطلب؟")) return;
-    } else {
-      if (!window.confirm(`هل تريد تأكيد تسليم ${ids.length} طلب؟`)) return;
-    }
+    const msg = ids.length === 1 ? "هل تريد تأكيد تسليم هذا الطلب؟" : `هل تريد تأكيد تسليم ${ids.length} طلب؟`;
+    if (!window.confirm(msg)) return;
     let ok = 0, fail = 0;
     for (const id of ids) {
       setBusyId(id);
@@ -120,9 +176,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
         await updateOrderStatusShared({ orderId: id, newStatus: "delivered", userId: user?.id });
         setRows(prev => prev.map(r => r.id === id ? { ...r, status: "delivered" } : r));
         ok++;
-      } catch (e: any) {
-        console.error(e); fail++;
-      }
+      } catch (e: any) { console.error(e); fail++; }
     }
     setBusyId(null);
     setSelected(new Set());
@@ -154,17 +208,21 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
 
   const toggleAll = (checked: boolean) => {
     if (!checked) { setSelected(new Set()); return; }
-    setSelected(new Set(rows.map(r => r.id)));
+    setSelected(new Set(visibleRows.map(r => r.id)));
   };
   const toggleOne = (id: string, checked: boolean) => {
-    setSelected(prev => {
-      const n = new Set(prev);
-      if (checked) n.add(id); else n.delete(id);
-      return n;
-    });
+    setSelected(prev => { const n = new Set(prev); if (checked) n.add(id); else n.delete(id); return n; });
   };
 
-  const selectedIds = useMemo(() => Array.from(selected), [selected]);
+  const selectedIds = useMemo(() => Array.from(selected).filter(id => visibleRows.some(r => r.id === id)), [selected, visibleRows]);
+
+  const whBadge = (id: string | null) => {
+    const k = classifyWh(id);
+    const cls = k === "main" ? "bg-blue-100 text-blue-800 border-blue-300"
+      : k === "agouza" ? "bg-purple-100 text-purple-800 border-purple-300"
+      : "bg-gray-100 text-gray-700 border-gray-300";
+    return <Badge variant="outline" className={`${cls} text-[10px]`}>{WH_LABEL[k]}</Badge>;
+  };
 
   return (
     <>
@@ -173,19 +231,34 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between gap-4 flex-wrap">
             <span>طلبات {monthLabel} — {rows.length} طلب</span>
-            <Button size="sm" onClick={exportExcel} disabled={loading || rows.length === 0} className="gap-2">
+            <Button size="sm" onClick={exportExcel} disabled={loading || visibleRows.length === 0} className="gap-2">
               <FileSpreadsheet className="w-4 h-4" /> تصدير Excel
             </Button>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="text-sm text-muted-foreground flex items-center gap-4 flex-wrap">
-          <span>إجمالي المبيعات: <span className="font-bold text-primary">{totalSum.toLocaleString()} ج.م</span></span>
-          <span>المُسلَّم: <span className="font-bold text-emerald-600">{deliveredSum.toLocaleString()} ج.م</span></span>
+        {hasUnknown && (
+          <div className="flex items-center gap-2 text-xs bg-amber-50 border border-amber-300 text-amber-900 rounded-md p-2">
+            <AlertTriangle className="w-4 h-4" />
+            يوجد {buckets.unknown.length} أوردر غير محدد المخزن، برجاء مراجعتها وربطها بالمخزن الصحيح.
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <StatBlock title="المخزن الرئيسي" stats={stats.main} tone="bg-blue-50/50 border-blue-200" />
+          <StatBlock title="مخزن العجوزة" stats={stats.agouza} tone="bg-purple-50/50 border-purple-200" />
         </div>
 
+        <Tabs value={tab} onValueChange={(v) => { setTab(v as WhKey); setSelected(new Set()); }}>
+          <TabsList className="flex flex-wrap h-auto">
+            <TabsTrigger value="all">الكل ({stats.all.count})</TabsTrigger>
+            <TabsTrigger value="main">المخزن الرئيسي ({stats.main.count})</TabsTrigger>
+            <TabsTrigger value="agouza">مخزن العجوزة ({stats.agouza.count})</TabsTrigger>
+            {hasUnknown && <TabsTrigger value="unknown">غير محدد ({stats.unknown.count})</TabsTrigger>}
+          </TabsList>
+          <TabsContent value={tab} className="mt-2" forceMount>
         {canUpdateStatus && selectedIds.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap bg-muted/40 border rounded-lg p-2">
+          <div className="flex items-center gap-2 flex-wrap bg-muted/40 border rounded-lg p-2 mb-2">
             <span className="text-sm font-semibold">تم تحديد {selectedIds.length}:</span>
             <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => markDelivered(selectedIds)}>
               <CheckCircle2 className="w-4 h-4" /> تسليم ناجح
@@ -203,13 +276,16 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
               <Loader2 className="w-5 h-5 animate-spin mr-2" /> جارٍ التحميل...
             </div>
           ) : (
+            <>
+            {/* Desktop table */}
+            <div className="hidden md:block">
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
                   {canUpdateStatus && (
                     <TableHead className="w-10">
                       <Checkbox
-                        checked={rows.length > 0 && selected.size === rows.length}
+                        checked={visibleRows.length > 0 && selectedIds.length === visibleRows.length}
                         onCheckedChange={(v) => toggleAll(!!v)}
                       />
                     </TableHead>
@@ -217,6 +293,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
                   <TableHead>رقم الطلب</TableHead>
                   <TableHead>العميل</TableHead>
                   <TableHead>الموديريتور</TableHead>
+                  <TableHead>المخزن</TableHead>
                   <TableHead>الإجمالي</TableHead>
                   <TableHead>الحالة</TableHead>
                   <TableHead>التاريخ</TableHead>
@@ -224,9 +301,9 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.length === 0 ? (
-                  <TableRow><TableCell colSpan={canUpdateStatus ? 8 : 6} className="text-center py-10 text-muted-foreground">لا توجد طلبات</TableCell></TableRow>
-                ) : rows.map((r) => {
+                {visibleRows.length === 0 ? (
+                  <TableRow><TableCell colSpan={canUpdateStatus ? 9 : 7} className="text-center py-10 text-muted-foreground">لا توجد طلبات</TableCell></TableRow>
+                ) : visibleRows.map((r) => {
                   const isDelivered = r.status === "delivered";
                   const isCancelled = r.status === "cancelled";
                   const busy = busyId === r.id;
@@ -234,15 +311,13 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
                     <TableRow key={r.id} className={selected.has(r.id) ? "bg-primary/5" : ""}>
                       {canUpdateStatus && (
                         <TableCell>
-                          <Checkbox
-                            checked={selected.has(r.id)}
-                            onCheckedChange={(v) => toggleOne(r.id, !!v)}
-                          />
+                          <Checkbox checked={selected.has(r.id)} onCheckedChange={(v) => toggleOne(r.id, !!v)} />
                         </TableCell>
                       )}
                       <TableCell className="font-mono text-xs">{r.order_number}</TableCell>
                       <TableCell>{r.customers?.name || "-"}</TableCell>
                       <TableCell>{r.moderator || "-"}</TableCell>
+                      <TableCell>{whBadge(r.source_warehouse_id)}</TableCell>
                       <TableCell className="font-semibold text-primary">{Number(r.total).toLocaleString()} ج.م</TableCell>
                       <TableCell>
                         <Badge variant={isDelivered ? "default" : isCancelled ? "destructive" : "outline"}>
@@ -253,21 +328,12 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
                       {canUpdateStatus && (
                         <TableCell>
                           <div className="flex gap-1 flex-wrap">
-                            <Button
-                              size="sm"
-                              className="h-7 px-2 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
-                              disabled={busy || isDelivered}
-                              onClick={() => markDelivered([r.id])}
-                            >
+                            <Button size="sm" className="h-7 px-2 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+                              disabled={busy || isDelivered} onClick={() => markDelivered([r.id])}>
                               <CheckCircle2 className="w-3 h-3" /> تسليم
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="h-7 px-2 gap-1 text-xs"
-                              disabled={busy || isCancelled}
-                              onClick={() => { setReturnDialog({ ids: [r.id] }); setReturnReason(""); }}
-                            >
+                            <Button size="sm" variant="destructive" className="h-7 px-2 gap-1 text-xs"
+                              disabled={busy || isCancelled} onClick={() => { setReturnDialog({ ids: [r.id] }); setReturnReason(""); }}>
                               <Undo2 className="w-3 h-3" /> مرتجع
                             </Button>
                           </div>
@@ -278,8 +344,55 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
                 })}
               </TableBody>
             </Table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-2 p-2">
+              {visibleRows.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground text-sm">لا توجد طلبات</div>
+              ) : visibleRows.map((r) => {
+                const isDelivered = r.status === "delivered";
+                const isCancelled = r.status === "cancelled";
+                const busy = busyId === r.id;
+                return (
+                  <div key={r.id} className={`border rounded-lg p-3 space-y-2 ${selected.has(r.id) ? "bg-primary/5" : ""}`}>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {canUpdateStatus && (
+                        <Checkbox checked={selected.has(r.id)} onCheckedChange={(v) => toggleOne(r.id, !!v)} />
+                      )}
+                      <span className="font-mono text-xs">{r.order_number}</span>
+                      {whBadge(r.source_warehouse_id)}
+                      <Badge variant={isDelivered ? "default" : isCancelled ? "destructive" : "outline"} className="text-[10px]">
+                        {statusAR[r.status] || r.status}
+                      </Badge>
+                    </div>
+                    <div className="text-sm font-semibold">{r.customers?.name || "-"}</div>
+                    <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3">
+                      <span className="text-primary font-bold">{Number(r.total).toLocaleString()} ج.م</span>
+                      <span>{new Date(r.created_at).toLocaleString("ar-EG")}</span>
+                      {r.moderator && <span>👤 {r.moderator}</span>}
+                    </div>
+                    {canUpdateStatus && (
+                      <div className="flex gap-2">
+                        <Button size="sm" className="flex-1 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                          disabled={busy || isDelivered} onClick={() => markDelivered([r.id])}>
+                          <CheckCircle2 className="w-4 h-4" /> تسليم
+                        </Button>
+                        <Button size="sm" variant="destructive" className="flex-1 gap-1"
+                          disabled={busy || isCancelled} onClick={() => { setReturnDialog({ ids: [r.id] }); setReturnReason(""); }}>
+                          <Undo2 className="w-4 h-4" /> مرتجع
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            </>
           )}
         </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
 
@@ -293,12 +406,8 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
         </p>
         <div>
           <label className="text-sm font-semibold block mb-1">سبب المرتجع *</label>
-          <Textarea
-            value={returnReason}
-            onChange={(e) => setReturnReason(e.target.value)}
-            placeholder="مثال: العميل رفض الاستلام، عنوان خاطئ، ..."
-            rows={3}
-          />
+          <Textarea value={returnReason} onChange={(e) => setReturnReason(e.target.value)}
+            placeholder="مثال: العميل رفض الاستلام، عنوان خاطئ، ..." rows={3} />
         </div>
         <div className="flex gap-2 justify-end">
           <Button variant="ghost" onClick={() => { setReturnDialog(null); setReturnReason(""); }} disabled={bulkBusy}>إلغاء</Button>
