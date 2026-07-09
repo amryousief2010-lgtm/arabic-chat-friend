@@ -227,7 +227,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col" dir="rtl">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto flex flex-col" dir="rtl">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between gap-4 flex-wrap">
             <span>طلبات {monthLabel} — {rows.length} طلب</span>
