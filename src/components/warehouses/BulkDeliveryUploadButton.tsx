@@ -38,6 +38,7 @@ export function BulkDeliveryUploadButton() {
   const [knownPhones, setKnownPhones] = useState<Set<string>>(new Set());
   const [phoneToModerator, setPhoneToModerator] = useState<Map<string, string>>(new Map());
   const [result, setResult] = useState<any>(null);
+  const autoConfirmRef = useRef<((s: ParsedShipment[]) => void) | null>(null);
 
   const unregistered = shipments.filter((s) => s.phone && !knownPhones.has(s.phone));
   const registered = shipments.filter((s) => s.phone && knownPhones.has(s.phone));
