@@ -170,11 +170,11 @@ export function BulkDeliveryUploadButton() {
     }
   };
 
-  const handleConfirm = async () => {
+  const submitShipments = async (list: ParsedShipment[]) => {
     setSubmitting(true);
     try {
       // Send all shipments (with items OR without) — server queues no-item ones too
-      const send = shipments.map((s) => ({
+      const send = list.map((s) => ({
         phone: s.phone,
         cod: s.cod,
         bill_no: s.bill_no,
@@ -203,6 +203,14 @@ export function BulkDeliveryUploadButton() {
       setSubmitting(false);
     }
   };
+
+  const handleConfirm = () => submitShipments(shipments);
+
+  // Keep the auto-confirm ref pointing to the latest submitter so handleFile
+  // can trigger it without waiting for state to settle.
+  useEffect(() => {
+    autoConfirmRef.current = submitShipments;
+  });
 
   const reset = () => {
     setShipments([]);
