@@ -324,7 +324,7 @@ const NewOrder = () => {
   const [searchingCustomers, setSearchingCustomers] = useState(false);
   
   // New/Edit customer dialog
-  const [isNewCustomerOpen, setIsNewCustomerOpen] = useState(false);
+  const [isNewCustomerOpen, setIsNewCustomerOpen] = useState(true);
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
