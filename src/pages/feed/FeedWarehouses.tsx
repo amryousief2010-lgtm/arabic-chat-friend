@@ -561,26 +561,28 @@ export default function FeedWarehouses() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-          <Card className="border-primary/60 bg-primary/5"><CardContent className="p-4"><div className="text-xs text-muted-foreground">إجمالي تكلفة المخزون</div><div className="text-2xl font-bold text-primary">{fmt(rawValue + finishedValue)} ج.م</div><div className="text-[10px] text-muted-foreground">خامات + جاهز</div></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">قيمة مخزن الخامات</div><div className="text-2xl font-bold text-primary">{fmt(rawValue)} ج.م</div></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">قيمة العلف الجاهز</div><div className="text-2xl font-bold text-secondary">{fmt(finishedValue)} ج.م</div></CardContent></Card>
-          <Card className="border-success/50"><CardContent className="p-4"><div className="text-xs text-muted-foreground flex items-center gap-1"><Wallet className="h-3 w-3"/>رصيد الخزنة</div><div className={`text-2xl font-bold ${treasuryBalance<0?'text-destructive':'text-success'}`}>{fmt(treasuryBalance)} ج.م</div></CardContent></Card>
-          <Card className="border-warning/50"><CardContent className="p-4"><div className="text-xs text-muted-foreground">مستحق لشركة نعام</div><div className={`text-2xl font-bold ${loanFromNaam>0?'text-warning':loanFromNaam<0?'text-success':''}`}>{fmt(loanFromNaam)} ج.م</div><div className="text-[10px] text-muted-foreground">{loanFromNaam>=0?'سلف قائمة':'فائض للمصنع'}</div></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">أصناف خامات / جاهز</div><div className="text-2xl font-bold">{rawQ.data?.length||0} / {prodQ.data?.length||0}</div></CardContent></Card>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 md:gap-3">
+          <Card className="border-primary/60 bg-primary/5"><CardContent className="p-2.5 md:p-4"><div className="text-[10px] md:text-xs text-muted-foreground leading-tight">إجمالي تكلفة المخزون</div><div className="text-base md:text-2xl font-bold text-primary break-all">{fmt(rawValue + finishedValue)} <span className="text-[10px] md:text-xs font-normal">ج.م</span></div><div className="text-[9px] md:text-[10px] text-muted-foreground">خامات + جاهز</div></CardContent></Card>
+          <Card><CardContent className="p-2.5 md:p-4"><div className="text-[10px] md:text-xs text-muted-foreground leading-tight">قيمة مخزن الخامات</div><div className="text-base md:text-2xl font-bold text-primary break-all">{fmt(rawValue)} <span className="text-[10px] md:text-xs font-normal">ج.م</span></div></CardContent></Card>
+          <Card><CardContent className="p-2.5 md:p-4"><div className="text-[10px] md:text-xs text-muted-foreground leading-tight">قيمة العلف الجاهز</div><div className="text-base md:text-2xl font-bold text-secondary break-all">{fmt(finishedValue)} <span className="text-[10px] md:text-xs font-normal">ج.م</span></div></CardContent></Card>
+          <Card className="border-success/50"><CardContent className="p-2.5 md:p-4"><div className="text-[10px] md:text-xs text-muted-foreground flex items-center gap-1 leading-tight"><Wallet className="h-3 w-3"/>رصيد الخزنة</div><div className={`text-base md:text-2xl font-bold break-all ${treasuryBalance<0?'text-destructive':'text-success'}`}>{fmt(treasuryBalance)} <span className="text-[10px] md:text-xs font-normal">ج.م</span></div></CardContent></Card>
+          <Card className="border-warning/50"><CardContent className="p-2.5 md:p-4"><div className="text-[10px] md:text-xs text-muted-foreground leading-tight">مستحق لشركة نعام</div><div className={`text-base md:text-2xl font-bold break-all ${loanFromNaam>0?'text-warning':loanFromNaam<0?'text-success':''}`}>{fmt(loanFromNaam)} <span className="text-[10px] md:text-xs font-normal">ج.م</span></div><div className="text-[9px] md:text-[10px] text-muted-foreground">{loanFromNaam>=0?'سلف قائمة':'فائض للمصنع'}</div></CardContent></Card>
+          <Card><CardContent className="p-2.5 md:p-4"><div className="text-[10px] md:text-xs text-muted-foreground leading-tight">أصناف خامات / جاهز</div><div className="text-base md:text-2xl font-bold">{rawQ.data?.length||0} / {prodQ.data?.length||0}</div></CardContent></Card>
         </div>
 
         <Tabs defaultValue="raw" dir="rtl">
-          <TabsList className="grid w-full grid-cols-8">
-            <TabsTrigger value="raw"><Package className="h-4 w-4 ml-1" />الخامات</TabsTrigger>
-            <TabsTrigger value="finished"><Warehouse className="h-4 w-4 ml-1" />الجاهز</TabsTrigger>
-            <TabsTrigger value="purchases"><ShoppingCart className="h-4 w-4 ml-1" />المشتريات</TabsTrigger>
-            <TabsTrigger value="production"><Factory className="h-4 w-4 ml-1" />التصنيع</TabsTrigger>
-            <TabsTrigger value="sales"><Banknote className="h-4 w-4 ml-1" />المبيعات</TabsTrigger>
-            <TabsTrigger value="returns" className="text-orange-600 data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"><Undo2 className="h-4 w-4 ml-1" />المرتجعات</TabsTrigger>
-            <TabsTrigger value="treasury"><Wallet className="h-4 w-4 ml-1" />الخزنة</TabsTrigger>
-            <TabsTrigger value="counts"><ClipboardCheck className="h-4 w-4 ml-1" />الجرد</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+            <TabsList className="inline-flex md:grid md:w-full md:grid-cols-8 w-max min-w-full gap-1">
+              <TabsTrigger value="raw" className="text-xs md:text-sm whitespace-nowrap"><Package className="h-4 w-4 ml-1" />الخامات</TabsTrigger>
+              <TabsTrigger value="finished" className="text-xs md:text-sm whitespace-nowrap"><Warehouse className="h-4 w-4 ml-1" />الجاهز</TabsTrigger>
+              <TabsTrigger value="purchases" className="text-xs md:text-sm whitespace-nowrap"><ShoppingCart className="h-4 w-4 ml-1" />المشتريات</TabsTrigger>
+              <TabsTrigger value="production" className="text-xs md:text-sm whitespace-nowrap"><Factory className="h-4 w-4 ml-1" />التصنيع</TabsTrigger>
+              <TabsTrigger value="sales" className="text-xs md:text-sm whitespace-nowrap"><Banknote className="h-4 w-4 ml-1" />المبيعات</TabsTrigger>
+              <TabsTrigger value="returns" className="text-xs md:text-sm whitespace-nowrap text-orange-600 data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"><Undo2 className="h-4 w-4 ml-1" />المرتجعات</TabsTrigger>
+              <TabsTrigger value="treasury" className="text-xs md:text-sm whitespace-nowrap"><Wallet className="h-4 w-4 ml-1" />الخزنة</TabsTrigger>
+              <TabsTrigger value="counts" className="text-xs md:text-sm whitespace-nowrap"><ClipboardCheck className="h-4 w-4 ml-1" />الجرد</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="returns">
             <Card>
