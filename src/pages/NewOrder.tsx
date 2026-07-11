@@ -1595,12 +1595,8 @@ const NewOrder = () => {
                     {offerContentsError && <p>محتويات البوكسات: {offerContentsError}</p>}
                   </div>
                 )}
-                <Tabs defaultValue="products" className="w-full">
+                <Tabs defaultValue="offers" className="w-full">
                   <TabsList className="grid w-full grid-cols-2 mb-4">
-                    <TabsTrigger value="products" className="gap-2">
-                      <Package className="w-4 h-4" />
-                      المنتجات
-                    </TabsTrigger>
                     <TabsTrigger value="offers" className="gap-2">
                       <Gift className="w-4 h-4" />
                       العروض
@@ -1609,6 +1605,10 @@ const NewOrder = () => {
                           {offerBoxes.length}
                         </span>
                       )}
+                    </TabsTrigger>
+                    <TabsTrigger value="products" className="gap-2">
+                      <Package className="w-4 h-4" />
+                      منتج فردي
                     </TabsTrigger>
                   </TabsList>
 
