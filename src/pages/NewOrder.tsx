@@ -1337,11 +1337,8 @@ const NewOrder = () => {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">طلب جديد</h1>
-            <p className="text-muted-foreground mt-1">إنشاء طلب جديد للعميل</p>
-          </div>
+        <div className="max-w-5xl mx-auto w-full">
+          <h1 className="text-3xl font-bold text-foreground text-right">إنشاء طلب جديد</h1>
         </div>
 
         <div className="max-w-5xl mx-auto space-y-4 pb-40">
@@ -1351,8 +1348,8 @@ const NewOrder = () => {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <UserPlus className="w-5 h-5" />
-                  العميل
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">1</span>
+                  بيانات العميل
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1575,8 +1572,8 @@ const NewOrder = () => {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Package className="w-5 h-5" />
-                  المنتجات والعروض
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">2</span>
+                  العروض والمنتجات
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1856,31 +1853,37 @@ const NewOrder = () => {
                         <p>لا توجد عروض متاحة حالياً</p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {offerBoxes.map((offer) => (
-                          <button
+                          <div
                             key={offer.id}
-                            onClick={() => openOfferPreview(offer)}
-                            className="p-4 border rounded-lg text-right hover:border-primary hover:bg-primary/5 transition-all group"
+                            className="p-4 border rounded-xl text-right hover:border-primary hover:shadow-md transition-all bg-card flex flex-col"
                           >
-                            <div className="flex items-center gap-2 mb-2">
-                              <Gift className="w-5 h-5 text-primary" />
-                              <p className="font-medium">{offer.name}</p>
+                            <div className="flex items-start gap-3 mb-2">
+                              <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 shrink-0">
+                                <Gift className="w-5 h-5 text-primary" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-base truncate">{offer.name}</p>
+                                {offer.description && (
+                                  <p className="text-xs text-muted-foreground line-clamp-1">{offer.description}</p>
+                                )}
+                              </div>
                             </div>
-                            {offer.description && (
-                              <p className="text-sm text-muted-foreground line-clamp-2">{offer.description}</p>
-                            )}
                             {offerContentsById[offer.id]?.length ? (
-                              <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                              <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
                                 {offerContentsById[offer.id].join(' + ')}
                               </p>
-                            ) : offerContentsLoading ? (
-                              <p className="mt-2 text-xs text-muted-foreground">جاري تحميل محتويات البوكس...</p>
                             ) : null}
-                            <Badge className="mt-2 bg-green-100 text-green-700 hover:bg-green-100">
-                              اضغط لعرض التفاصيل
-                            </Badge>
-                          </button>
+                            <Button
+                              size="sm"
+                              className="w-full mt-auto gap-1"
+                              onClick={() => openOfferPreview(offer)}
+                            >
+                              <Plus className="w-4 h-4" />
+                              إضافة
+                            </Button>
+                          </div>
                         ))}
                       </div>
                     )}
@@ -1895,8 +1898,8 @@ const NewOrder = () => {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <ShoppingCart className="w-5 h-5" />
-                  سلة المشتريات
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">3</span>
+                  سلة الطلب
                   {cart.length > 0 && (
                     <Badge>{cart.length}</Badge>
                   )}
@@ -2086,7 +2089,13 @@ const NewOrder = () => {
                       />
                     </div>
 
-                    {/* Payment Method */}
+                    {/* Payment & Shipping */}
+                    <div className="pt-2 border-t">
+                      <h3 className="text-lg font-semibold flex items-center gap-2 mb-3">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">4</span>
+                        الدفع والشحن
+                      </h3>
+                    </div>
                     <div className="space-y-2">
                       <Label>طريقة الدفع</Label>
                       <div className="grid grid-cols-2 gap-2">
@@ -2324,8 +2333,8 @@ const NewOrder = () => {
                 <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary-foreground"></div>
               ) : (
                 <>
-                  <ShoppingCart className="w-4 h-4" />
-                  {!selectedCustomer ? 'اختر عميلاً أولاً' : 'تأكيد الطلب'}
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary-foreground/20 text-primary-foreground text-[10px] font-bold">5</span>
+                  {!selectedCustomer ? 'اختر عميلاً أولاً' : 'إنشاء الطلب'}
                 </>
               )}
             </Button>
