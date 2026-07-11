@@ -137,8 +137,11 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
   }, [open, year, monthIndex0]);
 
   const buckets = useMemo(() => {
-    const b = { main: [] as Row[], agouza: [] as Row[], unknown: [] as Row[] };
-    for (const r of rows) b[classifyWh(r.source_warehouse_id)].push(r);
+    const b = { main: [] as Row[], agouza: [] as Row[], unknown: [] as Row[], overdue: [] as Row[] };
+    for (const r of rows) {
+      b[classifyWh(r.source_warehouse_id)].push(r);
+      if (isOverdue(r)) b.overdue.push(r);
+    }
     return b;
   }, [rows]);
 
@@ -147,10 +150,12 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
     main: computeStats(buckets.main),
     agouza: computeStats(buckets.agouza),
     unknown: computeStats(buckets.unknown),
+    overdue: computeStats(buckets.overdue),
   }), [rows, buckets]);
 
   const visibleRows = tab === "all" ? rows : buckets[tab];
   const hasUnknown = buckets.unknown.length > 0;
+  const hasOverdue = buckets.overdue.length > 0;
 
   const exportExcel = () => {
     const src = visibleRows;
