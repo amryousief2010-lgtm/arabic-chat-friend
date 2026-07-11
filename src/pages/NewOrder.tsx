@@ -1344,9 +1344,9 @@ const NewOrder = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="max-w-5xl mx-auto space-y-4 pb-40">
           {/* Products Section */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="space-y-4">
             {/* Customer Selection */}
             <Card>
               <CardHeader className="pb-3">
