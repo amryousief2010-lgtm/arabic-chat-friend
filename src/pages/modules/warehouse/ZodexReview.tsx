@@ -689,19 +689,33 @@ export default function ZodexReview() {
                             </TableCell>
                             <TableCell>
                               {c.issue?.fixable || canForceFix ? (
-                                <Button
-                                  size="sm"
-                                  onClick={() => doFix(c)}
-                                  disabled={fixingId === c.bill.id}
-                                  className="gap-1"
-                                >
-                                  {fixingId === c.bill.id ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  ) : (
-                                    <Wrench className="h-3.5 w-3.5" />
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => doFix(c)}
+                                    disabled={fixingId === c.bill.id || rejectingId === c.bill.id}
+                                    className="gap-1"
+                                  >
+                                    {fixingId === c.bill.id ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Wrench className="h-3.5 w-3.5" />
+                                    )}
+                                    {c.issue?.kind === "suggested_match" ? "تأكيد الربط" : "إصلاح الربط"}
+                                  </Button>
+                                  {c.issue?.kind === "suggested_match" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => rejectSuggestion(c)}
+                                      disabled={fixingId === c.bill.id || rejectingId === c.bill.id}
+                                    >
+                                      {rejectingId === c.bill.id ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : "رفض"}
+                                    </Button>
                                   )}
-                                  إصلاح الربط
-                                </Button>
+                                </div>
                               ) : (
                                 <span className="text-xs text-muted-foreground">اسحب زودكس للتأكيد</span>
                               )}
