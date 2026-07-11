@@ -300,8 +300,18 @@ export default function ZodexReview() {
     [classified],
   );
   const linkIssues = useMemo(
-    () => classified.filter((c) => c.issue !== null),
+    // Sort suggested matches first (they need attention)
+    () => classified
+      .filter((c) => c.issue !== null)
+      .sort((a, b) => {
+        const rank = (k?: string) => k === "suggested_match" ? 0 : k === "bill_not_saved_on_order" ? 1 : 2;
+        return rank(a.issue?.kind) - rank(b.issue?.kind);
+      }),
     [classified],
+  );
+  const suggestedCount = useMemo(
+    () => linkIssues.filter((c) => c.issue?.kind === "suggested_match").length,
+    [linkIssues],
   );
 
   const q = search.trim().toLowerCase();
