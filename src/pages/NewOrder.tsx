@@ -1337,11 +1337,8 @@ const NewOrder = () => {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">طلب جديد</h1>
-            <p className="text-muted-foreground mt-1">إنشاء طلب جديد للعميل</p>
-          </div>
+        <div className="max-w-5xl mx-auto w-full">
+          <h1 className="text-3xl font-bold text-foreground text-right">إنشاء طلب جديد</h1>
         </div>
 
         <div className="max-w-5xl mx-auto space-y-4 pb-40">
