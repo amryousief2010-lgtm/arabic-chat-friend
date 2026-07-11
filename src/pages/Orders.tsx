@@ -919,6 +919,7 @@ const Orders = () => {
     // إخفاء أوردرات ما قبل تاريخ بداية تشغيل المخزن الرئيسي (2026-06-18)
     // عن مسؤول/مشرف المخزن والمدير التنفيذي. المدير العام فقط يرى الأرشيف.
     const matchesOperationalStart =
+      searchActive ||
       isGeneralManager ||
       (!isWarehouseSupervisor && !isExecutiveManager) ||
       new Date(order.created_at) >= new Date('2026-06-18T00:00:00+02:00');
