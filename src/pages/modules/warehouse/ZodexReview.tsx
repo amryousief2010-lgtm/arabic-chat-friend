@@ -253,9 +253,9 @@ export default function ZodexReview() {
 
       setNoBillOrders(filteredNoBill);
 
-      // 3) Classify each bill (best candidate + link issue)
+      // 3) Classify each bill (best candidate + link issue), skipping rejected pairings
       const classifiedList = await mapWithLimit(bills, 6, async (b): Promise<BillWithClassification> => {
-        const cands = await findCandidatesForBill(b);
+        const cands = await findCandidatesForBill(b, rejectedByBill.get(b.bill_no) || new Set());
         const best = cands[0] || null;
         const dupCount = billNoCount.get(b.bill_no) || 0;
         const issue = classifyLinkIssue(b, best, dupCount);
