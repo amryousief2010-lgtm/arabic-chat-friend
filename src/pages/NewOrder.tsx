@@ -1879,61 +1879,9 @@ const NewOrder = () => {
                     </div>
                       </>
                     )}
-                  </TabsContent>
+                  </CollapsibleContent>
+                </Collapsible>
 
-                  <TabsContent value="offers" className="mt-0">
-                    <div className="mb-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                      <Badge variant="outline">العروض: {offersLoading ? 'جاري التحميل' : `${offerBoxes.length} عرض`}</Badge>
-                      <Badge variant="outline">محتويات البوكسات: {offerContentsLoading ? 'جاري التحميل' : 'محمّلة'}</Badge>
-                    </div>
-                    {offersLoading && offerBoxes.length === 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {Array.from({ length: 4 }).map((_, index) => (
-                          <Skeleton key={index} className="h-32 w-full" />
-                        ))}
-                      </div>
-                    ) : offerBoxes.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Gift className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <p>لا توجد عروض متاحة حالياً</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {offerBoxes.map((offer) => (
-                          <div
-                            key={offer.id}
-                            className="p-4 border rounded-xl text-right hover:border-primary hover:shadow-md transition-all bg-card flex flex-col"
-                          >
-                            <div className="flex items-start gap-3 mb-2">
-                              <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 shrink-0">
-                                <Gift className="w-5 h-5 text-primary" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-bold text-base truncate">{offer.name}</p>
-                                {offer.description && (
-                                  <p className="text-xs text-muted-foreground line-clamp-1">{offer.description}</p>
-                                )}
-                              </div>
-                            </div>
-                            {offerContentsById[offer.id]?.length ? (
-                              <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
-                                {offerContentsById[offer.id].join(' + ')}
-                              </p>
-                            ) : null}
-                            <Button
-                              size="sm"
-                              className="w-full mt-auto gap-1"
-                              onClick={() => openOfferPreview(offer)}
-                            >
-                              <Plus className="w-4 h-4" />
-                              إضافة
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
               </CardContent>
             </Card>
           </div>
