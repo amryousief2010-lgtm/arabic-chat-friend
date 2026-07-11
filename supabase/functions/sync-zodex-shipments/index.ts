@@ -443,7 +443,7 @@ Deno.serve(async (req) => {
     await supabase.from("zodex_sync_runs").update({
       status: errors.length ? "completed_with_errors" : "success",
       summary: stats,
-      pipeline_counts: { linked: stats.linked, already_linked: stats.already_linked, total_rows: stats.total_rows },
+      pipeline_counts: { linked: stats.linked, already_linked: stats.already_linked, total_rows: stats.total_rows, returns_marked: stats.returns_marked },
       total_rows: stats.total_rows,
       error_message: errors.length ? errors.join(" | ").slice(0, 2000) : null,
       finished_at: new Date().toISOString(),
