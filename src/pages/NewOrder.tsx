@@ -2327,8 +2327,8 @@ const NewOrder = () => {
                 <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary-foreground"></div>
               ) : (
                 <>
-                  <ShoppingCart className="w-4 h-4" />
-                  {!selectedCustomer ? 'اختر عميلاً أولاً' : 'تأكيد الطلب'}
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary-foreground/20 text-primary-foreground text-[10px] font-bold">5</span>
+                  {!selectedCustomer ? 'اختر عميلاً أولاً' : 'إنشاء الطلب'}
                 </>
               )}
             </Button>
