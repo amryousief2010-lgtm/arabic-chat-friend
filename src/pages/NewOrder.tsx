@@ -1914,27 +1914,40 @@ const NewOrder = () => {
                         <p className="text-xs font-medium text-green-800 dark:text-green-300">العروض المختارة (الشحن 110 لكل عرض)</p>
                         {Object.entries(offerInstanceCounts).map(([boxId, count]) => {
                           const box = offerBoxes.find(b => b.id === boxId);
+                          const isExpanded = !!expandedOfferBoxes[boxId];
                           return (
-                            <div key={boxId} className="flex items-center justify-between gap-2 text-sm">
-                              <span className="truncate">{box?.name || 'عرض'}</span>
-                              <div className="flex items-center gap-1">
-                                <Button variant="outline" size="icon" className="h-7 w-7"
-                                  onClick={() => decrementOfferInstance(boxId)}>
-                                  <Minus className="w-3 h-3" />
-                                </Button>
-                                <span className="w-8 text-center font-medium">×{count}</span>
-                                <Button variant="outline" size="icon" className="h-7 w-7"
-                                  onClick={() => box && openOfferPreview(box as any)}>
-                                  <Plus className="w-3 h-3" />
-                                </Button>
+                            <div key={boxId} className="rounded-md bg-background/60 border border-green-200/60 p-2">
+                              <div className="flex items-center justify-between gap-2 text-sm">
+                                <span className="truncate font-medium">{box?.name || 'عرض'}</span>
+                                <div className="flex items-center gap-1">
+                                  <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs"
+                                    onClick={() => setExpandedOfferBoxes(s => ({ ...s, [boxId]: !s[boxId] }))}>
+                                    {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                    {isExpanded ? 'إخفاء' : 'عرض المحتويات'}
+                                  </Button>
+                                  <Button variant="outline" size="icon" className="h-7 w-7"
+                                    onClick={() => decrementOfferInstance(boxId)}>
+                                    <Minus className="w-3 h-3" />
+                                  </Button>
+                                  <span className="w-8 text-center font-medium">×{count}</span>
+                                  <Button variant="outline" size="icon" className="h-7 w-7"
+                                    onClick={() => box && openOfferPreview(box as any)}>
+                                    <Plus className="w-3 h-3" />
+                                  </Button>
+                                </div>
                               </div>
+                              {!isExpanded && offerContentsById[boxId]?.length ? (
+                                <p className="mt-1 text-[11px] text-muted-foreground truncate">
+                                  {offerContentsById[boxId].join(' + ')}
+                                </p>
+                              ) : null}
                             </div>
                           );
                         })}
                       </div>
                     )}
                     <div className="space-y-3 max-h-96 overflow-auto">
-                      {cart.map((item) => {
+                      {cart.filter((item) => !item.isOfferItem || !item.offerBoxId || expandedOfferBoxes[item.offerBoxId]).map((item) => {
                         const fullKgPrice = item.customPrice ?? item.product.price;
                         const halfPacketPrice = fullKgPrice * 0.5; // سعر العبوة (نص كيلو)
                         const kgEquivalent = item.isHalfKg
