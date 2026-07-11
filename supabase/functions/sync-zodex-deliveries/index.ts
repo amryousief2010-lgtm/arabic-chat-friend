@@ -648,7 +648,6 @@ Deno.serve(async (req) => {
       await supabase.from("zodex_closed_invoices").update({
         orders_matched: matchedCount,
         orders_missing: missingCount,
-        custody_id: sharedCustodyId,
         processed_at: existingInv?.processed_at || new Date().toISOString(),
       }).eq("id", invoiceId);
 
@@ -659,12 +658,13 @@ Deno.serve(async (req) => {
       if (isNew) {
         await supabase.from("notifications").insert({
           title: `فاتورة زودكس مقفولة — ${invoiceNo}`,
-          description: `نعام العاصمة • ${invRows.length} أوردر • إجمالى ${totalAmount.toFixed(0)} ج • تم نقلها لعهدة مندوب العجوزة${missingCount ? ` • ⚠️ ${missingCount} أوردر مش مسجل عندنا` : ""}`,
+          description: `نعام العاصمة • ${invRows.length} أوردر • إجمالى ${totalAmount.toFixed(0)} ج${missingCount ? ` • ⚠️ ${missingCount} أوردر مش مسجل عندنا` : ""}`,
           type: "zodex_invoice_closed",
           target_user_id: ALAA_USER_ID,
         });
       }
     }
+
     Object.assign(stats, { closed_invoices: closedInvoiceStats });
 
     // ----- Pipeline counts + Active-shipment matching (Shipper Shipments page) -----
