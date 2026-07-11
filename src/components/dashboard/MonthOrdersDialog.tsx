@@ -273,7 +273,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+
           <StatBlock title="المخزن الرئيسي" stats={stats.main} tone="bg-blue-50/50 border-blue-200" onRemainingClick={() => setWaybillsDialog("main")} />
           <StatBlock title="مخزن العجوزة" stats={stats.agouza} tone="bg-purple-50/50 border-purple-200" onRemainingClick={() => setWaybillsDialog("agouza")} />
         </div>
