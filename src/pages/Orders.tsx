@@ -1138,7 +1138,10 @@ const Orders = () => {
 
   // Whether the current user may edit this order's items right now
   const canEditThisOrder = (order: Order): boolean => {
-    if (order.status === 'delivered' || order.status === 'cancelled') return false;
+    // After delivery/cancel: only GM or Executive Manager can edit
+    if (order.status === 'delivered' || order.status === 'cancelled') {
+      return isGeneralManager || isExecutiveManager;
+    }
     if (isPrivateDeliveryRep) return approvedEditOrderIds.has(order.id);
     if (!canEditOrderItems) return false;
     if (isSalesModerator && order.collection_status === 'collected') return false;
@@ -1146,6 +1149,16 @@ const Orders = () => {
     // (e.g. Manal can review Nora & Aya's orders but cannot modify them.)
     if (isSalesModerator && user?.id && order.created_by && order.created_by !== user.id) return false;
     return true;
+  };
+
+  // Same rule for editing customer info (name / phone / address).
+  const canEditCustomerFor = (order: Order): boolean => {
+    if (order.status === 'delivered' || order.status === 'cancelled') {
+      return isGeneralManager || isExecutiveManager;
+    }
+    if (canManageOrders) return true;
+    if (isSalesModerator && user?.id && (!order.created_by || order.created_by === user.id)) return true;
+    return false;
   };
 
   // نافذة اختيار طريقة التحصيل قبل تأكيد التسليم (لا تمس منطق التسليم/المخزون/المالية).
