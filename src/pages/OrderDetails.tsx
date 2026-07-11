@@ -176,16 +176,19 @@ const OrderDetails = () => {
   const [editPhone, setEditPhone] = useState("");
   const [editAddress, setEditAddress] = useState("");
   const [savingCustomer, setSavingCustomer] = useState(false);
-  // Moderators (and shipping) can't edit orders that are already delivered or cancelled/returned
+  // بعد التسليم أو الإلغاء: التعديل مقصور على المدير العام أو المدير التنفيذي فقط.
+  // قبل ذلك (قيد الانتظار): تسمح للموديريتور/التسويق/مدير المبيعات/شركات الشحن بالتعديل.
   const isLockedForModerators = order ? (order.status === 'delivered' || order.status === 'cancelled') : false;
-  const canEditItems = (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager)
-    || ((isShippingCompany || isSalesModerator) && !isLockedForModerators);
+  const canEditItems = isLockedForModerators
+    ? (isGeneralManager || isExecutiveManager)
+    : (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager || isShippingCompany || isSalesModerator);
   // Swap-offer button: customers often change the chosen offer after registration,
   // so the 4 sales moderators and the marketing manager can swap only on non-delivered, non-cancelled orders.
   const canSwapOffer = (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager || isSalesModerator)
     && order?.status !== 'delivered' && order?.status !== 'cancelled';
-  const canEditCustomerInfo = (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager)
-    || (isSalesModerator && !isLockedForModerators);
+  const canEditCustomerInfo = isLockedForModerators
+    ? (isGeneralManager || isExecutiveManager)
+    : (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager || isSalesModerator);
 
   const openEditCustomer = () => {
     if (!order) return;
