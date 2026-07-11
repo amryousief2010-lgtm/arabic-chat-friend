@@ -616,56 +616,20 @@ Deno.serve(async (req) => {
       // Process each line
       let matchedCount = 0;
       let missingCount = 0;
-      let assignedCount = 0;
+      let assignedCount = 0; // kept for stats compatibility; always 0 now
       for (const r of invRows) {
         // Look up matched order via bill_no (freshly linked in main loop above)
         const { data: ord } = await supabase.from("orders")
-          .select("id, order_number, customer_id, source_warehouse_id, customers(phone)")
+          .select("id, order_number, customer_id, customers(phone)")
           .eq("shipping_bill_no", r.bill_no).maybeSingle();
         const matched = !!ord;
         if (matched) matchedCount++; else missingCount++;
 
-        // Safeguards before creating a courier custody line:
-        //  (a) Zodex shipment status must be "تسليم ناجح" (not "مؤجل" / "معلق" / etc.)
-        //  (b) The order's current customer phone must still match the Zodex row phone.
-        //      Protects against wrong auto-matches (same amount + moderator but different
-        //      real customer) and against later customer edits/merges.
-        //  (c) The order's source warehouse MUST be Agouza. Orders shipped from the Main
-        //      warehouse are handled by Kimo's custody, not by مندوب العجوزة.
-        const isSuccessfulDelivery = (r as any).shipment_status
-          ? String((r as any).shipment_status).trim() === STATUS_SUCCESS
-          : true; // closed invoices default to success when status field is absent
-        const orderPhone = normalizePhone((ord as any)?.customers?.phone || "");
-        const zodexPhone = normalizePhone(r.customer_phone || "");
-        const phoneOk = !orderPhone || !zodexPhone || orderPhone === zodexPhone;
-        const sourceIsAgouza = (ord as any)?.source_warehouse_id === AGOUZA_WAREHOUSE_ID;
-
-        let custodyAssigned = false;
-        if (matched && ord && isSuccessfulDelivery && phoneOk && sourceIsAgouza) {
-          if (!sharedCustodyId) sharedCustodyId = await getOrCreateAgouzaCustody(supabase);
-          if (sharedCustodyId) {
-            const nowIso = new Date().toISOString();
-            const { error: asnErr } = await supabase
-              .from("courier_order_assignments")
-              .upsert({
-                custody_id: sharedCustodyId,
-                order_id: ord.id,
-                courier_name: AGOUZA_COURIER_NAME,
-                warehouse_id: AGOUZA_WAREHOUSE_ID,
-                status: "delivered",
-                assigned_at: nowIso,
-                delivered_at: nowIso,
-                notes: `فاتورة زودكس مقفولة ${invoiceNo} — بوليصة ${r.bill_no}`,
-              }, { onConflict: "order_id" });
-            if (!asnErr) { custodyAssigned = true; assignedCount++; }
-            else console.error("custody assign failed", ord.order_number, asnErr);
-          }
-        } else if (matched && !phoneOk) {
-          console.warn(`skip custody: phone mismatch bill=${r.bill_no} order=${(ord as any)?.order_number} orderPhone=${orderPhone} zodexPhone=${zodexPhone}`);
-        } else if (matched && !sourceIsAgouza) {
-          console.warn(`skip custody: order source is not Agouza bill=${r.bill_no} order=${(ord as any)?.order_number}`);
-        }
-
+        // NOTE: We intentionally do NOT auto-assign any order to مندوب العجوزة custody
+        // from Zodex closed invoices. Agouza custody is populated exclusively via the
+        // Bostta delivery-sheet upload flow. Zodex only records the closed invoice
+        // for visibility.
+        const custodyAssigned = false;
 
         // Upsert invoice line
         await supabase.from("zodex_closed_invoice_orders").upsert({
@@ -679,6 +643,7 @@ Deno.serve(async (req) => {
           custody_assigned: custodyAssigned,
         }, { onConflict: "invoice_id,bill_no" });
       }
+
 
       await supabase.from("zodex_closed_invoices").update({
         orders_matched: matchedCount,
