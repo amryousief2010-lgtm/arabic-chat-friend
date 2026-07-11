@@ -351,6 +351,35 @@ export default function ZodexReview() {
     }
   };
 
+  const rejectSuggestion = async (item: BillWithClassification) => {
+    if (!item.bestCandidate) return;
+    setRejectingId(item.bill.id);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const { error } = await supabase.from("zodex_match_decisions").insert({
+        bill_no: item.bill.bill_no,
+        order_id: item.bestCandidate.id,
+        action: "rejected",
+        confidence_at_decision: item.bestCandidate.score,
+        reason: item.bestCandidate.reasons.join(" • "),
+        decided_by: userData.user?.id,
+      });
+      if (error) throw error;
+      toast.success("تم رفض الاقتراح — مش هيظهر تاني");
+      // Reclassify this bill by removing suggestion locally
+      setClassified((s) =>
+        s.map((c) => c.bill.id === item.bill.id
+          ? { ...c, issue: null, bestCandidate: null, isOrphan: true }
+          : c
+        ),
+      );
+    } catch (e: any) {
+      toast.error(`فشل رفض الاقتراح: ${e.message || e}`);
+    } finally {
+      setRejectingId(null);
+    }
+  };
+
   const fetchZodexDetails = async (item: BillWithClassification) => {
     setFetchingId(item.bill.id);
     setDetailsErrById((s) => ({ ...s, [item.bill.id]: "" }));
