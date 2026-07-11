@@ -79,21 +79,24 @@ export function scoreCandidate(row: MissingBill, o: OrderCandidate): ScoredCandi
     phoneCloseness(row.customer_phone, o.customer?.phone),
     phoneCloseness(row.customer_phone, o.customer?.phone2),
   );
-  if (pc === 1) { score += 60; reasons.push("الموبايل مطابق"); }
-  else if (pc >= 0.85) { score += 40; reasons.push("الموبايل قريب جداً"); }
-  else if (pc >= 0.7) { score += 25; reasons.push("الموبايل فيه فرق رقم"); }
-  else if (pc >= 0.4) { score += 10; reasons.push("الموبايل فيه فرق رقمين"); }
+  if (pc === 1) { score += 55; reasons.push("الموبايل مطابق"); }
+  else if (pc >= 0.85) { score += 45; reasons.push("الموبايل قريب جداً"); }
+  else if (pc >= 0.7) { score += 32; reasons.push("الموبايل مختلف بخانة واحدة (خطأ إدخال محتمل)"); }
+  else if (pc >= 0.4) { score += 15; reasons.push("الموبايل مختلف بخانتين"); }
 
   const cod = Number(row.cod_amount || 0);
   const total = Number(o.total || 0);
   if (cod > 0 && total > 0) {
     const rawDiff = Math.abs(cod - total);
-    const shipDiff = Math.abs(cod - total - 110); // Zodex adds 110 EGP shipping on non-box orders
+    const shipDiff = Math.abs(cod - total - 110);
+    const positiveDiff = cod - total;
     if (rawDiff < 0.5) { score += 25; reasons.push("المبلغ مطابق"); }
     else if (shipDiff < 0.5) { score += 25; reasons.push("المبلغ مطابق (+110 شحن زودكس)"); }
-    else if (rawDiff <= Math.max(5, cod * 0.02)) { score += 15; reasons.push(`المبلغ قريب (فرق ${rawDiff.toFixed(0)})`); }
-    else if (shipDiff <= Math.max(5, cod * 0.02)) { score += 15; reasons.push(`المبلغ قريب مع شحن 110 (فرق ${shipDiff.toFixed(0)})`); }
-    else if (rawDiff <= Math.max(20, cod * 0.05)) { score += 5; reasons.push(`المبلغ متقارب (فرق ${rawDiff.toFixed(0)})`); }
+    else if (rawDiff <= Math.max(5, cod * 0.02)) { score += 20; reasons.push(`المبلغ قريب (فرق ${rawDiff.toFixed(0)})`); }
+    else if (shipDiff <= Math.max(5, cod * 0.02)) { score += 20; reasons.push(`المبلغ قريب مع شحن 110 (فرق ${shipDiff.toFixed(0)})`); }
+    // Broader shipping-fee variance window: positive diff 30-160 EGP likely = shipping variant
+    else if (positiveDiff >= 30 && positiveDiff <= 160) { score += 18; reasons.push(`فرق مبلغ ${positiveDiff.toFixed(0)} ج (رسوم شحن محتملة)`); }
+    else if (rawDiff <= Math.max(20, cod * 0.05)) { score += 8; reasons.push(`المبلغ متقارب (فرق ${rawDiff.toFixed(0)})`); }
   }
 
   const mod = nameCloseness(row.moderator_name, o.moderator);
@@ -101,14 +104,15 @@ export function scoreCandidate(row: MissingBill, o: OrderCandidate): ScoredCandi
   else if (mod >= 0.5) { score += 5; reasons.push("المندوبة قريبة"); }
 
   const nm = nameCloseness(row.customer_name, o.customer?.name);
-  if (nm === 1) { score += 10; reasons.push("الاسم مطابق"); }
-  else if (nm >= 0.5) { score += 5; reasons.push("الاسم قريب"); }
+  if (nm === 1) { score += 15; reasons.push("الاسم مطابق"); }
+  else if (nm >= 0.5) { score += 8; reasons.push("الاسم قريب"); }
 
   return { ...o, score: Math.min(100, score), reasons };
 }
 
 export type LinkIssueKind =
   | "bill_not_saved_on_order"     // score >= 90, safe to auto-fix
+  | "suggested_match"             // score 60-89, likely match, needs one-click confirm
   | "phone_mismatch"
   | "name_mismatch"
   | "amount_mismatch"
@@ -120,6 +124,7 @@ export interface LinkIssue {
   label: string;
   detail: string;
   fixable: boolean;
+  confidence?: number;
 }
 
 export function classifyLinkIssue(
@@ -145,6 +150,18 @@ export function classifyLinkIssue(
       label: "البوليصة موجودة لكن غير محفوظة داخل الأوردر",
       detail: `الأوردر ${best.order_number} مطابق (${best.score}%) لكن ماتحفظش عنده رقم البوليصة.`,
       fixable: true,
+      confidence: best.score,
+    };
+  }
+
+  // Suggested match: 60-89% score with real signals → one-click confirm
+  if (best.score >= 60 && !best.shipping_bill_no) {
+    return {
+      kind: "suggested_match",
+      label: `مطابقة مقترحة (${best.score}%) — تحتاج تأكيد`,
+      detail: `الأوردر ${best.order_number}: ${best.reasons.join(" • ")}`,
+      fixable: true,
+      confidence: best.score,
     };
   }
 

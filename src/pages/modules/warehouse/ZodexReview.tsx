@@ -45,14 +45,26 @@ interface BillWithClassification {
   isOrphan: boolean;
 }
 
-async function findCandidatesForBill(bill: MissingBill): Promise<ScoredCandidate[]> {
+async function findCandidatesForBill(
+  bill: MissingBill,
+  rejectedOrderIds: Set<string> = new Set(),
+): Promise<ScoredCandidate[]> {
   const phone = (bill.customer_phone || "").replace(/\D+/g, "").slice(-9);
   const cod = Number(bill.cod_amount || 0);
 
   const orClauses: string[] = [];
   if (phone) {
+    // Match by last 9, 8, and 7 digits — handles 1-2 digit typos
     orClauses.push(`phone.ilike.%${phone}`);
     orClauses.push(`phone2.ilike.%${phone}`);
+    if (phone.length >= 8) {
+      orClauses.push(`phone.ilike.%${phone.slice(-8)}`);
+      orClauses.push(`phone2.ilike.%${phone.slice(-8)}`);
+    }
+    if (phone.length >= 7) {
+      orClauses.push(`phone.ilike.%${phone.slice(-7)}`);
+      orClauses.push(`phone2.ilike.%${phone.slice(-7)}`);
+    }
   }
   if (bill.customer_name) {
     const nm = bill.customer_name.trim().slice(0, 20).replace(/[%,]/g, " ");
@@ -65,7 +77,7 @@ async function findCandidatesForBill(bill: MissingBill): Promise<ScoredCandidate
       .from("customers")
       .select("id")
       .or(orClauses.join(","))
-      .limit(50);
+      .limit(80);
     customerIds = (custs || []).map((c: any) => c.id);
   }
 
@@ -78,13 +90,15 @@ async function findCandidatesForBill(bill: MissingBill): Promise<ScoredCandidate
   if (customerIds.length) {
     query = query.in("customer_id", customerIds);
   } else if (cod > 0) {
-    query = query.gte("total", cod - 5).lte("total", cod + 5);
+    // Wider amount window to catch shipping-fee variance (30-160 EGP added by Zodex)
+    query = query.gte("total", cod - 180).lte("total", cod + 20);
   } else {
     return [];
   }
 
   const { data: orders } = await query;
   return (orders || [])
+    .filter((o: any) => !rejectedOrderIds.has(o.id))
     .map((o: any) => scoreCandidate(bill, o as OrderCandidate))
     .filter((c) => c.score >= 20)
     .sort((a, b) => b.score - a.score);
@@ -145,6 +159,7 @@ export default function ZodexReview() {
   const [noBillOrders, setNoBillOrders] = useState<OrderRow[]>([]);
   const [search, setSearch] = useState("");
   const [fixingId, setFixingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [detailsById, setDetailsById] = useState<Record<string, ZodexBillDetails>>({});
   const [detailsErrById, setDetailsErrById] = useState<Record<string, string>>({});
   const [fetchingId, setFetchingId] = useState<string | null>(null);
@@ -154,6 +169,17 @@ export default function ZodexReview() {
     setLoading(true);
     try {
       const minAge = new Date(Date.now() - NO_BILL_MIN_AGE_HOURS * 3600 * 1000).toISOString();
+
+      // 0) Load prior rejection decisions to exclude those pairings from suggestions
+      const { data: rejDecisions } = await supabase
+        .from("zodex_match_decisions")
+        .select("bill_no, order_id, action")
+        .eq("action", "rejected");
+      const rejectedByBill = new Map<string, Set<string>>();
+      for (const r of (rejDecisions || []) as any[]) {
+        if (!rejectedByBill.has(r.bill_no)) rejectedByBill.set(r.bill_no, new Set());
+        rejectedByBill.get(r.bill_no)!.add(r.order_id);
+      }
 
       // 1) Zodex bills pending
       const billsRes = await supabase
@@ -227,9 +253,9 @@ export default function ZodexReview() {
 
       setNoBillOrders(filteredNoBill);
 
-      // 3) Classify each bill (best candidate + link issue)
+      // 3) Classify each bill (best candidate + link issue), skipping rejected pairings
       const classifiedList = await mapWithLimit(bills, 6, async (b): Promise<BillWithClassification> => {
-        const cands = await findCandidatesForBill(b);
+        const cands = await findCandidatesForBill(b, rejectedByBill.get(b.bill_no) || new Set());
         const best = cands[0] || null;
         const dupCount = billNoCount.get(b.bill_no) || 0;
         const issue = classifyLinkIssue(b, best, dupCount);
@@ -274,8 +300,18 @@ export default function ZodexReview() {
     [classified],
   );
   const linkIssues = useMemo(
-    () => classified.filter((c) => c.issue !== null),
+    // Sort suggested matches first (they need attention)
+    () => classified
+      .filter((c) => c.issue !== null)
+      .sort((a, b) => {
+        const rank = (k?: string) => k === "suggested_match" ? 0 : k === "bill_not_saved_on_order" ? 1 : 2;
+        return rank(a.issue?.kind) - rank(b.issue?.kind);
+      }),
     [classified],
+  );
+  const suggestedCount = useMemo(
+    () => linkIssues.filter((c) => c.issue?.kind === "suggested_match").length,
+    [linkIssues],
   );
 
   const q = search.trim().toLowerCase();
@@ -312,6 +348,35 @@ export default function ZodexReview() {
       toast.error(`فشل الإصلاح: ${e.message || e}`);
     } finally {
       setFixingId(null);
+    }
+  };
+
+  const rejectSuggestion = async (item: BillWithClassification) => {
+    if (!item.bestCandidate) return;
+    setRejectingId(item.bill.id);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const { error } = await supabase.from("zodex_match_decisions").insert({
+        bill_no: item.bill.bill_no,
+        order_id: item.bestCandidate.id,
+        action: "rejected",
+        confidence_at_decision: item.bestCandidate.score,
+        reason: item.bestCandidate.reasons.join(" • "),
+        decided_by: userData.user?.id,
+      });
+      if (error) throw error;
+      toast.success("تم رفض الاقتراح — مش هيظهر تاني");
+      // Reclassify this bill by removing suggestion locally
+      setClassified((s) =>
+        s.map((c) => c.bill.id === item.bill.id
+          ? { ...c, issue: null, bestCandidate: null, isOrphan: true }
+          : c
+        ),
+      );
+    } catch (e: any) {
+      toast.error(`فشل رفض الاقتراح: ${e.message || e}`);
+    } finally {
+      setRejectingId(null);
     }
   };
 
@@ -390,6 +455,11 @@ export default function ZodexReview() {
             <AlertTriangle className="h-4 w-4" />
             مشاكل الربط
             <Badge variant="destructive" className="mr-1">{linkIssues.length}</Badge>
+            {suggestedCount > 0 && (
+              <Badge className="mr-1 bg-amber-500 hover:bg-amber-500">
+                {suggestedCount} اقتراح
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -619,19 +689,33 @@ export default function ZodexReview() {
                             </TableCell>
                             <TableCell>
                               {c.issue?.fixable || canForceFix ? (
-                                <Button
-                                  size="sm"
-                                  onClick={() => doFix(c)}
-                                  disabled={fixingId === c.bill.id}
-                                  className="gap-1"
-                                >
-                                  {fixingId === c.bill.id ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  ) : (
-                                    <Wrench className="h-3.5 w-3.5" />
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => doFix(c)}
+                                    disabled={fixingId === c.bill.id || rejectingId === c.bill.id}
+                                    className="gap-1"
+                                  >
+                                    {fixingId === c.bill.id ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Wrench className="h-3.5 w-3.5" />
+                                    )}
+                                    {c.issue?.kind === "suggested_match" ? "تأكيد الربط" : "إصلاح الربط"}
+                                  </Button>
+                                  {c.issue?.kind === "suggested_match" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => rejectSuggestion(c)}
+                                      disabled={fixingId === c.bill.id || rejectingId === c.bill.id}
+                                    >
+                                      {rejectingId === c.bill.id ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : "رفض"}
+                                    </Button>
                                   )}
-                                  إصلاح الربط
-                                </Button>
+                                </div>
                               ) : (
                                 <span className="text-xs text-muted-foreground">اسحب زودكس للتأكيد</span>
                               )}
