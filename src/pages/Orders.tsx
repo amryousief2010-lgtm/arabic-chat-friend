@@ -2884,7 +2884,7 @@ const Orders = () => {
                   <p className="text-sm text-muted-foreground">العميل</p>
                   <div className="flex items-center gap-1 flex-wrap">
                     <p className="font-semibold">{selectedOrder.customer_name}</p>
-                    {canManageOrders && (
+                    {canEditCustomerFor(selectedOrder) && (
                       <button
                         type="button"
                         onClick={() => setEditCustomerOrder(selectedOrder)}
