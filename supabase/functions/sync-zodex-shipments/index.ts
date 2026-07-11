@@ -383,6 +383,63 @@ Deno.serve(async (req) => {
       try { await supabase.from("zodex_bill_link_audit").insert(auditInserts); } catch (_e) { /* non-fatal */ }
     }
 
+    // ---- RETURNS PROCESSING ----
+    // Any Zodex row whose status text indicates a return/rejection → mark linked order as cancelled.
+    // Refresh the bill→order map to include bills we just linked in this run.
+    const RETURN_RE = /مرتجع|مرفوض|رفض|راجع|إلغاء|الغاء|ملغى/;
+    const returnRows = allRows.filter((r) => r.status && RETURN_RE.test(r.status));
+    if (returnRows.length) {
+      const missingBills = returnRows.map((r) => r.bill_no).filter((b) => !linkedByBill.has(b));
+      if (missingBills.length) {
+        for (let i = 0; i < missingBills.length; i += 500) {
+          const slice = missingBills.slice(i, i + 500);
+          const { data } = await supabase.from("orders")
+            .select("id, order_number, status, source_warehouse_id, notes, shipping_bill_no")
+            .in("shipping_bill_no", slice);
+          for (const r of (data || []) as any[]) linkedByBill.set(String(r.shipping_bill_no), r);
+        }
+      }
+
+      for (const row of returnRows) {
+        const ord = linkedByBill.get(row.bill_no);
+        if (!ord) { stats.returns_no_order++; continue; }
+        if (ord.status === "cancelled") { stats.returns_skipped_already++; continue; }
+
+        const stamp = new Date().toLocaleString("ar-EG");
+        const reason = `مرتجع من زودكس (${row.status || "مرتجع"})`;
+        const prefix = ord.notes ? ord.notes + "\n" : "";
+        const newNotes = `${prefix}[مرتجع - ${stamp}] ${reason}`;
+
+        const { error: upErr } = await supabase.from("orders").update({
+          status: "cancelled",
+          notes: newNotes,
+          update_status_marker: "cancelled",
+          update_status_updated_at: new Date().toISOString(),
+        } as any).eq("id", ord.id).neq("status", "cancelled");
+        if (upErr) { errors.push(`return ${row.bill_no}: ${upErr.message}`); continue; }
+
+        // Release Agouza reservation if applicable
+        if (ord.source_warehouse_id === AGOUZA_WAREHOUSE_ID) {
+          try {
+            await supabase.rpc("release_agouza_stock_reservation", {
+              p_order_id: ord.id, p_reason: "zodex_return_sync",
+            });
+          } catch (e: any) {
+            console.warn(`release_agouza failed for ${ord.order_number}:`, e?.message || e);
+          }
+        }
+
+        stats.returns_marked++;
+        if (stats.returns_examples.length < 20) {
+          stats.returns_examples.push({
+            bill_no: row.bill_no, order_number: ord.order_number, zodex_status: row.status,
+          });
+        }
+      }
+    }
+
+
+
     await supabase.from("zodex_sync_runs").update({
       status: errors.length ? "completed_with_errors" : "success",
       summary: stats,
