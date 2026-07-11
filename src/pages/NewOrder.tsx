@@ -1853,31 +1853,37 @@ const NewOrder = () => {
                         <p>لا توجد عروض متاحة حالياً</p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {offerBoxes.map((offer) => (
-                          <button
+                          <div
                             key={offer.id}
-                            onClick={() => openOfferPreview(offer)}
-                            className="p-4 border rounded-lg text-right hover:border-primary hover:bg-primary/5 transition-all group"
+                            className="p-4 border rounded-xl text-right hover:border-primary hover:shadow-md transition-all bg-card flex flex-col"
                           >
-                            <div className="flex items-center gap-2 mb-2">
-                              <Gift className="w-5 h-5 text-primary" />
-                              <p className="font-medium">{offer.name}</p>
+                            <div className="flex items-start gap-3 mb-2">
+                              <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 shrink-0">
+                                <Gift className="w-5 h-5 text-primary" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-base truncate">{offer.name}</p>
+                                {offer.description && (
+                                  <p className="text-xs text-muted-foreground line-clamp-1">{offer.description}</p>
+                                )}
+                              </div>
                             </div>
-                            {offer.description && (
-                              <p className="text-sm text-muted-foreground line-clamp-2">{offer.description}</p>
-                            )}
                             {offerContentsById[offer.id]?.length ? (
-                              <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                              <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
                                 {offerContentsById[offer.id].join(' + ')}
                               </p>
-                            ) : offerContentsLoading ? (
-                              <p className="mt-2 text-xs text-muted-foreground">جاري تحميل محتويات البوكس...</p>
                             ) : null}
-                            <Badge className="mt-2 bg-green-100 text-green-700 hover:bg-green-100">
-                              اضغط لعرض التفاصيل
-                            </Badge>
-                          </button>
+                            <Button
+                              size="sm"
+                              className="w-full mt-auto gap-1"
+                              onClick={() => openOfferPreview(offer)}
+                            >
+                              <Plus className="w-4 h-4" />
+                              إضافة
+                            </Button>
+                          </div>
                         ))}
                       </div>
                     )}
