@@ -24,7 +24,8 @@ interface Row {
   moderator: string | null;
   created_at: string;
   source_warehouse_id: string | null;
-  customers: { name: string | null } | null;
+  shipping_bill_no: string | null;
+  customers: { name: string | null; phone?: string | null } | null;
 }
 
 const MAIN_WH_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
