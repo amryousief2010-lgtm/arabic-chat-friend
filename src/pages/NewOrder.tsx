@@ -52,9 +52,13 @@ import {
   Search,
   Package,
   Gift,
-  Pencil
+  Pencil,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+
 import { normalizePhone } from '@/lib/normalizePhone';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AGOUZA_WAREHOUSE_ID, reserveAgouzaForOrder } from '@/lib/agouzaReservations';
