@@ -52,9 +52,13 @@ import {
   Search,
   Package,
   Gift,
-  Pencil
+  Pencil,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+
 import { normalizePhone } from '@/lib/normalizePhone';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AGOUZA_WAREHOUSE_ID, reserveAgouzaForOrder } from '@/lib/agouzaReservations';
@@ -279,6 +283,8 @@ const NewOrder = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   // Tracks how many times each offer box was added (for shipping = N × 110).
   const [offerInstanceCounts, setOfferInstanceCounts] = useState<Record<string, number>>({});
+  const [expandedOfferBoxes, setExpandedOfferBoxes] = useState<Record<string, boolean>>({});
+  const [showIndividualProducts, setShowIndividualProducts] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'online'>('cash');
   const [deliveryFee, setDeliveryFee] = useState(110);
@@ -1338,9 +1344,9 @@ const NewOrder = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="max-w-5xl mx-auto space-y-4 pb-40">
           {/* Products Section */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="space-y-4">
             {/* Customer Selection */}
             <Card>
               <CardHeader className="pb-3">
@@ -1589,12 +1595,8 @@ const NewOrder = () => {
                     {offerContentsError && <p>محتويات البوكسات: {offerContentsError}</p>}
                   </div>
                 )}
-                <Tabs defaultValue="products" className="w-full">
+                <Tabs defaultValue="offers" className="w-full">
                   <TabsList className="grid w-full grid-cols-2 mb-4">
-                    <TabsTrigger value="products" className="gap-2">
-                      <Package className="w-4 h-4" />
-                      المنتجات
-                    </TabsTrigger>
                     <TabsTrigger value="offers" className="gap-2">
                       <Gift className="w-4 h-4" />
                       العروض
@@ -1603,6 +1605,10 @@ const NewOrder = () => {
                           {offerBoxes.length}
                         </span>
                       )}
+                    </TabsTrigger>
+                    <TabsTrigger value="products" className="gap-2">
+                      <Package className="w-4 h-4" />
+                      منتج فردي
                     </TabsTrigger>
                   </TabsList>
 
@@ -1908,27 +1914,40 @@ const NewOrder = () => {
                         <p className="text-xs font-medium text-green-800 dark:text-green-300">العروض المختارة (الشحن 110 لكل عرض)</p>
                         {Object.entries(offerInstanceCounts).map(([boxId, count]) => {
                           const box = offerBoxes.find(b => b.id === boxId);
+                          const isExpanded = !!expandedOfferBoxes[boxId];
                           return (
-                            <div key={boxId} className="flex items-center justify-between gap-2 text-sm">
-                              <span className="truncate">{box?.name || 'عرض'}</span>
-                              <div className="flex items-center gap-1">
-                                <Button variant="outline" size="icon" className="h-7 w-7"
-                                  onClick={() => decrementOfferInstance(boxId)}>
-                                  <Minus className="w-3 h-3" />
-                                </Button>
-                                <span className="w-8 text-center font-medium">×{count}</span>
-                                <Button variant="outline" size="icon" className="h-7 w-7"
-                                  onClick={() => box && openOfferPreview(box as any)}>
-                                  <Plus className="w-3 h-3" />
-                                </Button>
+                            <div key={boxId} className="rounded-md bg-background/60 border border-green-200/60 p-2">
+                              <div className="flex items-center justify-between gap-2 text-sm">
+                                <span className="truncate font-medium">{box?.name || 'عرض'}</span>
+                                <div className="flex items-center gap-1">
+                                  <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs"
+                                    onClick={() => setExpandedOfferBoxes(s => ({ ...s, [boxId]: !s[boxId] }))}>
+                                    {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                    {isExpanded ? 'إخفاء' : 'عرض المحتويات'}
+                                  </Button>
+                                  <Button variant="outline" size="icon" className="h-7 w-7"
+                                    onClick={() => decrementOfferInstance(boxId)}>
+                                    <Minus className="w-3 h-3" />
+                                  </Button>
+                                  <span className="w-8 text-center font-medium">×{count}</span>
+                                  <Button variant="outline" size="icon" className="h-7 w-7"
+                                    onClick={() => box && openOfferPreview(box as any)}>
+                                    <Plus className="w-3 h-3" />
+                                  </Button>
+                                </div>
                               </div>
+                              {!isExpanded && offerContentsById[boxId]?.length ? (
+                                <p className="mt-1 text-[11px] text-muted-foreground truncate">
+                                  {offerContentsById[boxId].join(' + ')}
+                                </p>
+                              ) : null}
                             </div>
                           );
                         })}
                       </div>
                     )}
                     <div className="space-y-3 max-h-96 overflow-auto">
-                      {cart.map((item) => {
+                      {cart.filter((item) => !item.isOfferItem || !item.offerBoxId || expandedOfferBoxes[item.offerBoxId]).map((item) => {
                         const fullKgPrice = item.customPrice ?? item.product.price;
                         const halfPacketPrice = fullKgPrice * 0.5; // سعر العبوة (نص كيلو)
                         const kgEquivalent = item.isHalfKg
@@ -2268,6 +2287,52 @@ const NewOrder = () => {
           </div>
         </div>
       </div>
+
+      {/* Sticky bottom summary bar */}
+      {cart.length > 0 && (
+        <div className="fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className="max-w-5xl mx-auto p-3 flex items-center gap-3 flex-wrap justify-between">
+            <div className="flex items-center gap-4 flex-wrap text-sm">
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground">المنتجات</span>
+                <span className="font-medium">{subtotal.toLocaleString()} ج.م</span>
+              </div>
+              {hasOfferInCart && (
+                <div className="flex flex-col">
+                  <span className="text-xs text-muted-foreground">الشحن</span>
+                  <span className="font-medium">{deliveryFee.toLocaleString()}</span>
+                </div>
+              )}
+              {discount > 0 && (
+                <div className="flex flex-col">
+                  <span className="text-xs text-muted-foreground">خصم</span>
+                  <span className="font-medium text-green-600">- {discount.toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground">الإجمالي</span>
+                <span className="font-bold text-lg text-primary">{total.toLocaleString()} ج.م</span>
+              </div>
+            </div>
+            <Button
+              size="lg"
+              className="gap-2 min-w-[180px]"
+              onClick={handleSubmitOrder}
+              disabled={submitting || !selectedCustomer}
+            >
+              {submitting ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary-foreground"></div>
+              ) : (
+                <>
+                  <ShoppingCart className="w-4 h-4" />
+                  {!selectedCustomer ? 'اختر عميلاً أولاً' : 'تأكيد الطلب'}
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+
 
       {/* Offer Preview Dialog */}
       <Dialog open={!!offerPreview} onOpenChange={(o) => !o && setOfferPreview(null)}>
