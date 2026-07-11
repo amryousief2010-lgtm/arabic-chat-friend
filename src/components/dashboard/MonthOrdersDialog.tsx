@@ -167,7 +167,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    const suffix = tab === "all" ? "الكل" : WH_LABEL[tab];
+    const suffix = tab === "all" ? "الكل" : tab === "overdue" ? "متأخر التسليم" : WH_LABEL[tab];
     XLSX.utils.book_append_sheet(wb, ws, "طلبات");
     XLSX.writeFile(wb, `طلبات-${monthLabel}-${suffix}.xlsx`);
   };
