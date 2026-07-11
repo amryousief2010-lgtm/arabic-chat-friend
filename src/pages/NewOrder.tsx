@@ -1892,8 +1892,8 @@ const NewOrder = () => {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <ShoppingCart className="w-5 h-5" />
-                  سلة المشتريات
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">3</span>
+                  سلة الطلب
                   {cart.length > 0 && (
                     <Badge>{cart.length}</Badge>
                   )}
