@@ -572,7 +572,8 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           sheetNetAmount,
           missingBreakdown, undelivered, deposit,
           megaClosedCount: skippedByDay.get(day) || 0,
-          canDeposit: undelivered === 0 && missingBreakdown === 0 && items.length > 0 && !deposit,
+          // توريد يوم كامل يقفل أي أوردر غير مسلّم تلقائياً، لذلك لا نمنع التوريد بسبب undelivered.
+          canDeposit: missingBreakdown === 0 && items.length > 0 && !deposit,
         };
       });
   }, [currentAssignments, orders, collections, dailyDeposits, selectedCustody, isAgouza, bosttaUploadNets, zodexClosedOrderIds]);
@@ -1525,7 +1526,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                   {grp.deposit ? (
                                     <Badge className="bg-emerald-600 text-white text-[10px]">✓ تم التوريد {fmt(Number(grp.deposit.amount))} ج.م</Badge>
                                   ) : grp.undelivered > 0 ? (
-                                    <Badge className="bg-amber-500 text-white text-[10px]">يحتاج مراجعة ({grp.undelivered} غير مسلّم)</Badge>
+                                    <Badge className="bg-amber-500 text-white text-[10px]">سيُقفل عند التوريد ({grp.undelivered})</Badge>
                                   ) : grp.missingBreakdown > 0 ? (
                                     <Badge className="bg-orange-500 text-white text-[10px]">breakdown غير مضبوط ({grp.missingBreakdown})</Badge>
                                   ) : (
@@ -1576,7 +1577,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       if (!grp.canDeposit) {
-                                        toast({ title: "لا يمكن التوريد الآن", description: grp.undelivered > 0 ? "لا يمكن التوريد قبل مراجعة تحصيل كل الأوردرات." : grp.missingBreakdown > 0 ? "يوجد أوردر دفع مختلط بدون breakdown مضبوط" : "لا توجد أوردرات لليوم", variant: "destructive" });
+                                        toast({ title: "لا يمكن التوريد الآن", description: grp.missingBreakdown > 0 ? "يوجد أوردر دفع مختلط بدون breakdown مضبوط" : "لا توجد أوردرات لليوم", variant: "destructive" });
                                         return;
                                       }
                                       depositDayCash(grp.day, grp.cashDue, grp.items.map((a: any) => a.order_id));
