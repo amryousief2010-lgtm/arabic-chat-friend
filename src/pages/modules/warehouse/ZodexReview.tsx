@@ -159,6 +159,7 @@ export default function ZodexReview() {
   const [noBillOrders, setNoBillOrders] = useState<OrderRow[]>([]);
   const [search, setSearch] = useState("");
   const [fixingId, setFixingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [detailsById, setDetailsById] = useState<Record<string, ZodexBillDetails>>({});
   const [detailsErrById, setDetailsErrById] = useState<Record<string, string>>({});
   const [fetchingId, setFetchingId] = useState<string | null>(null);
@@ -168,6 +169,17 @@ export default function ZodexReview() {
     setLoading(true);
     try {
       const minAge = new Date(Date.now() - NO_BILL_MIN_AGE_HOURS * 3600 * 1000).toISOString();
+
+      // 0) Load prior rejection decisions to exclude those pairings from suggestions
+      const { data: rejDecisions } = await supabase
+        .from("zodex_match_decisions")
+        .select("bill_no, order_id, action")
+        .eq("action", "rejected");
+      const rejectedByBill = new Map<string, Set<string>>();
+      for (const r of (rejDecisions || []) as any[]) {
+        if (!rejectedByBill.has(r.bill_no)) rejectedByBill.set(r.bill_no, new Set());
+        rejectedByBill.get(r.bill_no)!.add(r.order_id);
+      }
 
       // 1) Zodex bills pending
       const billsRes = await supabase
