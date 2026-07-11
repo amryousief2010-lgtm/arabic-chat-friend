@@ -30,13 +30,20 @@ interface Row {
 const MAIN_WH_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
 const AGOUZA_WH_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
 
-type WhKey = "all" | "main" | "agouza" | "unknown";
+type WhKey = "all" | "main" | "agouza" | "unknown" | "overdue";
 
-const WH_LABEL: Record<Exclude<WhKey, "all">, string> = {
+const WH_LABEL: Record<Exclude<WhKey, "all" | "overdue">, string> = {
   main: "المخزن الرئيسي",
   agouza: "مخزن العجوزة",
   unknown: "غير محدد",
 };
+
+const OVERDUE_DAYS = 6;
+function isOverdue(r: { created_at: string; status: string }): boolean {
+  if (r.status === "delivered" || r.status === "cancelled") return false;
+  const ageDays = (Date.now() - new Date(r.created_at).getTime()) / 86400000;
+  return ageDays > OVERDUE_DAYS;
+}
 
 const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 const statusAR: Record<string, string> = {
