@@ -470,6 +470,91 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
         </div>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={!!waybillsDialog} onOpenChange={(v) => { if (!v) setWaybillsDialog(null); }}>
+      <DialogContent dir="rtl" className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between gap-3 flex-wrap">
+            <span>
+              بوالص الشحن — المتبقي للتسليم — {waybillsDialog === "main" ? "المخزن الرئيسي" : "مخزن العجوزة"}
+            </span>
+            {waybillsDialog && (() => {
+              const list = buckets[waybillsDialog].filter(r => r.status !== "delivered" && r.status !== "cancelled");
+              return (
+                <Button size="sm" disabled={list.length === 0} className="gap-2" onClick={() => {
+                  const data = list.map(r => ({
+                    "رقم الطلب": r.order_number,
+                    "بوليصة الشحن": r.shipping_bill_no || "— لم تُسجّل —",
+                    "العميل": r.customers?.name || "-",
+                    "الهاتف": r.customers?.phone || "-",
+                    "الإجمالي": Number(r.total),
+                    "الحالة": statusAR[r.status] || r.status,
+                    "تاريخ الإنشاء": new Date(r.created_at).toLocaleString("ar-EG"),
+                  }));
+                  const ws = XLSX.utils.json_to_sheet(data);
+                  const wb = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb, ws, "بوالص");
+                  const suffix = waybillsDialog === "main" ? "الرئيسي" : "العجوزة";
+                  XLSX.writeFile(wb, `بوالص-متبقي-${suffix}-${monthLabel}.xlsx`);
+                }}>
+                  <FileSpreadsheet className="w-4 h-4" /> تصدير Excel
+                </Button>
+              );
+            })()}
+          </DialogTitle>
+        </DialogHeader>
+        {waybillsDialog && (() => {
+          const list = buckets[waybillsDialog].filter(r => r.status !== "delivered" && r.status !== "cancelled");
+          const withBill = list.filter(r => r.shipping_bill_no).length;
+          const withoutBill = list.length - withBill;
+          return (
+            <>
+              <div className="flex gap-2 flex-wrap text-xs">
+                <Badge variant="outline">إجمالي: {list.length}</Badge>
+                <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-300">مسجّل بوليصة: {withBill}</Badge>
+                <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-300">بدون بوليصة: {withoutBill}</Badge>
+              </div>
+              <div className="border rounded-lg overflow-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-background z-10">
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>رقم الطلب</TableHead>
+                      <TableHead>بوليصة الشحن</TableHead>
+                      <TableHead>العميل</TableHead>
+                      <TableHead>الهاتف</TableHead>
+                      <TableHead>الإجمالي</TableHead>
+                      <TableHead>الحالة</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {list.length === 0 ? (
+                      <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">لا توجد طلبات متبقية</TableCell></TableRow>
+                    ) : list.map((r, i) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="text-xs">{i + 1}</TableCell>
+                        <TableCell className="font-mono text-xs">{r.order_number}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {r.shipping_bill_no ? (
+                            <span className="font-bold text-primary">{r.shipping_bill_no}</span>
+                          ) : (
+                            <span className="text-amber-700">— لم تُسجّل —</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{r.customers?.name || "-"}</TableCell>
+                        <TableCell className="font-mono text-xs">{r.customers?.phone || "-"}</TableCell>
+                        <TableCell className="font-semibold text-primary">{Number(r.total).toLocaleString()} ج.م</TableCell>
+                        <TableCell><Badge variant="outline" className="text-[10px]">{statusAR[r.status] || r.status}</Badge></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          );
+        })()}
+      </DialogContent>
+    </Dialog>
     </>
   );
 }
