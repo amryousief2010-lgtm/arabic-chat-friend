@@ -70,7 +70,7 @@ function computeStats(rs: Row[]) {
   return s;
 }
 
-function StatBlock({ title, stats, tone }: { title: string; stats: ReturnType<typeof computeStats>; tone: string }) {
+function StatBlock({ title, stats, tone, onRemainingClick }: { title: string; stats: ReturnType<typeof computeStats>; tone: string; onRemainingClick?: () => void }) {
   return (
     <div className={`rounded-lg border p-3 ${tone}`}>
       <div className="font-bold mb-2">{title} — {stats.count} طلب</div>
@@ -78,7 +78,21 @@ function StatBlock({ title, stats, tone }: { title: string; stats: ReturnType<ty
         <div>إجمالي المبيعات: <b className="text-primary">{stats.total.toLocaleString()} ج.م</b></div>
         <div>المُسلَّم: <b className="text-emerald-700">{stats.delivered} / {stats.deliveredSum.toLocaleString()} ج.م</b></div>
         <div>المرتجع / ملغي: <b className="text-rose-700">{stats.cancelled} / {stats.cancelledSum.toLocaleString()} ج.م</b></div>
-        <div>المتبقي للتسليم: <b className="text-amber-700">{stats.remaining} / {stats.remainingSum.toLocaleString()} ج.م</b></div>
+        <div>
+          المتبقي للتسليم:{" "}
+          {onRemainingClick && stats.remaining > 0 ? (
+            <button
+              type="button"
+              onClick={onRemainingClick}
+              className="font-bold text-amber-700 underline decoration-dotted hover:text-amber-900"
+              title="اعرض بوالص الشحن"
+            >
+              {stats.remaining} / {stats.remainingSum.toLocaleString()} ج.م
+            </button>
+          ) : (
+            <b className="text-amber-700">{stats.remaining} / {stats.remainingSum.toLocaleString()} ج.م</b>
+          )}
+        </div>
       </div>
     </div>
   );
