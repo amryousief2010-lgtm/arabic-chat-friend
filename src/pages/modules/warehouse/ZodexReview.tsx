@@ -455,6 +455,11 @@ export default function ZodexReview() {
             <AlertTriangle className="h-4 w-4" />
             مشاكل الربط
             <Badge variant="destructive" className="mr-1">{linkIssues.length}</Badge>
+            {suggestedCount > 0 && (
+              <Badge className="mr-1 bg-amber-500 hover:bg-amber-500">
+                {suggestedCount} اقتراح
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
