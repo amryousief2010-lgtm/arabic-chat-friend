@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
     stats.returns_no_order = 0;
     stats.returns_examples = [] as any[];
 
-    const AGOUZA_WAREHOUSE_ID = "ee183a54-b30f-4569-8b95-9f74f7bc7c6c";
+    const AGOUZA_WAREHOUSE_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
 
     const claimedThisRun = new Set<string>();
     const lookbackMin = new Date(Date.now() - LOOKBACK_DAYS_FOR_ORDER_MATCH * 86400_000).toISOString();
