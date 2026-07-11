@@ -47,7 +47,7 @@ export function ZodexSyncButton() {
       let linkedBills = 0;
       try {
         const { data: shipData } = await supabase.functions.invoke("sync-zodex-shipments", {
-          body: { max_pages: 5 },
+          body: { max_pages: 2 },
         });
         linkedBills = shipData?.stats?.linked || 0;
       } catch (e) {
