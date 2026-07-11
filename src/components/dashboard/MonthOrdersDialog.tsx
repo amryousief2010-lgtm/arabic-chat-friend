@@ -136,7 +136,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
       while (true) {
         const { data, error } = await supabase
           .from("orders")
-          .select("id, order_number, total, status, payment_method, payment_status, moderator, created_at, source_warehouse_id, customers(name)")
+          .select("id, order_number, total, status, payment_method, payment_status, moderator, created_at, source_warehouse_id, shipping_bill_no, customers(name, phone)")
           .gte("created_at", start)
           .lt("created_at", end)
           .order("created_at", { ascending: false })
