@@ -24,7 +24,8 @@ interface Row {
   moderator: string | null;
   created_at: string;
   source_warehouse_id: string | null;
-  customers: { name: string | null } | null;
+  shipping_bill_no: string | null;
+  customers: { name: string | null; phone?: string | null } | null;
 }
 
 const MAIN_WH_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
@@ -69,7 +70,7 @@ function computeStats(rs: Row[]) {
   return s;
 }
 
-function StatBlock({ title, stats, tone }: { title: string; stats: ReturnType<typeof computeStats>; tone: string }) {
+function StatBlock({ title, stats, tone, onRemainingClick }: { title: string; stats: ReturnType<typeof computeStats>; tone: string; onRemainingClick?: () => void }) {
   return (
     <div className={`rounded-lg border p-3 ${tone}`}>
       <div className="font-bold mb-2">{title} — {stats.count} طلب</div>
@@ -77,7 +78,21 @@ function StatBlock({ title, stats, tone }: { title: string; stats: ReturnType<ty
         <div>إجمالي المبيعات: <b className="text-primary">{stats.total.toLocaleString()} ج.م</b></div>
         <div>المُسلَّم: <b className="text-emerald-700">{stats.delivered} / {stats.deliveredSum.toLocaleString()} ج.م</b></div>
         <div>المرتجع / ملغي: <b className="text-rose-700">{stats.cancelled} / {stats.cancelledSum.toLocaleString()} ج.م</b></div>
-        <div>المتبقي للتسليم: <b className="text-amber-700">{stats.remaining} / {stats.remainingSum.toLocaleString()} ج.م</b></div>
+        <div>
+          المتبقي للتسليم:{" "}
+          {onRemainingClick && stats.remaining > 0 ? (
+            <button
+              type="button"
+              onClick={onRemainingClick}
+              className="font-bold text-amber-700 underline decoration-dotted hover:text-amber-900"
+              title="اعرض بوالص الشحن"
+            >
+              {stats.remaining} / {stats.remainingSum.toLocaleString()} ج.م
+            </button>
+          ) : (
+            <b className="text-amber-700">{stats.remaining} / {stats.remainingSum.toLocaleString()} ج.م</b>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -92,6 +107,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
   const [returnReason, setReturnReason] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [tab, setTab] = useState<WhKey>("all");
+  const [waybillsDialog, setWaybillsDialog] = useState<null | "main" | "agouza">(null);
 
   const { user, roles, isGeneralManager, isExecutiveManager, isSalesModerator } = useAuth();
   const rolesList = roles || [];
@@ -121,7 +137,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
       while (true) {
         const { data, error } = await supabase
           .from("orders")
-          .select("id, order_number, total, status, payment_method, payment_status, moderator, created_at, source_warehouse_id, customers(name)")
+          .select("id, order_number, total, status, payment_method, payment_status, moderator, created_at, source_warehouse_id, shipping_bill_no, customers(name, phone)")
           .gte("created_at", start)
           .lt("created_at", end)
           .order("created_at", { ascending: false })
@@ -257,8 +273,9 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          <StatBlock title="المخزن الرئيسي" stats={stats.main} tone="bg-blue-50/50 border-blue-200" />
-          <StatBlock title="مخزن العجوزة" stats={stats.agouza} tone="bg-purple-50/50 border-purple-200" />
+
+          <StatBlock title="المخزن الرئيسي" stats={stats.main} tone="bg-blue-50/50 border-blue-200" onRemainingClick={() => setWaybillsDialog("main")} />
+          <StatBlock title="مخزن العجوزة" stats={stats.agouza} tone="bg-purple-50/50 border-purple-200" onRemainingClick={() => setWaybillsDialog("agouza")} />
         </div>
 
         <button
@@ -451,6 +468,91 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
             {bulkBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : "تأكيد المرتجع"}
           </Button>
         </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={!!waybillsDialog} onOpenChange={(v) => { if (!v) setWaybillsDialog(null); }}>
+      <DialogContent dir="rtl" className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between gap-3 flex-wrap">
+            <span>
+              بوالص الشحن — المتبقي للتسليم — {waybillsDialog === "main" ? "المخزن الرئيسي" : "مخزن العجوزة"}
+            </span>
+            {waybillsDialog && (() => {
+              const list = buckets[waybillsDialog].filter(r => r.status !== "delivered" && r.status !== "cancelled");
+              return (
+                <Button size="sm" disabled={list.length === 0} className="gap-2" onClick={() => {
+                  const data = list.map(r => ({
+                    "رقم الطلب": r.order_number,
+                    "بوليصة الشحن": r.shipping_bill_no || "— لم تُسجّل —",
+                    "العميل": r.customers?.name || "-",
+                    "الهاتف": r.customers?.phone || "-",
+                    "الإجمالي": Number(r.total),
+                    "الحالة": statusAR[r.status] || r.status,
+                    "تاريخ الإنشاء": new Date(r.created_at).toLocaleString("ar-EG"),
+                  }));
+                  const ws = XLSX.utils.json_to_sheet(data);
+                  const wb = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb, ws, "بوالص");
+                  const suffix = waybillsDialog === "main" ? "الرئيسي" : "العجوزة";
+                  XLSX.writeFile(wb, `بوالص-متبقي-${suffix}-${monthLabel}.xlsx`);
+                }}>
+                  <FileSpreadsheet className="w-4 h-4" /> تصدير Excel
+                </Button>
+              );
+            })()}
+          </DialogTitle>
+        </DialogHeader>
+        {waybillsDialog && (() => {
+          const list = buckets[waybillsDialog].filter(r => r.status !== "delivered" && r.status !== "cancelled");
+          const withBill = list.filter(r => r.shipping_bill_no).length;
+          const withoutBill = list.length - withBill;
+          return (
+            <>
+              <div className="flex gap-2 flex-wrap text-xs">
+                <Badge variant="outline">إجمالي: {list.length}</Badge>
+                <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-300">مسجّل بوليصة: {withBill}</Badge>
+                <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-300">بدون بوليصة: {withoutBill}</Badge>
+              </div>
+              <div className="border rounded-lg overflow-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-background z-10">
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>رقم الطلب</TableHead>
+                      <TableHead>بوليصة الشحن</TableHead>
+                      <TableHead>العميل</TableHead>
+                      <TableHead>الهاتف</TableHead>
+                      <TableHead>الإجمالي</TableHead>
+                      <TableHead>الحالة</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {list.length === 0 ? (
+                      <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">لا توجد طلبات متبقية</TableCell></TableRow>
+                    ) : list.map((r, i) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="text-xs">{i + 1}</TableCell>
+                        <TableCell className="font-mono text-xs">{r.order_number}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {r.shipping_bill_no ? (
+                            <span className="font-bold text-primary">{r.shipping_bill_no}</span>
+                          ) : (
+                            <span className="text-amber-700">— لم تُسجّل —</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{r.customers?.name || "-"}</TableCell>
+                        <TableCell className="font-mono text-xs">{r.customers?.phone || "-"}</TableCell>
+                        <TableCell className="font-semibold text-primary">{Number(r.total).toLocaleString()} ج.م</TableCell>
+                        <TableCell><Badge variant="outline" className="text-[10px]">{statusAR[r.status] || r.status}</Badge></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          );
+        })()}
       </DialogContent>
     </Dialog>
     </>
