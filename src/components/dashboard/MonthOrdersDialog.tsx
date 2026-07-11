@@ -261,12 +261,36 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
           <StatBlock title="مخزن العجوزة" stats={stats.agouza} tone="bg-purple-50/50 border-purple-200" />
         </div>
 
+        <button
+          type="button"
+          onClick={() => { setTab("overdue"); setSelected(new Set()); }}
+          className={`w-full text-right rounded-lg border p-3 transition ${
+            hasOverdue
+              ? "bg-rose-50 border-rose-300 hover:bg-rose-100"
+              : "bg-emerald-50 border-emerald-200 hover:bg-emerald-100"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 font-bold">
+              <AlertTriangle className={`w-4 h-4 ${hasOverdue ? "text-rose-700" : "text-emerald-700"}`} />
+              <span className={hasOverdue ? "text-rose-800" : "text-emerald-800"}>
+                متأخر التسليم (أكثر من {OVERDUE_DAYS} أيام من تاريخ التسجيل)
+              </span>
+            </div>
+            <div className="text-xs flex items-center gap-3">
+              <span>عدد: <b className={hasOverdue ? "text-rose-700" : "text-emerald-700"}>{stats.overdue.count}</b></span>
+              <span>قيمة: <b className={hasOverdue ? "text-rose-700" : "text-emerald-700"}>{stats.overdue.total.toLocaleString()} ج.م</b></span>
+            </div>
+          </div>
+        </button>
+
         <Tabs value={tab} onValueChange={(v) => { setTab(v as WhKey); setSelected(new Set()); }}>
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="all">الكل ({stats.all.count})</TabsTrigger>
             <TabsTrigger value="main">المخزن الرئيسي ({stats.main.count})</TabsTrigger>
             <TabsTrigger value="agouza">مخزن العجوزة ({stats.agouza.count})</TabsTrigger>
             {hasUnknown && <TabsTrigger value="unknown">غير محدد ({stats.unknown.count})</TabsTrigger>}
+            {hasOverdue && <TabsTrigger value="overdue" className="text-rose-700">متأخر التسليم ({stats.overdue.count})</TabsTrigger>}
           </TabsList>
           <TabsContent value={tab} className="mt-2" forceMount>
         {canUpdateStatus && selectedIds.length > 0 && (
