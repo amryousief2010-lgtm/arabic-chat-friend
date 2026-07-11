@@ -264,8 +264,12 @@ Deno.serve(async (req) => {
     }
     stats.total_rows = allRows.length;
     stats.pages_fetched = pagesFetched;
+    stats.returns_marked = 0;
+    stats.returns_skipped_already = 0;
+    stats.returns_no_order = 0;
+    stats.returns_examples = [] as any[];
 
-
+    const AGOUZA_WAREHOUSE_ID = "ee183a54-b30f-4569-8b95-9f74f7bc7c6c";
 
     const claimedThisRun = new Set<string>();
     const lookbackMin = new Date(Date.now() - LOOKBACK_DAYS_FOR_ORDER_MATCH * 86400_000).toISOString();
@@ -276,15 +280,17 @@ Deno.serve(async (req) => {
     const allBillNos = [...new Set(allRows.map((r) => r.bill_no))];
     const allPhones = [...new Set(allRows.flatMap((r) => r.phones))];
 
-    // 1) Bills already linked → one query
-    const alreadyLinkedSet = new Set<string>();
+    // 1) Bills already linked → one query (keep order info for returns processing)
+    const linkedByBill = new Map<string, { id: string; status: string; source_warehouse_id: string | null; notes: string | null; order_number: string }>();
     for (let i = 0; i < allBillNos.length; i += 500) {
       const slice = allBillNos.slice(i, i + 500);
       const { data } = await supabase.from("orders")
-        .select("shipping_bill_no")
+        .select("id, order_number, status, source_warehouse_id, notes, shipping_bill_no")
         .in("shipping_bill_no", slice);
-      for (const r of (data || [])) alreadyLinkedSet.add(String(r.shipping_bill_no));
+      for (const r of (data || []) as any[]) linkedByBill.set(String(r.shipping_bill_no), r);
     }
+    const alreadyLinkedSet = new Set<string>(linkedByBill.keys());
+
 
     // 2) Candidate orders (unlinked, in window, matching any of our phones) → batched query, index in memory
     const candidatesByPhone = new Map<string, any[]>();
