@@ -30,13 +30,20 @@ interface Row {
 const MAIN_WH_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
 const AGOUZA_WH_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
 
-type WhKey = "all" | "main" | "agouza" | "unknown";
+type WhKey = "all" | "main" | "agouza" | "unknown" | "overdue";
 
-const WH_LABEL: Record<Exclude<WhKey, "all">, string> = {
+const WH_LABEL: Record<Exclude<WhKey, "all" | "overdue">, string> = {
   main: "المخزن الرئيسي",
   agouza: "مخزن العجوزة",
   unknown: "غير محدد",
 };
+
+const OVERDUE_DAYS = 6;
+function isOverdue(r: { created_at: string; status: string }): boolean {
+  if (r.status === "delivered" || r.status === "cancelled") return false;
+  const ageDays = (Date.now() - new Date(r.created_at).getTime()) / 86400000;
+  return ageDays > OVERDUE_DAYS;
+}
 
 const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 const statusAR: Record<string, string> = {
@@ -130,8 +137,11 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
   }, [open, year, monthIndex0]);
 
   const buckets = useMemo(() => {
-    const b = { main: [] as Row[], agouza: [] as Row[], unknown: [] as Row[] };
-    for (const r of rows) b[classifyWh(r.source_warehouse_id)].push(r);
+    const b = { main: [] as Row[], agouza: [] as Row[], unknown: [] as Row[], overdue: [] as Row[] };
+    for (const r of rows) {
+      b[classifyWh(r.source_warehouse_id)].push(r);
+      if (isOverdue(r)) b.overdue.push(r);
+    }
     return b;
   }, [rows]);
 
@@ -140,10 +150,12 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
     main: computeStats(buckets.main),
     agouza: computeStats(buckets.agouza),
     unknown: computeStats(buckets.unknown),
+    overdue: computeStats(buckets.overdue),
   }), [rows, buckets]);
 
   const visibleRows = tab === "all" ? rows : buckets[tab];
   const hasUnknown = buckets.unknown.length > 0;
+  const hasOverdue = buckets.overdue.length > 0;
 
   const exportExcel = () => {
     const src = visibleRows;
@@ -160,7 +172,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    const suffix = tab === "all" ? "الكل" : WH_LABEL[tab];
+    const suffix = tab === "all" ? "الكل" : tab === "overdue" ? "متأخر التسليم" : WH_LABEL[tab];
     XLSX.utils.book_append_sheet(wb, ws, "طلبات");
     XLSX.writeFile(wb, `طلبات-${monthLabel}-${suffix}.xlsx`);
   };
@@ -249,12 +261,36 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
           <StatBlock title="مخزن العجوزة" stats={stats.agouza} tone="bg-purple-50/50 border-purple-200" />
         </div>
 
+        <button
+          type="button"
+          onClick={() => { setTab("overdue"); setSelected(new Set()); }}
+          className={`w-full text-right rounded-lg border p-3 transition ${
+            hasOverdue
+              ? "bg-rose-50 border-rose-300 hover:bg-rose-100"
+              : "bg-emerald-50 border-emerald-200 hover:bg-emerald-100"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 font-bold">
+              <AlertTriangle className={`w-4 h-4 ${hasOverdue ? "text-rose-700" : "text-emerald-700"}`} />
+              <span className={hasOverdue ? "text-rose-800" : "text-emerald-800"}>
+                متأخر التسليم (أكثر من {OVERDUE_DAYS} أيام من تاريخ التسجيل)
+              </span>
+            </div>
+            <div className="text-xs flex items-center gap-3">
+              <span>عدد: <b className={hasOverdue ? "text-rose-700" : "text-emerald-700"}>{stats.overdue.count}</b></span>
+              <span>قيمة: <b className={hasOverdue ? "text-rose-700" : "text-emerald-700"}>{stats.overdue.total.toLocaleString()} ج.م</b></span>
+            </div>
+          </div>
+        </button>
+
         <Tabs value={tab} onValueChange={(v) => { setTab(v as WhKey); setSelected(new Set()); }}>
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="all">الكل ({stats.all.count})</TabsTrigger>
             <TabsTrigger value="main">المخزن الرئيسي ({stats.main.count})</TabsTrigger>
             <TabsTrigger value="agouza">مخزن العجوزة ({stats.agouza.count})</TabsTrigger>
             {hasUnknown && <TabsTrigger value="unknown">غير محدد ({stats.unknown.count})</TabsTrigger>}
+            {hasOverdue && <TabsTrigger value="overdue" className="text-rose-700">متأخر التسليم ({stats.overdue.count})</TabsTrigger>}
           </TabsList>
           <TabsContent value={tab} className="mt-2" forceMount>
         {canUpdateStatus && selectedIds.length > 0 && (
