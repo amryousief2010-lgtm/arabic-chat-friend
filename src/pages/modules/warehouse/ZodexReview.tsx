@@ -45,14 +45,26 @@ interface BillWithClassification {
   isOrphan: boolean;
 }
 
-async function findCandidatesForBill(bill: MissingBill): Promise<ScoredCandidate[]> {
+async function findCandidatesForBill(
+  bill: MissingBill,
+  rejectedOrderIds: Set<string> = new Set(),
+): Promise<ScoredCandidate[]> {
   const phone = (bill.customer_phone || "").replace(/\D+/g, "").slice(-9);
   const cod = Number(bill.cod_amount || 0);
 
   const orClauses: string[] = [];
   if (phone) {
+    // Match by last 9, 8, and 7 digits — handles 1-2 digit typos
     orClauses.push(`phone.ilike.%${phone}`);
     orClauses.push(`phone2.ilike.%${phone}`);
+    if (phone.length >= 8) {
+      orClauses.push(`phone.ilike.%${phone.slice(-8)}`);
+      orClauses.push(`phone2.ilike.%${phone.slice(-8)}`);
+    }
+    if (phone.length >= 7) {
+      orClauses.push(`phone.ilike.%${phone.slice(-7)}`);
+      orClauses.push(`phone2.ilike.%${phone.slice(-7)}`);
+    }
   }
   if (bill.customer_name) {
     const nm = bill.customer_name.trim().slice(0, 20).replace(/[%,]/g, " ");
@@ -65,7 +77,7 @@ async function findCandidatesForBill(bill: MissingBill): Promise<ScoredCandidate
       .from("customers")
       .select("id")
       .or(orClauses.join(","))
-      .limit(50);
+      .limit(80);
     customerIds = (custs || []).map((c: any) => c.id);
   }
 
@@ -78,13 +90,15 @@ async function findCandidatesForBill(bill: MissingBill): Promise<ScoredCandidate
   if (customerIds.length) {
     query = query.in("customer_id", customerIds);
   } else if (cod > 0) {
-    query = query.gte("total", cod - 5).lte("total", cod + 5);
+    // Wider amount window to catch shipping-fee variance (30-160 EGP added by Zodex)
+    query = query.gte("total", cod - 180).lte("total", cod + 20);
   } else {
     return [];
   }
 
   const { data: orders } = await query;
   return (orders || [])
+    .filter((o: any) => !rejectedOrderIds.has(o.id))
     .map((o: any) => scoreCandidate(bill, o as OrderCandidate))
     .filter((c) => c.score >= 20)
     .sort((a, b) => b.score - a.score);
