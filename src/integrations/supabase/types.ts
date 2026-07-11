@@ -18889,6 +18889,39 @@ export type Database = {
         }
         Relationships: []
       }
+      zodex_match_decisions: {
+        Row: {
+          action: string
+          bill_no: string
+          confidence_at_decision: number | null
+          decided_at: string
+          decided_by: string | null
+          id: string
+          order_id: string
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          bill_no: string
+          confidence_at_decision?: number | null
+          decided_at?: string
+          decided_by?: string | null
+          id?: string
+          order_id: string
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          bill_no?: string
+          confidence_at_decision?: number | null
+          decided_at?: string
+          decided_by?: string | null
+          id?: string
+          order_id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       zodex_missing_orders: {
         Row: {
           alaa_notified_at: string | null
