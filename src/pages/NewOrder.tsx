@@ -1366,151 +1366,160 @@ const NewOrder = () => {
                     {searchingCustomers && (
                       <p className="mt-2 text-xs text-muted-foreground">جاري البحث عن العملاء...</p>
                     )}
-                  <Dialog
-                    open={isNewCustomerOpen}
-                    onOpenChange={(open) => {
-                      setIsNewCustomerOpen(open);
-                      if (!open) resetCustomerForm();
+                  <Button
+                    variant={isNewCustomerOpen ? 'secondary' : 'outline'}
+                    className="gap-2"
+                    onClick={() => {
+                      if (isNewCustomerOpen) {
+                        setIsNewCustomerOpen(false);
+                        resetCustomerForm();
+                      } else {
+                        resetCustomerForm();
+                        setIsNewCustomerOpen(true);
+                      }
                     }}
                   >
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="gap-2" onClick={() => resetCustomerForm()}>
-                        <Plus className="w-4 h-4" />
-                        عميل جديد
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent dir="rtl" className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-                      <DialogHeader>
-                        <DialogTitle>{editingCustomerId ? 'تعديل بيانات العميل' : 'إضافة عميل جديد'}</DialogTitle>
-                        <DialogDescription>{editingCustomerId ? 'قم بتحديث أي من بيانات العميل' : 'أدخل بيانات العميل الجديد'}</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="space-y-2 md:col-span-2">
-                          <Label>الاسم *</Label>
-                          <Input
-                            placeholder="اسم العميل"
-                            value={newCustomerName}
-                            onChange={(e) => setNewCustomerName(e.target.value)}
-                          />
-                          </div>
-                          <div className="space-y-2">
-                          <Label>رقم الهاتف *</Label>
-                          <Input
-                            placeholder="01xxxxxxxxx"
-                            value={newCustomerPhone}
-                            onChange={(e) => setNewCustomerPhone(e.target.value)}
-                          />
-                          </div>
-                          <div className="space-y-2">
-                          <Label>رقم هاتف آخر (اختياري)</Label>
-                          <Input
-                            placeholder="01xxxxxxxxx"
-                            value={newCustomerPhone2}
-                            onChange={(e) => setNewCustomerPhone2(e.target.value)}
-                          />
-                          </div>
-                          {existingCustomerMatch && (
-                            <div className="md:col-span-2 rounded-lg border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2 animate-in fade-in slide-in-from-top-2">
-                              <div className="flex items-start justify-between gap-2 flex-wrap">
-                                <div className="space-y-1">
-                                  <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
-                                    ⚠️ هذا الرقم مسجّل مسبقًا لعميل آخر
-                                  </p>
-                                  <p className="text-sm font-semibold">{existingCustomerMatch.name}</p>
-                                  <p className="text-xs text-muted-foreground" dir="ltr">
-                                    {existingCustomerMatch.phone}
-                                    {(existingCustomerMatch as any).phone2 ? ` / ${(existingCustomerMatch as any).phone2}` : ''}
-                                  </p>
-                                  {(existingCustomerMatch as any).address && (
-                                    <p className="text-xs text-muted-foreground">
-                                      📍 {(existingCustomerMatch as any).address}
-                                      {(existingCustomerMatch as any).city ? ` - ${(existingCustomerMatch as any).city}` : ''}
-                                      {(existingCustomerMatch as any).governorate ? ` - ${(existingCustomerMatch as any).governorate}` : ''}
-                                    </p>
-                                  )}
-                                  {(existingCustomerMatch as any).source && (
-                                    <p className="text-xs text-muted-foreground">
-                                      المصدر: {(existingCustomerMatch as any).source}
-                                    </p>
-                                  )}
-                                </div>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="default"
-                                  onClick={useExistingCustomer}
-                                >
-                                  استخدام هذا العميل
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="space-y-2 md:col-span-2">
-                          <Label>العنوان</Label>
-                          <Input
-                            placeholder="عنوان التوصيل"
-                            value={newCustomerAddress}
-                            onChange={(e) => setNewCustomerAddress(e.target.value)}
-                          />
-                          </div>
-                          <div className="space-y-2">
-                          <Label>المدينة</Label>
-                          <Input
-                            placeholder="المدينة"
-                            value={newCustomerCity}
-                            onChange={(e) => setNewCustomerCity(e.target.value)}
-                          />
-                          </div>
-                          <div className="space-y-2">
-                          <Label>المحافظة</Label>
-                          <Input
-                            placeholder="المحافظة"
-                            value={newCustomerGovernorate}
-                            onChange={(e) => setNewCustomerGovernorate(e.target.value)}
-                          />
-                          </div>
-                          <div className="space-y-2">
-                          <Label>مصدر العميل</Label>
-                          <Select value={newCustomerSource} onValueChange={setNewCustomerSource}>
-                            <SelectTrigger><SelectValue placeholder="اختر المصدر" /></SelectTrigger>
-                            <SelectContent>
-                              {['فيسبوك','حملات فيسبوك','انستجرام','تيك توك','واتساب','حملات واتساب','تلجرام','ويب سايت','إعلان','تسويق','مكالمة','شركة الشحن','استلام من المقر','أخرى'].map(s => (
-                                <SelectItem key={s} value={s}>{s}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {newCustomerSource === 'أخرى' && (
-                            <Input placeholder="أدخل المصدر" value={newCustomerSourceCustom} onChange={(e) => setNewCustomerSourceCustom(e.target.value)} />
-                          )}
-                          </div>
-                           <div className="space-y-2 md:col-span-2">
-                             <Label>مصدر تنفيذ الطلب <span className="text-destructive">*</span></Label>
-                             <Select value={fulfillmentKey} onValueChange={(v) => setFulfillmentKey(v as any)}>
-                               <SelectTrigger><SelectValue placeholder="اختر من أين يستلم العميل" /></SelectTrigger>
-                               <SelectContent>
-                                 <SelectItem value="pickup_agouza">استلام من مخزن العجوزة</SelectItem>
-                                 <SelectItem value="delivery_agouza">توصيل من منفذ العجوزة</SelectItem>
-                                 <SelectItem value="pickup_main">استلام من المخزن الرئيسى</SelectItem>
-                                 <SelectItem value="delivery_main">توصيل من المخزن الرئيسى</SelectItem>
-                               </SelectContent>
-                             </Select>
-                             <p className="text-xs text-muted-foreground">
-                               سيتم خصم المخزون من المخزن المختار. لو الكمية غير كافية يدخل تلقائياً فى أمر إنتاج/ذبح.
-                             </p>
-                           </div>
-                         </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => { setIsNewCustomerOpen(false); resetCustomerForm(); }}>
-                          إلغاء
-                        </Button>
-                        <Button onClick={handleAddCustomer}>{editingCustomerId ? 'حفظ التعديلات' : 'إضافة'}</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                    <Plus className="w-4 h-4" />
+                    {isNewCustomerOpen ? 'إخفاء النموذج' : 'عميل جديد'}
+                  </Button>
                 </div>
+
+                {isNewCustomerOpen && (
+                  <div className="mt-4 rounded-lg border bg-muted/30 p-4 space-y-4 animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold">
+                        {editingCustomerId ? 'تعديل بيانات العميل' : 'إضافة عميل جديد'}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {editingCustomerId ? 'قم بتحديث أي من بيانات العميل' : 'أدخل بيانات العميل ثم اضغط إضافة'}
+                      </p>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>الاسم *</Label>
+                        <Input
+                          placeholder="اسم العميل"
+                          value={newCustomerName}
+                          onChange={(e) => setNewCustomerName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>رقم الهاتف *</Label>
+                        <Input
+                          placeholder="01xxxxxxxxx"
+                          value={newCustomerPhone}
+                          onChange={(e) => setNewCustomerPhone(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>رقم هاتف آخر (اختياري)</Label>
+                        <Input
+                          placeholder="01xxxxxxxxx"
+                          value={newCustomerPhone2}
+                          onChange={(e) => setNewCustomerPhone2(e.target.value)}
+                        />
+                      </div>
+                      {existingCustomerMatch && (
+                        <div className="md:col-span-2 rounded-lg border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2 animate-in fade-in slide-in-from-top-2">
+                          <div className="flex items-start justify-between gap-2 flex-wrap">
+                            <div className="space-y-1">
+                              <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                                ⚠️ هذا الرقم مسجّل مسبقًا لعميل آخر
+                              </p>
+                              <p className="text-sm font-semibold">{existingCustomerMatch.name}</p>
+                              <p className="text-xs text-muted-foreground" dir="ltr">
+                                {existingCustomerMatch.phone}
+                                {(existingCustomerMatch as any).phone2 ? ` / ${(existingCustomerMatch as any).phone2}` : ''}
+                              </p>
+                              {(existingCustomerMatch as any).address && (
+                                <p className="text-xs text-muted-foreground">
+                                  📍 {(existingCustomerMatch as any).address}
+                                  {(existingCustomerMatch as any).city ? ` - ${(existingCustomerMatch as any).city}` : ''}
+                                  {(existingCustomerMatch as any).governorate ? ` - ${(existingCustomerMatch as any).governorate}` : ''}
+                                </p>
+                              )}
+                              {(existingCustomerMatch as any).source && (
+                                <p className="text-xs text-muted-foreground">
+                                  المصدر: {(existingCustomerMatch as any).source}
+                                </p>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="default"
+                              onClick={useExistingCustomer}
+                            >
+                              استخدام هذا العميل
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>العنوان</Label>
+                        <Input
+                          placeholder="عنوان التوصيل"
+                          value={newCustomerAddress}
+                          onChange={(e) => setNewCustomerAddress(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>المدينة</Label>
+                        <Input
+                          placeholder="المدينة"
+                          value={newCustomerCity}
+                          onChange={(e) => setNewCustomerCity(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>المحافظة</Label>
+                        <Input
+                          placeholder="المحافظة"
+                          value={newCustomerGovernorate}
+                          onChange={(e) => setNewCustomerGovernorate(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>مصدر العميل</Label>
+                        <Select value={newCustomerSource} onValueChange={setNewCustomerSource}>
+                          <SelectTrigger><SelectValue placeholder="اختر المصدر" /></SelectTrigger>
+                          <SelectContent>
+                            {['فيسبوك','حملات فيسبوك','انستجرام','تيك توك','واتساب','حملات واتساب','تلجرام','ويب سايت','إعلان','تسويق','مكالمة','شركة الشحن','استلام من المقر','أخرى'].map(s => (
+                              <SelectItem key={s} value={s}>{s}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {newCustomerSource === 'أخرى' && (
+                          <Input placeholder="أدخل المصدر" value={newCustomerSourceCustom} onChange={(e) => setNewCustomerSourceCustom(e.target.value)} />
+                        )}
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>مصدر تنفيذ الطلب <span className="text-destructive">*</span></Label>
+                        <Select value={fulfillmentKey} onValueChange={(v) => setFulfillmentKey(v as any)}>
+                          <SelectTrigger><SelectValue placeholder="اختر من أين يستلم العميل" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pickup_agouza">استلام من مخزن العجوزة</SelectItem>
+                            <SelectItem value="delivery_agouza">توصيل من منفذ العجوزة</SelectItem>
+                            <SelectItem value="pickup_main">استلام من المخزن الرئيسى</SelectItem>
+                            <SelectItem value="delivery_main">توصيل من المخزن الرئيسى</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          سيتم خصم المخزون من المخزن المختار. لو الكمية غير كافية يدخل تلقائياً فى أمر إنتاج/ذبح.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2 border-t">
+                      <Button variant="outline" size="sm" onClick={() => { setIsNewCustomerOpen(false); resetCustomerForm(); }}>
+                        إلغاء
+                      </Button>
+                      <Button size="sm" onClick={handleAddCustomer}>
+                        {editingCustomerId ? 'حفظ التعديلات' : 'إضافة العميل'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {customerSearch && filteredCustomers.length > 0 && !selectedCustomer && (
                   <div className="mt-2 border rounded-lg max-h-48 overflow-auto">
