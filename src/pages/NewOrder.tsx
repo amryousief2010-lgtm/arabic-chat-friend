@@ -2288,6 +2288,52 @@ const NewOrder = () => {
         </div>
       </div>
 
+      {/* Sticky bottom summary bar */}
+      {cart.length > 0 && (
+        <div className="fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className="max-w-5xl mx-auto p-3 flex items-center gap-3 flex-wrap justify-between">
+            <div className="flex items-center gap-4 flex-wrap text-sm">
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground">المنتجات</span>
+                <span className="font-medium">{subtotal.toLocaleString()} ج.م</span>
+              </div>
+              {hasOfferInCart && (
+                <div className="flex flex-col">
+                  <span className="text-xs text-muted-foreground">الشحن</span>
+                  <span className="font-medium">{deliveryFee.toLocaleString()}</span>
+                </div>
+              )}
+              {discount > 0 && (
+                <div className="flex flex-col">
+                  <span className="text-xs text-muted-foreground">خصم</span>
+                  <span className="font-medium text-green-600">- {discount.toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground">الإجمالي</span>
+                <span className="font-bold text-lg text-primary">{total.toLocaleString()} ج.م</span>
+              </div>
+            </div>
+            <Button
+              size="lg"
+              className="gap-2 min-w-[180px]"
+              onClick={handleSubmitOrder}
+              disabled={submitting || !selectedCustomer}
+            >
+              {submitting ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary-foreground"></div>
+              ) : (
+                <>
+                  <ShoppingCart className="w-4 h-4" />
+                  {!selectedCustomer ? 'اختر عميلاً أولاً' : 'تأكيد الطلب'}
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+
+
       {/* Offer Preview Dialog */}
       <Dialog open={!!offerPreview} onOpenChange={(o) => !o && setOfferPreview(null)}>
         <DialogContent dir="rtl" className="max-w-2xl">
