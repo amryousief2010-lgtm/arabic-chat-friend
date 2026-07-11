@@ -107,6 +107,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
   const [returnReason, setReturnReason] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [tab, setTab] = useState<WhKey>("all");
+  const [waybillsDialog, setWaybillsDialog] = useState<null | "main" | "agouza">(null);
 
   const { user, roles, isGeneralManager, isExecutiveManager, isSalesModerator } = useAuth();
   const rolesList = roles || [];
