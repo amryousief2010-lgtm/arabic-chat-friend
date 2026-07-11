@@ -2016,7 +2016,7 @@ const Orders = () => {
                             )}
                           </div>
                         )}
-                        {canManageOrders && (
+                        {canEditCustomerFor(order) && (
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setEditCustomerOrder(order); }}
