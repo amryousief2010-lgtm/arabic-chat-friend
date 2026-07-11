@@ -41,7 +41,8 @@ const WH_LABEL: Record<Exclude<WhKey, "all" | "overdue">, string> = {
 
 const OVERDUE_DAYS = 6;
 function isOverdue(r: { created_at: string; status: string }): boolean {
-  if (r.status === "delivered" || r.status === "cancelled") return false;
+  // Only pending/processing orders can be overdue — anything delivered/cancelled/returned is excluded
+  if (r.status !== "pending" && r.status !== "processing") return false;
   const ageDays = (Date.now() - new Date(r.created_at).getTime()) / 86400000;
   return ageDays > OVERDUE_DAYS;
 }
