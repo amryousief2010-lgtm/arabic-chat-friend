@@ -802,6 +802,8 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
       // Rule: توريد يوم كامل = اعتبر كل أوردرات اليوم "تم التوصيل" تلقائياً
       if (orderIds.length > 0) {
         const nowIso = new Date().toISOString();
+        // NOTE: لا نستخدم .neq("status","delivered") هنا — الأوردرات اللي اتحدثت "تم التوصيل" يدوياً
+        // قبل التوريد لسه محتاجة تتحدث لـ paid + collected. تحديث status='delivered' مرة تانية آمن.
         const { error: uErr } = await (supabase as any)
           .from("orders")
           .update({
@@ -811,10 +813,10 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
             collection_status: "collected",
             collected_at: nowIso,
           })
-          .in("id", orderIds)
-          .neq("status", "delivered");
+          .in("id", orderIds);
         if (uErr) console.warn("Auto-mark delivered failed:", uErr.message);
       }
+
       toast({ title: "تم التوريد بنجاح", description: `المبلغ: ${fmt(data?.amount || 0)} ج.م — ${data?.reference || ""} · تم تحديث ${orderIds.length} أوردر لحالة تم التوصيل` });
       await load();
     } catch (e: any) {
