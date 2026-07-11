@@ -2083,7 +2083,13 @@ const NewOrder = () => {
                       />
                     </div>
 
-                    {/* Payment Method */}
+                    {/* Payment & Shipping */}
+                    <div className="pt-2 border-t">
+                      <h3 className="text-lg font-semibold flex items-center gap-2 mb-3">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">4</span>
+                        الدفع والشحن
+                      </h3>
+                    </div>
                     <div className="space-y-2">
                       <Label>طريقة الدفع</Label>
                       <div className="grid grid-cols-2 gap-2">
