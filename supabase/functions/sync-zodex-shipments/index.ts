@@ -11,9 +11,9 @@ import { DOMParser, Element } from "https://deno.land/x/deno_dom@v0.1.45/deno-do
 
 
 const ZODEX_BASE = "https://zodex-eg.com/admin-area";
-const ITEMS_PER_PAGE = 100;
-const DEFAULT_MAX_PAGES = 5;
-const LOOKBACK_DAYS_FOR_ORDER_MATCH = 30;
+const ITEMS_PER_PAGE = 50;
+const DEFAULT_MAX_PAGES = 2;
+const LOOKBACK_DAYS_FOR_ORDER_MATCH = 14;
 const AMOUNT_TOLERANCE = 5; // EGP
 // Main warehouse system took over on 2026-07-01 (Cairo). Only match orders
 // created on/after this date; earlier orders were handled by the old system.
