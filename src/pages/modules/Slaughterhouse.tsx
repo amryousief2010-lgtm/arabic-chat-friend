@@ -1649,6 +1649,11 @@ const Slaughterhouse = () => {
         </TabsContent>
 
 
+        {/* ========== LIVE OSTRICH SALES ========== */}
+        <TabsContent value="live-sales">
+          <LiveOstrichSalesTab />
+        </TabsContent>
+
         {/* ========== RECEIPTS ========== */}
         <TabsContent value="receipts">
           <Card>
