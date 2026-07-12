@@ -412,13 +412,20 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
                           <td className="text-center p-2 tabular-nums">
                             {r ? (
                               <div className="flex items-center justify-center gap-1">
-                                <span>{fmt(cost)}</span>
+                                {cost > 0 ? (
+                                  <span>{fmt(cost)}</span>
+                                ) : (
+                                  <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1 py-0.5">
+                                    تكلفة الدفعة غير مسجلة
+                                  </span>
+                                )}
                                 <Button type="button" size="icon" variant="ghost" className="h-6 w-6" title="تفاصيل التكلفة" onClick={() => setDetailsFor(r)}>
                                   <Info className="w-3 h-3 text-blue-600" />
                                 </Button>
                               </div>
                             ) : "—"}
                           </td>
+
                           <td className="p-2">
                             <Input
                               type="number" inputMode="numeric" min={0} max={avail || undefined}
