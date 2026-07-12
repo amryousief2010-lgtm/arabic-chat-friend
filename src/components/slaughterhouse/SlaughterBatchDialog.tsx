@@ -360,7 +360,7 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
                     {form.sources.map((row, idx) => {
                       const r = receiptMap.get(row.live_receipt_id);
                       const avail = Number(r?.current_alive_count ?? r?.bird_count ?? 0);
-                      const cost = Number(r?.cost_per_bird_current || 0);
+                      const cost = getCostPerBird(r);
                       const lineTotal = (Number(row.birds_count) || 0) * cost;
                       const rowErr = sourceErrors[idx];
                       const chosenIds = new Set(form.sources.filter((_, i) => i !== idx).map((s) => s.live_receipt_id).filter(Boolean));
