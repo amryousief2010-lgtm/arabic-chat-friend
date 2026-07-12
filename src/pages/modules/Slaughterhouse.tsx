@@ -1416,6 +1416,7 @@ const Slaughterhouse = () => {
           <TabsList className="inline-flex w-max min-w-full gap-1 h-auto flex-wrap md:flex-nowrap bg-gradient-to-l from-muted/60 to-muted/30 rounded-2xl p-1.5 [&>button]:rounded-xl [&>button[data-state=active]]:bg-background [&>button[data-state=active]]:shadow-sm [&>button[data-state=active]]:text-primary">
             <TabsTrigger value="daily" className="text-xs md:text-sm whitespace-nowrap">التقرير اليومي</TabsTrigger>
             <TabsTrigger value="batches" className="text-xs md:text-sm whitespace-nowrap">دفعات الذبح</TabsTrigger>
+            <TabsTrigger value="live-sales" className="text-xs md:text-sm whitespace-nowrap gap-1"><Bird className="w-3 h-3" />بيع نعام قائم</TabsTrigger>
             <TabsTrigger value="receipts" className="text-xs md:text-sm whitespace-nowrap">استلام حي</TabsTrigger>
             <TabsTrigger value="transfers" className="text-xs md:text-sm whitespace-nowrap">توزيع الفروع</TabsTrigger>
             <TabsTrigger value="warehouse-log" className="text-xs md:text-sm whitespace-nowrap gap-1"><Truck className="w-3 h-3" />سجل المخازن</TabsTrigger>
