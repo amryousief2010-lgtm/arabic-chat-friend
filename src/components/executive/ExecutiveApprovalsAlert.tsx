@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Bell, CheckCircle2, XCircle, ShieldAlert, Wallet, Beef, Drumstick, FlaskConical, Scissors, Eye, UsersRound, ShoppingCart, Factory } from "lucide-react";
 import { useExecutiveApprovals, type ApprovalItem, type ApprovalCategory } from "@/hooks/useExecutiveApprovals";
 import ApprovalDetailsDialog from "./ApprovalDetailsDialog";
+import { supabase } from "@/integrations/supabase/client";
 
 const SESSION_KEY = "executive_approvals_dismissed_at";
 const LAST_SEEN_KEY = "executive_approvals_last_seen_total";
@@ -56,6 +57,8 @@ export default function ExecutiveApprovalsAlert() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectFor, setRejectFor] = useState<ApprovalItem | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [approveFor, setApproveFor] = useState<ApprovalItem | null>(null);
+  const [approveNote, setApproveNote] = useState("");
   const [detailsFor, setDetailsFor] = useState<ApprovalItem | null>(null);
   const lastTotalRef = useRef<number>(-1);
 
@@ -92,11 +95,27 @@ export default function ExecutiveApprovalsAlert() {
     setOpen(false);
   };
 
-  const doApprove = async (item: ApprovalItem) => {
+  const doApprove = async (item: ApprovalItem, note?: string) => {
     setBusyId(item.id);
     try {
       await approve(item);
-      toast.success("تم اعتماد الطلب");
+      const msg = (note || "").trim();
+      if (msg && item.created_by) {
+        try {
+          await (supabase as any).from("notifications").insert({
+            title: `تم اعتماد: ${item.title}`,
+            description: msg,
+            type: "approval",
+            target_user_id: item.created_by,
+            order_id: null,
+          });
+        } catch (e) {
+          console.warn("notify creator failed", e);
+        }
+      }
+      toast.success(msg ? "تم الاعتماد وإرسال الرسالة" : "تم اعتماد الطلب");
+      setApproveFor(null);
+      setApproveNote("");
     } catch (e: any) {
       toast.error(e?.message || "فشل الاعتماد");
     } finally {
@@ -202,7 +221,7 @@ export default function ExecutiveApprovalsAlert() {
                           >
                             <Eye className="h-4 w-4 ml-1" /> تفاصيل
                           </Button>
-                          <Button size="sm" disabled={busyId === item.id} onClick={() => doApprove(item)}>
+                          <Button size="sm" disabled={busyId === item.id} onClick={() => { setApproveFor(item); setApproveNote(""); }}>
                             <CheckCircle2 className="h-4 w-4 ml-1" /> اعتماد
                           </Button>
                           <Button
@@ -248,6 +267,42 @@ export default function ExecutiveApprovalsAlert() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Approve with optional note dialog */}
+      <Dialog open={!!approveFor} onOpenChange={(v) => { if (!v) { setApproveFor(null); setApproveNote(""); } }}>
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-700">
+              <CheckCircle2 className="h-5 w-5" />
+              تأكيد الاعتماد
+            </DialogTitle>
+          </DialogHeader>
+          {approveFor && (
+            <div className="text-sm text-muted-foreground -mt-1">
+              <div className="font-semibold text-foreground">{approveFor.title}</div>
+              {approveFor.creator_name && <div>المسجِّل: {approveFor.creator_name}</div>}
+            </div>
+          )}
+          <Textarea
+            value={approveNote}
+            onChange={(e) => setApproveNote(e.target.value)}
+            placeholder="رسالة للمسجل (اختياري) — سيتم إرسالها كإشعار"
+            rows={4}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setApproveFor(null); setApproveNote(""); }}>إلغاء</Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => approveFor && doApprove(approveFor, approveNote)}
+              disabled={busyId === approveFor?.id}
+            >
+              <CheckCircle2 className="h-4 w-4 ml-1" />
+              تأكيد الاعتماد
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <ApprovalDetailsDialog item={detailsFor} onClose={() => setDetailsFor(null)} />
     </>
