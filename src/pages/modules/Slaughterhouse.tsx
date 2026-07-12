@@ -1363,6 +1363,21 @@ const Slaughterhouse = () => {
             <div className="text-xs text-muted-foreground mb-2">
               يمكنك اعتبارها كمنقولة إلى المخزن الرئيسي أو مصنع اللحوم بدون إدخال الكميات فعلياً في المخزون.
             </div>
+            {ostrichUntransferred.length > 0 && (
+              <div className="mb-3 p-3 rounded border-2 border-red-500 bg-red-50 dark:bg-red-950/30">
+                <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-bold text-sm mb-1">
+                  <AlertTriangle className="w-4 h-4" />
+                  تنبيه هام: منتجات نعامة لم يتم نقلها من المجزر للمخازن ({ostrichUntransferred.length} دفعة)
+                </div>
+                <ul className="text-xs text-red-800 dark:text-red-300 space-y-0.5 pr-5 list-disc">
+                  {ostrichUntransferred.map(x => (
+                    <li key={x.batch.id}>
+                      <b>{x.batch.batch_number}</b> · {x.batch.slaughter_date} · نعامة: {x.ostrichKg.toFixed(1)} كجم
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {canManageBatch && (
               <div className="flex gap-2 flex-wrap mb-3 pb-3 border-b">
                 <Button size="sm" onClick={() => markAllTransferred("main")} className="bg-primary text-white">
