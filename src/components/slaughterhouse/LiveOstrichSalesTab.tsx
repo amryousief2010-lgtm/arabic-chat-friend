@@ -44,6 +44,12 @@ type Bird = {
   feed_cost: number;
 };
 
+type BatchWeight = {
+  live_receipt_id: string;
+  birds_slaughtered: number;
+  total_live_weight_kg: number;
+};
+
 type Sale = {
   id: string;
   sale_number: string;
@@ -77,19 +83,26 @@ export default function LiveOstrichSalesTab() {
   const [availability, setAvailability] = useState<Availability[]>([]);
   const [soldBirdIds, setSoldBirdIds] = useState<Set<string>>(new Set());
   const [birds, setBirds] = useState<Bird[]>([]);
+  const [batchWeights, setBatchWeights] = useState<BatchWeight[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const fetchAll = async () => {
-    const [av, sl, br] = await Promise.all([
+    const [av, sl, br, bw] = await Promise.all([
       supabase.from("v_available_live_ostrich" as any).select("*").order("receipt_date", { ascending: false }),
       supabase.from("slaughter_live_sales" as any).select("*").order("sale_date", { ascending: false }).limit(500),
       supabase.from("slaughter_live_birds").select("id, receipt_id, bird_index, live_weight_kg, slaughter_weight_kg, purchase_cost, feed_cost"),
+      supabase
+        .from("slaughter_batches" as any)
+        .select("live_receipt_id, birds_slaughtered, total_live_weight_kg")
+        .eq("approval_status", "approved")
+        .neq("status", "cancelled"),
     ]);
     setAvailability((av.data as any) || []);
     setSales((sl.data as any) || []);
     setBirds((br.data as any) || []);
+    setBatchWeights((bw.data as any) || []);
     const soldIds = new Set<string>(
       (((sl.data as any) || []) as Sale[])
         .map((s: any) => s.live_bird_id)
@@ -135,12 +148,44 @@ export default function LiveOstrichSalesTab() {
     [birdId, availableBirds]
   );
 
+  const selectedBatchAvgWeight = useMemo(() => {
+    if (!selectedReceipt) return { value: 0, source: "" };
+
+    const savedAvg = Number(selectedReceipt.avg_weight_kg || 0);
+    if (savedAvg > 0) return { value: savedAvg, source: "متوسط مسجل على الدفعة" };
+
+    const totalWeight = Number(selectedReceipt.total_weight_kg || 0);
+    const originalCount = Number(selectedReceipt.original_count || 0);
+    if (totalWeight > 0 && originalCount > 0) {
+      return { value: totalWeight / originalCount, source: "متوسط وزن الشراء" };
+    }
+
+    const previousSlaughter = batchWeights.filter(
+      (b) => b.live_receipt_id === selectedReceipt.receipt_id && Number(b.birds_slaughtered || 0) > 0 && Number(b.total_live_weight_kg || 0) > 0
+    );
+    const slaughteredCount = previousSlaughter.reduce((sum, b) => sum + Number(b.birds_slaughtered || 0), 0);
+    const slaughteredWeight = previousSlaughter.reduce((sum, b) => sum + Number(b.total_live_weight_kg || 0), 0);
+
+    if (slaughteredCount > 0 && slaughteredWeight > 0) {
+      return { value: slaughteredWeight / slaughteredCount, source: "تقديري من دفعات الذبح السابقة لنفس الدفعة" };
+    }
+
+    return { value: 0, source: "" };
+  }, [selectedReceipt, batchWeights]);
+
   // Pre-fill weight when bird selected
   useEffect(() => {
     if (selectedBird && !saleWeight) {
       setSaleWeight(Number(selectedBird.live_weight_kg || 0));
     }
   }, [selectedBird]); // eslint-disable-line
+
+  // Pre-fill an estimated per-bird weight when selling by count from a selected batch
+  useEffect(() => {
+    if (!selectedBird && selectedBatchAvgWeight.value > 0 && !saleWeight) {
+      setSaleWeight(Number(selectedBatchAvgWeight.value.toFixed(1)));
+    }
+  }, [selectedBird, selectedBatchAvgWeight.value, saleWeight]);
 
   // Cost calculation
   const costInfo = useMemo(() => {
@@ -303,6 +348,34 @@ export default function LiveOstrichSalesTab() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+                  )}
+
+                  {selectedReceipt && (
+                    <div className="sm:col-span-2 rounded-lg border bg-muted/40 p-3 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div>
+                          <div className="text-muted-foreground">المتاح من الدفعة</div>
+                          <div className="font-bold">{fmt(Number(selectedReceipt.current_alive_count || 0))} نعامة</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">متوسط وزن النعامة</div>
+                          <div className="font-bold">
+                            {selectedBatchAvgWeight.value > 0 ? `${fmt(selectedBatchAvgWeight.value)} كجم` : "غير مسجل"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">وزن تقديري للبيع</div>
+                          <div className="font-bold">
+                            {selectedBatchAvgWeight.value > 0
+                              ? `${fmt(selectedBatchAvgWeight.value * (selectedBird ? 1 : Math.max(1, Number(birdCount || 1))))} كجم`
+                              : "أدخل الوزن يدويًا"}
+                          </div>
+                        </div>
+                      </div>
+                      {selectedBatchAvgWeight.source && (
+                        <div className="mt-2 text-xs text-muted-foreground">{selectedBatchAvgWeight.source}</div>
+                      )}
                     </div>
                   )}
 
