@@ -250,6 +250,54 @@ const Slaughterhouse = () => {
   const isExecManager = role === "general_manager" || role === "executive_manager";
   const pendingApprovalBatches = batches.filter(b => (b as any).transfer_status === "pending_approval");
 
+  // Completed batches whose outputs haven't been marked as transferred yet
+  const untransferredBatches = useMemo(() => {
+    return batches
+      .filter(b => b.status === "completed")
+      .map(b => {
+        const rows = outputs.filter(o =>
+          o.batch_id === b.id &&
+          (o.received_status || "pending") !== "received" &&
+          (o.quality_status || "accepted") === "accepted" &&
+          Number(o.actual_weight_kg) > 0
+        );
+        const totalKg = rows.reduce((s, r) => s + Number(r.actual_weight_kg || 0), 0);
+        return { batch: b, rows, totalKg };
+      })
+      .filter(x => x.rows.length > 0);
+  }, [batches, outputs]);
+
+  const markBatchTransferred = async (batchId: string, destination: "main" | "meat_factory") => {
+    const rows = outputs.filter(o =>
+      o.batch_id === batchId &&
+      (o.received_status || "pending") !== "received" &&
+      (o.quality_status || "accepted") === "accepted" &&
+      Number(o.actual_weight_kg) > 0
+    );
+    if (!rows.length) { toast.error("لا توجد أصناف للتحديث"); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase
+      .from("slaughter_batch_outputs" as any)
+      .update({
+        received_status: "received",
+        received_at: new Date().toISOString(),
+        received_by: user?.id || null,
+        destination: destination === "meat_factory" ? "meat_factory" : "warehouse",
+      })
+      .in("id", rows.map(r => r.id));
+    if (error) { toast.error(error.message); return; }
+    toast.success(`تم اعتبار ${rows.length} صنف كمنقول إلى ${destination === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي"} (بدون تحريك مخزون)`);
+    fetchAll();
+  };
+
+  const markAllTransferred = async (destination: "main" | "meat_factory") => {
+    if (!untransferredBatches.length) return;
+    if (!confirm(`سيتم اعتبار كل تقسيمات الدفعات المكتملة (${untransferredBatches.length}) كمنقولة إلى ${destination === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي"} بدون تحريك المخزون. متابعة؟`)) return;
+    for (const x of untransferredBatches) {
+      await markBatchTransferred(x.batch.id, destination);
+    }
+  };
+
   // ===== نعام نافق (شهري) =====
   const mm = String(deadMonth).padStart(2, "0");
   const monthPrefix = `${deadYear}-${mm}`; // YYYY-MM
@@ -1287,6 +1335,51 @@ const Slaughterhouse = () => {
                   </Button>
                   <Button size="sm" variant="destructive" onClick={() => rejectLowYield(b)}>رفض</Button>
                 </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Untransferred slaughter outputs alert — persists until user marks them */}
+      {untransferredBatches.length > 0 && (
+        <Card className="mb-4 border-orange-500/60 bg-orange-50/70 dark:bg-orange-950/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-400">
+              <AlertTriangle className="w-5 h-5" />
+              تنبيه: يوجد دفعات مذبوحة لم تُنقل منتجاتها ({untransferredBatches.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="text-xs text-muted-foreground mb-2">
+              يمكنك اعتبارها كمنقولة إلى المخزن الرئيسي أو مصنع اللحوم بدون إدخال الكميات فعلياً في المخزون.
+            </div>
+            {canManageBatch && (
+              <div className="flex gap-2 flex-wrap mb-3 pb-3 border-b">
+                <Button size="sm" onClick={() => markAllTransferred("main")} className="bg-primary text-white">
+                  <Truck className="w-4 h-4 ml-1" />اعتبار الكل منقول للمخزن الرئيسي
+                </Button>
+                <Button size="sm" onClick={() => markAllTransferred("meat_factory")} className="bg-orange-600 hover:bg-orange-700 text-white">
+                  <Truck className="w-4 h-4 ml-1" />اعتبار الكل منقول لمصنع اللحوم
+                </Button>
+              </div>
+            )}
+            {untransferredBatches.map(({ batch: b, rows, totalKg }) => (
+              <div key={b.id} className="flex flex-wrap items-center justify-between gap-2 p-3 bg-background rounded border">
+                <div className="text-sm">
+                  <b>{b.batch_number}</b> · {b.slaughter_date} · طيور: {b.birds_slaughtered} ·
+                  <span className="text-orange-700 font-bold mx-1">{rows.length} صنف بإجمالي {totalKg.toFixed(1)} كجم</span>
+                </div>
+                {canManageBatch && (
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => markBatchTransferred(b.id, "main")} className="text-primary">
+                      <Truck className="w-4 h-4 ml-1" />للمخزن الرئيسي
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => markBatchTransferred(b.id, "meat_factory")} className="text-orange-600">
+                      <Truck className="w-4 h-4 ml-1" />لمصنع اللحوم
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </CardContent>
