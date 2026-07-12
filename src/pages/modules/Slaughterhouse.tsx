@@ -197,30 +197,44 @@ const Slaughterhouse = () => {
     let missingCount = 0;
     let remainingTotal = 0;
     for (const r of receipts as any[]) {
-      if (r.archived || r.excluded_from_costing) continue;
+      // نشمل الدفعات المؤرشفة/المستبعدة من التكلفة طالما ليها رصيد حي فعلي،
+      // لأن رصيد "النعام القائم" في الداشبورد يعتمد على نفس الحساب.
+      if (r.status === "cancelled") continue;
       const alive = Number(r.current_alive_count || 0);
       if (alive <= 0) continue;
-      const cpb = Number(r.cost_per_bird_current || 0);
+      // تكلفة النعامة: نجرب snapshot أولاً، وإلا نرجع للتكلفة الأصلية للدفعة (رصيد افتتاحي أو شراء)
+      let cpb = Number(r.cost_per_bird_current || 0);
+      const origCount = Number(r.bird_count || 0);
+      if (cpb <= 0) {
+        const baseCost = Number(r.opening_cost_total || 0) + Number(r.total_cost || 0);
+        if (origCount > 0 && baseCost > 0) cpb = baseCost / origCount;
+      }
       const hasCost = cpb > 0;
       const value = hasCost ? alive * cpb : 0;
       if (!hasCost) missingCount += alive;
       total += value;
       remainingTotal += alive;
+      const notes: string[] = [];
+      if (r.source_type === "opening_balance") notes.push("رصيد افتتاحي");
+      if (r.archived) notes.push("مؤرشفة");
+      if (r.excluded_from_costing) notes.push("مستبعدة من التكلفة");
+      if (!hasCost) notes.push("لا توجد تكلفة شراء مسجلة");
       rows.push({
         id: r.id,
         receipt_number: r.receipt_number || "—",
         receipt_date: r.receipt_date || "",
-        original_count: Number(r.bird_count || 0),
+        original_count: origCount,
         remaining_count: alive,
         cost_per_bird: cpb,
         remaining_value: value,
         has_cost: hasCost,
-        note: !hasCost ? "لا توجد تكلفة شراء مسجلة" : undefined,
+        note: notes.length ? notes.join(" • ") : undefined,
       });
     }
     rows.sort((a, b) => (b.receipt_date || "").localeCompare(a.receipt_date || ""));
     return { rows, total, missingCount, remainingTotal, hasMissing: missingCount > 0 };
   })();
+
   const liveValueInfo = {
     total: liveValueBreakdown.total,
     missingCount: liveValueBreakdown.missingCount,

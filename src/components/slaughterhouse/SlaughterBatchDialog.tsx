@@ -150,13 +150,24 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
     }
   }, [dashboardLiveBalance, totalAvailableInDropdown, diagDiff]);
 
+  // تكلفة النعامة الفعلية: snapshot أولاً، وإلا نرجع للتكلفة الأصلية (رصيد افتتاحي أو إجمالي شراء) ÷ العدد الأصلي
+  const getCostPerBird = (r: any): number => {
+    if (!r) return 0;
+    const snap = Number(r.cost_per_bird_current || 0);
+    if (snap > 0) return snap;
+    const orig = Number(r.bird_count || 0);
+    const baseCost = Number(r.opening_cost_total || 0) + Number(r.total_cost || 0);
+    return orig > 0 && baseCost > 0 ? baseCost / orig : 0;
+  };
+
   // Sources aggregates
   const sourcesTotalBirds = form.sources.reduce((s, x) => s + (Number(x.birds_count) || 0), 0);
   const sourcesTotalCost = form.sources.reduce((s, x) => {
     const r = receiptMap.get(x.live_receipt_id);
-    const cost = Number(r?.cost_per_bird_current || 0);
+    const cost = getCostPerBird(r);
     return s + (Number(x.birds_count) || 0) * cost;
   }, 0);
+
 
   const sourceErrors = useMemo(() => {
     const errs: string[] = [];
@@ -349,7 +360,7 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
                     {form.sources.map((row, idx) => {
                       const r = receiptMap.get(row.live_receipt_id);
                       const avail = Number(r?.current_alive_count ?? r?.bird_count ?? 0);
-                      const cost = Number(r?.cost_per_bird_current || 0);
+                      const cost = getCostPerBird(r);
                       const lineTotal = (Number(row.birds_count) || 0) * cost;
                       const rowErr = sourceErrors[idx];
                       const chosenIds = new Set(form.sources.filter((_, i) => i !== idx).map((s) => s.live_receipt_id).filter(Boolean));
@@ -367,7 +378,7 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
                                   <div className="text-xs text-muted-foreground p-3 text-center">لا توجد دفعات متاحة</div>
                                 ) : opts.map((opt) => {
                                   const a = Number(opt.current_alive_count ?? opt.bird_count) || 0;
-                                  const c = Number(opt.cost_per_bird_current || 0);
+                                  const c = getCostPerBird(opt);
                                   const availTotal = a * c;
                                   const rev = needsCostReview(opt);
                                   return (
@@ -401,13 +412,20 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
                           <td className="text-center p-2 tabular-nums">
                             {r ? (
                               <div className="flex items-center justify-center gap-1">
-                                <span>{fmt(cost)}</span>
+                                {cost > 0 ? (
+                                  <span>{fmt(cost)}</span>
+                                ) : (
+                                  <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1 py-0.5">
+                                    تكلفة الدفعة غير مسجلة
+                                  </span>
+                                )}
                                 <Button type="button" size="icon" variant="ghost" className="h-6 w-6" title="تفاصيل التكلفة" onClick={() => setDetailsFor(r)}>
                                   <Info className="w-3 h-3 text-blue-600" />
                                 </Button>
                               </div>
                             ) : "—"}
                           </td>
+
                           <td className="p-2">
                             <Input
                               type="number" inputMode="numeric" min={0} max={avail || undefined}
