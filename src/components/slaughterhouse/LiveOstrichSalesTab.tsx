@@ -212,15 +212,24 @@ export default function LiveOstrichSalesTab() {
       const totalW = Number(selectedReceipt.total_weight_kg || 0);
       const soldW = Number(selectedReceipt.sold_live_weight_kg || 0);
       const remainingW = totalW - soldW;
-      const costPerBird = Number(selectedReceipt.cost_per_bird_current || 0);
+
+      // Prefer original purchase unit cost (opening_cost_total / bird_count) to avoid
+      // over-inflated cost_per_bird_current after batch reallocations.
+      const openingTotal = Number(selectedReceipt.opening_cost_total || 0);
+      const origBirds = Number(selectedReceipt.bird_count || 0);
+      const originalUnitCost =
+        openingTotal > 0 && origBirds > 0
+          ? openingTotal / origBirds
+          : Number(selectedReceipt.cost_per_bird_current || 0);
 
       if (totalW > 0 && remainingW > 0) {
-        // Real batch with weights → cost per kg × sale weight
-        const perKg = Number(selectedReceipt.total_batch_cost || 0) / remainingW;
+        // Real batch with weights → cost per kg × sale weight (based on original total)
+        const totalBatch = openingTotal > 0 ? openingTotal : Number(selectedReceipt.total_batch_cost || 0);
+        const perKg = totalBatch / totalW;
         purchaseCost = w * perKg * count;
       } else {
-        // Opening balance / no weights recorded → use cost per bird directly
-        purchaseCost = costPerBird * count;
+        // Opening balance / no weights recorded → use original per-bird cost
+        purchaseCost = originalUnitCost * count;
       }
       expenseShare = 0;
     }
