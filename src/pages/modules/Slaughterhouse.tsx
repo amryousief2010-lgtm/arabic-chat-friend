@@ -250,6 +250,54 @@ const Slaughterhouse = () => {
   const isExecManager = role === "general_manager" || role === "executive_manager";
   const pendingApprovalBatches = batches.filter(b => (b as any).transfer_status === "pending_approval");
 
+  // Completed batches whose outputs haven't been marked as transferred yet
+  const untransferredBatches = useMemo(() => {
+    return batches
+      .filter(b => b.status === "completed")
+      .map(b => {
+        const rows = outputs.filter(o =>
+          o.batch_id === b.id &&
+          (o.received_status || "pending") !== "received" &&
+          (o.quality_status || "accepted") === "accepted" &&
+          Number(o.actual_weight_kg) > 0
+        );
+        const totalKg = rows.reduce((s, r) => s + Number(r.actual_weight_kg || 0), 0);
+        return { batch: b, rows, totalKg };
+      })
+      .filter(x => x.rows.length > 0);
+  }, [batches, outputs]);
+
+  const markBatchTransferred = async (batchId: string, destination: "main" | "meat_factory") => {
+    const rows = outputs.filter(o =>
+      o.batch_id === batchId &&
+      (o.received_status || "pending") !== "received" &&
+      (o.quality_status || "accepted") === "accepted" &&
+      Number(o.actual_weight_kg) > 0
+    );
+    if (!rows.length) { toast.error("لا توجد أصناف للتحديث"); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase
+      .from("slaughter_batch_outputs" as any)
+      .update({
+        received_status: "received",
+        received_at: new Date().toISOString(),
+        received_by: user?.id || null,
+        destination: destination === "meat_factory" ? "meat_factory" : "warehouse",
+      })
+      .in("id", rows.map(r => r.id));
+    if (error) { toast.error(error.message); return; }
+    toast.success(`تم اعتبار ${rows.length} صنف كمنقول إلى ${destination === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي"} (بدون تحريك مخزون)`);
+    fetchAll();
+  };
+
+  const markAllTransferred = async (destination: "main" | "meat_factory") => {
+    if (!untransferredBatches.length) return;
+    if (!confirm(`سيتم اعتبار كل تقسيمات الدفعات المكتملة (${untransferredBatches.length}) كمنقولة إلى ${destination === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي"} بدون تحريك المخزون. متابعة؟`)) return;
+    for (const x of untransferredBatches) {
+      await markBatchTransferred(x.batch.id, destination);
+    }
+  };
+
   // ===== نعام نافق (شهري) =====
   const mm = String(deadMonth).padStart(2, "0");
   const monthPrefix = `${deadYear}-${mm}`; // YYYY-MM
