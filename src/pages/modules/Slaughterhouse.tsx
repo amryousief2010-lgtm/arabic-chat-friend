@@ -262,10 +262,19 @@ const Slaughterhouse = () => {
           Number(o.actual_weight_kg) > 0
         );
         const totalKg = rows.reduce((s, r) => s + Number(r.actual_weight_kg || 0), 0);
-        return { batch: b, rows, totalKg };
+        const hasOstrich = rows.some(r => (r.cut_name_ar || "").includes("نعام"));
+        const ostrichKg = rows
+          .filter(r => (r.cut_name_ar || "").includes("نعام"))
+          .reduce((s, r) => s + Number(r.actual_weight_kg || 0), 0);
+        return { batch: b, rows, totalKg, hasOstrich, ostrichKg };
       })
       .filter(x => x.rows.length > 0);
   }, [batches, outputs]);
+
+  const ostrichUntransferred = useMemo(
+    () => untransferredBatches.filter(x => x.hasOstrich),
+    [untransferredBatches]
+  );
 
   const markBatchTransferred = async (batchId: string, destination: "main" | "meat_factory") => {
     const rows = outputs.filter(o =>
