@@ -215,8 +215,12 @@ export default function LiveOstrichSalesTab() {
 
       // Prefer original purchase unit cost (opening_cost_total / bird_count) to avoid
       // over-inflated cost_per_bird_current after batch reallocations.
-      const openingTotal = Number(selectedReceipt.opening_cost_total || 0);
-      const origBirds = Number(selectedReceipt.bird_count || 0);
+      const openingTotal = Number((selectedReceipt as any).opening_cost_total || 0);
+      const origBirds = Number(
+        (selectedReceipt as any).original_count ||
+          (selectedReceipt as any).bird_count ||
+          0
+      );
       const originalUnitCost =
         openingTotal > 0 && origBirds > 0
           ? openingTotal / origBirds
