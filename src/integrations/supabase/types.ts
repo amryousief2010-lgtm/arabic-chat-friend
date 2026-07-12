@@ -15352,6 +15352,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "slaughter_batch_cost_breakdown_live_batch_id_fkey"
+            columns: ["live_batch_id"]
+            isOneToOne: false
+            referencedRelation: "v_available_live_ostrich"
+            referencedColumns: ["receipt_id"]
+          },
+          {
             foreignKeyName: "slaughter_batch_cost_breakdown_slaughter_batch_id_fkey"
             columns: ["slaughter_batch_id"]
             isOneToOne: true
@@ -15407,6 +15414,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "slaughter_live_receipts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_batch_live_sources_live_receipt_id_fkey"
+            columns: ["live_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "v_available_live_ostrich"
+            referencedColumns: ["receipt_id"]
           },
           {
             foreignKeyName: "slaughter_batch_live_sources_slaughter_batch_id_fkey"
@@ -15780,6 +15794,13 @@ export type Database = {
             referencedRelation: "slaughter_live_receipts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "slaughter_batches_live_receipt_id_fkey"
+            columns: ["live_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "v_available_live_ostrich"
+            referencedColumns: ["receipt_id"]
+          },
         ]
       }
       slaughter_branch_transfers: {
@@ -15895,6 +15916,13 @@ export type Database = {
             referencedRelation: "slaughter_live_receipts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "slaughter_cost_allocation_lines_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "v_available_live_ostrich"
+            referencedColumns: ["receipt_id"]
+          },
         ]
       }
       slaughter_cost_allocations: {
@@ -15956,6 +15984,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "slaughter_live_receipts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_cost_allocations_excluded_receipt_id_fkey"
+            columns: ["excluded_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "v_available_live_ostrich"
+            referencedColumns: ["receipt_id"]
           },
         ]
       }
@@ -16359,6 +16394,13 @@ export type Database = {
             referencedRelation: "slaughter_live_receipts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "slaughter_live_birds_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "v_available_live_ostrich"
+            referencedColumns: ["receipt_id"]
+          },
         ]
       }
       slaughter_live_mortality: {
@@ -16420,6 +16462,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "slaughter_live_receipts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_live_mortality_live_batch_id_fkey"
+            columns: ["live_batch_id"]
+            isOneToOne: false
+            referencedRelation: "v_available_live_ostrich"
+            referencedColumns: ["receipt_id"]
           },
         ]
       }
@@ -16531,6 +16580,103 @@ export type Database = {
         }
         Relationships: []
       }
+      slaughter_live_sales: {
+        Row: {
+          amount_paid: number
+          bird_count: number
+          breakeven_per_kg: number
+          cost_source: string
+          created_at: string
+          created_by: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          id: string
+          live_bird_id: string | null
+          live_receipt_id: string
+          net_profit: number | null
+          notes: string | null
+          payment_method: string
+          price_per_kg: number
+          sale_date: string
+          sale_number: string
+          sale_weight_kg: number
+          total_cost_at_sale: number
+          total_sale: number | null
+          unit_cost_at_sale: number
+          updated_at: string
+        }
+        Insert: {
+          amount_paid?: number
+          bird_count?: number
+          breakeven_per_kg?: number
+          cost_source?: string
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          live_bird_id?: string | null
+          live_receipt_id: string
+          net_profit?: number | null
+          notes?: string | null
+          payment_method?: string
+          price_per_kg: number
+          sale_date?: string
+          sale_number: string
+          sale_weight_kg: number
+          total_cost_at_sale?: number
+          total_sale?: number | null
+          unit_cost_at_sale?: number
+          updated_at?: string
+        }
+        Update: {
+          amount_paid?: number
+          bird_count?: number
+          breakeven_per_kg?: number
+          cost_source?: string
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          live_bird_id?: string | null
+          live_receipt_id?: string
+          net_profit?: number | null
+          notes?: string | null
+          payment_method?: string
+          price_per_kg?: number
+          sale_date?: string
+          sale_number?: string
+          sale_weight_kg?: number
+          total_cost_at_sale?: number
+          total_sale?: number | null
+          unit_cost_at_sale?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slaughter_live_sales_live_bird_id_fkey"
+            columns: ["live_bird_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_live_birds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_live_sales_live_receipt_id_fkey"
+            columns: ["live_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "slaughter_live_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_live_sales_live_receipt_id_fkey"
+            columns: ["live_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "v_available_live_ostrich"
+            referencedColumns: ["receipt_id"]
+          },
+        ]
+      }
       slaughter_live_stock_adjustments: {
         Row: {
           adjustment_date: string
@@ -16639,6 +16785,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "slaughter_live_receipts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_ostrich_feed_consumption_live_batch_id_fkey"
+            columns: ["live_batch_id"]
+            isOneToOne: false
+            referencedRelation: "v_available_live_ostrich"
+            referencedColumns: ["receipt_id"]
           },
         ]
       }
@@ -16789,6 +16942,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "slaughter_live_receipts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slaughter_quality_checks_related_receipt_id_fkey"
+            columns: ["related_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "v_available_live_ostrich"
+            referencedColumns: ["receipt_id"]
           },
         ]
       }
@@ -19168,6 +19328,60 @@ export type Database = {
           product_name: string | null
           shortage: number | null
           suggested_transfer: number | null
+        }
+        Relationships: []
+      }
+      v_available_live_ostrich: {
+        Row: {
+          avg_weight_kg: number | null
+          cost_per_bird_current: number | null
+          current_alive_count: number | null
+          feed_cost_loaded: number | null
+          original_count: number | null
+          other_costs_loaded: number | null
+          price_per_kg: number | null
+          receipt_date: string | null
+          receipt_id: string | null
+          receipt_number: string | null
+          sold_live_count: number | null
+          sold_live_weight_kg: number | null
+          source_name: string | null
+          total_batch_cost: number | null
+          total_weight_kg: number | null
+        }
+        Insert: {
+          avg_weight_kg?: number | null
+          cost_per_bird_current?: number | null
+          current_alive_count?: number | null
+          feed_cost_loaded?: number | null
+          original_count?: number | null
+          other_costs_loaded?: number | null
+          price_per_kg?: number | null
+          receipt_date?: string | null
+          receipt_id?: string | null
+          receipt_number?: string | null
+          sold_live_count?: never
+          sold_live_weight_kg?: never
+          source_name?: string | null
+          total_batch_cost?: number | null
+          total_weight_kg?: number | null
+        }
+        Update: {
+          avg_weight_kg?: number | null
+          cost_per_bird_current?: number | null
+          current_alive_count?: number | null
+          feed_cost_loaded?: number | null
+          original_count?: number | null
+          other_costs_loaded?: number | null
+          price_per_kg?: number | null
+          receipt_date?: string | null
+          receipt_id?: string | null
+          receipt_number?: string | null
+          sold_live_count?: never
+          sold_live_weight_kg?: never
+          source_name?: string | null
+          total_batch_cost?: number | null
+          total_weight_kg?: number | null
         }
         Relationships: []
       }
