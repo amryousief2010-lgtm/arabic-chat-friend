@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Bell, CheckCircle2, XCircle, ShieldAlert, Wallet, Beef, Drumstick, FlaskConical, Scissors, Eye, UsersRound, ShoppingCart, Factory } from "lucide-react";
 import { useExecutiveApprovals, type ApprovalItem, type ApprovalCategory } from "@/hooks/useExecutiveApprovals";
 import ApprovalDetailsDialog from "./ApprovalDetailsDialog";
+import { supabase } from "@/integrations/supabase/client";
 
 const SESSION_KEY = "executive_approvals_dismissed_at";
 const LAST_SEEN_KEY = "executive_approvals_last_seen_total";
