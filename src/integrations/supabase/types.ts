@@ -19337,6 +19337,7 @@ export type Database = {
           cost_per_bird_current: number | null
           current_alive_count: number | null
           feed_cost_loaded: number | null
+          opening_cost_total: number | null
           original_count: number | null
           other_costs_loaded: number | null
           price_per_kg: number | null
@@ -19354,6 +19355,7 @@ export type Database = {
           cost_per_bird_current?: number | null
           current_alive_count?: number | null
           feed_cost_loaded?: number | null
+          opening_cost_total?: number | null
           original_count?: number | null
           other_costs_loaded?: number | null
           price_per_kg?: number | null
@@ -19371,6 +19373,7 @@ export type Database = {
           cost_per_bird_current?: number | null
           current_alive_count?: number | null
           feed_cost_loaded?: number | null
+          opening_cost_total?: number | null
           original_count?: number | null
           other_costs_loaded?: number | null
           price_per_kg?: number | null
