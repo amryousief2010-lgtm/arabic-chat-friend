@@ -221,7 +221,7 @@ export default function ExecutiveApprovalsAlert() {
                           >
                             <Eye className="h-4 w-4 ml-1" /> تفاصيل
                           </Button>
-                          <Button size="sm" disabled={busyId === item.id} onClick={() => doApprove(item)}>
+                          <Button size="sm" disabled={busyId === item.id} onClick={() => { setApproveFor(item); setApproveNote(""); }}>
                             <CheckCircle2 className="h-4 w-4 ml-1" /> اعتماد
                           </Button>
                           <Button
