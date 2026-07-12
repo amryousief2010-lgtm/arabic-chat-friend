@@ -150,13 +150,24 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
     }
   }, [dashboardLiveBalance, totalAvailableInDropdown, diagDiff]);
 
+  // تكلفة النعامة الفعلية: snapshot أولاً، وإلا نرجع للتكلفة الأصلية (رصيد افتتاحي أو إجمالي شراء) ÷ العدد الأصلي
+  const getCostPerBird = (r: any): number => {
+    if (!r) return 0;
+    const snap = Number(r.cost_per_bird_current || 0);
+    if (snap > 0) return snap;
+    const orig = Number(r.bird_count || 0);
+    const baseCost = Number(r.opening_cost_total || 0) + Number(r.total_cost || 0);
+    return orig > 0 && baseCost > 0 ? baseCost / orig : 0;
+  };
+
   // Sources aggregates
   const sourcesTotalBirds = form.sources.reduce((s, x) => s + (Number(x.birds_count) || 0), 0);
   const sourcesTotalCost = form.sources.reduce((s, x) => {
     const r = receiptMap.get(x.live_receipt_id);
-    const cost = Number(r?.cost_per_bird_current || 0);
+    const cost = getCostPerBird(r);
     return s + (Number(x.birds_count) || 0) * cost;
   }, 0);
+
 
   const sourceErrors = useMemo(() => {
     const errs: string[] = [];
