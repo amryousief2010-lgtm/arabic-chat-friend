@@ -378,7 +378,7 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
                                   <div className="text-xs text-muted-foreground p-3 text-center">لا توجد دفعات متاحة</div>
                                 ) : opts.map((opt) => {
                                   const a = Number(opt.current_alive_count ?? opt.bird_count) || 0;
-                                  const c = Number(opt.cost_per_bird_current || 0);
+                                  const c = getCostPerBird(opt);
                                   const availTotal = a * c;
                                   const rev = needsCostReview(opt);
                                   return (
