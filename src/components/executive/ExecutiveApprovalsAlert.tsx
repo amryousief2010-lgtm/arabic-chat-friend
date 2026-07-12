@@ -95,11 +95,27 @@ export default function ExecutiveApprovalsAlert() {
     setOpen(false);
   };
 
-  const doApprove = async (item: ApprovalItem) => {
+  const doApprove = async (item: ApprovalItem, note?: string) => {
     setBusyId(item.id);
     try {
       await approve(item);
-      toast.success("تم اعتماد الطلب");
+      const msg = (note || "").trim();
+      if (msg && item.created_by) {
+        try {
+          await (supabase as any).from("notifications").insert({
+            title: `تم اعتماد: ${item.title}`,
+            description: msg,
+            type: "approval",
+            target_user_id: item.created_by,
+            order_id: null,
+          });
+        } catch (e) {
+          console.warn("notify creator failed", e);
+        }
+      }
+      toast.success(msg ? "تم الاعتماد وإرسال الرسالة" : "تم اعتماد الطلب");
+      setApproveFor(null);
+      setApproveNote("");
     } catch (e: any) {
       toast.error(e?.message || "فشل الاعتماد");
     } finally {
