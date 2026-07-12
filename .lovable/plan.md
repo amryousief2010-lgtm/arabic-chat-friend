@@ -1,41 +1,95 @@
 
-# نظام "المطابقة الذكية" لبوالص زودكس
+# بيع نعام قائم — Live Ostrich Sale
 
-## الهدف
-بدل ما نلف ونقارن بالإيد، السيستم نفسه يشوف أي بوليصة على زودكس بدون تسجيل عندنا، ويحاول يلاقي أقرب أوردر شبهها، ويحطها في صندوق مراجعة (Inbox) واحد يظهر النهاردة بس اللي محتاج قرار.
+Standalone operation, independent from the slaughter pipeline. Sold birds never enter batch/yield calculations.
 
-## اللي هيحصل
+## 1. Database
 
-### 1. مطابقة ذكية (Fuzzy Matching)
-بدل مطابقة الرقم الكامل + المبلغ الحرفي، نضيف طبقات مطابقة متدرجة لكل بوليصة زودكس بدون ربط:
+New migration adds one table + one view + a helper function:
 
-- **مطابقة قوية:** آخر 8 أرقام من الموبايل + الاسم متطابق (Score 90%+)
-- **مطابقة متوسطة:** آخر 7 أرقام من الموبايل + اسم متقارب (Levenshtein distance صغيرة) + فرق المبلغ ≤ 150 ج (فرق شحن) (Score 70–89%)
-- **مطابقة ضعيفة:** الاسم متقارب جداً + نفس المحافظة + نفس اليوم تقريباً (Score 50–69%)
+**`slaughter_live_sales`** (public)
+- `id`, `sale_number` (unique, auto `LS-YYYYMMDD-XXXX`)
+- `sale_date` (date)
+- `live_receipt_id` (FK → slaughter_live_receipts)
+- `live_bird_id` (FK → slaughter_live_birds, nullable — null when receipt has no per-bird records)
+- `bird_count` (int, default 1)
+- `sale_weight_kg` (numeric)
+- `price_per_kg` (numeric)
+- `total_sale` (generated: weight × price)
+- `unit_cost_at_sale` (numeric) — snapshot of cost/kg used
+- `total_cost_at_sale` (numeric) — snapshot bird cost + expense share
+- `breakeven_per_kg` (numeric) — snapshot
+- `net_profit` (generated: total_sale − total_cost_at_sale)
+- `cost_source` — `'per_bird'` or `'batch_average'`
+- `customer_name`, `customer_phone`, `payment_method` (`cash|credit|partial`), `amount_paid`, `notes`
+- `created_by`, `created_at`, `updated_at`
 
-كل بوليصة بتاخد **أفضل candidate** مع درجة الثقة (Confidence Score).
+RLS: view = all authenticated. Manage = general_manager, executive_manager, slaughterhouse_manager.
 
-### 2. صندوق المراجعة (Zodex Review Inbox)
-صفحة واحدة `/zodex-review-inbox` فيها 3 تبويبات:
+**`v_available_live_ostrich`** — view that returns per-receipt availability:
+- receipt fields + `sold_live_count`, `sold_live_weight_kg`, `available_count` = `current_alive_count − sold_live_count`.
 
-- **تطابق تلقائي (90%+):** السيستم بيربط تلقائي بدون تدخل، بس بيسجل في Log.
-- **يحتاج تأكيد (50–89%):** جدول فيه [بوليصة زودكس] ← [أقرب أوردر عندنا] + سبب الاختلاف (مثال: "الموبايل مختلف بخانة: 9→0"، "فرق مبلغ: 90 ج شحن"). زرين: **✓ اربط** أو **✗ رفض**.
-- **بدون أي تطابق:** بوالص جديدة فعلاً لازم تتسجل يدوي.
+**Trigger** on `slaughter_live_sales` INSERT: decrement `slaughter_live_receipts.current_alive_count` and `manual_available_adjustment` bookkeeping so the sold birds disappear from "available for slaughter" lists. Reverse on DELETE.
 
-### 3. تنبيه فوري
-لما البنات يفتحوا الداشبورد، يظهر Badge أحمر جنب "Zodex Review" فيه عدد البوالص المحتاجة تأكيد. + إشعار في جرس التنبيهات كل شوية.
+Sold birds are excluded from cost allocations by:
+- If per-bird sale (has `live_bird_id`), the bird row is soft-flagged via `notes` and excluded in existing yield calc queries via LEFT JOIN on live_sales.
+- Yield/تصافي code already uses batches — no change needed because sold live birds never enter a batch.
 
-### 4. تعلم من القرارات
-- لما يتم تأكيد ربط بسبب "موبايل غلط" — السيستم يصحح رقم الموبايل في `customers` تلقائي (بعد سؤال المستخدم).
-- كل رفض/قبول بيتحفظ في `zodex_match_decisions` عشان لو نفس البوليصة رجعت متتعرضش تاني.
+## 2. Frontend
 
-## التغييرات التقنية
-- **Edge Function جديدة:** `zodex-smart-match` بتشتغل جوّه cron `sync-zodex-shipments` بعد كل sync — بتحسب candidates لكل بوليصة unmatched وتخزّنهم في جدول جديد `zodex_match_suggestions` (bill_no, suggested_order_id, confidence, reasons[]).
-- **جدول:** `zodex_match_suggestions` + `zodex_match_decisions` مع RLS مقفولة على المدير العام/التنفيذي/التسويق.
-- **UI:** صفحة `ZodexReviewInbox.tsx` + Badge في السايدبار.
-- **قاعدة:** لو Confidence ≥ 90% وفيه تطابق واحد بس — ربط تلقائي مع Log.
+New tab inserted in `src/pages/modules/Slaughterhouse.tsx` between `دفعات الذبح` and `استلام حي`:
 
-## النتيجة العملية
-مش هتلف تاني — كل بوليصة على زودكس بدون تسجيل هتظهر في inbox فيه اقتراح جاهز، وأنت بس بتضغط ✓ أو ✗، والسيستم يتعلم مع الوقت.
+```
+<TabsTrigger value="live-sales">بيع نعام قائم</TabsTrigger>
+```
 
-هل أنفذ؟
+New file `src/components/slaughterhouse/LiveOstrichSalesTab.tsx`:
+- Header + `+ بيعة قائمة جديدة` button
+- Table columns: `#`, `التاريخ`, `الدفعة`, `عدد النعام`, `وزن البيع`, `سعر/كجم`, `التكلفة`, `إجمالي البيع`, `الربح`, `الحالة`
+
+New file `src/components/slaughterhouse/NewLiveSaleDialog.tsx`:
+- Select **الدفعة المشتراة** (receipts with `available_count > 0`)
+- Select **النعامة** (from `slaughter_live_birds` not yet sold/slaughtered) — optional if no per-bird records; then user enters count instead
+- **وزن البيع القائم** (numeric, prefilled with last known live weight, editable)
+- **سعر بيع الكيلو**
+- **تاريخ البيع** (default today)
+- **العميل** + **طريقة السداد** (cash/credit/partial + amount_paid)
+- **نسبة ربح مستهدفة %** — optional; when filled, suggests `price/kg = breakeven × (1 + margin)`
+
+**Live calculation card** (recomputes on every change):
+
+```
+تكلفة شراء النعامة:        X ج.م
+نصيبها من المصروفات:       Y ج.م
+إجمالي التكلفة حتى اليوم:  X+Y ج.م   (تكلفة تقديرية من متوسط الدفعة — لو batch_average)
+سعر التعادل للكيلو:        (X+Y) ÷ وزن البيع
+إجمالي البيع:              وزن البيع × السعر
+صافي الربح:                إجمالي البيع − إجمالي التكلفة
+الربح في الكيلو / النسبة:  ...
+```
+
+**Cost calculation logic** (client, using data already loaded):
+- **Per-bird**: `unit_cost = bird.purchase_cost + bird.feed_cost + (receipt.other_costs_loaded × bird.live_weight / receipt.total_weight_kg)`
+- **Batch average fallback** (no `slaughter_live_birds` or bird has zero cost): `cost_per_kg_current = receipt.total_batch_cost / max(remaining_live_weight, 1)` then `unit_cost = sale_weight × cost_per_kg_current`. Label the number in the UI as "تكلفة تقديرية من متوسط الدفعة".
+
+On save:
+- Insert `slaughter_live_sales` with snapshot values.
+- Trigger auto-decrements `current_alive_count`.
+- Toast + refresh.
+
+## 3. Routing / Permissions
+
+- No new route; tab lives inside existing `/modules/slaughterhouse`.
+- Write access: general_manager, executive_manager, slaughterhouse_manager (same as receipts). Read: all authenticated.
+
+## 4. Non-goals
+
+- No integration with slaughter batch outputs, yield, or transfers.
+- No inventory movement in warehouses (bird leaves as-is).
+- No treasury auto-posting in this iteration (customer + payment stored for later reconciliation).
+
+## Technical notes
+
+- Cairo-date helpers (`cairoTodayStartUTC`) already used elsewhere — apply to `sale_date` filters in the tab.
+- All monetary formulas run in Postgres generated columns; UI shows live preview only.
+- Existing "available for slaughter" query in `slaughterhouse` intake screens uses `current_alive_count`, so once trigger fires the sold ostrich disappears automatically without extra code.
