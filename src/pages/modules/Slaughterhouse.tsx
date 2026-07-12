@@ -1341,6 +1341,51 @@ const Slaughterhouse = () => {
         </Card>
       )}
 
+      {/* Untransferred slaughter outputs alert — persists until user marks them */}
+      {untransferredBatches.length > 0 && (
+        <Card className="mb-4 border-orange-500/60 bg-orange-50/70 dark:bg-orange-950/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-400">
+              <AlertTriangle className="w-5 h-5" />
+              تنبيه: يوجد دفعات مذبوحة لم تُنقل منتجاتها ({untransferredBatches.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="text-xs text-muted-foreground mb-2">
+              يمكنك اعتبارها كمنقولة إلى المخزن الرئيسي أو مصنع اللحوم بدون إدخال الكميات فعلياً في المخزون.
+            </div>
+            {canManageBatch && (
+              <div className="flex gap-2 flex-wrap mb-3 pb-3 border-b">
+                <Button size="sm" onClick={() => markAllTransferred("main")} className="bg-primary text-white">
+                  <Truck className="w-4 h-4 ml-1" />اعتبار الكل منقول للمخزن الرئيسي
+                </Button>
+                <Button size="sm" onClick={() => markAllTransferred("meat_factory")} className="bg-orange-600 hover:bg-orange-700 text-white">
+                  <Truck className="w-4 h-4 ml-1" />اعتبار الكل منقول لمصنع اللحوم
+                </Button>
+              </div>
+            )}
+            {untransferredBatches.map(({ batch: b, rows, totalKg }) => (
+              <div key={b.id} className="flex flex-wrap items-center justify-between gap-2 p-3 bg-background rounded border">
+                <div className="text-sm">
+                  <b>{b.batch_number}</b> · {b.slaughter_date} · طيور: {b.birds_slaughtered} ·
+                  <span className="text-orange-700 font-bold mx-1">{rows.length} صنف بإجمالي {totalKg.toFixed(1)} كجم</span>
+                </div>
+                {canManageBatch && (
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => markBatchTransferred(b.id, "main")} className="text-primary">
+                      <Truck className="w-4 h-4 ml-1" />للمخزن الرئيسي
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => markBatchTransferred(b.id, "meat_factory")} className="text-orange-600">
+                      <Truck className="w-4 h-4 ml-1" />لمصنع اللحوم
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="daily" dir="rtl">
         <div className="w-full overflow-x-auto -mx-1 px-1 mb-2">
           <TabsList className="inline-flex w-max min-w-full gap-1 h-auto flex-wrap md:flex-nowrap bg-gradient-to-l from-muted/60 to-muted/30 rounded-2xl p-1.5 [&>button]:rounded-xl [&>button[data-state=active]]:bg-background [&>button[data-state=active]]:shadow-sm [&>button[data-state=active]]:text-primary">
