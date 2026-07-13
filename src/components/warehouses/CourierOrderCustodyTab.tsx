@@ -542,6 +542,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
 
         const groupOrderNumbers = groupOrders.map((o) => o.order_number).filter(Boolean);
         let sheetNetAmount: number | null = null;
+        const matchedSheetFilenames: string[] = [];
         if (isAgouza && groupOrderNumbers.length > 0 && bosttaUploadNets.length > 0) {
           const groupSet = new Set(groupOrderNumbers);
           const matched = new Set<string>();
@@ -552,9 +553,17 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
             if (!uploadInsideThisGroup || overlapsAlreadyMatched) return;
             upload.orderNumbers.forEach((no) => matched.add(no));
             sheetTotal += Number(upload.netAmount || 0);
+            if (upload.filename) matchedSheetFilenames.push(upload.filename);
           });
           if (matched.size === groupOrderNumbers.length && sheetTotal > 0) sheetNetAmount = sheetTotal;
         }
+        // Agouza: لو كل كشوف بُسطة اللي بتغطي أوردرات اليوم اتورّدت فعلاً، نعتبر اليوم متوّرد
+        // ونمنع زرار "توريد" على مستوى اليوم — عشان مفيش حد يعمل توريد مزدوج للخزينة الرئيسية.
+        const bosttaAlreadyDeposited =
+          isAgouza &&
+          sheetNetAmount !== null &&
+          matchedSheetFilenames.length > 0 &&
+          matchedSheetFilenames.every((fn) => depositedBosttaFilenames.has(String(fn).trim().toLowerCase()));
 
         const finalTotalValue = sheetNetAmount ?? totalValue;
         const finalCashDue = sheetNetAmount ?? cashDue;
@@ -572,11 +581,12 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           sheetNetAmount,
           missingBreakdown, undelivered, deposit,
           megaClosedCount: skippedByDay.get(day) || 0,
+          bosttaAlreadyDeposited,
           // توريد يوم كامل يقفل أي أوردر غير مسلّم تلقائياً، لذلك لا نمنع التوريد بسبب undelivered.
-          canDeposit: missingBreakdown === 0 && items.length > 0 && !deposit,
+          canDeposit: missingBreakdown === 0 && items.length > 0 && !deposit && !bosttaAlreadyDeposited,
         };
       });
-  }, [currentAssignments, orders, collections, dailyDeposits, selectedCustody, isAgouza, bosttaUploadNets, zodexClosedOrderIds]);
+  }, [currentAssignments, orders, collections, dailyDeposits, selectedCustody, isAgouza, bosttaUploadNets, zodexClosedOrderIds, depositedBosttaFilenames]);
 
 
 
