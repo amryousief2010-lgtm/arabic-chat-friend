@@ -1434,7 +1434,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                       invoiceRows.push(...bosttaRows);
 
 
-                      return [...groupedByDay.filter((g) => g.megaClosedCount === 0 && !g.bosttaAlreadyDeposited).flatMap((grp) => {
+                      return [...groupedByDay.filter((g) => g.megaClosedCount === 0 && !g.hasBosttaSheet).flatMap((grp) => {
                         const isOpen = expandedDays[grp.day] ?? false;
                         const courierName = custodies.find((c) => c.id === selectedCustody)?.courier_name || "—";
                         const printDay = async (e: React.MouseEvent) => {
