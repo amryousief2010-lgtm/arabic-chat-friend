@@ -160,7 +160,8 @@ export function buildProductLookup(products: CatalogProduct[]): Map<string, Cata
  */
 export function parseProductText(
   text: string,
-  productLookup: Map<string, CatalogProduct>
+  productLookup: Map<string, CatalogProduct>,
+  codAmount?: number
 ): ParsedProductLine {
   const original = String(text || "");
   let norm = normalizeArabic(original);
