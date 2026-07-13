@@ -134,6 +134,43 @@ Deno.serve(async (req) => {
 
     for (const s of shipments) {
       try {
+        // Bill-first fallback: if this bill already exists on an order (even under a different phone),
+        // handle it via that order instead of forcing a phone match. This catches cases where the
+        // customer's phone on the Bostta sheet differs from the phone stored on the matched order.
+        if (s.bill_no) {
+          const { data: billOrders } = await supabase
+            .from("orders")
+            .select("id, order_number, status, source_warehouse_id")
+            .eq("shipping_bill_no", s.bill_no)
+            .limit(2);
+          const billOrder = (billOrders || [])[0];
+          if (billOrder && billOrder.status === "delivered") {
+            let backfilled = false;
+            try {
+              const custodyId = await getOrCreateAgouzaCustody(supabase, userId);
+              if (custodyId) {
+                const nowIso = new Date().toISOString();
+                const { error: asnErr } = await supabase
+                  .from("courier_order_assignments")
+                  .upsert({
+                    custody_id: custodyId,
+                    order_id: billOrder.id,
+                    courier_name: AGOUZA_COURIER_NAME,
+                    warehouse_id: AGOUZA_WAREHOUSE_ID,
+                    status: "delivered",
+                    assigned_at: nowIso,
+                    delivered_at: nowIso,
+                    assigned_by: userId,
+                    notes: `تم التسليم من شيت شركة الشحن — بوليصة ${s.bill_no} (bill-match backfill)`,
+                  }, { onConflict: "order_id" });
+                if (!asnErr) backfilled = true;
+              }
+            } catch (_) { /* ignore */ }
+            results.already_delivered.push({ shipment: s, order_number: billOrder.order_number, custody_backfilled: backfilled, matched_by: "bill_no" });
+            continue;
+          }
+        }
+
         if (!s.phone) { results.unmatched.push({ shipment: s, reason: "no_phone" }); continue; }
 
         // find customer by phone OR phone2 (customers may have two numbers)
