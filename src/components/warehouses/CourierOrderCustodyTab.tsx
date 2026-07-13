@@ -515,8 +515,9 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           if (!o) return;
           groupOrders.push(o);
           const deliveredStatus = ["delivered", "collected", "completed"].includes(o.status);
+          const isReturned = ["partially_returned", "fully_returned"].includes(a.status);
           const nonCash = isAgouza ? false : isNonCashAssignment(a, o);
-          if (!nonCash) {
+          if (!nonCash && !isReturned) {
             if (isAgouza) {
               const isGift = isGiftAssignment(a, o);
               // للعجوزة: إجمالي اليوم = مجموع (قيمة الأوردر − مصاريف الشحن) للأوردرات المدفوعة،
