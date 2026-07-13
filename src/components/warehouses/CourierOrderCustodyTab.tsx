@@ -1579,6 +1579,10 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                   <Badge variant="outline" className="text-[10px] gap-1">
                                     <CheckCircle2 className="w-3 h-3 text-emerald-600" /> رقم الحركة {grp.deposit.treasury_txn_id?.slice(0, 8) || "—"}
                                   </Badge>
+                                ) : grp.bosttaAlreadyDeposited ? (
+                                  <Badge className="bg-sky-600 text-white text-[10px] gap-1" title="كشف بُسطة اليوم ده اتورّد فعلاً على الخزينة الرئيسية">
+                                    <CheckCircle2 className="w-3 h-3" /> تم التوريد عبر كشف بُسطة
+                                  </Badge>
                                 ) : (
                                   <Button
                                     size="sm"
