@@ -582,6 +582,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           missingBreakdown, undelivered, deposit,
           megaClosedCount: skippedByDay.get(day) || 0,
           bosttaAlreadyDeposited,
+          hasBosttaSheet: isAgouza && matchedSheetFilenames.length > 0,
           // توريد يوم كامل يقفل أي أوردر غير مسلّم تلقائياً، لذلك لا نمنع التوريد بسبب undelivered.
           canDeposit: missingBreakdown === 0 && items.length > 0 && !deposit && !bosttaAlreadyDeposited,
         };
@@ -1414,16 +1415,18 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                         {isDepositing ? "جارٍ..." : `توريد ${fmt(Number(upload.netAmount))}`}
                                       </Button>
                                     )}
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-7 px-2 text-xs text-rose-700 border-rose-300 hover:bg-rose-50"
-                                      disabled={isDepositing}
-                                      onClick={() => deleteBosttaSheet(upload)}
-                                      title="حذف الكشف والتوريد الناتج عنه لرفعه من جديد"
-                                    >
-                                      <Trash2 className="w-3 h-3 ml-1" /> حذف ورفع تاني
-                                    </Button>
+                                    {!isDeposited && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 px-2 text-xs text-rose-700 border-rose-300 hover:bg-rose-50"
+                                        disabled={isDepositing}
+                                        onClick={() => deleteBosttaSheet(upload)}
+                                        title="حذف الكشف لرفعه من جديد"
+                                      >
+                                        <Trash2 className="w-3 h-3 ml-1" /> حذف ورفع تاني
+                                      </Button>
+                                    )}
                                   </div>
                                 </TableCell>
                               </TableRow>
@@ -1433,7 +1436,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                       invoiceRows.push(...bosttaRows);
 
 
-                      return [...groupedByDay.filter((g) => g.megaClosedCount === 0 && !g.bosttaAlreadyDeposited).flatMap((grp) => {
+                      return [...groupedByDay.filter((g) => g.megaClosedCount === 0 && !g.hasBosttaSheet).flatMap((grp) => {
                         const isOpen = expandedDays[grp.day] ?? false;
                         const courierName = custodies.find((c) => c.id === selectedCustody)?.courier_name || "—";
                         const printDay = async (e: React.MouseEvent) => {
