@@ -16,9 +16,11 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   ShieldCheck, Wallet, Beef, Drumstick, FlaskConical, Scissors,
   UsersRound, ShoppingCart, Factory, Eye, CheckCircle2, XCircle,
-  Search, RefreshCw, AlertTriangle,
+  Search, RefreshCw, AlertTriangle, MessageSquare, Send, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { useExecutiveApprovals, type ApprovalCategory, type ApprovalItem } from "@/hooks/useExecutiveApprovals";
 import ApprovalDetailsDialog from "@/components/executive/ApprovalDetailsDialog";
 
