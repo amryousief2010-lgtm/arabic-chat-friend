@@ -156,7 +156,7 @@ export function BulkDeliveryUploadButton() {
         toast.success(
           `تم اعتماد ${parsed.length} شحنة تلقائيًا — إجمالي ${totalCod.toLocaleString()} ج`,
         );
-        submitShipments(parsed);
+        submitShipments(parsed, file.name);
         return;
       }
 
@@ -173,7 +173,7 @@ export function BulkDeliveryUploadButton() {
     }
   };
 
-  const submitShipments = async (list: ParsedShipment[]) => {
+  const submitShipments = async (list: ParsedShipment[], overrideFilename?: string) => {
     setSubmitting(true);
     try {
       // Send all shipments (with items OR without) — server queues no-item ones too
@@ -194,8 +194,9 @@ export function BulkDeliveryUploadButton() {
         })),
       }));
 
+      const effectiveFilename = overrideFilename || filename || "unknown.xlsx";
       const { data, error } = await supabase.functions.invoke("process-bostta-delivery", {
-        body: { filename, shipments: send },
+        body: { filename: effectiveFilename, shipments: send },
       });
       if (error) throw error;
       setResult(data?.results ?? null);
