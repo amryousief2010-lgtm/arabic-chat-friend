@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Truck, Package2, Coins, RotateCcw, CheckCircle2, Eye, ClipboardList, Trophy, ChevronDown, ChevronLeft, Printer, FileSpreadsheet, Wrench, ListChecks } from "lucide-react";
+import { Truck, Package2, Coins, RotateCcw, CheckCircle2, Eye, ClipboardList, Trophy, ChevronDown, ChevronLeft, Printer, FileSpreadsheet, Wrench, ListChecks, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { fetchCourierStatementLines, printCourierStatement, exportCourierStatementExcel } from "@/lib/courierStatement";
 import { openPrintWindow } from "@/lib/printPdf";
@@ -881,6 +881,32 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
     } finally { setDepositingBosttaId(null); }
   };
 
+  const deleteBosttaSheet = async (upload: BosttaUploadNet) => {
+    if (!confirm(`سيتم حذف كشف بُسطة "${upload.filename}" وأي توريد ناتج عنه من خزنة العجوزة. هتقدر ترفعه تاني من زر الرفع. متابعة؟`)) return;
+    setDepositingBosttaId(upload.id);
+    try {
+      // 1) حذف حركات الخزينة المرتبطة بالكشف (لو تم التوريد)
+      const { error: txnErr } = await (supabase as any)
+        .from("agouza_warehouse_treasury_txns")
+        .delete()
+        .eq("txn_type", "cash_in")
+        .like("notes", `%${upload.filename}%`);
+      if (txnErr) console.warn("Delete treasury txn failed:", txnErr.message);
+
+      // 2) حذف سطر الكشف نفسه
+      const { error: upErr } = await (supabase as any)
+        .from("bostta_delivery_uploads")
+        .delete()
+        .eq("id", upload.id);
+      if (upErr) throw upErr;
+
+      toast({ title: "تم حذف الكشف", description: "دلوقتي تقدر ترفعه تاني" });
+      await load();
+    } catch (e: any) {
+      toast({ title: "تعذّر الحذف", description: e?.message || "", variant: "destructive" });
+    } finally { setDepositingBosttaId(null); }
+  };
+
 
 
 
@@ -1373,20 +1399,32 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                 <TableCell className="font-mono text-xs text-sky-700">{fmt(Number(upload.netAmount))}</TableCell>
                                 <TableCell className="text-xs">{new Date(upload.created_at).toLocaleDateString("ar-EG")}</TableCell>
                                 <TableCell className="text-xs">
-                                  {isDeposited ? (
-                                    <span className="text-emerald-700 text-xs font-medium">تم التوريد</span>
-                                  ) : (
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    {isDeposited ? (
+                                      <span className="text-emerald-700 text-xs font-medium">تم التوريد</span>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs"
+                                        disabled={isDepositing}
+                                        onClick={() => depositBosttaSheet(upload)}
+                                        title="توريد كامل مبلغ الكشف لخزنة المخزن الرئيسي (محمد شعلة)"
+                                      >
+                                        <Coins className="w-3 h-3 ml-1" />
+                                        {isDepositing ? "جارٍ..." : `توريد ${fmt(Number(upload.netAmount))}`}
+                                      </Button>
+                                    )}
                                     <Button
                                       size="sm"
-                                      className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs"
+                                      variant="outline"
+                                      className="h-7 px-2 text-xs text-rose-700 border-rose-300 hover:bg-rose-50"
                                       disabled={isDepositing}
-                                      onClick={() => depositBosttaSheet(upload)}
-                                      title="توريد كامل مبلغ الكشف لخزنة المخزن الرئيسي (محمد شعلة)"
+                                      onClick={() => deleteBosttaSheet(upload)}
+                                      title="حذف الكشف والتوريد الناتج عنه لرفعه من جديد"
                                     >
-                                      <Coins className="w-3 h-3 ml-1" />
-                                      {isDepositing ? "جارٍ..." : `توريد ${fmt(Number(upload.netAmount))}`}
+                                      <Trash2 className="w-3 h-3 ml-1" /> حذف ورفع تاني
                                     </Button>
-                                  )}
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             );
