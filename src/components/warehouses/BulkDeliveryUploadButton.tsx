@@ -156,7 +156,7 @@ export function BulkDeliveryUploadButton() {
         toast.success(
           `تم اعتماد ${parsed.length} شحنة تلقائيًا — إجمالي ${totalCod.toLocaleString()} ج`,
         );
-        submitShipments(parsed);
+        submitShipments(parsed, file.name);
         return;
       }
 
