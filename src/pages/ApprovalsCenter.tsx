@@ -336,8 +336,18 @@ const ApprovalsCenter = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1 justify-center flex-wrap">
-                        <Button size="sm" variant="outline" onClick={() => setDetailsFor(item)}>
+                        <Button size="sm" variant="outline" onClick={() => setDetailsFor(item)} title="التفاصيل">
                           <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => { setMessageFor(item); setMessageText(""); }}
+                          title="إرسال رسالة"
+                          disabled={!item.created_by}
+                          className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                        >
+                          <MessageSquare className="h-3.5 w-3.5 ml-1" /> إرسال رسالة
                         </Button>
                         <Button size="sm" disabled={busyId === item.id} onClick={() => doApprove(item)} className="bg-emerald-600 hover:bg-emerald-700">
                           <CheckCircle2 className="h-3.5 w-3.5 ml-1" /> اعتماد
