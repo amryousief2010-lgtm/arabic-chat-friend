@@ -883,7 +883,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
   };
 
   const deleteBosttaSheet = async (upload: BosttaUploadNet) => {
-    if (!confirm(`سيتم حذف كشف بُسطة "${upload.filename}" وأي توريد ناتج عنه من خزنة العجوزة. هتقدر ترفعه تاني من زر الرفع. متابعة؟`)) return;
+    if (!confirm(`سيتم حذف كشف بُسطة "${upload.filename}" وكل النسخ المكررة منه. هتقدر ترفعه تاني من زر الرفع. متابعة؟`)) return;
     setDepositingBosttaId(upload.id);
     try {
       // 1) حذف حركات الخزينة المرتبطة بالكشف (لو تم التوريد)
@@ -894,14 +894,16 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         .like("notes", `%${upload.filename}%`);
       if (txnErr) console.warn("Delete treasury txn failed:", txnErr.message);
 
-      // 2) حذف سطر الكشف نفسه
+      // 2) حذف الكشف وكل النسخ المكررة بنفس اسم الملف.
+      // لو نفس الشيت اترفع كذا مرة، حذف id واحد بس كان بيخلي نسخة أقدم تظهر تاني.
       const { error: upErr } = await (supabase as any)
         .from("bostta_delivery_uploads")
         .delete()
-        .eq("id", upload.id);
+        .eq("filename", upload.filename);
       if (upErr) throw upErr;
 
-      toast({ title: "تم حذف الكشف", description: "دلوقتي تقدر ترفعه تاني" });
+      setBosttaUploadNets((prev) => prev.filter((row) => row.filename !== upload.filename));
+      toast({ title: "تم حذف الكشف", description: "اتحذف هو وأي نسخة مكررة منه — دلوقتي تقدر ترفعه تاني" });
       await load();
     } catch (e: any) {
       toast({ title: "تعذّر الحذف", description: e?.message || "", variant: "destructive" });
