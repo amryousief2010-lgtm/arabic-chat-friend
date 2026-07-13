@@ -381,10 +381,12 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
     return custodies.map((c) => {
       const myAsn = assignments.filter((a) => a.custody_id === c.id);
       const giftOrderIds = new Set(myAsn.filter((a) => isNonCashAssignment(a, orders.find((o) => o.id === a.order_id) as any)).map((a) => a.order_id));
+      const returnedOrderIds = new Set(myAsn.filter((a) => ["partially_returned", "fully_returned"].includes(a.status)).map((a) => a.order_id));
       const myOrderIds = new Set(myAsn.map((a) => a.order_id));
       const myOrders = orders.filter((o) => myOrderIds.has(o.id));
       let totalValue = myOrders.reduce((s, o) => {
         if (giftOrderIds.has(o.id)) return s;
+        if (returnedOrderIds.has(o.id)) return s;
         if ((o as any).collection_method === 'mixed_payment') return s + Number((o as any).courier_cash_due || 0);
         return s + Number(o.total || 0);
       }, 0);
@@ -513,8 +515,9 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           if (!o) return;
           groupOrders.push(o);
           const deliveredStatus = ["delivered", "collected", "completed"].includes(o.status);
+          const isReturned = ["partially_returned", "fully_returned"].includes(a.status);
           const nonCash = isAgouza ? false : isNonCashAssignment(a, o);
-          if (!nonCash) {
+          if (!nonCash && !isReturned) {
             if (isAgouza) {
               const isGift = isGiftAssignment(a, o);
               // للعجوزة: إجمالي اليوم = مجموع (قيمة الأوردر − مصاريف الشحن) للأوردرات المدفوعة،
