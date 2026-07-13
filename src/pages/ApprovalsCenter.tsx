@@ -16,9 +16,11 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   ShieldCheck, Wallet, Beef, Drumstick, FlaskConical, Scissors,
   UsersRound, ShoppingCart, Factory, Eye, CheckCircle2, XCircle,
-  Search, RefreshCw, AlertTriangle,
+  Search, RefreshCw, AlertTriangle, MessageSquare, Send, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { useExecutiveApprovals, type ApprovalCategory, type ApprovalItem } from "@/hooks/useExecutiveApprovals";
 import ApprovalDetailsDialog from "@/components/executive/ApprovalDetailsDialog";
 
@@ -59,6 +61,7 @@ const fmtDateTime = (d: string | null) =>
   d ? new Date(d).toLocaleString("ar-EG", { dateStyle: "short", timeStyle: "short" }) : "—";
 
 const ApprovalsCenter = () => {
+  const { user } = useAuth();
   const { isApprover, isLoading, items, counts, approve, reject, refetch } = useExecutiveApprovals();
 
   // Filters
@@ -74,6 +77,48 @@ const ApprovalsCenter = () => {
   const [detailsFor, setDetailsFor] = useState<ApprovalItem | null>(null);
   const [rejectFor, setRejectFor] = useState<ApprovalItem | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [messageFor, setMessageFor] = useState<ApprovalItem | null>(null);
+  const [messageText, setMessageText] = useState("");
+  const [sendingMsg, setSendingMsg] = useState(false);
+
+  const sendMessage = async () => {
+    if (!messageFor || !user) return;
+    if (!messageFor.created_by) {
+      toast.error("لا يوجد مستلم لهذا الطلب");
+      return;
+    }
+    if (messageText.trim().length < 2) {
+      toast.error("اكتب نص الرسالة");
+      return;
+    }
+    setSendingMsg(true);
+    try {
+      const subject = `بخصوص: ${messageFor.title}`;
+      const { data: msg, error: msgErr } = await (supabase as any)
+        .from("internal_messages")
+        .insert({
+          sender_id: user.id,
+          subject: subject.slice(0, 200),
+          body: messageText.trim(),
+          priority: "normal",
+          has_attachments: false,
+        })
+        .select("id")
+        .single();
+      if (msgErr) throw msgErr;
+      const { error: recErr } = await (supabase as any)
+        .from("internal_message_recipients")
+        .insert([{ message_id: msg.id, recipient_id: messageFor.created_by }]);
+      if (recErr) throw recErr;
+      toast.success("تم إرسال الرسالة");
+      setMessageFor(null);
+      setMessageText("");
+    } catch (e: any) {
+      toast.error(e?.message || "فشل الإرسال");
+    } finally {
+      setSendingMsg(false);
+    }
+  };
 
   const requesters = useMemo(() => {
     const map = new Map<string, string>();
@@ -291,8 +336,18 @@ const ApprovalsCenter = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1 justify-center flex-wrap">
-                        <Button size="sm" variant="outline" onClick={() => setDetailsFor(item)}>
+                        <Button size="sm" variant="outline" onClick={() => setDetailsFor(item)} title="التفاصيل">
                           <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => { setMessageFor(item); setMessageText(""); }}
+                          title="إرسال رسالة"
+                          disabled={!item.created_by}
+                          className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                        >
+                          <MessageSquare className="h-3.5 w-3.5 ml-1" /> إرسال رسالة
                         </Button>
                         <Button size="sm" disabled={busyId === item.id} onClick={() => doApprove(item)} className="bg-emerald-600 hover:bg-emerald-700">
                           <CheckCircle2 className="h-3.5 w-3.5 ml-1" /> اعتماد
@@ -341,6 +396,32 @@ const ApprovalsCenter = () => {
       </Dialog>
 
       <ApprovalDetailsDialog item={detailsFor} onClose={() => setDetailsFor(null)} />
+
+      {/* Send message dialog */}
+      <Dialog open={!!messageFor} onOpenChange={(v) => { if (!v) { setMessageFor(null); setMessageText(""); } }}>
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader><DialogTitle>إرسال رسالة لطالب الاعتماد</DialogTitle></DialogHeader>
+          {messageFor && (
+            <div className="text-xs text-muted-foreground mb-2">
+              إلى: <b>{messageFor.creator_name || "—"}</b> — {CAT_LABEL[messageFor.category]}: {messageFor.title}
+            </div>
+          )}
+          <Textarea
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            placeholder="اكتب رسالتك..."
+            rows={5}
+            maxLength={2000}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setMessageFor(null); setMessageText(""); }} disabled={sendingMsg}>إلغاء</Button>
+            <Button onClick={sendMessage} disabled={sendingMsg} className="gap-2">
+              {sendingMsg ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              إرسال
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
