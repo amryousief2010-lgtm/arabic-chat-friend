@@ -77,6 +77,48 @@ const ApprovalsCenter = () => {
   const [detailsFor, setDetailsFor] = useState<ApprovalItem | null>(null);
   const [rejectFor, setRejectFor] = useState<ApprovalItem | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [messageFor, setMessageFor] = useState<ApprovalItem | null>(null);
+  const [messageText, setMessageText] = useState("");
+  const [sendingMsg, setSendingMsg] = useState(false);
+
+  const sendMessage = async () => {
+    if (!messageFor || !user) return;
+    if (!messageFor.created_by) {
+      toast.error("لا يوجد مستلم لهذا الطلب");
+      return;
+    }
+    if (messageText.trim().length < 2) {
+      toast.error("اكتب نص الرسالة");
+      return;
+    }
+    setSendingMsg(true);
+    try {
+      const subject = `بخصوص: ${messageFor.title}`;
+      const { data: msg, error: msgErr } = await (supabase as any)
+        .from("internal_messages")
+        .insert({
+          sender_id: user.id,
+          subject: subject.slice(0, 200),
+          body: messageText.trim(),
+          priority: "normal",
+          has_attachments: false,
+        })
+        .select("id")
+        .single();
+      if (msgErr) throw msgErr;
+      const { error: recErr } = await (supabase as any)
+        .from("internal_message_recipients")
+        .insert([{ message_id: msg.id, recipient_id: messageFor.created_by }]);
+      if (recErr) throw recErr;
+      toast.success("تم إرسال الرسالة");
+      setMessageFor(null);
+      setMessageText("");
+    } catch (e: any) {
+      toast.error(e?.message || "فشل الإرسال");
+    } finally {
+      setSendingMsg(false);
+    }
+  };
 
   const requesters = useMemo(() => {
     const map = new Map<string, string>();
