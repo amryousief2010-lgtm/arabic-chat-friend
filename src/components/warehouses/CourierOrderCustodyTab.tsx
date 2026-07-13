@@ -1427,6 +1427,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                         <Trash2 className="w-3 h-3 ml-1" /> حذف ورفع تاني
                                       </Button>
                                     )}
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             );
