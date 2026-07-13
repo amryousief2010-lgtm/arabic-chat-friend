@@ -61,6 +61,7 @@ const fmtDateTime = (d: string | null) =>
   d ? new Date(d).toLocaleString("ar-EG", { dateStyle: "short", timeStyle: "short" }) : "—";
 
 const ApprovalsCenter = () => {
+  const { user } = useAuth();
   const { isApprover, isLoading, items, counts, approve, reject, refetch } = useExecutiveApprovals();
 
   // Filters
