@@ -396,6 +396,32 @@ const ApprovalsCenter = () => {
       </Dialog>
 
       <ApprovalDetailsDialog item={detailsFor} onClose={() => setDetailsFor(null)} />
+
+      {/* Send message dialog */}
+      <Dialog open={!!messageFor} onOpenChange={(v) => { if (!v) { setMessageFor(null); setMessageText(""); } }}>
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader><DialogTitle>إرسال رسالة لطالب الاعتماد</DialogTitle></DialogHeader>
+          {messageFor && (
+            <div className="text-xs text-muted-foreground mb-2">
+              إلى: <b>{messageFor.creator_name || "—"}</b> — {CAT_LABEL[messageFor.category]}: {messageFor.title}
+            </div>
+          )}
+          <Textarea
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            placeholder="اكتب رسالتك..."
+            rows={5}
+            maxLength={2000}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setMessageFor(null); setMessageText(""); }} disabled={sendingMsg}>إلغاء</Button>
+            <Button onClick={sendMessage} disabled={sendingMsg} className="gap-2">
+              {sendingMsg ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              إرسال
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
