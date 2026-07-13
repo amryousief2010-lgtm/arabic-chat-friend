@@ -582,6 +582,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           missingBreakdown, undelivered, deposit,
           megaClosedCount: skippedByDay.get(day) || 0,
           bosttaAlreadyDeposited,
+          hasBosttaSheet: isAgouza && matchedSheetFilenames.length > 0,
           // توريد يوم كامل يقفل أي أوردر غير مسلّم تلقائياً، لذلك لا نمنع التوريد بسبب undelivered.
           canDeposit: missingBreakdown === 0 && items.length > 0 && !deposit && !bosttaAlreadyDeposited,
         };
