@@ -160,7 +160,8 @@ export function buildProductLookup(products: CatalogProduct[]): Map<string, Cata
  */
 export function parseProductText(
   text: string,
-  productLookup: Map<string, CatalogProduct>
+  productLookup: Map<string, CatalogProduct>,
+  codAmount?: number
 ): ParsedProductLine {
   const original = String(text || "");
   let norm = normalizeArabic(original);
@@ -283,6 +284,32 @@ export function parseProductText(
       is_gift: b.isGiftHint || undefined,
       raw_token: matchedRaw,
     });
+  }
+
+  // Rule: بارت "دبوس" لو البنت مكتبتش "قطعية" وسعر التحصيل > 2000 → دبوس بالعظم (باكة 6ك)
+  // أو لو مكتوب صراحة "بالعظم/بالعضم". الافتراضي بغير كده يفضل قطعية الدبوس (فيليه).
+  const rawNorm = normalizeArabic(original);
+  const mentionsFillet = /قطعي[ةه]\s*(ال)?دبوس/.test(rawNorm) || /دبوس\s*قطعي[ةه]/.test(rawNorm);
+  const mentionsBoneIn = /دبوس\s*بال?ع[ضظ]م(ه)?/.test(String(original).replace(/[أإآا]/g, "ا"));
+  const codOverThreshold = typeof codAmount === "number" && codAmount > 2000;
+  if (!mentionsFillet && (mentionsBoneIn || codOverThreshold)) {
+    const bonePack = productLookup.get(normalizeArabic("6ك دبوس بالعظم"));
+    if (bonePack) {
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        if (it.product_name && /قطعي[ةه]\s*الدبوس/.test(normalizeArabic(it.product_name))) {
+          items[i] = {
+            product_id: bonePack.id,
+            product_name: bonePack.name,
+            quantity: 1,
+            unit: bonePack.unit,
+            unit_price: it.is_gift ? 0 : bonePack.price,
+            is_gift: it.is_gift,
+            raw_token: it.raw_token,
+          };
+        }
+      }
+    }
   }
 
   return { items, unknown_tokens: unknown, original_text: original };

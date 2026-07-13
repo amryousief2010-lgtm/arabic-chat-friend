@@ -83,7 +83,7 @@ export function BulkDeliveryUploadButton() {
         const dateStr = dateVal instanceof Date ? dateVal.toISOString() : String(dateVal || "");
         const productText = String(r["اسم المنتج"] || "");
 
-        const parsedProducts = parseProductText(productText, lookup);
+        const parsedProducts = parseProductText(productText, lookup, cod);
         parsed.push({
           bill_no: bill,
           shipment_date: dateStr.slice(0, 10),
