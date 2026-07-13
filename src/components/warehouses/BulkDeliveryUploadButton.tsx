@@ -146,21 +146,24 @@ export function BulkDeliveryUploadButton() {
       setKnownPhones(known);
       setPhoneToModerator(phoneMod);
 
-      setOpen(true);
       const missing = parsed.filter((p) => p.phone && !known.has(p.phone)).length;
       const toProcess = parsed.length - missing;
+      const totalCod = parsed.reduce((s, p) => s + (Number(p.cod) || 0), 0);
+
+      // Fully auto-approve: كل الأوردرات موبايلاتها معروفة → اعتمد على طول من غير ما نفتح الديالوج.
+      // التحذيرات (منتجات مش في الكتالوج) بنعديها كـ "تم التسليم" من غير تعديل على أصناف الأوردر.
+      if (missing === 0 && toProcess > 0) {
+        toast.success(
+          `تم اعتماد ${parsed.length} شحنة تلقائيًا — إجمالي ${totalCod.toLocaleString()} ج`,
+        );
+        submitShipments(parsed);
+        return;
+      }
+
+      setOpen(true);
       toast.success(
         `تم تحليل ${parsed.length} شحنة${missing > 0 ? ` — ${missing} محتاجة تسجيل` : ""}`,
       );
-
-      // Auto-confirm when there's nothing blocking:
-      // - no shipments need customer registration (all phones known)
-      // - at least one shipment to process
-      // Warnings and "no items" cases are safe (we deliver without changing items).
-      if (missing === 0 && toProcess > 0) {
-        // Trigger confirmation right away — no need to click.
-        setTimeout(() => autoConfirmRef.current?.(parsed), 50);
-      }
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || "فشل قراءة الملف");
