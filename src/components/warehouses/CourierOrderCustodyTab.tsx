@@ -1415,17 +1415,18 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                         {isDepositing ? "جارٍ..." : `توريد ${fmt(Number(upload.netAmount))}`}
                                       </Button>
                                     )}
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-7 px-2 text-xs text-rose-700 border-rose-300 hover:bg-rose-50"
-                                      disabled={isDepositing}
-                                      onClick={() => deleteBosttaSheet(upload)}
-                                      title="حذف الكشف والتوريد الناتج عنه لرفعه من جديد"
-                                    >
-                                      <Trash2 className="w-3 h-3 ml-1" /> حذف ورفع تاني
-                                    </Button>
-                                  </div>
+                                    {!isDeposited && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 px-2 text-xs text-rose-700 border-rose-300 hover:bg-rose-50"
+                                        disabled={isDepositing}
+                                        onClick={() => deleteBosttaSheet(upload)}
+                                        title="حذف الكشف لرفعه من جديد"
+                                      >
+                                        <Trash2 className="w-3 h-3 ml-1" /> حذف ورفع تاني
+                                      </Button>
+                                    )}
                                 </TableCell>
                               </TableRow>
                             );
