@@ -881,6 +881,32 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
     } finally { setDepositingBosttaId(null); }
   };
 
+  const deleteBosttaSheet = async (upload: BosttaUploadNet) => {
+    if (!confirm(`سيتم حذف كشف بُسطة "${upload.filename}" وأي توريد ناتج عنه من خزنة العجوزة. هتقدر ترفعه تاني من زر الرفع. متابعة؟`)) return;
+    setDepositingBosttaId(upload.id);
+    try {
+      // 1) حذف حركات الخزينة المرتبطة بالكشف (لو تم التوريد)
+      const { error: txnErr } = await (supabase as any)
+        .from("agouza_warehouse_treasury_txns")
+        .delete()
+        .eq("txn_type", "cash_in")
+        .like("notes", `%${upload.filename}%`);
+      if (txnErr) console.warn("Delete treasury txn failed:", txnErr.message);
+
+      // 2) حذف سطر الكشف نفسه
+      const { error: upErr } = await (supabase as any)
+        .from("bostta_delivery_uploads")
+        .delete()
+        .eq("id", upload.id);
+      if (upErr) throw upErr;
+
+      toast({ title: "تم حذف الكشف", description: "دلوقتي تقدر ترفعه تاني" });
+      await load();
+    } catch (e: any) {
+      toast({ title: "تعذّر الحذف", description: e?.message || "", variant: "destructive" });
+    } finally { setDepositingBosttaId(null); }
+  };
+
 
 
 
