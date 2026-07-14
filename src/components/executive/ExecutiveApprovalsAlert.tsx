@@ -10,6 +10,8 @@ import { Bell, CheckCircle2, XCircle, ShieldAlert, Wallet, Beef, Drumstick, Flas
 import { useExecutiveApprovals, type ApprovalItem, type ApprovalCategory } from "@/hooks/useExecutiveApprovals";
 import ApprovalDetailsDialog from "./ApprovalDetailsDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { MessageSquare } from "lucide-react";
 
 const SESSION_KEY = "executive_approvals_dismissed_at";
 const LAST_SEEN_KEY = "executive_approvals_last_seen_total";
@@ -52,13 +54,15 @@ const CAT_COLOR: Record<ApprovalCategory, string> = {
 
 export default function ExecutiveApprovalsAlert() {
   const { isApprover, items, counts, approve, reject } = useExecutiveApprovals();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | ApprovalCategory>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectFor, setRejectFor] = useState<ApprovalItem | null>(null);
   const [rejectReason, setRejectReason] = useState("");
-  const [approveFor, setApproveFor] = useState<ApprovalItem | null>(null);
-  const [approveNote, setApproveNote] = useState("");
+  const [messageFor, setMessageFor] = useState<ApprovalItem | null>(null);
+  const [messageText, setMessageText] = useState("");
+  const [sendingMsg, setSendingMsg] = useState(false);
   const [detailsFor, setDetailsFor] = useState<ApprovalItem | null>(null);
   const lastTotalRef = useRef<number>(-1);
 
@@ -95,31 +99,54 @@ export default function ExecutiveApprovalsAlert() {
     setOpen(false);
   };
 
-  const doApprove = async (item: ApprovalItem, note?: string) => {
+  const doApprove = async (item: ApprovalItem) => {
     setBusyId(item.id);
     try {
       await approve(item);
-      const msg = (note || "").trim();
-      if (msg && item.created_by) {
-        try {
-          await (supabase as any).from("notifications").insert({
-            title: `تم اعتماد: ${item.title}`,
-            description: msg,
-            type: "approval",
-            target_user_id: item.created_by,
-            order_id: null,
-          });
-        } catch (e) {
-          console.warn("notify creator failed", e);
-        }
-      }
-      toast.success(msg ? "تم الاعتماد وإرسال الرسالة" : "تم اعتماد الطلب");
-      setApproveFor(null);
-      setApproveNote("");
+      toast.success("تم اعتماد الطلب");
     } catch (e: any) {
       toast.error(e?.message || "فشل الاعتماد");
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!messageFor || !user) return;
+    if (!messageFor.created_by) {
+      toast.error("لا يوجد مستلم لهذا الطلب");
+      return;
+    }
+    if (messageText.trim().length < 2) {
+      toast.error("اكتب نص الرسالة");
+      return;
+    }
+    setSendingMsg(true);
+    try {
+      const subject = `بخصوص: ${messageFor.title}`;
+      const { data: msg, error: msgErr } = await (supabase as any)
+        .from("internal_messages")
+        .insert({
+          sender_id: user.id,
+          subject: subject.slice(0, 200),
+          body: messageText.trim(),
+          priority: "normal",
+          has_attachments: false,
+        })
+        .select("id")
+        .single();
+      if (msgErr) throw msgErr;
+      const { error: recErr } = await (supabase as any)
+        .from("internal_message_recipients")
+        .insert([{ message_id: msg.id, recipient_id: messageFor.created_by }]);
+      if (recErr) throw recErr;
+      toast.success("تم إرسال الرسالة");
+      setMessageFor(null);
+      setMessageText("");
+    } catch (e: any) {
+      toast.error(e?.message || "فشل الإرسال");
+    } finally {
+      setSendingMsg(false);
     }
   };
 
@@ -221,7 +248,7 @@ export default function ExecutiveApprovalsAlert() {
                           >
                             <Eye className="h-4 w-4 ml-1" /> تفاصيل
                           </Button>
-                          <Button size="sm" disabled={busyId === item.id} onClick={() => { setApproveFor(item); setApproveNote(""); }}>
+                          <Button size="sm" disabled={busyId === item.id} onClick={() => doApprove(item)}>
                             <CheckCircle2 className="h-4 w-4 ml-1" /> اعتماد
                           </Button>
                           <Button
@@ -231,6 +258,15 @@ export default function ExecutiveApprovalsAlert() {
                             onClick={() => { setRejectFor(item); setRejectReason(""); }}
                           >
                             <XCircle className="h-4 w-4 ml-1" /> رفض
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={!item.created_by}
+                            onClick={() => { setMessageFor(item); setMessageText(""); }}
+                            className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                          >
+                            <MessageSquare className="h-4 w-4 ml-1" /> إرسال رسالة
                           </Button>
                         </div>
                       </CardContent>
@@ -268,36 +304,36 @@ export default function ExecutiveApprovalsAlert() {
         </DialogContent>
       </Dialog>
 
-      {/* Approve with optional note dialog */}
-      <Dialog open={!!approveFor} onOpenChange={(v) => { if (!v) { setApproveFor(null); setApproveNote(""); } }}>
+      {/* Send message dialog */}
+      <Dialog open={!!messageFor} onOpenChange={(v) => { if (!v) { setMessageFor(null); setMessageText(""); } }}>
         <DialogContent dir="rtl" className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-emerald-700">
-              <CheckCircle2 className="h-5 w-5" />
-              تأكيد الاعتماد
+            <DialogTitle className="flex items-center gap-2 text-blue-700">
+              <MessageSquare className="h-5 w-5" />
+              إرسال رسالة
             </DialogTitle>
           </DialogHeader>
-          {approveFor && (
+          {messageFor && (
             <div className="text-sm text-muted-foreground -mt-1">
-              <div className="font-semibold text-foreground">{approveFor.title}</div>
-              {approveFor.creator_name && <div>المسجِّل: {approveFor.creator_name}</div>}
+              <div className="font-semibold text-foreground">{messageFor.title}</div>
+              {messageFor.creator_name && <div>إلى: {messageFor.creator_name}</div>}
             </div>
           )}
           <Textarea
-            value={approveNote}
-            onChange={(e) => setApproveNote(e.target.value)}
-            placeholder="رسالة للمسجل (اختياري) — سيتم إرسالها كإشعار"
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            placeholder="اكتب نص الرسالة..."
             rows={4}
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setApproveFor(null); setApproveNote(""); }}>إلغاء</Button>
+            <Button variant="outline" onClick={() => { setMessageFor(null); setMessageText(""); }}>إلغاء</Button>
             <Button
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={() => approveFor && doApprove(approveFor, approveNote)}
-              disabled={busyId === approveFor?.id}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={sendMessage}
+              disabled={sendingMsg}
             >
-              <CheckCircle2 className="h-4 w-4 ml-1" />
-              تأكيد الاعتماد
+              <MessageSquare className="h-4 w-4 ml-1" />
+              إرسال
             </Button>
           </DialogFooter>
         </DialogContent>
