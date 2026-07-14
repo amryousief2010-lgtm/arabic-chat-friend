@@ -304,36 +304,36 @@ export default function ExecutiveApprovalsAlert() {
         </DialogContent>
       </Dialog>
 
-      {/* Approve with optional note dialog */}
-      <Dialog open={!!approveFor} onOpenChange={(v) => { if (!v) { setApproveFor(null); setApproveNote(""); } }}>
+      {/* Send message dialog */}
+      <Dialog open={!!messageFor} onOpenChange={(v) => { if (!v) { setMessageFor(null); setMessageText(""); } }}>
         <DialogContent dir="rtl" className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-emerald-700">
-              <CheckCircle2 className="h-5 w-5" />
-              تأكيد الاعتماد
+            <DialogTitle className="flex items-center gap-2 text-blue-700">
+              <MessageSquare className="h-5 w-5" />
+              إرسال رسالة
             </DialogTitle>
           </DialogHeader>
-          {approveFor && (
+          {messageFor && (
             <div className="text-sm text-muted-foreground -mt-1">
-              <div className="font-semibold text-foreground">{approveFor.title}</div>
-              {approveFor.creator_name && <div>المسجِّل: {approveFor.creator_name}</div>}
+              <div className="font-semibold text-foreground">{messageFor.title}</div>
+              {messageFor.creator_name && <div>إلى: {messageFor.creator_name}</div>}
             </div>
           )}
           <Textarea
-            value={approveNote}
-            onChange={(e) => setApproveNote(e.target.value)}
-            placeholder="رسالة للمسجل (اختياري) — سيتم إرسالها كإشعار"
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            placeholder="اكتب نص الرسالة..."
             rows={4}
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setApproveFor(null); setApproveNote(""); }}>إلغاء</Button>
+            <Button variant="outline" onClick={() => { setMessageFor(null); setMessageText(""); }}>إلغاء</Button>
             <Button
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={() => approveFor && doApprove(approveFor, approveNote)}
-              disabled={busyId === approveFor?.id}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={sendMessage}
+              disabled={sendingMsg}
             >
-              <CheckCircle2 className="h-4 w-4 ml-1" />
-              تأكيد الاعتماد
+              <MessageSquare className="h-4 w-4 ml-1" />
+              إرسال
             </Button>
           </DialogFooter>
         </DialogContent>
