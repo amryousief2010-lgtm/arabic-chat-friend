@@ -248,7 +248,7 @@ export default function ExecutiveApprovalsAlert() {
                           >
                             <Eye className="h-4 w-4 ml-1" /> تفاصيل
                           </Button>
-                          <Button size="sm" disabled={busyId === item.id} onClick={() => { setApproveFor(item); setApproveNote(""); }}>
+                          <Button size="sm" disabled={busyId === item.id} onClick={() => doApprove(item)}>
                             <CheckCircle2 className="h-4 w-4 ml-1" /> اعتماد
                           </Button>
                           <Button
@@ -258,6 +258,15 @@ export default function ExecutiveApprovalsAlert() {
                             onClick={() => { setRejectFor(item); setRejectReason(""); }}
                           >
                             <XCircle className="h-4 w-4 ml-1" /> رفض
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={!item.created_by}
+                            onClick={() => { setMessageFor(item); setMessageText(""); }}
+                            className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                          >
+                            <MessageSquare className="h-4 w-4 ml-1" /> إرسال رسالة
                           </Button>
                         </div>
                       </CardContent>
