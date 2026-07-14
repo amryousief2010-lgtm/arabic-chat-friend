@@ -54,6 +54,7 @@ const CAT_COLOR: Record<ApprovalCategory, string> = {
 
 export default function ExecutiveApprovalsAlert() {
   const { isApprover, items, counts, approve, reject } = useExecutiveApprovals();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | ApprovalCategory>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
