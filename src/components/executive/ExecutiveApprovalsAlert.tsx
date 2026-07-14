@@ -99,31 +99,54 @@ export default function ExecutiveApprovalsAlert() {
     setOpen(false);
   };
 
-  const doApprove = async (item: ApprovalItem, note?: string) => {
+  const doApprove = async (item: ApprovalItem) => {
     setBusyId(item.id);
     try {
       await approve(item);
-      const msg = (note || "").trim();
-      if (msg && item.created_by) {
-        try {
-          await (supabase as any).from("notifications").insert({
-            title: `تم اعتماد: ${item.title}`,
-            description: msg,
-            type: "approval",
-            target_user_id: item.created_by,
-            order_id: null,
-          });
-        } catch (e) {
-          console.warn("notify creator failed", e);
-        }
-      }
-      toast.success(msg ? "تم الاعتماد وإرسال الرسالة" : "تم اعتماد الطلب");
-      setApproveFor(null);
-      setApproveNote("");
+      toast.success("تم اعتماد الطلب");
     } catch (e: any) {
       toast.error(e?.message || "فشل الاعتماد");
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!messageFor || !user) return;
+    if (!messageFor.created_by) {
+      toast.error("لا يوجد مستلم لهذا الطلب");
+      return;
+    }
+    if (messageText.trim().length < 2) {
+      toast.error("اكتب نص الرسالة");
+      return;
+    }
+    setSendingMsg(true);
+    try {
+      const subject = `بخصوص: ${messageFor.title}`;
+      const { data: msg, error: msgErr } = await (supabase as any)
+        .from("internal_messages")
+        .insert({
+          sender_id: user.id,
+          subject: subject.slice(0, 200),
+          body: messageText.trim(),
+          priority: "normal",
+          has_attachments: false,
+        })
+        .select("id")
+        .single();
+      if (msgErr) throw msgErr;
+      const { error: recErr } = await (supabase as any)
+        .from("internal_message_recipients")
+        .insert([{ message_id: msg.id, recipient_id: messageFor.created_by }]);
+      if (recErr) throw recErr;
+      toast.success("تم إرسال الرسالة");
+      setMessageFor(null);
+      setMessageText("");
+    } catch (e: any) {
+      toast.error(e?.message || "فشل الإرسال");
+    } finally {
+      setSendingMsg(false);
     }
   };
 
