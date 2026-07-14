@@ -585,8 +585,12 @@ export default function MainWarehouseTreasuryTab() {
     }
     const isReconcile = transferMode === "reconcile";
     if (!isReconcile && selectedDepositIds.size === 0) {
-      toast({ title: "اختر أيام التوريد", description: "لازم تحدد يوم/أيام التوريد المرتبطة بالتحويل حتى تظهر الأوردرات في طباعة المسؤول المالي", variant: "destructive" });
-      return;
+      // Allow transferring general main-warehouse balance (not tied to a specific
+      // courier deposit day) — e.g. direct-sale cash. Confirm to prevent mistakes.
+      const ok = window.confirm(
+        `لم يتم اختيار أي يوم توريد مندوب. هل تريد تحويل ${fmt(amt)} ج.م من رصيد الخزنة العام (بدون ربط بأوردرات مندوب)؟\n\nسيتم إرسال التحويل للاعتماد كالمعتاد.`
+      );
+      if (!ok) return;
     }
     if (amt > kpis.balance) {
       if (!window.confirm(`المبلغ (${fmt(amt)}) أكبر من الرصيد الحالي (${fmt(kpis.balance)}). متابعة؟`)) return;
@@ -2188,7 +2192,7 @@ export default function MainWarehouseTreasuryTab() {
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>تحويل إلى الخزينة الرئيسية</DialogTitle>
-            <DialogDescription>اختر أيام التوريد التي تريد تحويلها بتفاصيلها. سيتم إرسال إشعار لمحمد شعلة لاعتماد التحويل.</DialogDescription>
+            <DialogDescription>اختر أيام توريد المندوب لربطها بالتحويل، أو اترك الاختيار فارغًا لتحويل رصيد عام من خزنة المخزن الرئيسي (غير مرتبط بمندوب). سيتم إرسال إشعار لمحمد شعلة لاعتماد التحويل.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="text-sm bg-muted/40 rounded-md p-2">الرصيد الحالي: <b>{fmt(kpis.balance)} ج.م</b></div>
