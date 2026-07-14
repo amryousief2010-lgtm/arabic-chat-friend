@@ -10,6 +10,8 @@ import { Bell, CheckCircle2, XCircle, ShieldAlert, Wallet, Beef, Drumstick, Flas
 import { useExecutiveApprovals, type ApprovalItem, type ApprovalCategory } from "@/hooks/useExecutiveApprovals";
 import ApprovalDetailsDialog from "./ApprovalDetailsDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { MessageSquare } from "lucide-react";
 
 const SESSION_KEY = "executive_approvals_dismissed_at";
 const LAST_SEEN_KEY = "executive_approvals_last_seen_total";
