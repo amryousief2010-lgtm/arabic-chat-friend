@@ -59,15 +59,18 @@ export function SlaughterToMainWarehouseInbox({ defaultWarehouseId }: Props) {
         .neq("received_status", "received")
         .order("created_at", { ascending: false })
         .limit(500),
-      fgIds.length
-        ? supabase.from("slaughter_batch_outputs")
-            .select(selectCols)
-            .eq("received_status", "received")
-            .in("received_warehouse_id", fgIds)
-            .order("received_at", { ascending: false })
-            .limit(200)
-        : Promise.resolve({ data: [] as any[] } as any),
+      // Include ALL historically-received main-warehouse outputs, even old
+      // records where received_warehouse_id was never populated (legacy
+      // auto-receive flow). Filter by destination to keep meat-factory
+      // outputs out.
+      supabase.from("slaughter_batch_outputs")
+        .select(selectCols)
+        .eq("received_status", "received")
+        .in("destination", ["warehouse", "branch"])
+        .order("received_at", { ascending: false, nullsFirst: false })
+        .limit(500),
     ]);
+
     const merged = [...((pendingRes as any).data || []), ...((receivedRes as any).data || [])];
     setOutputs(merged);
     if (w.data) setWarehouses(w.data);
