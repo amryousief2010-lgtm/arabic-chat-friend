@@ -694,7 +694,7 @@ const Slaughterhouse = () => {
       });
       if (error) { toast.error(error.message); return; }
       const d: any = data || {};
-      toast.success(`تم توريد ${d.received_count || 0} صنف إلى ${destLabel} (${Number(d.total_kg || 0).toFixed(1)} كجم)`);
+      toast.success(`تم إرسال ${d.received_count || 0} صنف إلى ${destLabel} (${Number(d.total_kg || 0).toFixed(1)} كجم) — بانتظار اعتماد أمين المخزن المستلم`);
       printTransferNote(b, destLabel, printLines, totalKg);
       setConfirmSendBatch(null);
       setPartialQty({});
