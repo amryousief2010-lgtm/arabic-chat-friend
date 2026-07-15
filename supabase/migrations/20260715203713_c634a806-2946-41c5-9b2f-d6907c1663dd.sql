@@ -1,0 +1,2 @@
+UPDATE auth.users SET email = 'hager@coceg.net', email_confirmed_at = COALESCE(email_confirmed_at, now()), updated_at = now() WHERE id = '96bc9a91-bcb8-44a5-8815-5cc41c561d19';
+UPDATE public.profiles SET email = 'hager@coceg.net' WHERE id = '96bc9a91-bcb8-44a5-8815-5cc41c561d19';
