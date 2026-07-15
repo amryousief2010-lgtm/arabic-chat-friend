@@ -33,13 +33,21 @@ export const MODERATORS: ModeratorConfig[] = [
   },
   {
     slug: "manal",
-    displayName: "منال",
+    // منال تركت الشركة وهاجر تشتغل مكانها على نفس الحساب.
+    // نحتفظ بـ canonicalModerator + aliases باسم "منال" حتى تبقى بيانات
+    // الأوردرات التاريخية مرتبطة بنفس الخانة، والاسم المعروض فقط تغيّر لهاجر.
+    displayName: "هاجر",
     canonicalModerator: "منال",
-    aliases: ["منال"],
+    aliases: ["منال", "هاجر"],
     gradient: "from-chart-4 to-chart-4/70",
     iconBg: "bg-chart-4",
   },
 ];
+
+// اسم العرض للمسوقة استناداً إلى القيمة المخزّنة في orders.moderator أو مفاتيح التجميع.
+// تُستخدم لعرض "هاجر" بدلاً من "منال" في الواجهات، مع الحفاظ على مفاتيح البيانات كما هي.
+export const displayModeratorName = (name: string): string =>
+  name === "منال" ? "هاجر" : name;
 
 // Normalize Arabic for fuzzy comparison.
 export const normalizeAr = (s: string): string =>

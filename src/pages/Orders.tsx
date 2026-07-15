@@ -1789,7 +1789,7 @@ const Orders = () => {
                   <SelectItem value="أية">آية</SelectItem>
                   <SelectItem value="نورا">نورا</SelectItem>
                   
-                  <SelectItem value="منال">منال</SelectItem>
+                  <SelectItem value="منال">هاجر</SelectItem>
                 </SelectContent>
               </Select>
             )}

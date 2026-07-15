@@ -187,7 +187,7 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
             {(data || []).filter(item => visibleGirls.includes(item.name)).map(item => (
               <Card key={item.name} className="border-2">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-center">{item.name}</CardTitle>
+                  <CardTitle className="text-lg text-center">{item.name === 'منال' ? 'هاجر' : item.name}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-center justify-between p-2 rounded-lg bg-primary/5">
