@@ -418,7 +418,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
             <TableRow className="bg-muted/50">
               <TableHead className="text-right font-bold border">البيان</TableHead>
               {GIRLS.map(g => (
-                <TableHead key={g} className="text-center font-bold border text-primary">{g}</TableHead>
+                <TableHead key={g} className="text-center font-bold border text-primary">{g === 'منال' ? 'هاجر' : g}</TableHead>
               ))}
             </TableRow>
           </TableHeader>
