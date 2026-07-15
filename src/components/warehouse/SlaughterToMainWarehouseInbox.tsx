@@ -227,7 +227,7 @@ export function SlaughterToMainWarehouseInbox({ defaultWarehouseId }: Props) {
             <CheckCircle2 className="w-4 h-4" /> دفعات تم استلامها وإضافتها للمخزون الرئيسي
             <Badge variant="outline" className="text-xs">{receivedBatches.length}</Badge>
           </div>
-          {receivedBatches.slice(0, 20).map((b: any) => {
+          {receivedBatches.slice(0, 100).map((b: any) => {
             const totalKg = b.outputs.reduce((s: number, o: any) => s + Number(o.actual_weight_kg || 0), 0);
             return (
               <Card key={b.batch_id} className="border-emerald-300 bg-emerald-50/30">
