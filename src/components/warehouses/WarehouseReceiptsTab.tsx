@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Beef, Factory, ArrowLeftRight, Printer, Eye, Inbox, Loader2, Pencil, Trash2, Package } from "lucide-react";
+import { Beef, Factory, ArrowLeftRight, Printer, Eye, Inbox, Loader2, Pencil, Trash2, Package, CheckCircle2 } from "lucide-react";
 import { formatDateTime } from "@/lib/dateFormat";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 import { toast } from "sonner";
@@ -164,6 +164,40 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
   const [editNotes, setEditNotes] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<ReceiptRow | null>(null);
   const [busy, setBusy] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+
+  async function approveReceipt(r: ReceiptRow) {
+    if (r.status !== "pending") return;
+    setApprovingId(`${r.kind}-${r.id}`);
+    try {
+      if (r.kind === "slaughter") {
+        const batchId = String(r.id).split(":")[0];
+        if (!r.dest_warehouse_id) {
+          toast.error("لا يمكن تحديد المخزن المستلم");
+          return;
+        }
+        const { error } = await supabase.rpc("receive_slaughter_batch" as any, {
+          p_batch_id: batchId,
+          p_warehouse_id: r.dest_warehouse_id,
+        });
+        if (error) throw error;
+      } else if (r.kind === "meat_factory") {
+        const { error } = await supabase.rpc("receive_meat_production_transfer" as any, {
+          _transfer_id: r.id,
+        });
+        if (error) throw error;
+      } else {
+        toast.error("هذا النوع لا يحتاج اعتماد");
+        return;
+      }
+      toast.success("تم اعتماد الاستلام ودخول الكميات المخزن");
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e?.message || "تعذّر الاعتماد");
+    } finally {
+      setApprovingId(null);
+    }
+  }
 
   useEffect(() => { void loadAll(); }, []);
 
@@ -611,6 +645,21 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
                           <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
                           <TableCell>
                             <div className="flex gap-1">
+                              {r.status === "pending" && (r.kind === "slaughter" || r.kind === "meat_factory") && (
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  onClick={() => approveReceipt(r)}
+                                  disabled={approvingId === `${r.kind}-${r.id}`}
+                                  title="اعتماد الاستلام"
+                                  className="h-8 gap-1"
+                                >
+                                  {approvingId === `${r.kind}-${r.id}`
+                                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                                    : <CheckCircle2 className="w-4 h-4" />}
+                                  <span className="text-xs">اعتماد</span>
+                                </Button>
+                              )}
                               <Button size="sm" variant="ghost" onClick={() => setDetail(r)} title="رؤية">
                                 <Eye className="w-4 h-4" />
                               </Button>
