@@ -164,10 +164,13 @@ export default function MainTreasury() {
     if (reason.length < 3) return toast.error("سبب الإلغاء إلزامي (3 أحرف على الأقل)");
     if (!canCancel) return toast.error("الإلغاء متاح للمدير العام أو التنفيذي فقط");
     setBusy(true);
-    const { error } = await (supabase as any).rpc("mt_reject_txn", { p_txn_id: cancelDlg.txn.id, p_reason: reason });
+    const status = cancelDlg.txn.status;
+    // draft/pending → reject; posted → reverse (returns money to balance).
+    const rpcName = ["draft", "pending_approval"].includes(status) ? "mt_reject_txn" : "mt_reverse_txn";
+    const { error } = await (supabase as any).rpc(rpcName, { p_txn_id: cancelDlg.txn.id, p_reason: reason });
     setBusy(false);
-    if (error) return toast.error(error.message || "لا يمكن إلغاء هذه الحركة (قد تكون مُرحَّلة بالفعل)");
-    toast.success("تم إلغاء الحركة وتسجيلها في سجل التدقيق");
+    if (error) return toast.error(error.message || "لا يمكن إلغاء هذه الحركة");
+    toast.success(rpcName === "mt_reverse_txn" ? "تم إلغاء الحركة وإعادة المبلغ إلى رصيد الخزنة" : "تم إلغاء الحركة وتسجيلها في سجل التدقيق");
     setCancelDlg({ open: false, txn: null, reason: "" });
     fetchAll();
   }
