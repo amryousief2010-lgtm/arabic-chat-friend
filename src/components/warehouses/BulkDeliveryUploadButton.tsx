@@ -150,19 +150,10 @@ export function BulkDeliveryUploadButton() {
       const toProcess = parsed.length - missing;
       const totalCod = parsed.reduce((s, p) => s + (Number(p.cod) || 0), 0);
 
-      // Fully auto-approve: كل الأوردرات موبايلاتها معروفة → اعتمد على طول من غير ما نفتح الديالوج.
-      // التحذيرات (منتجات مش في الكتالوج) بنعديها كـ "تم التسليم" من غير تعديل على أصناف الأوردر.
-      if (missing === 0 && toProcess > 0) {
-        toast.success(
-          `تم اعتماد ${parsed.length} شحنة تلقائيًا — إجمالي ${totalCod.toLocaleString()} ج`,
-        );
-        submitShipments(parsed, file.name);
-        return;
-      }
-
+      // دايمًا افتح الديالوج للمراجعة اليدوية — الاعتماد ميتمش إلا لما المستخدم يضغط زر "تأكيد".
       setOpen(true);
       toast.success(
-        `تم تحليل ${parsed.length} شحنة${missing > 0 ? ` — ${missing} محتاجة تسجيل` : ""}`,
+        `تم تحليل ${parsed.length} شحنة — إجمالي ${totalCod.toLocaleString()} ج${missing > 0 ? ` (${missing} محتاجة تسجيل)` : ""} — راجع واعتمد`,
       );
     } catch (e: any) {
       console.error(e);
