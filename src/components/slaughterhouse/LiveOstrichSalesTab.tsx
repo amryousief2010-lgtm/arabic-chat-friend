@@ -563,12 +563,15 @@ export default function LiveOstrichSalesTab() {
                 <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">لا توجد عمليات بيع نعام قائم بعد</td></tr>
               )}
               {sales.map((s) => {
-                const rec = availability.find((r) => r.receipt_id === s.live_receipt_id);
+                const label =
+                  availability.find((r) => r.receipt_id === s.live_receipt_id)?.receipt_number ||
+                  receiptLabels[s.live_receipt_id] ||
+                  "—";
                 return (
                   <tr key={s.id} className="border-t hover:bg-muted/40">
                     <td className="p-2 font-mono text-xs">{s.sale_number}</td>
                     <td className="p-2">{s.sale_date}</td>
-                    <td className="p-2 text-xs">{rec?.receipt_number || "—"}</td>
+                    <td className="p-2 text-xs">{label}</td>
                     <td className="p-2">{s.bird_count}</td>
                     <td className="p-2">{fmt(Number(s.sale_weight_kg))} كجم</td>
                     <td className="p-2">{fmt(Number(s.price_per_kg))}</td>
