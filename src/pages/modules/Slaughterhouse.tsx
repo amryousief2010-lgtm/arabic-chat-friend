@@ -153,6 +153,7 @@ const Slaughterhouse = () => {
     setProfiles(pm);
     setAdjustments((adj.data as any) || []);
     setWarehouses((wh.data as any) || []);
+    setLiveSales((ls.data as any) || []);
     setLoading(false);
   };
 
