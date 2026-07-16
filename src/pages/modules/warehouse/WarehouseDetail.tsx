@@ -1734,6 +1734,11 @@ const WarehouseDetail = () => {
               <SlaughterToMainWarehouseInbox defaultWarehouseId={id!} />
             </TabsContent>
           )}
+          {isMain && (
+            <TabsContent value="meat-inbox" className="space-y-4">
+              <MeatFactoryToMainWarehouseInbox defaultWarehouseId={id!} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
