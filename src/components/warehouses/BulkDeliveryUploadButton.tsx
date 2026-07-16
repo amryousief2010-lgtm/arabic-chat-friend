@@ -263,11 +263,10 @@ export function BulkDeliveryUploadButton() {
 
           {!result ? (
             <>
-              <div className="grid grid-cols-5 gap-3 mb-4">
+              <div className="grid grid-cols-4 gap-3 mb-4">
                 <StatBox label="إجمالي الشحنات" value={shipments.length} color="slate" />
                 <StatBox label="محتاجة تسجيل" value={unregistered.length} color="blue" />
                 <StatBox label="جاهز للتحديث" value={readyItems.length} color="emerald" />
-                <StatBox label="تحذيرات" value={withWarnings.length} color="amber" />
                 <StatBox label="بدون تعديل منتجات" value={noItems.length} color="amber" />
               </div>
 
@@ -277,7 +276,6 @@ export function BulkDeliveryUploadButton() {
                     محتاجة تسجيل ({unregistered.length})
                   </TabsTrigger>
                   <TabsTrigger value="ready">جاهز ({readyItems.length})</TabsTrigger>
-                  <TabsTrigger value="warnings">تحذيرات ({withWarnings.length})</TabsTrigger>
                   <TabsTrigger value="skipped">بدون تعديل ({noItems.length})</TabsTrigger>
                 </TabsList>
 
