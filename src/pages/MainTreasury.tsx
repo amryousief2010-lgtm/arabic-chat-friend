@@ -164,10 +164,13 @@ export default function MainTreasury() {
     if (reason.length < 3) return toast.error("سبب الإلغاء إلزامي (3 أحرف على الأقل)");
     if (!canCancel) return toast.error("الإلغاء متاح للمدير العام أو التنفيذي فقط");
     setBusy(true);
-    const { error } = await (supabase as any).rpc("mt_reject_txn", { p_txn_id: cancelDlg.txn.id, p_reason: reason });
+    const status = cancelDlg.txn.status;
+    // draft/pending → reject; posted → reverse (returns money to balance).
+    const rpcName = ["draft", "pending_approval"].includes(status) ? "mt_reject_txn" : "mt_reverse_txn";
+    const { error } = await (supabase as any).rpc(rpcName, { p_txn_id: cancelDlg.txn.id, p_reason: reason });
     setBusy(false);
-    if (error) return toast.error(error.message || "لا يمكن إلغاء هذه الحركة (قد تكون مُرحَّلة بالفعل)");
-    toast.success("تم إلغاء الحركة وتسجيلها في سجل التدقيق");
+    if (error) return toast.error(error.message || "لا يمكن إلغاء هذه الحركة");
+    toast.success(rpcName === "mt_reverse_txn" ? "تم إلغاء الحركة وإعادة المبلغ إلى رصيد الخزنة" : "تم إلغاء الحركة وتسجيلها في سجل التدقيق");
     setCancelDlg({ open: false, txn: null, reason: "" });
     fetchAll();
   }
@@ -965,7 +968,7 @@ export default function MainTreasury() {
                   const cat = cats.find(c => c.id === t.category_id);
                   const isAuto = !!t.transfer_group_id || /^transfer_/.test(t.txn_type);
                   const isCancelled = ["rejected","reversed"].includes(t.status);
-                  const canCancelThis = canCancel && ["draft","pending_approval"].includes(t.status);
+                  const canCancelThis = canCancel && !isCancelled;
                   return (
                     <TableRow key={t.id}>
                       <TableCell className="font-mono text-xs">{t.reference_no}</TableCell>
@@ -988,7 +991,7 @@ export default function MainTreasury() {
                         <Button size="icon" variant="ghost" title="عرض التفاصيل" onClick={()=>setDetailsDlg({ open:true, txn:t })}><Eye className="h-4 w-4"/></Button>
                         <Button size="icon" variant="ghost" title="طباعة سند" onClick={()=>printVoucher(t)}><Printer className="h-4 w-4"/></Button>
                         {canCancel && (
-                          <Button size="icon" variant="ghost" className="text-destructive" title={canCancelThis ? "إلغاء الحركة" : "لا يمكن إلغاء حركة مُرحَّلة"} disabled={!canCancelThis} onClick={()=>setCancelDlg({ open:true, txn:t, reason:"" })}>
+                          <Button size="icon" variant="ghost" className="text-destructive" title={canCancelThis ? (["draft","pending_approval"].includes(t.status) ? "إلغاء الحركة" : "إلغاء الحركة وإعادة المبلغ للرصيد") : "الحركة ملغاة بالفعل"} disabled={!canCancelThis} onClick={()=>setCancelDlg({ open:true, txn:t, reason:"" })}>
                             <Trash2 className="h-4 w-4"/>
                           </Button>
                         )}
