@@ -21709,6 +21709,55 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      mt_reverse_txn: {
+        Args: { p_reason: string; p_txn_id: string }
+        Returns: {
+          account_id: string
+          amount: number
+          approver_1_at: string | null
+          approver_1_id: string | null
+          approver_2_at: string | null
+          approver_2_id: string | null
+          attachment_change_reason: string | null
+          attachment_mime: string | null
+          attachment_name: string | null
+          attachment_size: number | null
+          attachment_uploaded_at: string | null
+          attachment_uploaded_by: string | null
+          attachment_url: string | null
+          bank_account_number: string | null
+          bank_category_id: string | null
+          bank_depositor_by: string | null
+          cash_handover_by: string | null
+          category_id: string | null
+          client_uuid: string | null
+          counterparty: string | null
+          created_at: string
+          created_by: string
+          deposit_purpose: string | null
+          description: string
+          id: string
+          incoming_source: string | null
+          loan_number: string | null
+          payment_method: string | null
+          posted_at: string | null
+          reference_no: string | null
+          rejection_reason: string | null
+          requires_dual_approval: boolean
+          reversed_by_txn_id: string | null
+          status: string
+          transfer_group_id: string | null
+          txn_date: string
+          txn_type: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "main_treasury_transactions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       next_brooding_movement_no: { Args: never; Returns: string }
       next_chick_trading_batch_no: {
         Args: { _purchase_date: string }
