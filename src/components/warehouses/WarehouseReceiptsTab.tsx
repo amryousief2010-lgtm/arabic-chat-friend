@@ -164,6 +164,40 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
   const [editNotes, setEditNotes] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<ReceiptRow | null>(null);
   const [busy, setBusy] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+
+  async function approveReceipt(r: ReceiptRow) {
+    if (r.status !== "pending") return;
+    setApprovingId(`${r.kind}-${r.id}`);
+    try {
+      if (r.kind === "slaughter") {
+        const batchId = String(r.id).split(":")[0];
+        if (!r.dest_warehouse_id) {
+          toast.error("لا يمكن تحديد المخزن المستلم");
+          return;
+        }
+        const { error } = await supabase.rpc("receive_slaughter_batch" as any, {
+          p_batch_id: batchId,
+          p_warehouse_id: r.dest_warehouse_id,
+        });
+        if (error) throw error;
+      } else if (r.kind === "meat_factory") {
+        const { error } = await supabase.rpc("receive_meat_production_transfer" as any, {
+          _transfer_id: r.id,
+        });
+        if (error) throw error;
+      } else {
+        toast.error("هذا النوع لا يحتاج اعتماد");
+        return;
+      }
+      toast.success("تم اعتماد الاستلام ودخول الكميات المخزن");
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e?.message || "تعذّر الاعتماد");
+    } finally {
+      setApprovingId(null);
+    }
+  }
 
   useEffect(() => { void loadAll(); }, []);
 
