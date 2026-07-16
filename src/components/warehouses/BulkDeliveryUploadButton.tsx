@@ -42,10 +42,10 @@ export function BulkDeliveryUploadButton() {
 
   const unregistered = shipments.filter((s) => s.phone && !knownPhones.has(s.phone));
   const registered = shipments.filter((s) => s.phone && knownPhones.has(s.phone));
-  const readyItems = registered.filter((s) => s.items.length > 0 && s.unknown_tokens.length === 0);
-  const withWarnings = registered.filter((s) => s.unknown_tokens.length > 0 && s.items.length > 0);
-  // "noItems" = the sheet's products aren't in our catalog. We still deliver
-  // the order as-is (customer received and paid) without changing its items.
+  // Unknown/unparsed products are ignored — we always mark the order delivered
+  // and transfer the invoice total; original order items stay untouched.
+  const readyItems = registered.filter((s) => s.items.length > 0);
+  const withWarnings: ParsedShipment[] = [];
   const noItems = registered.filter((s) => s.items.length === 0);
 
   const handleFile = async (file: File) => {
@@ -263,11 +263,10 @@ export function BulkDeliveryUploadButton() {
 
           {!result ? (
             <>
-              <div className="grid grid-cols-5 gap-3 mb-4">
+              <div className="grid grid-cols-4 gap-3 mb-4">
                 <StatBox label="إجمالي الشحنات" value={shipments.length} color="slate" />
                 <StatBox label="محتاجة تسجيل" value={unregistered.length} color="blue" />
                 <StatBox label="جاهز للتحديث" value={readyItems.length} color="emerald" />
-                <StatBox label="تحذيرات" value={withWarnings.length} color="amber" />
                 <StatBox label="بدون تعديل منتجات" value={noItems.length} color="amber" />
               </div>
 
@@ -277,7 +276,6 @@ export function BulkDeliveryUploadButton() {
                     محتاجة تسجيل ({unregistered.length})
                   </TabsTrigger>
                   <TabsTrigger value="ready">جاهز ({readyItems.length})</TabsTrigger>
-                  <TabsTrigger value="warnings">تحذيرات ({withWarnings.length})</TabsTrigger>
                   <TabsTrigger value="skipped">بدون تعديل ({noItems.length})</TabsTrigger>
                 </TabsList>
 
@@ -314,21 +312,6 @@ export function BulkDeliveryUploadButton() {
 
                 <TabsContent value="ready">
                   <ShipmentTable shipments={readyItems} phoneToModerator={phoneToModerator} />
-                </TabsContent>
-                <TabsContent value="warnings">
-                  {withWarnings.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-6">لا توجد تحذيرات</p>
-                  ) : (
-                    <>
-                      <Alert className="mb-3 bg-amber-50 border-amber-300">
-                        <AlertTriangle className="w-4 h-4" />
-                        <AlertDescription>
-                          الشحنات دي فيها منتجات مش موجودة في الكتالوج. هيتم تعليم الأوردر "تم التسليم" مع الحفاظ على أصنافه الأصلية زي ما هي (بدون أي تعديل).
-                        </AlertDescription>
-                      </Alert>
-                      <ShipmentTable shipments={withWarnings} showUnknown phoneToModerator={phoneToModerator} />
-                    </>
-                  )}
                 </TabsContent>
                 <TabsContent value="skipped">
                   {noItems.length === 0 ? (
