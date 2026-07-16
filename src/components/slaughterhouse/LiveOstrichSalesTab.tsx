@@ -90,7 +90,7 @@ export default function LiveOstrichSalesTab() {
   const [loading, setLoading] = useState(false);
 
   const fetchAll = async () => {
-    const [av, sl, br, bw] = await Promise.all([
+    const [av, sl, br, bw, allRec] = await Promise.all([
       supabase.from("v_available_live_ostrich" as any).select("*").order("receipt_date", { ascending: false }),
       supabase.from("slaughter_live_sales" as any).select("*").order("sale_date", { ascending: false }).limit(500),
       supabase.from("slaughter_live_birds").select("id, receipt_id, bird_index, live_weight_kg, slaughter_weight_kg, purchase_cost, feed_cost"),
@@ -99,11 +99,15 @@ export default function LiveOstrichSalesTab() {
         .select("live_receipt_id, birds_slaughtered, total_live_weight_kg")
         .eq("approval_status", "approved")
         .neq("status", "cancelled"),
+      supabase.from("slaughter_live_receipts" as any).select("id, receipt_number").limit(2000),
     ]);
     setAvailability((av.data as any) || []);
     setSales((sl.data as any) || []);
     setBirds((br.data as any) || []);
     setBatchWeights((bw.data as any) || []);
+    const labels: Record<string, string> = {};
+    (((allRec.data as any) || []) as any[]).forEach((r) => { labels[r.id] = r.receipt_number; });
+    setReceiptLabels(labels);
     const soldIds = new Set<string>(
       (((sl.data as any) || []) as Sale[])
         .map((s: any) => s.live_bird_id)
