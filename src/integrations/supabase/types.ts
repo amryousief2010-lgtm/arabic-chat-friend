@@ -12461,6 +12461,12 @@ export type Database = {
           notes: string | null
           product_id: string
           quantity: number
+          received_at: string | null
+          received_by: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          status: string
           total_cost: number
           transfer_no: string
           unit_cost: number
@@ -12474,6 +12480,12 @@ export type Database = {
           notes?: string | null
           product_id: string
           quantity: number
+          received_at?: string | null
+          received_by?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          status?: string
           total_cost?: number
           transfer_no?: string
           unit_cost?: number
@@ -12487,6 +12499,12 @@ export type Database = {
           notes?: string | null
           product_id?: string
           quantity?: number
+          received_at?: string | null
+          received_by?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          status?: string
           total_cost?: number
           transfer_no?: string
           unit_cost?: number
@@ -21827,6 +21845,10 @@ export type Database = {
         Args: { p_batch_id: string }
         Returns: undefined
       }
+      receive_meat_production_transfer: {
+        Args: { _notes?: string; _received_qty?: number; _transfer_id: string }
+        Returns: string
+      }
       receive_slaughter_batch: {
         Args: { p_batch_id: string; p_warehouse_id: string }
         Returns: Json
@@ -21898,6 +21920,10 @@ export type Database = {
       reject_main_warehouse_transfer: {
         Args: { _reason: string; _txn_id: string }
         Returns: undefined
+      }
+      reject_meat_production_transfer: {
+        Args: { _reason: string; _transfer_id: string }
+        Returns: string
       }
       reject_meat_purchase: {
         Args: { p_purchase_id: string; p_reason?: string }
