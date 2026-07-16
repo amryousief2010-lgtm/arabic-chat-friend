@@ -91,6 +91,7 @@ const Slaughterhouse = () => {
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [adjustments, setAdjustments] = useState<Array<{ id: string; adjustment_date: string; new_balance: number; delta: number; reason: string | null; created_by: string | null; created_at: string }>>([]);
+  const [liveSales, setLiveSales] = useState<Array<{ id: string; live_receipt_id: string; bird_count: number }>>([]);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [costDetailOpen, setCostDetailOpen] = useState(false);
   const [adjustForm, setAdjustForm] = useState({ new_balance: 0, reason: "", adjustment_date: new Date().toISOString().slice(0, 10) });
@@ -119,7 +120,7 @@ const Slaughterhouse = () => {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [r, b, y, o, w, q, br, bd, tr, st, au, pr, adj, wh] = await Promise.all([
+    const [r, b, y, o, w, q, br, bd, tr, st, au, pr, adj, wh, ls] = await Promise.all([
       supabase.from("slaughter_live_receipts" as any).select("*").order("receipt_date", { ascending: false }).limit(500),
       supabase.from("slaughter_batches" as any).select("*").order("slaughter_date", { ascending: false }).limit(500),
       supabase.from("slaughter_yield_standards" as any).select("*").order("display_order"),
@@ -134,6 +135,7 @@ const Slaughterhouse = () => {
       supabase.from("profiles" as any).select("id, full_name").limit(1000),
       supabase.from("slaughter_live_stock_adjustments" as any).select("*").order("created_at", { ascending: false }).limit(200),
       supabase.from("warehouses" as any).select("id,name").order("name"),
+      supabase.from("slaughter_live_sales" as any).select("id, live_receipt_id, bird_count").limit(2000),
     ]);
     setReceipts((r.data as any) || []);
     setBatches((b.data as any) || []);
@@ -151,6 +153,7 @@ const Slaughterhouse = () => {
     setProfiles(pm);
     setAdjustments((adj.data as any) || []);
     setWarehouses((wh.data as any) || []);
+    setLiveSales((ls.data as any) || []);
     setLoading(false);
   };
 
@@ -168,6 +171,7 @@ const Slaughterhouse = () => {
     .reduce((s, b) => s + (b.birds_slaughtered || 0), 0);
   // النعام القائم = المُستلم - النافق - المذبوح - النافق قبل الذبح - المرفوض + التسويات
   const adjustmentsSum = adjustments.reduce((s, a) => s + (a.delta || 0), 0);
+  const liveSalesCount = liveSales.reduce((s, x) => s + Number(x.bird_count || 0), 0);
   const liveBalance = (() => {
     const received = receipts.reduce((s, r) => s + (r.bird_count || 0), 0);
     const doa = receipts.reduce((s, r) => s + (r.dead_on_arrival || 0), 0);
@@ -175,7 +179,7 @@ const Slaughterhouse = () => {
     const slaughtered = active.reduce((s, b) => s + (b.birds_slaughtered || 0), 0);
     const preDead = active.reduce((s, b) => s + (b.pre_slaughter_dead || 0), 0);
     const rejected = active.reduce((s, b) => s + (b.rejected_birds || 0), 0);
-    return Math.max(received - doa - slaughtered - preDead - rejected + adjustmentsSum, 0);
+    return Math.max(received - doa - slaughtered - preDead - rejected - liveSalesCount + adjustmentsSum, 0);
   })();
 
   // قيمة النعام القائم (تكلفة محاسبية فقط — ليست سعر بيع)
