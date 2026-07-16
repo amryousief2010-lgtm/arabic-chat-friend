@@ -985,7 +985,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                             </div>
                           </td>
                           <td className="p-3 text-muted-foreground">{p.unit}</td>
-                          <td className="p-3 text-foreground">{fmtKg(mActual)} كجم</td>
+                          <td className="p-3"><ActualCell wh="main" pid={p.id} name={p.name} kgValue={mActual} /></td>
                           <td className="p-3 text-foreground">
                             {mPend > 0 ? `${fmtKg(mPend)} كجم` : <span className="text-muted-foreground">—</span>}
                           </td>
