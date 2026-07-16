@@ -313,18 +313,6 @@ export function BulkDeliveryUploadButton() {
                 <TabsContent value="ready">
                   <ShipmentTable shipments={readyItems} phoneToModerator={phoneToModerator} />
                 </TabsContent>
-                <TabsContent value="warnings">
-                  {withWarnings.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-6">لا توجد تحذيرات</p>
-                  ) : (
-                    <>
-                      <Alert className="mb-3 bg-amber-50 border-amber-300">
-                        <AlertTriangle className="w-4 h-4" />
-                        <AlertDescription>
-                          الشحنات دي فيها منتجات مش موجودة في الكتالوج. هيتم تعليم الأوردر "تم التسليم" مع الحفاظ على أصنافه الأصلية زي ما هي (بدون أي تعديل).
-                        </AlertDescription>
-                      </Alert>
-                      <ShipmentTable shipments={withWarnings} showUnknown phoneToModerator={phoneToModerator} />
                     </>
                   )}
                 </TabsContent>
