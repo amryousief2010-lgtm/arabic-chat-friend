@@ -171,6 +171,7 @@ const Slaughterhouse = () => {
     .reduce((s, b) => s + (b.birds_slaughtered || 0), 0);
   // النعام القائم = المُستلم - النافق - المذبوح - النافق قبل الذبح - المرفوض + التسويات
   const adjustmentsSum = adjustments.reduce((s, a) => s + (a.delta || 0), 0);
+  const liveSalesCount = liveSales.reduce((s, x) => s + Number(x.bird_count || 0), 0);
   const liveBalance = (() => {
     const received = receipts.reduce((s, r) => s + (r.bird_count || 0), 0);
     const doa = receipts.reduce((s, r) => s + (r.dead_on_arrival || 0), 0);
@@ -178,7 +179,7 @@ const Slaughterhouse = () => {
     const slaughtered = active.reduce((s, b) => s + (b.birds_slaughtered || 0), 0);
     const preDead = active.reduce((s, b) => s + (b.pre_slaughter_dead || 0), 0);
     const rejected = active.reduce((s, b) => s + (b.rejected_birds || 0), 0);
-    return Math.max(received - doa - slaughtered - preDead - rejected + adjustmentsSum, 0);
+    return Math.max(received - doa - slaughtered - preDead - rejected - liveSalesCount + adjustmentsSum, 0);
   })();
 
   // قيمة النعام القائم (تكلفة محاسبية فقط — ليست سعر بيع)
