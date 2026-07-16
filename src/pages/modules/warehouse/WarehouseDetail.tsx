@@ -1094,6 +1094,11 @@ const WarehouseDetail = () => {
                 <Beef className="w-4 h-4" />وارد المجزر
               </TabsTrigger>
             )}
+            {isMain && (
+              <TabsTrigger value="meat-inbox" className="gap-1">
+                <Beef className="w-4 h-4" />وارد مصنع اللحوم
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="approvals" className="space-y-4">
