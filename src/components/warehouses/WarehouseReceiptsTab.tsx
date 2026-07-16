@@ -314,13 +314,15 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
       // ---------------- 2) Meat factory production transfers ----------------
       const { data: mpts } = await supabase
         .from("meat_production_transfers")
-        .select("id, transfer_no, quantity, unit_cost, destination_warehouse_id, created_at, created_by, notes, product:meat_factory_products(name_ar), warehouse:warehouses!meat_production_transfers_destination_warehouse_id_fkey(name)")
+        .select("id, transfer_no, quantity, unit_cost, destination_warehouse_id, created_at, created_by, notes, status, product:meat_factory_products(name_ar), warehouse:warehouses!meat_production_transfers_destination_warehouse_id_fkey(name)")
+        .neq("status", "rejected")
         .order("created_at", { ascending: false })
         .limit(2000);
 
       const mfGroups = new Map<string, ReceiptRow>();
       for (const t of mpts || []) {
         const key = (t as any).transfer_no || (t as any).id;
+        const isPending = (t as any).status === "pending";
         if (!mfGroups.has(key)) {
           mfGroups.set(key, {
             id: String((t as any).id),
@@ -328,12 +330,12 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
             batch_no: (t as any).transfer_no || `MF-${String((t as any).id).slice(0, 8)}`,
             date: (t as any).created_at,
             source_label: "مصنع اللحوم",
-            destination_label: (t as any).warehouse?.name || "—",
+            destination_label: ((t as any).warehouse?.name || "—") + (isPending ? " (بانتظار الاعتماد)" : ""),
             dest_warehouse_id: (t as any).destination_warehouse_id ?? null,
             items_count: 0,
             total_qty: 0,
-            quality: "مقبول",
-            status: "received",
+            quality: isPending ? "بانتظار الاعتماد" : "مقبول",
+            status: isPending ? "pending" : "received",
             receiver: "—",
             notes: (t as any).notes || undefined,
             lines: [],

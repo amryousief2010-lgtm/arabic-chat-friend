@@ -18,6 +18,7 @@ import { formatDateTime } from "@/lib/dateFormat";
 import { printSupplyRequest, printOrderInvoice } from "@/lib/printUtils";
 import InboundSupplyTab from "@/components/warehouse/InboundSupplyTab";
 import { SlaughterToMainWarehouseInbox } from "@/components/warehouse/SlaughterToMainWarehouseInbox";
+import { MeatFactoryToMainWarehouseInbox } from "@/components/warehouse/MeatFactoryToMainWarehouseInbox";
 import ManualStockAdditionDialog from "@/components/warehouse/ManualStockAdditionDialog";
 import ManualStockOutDialog from "@/components/warehouse/ManualStockOutDialog";
 import ItemMovementsDialog from "@/components/warehouse/ItemMovementsDialog";
@@ -1093,6 +1094,11 @@ const WarehouseDetail = () => {
                 <Beef className="w-4 h-4" />وارد المجزر
               </TabsTrigger>
             )}
+            {isMain && (
+              <TabsTrigger value="meat-inbox" className="gap-1">
+                <Beef className="w-4 h-4" />وارد مصنع اللحوم
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="approvals" className="space-y-4">
@@ -1726,6 +1732,11 @@ const WarehouseDetail = () => {
           {isMain && (
             <TabsContent value="slaughter-inbox" className="space-y-4">
               <SlaughterToMainWarehouseInbox defaultWarehouseId={id!} />
+            </TabsContent>
+          )}
+          {isMain && (
+            <TabsContent value="meat-inbox" className="space-y-4">
+              <MeatFactoryToMainWarehouseInbox defaultWarehouseId={id!} />
             </TabsContent>
           )}
         </Tabs>
