@@ -313,9 +313,6 @@ export function BulkDeliveryUploadButton() {
                 <TabsContent value="ready">
                   <ShipmentTable shipments={readyItems} phoneToModerator={phoneToModerator} />
                 </TabsContent>
-                    </>
-                  )}
-                </TabsContent>
                 <TabsContent value="skipped">
                   {noItems.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-6">لا توجد شحنات في هذه الفئة</p>
