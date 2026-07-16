@@ -42,10 +42,10 @@ export function BulkDeliveryUploadButton() {
 
   const unregistered = shipments.filter((s) => s.phone && !knownPhones.has(s.phone));
   const registered = shipments.filter((s) => s.phone && knownPhones.has(s.phone));
-  const readyItems = registered.filter((s) => s.items.length > 0 && s.unknown_tokens.length === 0);
-  const withWarnings = registered.filter((s) => s.unknown_tokens.length > 0 && s.items.length > 0);
-  // "noItems" = the sheet's products aren't in our catalog. We still deliver
-  // the order as-is (customer received and paid) without changing its items.
+  // Unknown/unparsed products are ignored — we always mark the order delivered
+  // and transfer the invoice total; original order items stay untouched.
+  const readyItems = registered.filter((s) => s.items.length > 0);
+  const withWarnings: ParsedShipment[] = [];
   const noItems = registered.filter((s) => s.items.length === 0);
 
   const handleFile = async (file: File) => {
