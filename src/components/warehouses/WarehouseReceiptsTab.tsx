@@ -645,6 +645,21 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
                           <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
                           <TableCell>
                             <div className="flex gap-1">
+                              {r.status === "pending" && (r.kind === "slaughter" || r.kind === "meat_factory") && (
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  onClick={() => approveReceipt(r)}
+                                  disabled={approvingId === `${r.kind}-${r.id}`}
+                                  title="اعتماد الاستلام"
+                                  className="h-8 gap-1"
+                                >
+                                  {approvingId === `${r.kind}-${r.id}`
+                                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                                    : <CheckCircle2 className="w-4 h-4" />}
+                                  <span className="text-xs">اعتماد</span>
+                                </Button>
+                              )}
                               <Button size="sm" variant="ghost" onClick={() => setDetail(r)} title="رؤية">
                                 <Eye className="w-4 h-4" />
                               </Button>
