@@ -120,7 +120,7 @@ const Slaughterhouse = () => {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [r, b, y, o, w, q, br, bd, tr, st, au, pr, adj, wh] = await Promise.all([
+    const [r, b, y, o, w, q, br, bd, tr, st, au, pr, adj, wh, ls] = await Promise.all([
       supabase.from("slaughter_live_receipts" as any).select("*").order("receipt_date", { ascending: false }).limit(500),
       supabase.from("slaughter_batches" as any).select("*").order("slaughter_date", { ascending: false }).limit(500),
       supabase.from("slaughter_yield_standards" as any).select("*").order("display_order"),
@@ -135,6 +135,7 @@ const Slaughterhouse = () => {
       supabase.from("profiles" as any).select("id, full_name").limit(1000),
       supabase.from("slaughter_live_stock_adjustments" as any).select("*").order("created_at", { ascending: false }).limit(200),
       supabase.from("warehouses" as any).select("id,name").order("name"),
+      supabase.from("slaughter_live_sales" as any).select("id, live_receipt_id, bird_count").limit(2000),
     ]);
     setReceipts((r.data as any) || []);
     setBatches((b.data as any) || []);
