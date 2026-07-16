@@ -18,6 +18,7 @@ import { formatDateTime } from "@/lib/dateFormat";
 import { printSupplyRequest, printOrderInvoice } from "@/lib/printUtils";
 import InboundSupplyTab from "@/components/warehouse/InboundSupplyTab";
 import { SlaughterToMainWarehouseInbox } from "@/components/warehouse/SlaughterToMainWarehouseInbox";
+import { MeatFactoryToMainWarehouseInbox } from "@/components/warehouse/MeatFactoryToMainWarehouseInbox";
 import ManualStockAdditionDialog from "@/components/warehouse/ManualStockAdditionDialog";
 import ManualStockOutDialog from "@/components/warehouse/ManualStockOutDialog";
 import ItemMovementsDialog from "@/components/warehouse/ItemMovementsDialog";
