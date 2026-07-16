@@ -418,10 +418,15 @@ export default function ZodexReview() {
             فرق حقيقية بين نظامنا وزودكس — بوالص مفقودة عندنا، أوردرات مفقودة على زودكس، ومشاكل ربط تحتاج إصلاح.
           </p>
         </div>
-        <Button onClick={runSync} disabled={syncing} className="gap-1">
-          {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          مزامنة الآن
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <ZodexSheetUpdateButton />
+          <ZodexSheetUpdateButton forceKind="delivered" label="شيت تسليمات فقط" />
+          <ZodexSheetUpdateButton forceKind="returned" label="شيت مرتجعات فقط" />
+          <Button onClick={runSync} disabled={syncing} className="gap-1">
+            {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            مزامنة الآن
+          </Button>
+        </div>
       </div>
 
       <Alert className="border-primary/30 bg-primary/5">
