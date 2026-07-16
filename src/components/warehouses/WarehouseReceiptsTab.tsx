@@ -231,30 +231,60 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
       const all: ReceiptRow[] = [];
 
       // ---------------- 1) Slaughter receipts ----------------
-      const { data: outs } = await supabase
-        .from("slaughter_batch_outputs")
-        .select("id, batch_id, cut_name_ar, actual_weight_kg, quality_status, received_at, received_warehouse_id, received_by, notes, batch:slaughter_batches(batch_number, slaughter_date)")
-        .eq("received_status", "received")
-        .order("received_at", { ascending: false })
-        .limit(2000);
+      // Includes BOTH already-received outputs AND pending outputs that were
+      // dispatched to a main/branch warehouse but still await warehouse-
+      // supervisor approval. Pending rows appear with status="pending" so the
+      // main-warehouse team sees every transfer the moment it's dispatched
+      // from the slaughterhouse (not only after approval).
+      const [receivedOutsRes, pendingOutsRes] = await Promise.all([
+        supabase
+          .from("slaughter_batch_outputs")
+          .select("id, batch_id, cut_name_ar, actual_weight_kg, quality_status, received_at, received_warehouse_id, received_by, notes, destination, batch:slaughter_batches(batch_number, slaughter_date)")
+          .eq("received_status", "received")
+          .order("received_at", { ascending: false })
+          .limit(2000),
+        supabase
+          .from("slaughter_batch_outputs")
+          .select("id, batch_id, cut_name_ar, actual_weight_kg, quality_status, received_at, received_warehouse_id, received_by, notes, destination, batch:slaughter_batches(batch_number, slaughter_date, created_at)")
+          .in("destination", ["warehouse", "branch"])
+          .neq("received_status", "received")
+          .order("created_at", { ascending: false })
+          .limit(500),
+      ]);
+      const outs = [...(receivedOutsRes.data || []), ...(pendingOutsRes.data || [])];
+
+      // Resolve a default main-warehouse id so pending rows (received_warehouse_id
+      // is NULL until approval) still show under the main-warehouse scope.
+      let defaultMainId: string | null = null;
+      if (pendingOutsRes.data && pendingOutsRes.data.length > 0) {
+        const { data: mainWhRow } = await supabase
+          .from("warehouses")
+          .select("id")
+          .eq("is_active", true)
+          .or("name.ilike.%الرئيسي%,name.ilike.%المقر%")
+          .limit(1)
+          .maybeSingle();
+        defaultMainId = (mainWhRow as any)?.id || null;
+      }
 
       const slaughterGroups = new Map<string, ReceiptRow>();
       for (const o of outs || []) {
         const batch: any = (o as any).batch;
-        const key = String(o.batch_id);
+        const isPending = (o as any).received_status !== "received";
+        const key = String(o.batch_id) + (isPending ? ":pending" : ":received");
         if (!slaughterGroups.has(key)) {
           slaughterGroups.set(key, {
             id: key,
             kind: "slaughter",
             batch_no: batch?.batch_number || "—",
-            date: (o as any).received_at || batch?.slaughter_date || new Date().toISOString(),
+            date: (o as any).received_at || batch?.slaughter_date || (batch as any)?.created_at || new Date().toISOString(),
             source_label: "المجزر",
-            destination_label: "مخزون مصنع اللحوم / الخامات",
-            dest_warehouse_id: (o as any).received_warehouse_id ?? null,
+            destination_label: isPending ? "المخزن الرئيسي (بانتظار الاعتماد)" : "المخزن الرئيسي",
+            dest_warehouse_id: (o as any).received_warehouse_id ?? (isPending ? defaultMainId : null),
             items_count: 0,
             total_qty: 0,
             quality: "—",
-            status: "received",
+            status: isPending ? "pending" : "received",
             receiver: "—",
             lines: [],
           });
@@ -272,8 +302,12 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
       for (const r of slaughterGroups.values()) {
         r.items_count = r.lines.length;
         r.total_qty = r.lines.reduce((s, l) => s + (l.qty || 0), 0);
-        r.quality = summarizeQuality(r.lines);
-        r.status = r.quality === "مرفوض" ? "rejected" : r.quality === "مقبول جزئيًا" ? "partial" : "received";
+        if (r.status !== "pending") {
+          r.quality = summarizeQuality(r.lines);
+          r.status = r.quality === "مرفوض" ? "rejected" : r.quality === "مقبول جزئيًا" ? "partial" : "received";
+        } else {
+          r.quality = "بانتظار الاعتماد";
+        }
         all.push(r);
       }
 
