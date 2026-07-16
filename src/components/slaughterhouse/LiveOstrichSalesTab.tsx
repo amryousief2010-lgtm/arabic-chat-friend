@@ -81,6 +81,7 @@ export default function LiveOstrichSalesTab() {
   );
 
   const [availability, setAvailability] = useState<Availability[]>([]);
+  const [receiptLabels, setReceiptLabels] = useState<Record<string, string>>({});
   const [soldBirdIds, setSoldBirdIds] = useState<Set<string>>(new Set());
   const [birds, setBirds] = useState<Bird[]>([]);
   const [batchWeights, setBatchWeights] = useState<BatchWeight[]>([]);
