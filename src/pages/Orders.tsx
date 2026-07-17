@@ -477,6 +477,17 @@ const Orders = () => {
   const [draftSearch, setDraftSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [quickDeliveryOpen, setQuickDeliveryOpen] = useState(false);
+  const isMobile = useIsMobile();
+  // تحميل المزيد يدويًا على الموبايل لتقليل الحمل الأولي
+  const [hasMorePages, setHasMorePages] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const paginationRef = useRef<{
+    nextPage: number;
+    startDate: string | null;
+    endDate: string | null;
+    pageSize: number;
+  }>({ nextPage: 1, startDate: null, endDate: null, pageSize: 100 });
   const triggerSearchNow = () => {
     const nextSearch = draftSearch.trim();
     setAppliedSearch(nextSearch);
