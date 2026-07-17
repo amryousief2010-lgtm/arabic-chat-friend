@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useQuery } from "@tanstack/react-query";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,11 +89,14 @@ const fmt = (n: number) => n.toLocaleString("ar-EG", { maximumFractionDigits: 0 
 const fmtMoney = (n: number) => `${fmt(n)} ج.م`;
 
 export default function SocialMediaMarketingDashboard() {
+  const isMobile = useIsMobile();
   const [preset, setPreset] = useState<Preset>("month");
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
   const [loadDetails, setLoadDetails] = useState<boolean>(false);
   const [loadProducts, setLoadProducts] = useState<boolean>(false);
+  const [loadCharts, setLoadCharts] = useState<boolean>(false);
+  const [productsLimit, setProductsLimit] = useState<number>(20);
 
   const range: DateRange = useMemo(() => {
     if (preset === "today") return todayRange();
@@ -253,6 +257,27 @@ export default function SocialMediaMarketingDashboard() {
   }, [items, ordersById, productFilter]);
   const productAgg = useMemo(() => aggregateProducts(filteredItems, ordersById), [filteredItems, ordersById]);
   const daily = useMemo(() => dailySeries(filteredOrders), [filteredOrders]);
+  const rangeDays = useMemo(() => {
+    const ms = new Date(range.to).getTime() - new Date(range.from).getTime();
+    return Math.max(1, Math.round(ms / 86400000));
+  }, [range]);
+  // Aggregate weekly if > 90 days to keep charts snappy
+  const chartSeries = useMemo(() => {
+    if (rangeDays <= 90) return daily;
+    const buckets: Record<string, { date: string; orders: number; revenue: number }> = {};
+    for (const d of daily) {
+      const dt = new Date(d.date);
+      // Start of week (Saturday for Arabic context — use ISO week for simplicity)
+      const day = dt.getDay();
+      const weekStart = new Date(dt);
+      weekStart.setDate(dt.getDate() - day);
+      const key = weekStart.toISOString().slice(0, 10);
+      if (!buckets[key]) buckets[key] = { date: key, orders: 0, revenue: 0 };
+      buckets[key].orders += Number(d.orders) || 0;
+      buckets[key].revenue += Number(d.revenue) || 0;
+    }
+    return Object.values(buckets).sort((a, b) => a.date.localeCompare(b.date));
+  }, [daily, rangeDays]);
 
   const uniqueSources = useMemo(
     () => Array.from(new Set(orders.map((o) => (o.customer_source || o.source || "غير محدد").trim()))),
@@ -443,57 +468,82 @@ export default function SocialMediaMarketingDashboard() {
 
         {loadDetails && (
           <>
-            {/* Daily chart */}
+            {/* Lazy chart gate */}
+            {!loadCharts && (
+              <Card>
+                <CardContent className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div>
+                    <div className="font-semibold">الشارتات البيانية</div>
+                    <div className="text-sm text-muted-foreground">
+                      {rangeDays > 90
+                        ? `الفترة ${rangeDays} يوم — سيتم عرض البيانات مجمعة أسبوعيًا لتحسين الأداء.`
+                        : "عرض البيانات اليومي."}
+                    </div>
+                  </div>
+                  <Button onClick={() => setLoadCharts(true)} className="w-full md:w-auto">
+                    عرض الشارتات
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {loadCharts && (
             <Card>
-              <CardHeader><CardTitle>تطور المبيعات اليومي</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle>
+                  {rangeDays > 90 ? "تطور المبيعات (أسبوعي)" : "تطور المبيعات اليومي"}
+                </CardTitle>
+              </CardHeader>
               <CardContent style={{ height: 300 }}>
                 <ResponsiveContainer>
-                  <LineChart data={daily}>
+                  <LineChart data={chartSeries}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                     <YAxis yAxisId="left" />
                     <YAxis yAxisId="right" orientation="right" />
                     <Tooltip />
                     <Legend />
-                    <Line yAxisId="left" type="monotone" dataKey="orders" stroke="#8b5cf6" name="عدد الطلبات" />
-                    <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#f97316" name="قيمة المبيعات" />
+                    <Line yAxisId="left" type="monotone" dataKey="orders" stroke="#8b5cf6" name="عدد الطلبات" dot={false} isAnimationActive={false} />
+                    <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#f97316" name="قيمة المبيعات" dot={false} isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
+            )}
 
-            {/* Sources + Areas charts */}
+            {loadCharts && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader><CardTitle>مصادر العملاء (قيمة المبيعات)</CardTitle></CardHeader>
-            <CardContent style={{ height: 300 }}>
-              <ResponsiveContainer>
-                <BarChart data={sourceAgg.slice(0, 10)}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="revenue" fill="#8b5cf6" name="المبيعات" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardHeader><CardTitle>مصادر العملاء (قيمة المبيعات)</CardTitle></CardHeader>
+                <CardContent style={{ height: 300 }}>
+                  <ResponsiveContainer>
+                    <BarChart data={sourceAgg.slice(0, 10)}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="revenue" fill="#8b5cf6" name="المبيعات" isAnimationActive={false} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader><CardTitle>توزيع الطلبات حسب المصدر</CardTitle></CardHeader>
-            <CardContent style={{ height: 300 }}>
-              <ResponsiveContainer>
-                <PieChart>
-                  <Pie data={sourceAgg.slice(0, 8)} dataKey="orders" nameKey="label" outerRadius={100} label>
-                    {sourceAgg.slice(0, 8).map((_, i) => (<Cell key={i} fill={COLORS[i % COLORS.length]} />))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardHeader><CardTitle>توزيع الطلبات حسب المصدر</CardTitle></CardHeader>
+                <CardContent style={{ height: 300 }}>
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie data={sourceAgg.slice(0, 8)} dataKey="orders" nameKey="label" outerRadius={100} label isAnimationActive={false}>
+                        {sourceAgg.slice(0, 8).map((_, i) => (<Cell key={i} fill={COLORS[i % COLORS.length]} />))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
             </div>
+            )}
 
             {/* Sources table */}
             <Card>
@@ -529,6 +579,7 @@ export default function SocialMediaMarketingDashboard() {
             <Card>
           <CardHeader><CardTitle>توزيع المبيعات حسب المناطق (Top 10)</CardTitle></CardHeader>
           <CardContent>
+            {loadCharts && (
             <div style={{ height: 280 }} className="mb-3">
               <ResponsiveContainer>
                 <BarChart data={areaAgg.slice(0, 10)}>
@@ -536,10 +587,11 @@ export default function SocialMediaMarketingDashboard() {
                   <XAxis dataKey="area" tick={{ fontSize: 10 }} />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="revenue" fill="#0ea5e9" name="المبيعات" />
+                  <Bar dataKey="revenue" fill="#0ea5e9" name="المبيعات" isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            )}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -570,7 +622,7 @@ export default function SocialMediaMarketingDashboard() {
         {/* Products */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <CardTitle>أداء المنتجات تسويقيًا (Top 20)</CardTitle>
+            <CardTitle>أداء المنتجات تسويقيًا</CardTitle>
             {!loadProducts && (
               <Button size="sm" variant="outline" onClick={() => { setLoadDetails(true); setLoadProducts(true); }}>
                 عرض التفاصيل
@@ -585,34 +637,68 @@ export default function SocialMediaMarketingDashboard() {
               <p className="text-sm text-muted-foreground text-center py-6">
                 اضغط "عرض التفاصيل" لتحميل بيانات المنتجات (تحسين للأداء على الموبايل).
               </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>المنتج</TableHead>
-                    <TableHead className="text-center">الكمية</TableHead>
-                    <TableHead className="text-center">الإيرادات</TableHead>
-                    <TableHead className="text-center">عدد الأوردرات</TableHead>
-                    <TableHead className="text-center">متوسط السعر</TableHead>
-                    <TableHead className="text-center">أعلى مصدر</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {productAgg.slice(0, 20).map((r) => (
-                    <TableRow key={r.name}>
-                      <TableCell>{r.name}</TableCell>
-                      <TableCell className="text-center">{fmt(r.qty)}</TableCell>
-                      <TableCell className="text-center">{fmtMoney(r.revenue)}</TableCell>
-                      <TableCell className="text-center">{fmt(r.ordersCount)}</TableCell>
-                      <TableCell className="text-center">{fmtMoney(r.avgPrice)}</TableCell>
-                      <TableCell className="text-center">{r.topSource}</TableCell>
-                    </TableRow>
+            ) : productAgg.length === 0 ? (
+              <p className="text-center text-muted-foreground py-6">لا توجد بيانات</p>
+            ) : isMobile ? (
+              <>
+                <div className="space-y-2">
+                  {productAgg.slice(0, productsLimit).map((r) => (
+                    <details key={r.name} className="rounded border p-3 bg-card">
+                      <summary className="cursor-pointer font-semibold text-sm flex items-center justify-between gap-2">
+                        <span className="truncate">{r.name}</span>
+                        <span className="text-orange-600 font-bold text-xs whitespace-nowrap">{fmtMoney(r.revenue)}</span>
+                      </summary>
+                      <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                        <div><span className="text-muted-foreground">الكمية:</span> <span className="font-bold">{fmt(r.qty)}</span></div>
+                        <div><span className="text-muted-foreground">الأوردرات:</span> <span className="font-bold">{fmt(r.ordersCount)}</span></div>
+                        <div><span className="text-muted-foreground">متوسط السعر:</span> <span className="font-bold">{fmtMoney(r.avgPrice)}</span></div>
+                        <div><span className="text-muted-foreground">أعلى مصدر:</span> <span className="font-bold">{r.topSource}</span></div>
+                      </div>
+                    </details>
                   ))}
-                  {productAgg.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">لا توجد بيانات</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                </div>
+                {productsLimit < productAgg.length && (
+                  <div className="text-center mt-3">
+                    <Button variant="outline" size="sm" onClick={() => setProductsLimit((n) => n + 20)}>
+                      عرض المزيد ({productAgg.length - productsLimit} متبقي)
+                    </Button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>المنتج</TableHead>
+                      <TableHead className="text-center">الكمية</TableHead>
+                      <TableHead className="text-center">الإيرادات</TableHead>
+                      <TableHead className="text-center">عدد الأوردرات</TableHead>
+                      <TableHead className="text-center">متوسط السعر</TableHead>
+                      <TableHead className="text-center">أعلى مصدر</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {productAgg.slice(0, productsLimit).map((r) => (
+                      <TableRow key={r.name}>
+                        <TableCell>{r.name}</TableCell>
+                        <TableCell className="text-center">{fmt(r.qty)}</TableCell>
+                        <TableCell className="text-center">{fmtMoney(r.revenue)}</TableCell>
+                        <TableCell className="text-center">{fmt(r.ordersCount)}</TableCell>
+                        <TableCell className="text-center">{fmtMoney(r.avgPrice)}</TableCell>
+                        <TableCell className="text-center">{r.topSource}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {productsLimit < productAgg.length && (
+                  <div className="text-center mt-3">
+                    <Button variant="outline" size="sm" onClick={() => setProductsLimit((n) => n + 20)}>
+                      عرض المزيد ({productAgg.length - productsLimit} متبقي)
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

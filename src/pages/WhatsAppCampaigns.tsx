@@ -90,29 +90,58 @@ const daysAgoISO = (days: number) => {
   return d.toISOString().slice(0, 10);
 };
 
+const MAX_DAYS = 180;
+const DEFAULT_DAYS = 90;
+
+const diffDays = (from: string, to: string) => {
+  const f = new Date(from + "T00:00:00").getTime();
+  const t = (to ? new Date(to + "T23:59:59").getTime() : Date.now());
+  return Math.max(1, Math.round((t - f) / 86400000));
+};
+
 const WhatsAppCampaigns = () => {
   const [governorate, setGovernorate] = useState<string>("all");
   const [source, setSource] = useState<string>("all");
   const [product, setProduct] = useState<string>("all");
-  const [fromDate, setFromDate] = useState<string>(() => daysAgoISO(90));
+  const [fromDate, setFromDate] = useState<string>(() => daysAgoISO(DEFAULT_DAYS));
   const [toDate, setToDate] = useState<string>("");
   const [minOrders, setMinOrders] = useState<string>("");
   const [customerType, setCustomerType] = useState<"all" | "returning" | "new">("all");
 
+  // Only fetch after the user commits a search — keeps the page instant on mobile.
+  const [searchKey, setSearchKey] = useState<{ from: string; to: string } | null>(null);
+
+  const runSearch = () => {
+    if (!fromDate) {
+      toast.warning("يرجى تحديد تاريخ البداية");
+      return;
+    }
+    const days = diffDays(fromDate, toDate);
+    if (days > MAX_DAYS) {
+      toast.error(
+        `للحفاظ على سرعة النظام، الحد الأقصى للبحث في حملات واتساب هو ${MAX_DAYS} يوم. يرجى تقليل الفترة أو استخدام فلتر أدق.`
+      );
+      return;
+    }
+    setSearchKey({ from: fromDate, to: toDate });
+  };
+
   // Orders first — date-filtered server-side to avoid loading full history on mobile.
   const ordersQuery = useQuery({
-    queryKey: ["wa-orders", fromDate, toDate],
+    queryKey: ["wa-orders", searchKey?.from, searchKey?.to],
     queryFn: async () =>
       fetchAll<any>(() => {
         let q = supabase
           .from("orders")
           .select("id,customer_id,created_at,total,source,status")
           .order("created_at", { ascending: false });
-        if (fromDate) q = q.gte("created_at", new Date(fromDate + "T00:00:00").toISOString());
-        if (toDate) q = q.lte("created_at", new Date(toDate + "T23:59:59").toISOString());
+        if (searchKey?.from) q = q.gte("created_at", new Date(searchKey.from + "T00:00:00").toISOString());
+        if (searchKey?.to) q = q.lte("created_at", new Date(searchKey.to + "T23:59:59").toISOString());
         return q;
       }),
+    enabled: !!searchKey,
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const orderIds = useMemo(() => (ordersQuery.data || []).map((o: any) => o.id), [ordersQuery.data]);
@@ -123,7 +152,7 @@ const WhatsAppCampaigns = () => {
 
   // Customers with notes so we can filter opt-outs — only customers with orders in range.
   const customersQuery = useQuery({
-    queryKey: ["wa-customers", customerIds.length],
+    queryKey: ["wa-customers", customerIds.length, searchKey?.from, searchKey?.to],
     queryFn: async () =>
       fetchByChunks<any>(customerIds, (chunk) =>
         supabase
@@ -131,23 +160,25 @@ const WhatsAppCampaigns = () => {
           .select("id,name,phone,governorate,city,area,address,notes,source,total_spent")
           .in("id", chunk)
       ),
-    enabled: customerIds.length > 0,
+    enabled: !!searchKey && customerIds.length > 0,
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   // Order items — only the latest per order aggregated per customer.
   const itemsQuery = useQuery({
-    queryKey: ["wa-items", orderIds.length, fromDate, toDate],
+    queryKey: ["wa-items", orderIds.length, searchKey?.from, searchKey?.to],
     queryFn: async () =>
       fetchByChunks<any>(orderIds, (chunk) =>
         supabase.from("order_items").select("order_id,product_name,created_at").in("order_id", chunk)
       ),
-    enabled: orderIds.length > 0,
+    enabled: !!searchKey && orderIds.length > 0,
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const isLoading =
-    customersQuery.isLoading || ordersQuery.isLoading || itemsQuery.isLoading;
+    !!searchKey && (customersQuery.isLoading || ordersQuery.isLoading || itemsQuery.isLoading);
 
   const { rows, governorates, sources, products } = useMemo(() => {
     const customers = customersQuery.data || [];
@@ -302,10 +333,11 @@ const WhatsAppCampaigns = () => {
     setGovernorate("all");
     setSource("all");
     setProduct("all");
-    setFromDate("");
+    setFromDate(daysAgoISO(DEFAULT_DAYS));
     setToDate("");
     setMinOrders("");
     setCustomerType("all");
+    setSearchKey(null);
   };
 
   return (
@@ -388,10 +420,14 @@ const WhatsAppCampaigns = () => {
                 placeholder="مثال: 3"
               />
             </div>
-            <div className="flex items-end">
-              <Button variant="outline" onClick={resetFilters} className="w-full">إعادة تعيين</Button>
+            <div className="flex items-end gap-2">
+              <Button onClick={runSearch} className="w-full">بحث / تجهيز الحملة</Button>
+              <Button variant="outline" onClick={resetFilters}>تفريغ</Button>
             </div>
           </CardContent>
+          <div className="px-6 pb-4 text-xs text-muted-foreground">
+            الحد الأقصى للبحث {MAX_DAYS} يوم. الافتراضي آخر {DEFAULT_DAYS} يوم. لن يتم جلب العملاء إلا بعد الضغط على "بحث".
+          </div>
         </Card>
 
         <div className="flex flex-wrap gap-3 items-center">
@@ -433,7 +469,9 @@ const WhatsAppCampaigns = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
+                {!searchKey ? (
+                  <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">اضغط "بحث / تجهيز الحملة" لعرض العملاء (لا يتم تحميل أي شيء تلقائيًا).</TableCell></TableRow>
+                ) : isLoading ? (
                   <TableRow><TableCell colSpan={10} className="text-center py-8">جاري التحميل...</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={10} className="text-center py-8">لا توجد نتائج</TableCell></TableRow>
