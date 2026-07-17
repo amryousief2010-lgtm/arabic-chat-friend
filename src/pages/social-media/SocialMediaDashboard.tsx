@@ -160,7 +160,7 @@ export default function SocialMediaDashboard() {
       setLoading(true);
       let q = supabase
         .from("social_media_daily_reports")
-        .select("*")
+        .select("id, report_date, employee_id, employee_name, posts_count, reels_videos_count, interested_customers_count, top_engaging_content, issues_or_complaints, tomorrow_content_suggestions, status, reach_count, impressions_count, likes_count, comments_count, shares_count, new_followers_count, platforms, complaint_attachment_path")
         .gte("report_date", from)
         .lte("report_date", to)
         .order("report_date", { ascending: true });
@@ -187,7 +187,7 @@ export default function SocialMediaDashboard() {
           .from("orders")
           .select("created_at,total,status,source")
           .gte("created_at", since.toISOString())
-          .not("source", "is", null)
+          .in("source", Object.keys(SOCIAL_SOURCE_MAP))
           .order("created_at", { ascending: false })
           .range(offset, offset + pageSize - 1);
         if (error || !data || data.length === 0) break;
@@ -195,8 +195,7 @@ export default function SocialMediaDashboard() {
         if (data.length < pageSize) break;
         offset += pageSize;
       }
-      const socialOnly = acc.filter((o) => normalizeSocialSource(o.source));
-      setSocialOrders(socialOnly);
+      setSocialOrders(acc.filter((o) => normalizeSocialSource(o.source)));
       setOrdersLoading(false);
     })();
   }, []);
