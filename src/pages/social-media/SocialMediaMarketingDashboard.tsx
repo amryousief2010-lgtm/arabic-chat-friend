@@ -468,24 +468,50 @@ export default function SocialMediaMarketingDashboard() {
 
         {loadDetails && (
           <>
-            {/* Daily chart */}
+            {/* Lazy chart gate */}
+            {!loadCharts && (
+              <Card>
+                <CardContent className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div>
+                    <div className="font-semibold">الشارتات البيانية</div>
+                    <div className="text-sm text-muted-foreground">
+                      {rangeDays > 90
+                        ? `الفترة ${rangeDays} يوم — سيتم عرض البيانات مجمعة أسبوعيًا لتحسين الأداء.`
+                        : "عرض البيانات اليومي."}
+                    </div>
+                  </div>
+                  <Button onClick={() => setLoadCharts(true)} className="w-full md:w-auto">
+                    عرض الشارتات
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {loadCharts && (
             <Card>
-              <CardHeader><CardTitle>تطور المبيعات اليومي</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle>
+                  {rangeDays > 90 ? "تطور المبيعات (أسبوعي)" : "تطور المبيعات اليومي"}
+                </CardTitle>
+              </CardHeader>
               <CardContent style={{ height: 300 }}>
                 <ResponsiveContainer>
-                  <LineChart data={daily}>
+                  <LineChart data={chartSeries}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                     <YAxis yAxisId="left" />
                     <YAxis yAxisId="right" orientation="right" />
                     <Tooltip />
                     <Legend />
-                    <Line yAxisId="left" type="monotone" dataKey="orders" stroke="#8b5cf6" name="عدد الطلبات" />
-                    <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#f97316" name="قيمة المبيعات" />
+                    <Line yAxisId="left" type="monotone" dataKey="orders" stroke="#8b5cf6" name="عدد الطلبات" dot={false} isAnimationActive={false} />
+                    <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#f97316" name="قيمة المبيعات" dot={false} isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
+            )}
+
+            {loadCharts && (
 
             {/* Sources + Areas charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
