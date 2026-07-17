@@ -88,14 +88,10 @@ const fmt = (n: number) => n.toLocaleString("ar-EG", { maximumFractionDigits: 0 
 const fmtMoney = (n: number) => `${fmt(n)} ج.م`;
 
 export default function SocialMediaMarketingDashboard() {
-  const [preset, setPreset] = useState<Preset>("3m");
+  const [preset, setPreset] = useState<Preset>("month");
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const [orders, setOrders] = useState<OrderLite[]>([]);
-  const [items, setItems] = useState<OrderItemLite[]>([]);
-  const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
-  const [newCustIds, setNewCustIds] = useState<Set<string>>(new Set());
+  const [loadProducts, setLoadProducts] = useState<boolean>(false);
 
   const range: DateRange = useMemo(() => {
     if (preset === "today") return todayRange();
@@ -107,34 +103,49 @@ export default function SocialMediaMarketingDashboard() {
     return last3MonthsRange();
   }, [preset, customFrom, customTo]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const [ords, exps] = await Promise.all([fetchOrdersInRange(range), fetchExpensesInRange(range)]);
-        if (cancelled) return;
-        const custIds = Array.from(new Set(ords.map((o) => o.customer_id).filter(Boolean) as string[]));
-        const [orderItems, newCust] = await Promise.all([
-          fetchOrderItemsForOrders(ords.map((o) => o.id)),
-          detectNewCustomers(custIds, range),
-        ]);
-        if (cancelled) return;
-        setOrders(ords);
-        setItems(orderItems);
-        setExpenses(exps);
-        setNewCustIds(newCust);
-      } catch (e: any) {
-        toast({ title: "خطأ في تحميل البيانات", description: e?.message || String(e), variant: "destructive" });
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [range.from, range.to]);
+  // Cached fetches — orders + expenses load in parallel and persist across navigation
+  const ordersQuery = useQuery({
+    queryKey: ["mkt-dash-orders", range.from, range.to],
+    queryFn: () => fetchOrdersInRange(range),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+  const expensesQuery = useQuery({
+    queryKey: ["mkt-dash-expenses", range.from, range.to],
+    queryFn: () => fetchExpensesInRange(range),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+
+  const orders = ordersQuery.data ?? [];
+  const expenses = expensesQuery.data ?? [];
+
+  const orderIds = useMemo(() => orders.map((o) => o.id), [orders]);
+  const custIds = useMemo(
+    () => Array.from(new Set(orders.map((o) => o.customer_id).filter(Boolean) as string[])),
+    [orders],
+  );
+
+  // Heavy queries — only fetch when data is needed
+  const itemsQuery = useQuery({
+    queryKey: ["mkt-dash-items", range.from, range.to, orderIds.length],
+    queryFn: () => fetchOrderItemsForOrders(orderIds),
+    enabled: loadProducts && orderIds.length > 0,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+  const newCustQuery = useQuery({
+    queryKey: ["mkt-dash-new-cust", range.from, custIds.length],
+    queryFn: () => detectNewCustomers(custIds, range),
+    enabled: custIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+  });
+
+  const items = itemsQuery.data ?? [];
+  const newCustIds = newCustQuery.data ?? new Set<string>();
+  const loading = ordersQuery.isLoading || expensesQuery.isLoading;
+
 
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [areaFilter, setAreaFilter] = useState<string>("all");
