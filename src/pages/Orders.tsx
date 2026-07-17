@@ -3031,8 +3031,20 @@ const Orders = () => {
             </TableBody>
           </Table>
           </div>
+          {hasMorePages && !appliedSearch && (
+            <div className="flex justify-center py-3">
+              <Button
+                variant="outline"
+                onClick={loadMoreOrders}
+                disabled={loadingMore}
+              >
+                {loadingMore ? 'جارٍ التحميل...' : 'تحميل المزيد من الطلبات'}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
+
 
       {/* Order Details Dialog */}
       <Dialog
