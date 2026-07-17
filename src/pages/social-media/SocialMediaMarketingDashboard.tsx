@@ -482,41 +482,58 @@ export default function SocialMediaMarketingDashboard() {
 
         {/* Products */}
         <Card>
-          <CardHeader><CardTitle>أداء المنتجات تسويقيًا (Top 20)</CardTitle></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle>أداء المنتجات تسويقيًا (Top 20)</CardTitle>
+            {!loadProducts && (
+              <Button size="sm" variant="outline" onClick={() => setLoadProducts(true)}>
+                عرض التفاصيل
+              </Button>
+            )}
+            {loadProducts && itemsQuery.isFetching && (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+          </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>المنتج</TableHead>
-                  <TableHead className="text-center">الكمية</TableHead>
-                  <TableHead className="text-center">الإيرادات</TableHead>
-                  <TableHead className="text-center">عدد الأوردرات</TableHead>
-                  <TableHead className="text-center">متوسط السعر</TableHead>
-                  <TableHead className="text-center">أعلى مصدر</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {productAgg.slice(0, 20).map((r) => (
-                  <TableRow key={r.name}>
-                    <TableCell>{r.name}</TableCell>
-                    <TableCell className="text-center">{fmt(r.qty)}</TableCell>
-                    <TableCell className="text-center">{fmtMoney(r.revenue)}</TableCell>
-                    <TableCell className="text-center">{fmt(r.ordersCount)}</TableCell>
-                    <TableCell className="text-center">{fmtMoney(r.avgPrice)}</TableCell>
-                    <TableCell className="text-center">{r.topSource}</TableCell>
+            {!loadProducts ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                اضغط "عرض التفاصيل" لتحميل بيانات المنتجات (تحسين للأداء على الموبايل).
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>المنتج</TableHead>
+                    <TableHead className="text-center">الكمية</TableHead>
+                    <TableHead className="text-center">الإيرادات</TableHead>
+                    <TableHead className="text-center">عدد الأوردرات</TableHead>
+                    <TableHead className="text-center">متوسط السعر</TableHead>
+                    <TableHead className="text-center">أعلى مصدر</TableHead>
                   </TableRow>
-                ))}
-                {productAgg.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">لا توجد بيانات</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {productAgg.slice(0, 20).map((r) => (
+                    <TableRow key={r.name}>
+                      <TableCell>{r.name}</TableCell>
+                      <TableCell className="text-center">{fmt(r.qty)}</TableCell>
+                      <TableCell className="text-center">{fmtMoney(r.revenue)}</TableCell>
+                      <TableCell className="text-center">{fmt(r.ordersCount)}</TableCell>
+                      <TableCell className="text-center">{fmtMoney(r.avgPrice)}</TableCell>
+                      <TableCell className="text-center">{r.topSource}</TableCell>
+                    </TableRow>
+                  ))}
+                  {productAgg.length === 0 && (
+                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">لا توجد بيانات</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
     </DashboardLayout>
   );
 }
+
 
 function KpiCard({ icon: Icon, title, value, sub, color }: any) {
   return (
