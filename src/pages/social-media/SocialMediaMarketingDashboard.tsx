@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,7 +54,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { toast } from "@/hooks/use-toast";
+
 import {
   aggregateByArea,
   aggregateBySource,
@@ -71,9 +72,7 @@ import {
   thisWeekRange,
   todayRange,
   type DateRange,
-  type OrderLite,
-  type OrderItemLite,
-  type ExpenseRow,
+
   type MarketingKPIs,
 } from "@/lib/socialMediaAnalytics";
 import { ZodexUnregisteredCard } from "@/components/marketing/ZodexUnregisteredCard";
@@ -87,14 +86,10 @@ const fmt = (n: number) => n.toLocaleString("ar-EG", { maximumFractionDigits: 0 
 const fmtMoney = (n: number) => `${fmt(n)} ج.م`;
 
 export default function SocialMediaMarketingDashboard() {
-  const [preset, setPreset] = useState<Preset>("3m");
+  const [preset, setPreset] = useState<Preset>("month");
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const [orders, setOrders] = useState<OrderLite[]>([]);
-  const [items, setItems] = useState<OrderItemLite[]>([]);
-  const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
-  const [newCustIds, setNewCustIds] = useState<Set<string>>(new Set());
+  const [loadProducts, setLoadProducts] = useState<boolean>(false);
 
   const range: DateRange = useMemo(() => {
     if (preset === "today") return todayRange();
@@ -106,34 +101,49 @@ export default function SocialMediaMarketingDashboard() {
     return last3MonthsRange();
   }, [preset, customFrom, customTo]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const [ords, exps] = await Promise.all([fetchOrdersInRange(range), fetchExpensesInRange(range)]);
-        if (cancelled) return;
-        const custIds = Array.from(new Set(ords.map((o) => o.customer_id).filter(Boolean) as string[]));
-        const [orderItems, newCust] = await Promise.all([
-          fetchOrderItemsForOrders(ords.map((o) => o.id)),
-          detectNewCustomers(custIds, range),
-        ]);
-        if (cancelled) return;
-        setOrders(ords);
-        setItems(orderItems);
-        setExpenses(exps);
-        setNewCustIds(newCust);
-      } catch (e: any) {
-        toast({ title: "خطأ في تحميل البيانات", description: e?.message || String(e), variant: "destructive" });
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [range.from, range.to]);
+  // Cached fetches — orders + expenses load in parallel and persist across navigation
+  const ordersQuery = useQuery({
+    queryKey: ["mkt-dash-orders", range.from, range.to],
+    queryFn: () => fetchOrdersInRange(range),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+  const expensesQuery = useQuery({
+    queryKey: ["mkt-dash-expenses", range.from, range.to],
+    queryFn: () => fetchExpensesInRange(range),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+
+  const orders = ordersQuery.data ?? [];
+  const expenses = expensesQuery.data ?? [];
+
+  const orderIds = useMemo(() => orders.map((o) => o.id), [orders]);
+  const custIds = useMemo(
+    () => Array.from(new Set(orders.map((o) => o.customer_id).filter(Boolean) as string[])),
+    [orders],
+  );
+
+  // Heavy queries — only fetch when data is needed
+  const itemsQuery = useQuery({
+    queryKey: ["mkt-dash-items", range.from, range.to, orderIds.length],
+    queryFn: () => fetchOrderItemsForOrders(orderIds),
+    enabled: loadProducts && orderIds.length > 0,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+  const newCustQuery = useQuery({
+    queryKey: ["mkt-dash-new-cust", range.from, custIds.length],
+    queryFn: () => detectNewCustomers(custIds, range),
+    enabled: custIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+  });
+
+  const items = itemsQuery.data ?? [];
+  const newCustIds = newCustQuery.data ?? new Set<string>();
+  const loading = ordersQuery.isLoading || expensesQuery.isLoading;
+
 
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [areaFilter, setAreaFilter] = useState<string>("all");
@@ -470,41 +480,58 @@ export default function SocialMediaMarketingDashboard() {
 
         {/* Products */}
         <Card>
-          <CardHeader><CardTitle>أداء المنتجات تسويقيًا (Top 20)</CardTitle></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle>أداء المنتجات تسويقيًا (Top 20)</CardTitle>
+            {!loadProducts && (
+              <Button size="sm" variant="outline" onClick={() => setLoadProducts(true)}>
+                عرض التفاصيل
+              </Button>
+            )}
+            {loadProducts && itemsQuery.isFetching && (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+          </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>المنتج</TableHead>
-                  <TableHead className="text-center">الكمية</TableHead>
-                  <TableHead className="text-center">الإيرادات</TableHead>
-                  <TableHead className="text-center">عدد الأوردرات</TableHead>
-                  <TableHead className="text-center">متوسط السعر</TableHead>
-                  <TableHead className="text-center">أعلى مصدر</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {productAgg.slice(0, 20).map((r) => (
-                  <TableRow key={r.name}>
-                    <TableCell>{r.name}</TableCell>
-                    <TableCell className="text-center">{fmt(r.qty)}</TableCell>
-                    <TableCell className="text-center">{fmtMoney(r.revenue)}</TableCell>
-                    <TableCell className="text-center">{fmt(r.ordersCount)}</TableCell>
-                    <TableCell className="text-center">{fmtMoney(r.avgPrice)}</TableCell>
-                    <TableCell className="text-center">{r.topSource}</TableCell>
+            {!loadProducts ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                اضغط "عرض التفاصيل" لتحميل بيانات المنتجات (تحسين للأداء على الموبايل).
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>المنتج</TableHead>
+                    <TableHead className="text-center">الكمية</TableHead>
+                    <TableHead className="text-center">الإيرادات</TableHead>
+                    <TableHead className="text-center">عدد الأوردرات</TableHead>
+                    <TableHead className="text-center">متوسط السعر</TableHead>
+                    <TableHead className="text-center">أعلى مصدر</TableHead>
                   </TableRow>
-                ))}
-                {productAgg.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">لا توجد بيانات</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {productAgg.slice(0, 20).map((r) => (
+                    <TableRow key={r.name}>
+                      <TableCell>{r.name}</TableCell>
+                      <TableCell className="text-center">{fmt(r.qty)}</TableCell>
+                      <TableCell className="text-center">{fmtMoney(r.revenue)}</TableCell>
+                      <TableCell className="text-center">{fmt(r.ordersCount)}</TableCell>
+                      <TableCell className="text-center">{fmtMoney(r.avgPrice)}</TableCell>
+                      <TableCell className="text-center">{r.topSource}</TableCell>
+                    </TableRow>
+                  ))}
+                  {productAgg.length === 0 && (
+                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">لا توجد بيانات</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
     </DashboardLayout>
   );
 }
+
 
 function KpiCard({ icon: Icon, title, value, sub, color }: any) {
   return (
