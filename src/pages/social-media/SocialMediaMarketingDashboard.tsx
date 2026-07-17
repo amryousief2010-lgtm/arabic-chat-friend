@@ -512,39 +512,38 @@ export default function SocialMediaMarketingDashboard() {
             )}
 
             {loadCharts && (
-
-            {/* Sources + Areas charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader><CardTitle>مصادر العملاء (قيمة المبيعات)</CardTitle></CardHeader>
-            <CardContent style={{ height: 300 }}>
-              <ResponsiveContainer>
-                <BarChart data={sourceAgg.slice(0, 10)}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="revenue" fill="#8b5cf6" name="المبيعات" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardHeader><CardTitle>مصادر العملاء (قيمة المبيعات)</CardTitle></CardHeader>
+                <CardContent style={{ height: 300 }}>
+                  <ResponsiveContainer>
+                    <BarChart data={sourceAgg.slice(0, 10)}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="revenue" fill="#8b5cf6" name="المبيعات" isAnimationActive={false} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader><CardTitle>توزيع الطلبات حسب المصدر</CardTitle></CardHeader>
-            <CardContent style={{ height: 300 }}>
-              <ResponsiveContainer>
-                <PieChart>
-                  <Pie data={sourceAgg.slice(0, 8)} dataKey="orders" nameKey="label" outerRadius={100} label>
-                    {sourceAgg.slice(0, 8).map((_, i) => (<Cell key={i} fill={COLORS[i % COLORS.length]} />))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardHeader><CardTitle>توزيع الطلبات حسب المصدر</CardTitle></CardHeader>
+                <CardContent style={{ height: 300 }}>
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie data={sourceAgg.slice(0, 8)} dataKey="orders" nameKey="label" outerRadius={100} label isAnimationActive={false}>
+                        {sourceAgg.slice(0, 8).map((_, i) => (<Cell key={i} fill={COLORS[i % COLORS.length]} />))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
             </div>
+            )}
 
             {/* Sources table */}
             <Card>
