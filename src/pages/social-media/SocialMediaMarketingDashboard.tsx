@@ -88,7 +88,7 @@ const fmt = (n: number) => n.toLocaleString("ar-EG", { maximumFractionDigits: 0 
 const fmtMoney = (n: number) => `${fmt(n)} ج.م`;
 
 export default function SocialMediaMarketingDashboard() {
-  const [preset, setPreset] = useState<Preset>("week");
+  const [preset, setPreset] = useState<Preset>("month");
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
   const [loadDetails, setLoadDetails] = useState<boolean>(false);
@@ -302,7 +302,7 @@ export default function SocialMediaMarketingDashboard() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="today">اليوم</SelectItem>
-                  <SelectItem value="week">آخر 7 أيام</SelectItem>
+                  <SelectItem value="week">هذا الأسبوع</SelectItem>
                   <SelectItem value="month">هذا الشهر</SelectItem>
                   <SelectItem value="3m">آخر 3 شهور</SelectItem>
                   <SelectItem value="custom">فترة مخصصة</SelectItem>
@@ -572,7 +572,7 @@ export default function SocialMediaMarketingDashboard() {
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle>أداء المنتجات تسويقيًا (Top 20)</CardTitle>
             {!loadProducts && (
-              <Button size="sm" variant="outline" onClick={() => setLoadProducts(true)}>
+              <Button size="sm" variant="outline" onClick={() => { setLoadDetails(true); setLoadProducts(true); }}>
                 عرض التفاصيل
               </Button>
             )}
