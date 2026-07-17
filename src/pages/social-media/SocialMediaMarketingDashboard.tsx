@@ -579,6 +579,7 @@ export default function SocialMediaMarketingDashboard() {
             <Card>
           <CardHeader><CardTitle>توزيع المبيعات حسب المناطق (Top 10)</CardTitle></CardHeader>
           <CardContent>
+            {loadCharts && (
             <div style={{ height: 280 }} className="mb-3">
               <ResponsiveContainer>
                 <BarChart data={areaAgg.slice(0, 10)}>
@@ -586,10 +587,11 @@ export default function SocialMediaMarketingDashboard() {
                   <XAxis dataKey="area" tick={{ fontSize: 10 }} />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="revenue" fill="#0ea5e9" name="المبيعات" />
+                  <Bar dataKey="revenue" fill="#0ea5e9" name="المبيعات" isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            )}
             <Table>
               <TableHeader>
                 <TableRow>
