@@ -622,7 +622,7 @@ export default function SocialMediaMarketingDashboard() {
         {/* Products */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <CardTitle>أداء المنتجات تسويقيًا (Top 20)</CardTitle>
+            <CardTitle>أداء المنتجات تسويقيًا</CardTitle>
             {!loadProducts && (
               <Button size="sm" variant="outline" onClick={() => { setLoadDetails(true); setLoadProducts(true); }}>
                 عرض التفاصيل
