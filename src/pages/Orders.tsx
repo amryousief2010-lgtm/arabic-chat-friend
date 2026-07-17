@@ -1774,7 +1774,21 @@ const Orders = () => {
   return (
     <DashboardLayout>
       <DiscrepancyBanner />
-      <OrdersAnalytics orders={orders} />
+      {isMobile ? (
+        <div className="mb-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => setShowAnalytics((v) => !v)}
+          >
+            {showAnalytics ? 'إخفاء لوحة التحليلات' : 'عرض لوحة التحليلات'}
+          </Button>
+          {showAnalytics && <div className="mt-3"><OrdersAnalytics orders={orders} /></div>}
+        </div>
+      ) : (
+        <OrdersAnalytics orders={orders} />
+      )}
 
       <Tabs value={yearGroup} onValueChange={(v) => setYearGroup(v as YearGroup)} className="mb-4">
         <TabsList className="grid w-full max-w-xl grid-cols-3">
