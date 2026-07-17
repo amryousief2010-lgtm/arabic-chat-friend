@@ -257,6 +257,27 @@ export default function SocialMediaMarketingDashboard() {
   }, [items, ordersById, productFilter]);
   const productAgg = useMemo(() => aggregateProducts(filteredItems, ordersById), [filteredItems, ordersById]);
   const daily = useMemo(() => dailySeries(filteredOrders), [filteredOrders]);
+  const rangeDays = useMemo(() => {
+    const ms = new Date(range.to).getTime() - new Date(range.from).getTime();
+    return Math.max(1, Math.round(ms / 86400000));
+  }, [range]);
+  // Aggregate weekly if > 90 days to keep charts snappy
+  const chartSeries = useMemo(() => {
+    if (rangeDays <= 90) return daily;
+    const buckets: Record<string, { date: string; orders: number; revenue: number }> = {};
+    for (const d of daily) {
+      const dt = new Date(d.date);
+      // Start of week (Saturday for Arabic context — use ISO week for simplicity)
+      const day = dt.getDay();
+      const weekStart = new Date(dt);
+      weekStart.setDate(dt.getDate() - day);
+      const key = weekStart.toISOString().slice(0, 10);
+      if (!buckets[key]) buckets[key] = { date: key, orders: 0, revenue: 0 };
+      buckets[key].orders += Number(d.orders) || 0;
+      buckets[key].revenue += Number(d.revenue) || 0;
+    }
+    return Object.values(buckets).sort((a, b) => a.date.localeCompare(b.date));
+  }, [daily, rangeDays]);
 
   const uniqueSources = useMemo(
     () => Array.from(new Set(orders.map((o) => (o.customer_source || o.source || "غير محدد").trim()))),
