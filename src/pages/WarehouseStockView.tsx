@@ -605,8 +605,25 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
       ];
       return codes.some((v) => normalizeSearch(v).includes(q));
     }) : products;
+    // ترتيب مخصص للمخزن الرئيسي: كفتة، برجر، سجق، مفروم، حواوشى، شاورما، شيش، طرب، كباب ثم الباقي
+    if (scope === "main") {
+      const priority = ["كفتة", "برجر", "سجق", "مفروم", "حواوش", "شاورما", "شيش", "طرب", "كباب"];
+      const normPriority = priority.map((k) => normalizeSearch(k));
+      const rank = (name: string) => {
+        const n = normalizeSearch(name);
+        for (let i = 0; i < normPriority.length; i++) {
+          if (n.includes(normPriority[i])) return i;
+        }
+        return normPriority.length;
+      };
+      return [...list].sort((a, b) => {
+        const ra = rank(a.name), rb = rank(b.name);
+        if (ra !== rb) return ra - rb;
+        return a.name.localeCompare(b.name, "ar");
+      });
+    }
     return list;
-  }, [products, search, mainSku, agouzaSku, extraSku]);
+  }, [products, search, mainSku, agouzaSku, extraSku, scope]);
 
   // ملخص أعلى الشاشة (يُحسب على الـ scope الحالي)
   const summary = useMemo(() => {
