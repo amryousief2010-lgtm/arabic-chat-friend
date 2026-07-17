@@ -88,6 +88,27 @@ export type MarketingKPIs = {
   budgetRemaining6: number;
 };
 
+export type MarketingDashboardSummary = {
+  total_orders: number;
+  total_sales: number;
+  delivered_orders: number;
+  delivered_sales: number;
+  cancelled_orders: number;
+  gift_orders: number;
+  gift_original_value: number;
+  avg_order_value: number;
+  approved_expenses: number;
+  pending_expenses: number;
+  total_expenses: number;
+  new_customers_count: number;
+  repeat_customers_count: number;
+  top_source: { key?: string; count?: number; value?: number } | null;
+  top_area: { key?: string; count?: number; value?: number } | null;
+  top_products_summary: Array<{ name: string; qty: number; revenue: number; ordersCount: number }>;
+  date_from: string;
+  date_to: string;
+};
+
 export type DateRange = { from: string; to: string }; // ISO datetime strings
 
 // ---------- Classification helpers ----------
@@ -222,6 +243,39 @@ export async function fetchExpensesInRange(range: DateRange): Promise<ExpenseRow
     .order("expense_date", { ascending: false });
   if (error) throw error;
   return (data || []).map((d: any) => ({ ...d, amount: Number(d.amount || 0) }));
+}
+
+export async function fetchMarketingDashboardSummary(
+  range: DateRange,
+  includeTopProducts = false,
+): Promise<MarketingDashboardSummary> {
+  const { data, error } = await supabase.rpc("marketing_dashboard_summary", {
+    p_from: range.from,
+    p_to: range.to,
+    p_include_top_products: includeTopProducts,
+  } as any);
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    total_orders: Number(row?.total_orders || 0),
+    total_sales: Number(row?.total_sales || 0),
+    delivered_orders: Number(row?.delivered_orders || 0),
+    delivered_sales: Number(row?.delivered_sales || 0),
+    cancelled_orders: Number(row?.cancelled_orders || 0),
+    gift_orders: Number(row?.gift_orders || 0),
+    gift_original_value: Number(row?.gift_original_value || 0),
+    avg_order_value: Number(row?.avg_order_value || 0),
+    approved_expenses: Number(row?.approved_expenses || 0),
+    pending_expenses: Number(row?.pending_expenses || 0),
+    total_expenses: Number(row?.total_expenses || 0),
+    new_customers_count: Number(row?.new_customers_count || 0),
+    repeat_customers_count: Number(row?.repeat_customers_count || 0),
+    top_source: row?.top_source || null,
+    top_area: row?.top_area || null,
+    top_products_summary: Array.isArray(row?.top_products_summary) ? row.top_products_summary : [],
+    date_from: row?.date_from || range.from,
+    date_to: row?.date_to || range.to,
+  };
 }
 
 // Detect first-order customers (must query historical orders per customer)
