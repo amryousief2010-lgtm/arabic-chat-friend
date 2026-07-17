@@ -21493,6 +21493,29 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      marketing_dashboard_summary: {
+        Args: { p_from: string; p_include_top_products?: boolean; p_to: string }
+        Returns: {
+          approved_expenses: number
+          avg_order_value: number
+          cancelled_orders: number
+          date_from: string
+          date_to: string
+          delivered_orders: number
+          delivered_sales: number
+          gift_orders: number
+          gift_original_value: number
+          new_customers_count: number
+          pending_expenses: number
+          repeat_customers_count: number
+          top_area: Json
+          top_products_summary: Json
+          top_source: Json
+          total_expenses: number
+          total_orders: number
+          total_sales: number
+        }[]
+      }
       meat_batch_approve: {
         Args: {
           p_batch_id: string

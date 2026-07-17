@@ -51,6 +51,7 @@ const EXPENSE_TYPES = [
 const PLATFORMS = ["Facebook", "Instagram", "TikTok", "Google", "YouTube", "متعدد", "—"];
 
 const fmt = (n: number) => n.toLocaleString("ar-EG", { maximumFractionDigits: 2 });
+const PAGE_SIZE = 25;
 
 type FormState = {
   id?: string;
@@ -80,6 +81,9 @@ export default function SocialMediaExpenses() {
   const canApprove = !!(isGeneralManager || isExecutiveManager || (roles || []).includes("marketing_sales_manager"));
 
   const [rows, setRows] = useState<ExpenseRow[]>([]);
+  const [summaryRows, setSummaryRows] = useState<Pick<ExpenseRow, "amount" | "is_approved">[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [monthFilter, setMonthFilter] = useState<string>(() => new Date().toISOString().slice(0, 7));
   const [statusFilter, setStatusFilter] = useState<"all" | "approved" | "pending">("all");
@@ -92,36 +96,54 @@ export default function SocialMediaExpenses() {
     const from = `${year}-${String(month).padStart(2, "0")}-01`;
     const nextMonth = new Date(year, month, 0);
     const to = `${year}-${String(month).padStart(2, "0")}-${String(nextMonth.getDate()).padStart(2, "0")}`;
-    const { data, error } = await supabase
+    const start = (page - 1) * PAGE_SIZE;
+    const end = start + PAGE_SIZE - 1;
+
+    let query = supabase
       .from("social_media_expenses")
-      .select("*")
+      .select("*", { count: "exact" })
       .gte("expense_date", from)
-      .lte("expense_date", to)
-      .order("expense_date", { ascending: false });
+      .lte("expense_date", to);
+
+    if (statusFilter === "approved") query = query.eq("is_approved", true);
+    if (statusFilter === "pending") query = query.eq("is_approved", false);
+
+    const [pageResult, summaryResult] = await Promise.all([
+      query.order("expense_date", { ascending: false }).range(start, end),
+      supabase
+        .from("social_media_expenses")
+        .select("amount, is_approved")
+        .gte("expense_date", from)
+        .lte("expense_date", to),
+    ]);
     setLoading(false);
+    const { data, error, count } = pageResult;
     if (error) {
       toast({ title: "خطأ في تحميل المصروفات", description: error.message, variant: "destructive" });
       return;
     }
+    if (summaryResult.error) {
+      toast({ title: "خطأ في تحميل ملخص المصروفات", description: summaryResult.error.message, variant: "destructive" });
+    }
     setRows((data || []).map((d: any) => ({ ...d, amount: Number(d.amount || 0) })));
+    setSummaryRows(((summaryResult.data || []) as any[]).map((d) => ({ ...d, amount: Number(d.amount || 0) })));
+    setTotalCount(count || 0);
   };
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthFilter]);
+  }, [monthFilter, statusFilter, page]);
 
-  const filtered = useMemo(() => {
-    if (statusFilter === "approved") return rows.filter((r) => r.is_approved);
-    if (statusFilter === "pending") return rows.filter((r) => !r.is_approved);
-    return rows;
-  }, [rows, statusFilter]);
+  const filtered = rows;
 
   const totals = useMemo(() => {
-    const approved = rows.filter((r) => r.is_approved).reduce((s, r) => s + r.amount, 0);
-    const pending = rows.filter((r) => !r.is_approved).reduce((s, r) => s + r.amount, 0);
+    const approved = summaryRows.filter((r) => r.is_approved).reduce((s, r) => s + r.amount, 0);
+    const pending = summaryRows.filter((r) => !r.is_approved).reduce((s, r) => s + r.amount, 0);
     return { approved, pending, all: approved + pending };
-  }, [rows]);
+  }, [summaryRows]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const openNew = () => { setForm(emptyForm()); setDlgOpen(true); };
   const openEdit = (r: ExpenseRow) => {
@@ -246,9 +268,9 @@ export default function SocialMediaExpenses() {
         {/* Filters */}
         <Card>
           <CardContent className="p-4 grid grid-cols-2 md:grid-cols-3 gap-3">
-            <div><Label>الشهر</Label><Input type="month" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} /></div>
+            <div><Label>الشهر</Label><Input type="month" value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }} /></div>
             <div><Label>الحالة</Label>
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as any); setPage(1); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">الكل</SelectItem>
@@ -262,7 +284,7 @@ export default function SocialMediaExpenses() {
 
         {/* Table */}
         <Card>
-          <CardHeader><CardTitle>سجل المصروفات ({filtered.length})</CardTitle></CardHeader>
+          <CardHeader><CardTitle>سجل المصروفات ({totalCount})</CardTitle></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
@@ -309,6 +331,13 @@ export default function SocialMediaExpenses() {
                 ))}
               </TableBody>
             </Table>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-4 text-sm">
+              <span className="text-muted-foreground">صفحة {page} من {totalPages}</span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => Math.max(1, p - 1))}>السابق</Button>
+                <Button variant="outline" size="sm" disabled={page >= totalPages || loading} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>التالي</Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

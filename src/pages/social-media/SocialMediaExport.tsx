@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
-import * as XLSX from "xlsx";
+import { useMemo, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,7 @@ import {
   aggregateByArea, aggregateBySource, aggregateProducts, classifySource,
   computeKPIs, dailySeries, detectNewCustomers, fetchExpensesInRange,
   fetchOrderItemsForOrders, fetchOrdersInRange, isCancelledOrder, isGiftOrder,
-  last3MonthsRange, UNSPECIFIED, type DateRange, type ExpenseRow, type OrderLite, type OrderItemLite,
+  thisMonthRange, UNSPECIFIED, type DateRange, type ExpenseRow, type OrderLite, type OrderItemLite,
 } from "@/lib/socialMediaAnalytics";
 
 const toISOFrom = (d: string) => new Date(d + "T00:00:00").toISOString();
@@ -30,8 +29,8 @@ export default function SocialMediaExport() {
     isExecutiveManager ||
     (roles || []).includes("marketing_sales_manager");
 
-  // Default: last 3 months
-  const initial = last3MonthsRange();
+  // Default: current month only for faster mobile loading
+  const initial = thisMonthRange();
   const [from, setFrom] = useState(initial.from.slice(0, 10));
   const [to, setTo] = useState(initial.to.slice(0, 10));
 
@@ -48,6 +47,7 @@ export default function SocialMediaExport() {
   const [employeeFilter, setEmployeeFilter] = useState("all");
 
   const [loading, setLoading] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const [orders, setOrders] = useState<OrderLite[]>([]);
   const [items, setItems] = useState<OrderItemLite[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
@@ -60,9 +60,9 @@ export default function SocialMediaExport() {
     [from, to],
   );
 
-  useEffect(() => {
+  const loadData = async () => {
     let cancelled = false;
-    (async () => {
+    await (async () => {
       if (!isManager) return;
       setLoading(true);
       try {
@@ -97,16 +97,15 @@ export default function SocialMediaExport() {
         setNewCustIds(newCust);
         setDailyReports((dailyR.data as any) || []);
         setWeeklyReports((weeklyR.data as any) || []);
+        setDataLoaded(true);
       } catch (e: any) {
         toast.error("خطأ في تحميل البيانات: " + (e?.message || String(e)));
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [range.from, range.to, isManager]);
+    cancelled = true;
+  };
 
   // Unique lists for filters
   const uniqueSources = useMemo(
@@ -227,11 +226,16 @@ export default function SocialMediaExport() {
     }
   };
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
+    if (!dataLoaded) {
+      toast.error("اضغط تحميل البيانات أولًا");
+      return;
+    }
     if (filteredOrders.length === 0 && filteredExpenses.length === 0 && filteredDailyReports.length === 0) {
       toast.error("لا توجد بيانات في النطاق المحدد");
       return;
     }
+    const XLSX = await import("xlsx");
     const wb = XLSX.utils.book_new();
 
     // 1. Summary
@@ -488,6 +492,10 @@ export default function SocialMediaExport() {
   };
 
   const exportPDF = () => {
+    if (!dataLoaded) {
+      toast.error("اضغط تحميل البيانات أولًا");
+      return;
+    }
     if (filteredOrders.length === 0 && filteredExpenses.length === 0) {
       toast.error("لا توجد بيانات في النطاق المحدد");
       return;
@@ -611,6 +619,10 @@ export default function SocialMediaExport() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button variant="secondary" onClick={loadData} disabled={loading}>
+              {loading ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <FileDown className="w-4 h-4 ml-2" />}
+              تحميل البيانات
+            </Button>
             <Button variant="outline" onClick={exportPDF} disabled={loading}>
               <Printer className="w-4 h-4 ml-2" /> طباعة PDF عربي
             </Button>
@@ -628,8 +640,8 @@ export default function SocialMediaExport() {
             </CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div><Label>من</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
-            <div><Label>إلى</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+            <div><Label>من</Label><Input type="date" value={from} onChange={(e) => { setFrom(e.target.value); setDataLoaded(false); }} /></div>
+            <div><Label>إلى</Label><Input type="date" value={to} onChange={(e) => { setTo(e.target.value); setDataLoaded(false); }} /></div>
 
             <FilterSelect label="مصدر العميل" value={sourceFilter} onChange={setSourceFilter} options={uniqueSources} />
             <FilterSelect label="قناة التواصل" value={channelFilter} onChange={setChannelFilter} options={uniqueChannels} />
@@ -647,6 +659,11 @@ export default function SocialMediaExport() {
         <Card>
           <CardHeader><CardTitle>ملخّص التصدير</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            {!dataLoaded && !loading && (
+              <div className="col-span-2 md:col-span-4 text-center text-muted-foreground py-3">
+                البيانات لا تُحمّل تلقائيًا. اضغط تحميل البيانات قبل التصدير.
+              </div>
+            )}
             <Stat label="طلبات" value={filteredOrders.length} />
             <Stat label="قيمة الطلبات" value={kpis.totalOrdersValue.toLocaleString("ar-EG") + " ج.م"} />
             <Stat label="مصروفات معتمدة" value={approvedExpense.toLocaleString("ar-EG") + " ج.م"} />

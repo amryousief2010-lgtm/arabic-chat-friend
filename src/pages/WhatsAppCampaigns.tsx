@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import * as XLSX from "xlsx";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,48 +74,75 @@ async function fetchAll<T = any>(builder: () => any, pageSize = 1000): Promise<T
   return all;
 }
 
+async function fetchByChunks<T = any>(ids: string[], build: (chunk: string[]) => any, chunkSize = 400): Promise<T[]> {
+  const rows: T[] = [];
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const { data, error } = await build(ids.slice(i, i + chunkSize));
+    if (error) throw error;
+    rows.push(...((data || []) as T[]));
+  }
+  return rows;
+}
+
+const daysAgoISO = (days: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+};
+
 const WhatsAppCampaigns = () => {
   const [governorate, setGovernorate] = useState<string>("all");
   const [source, setSource] = useState<string>("all");
   const [product, setProduct] = useState<string>("all");
-  const [fromDate, setFromDate] = useState<string>("");
+  const [fromDate, setFromDate] = useState<string>(() => daysAgoISO(90));
   const [toDate, setToDate] = useState<string>("");
   const [minOrders, setMinOrders] = useState<string>("");
   const [customerType, setCustomerType] = useState<"all" | "returning" | "new">("all");
 
-  // Customers with notes so we can filter opt-outs.
-  const customersQuery = useQuery({
-    queryKey: ["wa-customers"],
+  // Orders first — date-filtered server-side to avoid loading full history on mobile.
+  const ordersQuery = useQuery({
+    queryKey: ["wa-orders", fromDate, toDate],
     queryFn: async () =>
-      fetchAll<any>(() =>
-        supabase
-          .from("customers")
-          .select("id,name,phone,governorate,city,area,address,notes,source,total_spent")
-          .order("created_at", { ascending: false })
-      ),
+      fetchAll<any>(() => {
+        let q = supabase
+          .from("orders")
+          .select("id,customer_id,created_at,total,source,status")
+          .order("created_at", { ascending: false });
+        if (fromDate) q = q.gte("created_at", new Date(fromDate + "T00:00:00").toISOString());
+        if (toDate) q = q.lte("created_at", new Date(toDate + "T23:59:59").toISOString());
+        return q;
+      }),
     staleTime: 5 * 60 * 1000,
   });
 
-  // Orders (needed for last order, count, source, filter by date).
-  const ordersQuery = useQuery({
-    queryKey: ["wa-orders"],
+  const orderIds = useMemo(() => (ordersQuery.data || []).map((o: any) => o.id), [ordersQuery.data]);
+  const customerIds = useMemo(
+    () => Array.from(new Set((ordersQuery.data || []).map((o: any) => o.customer_id).filter(Boolean))) as string[],
+    [ordersQuery.data],
+  );
+
+  // Customers with notes so we can filter opt-outs — only customers with orders in range.
+  const customersQuery = useQuery({
+    queryKey: ["wa-customers", customerIds.length],
     queryFn: async () =>
-      fetchAll<any>(() =>
+      fetchByChunks<any>(customerIds, (chunk) =>
         supabase
-          .from("orders")
-          .select("id,customer_id,created_at,total,source,status")
-          .order("created_at", { ascending: false })
+          .from("customers")
+          .select("id,name,phone,governorate,city,area,address,notes,source,total_spent")
+          .in("id", chunk)
       ),
+    enabled: customerIds.length > 0,
     staleTime: 5 * 60 * 1000,
   });
 
   // Order items — only the latest per order aggregated per customer.
   const itemsQuery = useQuery({
-    queryKey: ["wa-items"],
+    queryKey: ["wa-items", orderIds.length, fromDate, toDate],
     queryFn: async () =>
-      fetchAll<any>(() =>
-        supabase.from("order_items").select("order_id,product_name,created_at")
+      fetchByChunks<any>(orderIds, (chunk) =>
+        supabase.from("order_items").select("order_id,product_name,created_at").in("order_id", chunk)
       ),
+    enabled: orderIds.length > 0,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -251,8 +277,9 @@ const WhatsAppCampaigns = () => {
     toast.success(`تم تصدير ${filtered.length} عميل`);
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (!filtered.length) return toast.warning("لا توجد بيانات للتصدير");
+    const XLSX = await import("xlsx");
     const ws = XLSX.utils.json_to_sheet(exportRows());
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "عملاء واتساب");

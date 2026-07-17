@@ -74,9 +74,11 @@ import {
   type DateRange,
 
   type MarketingKPIs,
+  fetchMarketingDashboardSummary,
 } from "@/lib/socialMediaAnalytics";
 import { ZodexUnregisteredCard } from "@/components/marketing/ZodexUnregisteredCard";
 import { ZodexSyncButton } from "@/components/warehouses/ZodexSyncButton";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const COLORS = ["#8b5cf6", "#f97316", "#0ea5e9", "#10b981", "#f43f5e", "#facc15", "#6366f1", "#14b8a6"];
 
@@ -89,6 +91,7 @@ export default function SocialMediaMarketingDashboard() {
   const [preset, setPreset] = useState<Preset>("month");
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
+  const [loadDetails, setLoadDetails] = useState<boolean>(false);
   const [loadProducts, setLoadProducts] = useState<boolean>(false);
 
   const range: DateRange = useMemo(() => {
@@ -101,18 +104,31 @@ export default function SocialMediaMarketingDashboard() {
     return last3MonthsRange();
   }, [preset, customFrom, customTo]);
 
-  // Cached fetches — orders + expenses load in parallel and persist across navigation
+  // Initial mobile load: one light RPC only. Detailed rows/charts load on demand.
+  const summaryQuery = useQuery({
+    queryKey: ["mkt-dash-summary", range.from, range.to],
+    queryFn: () => fetchMarketingDashboardSummary(range, false),
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  // Cached detailed fetches — disabled until the user asks for analytics/tables
   const ordersQuery = useQuery({
     queryKey: ["mkt-dash-orders", range.from, range.to],
     queryFn: () => fetchOrdersInRange(range),
-    staleTime: 2 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    enabled: loadDetails,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
   const expensesQuery = useQuery({
     queryKey: ["mkt-dash-expenses", range.from, range.to],
     queryFn: () => fetchExpensesInRange(range),
-    staleTime: 2 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    enabled: loadDetails,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const orders = ordersQuery.data ?? [];
@@ -128,21 +144,23 @@ export default function SocialMediaMarketingDashboard() {
   const itemsQuery = useQuery({
     queryKey: ["mkt-dash-items", range.from, range.to, orderIds.length],
     queryFn: () => fetchOrderItemsForOrders(orderIds),
-    enabled: loadProducts && orderIds.length > 0,
-    staleTime: 2 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    enabled: loadDetails && loadProducts && orderIds.length > 0,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
   const newCustQuery = useQuery({
     queryKey: ["mkt-dash-new-cust", range.from, custIds.length],
     queryFn: () => detectNewCustomers(custIds, range),
-    enabled: custIds.length > 0,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
+    enabled: loadDetails && custIds.length > 0,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const items = itemsQuery.data ?? [];
   const newCustIds = newCustQuery.data ?? new Set<string>();
-  const loading = ordersQuery.isLoading || expensesQuery.isLoading;
+  const loading = summaryQuery.isLoading;
 
 
   const [sourceFilter, setSourceFilter] = useState<string>("all");
@@ -172,10 +190,56 @@ export default function SocialMediaMarketingDashboard() {
   const approvedExpense = useMemo(() => expenses.filter((e) => e.is_approved).reduce((s, e) => s + e.amount, 0), [expenses]);
   const pendingExpense = useMemo(() => expenses.filter((e) => !e.is_approved).reduce((s, e) => s + e.amount, 0), [expenses]);
 
-  const kpis: MarketingKPIs = useMemo(
-    () => computeKPIs(filteredOrders, approvedExpense, pendingExpense, newCustIds),
-    [filteredOrders, approvedExpense, pendingExpense, newCustIds],
-  );
+  const summary = summaryQuery.data;
+  const kpis: MarketingKPIs = useMemo(() => {
+    if (loadDetails && orders.length > 0) {
+      return computeKPIs(filteredOrders, approvedExpense, pendingExpense, newCustIds);
+    }
+    const totalOrdersValue = Number(summary?.total_sales || 0);
+    const approved = Number(summary?.approved_expenses || 0);
+    const pending = Number(summary?.pending_expenses || 0);
+    const cost5pct = totalOrdersValue * 0.05;
+    const cost6pct = totalOrdersValue * 0.06;
+    const actualRatio = totalOrdersValue > 0 ? (approved / totalOrdersValue) * 100 : null;
+    const budgetStatus: MarketingKPIs["budgetStatus"] = actualRatio === null
+      ? "no_sales"
+      : actualRatio <= 5
+        ? "safe"
+        : actualRatio <= 6
+          ? "warning"
+          : "danger";
+    return {
+      totalOrders: Number(summary?.total_orders || 0),
+      totalOrdersValue,
+      deliveredOrders: Number(summary?.delivered_orders || 0),
+      deliveredValue: Number(summary?.delivered_sales || 0),
+      cancelledOrders: Number(summary?.cancelled_orders || 0),
+      giftOrders: Number(summary?.gift_orders || 0),
+      giftOriginalValue: Number(summary?.gift_original_value || 0),
+      avgOrderValue: Number(summary?.avg_order_value || 0),
+      newCustomers: Number(summary?.new_customers_count || 0),
+      repeatCustomers: Number(summary?.repeat_customers_count || 0),
+      topSource: summary?.top_source?.key ? {
+        key: String(summary.top_source.key),
+        count: Number(summary.top_source.count || 0),
+        value: Number(summary.top_source.value || 0),
+      } : null,
+      topArea: summary?.top_area?.key ? {
+        key: String(summary.top_area.key),
+        count: Number(summary.top_area.count || 0),
+        value: Number(summary.top_area.value || 0),
+      } : null,
+      approvedExpenses: approved,
+      pendingExpenses: pending,
+      totalExpensesAll: approved + pending,
+      cost5pct,
+      cost6pct,
+      actualRatio,
+      budgetStatus,
+      budgetRemaining5: cost5pct - approved,
+      budgetRemaining6: cost6pct - approved,
+    };
+  }, [loadDetails, orders.length, filteredOrders, approvedExpense, pendingExpense, newCustIds, summary]);
 
   const sourceAgg = useMemo(() => aggregateBySource(filteredOrders), [filteredOrders]);
   const areaAgg = useMemo(() => aggregateByArea(filteredOrders), [filteredOrders]);
@@ -320,6 +384,14 @@ export default function SocialMediaMarketingDashboard() {
           </CardContent>
         </Card>
 
+        {loading && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Card key={i}><CardContent className="p-4 space-y-2"><Skeleton className="h-3 w-20" /><Skeleton className="h-7 w-24" /></CardContent></Card>
+            ))}
+          </div>
+        )}
+
         {pendingExpense > 0 && (
           <Alert className="border-amber-500 bg-amber-50">
             <ShieldAlert className="h-4 w-4 text-amber-600" />
@@ -332,7 +404,7 @@ export default function SocialMediaMarketingDashboard() {
 
 
         {/* KPI cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {!loading && <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KpiCard icon={ShoppingCart} title="إجمالي الطلبات" value={fmt(kpis.totalOrders)} color="text-purple-600" />
           <KpiCard icon={DollarSign} title="قيمة الطلبات" value={fmtMoney(kpis.totalOrdersValue)} color="text-orange-600" />
           <KpiCard icon={CheckCircle2} title="مبيعات منفذة (Delivered)" value={fmtMoney(kpis.deliveredValue)} sub={`${fmt(kpis.deliveredOrders)} أوردر`} color="text-green-600" />
@@ -347,7 +419,7 @@ export default function SocialMediaMarketingDashboard() {
           <KpiCard icon={MapPin} title="أعلى منطقة" value={kpis.topArea?.key || "—"} sub={kpis.topArea ? fmtMoney(kpis.topArea.value) : ""} color="text-teal-600" />
           <KpiCard icon={Wallet} title="مصروفات معتمدة" value={fmtMoney(kpis.approvedExpenses)} color="text-slate-700" />
           <KpiCard icon={ShieldAlert} title="مصروفات قيد المراجعة" value={fmtMoney(kpis.pendingExpenses)} color="text-amber-600" />
-        </div>
+        </div>}
 
         {/* Zodex bills registered externally but missing in our system */}
         <ZodexUnregisteredCard />
@@ -355,28 +427,43 @@ export default function SocialMediaMarketingDashboard() {
         {/* Budget status */}
         <BudgetStatusCard kpis={kpis} />
 
-
-        {/* Daily chart */}
         <Card>
-          <CardHeader><CardTitle>تطور المبيعات اليومي</CardTitle></CardHeader>
-          <CardContent style={{ height: 300 }}>
-            <ResponsiveContainer>
-              <LineChart data={daily}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
-                <Legend />
-                <Line yAxisId="left" type="monotone" dataKey="orders" stroke="#8b5cf6" name="عدد الطلبات" />
-                <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#f97316" name="قيمة المبيعات" />
-              </LineChart>
-            </ResponsiveContainer>
+          <CardContent className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <div className="font-semibold">تفاصيل التحليلات والجداول</div>
+              <div className="text-sm text-muted-foreground">يتم تحميل الشارتات والجداول التفصيلية عند الطلب فقط لتسريع فتح الموبايل.</div>
+            </div>
+            <Button onClick={() => setLoadDetails(true)} disabled={loadDetails || ordersQuery.isFetching} className="w-full md:w-auto">
+              {ordersQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {loadDetails ? "تم تحميل التفاصيل" : "عرض التفاصيل"}
+            </Button>
           </CardContent>
         </Card>
 
-        {/* Sources + Areas charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {loadDetails && (
+          <>
+            {/* Daily chart */}
+            <Card>
+              <CardHeader><CardTitle>تطور المبيعات اليومي</CardTitle></CardHeader>
+              <CardContent style={{ height: 300 }}>
+                <ResponsiveContainer>
+                  <LineChart data={daily}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip />
+                    <Legend />
+                    <Line yAxisId="left" type="monotone" dataKey="orders" stroke="#8b5cf6" name="عدد الطلبات" />
+                    <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#f97316" name="قيمة المبيعات" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Sources + Areas charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card>
             <CardHeader><CardTitle>مصادر العملاء (قيمة المبيعات)</CardTitle></CardHeader>
             <CardContent style={{ height: 300 }}>
@@ -406,10 +493,10 @@ export default function SocialMediaMarketingDashboard() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
-        </div>
+            </div>
 
-        {/* Sources table */}
-        <Card>
+            {/* Sources table */}
+            <Card>
           <CardHeader><CardTitle>أداء قنوات التواصل ومصادر العملاء</CardTitle></CardHeader>
           <CardContent>
             <Table>
@@ -436,10 +523,10 @@ export default function SocialMediaMarketingDashboard() {
               </TableBody>
             </Table>
           </CardContent>
-        </Card>
+            </Card>
 
-        {/* Areas */}
-        <Card>
+            {/* Areas */}
+            <Card>
           <CardHeader><CardTitle>توزيع المبيعات حسب المناطق (Top 10)</CardTitle></CardHeader>
           <CardContent>
             <div style={{ height: 280 }} className="mb-3">
@@ -476,14 +563,16 @@ export default function SocialMediaMarketingDashboard() {
               </TableBody>
             </Table>
           </CardContent>
-        </Card>
+            </Card>
+          </>
+        )}
 
         {/* Products */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle>أداء المنتجات تسويقيًا (Top 20)</CardTitle>
             {!loadProducts && (
-              <Button size="sm" variant="outline" onClick={() => setLoadProducts(true)}>
+              <Button size="sm" variant="outline" onClick={() => { setLoadDetails(true); setLoadProducts(true); }}>
                 عرض التفاصيل
               </Button>
             )}
