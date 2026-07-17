@@ -333,10 +333,11 @@ const WhatsAppCampaigns = () => {
     setGovernorate("all");
     setSource("all");
     setProduct("all");
-    setFromDate("");
+    setFromDate(daysAgoISO(DEFAULT_DAYS));
     setToDate("");
     setMinOrders("");
     setCustomerType("all");
+    setSearchKey(null);
   };
 
   return (
