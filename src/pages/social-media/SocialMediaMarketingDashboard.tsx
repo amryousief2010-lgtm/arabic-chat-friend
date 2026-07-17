@@ -637,34 +637,68 @@ export default function SocialMediaMarketingDashboard() {
               <p className="text-sm text-muted-foreground text-center py-6">
                 اضغط "عرض التفاصيل" لتحميل بيانات المنتجات (تحسين للأداء على الموبايل).
               </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>المنتج</TableHead>
-                    <TableHead className="text-center">الكمية</TableHead>
-                    <TableHead className="text-center">الإيرادات</TableHead>
-                    <TableHead className="text-center">عدد الأوردرات</TableHead>
-                    <TableHead className="text-center">متوسط السعر</TableHead>
-                    <TableHead className="text-center">أعلى مصدر</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {productAgg.slice(0, 20).map((r) => (
-                    <TableRow key={r.name}>
-                      <TableCell>{r.name}</TableCell>
-                      <TableCell className="text-center">{fmt(r.qty)}</TableCell>
-                      <TableCell className="text-center">{fmtMoney(r.revenue)}</TableCell>
-                      <TableCell className="text-center">{fmt(r.ordersCount)}</TableCell>
-                      <TableCell className="text-center">{fmtMoney(r.avgPrice)}</TableCell>
-                      <TableCell className="text-center">{r.topSource}</TableCell>
-                    </TableRow>
+            ) : productAgg.length === 0 ? (
+              <p className="text-center text-muted-foreground py-6">لا توجد بيانات</p>
+            ) : isMobile ? (
+              <>
+                <div className="space-y-2">
+                  {productAgg.slice(0, productsLimit).map((r) => (
+                    <details key={r.name} className="rounded border p-3 bg-card">
+                      <summary className="cursor-pointer font-semibold text-sm flex items-center justify-between gap-2">
+                        <span className="truncate">{r.name}</span>
+                        <span className="text-orange-600 font-bold text-xs whitespace-nowrap">{fmtMoney(r.revenue)}</span>
+                      </summary>
+                      <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                        <div><span className="text-muted-foreground">الكمية:</span> <span className="font-bold">{fmt(r.qty)}</span></div>
+                        <div><span className="text-muted-foreground">الأوردرات:</span> <span className="font-bold">{fmt(r.ordersCount)}</span></div>
+                        <div><span className="text-muted-foreground">متوسط السعر:</span> <span className="font-bold">{fmtMoney(r.avgPrice)}</span></div>
+                        <div><span className="text-muted-foreground">أعلى مصدر:</span> <span className="font-bold">{r.topSource}</span></div>
+                      </div>
+                    </details>
                   ))}
-                  {productAgg.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">لا توجد بيانات</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                </div>
+                {productsLimit < productAgg.length && (
+                  <div className="text-center mt-3">
+                    <Button variant="outline" size="sm" onClick={() => setProductsLimit((n) => n + 20)}>
+                      عرض المزيد ({productAgg.length - productsLimit} متبقي)
+                    </Button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>المنتج</TableHead>
+                      <TableHead className="text-center">الكمية</TableHead>
+                      <TableHead className="text-center">الإيرادات</TableHead>
+                      <TableHead className="text-center">عدد الأوردرات</TableHead>
+                      <TableHead className="text-center">متوسط السعر</TableHead>
+                      <TableHead className="text-center">أعلى مصدر</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {productAgg.slice(0, productsLimit).map((r) => (
+                      <TableRow key={r.name}>
+                        <TableCell>{r.name}</TableCell>
+                        <TableCell className="text-center">{fmt(r.qty)}</TableCell>
+                        <TableCell className="text-center">{fmtMoney(r.revenue)}</TableCell>
+                        <TableCell className="text-center">{fmt(r.ordersCount)}</TableCell>
+                        <TableCell className="text-center">{fmtMoney(r.avgPrice)}</TableCell>
+                        <TableCell className="text-center">{r.topSource}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {productsLimit < productAgg.length && (
+                  <div className="text-center mt-3">
+                    <Button variant="outline" size="sm" onClick={() => setProductsLimit((n) => n + 20)}>
+                      عرض المزيد ({productAgg.length - productsLimit} متبقي)
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
