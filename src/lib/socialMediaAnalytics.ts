@@ -255,7 +255,7 @@ export async function fetchMarketingDashboardSummary(
     p_include_top_products: includeTopProducts,
   } as any);
   if (error) throw error;
-  const row = Array.isArray(data) ? data[0] : data;
+  const row: any = Array.isArray(data) ? data[0] : data;
   return {
     total_orders: Number(row?.total_orders || 0),
     total_sales: Number(row?.total_sales || 0),
