@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import * as XLSX from "xlsx";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -227,7 +226,7 @@ export default function SocialMediaExport() {
     }
   };
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
     if (!dataLoaded) {
       toast.error("اضغط تحميل البيانات أولًا");
       return;
@@ -236,6 +235,7 @@ export default function SocialMediaExport() {
       toast.error("لا توجد بيانات في النطاق المحدد");
       return;
     }
+    const XLSX = await import("xlsx");
     const wb = XLSX.utils.book_new();
 
     // 1. Summary
