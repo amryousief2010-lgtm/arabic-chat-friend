@@ -178,7 +178,7 @@ const WhatsAppCampaigns = () => {
   });
 
   const isLoading =
-    customersQuery.isLoading || ordersQuery.isLoading || itemsQuery.isLoading;
+    !!searchKey && (customersQuery.isLoading || ordersQuery.isLoading || itemsQuery.isLoading);
 
   const { rows, governorates, sources, products } = useMemo(() => {
     const customers = customersQuery.data || [];
