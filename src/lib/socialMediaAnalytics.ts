@@ -237,7 +237,7 @@ export async function fetchExpensesInRange(range: DateRange): Promise<ExpenseRow
   const toDate = range.to.slice(0, 10);
   const { data, error } = await supabase
     .from("social_media_expenses")
-    .select("*")
+    .select("id, expense_date, expense_type, platform, campaign_name, employee_name, amount, notes, attachment_url, is_approved, approved_by, approved_at, created_by, created_at")
     .gte("expense_date", fromDate)
     .lte("expense_date", toDate)
     .order("expense_date", { ascending: false });
