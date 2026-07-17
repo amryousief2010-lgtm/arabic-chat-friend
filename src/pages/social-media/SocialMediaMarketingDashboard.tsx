@@ -89,11 +89,14 @@ const fmt = (n: number) => n.toLocaleString("ar-EG", { maximumFractionDigits: 0 
 const fmtMoney = (n: number) => `${fmt(n)} ج.م`;
 
 export default function SocialMediaMarketingDashboard() {
+  const isMobile = useIsMobile();
   const [preset, setPreset] = useState<Preset>("month");
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
   const [loadDetails, setLoadDetails] = useState<boolean>(false);
   const [loadProducts, setLoadProducts] = useState<boolean>(false);
+  const [loadCharts, setLoadCharts] = useState<boolean>(false);
+  const [productsLimit, setProductsLimit] = useState<number>(20);
 
   const range: DateRange = useMemo(() => {
     if (preset === "today") return todayRange();
