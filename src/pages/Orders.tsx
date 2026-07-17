@@ -776,8 +776,9 @@ const Orders = () => {
         return;
       }
 
-      // الصفحة الأولى: نعرضها فوراً ثم نكمل باقى الصفحات فى الخلفية
-      const ORDERS_PAGE = 100;
+      // على الموبايل: صفحة أولى أصغر ولا نحمّل الباقي إلا عند طلب المستخدم "تحميل المزيد"
+      const mobileNow = typeof window !== 'undefined' && window.innerWidth < 768;
+      const ORDERS_PAGE = mobileNow ? 30 : 100;
       let oPage = 0;
       let accumulated: Order[] = [];
 
@@ -821,8 +822,18 @@ const Orders = () => {
       setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
       setLoading(false);
 
-      // باقى الصفحات تُحمَّل فى الخلفية دون أن تحجب الواجهة
-      if (firstBatch.length === ORDERS_PAGE) {
+      // خزّن حالة الترقيم لاستخدام "تحميل المزيد" لاحقًا
+      paginationRef.current = {
+        nextPage: 1,
+        startDate,
+        endDate,
+        pageSize: ORDERS_PAGE,
+      };
+      const morePossible = firstBatch.length === ORDERS_PAGE;
+      setHasMorePages(morePossible);
+
+      // على الديسكتوب فقط: أكمل التحميل تلقائيًا في الخلفية
+      if (!mobileNow && morePossible) {
         oPage = 1;
         while (true) {
           const batch = await fetchPage(oPage);
@@ -841,7 +852,10 @@ const Orders = () => {
           if (batch.length < ORDERS_PAGE) break;
           oPage++;
         }
+        paginationRef.current.nextPage = oPage + 1;
+        setHasMorePages(false);
       }
+
 
     } catch (error) {
       console.error('Error fetching orders:', error);
