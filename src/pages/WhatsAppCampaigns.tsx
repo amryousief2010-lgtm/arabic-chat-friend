@@ -469,7 +469,9 @@ const WhatsAppCampaigns = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
+                {!searchKey ? (
+                  <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">اضغط "بحث / تجهيز الحملة" لعرض العملاء (لا يتم تحميل أي شيء تلقائيًا).</TableCell></TableRow>
+                ) : isLoading ? (
                   <TableRow><TableCell colSpan={10} className="text-center py-8">جاري التحميل...</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={10} className="text-center py-8">لا توجد نتائج</TableCell></TableRow>
