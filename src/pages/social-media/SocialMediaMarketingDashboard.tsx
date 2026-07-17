@@ -302,7 +302,7 @@ export default function SocialMediaMarketingDashboard() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="today">اليوم</SelectItem>
-                  <SelectItem value="week">هذا الأسبوع</SelectItem>
+                  <SelectItem value="week">آخر 7 أيام</SelectItem>
                   <SelectItem value="month">هذا الشهر</SelectItem>
                   <SelectItem value="3m">آخر 3 شهور</SelectItem>
                   <SelectItem value="custom">فترة مخصصة</SelectItem>
@@ -384,6 +384,14 @@ export default function SocialMediaMarketingDashboard() {
           </CardContent>
         </Card>
 
+        {loading && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Card key={i}><CardContent className="p-4 space-y-2"><Skeleton className="h-3 w-20" /><Skeleton className="h-7 w-24" /></CardContent></Card>
+            ))}
+          </div>
+        )}
+
         {pendingExpense > 0 && (
           <Alert className="border-amber-500 bg-amber-50">
             <ShieldAlert className="h-4 w-4 text-amber-600" />
@@ -396,7 +404,7 @@ export default function SocialMediaMarketingDashboard() {
 
 
         {/* KPI cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {!loading && <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KpiCard icon={ShoppingCart} title="إجمالي الطلبات" value={fmt(kpis.totalOrders)} color="text-purple-600" />
           <KpiCard icon={DollarSign} title="قيمة الطلبات" value={fmtMoney(kpis.totalOrdersValue)} color="text-orange-600" />
           <KpiCard icon={CheckCircle2} title="مبيعات منفذة (Delivered)" value={fmtMoney(kpis.deliveredValue)} sub={`${fmt(kpis.deliveredOrders)} أوردر`} color="text-green-600" />
@@ -411,7 +419,7 @@ export default function SocialMediaMarketingDashboard() {
           <KpiCard icon={MapPin} title="أعلى منطقة" value={kpis.topArea?.key || "—"} sub={kpis.topArea ? fmtMoney(kpis.topArea.value) : ""} color="text-teal-600" />
           <KpiCard icon={Wallet} title="مصروفات معتمدة" value={fmtMoney(kpis.approvedExpenses)} color="text-slate-700" />
           <KpiCard icon={ShieldAlert} title="مصروفات قيد المراجعة" value={fmtMoney(kpis.pendingExpenses)} color="text-amber-600" />
-        </div>
+        </div>}
 
         {/* Zodex bills registered externally but missing in our system */}
         <ZodexUnregisteredCard />
@@ -419,28 +427,43 @@ export default function SocialMediaMarketingDashboard() {
         {/* Budget status */}
         <BudgetStatusCard kpis={kpis} />
 
-
-        {/* Daily chart */}
         <Card>
-          <CardHeader><CardTitle>تطور المبيعات اليومي</CardTitle></CardHeader>
-          <CardContent style={{ height: 300 }}>
-            <ResponsiveContainer>
-              <LineChart data={daily}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
-                <Legend />
-                <Line yAxisId="left" type="monotone" dataKey="orders" stroke="#8b5cf6" name="عدد الطلبات" />
-                <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#f97316" name="قيمة المبيعات" />
-              </LineChart>
-            </ResponsiveContainer>
+          <CardContent className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <div className="font-semibold">تفاصيل التحليلات والجداول</div>
+              <div className="text-sm text-muted-foreground">يتم تحميل الشارتات والجداول التفصيلية عند الطلب فقط لتسريع فتح الموبايل.</div>
+            </div>
+            <Button onClick={() => setLoadDetails(true)} disabled={loadDetails || ordersQuery.isFetching} className="w-full md:w-auto">
+              {ordersQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {loadDetails ? "تم تحميل التفاصيل" : "عرض التفاصيل"}
+            </Button>
           </CardContent>
         </Card>
 
-        {/* Sources + Areas charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {loadDetails && (
+          <>
+            {/* Daily chart */}
+            <Card>
+              <CardHeader><CardTitle>تطور المبيعات اليومي</CardTitle></CardHeader>
+              <CardContent style={{ height: 300 }}>
+                <ResponsiveContainer>
+                  <LineChart data={daily}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip />
+                    <Legend />
+                    <Line yAxisId="left" type="monotone" dataKey="orders" stroke="#8b5cf6" name="عدد الطلبات" />
+                    <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#f97316" name="قيمة المبيعات" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Sources + Areas charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card>
             <CardHeader><CardTitle>مصادر العملاء (قيمة المبيعات)</CardTitle></CardHeader>
             <CardContent style={{ height: 300 }}>
@@ -470,10 +493,10 @@ export default function SocialMediaMarketingDashboard() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
-        </div>
+            </div>
 
-        {/* Sources table */}
-        <Card>
+            {/* Sources table */}
+            <Card>
           <CardHeader><CardTitle>أداء قنوات التواصل ومصادر العملاء</CardTitle></CardHeader>
           <CardContent>
             <Table>
@@ -500,10 +523,10 @@ export default function SocialMediaMarketingDashboard() {
               </TableBody>
             </Table>
           </CardContent>
-        </Card>
+            </Card>
 
-        {/* Areas */}
-        <Card>
+            {/* Areas */}
+            <Card>
           <CardHeader><CardTitle>توزيع المبيعات حسب المناطق (Top 10)</CardTitle></CardHeader>
           <CardContent>
             <div style={{ height: 280 }} className="mb-3">
@@ -540,7 +563,9 @@ export default function SocialMediaMarketingDashboard() {
               </TableBody>
             </Table>
           </CardContent>
-        </Card>
+            </Card>
+          </>
+        )}
 
         {/* Products */}
         <Card>
