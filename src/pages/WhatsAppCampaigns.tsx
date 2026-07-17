@@ -419,10 +419,14 @@ const WhatsAppCampaigns = () => {
                 placeholder="مثال: 3"
               />
             </div>
-            <div className="flex items-end">
-              <Button variant="outline" onClick={resetFilters} className="w-full">إعادة تعيين</Button>
+            <div className="flex items-end gap-2">
+              <Button onClick={runSearch} className="w-full">بحث / تجهيز الحملة</Button>
+              <Button variant="outline" onClick={resetFilters}>تفريغ</Button>
             </div>
           </CardContent>
+          <div className="px-6 pb-4 text-xs text-muted-foreground">
+            الحد الأقصى للبحث {MAX_DAYS} يوم. الافتراضي آخر {DEFAULT_DAYS} يوم. لن يتم جلب العملاء إلا بعد الضغط على "بحث".
+          </div>
         </Card>
 
         <div className="flex flex-wrap gap-3 items-center">
