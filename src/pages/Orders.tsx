@@ -991,6 +991,7 @@ const Orders = () => {
   };
 
 
+  const filteredOrders = useMemo(() => orders.filter((order) => {
     const matchesStatus =
       filterStatus === "all" || order.status === filterStatus;
     const qRaw = appliedSearch.trim();
