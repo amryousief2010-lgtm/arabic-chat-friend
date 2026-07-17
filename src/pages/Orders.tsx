@@ -865,8 +865,132 @@ const Orders = () => {
     }
   };
 
+  // تحميل صفحة إضافية عند الضغط على "تحميل المزيد" (يستخدم على الموبايل بشكل أساسي)
+  const loadMoreOrders = async () => {
+    if (loadingMore || !hasMorePages) return;
+    setLoadingMore(true);
+    try {
+      const { nextPage, startDate, endDate, pageSize } = paginationRef.current;
+      const ORDER_COLS = [
+        'id','order_number','customer_id','status','payment_method','payment_status',
+        'collection_status','subtotal','discount','delivery_fee','total','notes',
+        'delivery_address','created_at','delivered_at','created_by','moderator',
+        'shipping_company','source','fulfillment_type','source_warehouse_id','route_id',
+        'update_status_marker','update_status_updated_at',
+        'collection_method','courier_cash_due','collection_updated_at',
+        'vodafone_cash_amount','instapay_amount','free_amount','shipping_bill_no',
+      ].join(',');
+      const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg';
+      let q = supabase
+        .from('orders')
+        .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate)`)
+        .order('created_at', { ascending: false })
+        .range(nextPage * pageSize, (nextPage + 1) * pageSize - 1);
+      if (startDate) q = q.gte('created_at', startDate);
+      if (endDate) q = q.lt('created_at', endDate);
+      const { data, error } = await q;
+      if (error) throw error;
+      const ords = (data || []) as any[];
+      if (ords.length === 0) {
+        setHasMorePages(false);
+        return;
+      }
+      const ids = ords.map((o) => o.id);
+      const { data: itemsData } = await supabase
+        .from('order_items')
+        .select(ITEM_COLS)
+        .in('order_id', ids);
+      const byOrder: Record<string, any[]> = {};
+      (itemsData || []).forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
+      ords.forEach((o: any) => { o.order_items = byOrder[o.id] || []; });
+      // Reuse formatBatch/loadLookups via a lightweight direct format using existing helpers.
+      // For safety we simply refetch via fetchOrders' pathway: append using formatBatch alternative.
+      // Here we do a minimal in-place merge by re-running fetchOrders is overkill; instead,
+      // reload lookups the same way as first page.
+      const flatItems = ords.flatMap((o: any) => (o.order_items as any[]).map((it) => ({ ...it, order_id: o.id })));
+      const newProducts = Array.from(new Set(flatItems.map((it: any) => it.product_id).filter(Boolean)));
+      const newWarehouses = Array.from(new Set(ords.map((o: any) => o.source_warehouse_id).filter(Boolean)));
+      const newRoutes = Array.from(new Set(ords.map((o: any) => o.route_id).filter(Boolean)));
+      const newCreators = Array.from(new Set(ords.map((o: any) => o.created_by).filter(Boolean)));
+      const [profs, prods, whs, rts] = await Promise.all([
+        newCreators.length
+          ? supabase.from('profile_directory').select('id, full_name').in('id', newCreators)
+          : Promise.resolve({ data: [] as any[] }),
+        newProducts.length
+          ? supabase.from('products').select('id, unit').in('id', newProducts)
+          : Promise.resolve({ data: [] as any[] }),
+        newWarehouses.length
+          ? supabase.from('warehouses').select('id, name').in('id', newWarehouses)
+          : Promise.resolve({ data: [] as any[] }),
+        newRoutes.length
+          ? supabase.from('delivery_routes').select('id, name').in('id', newRoutes)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const profMap: Record<string,string> = {}; (profs.data || []).forEach((p:any)=>{profMap[p.id]=p.full_name;});
+      const prodMap: Record<string,string> = {}; (prods.data || []).forEach((p:any)=>{prodMap[p.id]=p.unit;});
+      const whMap: Record<string,string> = {}; (whs.data || []).forEach((w:any)=>{whMap[w.id]=w.name;});
+      const rtMap: Record<string,string> = {}; (rts.data || []).forEach((r:any)=>{rtMap[r.id]=r.name;});
+      const appended: Order[] = ords.map((o:any) => ({
+        id: o.id,
+        order_number: o.order_number,
+        customer_id: o.customer_id,
+        customer_name: o.customers?.name || '',
+        customer_phone: o.customers?.phone || '',
+        customer_phone2: o.customers?.phone2 || null,
+        status: o.status,
+        payment_method: o.payment_method,
+        payment_status: o.payment_status,
+        collection_status: o.collection_status,
+        subtotal: Number(o.subtotal) || 0,
+        discount: Number(o.discount) || 0,
+        delivery_fee: Number(o.delivery_fee) || 0,
+        total: Number(o.total) || 0,
+        notes: o.notes,
+        delivery_address: o.delivery_address,
+        created_at: o.created_at,
+        delivered_at: o.delivered_at,
+        created_by: o.created_by,
+        moderator_name: (o.created_by && profMap[o.created_by]) || o.moderator || '',
+        governorate: o.customers?.governorate || null,
+        shipping_company: o.shipping_company,
+        source: o.source,
+        fulfillment_type: o.fulfillment_type,
+        source_warehouse_id: o.source_warehouse_id,
+        source_warehouse_name: (o.source_warehouse_id && whMap[o.source_warehouse_id]) || null,
+        route_id: o.route_id,
+        route_name: (o.route_id && rtMap[o.route_id]) || null,
+        items: (o.order_items || []).map((it: any) => ({
+          id: it.id,
+          product_id: it.product_id,
+          product_name: it.product_name,
+          quantity: Number(it.quantity) || 0,
+          unit_price: Number(it.unit_price) || 0,
+          total_price: Number(it.total_price) || 0,
+          unit: (it.product_id && prodMap[it.product_id]) || undefined,
+          offer_name: it.offer_name || null,
+        })),
+        update_status_marker: o.update_status_marker,
+        update_status_updated_at: o.update_status_updated_at,
+        collection_method: o.collection_method,
+        courier_cash_due: o.courier_cash_due,
+        vodafone_cash_amount: o.vodafone_cash_amount,
+        instapay_amount: o.instapay_amount,
+        free_amount: o.free_amount,
+        collection_updated_at: o.collection_updated_at,
+        shipping_bill_no: o.shipping_bill_no,
+      }));
+      setOrders((prev) => [...prev, ...appended]);
+      paginationRef.current.nextPage = nextPage + 1;
+      if (ords.length < pageSize) setHasMorePages(false);
+    } catch (e) {
+      console.error('loadMoreOrders error', e);
+      toast.error('تعذّر تحميل المزيد من الطلبات');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
-  const filteredOrders = useMemo(() => orders.filter((order) => {
+
     const matchesStatus =
       filterStatus === "all" || order.status === filterStatus;
     const qRaw = appliedSearch.trim();
