@@ -171,12 +171,12 @@ export default function SocialMediaDashboard() {
     })();
   }, [from, to, user, isManager]);
 
-  // Load orders coming from social-media sources over the last 3 months
+  // Load orders coming from social-media sources over the last 30 days (mobile perf)
   useEffect(() => {
     (async () => {
       setOrdersLoading(true);
       const since = new Date();
-      since.setMonth(since.getMonth() - 3);
+      since.setDate(since.getDate() - 30);
       const acc: SocialOrderRow[] = [];
       const pageSize = 1000;
       let offset = 0;
@@ -200,6 +200,7 @@ export default function SocialMediaDashboard() {
       setOrdersLoading(false);
     })();
   }, []);
+
 
 
   const filtered = useMemo(
