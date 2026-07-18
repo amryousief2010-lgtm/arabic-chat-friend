@@ -248,7 +248,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
     if (cst.length) {
       const { data: depRows } = await (supabase as any)
         .from("courier_daily_cash_deposits")
-        .select("id, custody_id, deposit_date, amount, orders_count, treasury_txn_id, performed_by_name, created_at")
+        .select("id, custody_id, deposit_date, amount, orders_count, treasury_txn_id, performed_by_name, created_at, order_ids")
         .in("custody_id", cst.map((c) => c.id))
         .order("deposit_date", { ascending: false });
       setDailyDeposits(depRows || []);
