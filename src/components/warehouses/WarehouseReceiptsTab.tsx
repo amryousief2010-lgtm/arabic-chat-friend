@@ -175,6 +175,7 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
   const [deleteTarget, setDeleteTarget] = useState<ReceiptRow | null>(null);
   const [disposeTarget, setDisposeTarget] = useState<ReceiptRow | null>(null);
   const [disposeReason, setDisposeReason] = useState("");
+  const [disposeMode, setDisposeMode] = useState<"legacy" | "reverse">("legacy");
   const [busy, setBusy] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
