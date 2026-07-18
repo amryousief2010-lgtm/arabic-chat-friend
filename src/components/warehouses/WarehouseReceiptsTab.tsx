@@ -289,12 +289,15 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
       const refId = disposeTarget.kind === "slaughter"
         ? String(disposeTarget.id).split(":")[0]
         : disposeTarget.id;
-      const { error } = await supabase.rpc("mark_receipt_previously_received" as any, {
+      const rpc = disposeMode === "reverse" ? "reverse_receipt_approval" : "mark_receipt_previously_received";
+      const { error } = await supabase.rpc(rpc as any, {
         p_kind: disposeTarget.kind, p_ref_id: refId, p_reason: reason,
       });
       if (error) throw error;
-      toast.success("تم تعليم التحويلة كموردة سابقًا — بدون أي تأثير على المخزون");
-      setDisposeTarget(null); setDisposeReason("");
+      toast.success(disposeMode === "reverse"
+        ? "تم عكس الاعتماد وخصم الكمية من المخزن — التحويلة الآن موردة سابقًا"
+        : "تم تعليم التحويلة كموردة سابقًا — بدون أي تأثير على المخزون");
+      setDisposeTarget(null); setDisposeReason(""); setDisposeMode("legacy");
       await loadAll();
     } catch (e: any) {
       toast.error(e?.message || "تعذّر التنفيذ");
