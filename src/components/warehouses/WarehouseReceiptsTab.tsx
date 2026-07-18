@@ -10,10 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Beef, Factory, ArrowLeftRight, Printer, Eye, Inbox, Loader2, Pencil, Trash2, Package, CheckCircle2 } from "lucide-react";
+import { Beef, Factory, ArrowLeftRight, Printer, Eye, Inbox, Loader2, Pencil, Trash2, Package, CheckCircle2, Archive } from "lucide-react";
 import { formatDateTime } from "@/lib/dateFormat";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+
+// Legacy cutoff — pending transfers dated before this can be closed as
+// "previously received" without any stock movement. New cycle begins here.
+const RECEIPTS_NEW_CYCLE_START = "2026-07-18T00:00:00+02:00";
 
 type ReceiptKind = "slaughter" | "meat_factory" | "internal" | "other";
 
@@ -60,6 +65,8 @@ const STATUS_LABELS: Record<string, { label: string; variant: any }> = {
   partial: { label: "مقبول جزئيًا", variant: "secondary" },
   rejected: { label: "مرفوض", variant: "destructive" },
   pending: { label: "بانتظار المراجعة", variant: "outline" },
+  received_previously: { label: "موردة سابقًا", variant: "secondary" },
+  cancelled: { label: "ملغاة", variant: "outline" },
 };
 
 const KIND_LABEL: Record<ReceiptKind, string> = {
@@ -146,6 +153,9 @@ function printReceipt(row: ReceiptRow) {
 }
 
 export default function WarehouseReceiptsTab({ warehouseId, warehouseName, startDate }: WarehouseReceiptsTabProps = {}) {
+  const { role, isGeneralManager, isExecutiveManager } = useAuth();
+  const canDispose = isGeneralManager || isExecutiveManager || role === "warehouse_supervisor";
+
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<ReceiptRow[]>([]);
   const [activeSub, setActiveSub] = useState<ReceiptKind>("slaughter");
@@ -163,6 +173,8 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
   const [editTarget, setEditTarget] = useState<ReceiptRow | null>(null);
   const [editNotes, setEditNotes] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<ReceiptRow | null>(null);
+  const [disposeTarget, setDisposeTarget] = useState<ReceiptRow | null>(null);
+  const [disposeReason, setDisposeReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
@@ -232,9 +244,12 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
 
   async function confirmDelete() {
     if (!deleteTarget) return;
-    // Safety: any receipt that has been received affects stock — block destructive delete.
+    if (!canDispose) {
+      toast.error("غير مصرح — الحذف مقصور على المدير العام / التنفيذي / مسؤول المخزن");
+      setDeleteTarget(null); return;
+    }
     if (deleteTarget.status === "received" || deleteTarget.status === "partial") {
-      toast.error("لا يمكن الحذف — هذا الاستلام مرتبط بحركة مخزون. استخدم سجل المخزون لعمل تسوية عكسية.");
+      toast.error("لا يمكن حذف هذه التحويلة لأنها أثّرت على المخزون. يجب عمل حركة عكسية أو تسوية معتمدة.");
       setDeleteTarget(null);
       return;
     }
@@ -244,11 +259,15 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
         : deleteTarget.kind === "meat_factory" ? "meat_production_transfers"
         : null;
       if (!table) {
-        toast.error("هذا النوع غير قابل للحذف من هنا");
+        toast.error("هذا النوع غير قابل للحذف من هنا — استخدم زر «اعتبارها موردة سابقًا»");
         return;
       }
       const { error } = await supabase.from(table as any).delete().eq("id", deleteTarget.id);
       if (error) throw error;
+      await supabase.from("receipt_disposition_audit" as any).insert({
+        kind: deleteTarget.kind, ref_id: deleteTarget.id, ref_no: deleteTarget.batch_no,
+        action: "deleted_pending", reason: "حذف تحويلة معلقة قبل تأثيرها على المخزون",
+      });
       toast.success("تم الحذف");
       setDeleteTarget(null);
       await loadAll();
@@ -257,6 +276,28 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
     } finally {
       setBusy(false);
     }
+  }
+
+  async function confirmDispose() {
+    if (!disposeTarget) return;
+    if (!canDispose) { toast.error("غير مصرح"); return; }
+    const reason = disposeReason.trim();
+    if (!reason) { toast.error("سبب التسوية إلزامي"); return; }
+    setBusy(true);
+    try {
+      const refId = disposeTarget.kind === "slaughter"
+        ? String(disposeTarget.id).split(":")[0]
+        : disposeTarget.id;
+      const { error } = await supabase.rpc("mark_receipt_previously_received" as any, {
+        p_kind: disposeTarget.kind, p_ref_id: refId, p_reason: reason,
+      });
+      if (error) throw error;
+      toast.success("تم تعليم التحويلة كموردة سابقًا — بدون أي تأثير على المخزون");
+      setDisposeTarget(null); setDisposeReason("");
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e?.message || "تعذّر التنفيذ");
+    } finally { setBusy(false); }
   }
 
   async function loadAll() {
@@ -392,8 +433,8 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
       const { data: trs } = await supabase
         .from("warehouse_transfers")
         .select("id, transfer_no, status, received_at, sent_at, notes, destination_warehouse_id, source:warehouses!warehouse_transfers_source_warehouse_id_fkey(name), destination:warehouses!warehouse_transfers_destination_warehouse_id_fkey(name), items:warehouse_transfer_items(id, item_name, unit, received_qty, sent_qty, receive_notes, line_status)")
-        .in("status", ["received", "partial_received", "completed"])
-        .order("received_at", { ascending: false })
+        .in("status", ["received", "partial_received", "completed", "pending_receipt", "pending_approval", "sent"])
+        .order("created_at", { ascending: false })
         .limit(2000);
 
       for (const tr of trs || []) {
@@ -403,23 +444,26 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
         // They stay in DB for audit but are not part of current operations.
         if (/Backfilled/i.test(notes) || /^TR-BF-/i.test(transferNo)) continue;
         const items: any[] = (tr as any).items || [];
+        const s = (tr as any).status as string;
+        const isPending = ["pending_receipt","pending_approval","sent"].includes(s);
+        const isPartial = s === "partial_received";
         const row: ReceiptRow = {
           id: String((tr as any).id),
           kind: "internal",
           batch_no: transferNo || `TR-${String((tr as any).id).slice(0, 8)}`,
           date: (tr as any).received_at || (tr as any).sent_at,
           source_label: (tr as any).source?.name || "—",
-          destination_label: (tr as any).destination?.name || "—",
+          destination_label: ((tr as any).destination?.name || "—") + (isPending ? " (بانتظار الاعتماد)" : ""),
           dest_warehouse_id: (tr as any).destination_warehouse_id ?? null,
           items_count: items.length,
-          total_qty: items.reduce((s, l) => s + Number(l.received_qty || 0), 0),
-          quality: (tr as any).status === "partial_received" ? "مقبول جزئيًا" : "مقبول",
-          status: (tr as any).status === "partial_received" ? "partial" : "received",
+          total_qty: items.reduce((acc, l) => acc + Number((isPending ? l.sent_qty : l.received_qty) || 0), 0),
+          quality: isPending ? "بانتظار الاعتماد" : isPartial ? "مقبول جزئيًا" : "مقبول",
+          status: isPending ? "pending" : isPartial ? "partial" : "received",
           receiver: "—",
           notes: notes || undefined,
           lines: items.map((it) => ({
             name: it.item_name || "—",
-            qty: Number(it.received_qty || 0),
+            qty: Number((isPending ? it.sent_qty : it.received_qty) || 0),
             unit: it.unit || "",
             quality: it.line_status === "rejected" ? "rejected" : "accepted",
             notes: it.receive_notes,
@@ -632,7 +676,11 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
                     ) : filtered.map((r) => {
                       const st = STATUS_LABELS[r.status] || STATUS_LABELS.received;
                       const editable = r.kind !== "slaughter";
-                      const deletable = r.status !== "received" && r.status !== "partial" && r.kind !== "slaughter";
+                      // Delete is only allowed for still-pending non-slaughter transfers that haven't hit stock.
+                      const deletable = canDispose && r.status === "pending" && r.kind !== "slaughter" && r.kind !== "other";
+                      // "Previously received" — for legacy pending transfers dated before the new-cycle start.
+                      const isLegacyPending = r.status === "pending" && new Date(r.date).getTime() < new Date(RECEIPTS_NEW_CYCLE_START).getTime();
+                      const canMarkPrevious = canDispose && isLegacyPending && (r.kind === "slaughter" || r.kind === "meat_factory" || r.kind === "internal");
                       return (
                         <TableRow key={`${r.kind}-${r.id}`}>
                           <TableCell className="font-mono text-xs">{r.batch_no}</TableCell>
@@ -663,6 +711,12 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
                               <Button size="sm" variant="ghost" onClick={() => setDetail(r)} title="رؤية">
                                 <Eye className="w-4 h-4" />
                               </Button>
+                              {canMarkPrevious && (
+                                <Button size="sm" variant="outline" onClick={() => { setDisposeTarget(r); setDisposeReason(""); }} title="اعتبارها موردة سابقًا — بدون إدخال مخزون" className="h-8 gap-1">
+                                  <Archive className="w-4 h-4" />
+                                  <span className="text-xs">موردة سابقًا</span>
+                                </Button>
+                              )}
                               <Button size="sm" variant="ghost" onClick={() => openEdit(r)} title="تعديل" disabled={!editable}>
                                 <Pencil className="w-4 h-4" />
                               </Button>
@@ -768,6 +822,33 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
           <DialogFooter className="gap-2">
             <Button variant="destructive" onClick={confirmDelete} disabled={busy}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "حذف"}</Button>
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>إلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark as "previously received" — legacy transfers only, no stock impact */}
+      <Dialog open={!!disposeTarget} onOpenChange={(o) => { if (!o) { setDisposeTarget(null); setDisposeReason(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>اعتبار التحويلة موردة سابقًا</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div>
+              التحويلة: <b className="font-mono">{disposeTarget?.batch_no}</b>
+            </div>
+            <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-xs">
+              هل أنت متأكد؟ <b>لن يتم إدخال هذه الكمية إلى المخزون</b>. الغرض فقط تنظيف الاستلامات القديمة قبل تفعيل النظام الجديد بتاريخ 2026-07-18.
+            </div>
+            <div>
+              <Label className="text-xs">سبب التسوية (إلزامي)</Label>
+              <Textarea rows={3} value={disposeReason} onChange={(e) => setDisposeReason(e.target.value)} placeholder="مثال: تم توريدها فعليًا قبل تفعيل نظام التحويلات الجديد" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button onClick={confirmDispose} disabled={busy || !disposeReason.trim()}>
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "تأكيد"}
+            </Button>
+            <Button variant="outline" onClick={() => { setDisposeTarget(null); setDisposeReason(""); }}>إلغاء</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
