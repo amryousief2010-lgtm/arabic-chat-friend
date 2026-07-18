@@ -326,7 +326,7 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
           .from("slaughter_batch_outputs")
           .select("id, batch_id, cut_name_ar, actual_weight_kg, quality_status, received_at, received_warehouse_id, received_by, notes, destination, batch:slaughter_batches(batch_number, slaughter_date, created_at)")
           .in("destination", ["warehouse", "branch"])
-          .neq("received_status", "received")
+          .not("received_status", "in", "(received,received_previously)")
           .order("created_at", { ascending: false })
           .limit(500),
       ]);
