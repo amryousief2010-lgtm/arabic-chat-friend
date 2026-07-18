@@ -87,7 +87,11 @@ const normalizeSearch = (value: unknown) =>
     .replace(/\s+/g, " ");
 
 const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
-  const { isExecutiveManager, isGeneralManager, canManageAgouzaStock, isAgouzaWarehouseKeeper, isWarehouseSupervisor } = useAuth();
+  const { isExecutiveManager, isGeneralManager, canManageAgouzaStock, isAgouzaWarehouseKeeper, isWarehouseSupervisor, canManageStock } = useAuth();
+  // Whether the current user can add/issue stock manually in the visible scope.
+  // Meat-factory-manager (Ahmed) is allowed to VIEW Agouza but must never see
+  // add/issue buttons — matches the locked "read-only" scope in memory.
+  const canEditCurrentScope = scope === "agouza" ? canManageAgouzaStock : canManageStock;
   const navigate = useNavigate();
   const canEditAll = isExecutiveManager || isGeneralManager;
   // Agouza keeper can view + upload delivery sheets, but CANNOT edit stock quantities directly
