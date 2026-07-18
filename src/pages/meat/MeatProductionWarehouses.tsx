@@ -43,7 +43,10 @@ export default function MeatProductionWarehouses() {
   const qc = useQueryClient();
   const canManage = true; // RLS handles the real guard
   const canDelete = isGeneralManager || isExecutiveManager;
-  const canManageRaw = isGeneralManager || isExecutiveManager || canManageMeatFactory || isWarehouseSupervisor;
+  // Direct raw-stock edits (add خامة / تسوية / تعديل / حذف) are limited to top managers
+  // and the warehouse supervisor. Meat factory managers can only run operational flows
+  // (production, purchases, sales) — never touch raw stock manually.
+  const canManageRaw = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
 
   const [search, setSearch] = useState("");
   const [prodOpen, setProdOpen] = useState(false);
