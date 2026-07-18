@@ -825,6 +825,33 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Mark as "previously received" — legacy transfers only, no stock impact */}
+      <Dialog open={!!disposeTarget} onOpenChange={(o) => { if (!o) { setDisposeTarget(null); setDisposeReason(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>اعتبار التحويلة موردة سابقًا</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div>
+              التحويلة: <b className="font-mono">{disposeTarget?.batch_no}</b>
+            </div>
+            <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-xs">
+              هل أنت متأكد؟ <b>لن يتم إدخال هذه الكمية إلى المخزون</b>. الغرض فقط تنظيف الاستلامات القديمة قبل تفعيل النظام الجديد بتاريخ 2026-07-18.
+            </div>
+            <div>
+              <Label className="text-xs">سبب التسوية (إلزامي)</Label>
+              <Textarea rows={3} value={disposeReason} onChange={(e) => setDisposeReason(e.target.value)} placeholder="مثال: تم توريدها فعليًا قبل تفعيل نظام التحويلات الجديد" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button onClick={confirmDispose} disabled={busy || !disposeReason.trim()}>
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "تأكيد"}
+            </Button>
+            <Button variant="outline" onClick={() => { setDisposeTarget(null); setDisposeReason(""); }}>إلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
