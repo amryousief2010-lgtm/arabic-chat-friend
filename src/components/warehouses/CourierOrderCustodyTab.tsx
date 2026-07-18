@@ -207,7 +207,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
   const [handoverAmt, setHandoverAmt] = useState("");
   const [handoverNotes, setHandoverNotes] = useState("");
   const [handoverBusy, setHandoverBusy] = useState(false);
-  const [dailyDeposits, setDailyDeposits] = useState<Array<{ id: string; custody_id: string; deposit_date: string; amount: number; orders_count: number; treasury_txn_id: string | null; performed_by_name: string | null; created_at: string }>>([]);
+  const [dailyDeposits, setDailyDeposits] = useState<Array<{ id: string; custody_id: string; deposit_date: string; amount: number; orders_count: number; treasury_txn_id: string | null; performed_by_name: string | null; created_at: string; order_ids: string[] }>>([]);
   const [bosttaUploadNets, setBosttaUploadNets] = useState<BosttaUploadNet[]>([]);
   const [depositedBosttaFilenames, setDepositedBosttaFilenames] = useState<Set<string>>(new Set());
   const [depositingBosttaId, setDepositingBosttaId] = useState<string | null>(null);
@@ -248,7 +248,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
     if (cst.length) {
       const { data: depRows } = await (supabase as any)
         .from("courier_daily_cash_deposits")
-        .select("id, custody_id, deposit_date, amount, orders_count, treasury_txn_id, performed_by_name, created_at")
+        .select("id, custody_id, deposit_date, amount, orders_count, treasury_txn_id, performed_by_name, created_at, order_ids")
         .in("custody_id", cst.map((c) => c.id))
         .order("deposit_date", { ascending: false });
       setDailyDeposits(depRows || []);
@@ -503,11 +503,27 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
       map.get(day)!.push(a);
     });
 
-    const depByDay = new Map(dailyDeposits.filter((d) => d.custody_id === selectedCustody).map((d) => [d.deposit_date, d]));
+    // Multiple deposits per day are allowed (supplemental deposits after new orders were added).
+    const depsByDay = new Map<string, typeof dailyDeposits>();
+    dailyDeposits.filter((d) => d.custody_id === selectedCustody).forEach((d) => {
+      const arr = depsByDay.get(d.deposit_date) || [];
+      arr.push(d);
+      depsByDay.set(d.deposit_date, arr);
+    });
     return Array.from(map.entries())
       .sort((a, b) => (a[0] < b[0] ? 1 : -1))
       .map(([day, items]) => {
+        const dayDeposits = depsByDay.get(day) || [];
+        const depositedOrderIds = new Set<string>();
+        let depositedAmountTotal = 0;
+        dayDeposits.forEach((d) => {
+          (d.order_ids || []).forEach((oid) => depositedOrderIds.add(oid));
+          depositedAmountTotal += Number(d.amount || 0);
+        });
+
         let totalValue = 0, cashDue = 0, vodafone = 0, instapay = 0, bank = 0, other = 0, free = 0;
+        // "new" = orders in this day that are NOT part of any prior deposit for this day
+        let newCashDue = 0, newCount = 0;
         let missingBreakdown = 0, undelivered = 0;
         const groupOrders: Order[] = [];
         items.forEach((a) => {
@@ -517,11 +533,10 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           const deliveredStatus = ["delivered", "collected", "completed"].includes(o.status);
           const isReturned = ["partially_returned", "fully_returned"].includes(a.status);
           const nonCash = isAgouza ? false : isNonCashAssignment(a, o);
+          const isNewForDeposit = !depositedOrderIds.has(a.order_id);
           if (!nonCash && !isReturned) {
             if (isAgouza) {
               const isGift = isGiftAssignment(a, o);
-              // للعجوزة: إجمالي اليوم = مجموع (قيمة الأوردر − مصاريف الشحن) للأوردرات المدفوعة،
-              // بينما الهدايا المجانية تُحسب بقيمتها الكاملة (لا يوجد شحن يخصم منها).
               totalValue += isGift ? Number(o.total || 0) : Math.max(0, Number(o.total || 0) - Number(o.delivery_fee || 0));
             } else if (o.collection_method === "mixed_payment") totalValue += Number(o.courier_cash_due || 0);
             else totalValue += Number(o.total || 0);
@@ -532,9 +547,13 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           other += Number(o.other_amount || 0);
           free += Number(o.free_amount || 0);
           if (deliveredStatus && !nonCash) {
-            if (isAgouza) cashDue += Math.max(0, Number(o.total || 0) - Number(o.delivery_fee || 0));
-            else cashDue += o.collection_method === "mixed_payment" ? Number(o.courier_cash_due || 0) : Number(o.total || 0);
+            const rowCash = isAgouza
+              ? Math.max(0, Number(o.total || 0) - Number(o.delivery_fee || 0))
+              : (o.collection_method === "mixed_payment" ? Number(o.courier_cash_due || 0) : Number(o.total || 0));
+            cashDue += rowCash;
+            if (isNewForDeposit) { newCashDue += rowCash; }
           }
+          if (isNewForDeposit && !isReturned) newCount += 1;
           if (deliveredStatus && o.collection_method === "mixed_payment") {
             const sum = Number(o.courier_cash_due || 0) + Number(o.vodafone_cash_amount || 0) + Number(o.instapay_amount || 0) +
                         Number(o.bank_transfer_amount || 0) + Number(o.other_amount || 0) + Number(o.free_amount || 0) + Number((o as any).deposit_amount || 0);
@@ -560,8 +579,6 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           });
           if (matched.size === groupOrderNumbers.length && sheetTotal > 0) sheetNetAmount = sheetTotal;
         }
-        // Agouza: لو كل كشوف بُسطة اللي بتغطي أوردرات اليوم اتورّدت فعلاً، نعتبر اليوم متوّرد
-        // ونمنع زرار "توريد" على مستوى اليوم — عشان مفيش حد يعمل توريد مزدوج للخزينة الرئيسية.
         const bosttaAlreadyDeposited =
           isAgouza &&
           sheetNetAmount !== null &&
@@ -576,18 +593,29 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
         }, 0);
         const delivered = items.filter((a) => ["delivered", "collected", "completed"].includes(a.status)).length;
         const returns = items.filter((a) => ["partially_returned", "fully_returned"].includes(a.status)).length;
-        const deposit = depByDay.get(day) || null;
+        const hasPriorDeposit = dayDeposits.length > 0;
+        const isSupplemental = hasPriorDeposit && newCount > 0;
+        // Fully deposited = at least one deposit exists AND no new undeposited orders remain
+        const fullyDeposited = hasPriorDeposit && newCount === 0;
+        const buttonAmount = hasPriorDeposit ? newCashDue : finalCashDue;
         return {
           day, items, totalValue: finalTotalValue, collected, delivered, returns,
           remaining: Math.max(0, finalTotalValue - collected),
           cashDue: finalCashDue, vodafone, instapay, bank, other, free,
           sheetNetAmount,
-          missingBreakdown, undelivered, deposit,
+          missingBreakdown, undelivered,
+          deposit: dayDeposits[0] || null,
+          deposits: dayDeposits,
+          depositedAmountTotal,
+          newCount,
+          newCashDue,
+          buttonAmount,
+          isSupplemental,
+          fullyDeposited,
           megaClosedCount: skippedByDay.get(day) || 0,
           bosttaAlreadyDeposited,
           hasBosttaSheet: isAgouza && matchedSheetFilenames.length > 0,
-          // توريد يوم كامل يقفل أي أوردر غير مسلّم تلقائياً، لذلك لا نمنع التوريد بسبب undelivered.
-          canDeposit: missingBreakdown === 0 && items.length > 0 && !deposit && !bosttaAlreadyDeposited,
+          canDeposit: missingBreakdown === 0 && items.length > 0 && !fullyDeposited && !bosttaAlreadyDeposited && newCount > 0,
         };
       });
   }, [currentAssignments, orders, collections, dailyDeposits, selectedCustody, isAgouza, bosttaUploadNets, zodexClosedOrderIds, depositedBosttaFilenames]);
@@ -1579,8 +1607,13 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                   {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
                                   <span>{new Date(grp.day).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })}</span>
                                   <Badge variant="secondary" className="text-xs">{grp.items.length} أوردر</Badge>
-                                  {grp.deposit ? (
-                                    <Badge className="bg-emerald-600 text-white text-[10px]">✓ تم التوريد {fmt(Number(grp.deposit.amount))} ج.م</Badge>
+                                  {grp.fullyDeposited ? (
+                                    <Badge className="bg-emerald-600 text-white text-[10px]">✓ تم التوريد {fmt(Number(grp.depositedAmountTotal))} ج.م</Badge>
+                                  ) : grp.isSupplemental ? (
+                                    <>
+                                      <Badge className="bg-emerald-600 text-white text-[10px]">✓ متورّد {fmt(Number(grp.depositedAmountTotal))} ج.م</Badge>
+                                      <Badge className="bg-amber-500 text-white text-[10px]">+ {grp.newCount} أوردر جديد بعد التوريد ({fmt(grp.newCashDue)} ج.م)</Badge>
+                                    </>
                                   ) : grp.undelivered > 0 ? (
                                     <Badge className="bg-amber-500 text-white text-[10px]">سيُقفل عند التوريد ({grp.undelivered})</Badge>
                                   ) : grp.missingBreakdown > 0 ? (
@@ -1621,9 +1654,9 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                 <Button size="sm" variant="outline" className="h-7 px-2 gap-1" onClick={printDay} title="طباعة أوردرات اليوم">
                                   <Printer className="w-3 h-3" /> <span className="text-xs">طباعة</span>
                                 </Button>
-                                {grp.deposit ? (
+                                {grp.fullyDeposited ? (
                                   <Badge variant="outline" className="text-[10px] gap-1">
-                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> رقم الحركة {grp.deposit.treasury_txn_id?.slice(0, 8) || "—"}
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> رقم الحركة {grp.deposit?.treasury_txn_id?.slice(0, 8) || "—"}
                                   </Badge>
                                 ) : grp.bosttaAlreadyDeposited ? (
                                   <Badge className="bg-sky-600 text-white text-[10px] gap-1" title="كشف بُسطة اليوم ده اتورّد فعلاً على الخزينة الرئيسية">
@@ -1632,20 +1665,23 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                 ) : (
                                   <Button
                                     size="sm"
-                                    className="h-7 px-2 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+                                    className={`h-7 px-2 gap-1 text-white disabled:opacity-50 ${grp.isSupplemental ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"}`}
                                     disabled={!grp.canDeposit || depositingDay === grp.day}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       if (!grp.canDeposit) {
-                                        toast({ title: "لا يمكن التوريد الآن", description: grp.missingBreakdown > 0 ? "يوجد أوردر دفع مختلط بدون breakdown مضبوط" : "لا توجد أوردرات لليوم", variant: "destructive" });
+                                        toast({ title: "لا يمكن التوريد الآن", description: grp.missingBreakdown > 0 ? "يوجد أوردر دفع مختلط بدون breakdown مضبوط" : "لا توجد أوردرات جديدة للتوريد", variant: "destructive" });
                                         return;
                                       }
-                                      depositDayCash(grp.day, grp.cashDue, grp.items.map((a: any) => a.order_id));
+                                      const newIds = grp.items
+                                        .map((a: any) => a.order_id)
+                                        .filter((oid: string) => !(grp.deposits || []).some((d: any) => (d.order_ids || []).includes(oid)));
+                                      depositDayCash(grp.day, grp.buttonAmount, newIds);
                                     }}
-                                    title="توريد اليوم لخزنة المخزن الرئيسي (حتى لو صفر نقدية)"
+                                    title={grp.isSupplemental ? "توريد إضافي للأوردرات المضافة بعد التوريد الأول" : "توريد اليوم لخزنة المخزن الرئيسي (حتى لو صفر نقدية)"}
                                   >
                                     <Coins className="w-3 h-3" />
-                                    <span className="text-xs">{depositingDay === grp.day ? "جاري..." : `توريد ${fmt(grp.cashDue)}`}</span>
+                                    <span className="text-xs">{depositingDay === grp.day ? "جاري..." : `${grp.isSupplemental ? "توريد إضافي" : "توريد"} ${fmt(grp.buttonAmount)}`}</span>
                                   </Button>
                                 )}
                                 <span className="text-muted-foreground text-[10px]">{isOpen ? "إخفاء" : "عرض"}</span>
