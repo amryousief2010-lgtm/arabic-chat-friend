@@ -65,6 +65,8 @@ const STATUS_LABELS: Record<string, { label: string; variant: any }> = {
   partial: { label: "مقبول جزئيًا", variant: "secondary" },
   rejected: { label: "مرفوض", variant: "destructive" },
   pending: { label: "بانتظار المراجعة", variant: "outline" },
+  received_previously: { label: "موردة سابقًا", variant: "secondary" },
+  cancelled: { label: "ملغاة", variant: "outline" },
 };
 
 const KIND_LABEL: Record<ReceiptKind, string> = {
