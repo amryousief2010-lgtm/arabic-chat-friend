@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Beef, Factory, ArrowLeftRight, Printer, Eye, Inbox, Loader2, Pencil, Trash2, Package, CheckCircle2, Archive } from "lucide-react";
+import { Beef, Factory, ArrowLeftRight, Printer, Eye, Inbox, Loader2, Pencil, Trash2, Package, CheckCircle2, Archive, Undo2 } from "lucide-react";
 import { formatDateTime } from "@/lib/dateFormat";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 import { toast } from "sonner";
@@ -175,6 +175,7 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
   const [deleteTarget, setDeleteTarget] = useState<ReceiptRow | null>(null);
   const [disposeTarget, setDisposeTarget] = useState<ReceiptRow | null>(null);
   const [disposeReason, setDisposeReason] = useState("");
+  const [disposeMode, setDisposeMode] = useState<"legacy" | "reverse">("legacy");
   const [busy, setBusy] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
@@ -288,12 +289,15 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
       const refId = disposeTarget.kind === "slaughter"
         ? String(disposeTarget.id).split(":")[0]
         : disposeTarget.id;
-      const { error } = await supabase.rpc("mark_receipt_previously_received" as any, {
+      const rpc = disposeMode === "reverse" ? "reverse_receipt_approval" : "mark_receipt_previously_received";
+      const { error } = await supabase.rpc(rpc as any, {
         p_kind: disposeTarget.kind, p_ref_id: refId, p_reason: reason,
       });
       if (error) throw error;
-      toast.success("تم تعليم التحويلة كموردة سابقًا — بدون أي تأثير على المخزون");
-      setDisposeTarget(null); setDisposeReason("");
+      toast.success(disposeMode === "reverse"
+        ? "تم عكس الاعتماد وخصم الكمية من المخزن — التحويلة الآن موردة سابقًا"
+        : "تم تعليم التحويلة كموردة سابقًا — بدون أي تأثير على المخزون");
+      setDisposeTarget(null); setDisposeReason(""); setDisposeMode("legacy");
       await loadAll();
     } catch (e: any) {
       toast.error(e?.message || "تعذّر التنفيذ");
@@ -681,6 +685,7 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
                       // "Previously received" — for legacy pending transfers dated before the new-cycle start.
                       const isLegacyPending = r.status === "pending" && new Date(r.date).getTime() < new Date(RECEIPTS_NEW_CYCLE_START).getTime();
                       const canMarkPrevious = canDispose && isLegacyPending && (r.kind === "slaughter" || r.kind === "meat_factory" || r.kind === "internal");
+                      const canReverse = canDispose && (r.status === "received" || r.status === "partial") && (r.kind === "slaughter" || r.kind === "meat_factory");
                       return (
                         <TableRow key={`${r.kind}-${r.id}`}>
                           <TableCell className="font-mono text-xs">{r.batch_no}</TableCell>
@@ -712,9 +717,15 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
                                 <Eye className="w-4 h-4" />
                               </Button>
                               {canMarkPrevious && (
-                                <Button size="sm" variant="outline" onClick={() => { setDisposeTarget(r); setDisposeReason(""); }} title="اعتبارها موردة سابقًا — بدون إدخال مخزون" className="h-8 gap-1">
+                                <Button size="sm" variant="outline" onClick={() => { setDisposeTarget(r); setDisposeReason(""); setDisposeMode("legacy"); }} title="اعتبارها موردة سابقًا — بدون إدخال مخزون" className="h-8 gap-1">
                                   <Archive className="w-4 h-4" />
                                   <span className="text-xs">موردة سابقًا</span>
+                                </Button>
+                              )}
+                              {canReverse && (
+                                <Button size="sm" variant="outline" onClick={() => { setDisposeTarget(r); setDisposeReason(""); setDisposeMode("reverse"); }} title="عكس الاعتماد — خصم الكمية من المخزن واعتبار التحويلة موردة سابقًا" className="h-8 gap-1 border-amber-500/50 text-amber-700 hover:bg-amber-50">
+                                  <Undo2 className="w-4 h-4" />
+                                  <span className="text-xs">عكس الاعتماد</span>
                                 </Button>
                               )}
                               <Button size="sm" variant="ghost" onClick={() => openEdit(r)} title="تعديل" disabled={!editable}>
@@ -827,28 +838,34 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
       </Dialog>
 
       {/* Mark as "previously received" — legacy transfers only, no stock impact */}
-      <Dialog open={!!disposeTarget} onOpenChange={(o) => { if (!o) { setDisposeTarget(null); setDisposeReason(""); } }}>
+      <Dialog open={!!disposeTarget} onOpenChange={(o) => { if (!o) { setDisposeTarget(null); setDisposeReason(""); setDisposeMode("legacy"); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>اعتبار التحويلة موردة سابقًا</DialogTitle>
+            <DialogTitle>{disposeMode === "reverse" ? "عكس اعتماد الاستلام" : "اعتبار التحويلة موردة سابقًا"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 text-sm">
             <div>
               التحويلة: <b className="font-mono">{disposeTarget?.batch_no}</b>
             </div>
-            <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-xs">
-              هل أنت متأكد؟ <b>لن يتم إدخال هذه الكمية إلى المخزون</b>. الغرض فقط تنظيف الاستلامات القديمة قبل تفعيل النظام الجديد بتاريخ 2026-07-18.
-            </div>
+            {disposeMode === "reverse" ? (
+              <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-xs">
+                سيتم <b>خصم الكمية التي دخلت المخزن</b> عند الاعتماد، وتُعتبر التحويلة "موردة سابقًا" (بدون رصيد مخزني). استخدم هذا فقط لو كان دخول الكمية على السيستم غير صحيح.
+              </div>
+            ) : (
+              <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-xs">
+                هل أنت متأكد؟ <b>لن يتم إدخال هذه الكمية إلى المخزون</b>. الغرض فقط تنظيف الاستلامات القديمة قبل تفعيل النظام الجديد بتاريخ 2026-07-18.
+              </div>
+            )}
             <div>
               <Label className="text-xs">سبب التسوية (إلزامي)</Label>
-              <Textarea rows={3} value={disposeReason} onChange={(e) => setDisposeReason(e.target.value)} placeholder="مثال: تم توريدها فعليًا قبل تفعيل نظام التحويلات الجديد" />
+              <Textarea rows={3} value={disposeReason} onChange={(e) => setDisposeReason(e.target.value)} placeholder={disposeMode === "reverse" ? "مثال: تم الاعتماد بالخطأ — الكمية موجودة فعليًا خارج السيستم" : "مثال: تم توريدها فعليًا قبل تفعيل نظام التحويلات الجديد"} />
             </div>
           </div>
           <DialogFooter className="gap-2">
             <Button onClick={confirmDispose} disabled={busy || !disposeReason.trim()}>
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "تأكيد"}
             </Button>
-            <Button variant="outline" onClick={() => { setDisposeTarget(null); setDisposeReason(""); }}>إلغاء</Button>
+            <Button variant="outline" onClick={() => { setDisposeTarget(null); setDisposeReason(""); setDisposeMode("legacy"); }}>إلغاء</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
