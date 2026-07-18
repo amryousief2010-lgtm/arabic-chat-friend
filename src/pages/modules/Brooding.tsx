@@ -1692,7 +1692,7 @@ const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, ca
     </div>
     {batch && (
       <div className="text-xs text-muted-foreground p-2 rounded bg-emerald-50 border border-emerald-200">
-        💡 سعر التكلفة الموصى به (حسب عمر الدفعة): <strong>{fmtMoney(recommendedUnitCost)}/كجم</strong> — السعر مأخوذ بالتكلفة وليس البيع
+        💡 سعر التكلفة {invUnitCost ? "الفعلي من مخزون العلف" : "الموصى به (حسب عمر الدفعة)"}: <strong>{fmtMoney(recommendedUnitCost)}/كجم</strong> — السعر مأخوذ بالتكلفة وليس البيع
         {inv && <> | الرصيد المتاح: <strong>{fmt(Number(inv.current_kg))} كجم</strong></>}
       </div>
     )}
