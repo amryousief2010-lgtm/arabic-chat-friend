@@ -866,10 +866,13 @@ const Orders = () => {
   };
 
   // تحميل صفحة إضافية عند الضغط على "تحميل المزيد" (يستخدم على الموبايل بشكل أساسي)
+  // يحمّل كل الطلبات المتبقية ضمن نطاق التاريخ الحالي (مثلاً كل طلبات الشهر) دفعة واحدة عبر التصفح الداخلي.
   const loadMoreOrders = async () => {
     if (loadingMore || !hasMorePages) return;
     setLoadingMore(true);
+    let stillHasMore = true;
     try {
+      while (stillHasMore) {
       const { nextPage, startDate, endDate, pageSize } = paginationRef.current;
       const ORDER_COLS = [
         'id','order_number','customer_id','status','payment_method','payment_status',
@@ -893,7 +896,8 @@ const Orders = () => {
       const ords = (data || []) as any[];
       if (ords.length === 0) {
         setHasMorePages(false);
-        return;
+        stillHasMore = false;
+        break;
       }
       const ids = ords.map((o) => o.id);
       const { data: itemsData } = await supabase
@@ -981,7 +985,11 @@ const Orders = () => {
       }));
       setOrders((prev) => [...prev, ...appended]);
       paginationRef.current.nextPage = nextPage + 1;
-      if (ords.length < pageSize) setHasMorePages(false);
+      if (ords.length < pageSize) {
+        setHasMorePages(false);
+        stillHasMore = false;
+      }
+      }
     } catch (e) {
       console.error('loadMoreOrders error', e);
       toast.error('تعذّر تحميل المزيد من الطلبات');
