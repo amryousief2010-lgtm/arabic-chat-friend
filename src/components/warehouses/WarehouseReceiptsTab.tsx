@@ -717,9 +717,15 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
                                 <Eye className="w-4 h-4" />
                               </Button>
                               {canMarkPrevious && (
-                                <Button size="sm" variant="outline" onClick={() => { setDisposeTarget(r); setDisposeReason(""); }} title="اعتبارها موردة سابقًا — بدون إدخال مخزون" className="h-8 gap-1">
+                                <Button size="sm" variant="outline" onClick={() => { setDisposeTarget(r); setDisposeReason(""); setDisposeMode("legacy"); }} title="اعتبارها موردة سابقًا — بدون إدخال مخزون" className="h-8 gap-1">
                                   <Archive className="w-4 h-4" />
                                   <span className="text-xs">موردة سابقًا</span>
+                                </Button>
+                              )}
+                              {canReverse && (
+                                <Button size="sm" variant="outline" onClick={() => { setDisposeTarget(r); setDisposeReason(""); setDisposeMode("reverse"); }} title="عكس الاعتماد — خصم الكمية من المخزن واعتبار التحويلة موردة سابقًا" className="h-8 gap-1 border-amber-500/50 text-amber-700 hover:bg-amber-50">
+                                  <Undo2 className="w-4 h-4" />
+                                  <span className="text-xs">عكس الاعتماد</span>
                                 </Button>
                               )}
                               <Button size="sm" variant="ghost" onClick={() => openEdit(r)} title="تعديل" disabled={!editable}>
