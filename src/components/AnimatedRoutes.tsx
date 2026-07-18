@@ -305,7 +305,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/warehouse-stock/agouza" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'marketing_sales_viewer']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'marketing_sales_viewer', 'meat_factory_manager']}>
               <PageTransition><WarehouseStockView scope="agouza" /></PageTransition>
             </ProtectedRoute>
           } />
