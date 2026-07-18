@@ -244,9 +244,12 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
 
   async function confirmDelete() {
     if (!deleteTarget) return;
-    // Safety: any receipt that has been received affects stock — block destructive delete.
+    if (!canDispose) {
+      toast.error("غير مصرح — الحذف مقصور على المدير العام / التنفيذي / مسؤول المخزن");
+      setDeleteTarget(null); return;
+    }
     if (deleteTarget.status === "received" || deleteTarget.status === "partial") {
-      toast.error("لا يمكن الحذف — هذا الاستلام مرتبط بحركة مخزون. استخدم سجل المخزون لعمل تسوية عكسية.");
+      toast.error("لا يمكن حذف هذه التحويلة لأنها أثّرت على المخزون. يجب عمل حركة عكسية أو تسوية معتمدة.");
       setDeleteTarget(null);
       return;
     }
@@ -256,11 +259,15 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
         : deleteTarget.kind === "meat_factory" ? "meat_production_transfers"
         : null;
       if (!table) {
-        toast.error("هذا النوع غير قابل للحذف من هنا");
+        toast.error("هذا النوع غير قابل للحذف من هنا — استخدم زر «اعتبارها موردة سابقًا»");
         return;
       }
       const { error } = await supabase.from(table as any).delete().eq("id", deleteTarget.id);
       if (error) throw error;
+      await supabase.from("receipt_disposition_audit" as any).insert({
+        kind: deleteTarget.kind, ref_id: deleteTarget.id, ref_no: deleteTarget.batch_no,
+        action: "deleted_pending", reason: "حذف تحويلة معلقة قبل تأثيرها على المخزون",
+      });
       toast.success("تم الحذف");
       setDeleteTarget(null);
       await loadAll();
@@ -269,6 +276,28 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
     } finally {
       setBusy(false);
     }
+  }
+
+  async function confirmDispose() {
+    if (!disposeTarget) return;
+    if (!canDispose) { toast.error("غير مصرح"); return; }
+    const reason = disposeReason.trim();
+    if (!reason) { toast.error("سبب التسوية إلزامي"); return; }
+    setBusy(true);
+    try {
+      const refId = disposeTarget.kind === "slaughter"
+        ? String(disposeTarget.id).split(":")[0]
+        : disposeTarget.id;
+      const { error } = await supabase.rpc("mark_receipt_previously_received" as any, {
+        p_kind: disposeTarget.kind, p_ref_id: refId, p_reason: reason,
+      });
+      if (error) throw error;
+      toast.success("تم تعليم التحويلة كموردة سابقًا — بدون أي تأثير على المخزون");
+      setDisposeTarget(null); setDisposeReason("");
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e?.message || "تعذّر التنفيذ");
+    } finally { setBusy(false); }
   }
 
   async function loadAll() {
