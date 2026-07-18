@@ -714,9 +714,6 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
                                   <span className="text-xs">موردة سابقًا</span>
                                 </Button>
                               )}
-                              <Button size="sm" variant="ghost" onClick={() => setDetail(r)} title="رؤية">
-                                <Eye className="w-4 h-4" />
-                              </Button>
                               <Button size="sm" variant="ghost" onClick={() => openEdit(r)} title="تعديل" disabled={!editable}>
                                 <Pencil className="w-4 h-4" />
                               </Button>
