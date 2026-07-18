@@ -22195,6 +22195,10 @@ export type Database = {
         Args: { p_expense_id: string; p_reason: string }
         Returns: undefined
       }
+      reverse_receipt_approval: {
+        Args: { p_kind: string; p_reason: string; p_ref_id: string }
+        Returns: Json
+      }
       reverse_slaughter_cost_event: {
         Args: {
           p_by: string
