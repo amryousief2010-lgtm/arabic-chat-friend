@@ -1500,19 +1500,31 @@ function SaleDialog({ open, onOpenChange, products, materials, onSaved, editSale
         if (e1) throw e1;
         saleId = head.id;
       }
+      const finishedIds = valid.filter((l) => l.kind === "finished").map((l) => l.ref_id);
+      const rawIds = valid.filter((l) => l.kind === "raw").map((l) => l.ref_id);
+      const [freshProducts, freshMaterials] = await Promise.all([
+        finishedIds.length
+          ? supabase.from("feed_products").select("id,latest_unit_cost").in("id", finishedIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        rawIds.length
+          ? supabase.from("feed_raw_materials").select("id,unit_cost").in("id", rawIds)
+          : Promise.resolve({ data: [], error: null } as any),
+      ]);
+      if (freshProducts.error) throw freshProducts.error;
+      if (freshMaterials.error) throw freshMaterials.error;
+      const productCostById = new Map((freshProducts.data || []).map((p: any) => [p.id, Number(p.latest_unit_cost || 0)]));
+      const materialCostById = new Map((freshMaterials.data || []).map((m: any) => [m.id, Number(m.unit_cost || 0)]));
+
       for (const l of valid) {
+        const fallbackCost = l.kind === "finished"
+          ? Number((products.find((x: any) => x.id === l.ref_id) as any)?.latest_unit_cost || 0)
+          : Number((materials.find((x: any) => x.id === l.ref_id) as any)?.unit_cost || 0);
+        const actualUnitCost = l.kind === "finished"
+          ? Number(productCostById.get(l.ref_id) || fallbackCost || 0)
+          : Number(materialCostById.get(l.ref_id) || fallbackCost || 0);
         // Internal sales: force unit_price = unit_cost so debt/total are cost-based, not sale-price-based
-        let unitPrice = l.price;
-        if (isInternal) {
-          if (l.kind === "finished") {
-            const prod: any = products.find((x: any) => x.id === l.ref_id);
-            unitPrice = Number(prod?.latest_unit_cost || 0);
-          } else {
-            const mat: any = materials.find((x: any) => x.id === l.ref_id);
-            unitPrice = Number(mat?.unit_cost || 0);
-          }
-        }
-        const payload: any = { sale_id: saleId, quantity: l.qty, unit_price: unitPrice };
+        const unitPrice = isInternal ? actualUnitCost : l.price;
+        const payload: any = { sale_id: saleId, quantity: l.qty, unit_price: unitPrice, unit_cost: actualUnitCost };
         if (l.kind === "finished") payload.feed_product_id = l.ref_id;
         else payload.raw_material_id = l.ref_id;
 
