@@ -536,11 +536,15 @@ export default function MainWarehouseTreasuryTab() {
     (async () => {
       setLoadingDeposits(true);
       try {
-        const { data } = await (supabase as any)
+        let q = (supabase as any)
           .from("courier_daily_cash_deposits")
-          .select("id,courier_name,deposit_date,amount,orders_count,order_numbers,treasury_txn_id,notes")
+          .select("id,courier_name,deposit_date,amount,orders_count,order_numbers,treasury_txn_id,notes,warehouse_id")
           .is("transferred_txn_id", null)
           .order("deposit_date", { ascending: false });
+        if (mainWarehouse?.id) {
+          q = q.eq("warehouse_id", mainWarehouse.id);
+        }
+        const { data } = await q;
         const deps = (data || []) as any[];
         // include vodafone/instapay/bank-transfer only days too — user can log them as a movement
         // even without actual cash transferred
@@ -563,7 +567,7 @@ export default function MainWarehouseTreasuryTab() {
       } catch { setPendingDeposits([]); }
       finally { setLoadingDeposits(false); }
     })();
-  }, [transferOpen]);
+  }, [transferOpen, mainWarehouse?.id]);
 
   const toggleDeposit = (id: string, _amount: number) => {
     setSelectedDepositIds((prev) => {
