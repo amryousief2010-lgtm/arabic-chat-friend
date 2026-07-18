@@ -874,8 +874,6 @@ const Orders = () => {
     try {
       while (stillHasMore) {
       const { nextPage, startDate, endDate, pageSize } = paginationRef.current;
-    try {
-      const { nextPage, startDate, endDate, pageSize } = paginationRef.current;
       const ORDER_COLS = [
         'id','order_number','customer_id','status','payment_method','payment_status',
         'collection_status','subtotal','discount','delivery_fee','total','notes',
