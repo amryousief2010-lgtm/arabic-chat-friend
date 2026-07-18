@@ -15240,6 +15240,42 @@ export type Database = {
         }
         Relationships: []
       }
+      receipt_disposition_audit: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          kind: string
+          performed_by: string | null
+          performed_by_name: string | null
+          reason: string | null
+          ref_id: string
+          ref_no: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          kind: string
+          performed_by?: string | null
+          performed_by_name?: string | null
+          reason?: string | null
+          ref_id: string
+          ref_no?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          performed_by?: string | null
+          performed_by_name?: string | null
+          reason?: string | null
+          ref_id?: string
+          ref_no?: string | null
+        }
+        Relationships: []
+      }
       sales_targets: {
         Row: {
           achieved_amount: number
@@ -21492,6 +21528,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      mark_receipt_previously_received: {
+        Args: { p_kind: string; p_reason: string; p_ref_id: string }
+        Returns: undefined
       }
       marketing_dashboard_summary: {
         Args: { p_from: string; p_include_top_products?: boolean; p_to: string }
