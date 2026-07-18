@@ -898,7 +898,8 @@ const Orders = () => {
       const ords = (data || []) as any[];
       if (ords.length === 0) {
         setHasMorePages(false);
-        return;
+        stillHasMore = false;
+        break;
       }
       const ids = ords.map((o) => o.id);
       const { data: itemsData } = await supabase
