@@ -153,6 +153,9 @@ function printReceipt(row: ReceiptRow) {
 }
 
 export default function WarehouseReceiptsTab({ warehouseId, warehouseName, startDate }: WarehouseReceiptsTabProps = {}) {
+  const { role, isGeneralManager, isExecutiveManager } = useAuth();
+  const canDispose = isGeneralManager || isExecutiveManager || role === "warehouse_supervisor";
+
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<ReceiptRow[]>([]);
   const [activeSub, setActiveSub] = useState<ReceiptKind>("slaughter");
@@ -170,6 +173,8 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
   const [editTarget, setEditTarget] = useState<ReceiptRow | null>(null);
   const [editNotes, setEditNotes] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<ReceiptRow | null>(null);
+  const [disposeTarget, setDisposeTarget] = useState<ReceiptRow | null>(null);
+  const [disposeReason, setDisposeReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
