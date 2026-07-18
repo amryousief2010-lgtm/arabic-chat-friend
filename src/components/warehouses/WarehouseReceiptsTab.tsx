@@ -444,23 +444,26 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
         // They stay in DB for audit but are not part of current operations.
         if (/Backfilled/i.test(notes) || /^TR-BF-/i.test(transferNo)) continue;
         const items: any[] = (tr as any).items || [];
+        const s = (tr as any).status as string;
+        const isPending = ["pending_receipt","pending_approval","sent"].includes(s);
+        const isPartial = s === "partial_received";
         const row: ReceiptRow = {
           id: String((tr as any).id),
           kind: "internal",
           batch_no: transferNo || `TR-${String((tr as any).id).slice(0, 8)}`,
           date: (tr as any).received_at || (tr as any).sent_at,
           source_label: (tr as any).source?.name || "—",
-          destination_label: (tr as any).destination?.name || "—",
+          destination_label: ((tr as any).destination?.name || "—") + (isPending ? " (بانتظار الاعتماد)" : ""),
           dest_warehouse_id: (tr as any).destination_warehouse_id ?? null,
           items_count: items.length,
-          total_qty: items.reduce((s, l) => s + Number(l.received_qty || 0), 0),
-          quality: (tr as any).status === "partial_received" ? "مقبول جزئيًا" : "مقبول",
-          status: (tr as any).status === "partial_received" ? "partial" : "received",
+          total_qty: items.reduce((acc, l) => acc + Number((isPending ? l.sent_qty : l.received_qty) || 0), 0),
+          quality: isPending ? "بانتظار الاعتماد" : isPartial ? "مقبول جزئيًا" : "مقبول",
+          status: isPending ? "pending" : isPartial ? "partial" : "received",
           receiver: "—",
           notes: notes || undefined,
           lines: items.map((it) => ({
             name: it.item_name || "—",
-            qty: Number(it.received_qty || 0),
+            qty: Number((isPending ? it.sent_qty : it.received_qty) || 0),
             unit: it.unit || "",
             quality: it.line_status === "rejected" ? "rejected" : "accepted",
             notes: it.receive_notes,
