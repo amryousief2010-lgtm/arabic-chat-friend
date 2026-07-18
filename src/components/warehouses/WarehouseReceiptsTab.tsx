@@ -673,7 +673,11 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
                     ) : filtered.map((r) => {
                       const st = STATUS_LABELS[r.status] || STATUS_LABELS.received;
                       const editable = r.kind !== "slaughter";
-                      const deletable = r.status !== "received" && r.status !== "partial" && r.kind !== "slaughter";
+                      // Delete is only allowed for still-pending non-slaughter transfers that haven't hit stock.
+                      const deletable = canDispose && r.status === "pending" && r.kind !== "slaughter" && r.kind !== "other";
+                      // "Previously received" — for legacy pending transfers dated before the new-cycle start.
+                      const isLegacyPending = r.status === "pending" && new Date(r.date).getTime() < new Date(RECEIPTS_NEW_CYCLE_START).getTime();
+                      const canMarkPrevious = canDispose && isLegacyPending && (r.kind === "slaughter" || r.kind === "meat_factory" || r.kind === "internal");
                       return (
                         <TableRow key={`${r.kind}-${r.id}`}>
                           <TableCell className="font-mono text-xs">{r.batch_no}</TableCell>
