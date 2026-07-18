@@ -987,7 +987,11 @@ const Orders = () => {
       }));
       setOrders((prev) => [...prev, ...appended]);
       paginationRef.current.nextPage = nextPage + 1;
-      if (ords.length < pageSize) setHasMorePages(false);
+      if (ords.length < pageSize) {
+        setHasMorePages(false);
+        stillHasMore = false;
+      }
+      }
     } catch (e) {
       console.error('loadMoreOrders error', e);
       toast.error('تعذّر تحميل المزيد من الطلبات');
