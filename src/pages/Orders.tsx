@@ -866,9 +866,14 @@ const Orders = () => {
   };
 
   // تحميل صفحة إضافية عند الضغط على "تحميل المزيد" (يستخدم على الموبايل بشكل أساسي)
+  // يحمّل كل الطلبات المتبقية ضمن نطاق التاريخ الحالي (مثلاً كل طلبات الشهر) دفعة واحدة عبر التصفح الداخلي.
   const loadMoreOrders = async () => {
     if (loadingMore || !hasMorePages) return;
     setLoadingMore(true);
+    let stillHasMore = true;
+    try {
+      while (stillHasMore) {
+      const { nextPage, startDate, endDate, pageSize } = paginationRef.current;
     try {
       const { nextPage, startDate, endDate, pageSize } = paginationRef.current;
       const ORDER_COLS = [
