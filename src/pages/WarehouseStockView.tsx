@@ -726,12 +726,16 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
               </div>
               {currentWhId && (
                 <div className="md:ms-auto flex flex-wrap gap-2">
-                  <Button size="sm" onClick={() => setManualAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 shadow-sm h-9">
-                    <PackagePlus className="w-4 h-4 ml-1.5" /> إضافة رصيد / توريد
-                  </Button>
-                  <Button size="sm" onClick={() => setManualOutOpen(true)} className="bg-rose-600 hover:bg-rose-700 shadow-sm h-9">
-                    <PackageMinus className="w-4 h-4 ml-1.5" /> صرف / توريد للجهات
-                  </Button>
+                  {canEditCurrentScope && (
+                    <>
+                      <Button size="sm" onClick={() => setManualAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 shadow-sm h-9">
+                        <PackagePlus className="w-4 h-4 ml-1.5" /> إضافة رصيد / توريد
+                      </Button>
+                      <Button size="sm" onClick={() => setManualOutOpen(true)} className="bg-rose-600 hover:bg-rose-700 shadow-sm h-9">
+                        <PackageMinus className="w-4 h-4 ml-1.5" /> صرف / توريد للجهات
+                      </Button>
+                    </>
+                  )}
                   <Button size="sm" variant="outline" onClick={fetchAll} disabled={loading} className="h-9">
                     <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
                   </Button>
