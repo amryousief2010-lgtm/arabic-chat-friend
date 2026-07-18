@@ -567,7 +567,7 @@ export default function MainWarehouseTreasuryTab() {
       } catch { setPendingDeposits([]); }
       finally { setLoadingDeposits(false); }
     })();
-  }, [transferOpen]);
+  }, [transferOpen, mainWarehouse?.id]);
 
   const toggleDeposit = (id: string, _amount: number) => {
     setSelectedDepositIds((prev) => {
