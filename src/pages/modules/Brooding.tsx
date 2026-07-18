@@ -1598,14 +1598,16 @@ const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, ca
   const [override, setOverride] = useState(false);
   const [saving, setSaving] = useState(false);
   const batch = batches.find(b => b.id === f.batch_id);
-  const recommendedUnitCost = feedCostForBatch(batch, settings);
   const inv = feedInventory.find(x => x.id === f.feed_id) || feedInventory.find(x => x.feed_name === f.feed_name);
+  // Prefer actual cost from the selected feed batch in inventory; fall back to the age-based recommendation only when unknown.
+  const invUnitCost = inv && Number(inv.last_unit_cost) > 0 ? Number(inv.last_unit_cost) : 0;
+  const recommendedUnitCost = invUnitCost || feedCostForBatch(batch, settings);
 
-  // Auto-fill unit_cost from settings when not overriding
+  // Auto-fill unit_cost from the actual inventory cost when not overriding
   useEffect(() => {
     if (!override) setF(p => ({ ...p, unit_cost: recommendedUnitCost }));
     // eslint-disable-next-line
-  }, [recommendedUnitCost, override, f.batch_id]);
+  }, [recommendedUnitCost, override, f.batch_id, f.feed_id]);
 
   useEffect(() => { setF(p => ({ ...p, total_cost: +(p.quantity_kg * p.unit_cost).toFixed(3) })); }, [f.quantity_kg, f.unit_cost]);
 
@@ -1690,7 +1692,7 @@ const FeedForm = ({ batches, feedInventory = [], settings = DEFAULT_SETTINGS, ca
     </div>
     {batch && (
       <div className="text-xs text-muted-foreground p-2 rounded bg-emerald-50 border border-emerald-200">
-        💡 سعر التكلفة الموصى به (حسب عمر الدفعة): <strong>{fmtMoney(recommendedUnitCost)}/كجم</strong> — السعر مأخوذ بالتكلفة وليس البيع
+        💡 سعر التكلفة {invUnitCost ? "الفعلي من مخزون العلف" : "الموصى به (حسب عمر الدفعة)"}: <strong>{fmtMoney(recommendedUnitCost)}/كجم</strong> — السعر مأخوذ بالتكلفة وليس البيع
         {inv && <> | الرصيد المتاح: <strong>{fmt(Number(inv.current_kg))} كجم</strong></>}
       </div>
     )}
