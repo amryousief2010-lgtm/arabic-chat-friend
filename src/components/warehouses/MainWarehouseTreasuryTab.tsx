@@ -597,7 +597,12 @@ export default function MainWarehouseTreasuryTab() {
       if (!ok) return;
     }
     if (amt > kpis.balance) {
-      if (!window.confirm(`المبلغ (${fmt(amt)}) أكبر من الرصيد الحالي (${fmt(kpis.balance)}). متابعة؟`)) return;
+      toast({
+        title: "المبلغ أكبر من الرصيد الحالي",
+        description: `الرصيد المتاح: ${fmt(kpis.balance)} ج.م — لا يمكن تحويل ${fmt(amt)} ج.م حتى لا يصبح الرصيد بالسالب.`,
+        variant: "destructive",
+      });
+      return;
     }
 
 
