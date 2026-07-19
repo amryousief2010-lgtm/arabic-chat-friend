@@ -395,6 +395,7 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
         .from("meat_production_transfers")
         .select("id, transfer_no, quantity, unit_cost, destination_warehouse_id, created_at, created_by, notes, status, product:meat_factory_products(name_ar), warehouse:warehouses!meat_production_transfers_destination_warehouse_id_fkey(name)")
         .neq("status", "rejected")
+        .gte("created_at", "2026-07-18T00:00:00+02:00")
         .order("created_at", { ascending: false })
         .limit(2000);
 
