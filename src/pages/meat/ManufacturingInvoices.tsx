@@ -1448,7 +1448,7 @@ export default function ManufacturingInvoices() {
             </DialogHeader>
             <div className="space-y-3 text-sm">
               <p className="text-muted-foreground">
-                توجد فاتورة تصنيع مسجلة بالفعل بنفس المنتج والكمية ونفس المخزن خلال آخر 24 ساعة. برجاء مراجعتها قبل المتابعة لتجنب التكرار.
+                توجد فاتورة تصنيع مسجلة بالفعل بنفس المنتج والكمية ونفس المخزن خلال آخر 24 ساعة. ده تنبيه فقط — لو دي تشغيلة منفصلة اكتب السبب واكمل الحفظ.
               </p>
               {similarFound && (
                 <div className="rounded border bg-amber-50 p-3 space-y-1">
@@ -1460,21 +1460,15 @@ export default function ManufacturingInvoices() {
                   <div><b>المستخدم:</b> {similarFound.created_by_name || "—"}</div>
                 </div>
               )}
-              {canOverrideDuplicate ? (
-                <div>
-                  <Label className="text-amber-800">سبب المتابعة رغم التشابه (إلزامي للمدير)</Label>
-                  <Textarea
-                    value={overrideReason}
-                    onChange={(e) => setOverrideReason(e.target.value)}
-                    placeholder="مثال: فاتورة مستقلة وليست مكررة — تشغيلة منفصلة"
-                    rows={2}
-                  />
-                </div>
-              ) : (
-                <div className="rounded border border-red-200 bg-red-50 p-2 text-red-700 text-xs">
-                  لا يمكنك حفظ هذه الفاتورة بسبب التشابه القوي. للمتابعة يلزم اعتماد المدير العام أو التنفيذي.
-                </div>
-              )}
+              <div>
+                <Label className="text-amber-800">سبب المتابعة رغم التشابه (إلزامي)</Label>
+                <Textarea
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="مثال: فاتورة مستقلة وليست مكررة — تشغيلة منفصلة"
+                  rows={2}
+                />
+              </div>
             </div>
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => { setSimilarFound(null); setOverrideReason(""); }}>
