@@ -87,7 +87,8 @@ export default function ManufacturingInvoices() {
   type SimilarInv = { id: string; invoice_no: string | null; product_name: string; finished_qty: number; unit: string; status: string; created_at: string; created_by: string | null; created_by_name?: string | null };
   const [similarFound, setSimilarFound] = useState<SimilarInv | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
-  const canOverrideDuplicate = roles?.some(r => r === "general_manager" || r === "executive_manager");
+  // التشابه تنبيه فقط — أي مستخدم يمكنه المتابعة مع تسجيل السبب في سجل التدقيق
+  const canOverrideDuplicate = true;
 
   // Cancel/void
   type CancelImpact = { lines: any[]; finishedStock: number | null; finishedItemName?: string | null };
