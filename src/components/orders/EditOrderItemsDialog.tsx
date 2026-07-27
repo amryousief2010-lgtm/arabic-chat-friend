@@ -101,6 +101,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     );
     setDiscount(Number(initialDiscount) || 0);
     setOriginalDiscount(Number(initialDiscount) || 0);
+    setDeliveryFee(Number(initialDeliveryFee) || 0);
     fetchProducts();
     fetchOfferGroupPrices(initialItems);
     // Only reset on dialog open transition — don't overwrite user edits
