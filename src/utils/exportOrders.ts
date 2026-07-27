@@ -4,6 +4,8 @@ import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/
 export interface OrderExportRow {
   order_number: string;
   customer_name: string;
+  customer_phone?: string;
+  delivery_address?: string | null;
   moderator_name: string;
   total: number;
   payment_method: string;
