@@ -39,6 +39,8 @@ export function exportOrdersToCSV(rows: OrderExportRow[], filename = "orders.csv
   const header = [
     "رقم الطلب",
     "العميل",
+    "الهاتف",
+    "العنوان",
     "الموديريتور",
     "الإجمالي",
     "طريقة الدفع",
@@ -53,6 +55,8 @@ export function exportOrdersToCSV(rows: OrderExportRow[], filename = "orders.csv
     const line = [
       r.order_number,
       `"${r.customer_name.replace(/"/g, '""')}"`,
+      `"${(r.customer_phone || "").replace(/"/g, '""')}"`,
+      `"${(r.delivery_address || "").replace(/"/g, '""')}"`,
       `"${(r.moderator_name || "").replace(/"/g, '""')}"`,
       r.total,
       r.payment_method === "cash" ? "نقدي" : "إلكتروني",
