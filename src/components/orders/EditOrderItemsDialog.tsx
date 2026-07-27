@@ -301,7 +301,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   );
   const previewTotals = computeOrderTotals(items, {
     discount,
-    extraDeliveryFee: initialDeliveryFee,
+    extraDeliveryFee: deliveryFee,
   });
   const newSubtotal = previewTotals.subtotal;
   const hasOfferItems = previewTotals.hasOfferItems;
