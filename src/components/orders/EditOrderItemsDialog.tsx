@@ -72,6 +72,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   const [items, setItems] = useState<EditableItem[]>([]);
   const [discount, setDiscount] = useState<number>(0);
   const [originalDiscount, setOriginalDiscount] = useState<number>(0);
+  const [deliveryFee, setDeliveryFee] = useState<number>(0);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   // offer_name -> (group -> unit price) derived from offer_boxes
