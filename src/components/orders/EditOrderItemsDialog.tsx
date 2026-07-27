@@ -233,7 +233,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
       // Compute final totals from the SAME state the UI shows (preview === save).
       const finalTotals = computeOrderTotals(items, {
         discount,
-        extraDeliveryFee: initialDeliveryFee,
+        extraDeliveryFee: deliveryFee,
       });
 
       // If no real offer item remains, also drop the bundled shipping line.
@@ -247,7 +247,10 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
       // Persist all item changes in one backend call. This avoids several
       // sequential requests/triggers on mobile networks and prevents timeout
       // errors while keeping the UI preview and DB row on the same totals.
-      const deliveryFee = finalTotals.hasOfferItems || initialItems.some((it) => it.offer_name) ? 0 : undefined;
+      // Offers keep their bundled shipping (delivery_fee forced to 0). For
+      // normal orders, persist the user-edited delivery fee.
+      const hadOffer = finalTotals.hasOfferItems || initialItems.some((it) => it.offer_name);
+      const deliveryFeeToSave = hadOffer ? 0 : Number(deliveryFee) || 0;
       const payload = itemsForWrite.map((it) => ({
         id: it.id ?? null,
         product_id: it.product_id,
@@ -266,7 +269,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         p_subtotal: finalTotals.subtotal,
         p_discount: Number(discount) || 0,
         p_total: finalTotals.total,
-        p_delivery_fee: deliveryFee,
+        p_delivery_fee: deliveryFeeToSave,
       });
       if (saveError) throw saveError;
 
