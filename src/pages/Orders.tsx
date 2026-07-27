@@ -1981,20 +1981,9 @@ const Orders = () => {
               <Button
                 variant="default"
                 className="gap-2 bg-primary/90 hover:bg-primary text-white"
-                onClick={() => {
-                  const todayStr = toCairoDateString(new Date());
-                  const myToday = orders.filter(
-                    (o) => o.created_by === user.id && toCairoDateString(o.created_at) === todayStr,
-                  );
-                  const modName = profile?.full_name || "المسوقة";
-                  exportOrdersToXLSX(
-                    myToday,
-                    `طلباتي-${todayStr}.xlsx`,
-                    { moderatorName: modName, dateLabel: todayStr },
-                  );
-                }}
+                onClick={() => setModDailyReportOpen(true)}
               >
-                <FileDown className="w-4 h-4" /> طلبات اليوم
+                <FileDown className="w-4 h-4" /> تقرير طلباتي
               </Button>
             )}
             <Button
