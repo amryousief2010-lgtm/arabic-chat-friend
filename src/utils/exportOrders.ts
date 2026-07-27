@@ -77,10 +77,16 @@ export function exportOrdersToCSV(rows: OrderExportRow[], filename = "orders.csv
   URL.revokeObjectURL(url);
 }
 
-export function exportOrdersToXLSX(rows: OrderExportRow[], filename = `orders-${Date.now()}.xlsx`) {
+export function exportOrdersToXLSX(
+  rows: OrderExportRow[],
+  filename = `orders-${Date.now()}.xlsx`,
+  meta?: { moderatorName?: string; dateLabel?: string },
+) {
   const data = rows.map((r) => ({
     "رقم الطلب": r.order_number,
     "العميل": r.customer_name,
+    "الهاتف": r.customer_phone || "",
+    "العنوان": r.delivery_address || "",
     "الموديريتور": r.moderator_name || "",
     "الإجمالي": r.total,
     "طريقة الدفع": r.payment_method === "cash" ? "نقدي" : "إلكتروني",
@@ -90,8 +96,23 @@ export function exportOrdersToXLSX(rows: OrderExportRow[], filename = `orders-${
     "تاريخ الإنشاء": new Date(r.created_at).toLocaleString("ar-EG"),
     "تاريخ التسليم": r.delivered_at ? new Date(r.delivered_at).toLocaleString("ar-EG") : "-",
   }));
-  const ws = XLSX.utils.json_to_sheet(data);
+  const totalSum = rows.reduce((s, r) => s + Number(r.total || 0), 0);
+
   const wb = XLSX.utils.book_new();
+  let ws: XLSX.WorkSheet;
+  if (meta) {
+    const headerRows: any[][] = [
+      ["المسوقة:", meta.moderatorName || "-"],
+      ["التاريخ:", meta.dateLabel || new Date().toLocaleDateString("ar-EG")],
+      ["عدد الطلبات:", rows.length],
+      ["إجمالي القيمة:", totalSum],
+      [],
+    ];
+    ws = XLSX.utils.aoa_to_sheet(headerRows);
+    XLSX.utils.sheet_add_json(ws, data, { origin: -1 });
+  } else {
+    ws = XLSX.utils.json_to_sheet(data);
+  }
   XLSX.utils.book_append_sheet(wb, ws, "الطلبات");
   XLSX.writeFile(wb, filename, { bookType: "xlsx" });
 }
