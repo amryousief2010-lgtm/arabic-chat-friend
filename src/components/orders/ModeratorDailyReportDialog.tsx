@@ -27,6 +27,30 @@ interface Props {
   moderatorName: string;
 }
 
+// Known Egyptian governorates (Arabic). Match longest first.
+const GOVERNORATES = [
+  "القاهرة", "الجيزة", "الاسكندرية", "الإسكندرية", "الدقهلية", "الشرقية", "القليوبية",
+  "كفر الشيخ", "الغربية", "المنوفية", "البحيرة", "الإسماعيلية", "الاسماعيلية",
+  "بورسعيد", "بور سعيد", "السويس", "شمال سيناء", "جنوب سيناء", "الفيوم", "بني سويف",
+  "بنى سويف", "المنيا", "أسيوط", "اسيوط", "سوهاج", "قنا", "الأقصر", "الاقصر",
+  "أسوان", "اسوان", "البحر الأحمر", "البحر الاحمر", "الوادي الجديد", "الوادى الجديد",
+  "مطروح", "دمياط",
+];
+
+function extractGovernorate(addr?: string | null): string {
+  if (!addr) return "-";
+  const s = String(addr).trim();
+  if (!s) return "-";
+  // Try to match a known governorate anywhere in the string
+  for (const g of GOVERNORATES) {
+    if (s.includes(g)) return g;
+  }
+  // Fallback: last comma-separated segment (often city/governorate)
+  const parts = s.split(/[,،\-]/).map((p) => p.trim()).filter(Boolean);
+  if (parts.length) return parts[parts.length - 1];
+  return s;
+}
+
 const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, moderatorName }: Props) => {
   const [date, setDate] = useState<string>(() => toCairoDateString(new Date()));
   const reportRef = useRef<HTMLDivElement>(null);
@@ -38,7 +62,7 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
         order_number: o.order_number,
         customer_name: o.customers?.name || "-",
         customer_phone: o.customers?.phone || "-",
-        delivery_address: o.delivery_address || "-",
+        governorate: extractGovernorate(o.delivery_address),
         total: Number(o.total || 0),
       }));
   }, [orders, userId, date]);
@@ -78,7 +102,7 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
       "رقم الطلب": r.order_number,
       "العميل": r.customer_name,
       "الهاتف": r.customer_phone,
-      "العنوان": r.delivery_address,
+      "المحافظة": r.governorate,
       "الإجمالي": r.total,
     }));
     const wb = XLSX.utils.book_new();
@@ -97,7 +121,7 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>تقرير طلباتي اليومي</DialogTitle>
         </DialogHeader>
@@ -115,72 +139,76 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
           </Button>
         </div>
 
-        {/* Report preview (this is what gets rendered as image) */}
-        <div
-          ref={reportRef}
-          dir="rtl"
-          style={{
-            background: "#ffffff",
-            color: "#111",
-            padding: "20px",
-            fontFamily: "Cairo, Tajawal, system-ui, sans-serif",
-            borderRadius: 8,
-          }}
-        >
-          {/* Header block — kept as before */}
+        {/* Mobile-friendly single-page report (fixed narrow width for image export) */}
+        <div className="overflow-x-auto">
           <div
+            ref={reportRef}
+            dir="rtl"
             style={{
-              background: "linear-gradient(90deg, hsl(270 60% 45%), hsl(20 90% 55%))",
-              color: "#fff",
-              padding: "16px 20px",
+              width: 420,
+              background: "#ffffff",
+              color: "#111",
+              padding: 14,
+              fontFamily: "Cairo, Tajawal, system-ui, sans-serif",
               borderRadius: 8,
-              marginBottom: 16,
+              margin: "0 auto",
             }}
           >
-            <div style={{ fontSize: 20, fontWeight: 800 }}>تقرير طلبات {moderatorName}</div>
-            <div style={{ fontSize: 13, opacity: 0.95, marginTop: 4 }}>{dateLabel}</div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-            <div style={{ border: "1px solid #eee", borderRadius: 8, padding: 12, background: "#faf7ff" }}>
-              <div style={{ fontSize: 12, color: "#666" }}>عدد الطلبات</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "hsl(270 60% 45%)" }}>{rows.length}</div>
+            <div
+              style={{
+                background: "linear-gradient(90deg, hsl(270 60% 45%), hsl(20 90% 55%))",
+                color: "#fff",
+                padding: "12px 14px",
+                borderRadius: 8,
+                marginBottom: 12,
+              }}
+            >
+              <div style={{ fontSize: 16, fontWeight: 800 }}>تقرير طلبات {moderatorName}</div>
+              <div style={{ fontSize: 11, opacity: 0.95, marginTop: 3 }}>{dateLabel}</div>
             </div>
-            <div style={{ border: "1px solid #eee", borderRadius: 8, padding: 12, background: "#fff5ec" }}>
-              <div style={{ fontSize: 12, color: "#666" }}>إجمالي القيمة</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "hsl(20 90% 45%)" }}>
-                {totalSum.toLocaleString()} ج.م
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+              <div style={{ border: "1px solid #eee", borderRadius: 8, padding: 8, background: "#faf7ff" }}>
+                <div style={{ fontSize: 10, color: "#666" }}>عدد الطلبات</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "hsl(270 60% 45%)" }}>{rows.length}</div>
+              </div>
+              <div style={{ border: "1px solid #eee", borderRadius: 8, padding: 8, background: "#fff5ec" }}>
+                <div style={{ fontSize: 10, color: "#666" }}>إجمالي القيمة</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: "hsl(20 90% 45%)" }}>
+                  {totalSum.toLocaleString()} ج.م
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Simplified table */}
-          {rows.length === 0 ? (
-            <div style={{ textAlign: "center", padding: 30, color: "#888" }}>لا توجد طلبات في هذا اليوم</div>
-          ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: "#f3f0fa" }}>
-                  <th style={thStyle}>رقم الطلب</th>
-                  <th style={thStyle}>العميل</th>
-                  <th style={thStyle}>الهاتف</th>
-                  <th style={thStyle}>الإجمالي</th>
-                  <th style={thStyle}>العنوان</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr key={r.order_number} style={{ background: i % 2 ? "#fafafa" : "#fff" }}>
-                    <td style={tdStyle}>{r.order_number}</td>
-                    <td style={tdStyle}>{r.customer_name}</td>
-                    <td style={{ ...tdStyle, direction: "ltr", textAlign: "right" as const }}>{r.customer_phone}</td>
-                    <td style={{ ...tdStyle, fontWeight: 700 }}>{r.total.toLocaleString()} ج.م</td>
-                    <td style={tdStyle}>{r.delivery_address}</td>
+            {rows.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 24, color: "#888", fontSize: 12 }}>
+                لا توجد طلبات في هذا اليوم
+              </div>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10, tableLayout: "fixed" }}>
+                <thead>
+                  <tr style={{ background: "#f3f0fa" }}>
+                    <th style={{ ...thStyle, width: "22%" }}>رقم الطلب</th>
+                    <th style={{ ...thStyle, width: "22%" }}>العميل</th>
+                    <th style={{ ...thStyle, width: "22%" }}>الهاتف</th>
+                    <th style={{ ...thStyle, width: "16%" }}>المحافظة</th>
+                    <th style={{ ...thStyle, width: "18%" }}>الإجمالي</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => (
+                    <tr key={r.order_number} style={{ background: i % 2 ? "#fafafa" : "#fff" }}>
+                      <td style={tdStyle}>{r.order_number}</td>
+                      <td style={{ ...tdStyle, wordBreak: "break-word" }}>{r.customer_name}</td>
+                      <td style={{ ...tdStyle, direction: "ltr", textAlign: "right" as const }}>{r.customer_phone}</td>
+                      <td style={{ ...tdStyle, wordBreak: "break-word" }}>{r.governorate}</td>
+                      <td style={{ ...tdStyle, fontWeight: 700 }}>{r.total.toLocaleString()} ج.م</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -189,14 +217,14 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
 
 const thStyle: React.CSSProperties = {
   border: "1px solid #e5e5e5",
-  padding: "8px 6px",
+  padding: "5px 4px",
   textAlign: "right",
   fontWeight: 700,
-  fontSize: 12,
+  fontSize: 10,
 };
 const tdStyle: React.CSSProperties = {
   border: "1px solid #eee",
-  padding: "8px 6px",
+  padding: "5px 4px",
   textAlign: "right",
 };
 
