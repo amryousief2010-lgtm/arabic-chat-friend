@@ -477,6 +477,7 @@ const Orders = () => {
   const [draftSearch, setDraftSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [quickDeliveryOpen, setQuickDeliveryOpen] = useState(false);
+  const [modDailyReportOpen, setModDailyReportOpen] = useState(false);
   const isMobile = useIsMobile();
   // تحميل المزيد يدويًا على الموبايل لتقليل الحمل الأولي
   const [hasMorePages, setHasMorePages] = useState(false);
