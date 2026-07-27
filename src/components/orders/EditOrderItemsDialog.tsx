@@ -72,6 +72,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   const [items, setItems] = useState<EditableItem[]>([]);
   const [discount, setDiscount] = useState<number>(0);
   const [originalDiscount, setOriginalDiscount] = useState<number>(0);
+  const [deliveryFee, setDeliveryFee] = useState<number>(0);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   // offer_name -> (group -> unit price) derived from offer_boxes
@@ -100,6 +101,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     );
     setDiscount(Number(initialDiscount) || 0);
     setOriginalDiscount(Number(initialDiscount) || 0);
+    setDeliveryFee(Number(initialDeliveryFee) || 0);
     fetchProducts();
     fetchOfferGroupPrices(initialItems);
     // Only reset on dialog open transition — don't overwrite user edits
@@ -231,7 +233,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
       // Compute final totals from the SAME state the UI shows (preview === save).
       const finalTotals = computeOrderTotals(items, {
         discount,
-        extraDeliveryFee: initialDeliveryFee,
+        extraDeliveryFee: deliveryFee,
       });
 
       // If no real offer item remains, also drop the bundled shipping line.
@@ -245,7 +247,10 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
       // Persist all item changes in one backend call. This avoids several
       // sequential requests/triggers on mobile networks and prevents timeout
       // errors while keeping the UI preview and DB row on the same totals.
-      const deliveryFee = finalTotals.hasOfferItems || initialItems.some((it) => it.offer_name) ? 0 : undefined;
+      // Offers keep their bundled shipping (delivery_fee forced to 0). For
+      // normal orders, persist the user-edited delivery fee.
+      const hadOffer = finalTotals.hasOfferItems || initialItems.some((it) => it.offer_name);
+      const deliveryFeeToSave = hadOffer ? 0 : Number(deliveryFee) || 0;
       const payload = itemsForWrite.map((it) => ({
         id: it.id ?? null,
         product_id: it.product_id,
@@ -264,7 +269,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         p_subtotal: finalTotals.subtotal,
         p_discount: Number(discount) || 0,
         p_total: finalTotals.total,
-        p_delivery_fee: deliveryFee,
+        p_delivery_fee: deliveryFeeToSave,
       });
       if (saveError) throw saveError;
 
@@ -296,7 +301,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   );
   const previewTotals = computeOrderTotals(items, {
     discount,
-    extraDeliveryFee: initialDeliveryFee,
+    extraDeliveryFee: deliveryFee,
   });
   const newSubtotal = previewTotals.subtotal;
   const hasOfferItems = previewTotals.hasOfferItems;
@@ -444,10 +449,17 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
               />
             </div>
 
-            {!hasOfferItems && Number(initialDeliveryFee) > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">رسوم التوصيل</span>
-                <span>{Number(initialDeliveryFee).toLocaleString()} ج.م</span>
+            {!hasOfferItems && (
+              <div className="flex justify-between items-center gap-3">
+                <label className="text-muted-foreground whitespace-nowrap">رسوم التوصيل</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={deliveryFee}
+                  onChange={(e) => setDeliveryFee(Number(e.target.value) || 0)}
+                  className="max-w-[160px] text-end"
+                  placeholder="0"
+                />
               </div>
             )}
 
