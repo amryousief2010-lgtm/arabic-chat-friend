@@ -3636,6 +3636,17 @@ const Orders = () => {
         }}
       />
 
+      {isSalesModerator && user?.id && (
+        <ModeratorDailyReportDialog
+          open={modDailyReportOpen}
+          onOpenChange={setModDailyReportOpen}
+          orders={orders as any}
+          userId={user.id}
+          moderatorName={profile?.full_name || "المسوقة"}
+        />
+      )}
+
+
       {reassignOrder && (
         <ReassignOwnerDialog
           open={!!reassignOrder}
