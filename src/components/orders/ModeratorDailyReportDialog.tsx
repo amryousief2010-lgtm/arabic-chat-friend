@@ -16,7 +16,10 @@ interface OrderLite {
   created_at: string;
   created_by?: string | null;
   delivery_address?: string | null;
-  customers?: { name?: string | null; phone?: string | null } | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  customer_phone2?: string | null;
+  customers?: { name?: string | null; phone?: string | null; phone2?: string | null } | null;
 }
 
 interface Props {
@@ -36,8 +39,8 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
       .filter((o) => o.created_by === userId && toCairoDateString(o.created_at) === date)
       .map((o) => ({
         order_number: o.order_number,
-        customer_name: o.customers?.name || "-",
-        customer_phone: o.customers?.phone || "-",
+        customer_name: o.customer_name || o.customers?.name || "-",
+        customer_phone: o.customer_phone || o.customers?.phone || o.customer_phone2 || o.customers?.phone2 || "-",
         total: Number(o.total || 0),
       }));
   }, [orders, userId, date]);
