@@ -449,10 +449,17 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
               />
             </div>
 
-            {!hasOfferItems && Number(initialDeliveryFee) > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">رسوم التوصيل</span>
-                <span>{Number(initialDeliveryFee).toLocaleString()} ج.م</span>
+            {!hasOfferItems && (
+              <div className="flex justify-between items-center gap-3">
+                <label className="text-muted-foreground whitespace-nowrap">رسوم التوصيل</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={deliveryFee}
+                  onChange={(e) => setDeliveryFee(Number(e.target.value) || 0)}
+                  className="max-w-[160px] text-end"
+                  placeholder="0"
+                />
               </div>
             )}
 
