@@ -4,6 +4,8 @@ import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/
 export interface OrderExportRow {
   order_number: string;
   customer_name: string;
+  customer_phone?: string;
+  delivery_address?: string | null;
   moderator_name: string;
   total: number;
   payment_method: string;
@@ -37,6 +39,8 @@ export function exportOrdersToCSV(rows: OrderExportRow[], filename = "orders.csv
   const header = [
     "رقم الطلب",
     "العميل",
+    "الهاتف",
+    "العنوان",
     "الموديريتور",
     "الإجمالي",
     "طريقة الدفع",
@@ -51,6 +55,8 @@ export function exportOrdersToCSV(rows: OrderExportRow[], filename = "orders.csv
     const line = [
       r.order_number,
       `"${r.customer_name.replace(/"/g, '""')}"`,
+      `"${(r.customer_phone || "").replace(/"/g, '""')}"`,
+      `"${(r.delivery_address || "").replace(/"/g, '""')}"`,
       `"${(r.moderator_name || "").replace(/"/g, '""')}"`,
       r.total,
       r.payment_method === "cash" ? "نقدي" : "إلكتروني",
@@ -71,10 +77,16 @@ export function exportOrdersToCSV(rows: OrderExportRow[], filename = "orders.csv
   URL.revokeObjectURL(url);
 }
 
-export function exportOrdersToXLSX(rows: OrderExportRow[], filename = `orders-${Date.now()}.xlsx`) {
+export function exportOrdersToXLSX(
+  rows: OrderExportRow[],
+  filename = `orders-${Date.now()}.xlsx`,
+  meta?: { moderatorName?: string; dateLabel?: string },
+) {
   const data = rows.map((r) => ({
     "رقم الطلب": r.order_number,
     "العميل": r.customer_name,
+    "الهاتف": r.customer_phone || "",
+    "العنوان": r.delivery_address || "",
     "الموديريتور": r.moderator_name || "",
     "الإجمالي": r.total,
     "طريقة الدفع": r.payment_method === "cash" ? "نقدي" : "إلكتروني",
@@ -84,8 +96,23 @@ export function exportOrdersToXLSX(rows: OrderExportRow[], filename = `orders-${
     "تاريخ الإنشاء": new Date(r.created_at).toLocaleString("ar-EG"),
     "تاريخ التسليم": r.delivered_at ? new Date(r.delivered_at).toLocaleString("ar-EG") : "-",
   }));
-  const ws = XLSX.utils.json_to_sheet(data);
+  const totalSum = rows.reduce((s, r) => s + Number(r.total || 0), 0);
+
   const wb = XLSX.utils.book_new();
+  let ws: XLSX.WorkSheet;
+  if (meta) {
+    const headerRows: any[][] = [
+      ["المسوقة:", meta.moderatorName || "-"],
+      ["التاريخ:", meta.dateLabel || new Date().toLocaleDateString("ar-EG")],
+      ["عدد الطلبات:", rows.length],
+      ["إجمالي القيمة:", totalSum],
+      [],
+    ];
+    ws = XLSX.utils.aoa_to_sheet(headerRows);
+    XLSX.utils.sheet_add_json(ws, data, { origin: -1 });
+  } else {
+    ws = XLSX.utils.json_to_sheet(data);
+  }
   XLSX.utils.book_append_sheet(wb, ws, "الطلبات");
   XLSX.writeFile(wb, filename, { bookType: "xlsx" });
 }
@@ -123,6 +150,8 @@ export function exportOrdersToPDF(rows: OrderExportRow[], periodLabel = "كل ا
         <tr>
           <th>رقم الطلب</th>
           <th>العميل</th>
+          <th>الهاتف</th>
+          <th>العنوان</th>
           <th>الموديريتور</th>
           <th>الإجمالي</th>
           <th>طريقة الدفع</th>
@@ -139,6 +168,8 @@ export function exportOrdersToPDF(rows: OrderExportRow[], periodLabel = "كل ا
             (r) => `<tr>
               <td>${escapeHtml(r.order_number)}</td>
               <td>${escapeHtml(r.customer_name)}</td>
+              <td>${escapeHtml(r.customer_phone || "—")}</td>
+              <td>${escapeHtml(r.delivery_address || "—")}</td>
               <td>${escapeHtml(r.moderator_name || "—")}</td>
               <td class="num">${fmtNum(r.total)}</td>
               <td>${r.payment_method === "cash" ? "نقدي" : "إلكتروني"}</td>

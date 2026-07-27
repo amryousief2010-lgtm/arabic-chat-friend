@@ -271,7 +271,7 @@ const formatItemQty = (qty: number, unit?: string): string => {
 };
 
 const Orders = () => {
- const { user, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, roles, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems, canManageOrders } = useAuth();
+ const { user, profile, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, roles, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems, canManageOrders } = useAuth();
   const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
    const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
    // صلاحية إدارة/اختيار طريقة التحصيل — الأدوار المسؤولة عن التحصيل فعلياً فقط.
@@ -1977,6 +1977,26 @@ const Orders = () => {
             <Button variant="outline" className="gap-2" onClick={() => exportOrdersToPDF(filteredOrders)}>
               <FileText className="w-4 h-4" /> PDF
             </Button>
+            {isSalesModerator && user?.id && (
+              <Button
+                variant="default"
+                className="gap-2 bg-primary/90 hover:bg-primary text-white"
+                onClick={() => {
+                  const todayStr = toCairoDateString(new Date());
+                  const myToday = orders.filter(
+                    (o) => o.created_by === user.id && toCairoDateString(o.created_at) === todayStr,
+                  );
+                  const modName = profile?.full_name || "المسوقة";
+                  exportOrdersToXLSX(
+                    myToday,
+                    `طلباتي-${todayStr}.xlsx`,
+                    { moderatorName: modName, dateLabel: todayStr },
+                  );
+                }}
+              >
+                <FileDown className="w-4 h-4" /> طلبات اليوم
+              </Button>
+            )}
             <Button
               onClick={() => setQuickDeliveryOpen(true)}
               className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
