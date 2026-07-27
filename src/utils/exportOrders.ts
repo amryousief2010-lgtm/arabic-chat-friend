@@ -150,6 +150,8 @@ export function exportOrdersToPDF(rows: OrderExportRow[], periodLabel = "كل ا
         <tr>
           <th>رقم الطلب</th>
           <th>العميل</th>
+          <th>الهاتف</th>
+          <th>العنوان</th>
           <th>الموديريتور</th>
           <th>الإجمالي</th>
           <th>طريقة الدفع</th>
@@ -166,6 +168,8 @@ export function exportOrdersToPDF(rows: OrderExportRow[], periodLabel = "كل ا
             (r) => `<tr>
               <td>${escapeHtml(r.order_number)}</td>
               <td>${escapeHtml(r.customer_name)}</td>
+              <td>${escapeHtml(r.customer_phone || "—")}</td>
+              <td>${escapeHtml(r.delivery_address || "—")}</td>
               <td>${escapeHtml(r.moderator_name || "—")}</td>
               <td class="num">${fmtNum(r.total)}</td>
               <td>${r.payment_method === "cash" ? "نقدي" : "إلكتروني"}</td>
