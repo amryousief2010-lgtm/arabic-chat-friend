@@ -43,6 +43,7 @@ import EditCustomerInfoDialog from "@/components/orders/EditCustomerInfoDialog";
 import PhoneWithCopy from "@/components/orders/PhoneWithCopy";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import QuickDeliveryDialog from "@/components/orders/QuickDeliveryDialog";
+import ModeratorDailyReportDialog from "@/components/orders/ModeratorDailyReportDialog";
 import ReassignOwnerDialog from "@/components/orders/ReassignOwnerDialog";
 import { findModeratorByName, isOrderForModerator } from "@/constants/moderators";
 import {
