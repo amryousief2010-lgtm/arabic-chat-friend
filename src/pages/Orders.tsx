@@ -43,6 +43,7 @@ import EditCustomerInfoDialog from "@/components/orders/EditCustomerInfoDialog";
 import PhoneWithCopy from "@/components/orders/PhoneWithCopy";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import QuickDeliveryDialog from "@/components/orders/QuickDeliveryDialog";
+import ModeratorDailyReportDialog from "@/components/orders/ModeratorDailyReportDialog";
 import ReassignOwnerDialog from "@/components/orders/ReassignOwnerDialog";
 import { findModeratorByName, isOrderForModerator } from "@/constants/moderators";
 import {
@@ -477,6 +478,7 @@ const Orders = () => {
   const [draftSearch, setDraftSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [quickDeliveryOpen, setQuickDeliveryOpen] = useState(false);
+  const [modDailyReportOpen, setModDailyReportOpen] = useState(false);
   const isMobile = useIsMobile();
   // تحميل المزيد يدويًا على الموبايل لتقليل الحمل الأولي
   const [hasMorePages, setHasMorePages] = useState(false);
@@ -1981,20 +1983,9 @@ const Orders = () => {
               <Button
                 variant="default"
                 className="gap-2 bg-primary/90 hover:bg-primary text-white"
-                onClick={() => {
-                  const todayStr = toCairoDateString(new Date());
-                  const myToday = orders.filter(
-                    (o) => o.created_by === user.id && toCairoDateString(o.created_at) === todayStr,
-                  );
-                  const modName = profile?.full_name || "المسوقة";
-                  exportOrdersToXLSX(
-                    myToday,
-                    `طلباتي-${todayStr}.xlsx`,
-                    { moderatorName: modName, dateLabel: todayStr },
-                  );
-                }}
+                onClick={() => setModDailyReportOpen(true)}
               >
-                <FileDown className="w-4 h-4" /> طلبات اليوم
+                <FileDown className="w-4 h-4" /> تقرير طلباتي
               </Button>
             )}
             <Button
@@ -3644,6 +3635,17 @@ const Orders = () => {
           await handleStatusChange(id, status);
         }}
       />
+
+      {isSalesModerator && user?.id && (
+        <ModeratorDailyReportDialog
+          open={modDailyReportOpen}
+          onOpenChange={setModDailyReportOpen}
+          orders={orders as any}
+          userId={user.id}
+          moderatorName={profile?.full_name || "المسوقة"}
+        />
+      )}
+
 
       {reassignOrder && (
         <ReassignOwnerDialog
