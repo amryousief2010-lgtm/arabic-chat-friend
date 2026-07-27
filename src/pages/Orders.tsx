@@ -271,7 +271,7 @@ const formatItemQty = (qty: number, unit?: string): string => {
 };
 
 const Orders = () => {
- const { user, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, roles, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems, canManageOrders } = useAuth();
+ const { user, profile, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, roles, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems, canManageOrders } = useAuth();
   const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
    const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
    // صلاحية إدارة/اختيار طريقة التحصيل — الأدوار المسؤولة عن التحصيل فعلياً فقط.
