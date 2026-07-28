@@ -225,7 +225,7 @@ CREATE UNIQUE INDEX ux_inv_mov_idempotency_key
   WHERE idempotency_key IS NOT NULL;
 
 SAVEPOINT after_schema;
-""".format(ii_cols=', '.join(II_COLS), im_cols=', '.join(IM_COLS)))
+""")
 
 # ---------- Phase 2 — Item Master (27 canonicals) ----------
 add("-- ------------------------------------------------------------------")
@@ -622,7 +622,7 @@ WHERE warehouse_id = '{MAIN_WH}'
 INSERT INTO public.inventory_movements AS m ({im_cols})
 SELECT {im_cols} FROM public.inventory_movements_snapshot_20260727 s
 ON CONFLICT (id) DO UPDATE SET
-""".format(im_cols=', '.join(IM_COLS)))
+""")
 # Non-id columns updated on conflict
 set_cols = [c for c in IM_COLS if c != 'id']
 r.append(',\n'.join(f'  {c} = EXCLUDED.{c}' for c in set_cols) + ';')
@@ -638,7 +638,7 @@ WHERE stocktake_ref = '{STK}';
 INSERT INTO public.inventory_items AS i ({ii_cols})
 SELECT {ii_cols} FROM public.inventory_items_snapshot_20260727 s
 ON CONFLICT (id) DO UPDATE SET
-""".format(ii_cols=', '.join(II_COLS)))
+""")
 set_cols_i = [c for c in II_COLS if c != 'id']
 r.append(',\n'.join(f'  {c} = EXCLUDED.{c}' for c in set_cols_i) + ';')
 
