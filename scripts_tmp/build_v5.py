@@ -298,4 +298,3 @@ for c in ws[1]:
 wb.save(DST)
 print('WROTE:', DST)
 EOF
-python3 scripts_tmp/build_v5.py
