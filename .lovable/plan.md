@@ -1,95 +1,81 @@
 
-# بيع نعام قائم — Live Ostrich Sale
+# خطة تصحيح المخزن الرئيسي — MAIN-STOCKTAKE-20260727
 
-Standalone operation, independent from the slaughter pipeline. Sold birds never enter batch/yield calculations.
+## نطاق العمل (ملخص)
 
-## 1. Database
+معالجة نهائية لمخزون **المخزن الرئيسي - المقر فقط**، بحيث:
+- 26 صنف معتمد بإجمالي **624.5 كجم** طبق الجرد الفعلي.
+- صنف «6ك دبوس بالعظم» → **معلق** (لا تسوية).
+- صف «سي أو سي كفتة أرز نعام» → مطابق للاسم النهائي **كفتة الرز** بباركود 6224003208155.
+- جميع الأصناف/المخازن خارج النطاق: **لا تغيير** (كارفور، هيلثي تيست، العجوزة، مصنع اللحوم، التغليف، الأعلاف، الخامات).
 
-New migration adds one table + one view + a helper function:
+## المرحلة الأولى — Dry Run (بدون أي تعديل قاعدة بيانات)
 
-**`slaughter_live_sales`** (public)
-- `id`, `sale_number` (unique, auto `LS-YYYYMMDD-XXXX`)
-- `sale_date` (date)
-- `live_receipt_id` (FK → slaughter_live_receipts)
-- `live_bird_id` (FK → slaughter_live_birds, nullable — null when receipt has no per-bird records)
-- `bird_count` (int, default 1)
-- `sale_weight_kg` (numeric)
-- `price_per_kg` (numeric)
-- `total_sale` (generated: weight × price)
-- `unit_cost_at_sale` (numeric) — snapshot of cost/kg used
-- `total_cost_at_sale` (numeric) — snapshot bird cost + expense share
-- `breakeven_per_kg` (numeric) — snapshot
-- `net_profit` (generated: total_sale − total_cost_at_sale)
-- `cost_source` — `'per_bird'` or `'batch_average'`
-- `customer_name`, `customer_phone`, `payment_method` (`cash|credit|partial`), `amount_paid`, `notes`
-- `created_by`, `created_at`, `updated_at`
+1. قراءة ورقة «جميع الأصناف» من `جرد_شامل_للمخزون_20260727.xlsx`، وفلترة صفوف «المخزن الرئيسي - المقر» التي بها اسم نهائي معتمد في العمود O.
+2. Parsing لعمود «الرصيد الفعلي» (نص مثل `117كيلو` أو `12.5كيلو (25كيس)`) لاستخراج الكمية بالكيلو.
+3. تجميع حسب **الاسم النهائي + الباركود** → التأكد من:
+   - عدد المجموعات = **26**
+   - مجموع الكميات = **624.5 كجم بالضبط**
+   - لا يوجد باركود مربوط بأكثر من مجموعة
+   - لا وحدات مختلطة
+4. لكل مجموعة: اختيار **Canonical `inventory_items.id`** من السجلات الحالية بقواعد الأفضلية (مرتبط بمنتج نشط + مستخدم في طلبات/مبيعات/BOM + أعلى نشاط).
+5. حصر كل **Source Item IDs** المطلوب ربطها كـ Aliases + عدّاد استخدامها في: `order_items`, `inventory_movements`, `meat_factory_recipes`, `meat_factory_batch_consumption`, تحويلات، حجوزات.
+6. حصر **الأرصدة الافتتاحية المكررة** (opening balance movements) بمقارنة الحركات المتشابهة في المخزن الرئيسي (نفس الصنف/التاريخ القريب/نفس الكمية).
+7. لكل Canonical: حساب `book_balance_after_reversal` من الـLedger ثم `adjustment = actual − book`.
+8. Snapshot قبل التنفيذ لأرصدة كل صنف في المخازن الأخرى (لإثبات عدم التغير لاحقاً).
+9. إخراج **ملف Excel للـDry Run** يحتوي:
+   - `Canonical Mapping` (Source→Canonical + عدّادات المراجع)
+   - `Duplicate Openings` (Movement IDs + قرار العكس)
+   - `Adjustments` (الرصيد قبل/بعد/الفعلي/الفرق)
+   - `Other Warehouses Snapshot Before`
+   - `Validation Checklist` (18 اختبار قبول من الرسالة)
+10. **التوقف هنا** وإرسال الملف. لا تعديل قاعدة بيانات.
 
-RLS: view = all authenticated. Manage = general_manager, executive_manager, slaughterhouse_manager.
+## المرحلة الثانية — التنفيذ الفعلي (Migration + Snapshot)
 
-**`v_available_live_ostrich`** — view that returns per-receipt availability:
-- receipt fields + `sold_live_count`, `sold_live_weight_kg`, `available_count` = `current_alive_count − sold_live_count`.
+تنفَّذ تلقائياً **فقط** لو نجحت كل اختبارات القبول (إجمالي=624.5، عدد=26، لا تضارب، أرصدة المخازن الأخرى محفوظة). خلاف ذلك: توقف + تقرير خطأ.
 
-**Trigger** on `slaughter_live_sales` INSERT: decrement `slaughter_live_receipts.current_alive_count` and `manual_available_adjustment` bookkeeping so the sold birds disappear from "available for slaughter" lists. Reverse on DELETE.
+### أ) بنية جديدة (Migration واحدة)
+- جدول `inventory_item_aliases`: `canonical_item_id`, `source_item_id` (unique), `reason`, `created_by`, `created_at`, `stocktake_ref`.
+- عمود `inventory_items.canonical_item_id` (self-FK, nullable).
+- عمود `inventory_items.retired_at` (لإخفاء السجل من الـDropdowns بعد تصفيره).
+- عمود `inventory_movements.reversal_of_movement_id` + `stocktake_ref`.
+- Unique index مركّب على `(warehouse_id, reference_type, reference_id, reference_line_id, canonical_item_id, movement_type)` لمنع تكرار الترحيل (Idempotency Key).
+- View `v_inventory_balances` كمصدر رسمي واحد للرصيد (SUM على `inventory_movements` مع signed qty، مغرَّب بالـcanonical).
 
-Sold birds are excluded from cost allocations by:
-- If per-bird sale (has `live_bird_id`), the bird row is soft-flagged via `notes` and excluded in existing yield calc queries via LEFT JOIN on live_sales.
-- Yield/تصافي code already uses batches — no change needed because sold live birds never enter a batch.
+### ب) عملية التنفيذ (كلها داخل Transaction واحدة لكل صنف)
+1. Snapshot: نسخ صفوف `inventory_items` + `inventory_movements` للمخزن الرئيسي فقط إلى جدولين مؤرشفين `_snapshot_20260727_*` مع Checksum.
+2. عكس الأرصدة الافتتاحية المكررة: حركة عكسية (لا Delete) + ربط `reversal_of_movement_id` + سبب.
+3. Insert صفوف Aliases + تحديث `canonical_item_id` في كل السجلات المصدر.
+4. حركة إعادة تصنيف داخلية (out من source + in إلى canonical) بنفس الكمية داخل المخزن الرئيسي فقط — أثرها الصافي = صفر على إجمالي الشركة.
+5. تحويل الحجوزات النشطة (`agouza_stock_reservations` + أي reservations للمخزن الرئيسي) من source → canonical بدون مضاعفة.
+6. إنشاء `stocktaking_sessions` بمرجع `MAIN-STOCKTAKE-20260727` + سطر Adjustment واحد لكل من 26 صنف.
+7. تحديث `name/unit/barcode` على الـCanonical فقط طبق العمود O/P/Q.
+8. `retired_at = now()` للسجلات المصدر بعد تصفير رصيدها.
 
-## 2. Frontend
+### ج) تحديثات كود التطبيق
+- كل Dropdown/استعلام للمخزن الرئيسي يفلتر `retired_at IS NULL`.
+- كل قراءة رصيد تستخدم `v_inventory_balances` (استبدال قراءات `inventory_items.stock` المباشرة بالتدريج داخل الشاشات المتأثرة).
+- إضافة Guard في RPCs `apply_inventory_movement` + أوامر التوريد/الصرف: رفض المفتاح المكرر (Idempotency)، رفض الرصيد السالب.
+- شاشة المرتجعات/التحويلات/المصنع: تستخدم canonical تلقائياً (عبر Trigger BEFORE INSERT يحوّل `item_id` القديم لـcanonical إن وجد).
 
-New tab inserted in `src/pages/modules/Slaughterhouse.tsx` between `دفعات الذبح` and `استلام حي`:
+### د) بعد التنفيذ
+- Snapshot ثاني للمخازن الأخرى + diff مع Snapshot ما قبل → إثبات صفري.
+- تشغيل E2E على صنفين (رقاب نعام + برجر): توريد×2، صرف، تحويل+إلغاء، مرتجع، مقارنة الرصيد في كل الشاشات.
+- إصدار تقريرين:
+  - **التقرير النهائي للتنفيذ** (Canonical/Aliases/قبل/بعد/حركات/اعتماد)
+  - **تقرير عدم التغير** لباقي المخازن.
+- تقرير فني بالملفات المعدَّلة والـRPCs/Triggers/Views/Migrations وطريقة الاسترجاع.
 
-```
-<TabsTrigger value="live-sales">بيع نعام قائم</TabsTrigger>
-```
+## تقنيات الحماية
+- كل Migration داخل `BEGIN…COMMIT` مع Savepoints.
+- Snapshot قابل للاسترجاع بأمر `INSERT … SELECT` عكسي موثّق في التقرير.
+- لا Delete نهائياً. لا تعديل مباشر لحقل `stock`. لا تسوية إجمالية.
 
-New file `src/components/slaughterhouse/LiveOstrichSalesTab.tsx`:
-- Header + `+ بيعة قائمة جديدة` button
-- Table columns: `#`, `التاريخ`, `الدفعة`, `عدد النعام`, `وزن البيع`, `سعر/كجم`, `التكلفة`, `إجمالي البيع`, `الربح`, `الحالة`
+## المطلوب منك قبل البدء
 
-New file `src/components/slaughterhouse/NewLiveSaleDialog.tsx`:
-- Select **الدفعة المشتراة** (receipts with `available_count > 0`)
-- Select **النعامة** (from `slaughter_live_birds` not yet sold/slaughtered) — optional if no per-bird records; then user enters count instead
-- **وزن البيع القائم** (numeric, prefilled with last known live weight, editable)
-- **سعر بيع الكيلو**
-- **تاريخ البيع** (default today)
-- **العميل** + **طريقة السداد** (cash/credit/partial + amount_paid)
-- **نسبة ربح مستهدفة %** — optional; when filled, suggests `price/kg = breakeven × (1 + margin)`
+1. **اعتماد الخطة** (رد بـ «موافق ابدأ Dry Run») — سأنفذ المرحلة الأولى فقط وأرسل ملف Dry Run.
+2. رفع ملف **«خطة_تنفيذ_تصحيح_المخزن_الرئيسي_ليفبل_20260728.xlsx»** إن كان يحتوي قواعد إضافية (لم يصلني ضمن المرفقات، فقط ملف الجرد الشامل).
+3. تأكيد نافذة الصيانة (إيقاف حركات المخزن الرئيسي أثناء المرحلة الثانية) — يفضَّل خارج ساعات الذروة.
 
-**Live calculation card** (recomputes on every change):
-
-```
-تكلفة شراء النعامة:        X ج.م
-نصيبها من المصروفات:       Y ج.م
-إجمالي التكلفة حتى اليوم:  X+Y ج.م   (تكلفة تقديرية من متوسط الدفعة — لو batch_average)
-سعر التعادل للكيلو:        (X+Y) ÷ وزن البيع
-إجمالي البيع:              وزن البيع × السعر
-صافي الربح:                إجمالي البيع − إجمالي التكلفة
-الربح في الكيلو / النسبة:  ...
-```
-
-**Cost calculation logic** (client, using data already loaded):
-- **Per-bird**: `unit_cost = bird.purchase_cost + bird.feed_cost + (receipt.other_costs_loaded × bird.live_weight / receipt.total_weight_kg)`
-- **Batch average fallback** (no `slaughter_live_birds` or bird has zero cost): `cost_per_kg_current = receipt.total_batch_cost / max(remaining_live_weight, 1)` then `unit_cost = sale_weight × cost_per_kg_current`. Label the number in the UI as "تكلفة تقديرية من متوسط الدفعة".
-
-On save:
-- Insert `slaughter_live_sales` with snapshot values.
-- Trigger auto-decrements `current_alive_count`.
-- Toast + refresh.
-
-## 3. Routing / Permissions
-
-- No new route; tab lives inside existing `/modules/slaughterhouse`.
-- Write access: general_manager, executive_manager, slaughterhouse_manager (same as receipts). Read: all authenticated.
-
-## 4. Non-goals
-
-- No integration with slaughter batch outputs, yield, or transfers.
-- No inventory movement in warehouses (bird leaves as-is).
-- No treasury auto-posting in this iteration (customer + payment stored for later reconciliation).
-
-## Technical notes
-
-- Cairo-date helpers (`cairoTodayStartUTC`) already used elsewhere — apply to `sale_date` filters in the tab.
-- All monetary formulas run in Postgres generated columns; UI shows live preview only.
-- Existing "available for slaughter" query in `slaughterhouse` intake screens uses `current_alive_count`, so once trigger fires the sold ostrich disappears automatically without extra code.
+بعد اعتمادك أبدأ فوراً بالمرحلة الأولى وأرسل ملف Dry Run دون لمس قاعدة البيانات.
