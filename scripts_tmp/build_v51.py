@@ -84,6 +84,10 @@ II_COLS = ['id','warehouse_id','name','category','sku','unit','stock','low_stock
 
 out = []
 add = out.append
+ii_cols = ', '.join(II_COLS)
+im_cols = ', '.join(IM_COLS)
+
+
 
 add(f"""-- ============================================================================
 -- MAIN-STOCKTAKE-20260727 — Forward Migration v5.1
