@@ -1938,6 +1938,33 @@ const Orders = () => {
                 ))}
               </SelectContent>
             </Select>
+            {/* أزرار سريعة لطلبات المخزن الرئيسي: استلام / توصيل */}
+            <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-1">
+              <span className="px-2 text-xs text-muted-foreground">المخزن الرئيسي:</span>
+              <Button
+                type="button"
+                size="sm"
+                variant={filterFulfillment === 'pickup_main' ? 'default' : 'ghost'}
+                className="h-8 text-xs"
+                onClick={() =>
+                  setFilterFulfillment(filterFulfillment === 'pickup_main' ? 'all' : 'pickup_main')
+                }
+              >
+                استلام من المخزن
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={filterFulfillment === 'delivery_main' ? 'default' : 'ghost'}
+                className="h-8 text-xs"
+                onClick={() =>
+                  setFilterFulfillment(filterFulfillment === 'delivery_main' ? 'all' : 'delivery_main')
+                }
+              >
+                توصيل من المخزن
+              </Button>
+            </div>
+
             <Select value={filterCollectionMethod} onValueChange={setFilterCollectionMethod}>
               <SelectTrigger className="w-52 input-modern">
                 <SelectValue placeholder="فلترة حسب طريقة التحصيل" />
