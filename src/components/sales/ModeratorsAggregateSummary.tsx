@@ -39,12 +39,18 @@ const classify = (productName: string, category: string | null): Category => {
 interface AggRow {
   sales: number;
   orders: number;
+  delivered: number;
+  inProgress: number;
+  returned: number;
   weight: { meat: number; bone: number; processed: number };
 }
 
 const emptyAgg = (): AggRow => ({
   sales: 0,
   orders: 0,
+  delivered: 0,
+  inProgress: 0,
+  returned: 0,
   weight: { meat: 0, bone: 0, processed: 0 },
 });
 
