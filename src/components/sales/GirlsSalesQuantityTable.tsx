@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
@@ -360,6 +361,22 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                await Promise.all([
+                  queryClient.invalidateQueries({ queryKey: ['girls-auto-qty'] }),
+                  queryClient.invalidateQueries({ queryKey: ['girls-chick-qty'] }),
+                  queryClient.invalidateQueries({ queryKey: ['moderators-aggregate-summary'] }),
+                  queryClient.invalidateQueries({ queryKey: ['moderator-quick-access-v2'] }),
+                  queryClient.invalidateQueries({ queryKey: ['achieved-sales'] }),
+                ]);
+                toast.success('تم تحديث الكميات على آخر وضع');
+              }}
+            >
+              <RefreshCw className="h-4 w-4 ml-1" /> تحديث الكميات
+            </Button>
           </div>
         </div>
       </CardHeader>
