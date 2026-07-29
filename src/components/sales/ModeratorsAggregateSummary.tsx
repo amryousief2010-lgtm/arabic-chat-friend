@@ -157,21 +157,33 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
 
       const monthAgg = emptyAgg();
       const today = emptyAgg();
+      const isReturned = (s: string) =>
+        s === "cancelled" || s === "returned" || s === "refunded";
+      const todaysOrders = girlsOrders.filter(
+        (o: any) => toCairoDateString(o.created_at) === todayStr,
+      );
       monthAgg.orders = girlsOrders.length;
-      today.orders = girlsOrders.filter((o: any) =>
-        toCairoDateString(o.created_at) === todayStr,
-      ).length;
+      today.orders = todaysOrders.length;
+      monthAgg.delivered = girlsOrders.filter((o: any) => o.status === "delivered").length;
+      monthAgg.returned = girlsOrders.filter((o: any) => isReturned(o.status)).length;
+      monthAgg.inProgress = monthAgg.orders - monthAgg.delivered - monthAgg.returned;
+      today.delivered = todaysOrders.filter((o: any) => o.status === "delivered").length;
+      today.returned = todaysOrders.filter((o: any) => isReturned(o.status)).length;
+      today.inProgress = today.orders - today.delivered - today.returned;
       monthAgg.sales = girlsOrders.reduce(
         (s: number, o: any) => s + Number(o.total || 0),
         0,
       );
-      today.sales = girlsOrders
-        .filter((o: any) => toCairoDateString(o.created_at) === todayStr)
-        .reduce((s: number, o: any) => s + Number(o.total || 0), 0);
+      today.sales = todaysOrders.reduce(
+        (s: number, o: any) => s + Number(o.total || 0),
+        0,
+      );
 
+      // الكميات (لحوم / بالعظم / مصنعات) تُحسب من الطلبات المُسلّمة فقط
       for (const it of items) {
         const o = orderById.get(it.order_id);
         if (!o) continue;
+        if (o.status !== "delivered") continue;
         const cat = classify(
           it.product_name,
           it.product_id ? productCat.get(it.product_id) ?? null : null,
