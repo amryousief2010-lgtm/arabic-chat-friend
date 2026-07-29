@@ -112,10 +112,12 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
 
       return GIRLS.map(girl => {
         const filtered = (orders as OrderRow[]).filter(o => {
-          const modName = o.moderator || '';
+          const modName = (o.moderator || '').trim();
           const creatorName = o.created_by ? (profileMap.get(o.created_by) || '') : '';
-          return matches(modName, girl) || matches(creatorName, girl);
+          // الأولوية لحقل المسوقة المسؤولة (بعد النقل) وليس من سجّل الأوردر
+          return modName ? matches(modName, girl) : matches(creatorName, girl);
         });
+
         const total = filtered.length;
         const delivered = filtered.filter(o => o.status === 'delivered').length;
         const cancelled = filtered.filter(o => o.status === 'cancelled').length;

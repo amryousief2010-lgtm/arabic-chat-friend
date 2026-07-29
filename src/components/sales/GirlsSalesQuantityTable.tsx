@@ -153,11 +153,16 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
 
       const orderToGirl = new Map<string, string>();
       orders.forEach(o => {
-        const modName = o.moderator || '';
+        const modName = (o.moderator || '').trim();
         const creatorName = o.created_by ? (profileMap.get(o.created_by) || '') : '';
-        const girl = GIRLS.find(g => matches(modName, g) || matches(creatorName, g));
+        // الأولوية لحقل المسوقة المسؤولة؛ لو الأوردر اتنقل لمسوقة تانية أو للشركة
+        // ميتحسبش لمن سجّله.
+        const girl = modName
+          ? GIRLS.find(g => matches(modName, g))
+          : GIRLS.find(g => matches(creatorName, g));
         if (girl) orderToGirl.set(o.id, girl);
       });
+
 
       const orderIds = Array.from(orderToGirl.keys());
       if (orderIds.length === 0) return result;

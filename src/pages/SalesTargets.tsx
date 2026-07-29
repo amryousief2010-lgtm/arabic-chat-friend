@@ -161,22 +161,49 @@ const SalesTargets = () => {
 
       const { data, error } = await supabase
         .from('orders')
-        .select('created_by, total')
+        .select('created_by, moderator, total')
         .gte('created_at', startDate.toISOString())
         .lt('created_at', endDate.toISOString())
         .eq('status', 'delivered');
 
       if (error) throw error;
 
-      // Aggregate by user
+      // خريطة أسماء المسوقات -> user_id لاحتساب الأوردرات المنقولة للمسؤولة الجديدة
+      const { data: roleRows } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'sales_moderator');
+      const modIds = (roleRows || []).map((r: any) => r.user_id);
+      let modProfiles: { id: string; full_name: string }[] = [];
+      if (modIds.length > 0) {
+        const { data: p } = await supabase
+          .from('profile_directory')
+          .select('id, full_name')
+          .in('id', modIds);
+        modProfiles = (p || []) as { id: string; full_name: string }[];
+      }
+      const norm = (s: string) =>
+        (s || '').replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').trim();
+      const resolveByModeratorName = (name: string): string | null => {
+        const n = norm(name);
+        const hit = modProfiles.find(
+          (p) => n.includes(norm(p.full_name)) || norm(p.full_name).includes(n),
+        );
+        return hit ? hit.id : null;
+      };
+
+      // Aggregate by owner: حقل المسوقة المسؤولة له الأولوية على من سجّل الأوردر
       const aggregated: Record<string, number> = {};
-      data.forEach(order => {
-        if (order.created_by) {
-          aggregated[order.created_by] = (aggregated[order.created_by] || 0) + Number(order.total);
+      data.forEach((order: any) => {
+        const modName = (order.moderator || '').trim();
+        const ownerId = modName ? resolveByModeratorName(modName) : order.created_by;
+        if (ownerId) {
+          aggregated[ownerId] = (aggregated[ownerId] || 0) + Number(order.total);
         }
       });
 
       return Object.entries(aggregated).map(([user_id, total]) => ({ user_id, total }));
+
     },
   });
 

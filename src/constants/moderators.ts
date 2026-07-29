@@ -75,9 +75,14 @@ export const isOrderForModerator = (
   orderModerator: string | null,
   creatorFullName: string | null,
 ): boolean => {
-  const candidates = [orderModerator, creatorFullName].filter(Boolean) as string[];
-  return candidates.some((c) => {
+  const nameMatches = (c: string) => {
     const n = normalizeAr(c);
     return moderator.aliases.some((a) => n.includes(normalizeAr(a)));
-  });
+  };
+  // مصدر الحقيقة هو حقل "المسوقة المسؤولة" (orders.moderator).
+  // لو تم نقل الأوردر لمسوقة أخرى أو للشركة، لا يُحتسب لمن سجّلته.
+  const owner = (orderModerator || "").trim();
+  if (owner) return nameMatches(owner);
+  return creatorFullName ? nameMatches(creatorFullName) : false;
 };
+
