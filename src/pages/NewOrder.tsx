@@ -1044,11 +1044,11 @@ const NewOrder = () => {
               candidates: d.candidates || [],
             });
             if (existing?.status === 'pending') {
-              toast.message('هذا الطلب مكرر — طلب الاعتماد مرسل بالفعل وبانتظار موافقة م. آلاء حامد والمدير التنفيذي معاً.');
+              toast.message('هذا الطلب مكرر — طلب الاعتماد مرسل بالفعل وبانتظار موافقة م. آلاء حامد.');
             } else if (existing?.status === 'rejected') {
               toast.error('هذا الطلب مكرر وتم رفضه من الإدارة، لا يمكن تسجيله.');
             } else {
-              toast.message('هذا الطلب مكرر ولن يتم تسجيله إلا بعد موافقة م. آلاء حامد والمدير التنفيذي.');
+              toast.message('هذا الطلب مكرر ولن يتم تسجيله إلا بعد موافقة م. آلاء حامد.');
             }
             setSubmitting(false);
             return;
