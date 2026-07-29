@@ -1263,7 +1263,7 @@ const NewOrder = () => {
         } catch {
           setApprovalDialog((prev) => ({ ...prev, open: true, status: prev.status === 'pending' ? 'pending' : 'idle' }));
         }
-        toast.message('هذا الطلب مكرر ولن يتم تسجيله إلا بعد موافقة م. آلاء حامد والمدير التنفيذي معاً.');
+        toast.message('هذا الطلب مكرر ولن يتم تسجيله إلا بعد موافقة م. آلاء حامد.');
       } else {
         toast.error('حدث خطأ أثناء إنشاء الطلب');
       }
