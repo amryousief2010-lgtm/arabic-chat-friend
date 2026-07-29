@@ -39,12 +39,18 @@ const classify = (productName: string, category: string | null): Category => {
 interface AggRow {
   sales: number;
   orders: number;
+  delivered: number;
+  inProgress: number;
+  returned: number;
   weight: { meat: number; bone: number; processed: number };
 }
 
 const emptyAgg = (): AggRow => ({
   sales: 0,
   orders: 0,
+  delivered: 0,
+  inProgress: 0,
+  returned: 0,
   weight: { meat: 0, bone: 0, processed: 0 },
 });
 
@@ -77,7 +83,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
       // 1) Orders for this month (UTC boundaries — created_at is UTC)
       const { data: orders, error } = await supabase
         .from("orders")
-        .select("id, total, moderator, created_by, created_at")
+        .select("id, total, moderator, created_by, created_at, status")
         .gte("created_at", startOfMonth.toISOString())
         .lt("created_at", startOfNextMonth.toISOString());
       if (error) throw error;
@@ -151,21 +157,33 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
 
       const monthAgg = emptyAgg();
       const today = emptyAgg();
+      const isReturned = (s: string) =>
+        s === "cancelled" || s === "returned" || s === "refunded";
+      const todaysOrders = girlsOrders.filter(
+        (o: any) => toCairoDateString(o.created_at) === todayStr,
+      );
       monthAgg.orders = girlsOrders.length;
-      today.orders = girlsOrders.filter((o: any) =>
-        toCairoDateString(o.created_at) === todayStr,
-      ).length;
+      today.orders = todaysOrders.length;
+      monthAgg.delivered = girlsOrders.filter((o: any) => o.status === "delivered").length;
+      monthAgg.returned = girlsOrders.filter((o: any) => isReturned(o.status)).length;
+      monthAgg.inProgress = monthAgg.orders - monthAgg.delivered - monthAgg.returned;
+      today.delivered = todaysOrders.filter((o: any) => o.status === "delivered").length;
+      today.returned = todaysOrders.filter((o: any) => isReturned(o.status)).length;
+      today.inProgress = today.orders - today.delivered - today.returned;
       monthAgg.sales = girlsOrders.reduce(
         (s: number, o: any) => s + Number(o.total || 0),
         0,
       );
-      today.sales = girlsOrders
-        .filter((o: any) => toCairoDateString(o.created_at) === todayStr)
-        .reduce((s: number, o: any) => s + Number(o.total || 0), 0);
+      today.sales = todaysOrders.reduce(
+        (s: number, o: any) => s + Number(o.total || 0),
+        0,
+      );
 
+      // الكميات (لحوم / بالعظم / مصنعات) تُحسب من الطلبات المُسلّمة فقط
       for (const it of items) {
         const o = orderById.get(it.order_id);
         if (!o) continue;
+        if (o.status !== "delivered") continue;
         const cat = classify(
           it.product_name,
           it.product_id ? productCat.get(it.product_id) ?? null : null,
@@ -221,6 +239,21 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
                 <ShoppingBag className="w-5 h-5" />
               </div>
             </div>
+            <div className="grid grid-cols-3 gap-2 text-[11px] mb-2">
+              <div className="bg-white/15 rounded-lg p-2 text-center">
+                <p className="opacity-80">مُسلّم</p>
+                <p className="font-bold text-sm">{isLoading ? "…" : today.delivered}</p>
+              </div>
+              <div className="bg-white/15 rounded-lg p-2 text-center">
+                <p className="opacity-80">قيد التوصيل</p>
+                <p className="font-bold text-sm">{isLoading ? "…" : today.inProgress}</p>
+              </div>
+              <div className="bg-white/15 rounded-lg p-2 text-center">
+                <p className="opacity-80">مرتجع/ملغي</p>
+                <p className="font-bold text-sm">{isLoading ? "…" : today.returned}</p>
+              </div>
+            </div>
+            <p className="text-[10px] opacity-80 mb-1">الكميات أدناه محسوبة من الطلبات المُسلّمة فقط</p>
             <div className="grid grid-cols-3 gap-2 text-xs">
               <div className="bg-white/15 rounded-lg p-2">
                 <div className="flex items-center gap-1 opacity-80">
@@ -265,6 +298,21 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
                 <TrendingUp className="w-5 h-5" />
               </div>
             </div>
+            <div className="grid grid-cols-3 gap-2 text-[11px] mb-2">
+              <div className="bg-white/15 rounded-lg p-2 text-center">
+                <p className="opacity-80">مُسلّم</p>
+                <p className="font-bold text-sm">{isLoading ? "…" : monthAgg.delivered}</p>
+              </div>
+              <div className="bg-white/15 rounded-lg p-2 text-center">
+                <p className="opacity-80">قيد التوصيل</p>
+                <p className="font-bold text-sm">{isLoading ? "…" : monthAgg.inProgress}</p>
+              </div>
+              <div className="bg-white/15 rounded-lg p-2 text-center">
+                <p className="opacity-80">مرتجع/ملغي</p>
+                <p className="font-bold text-sm">{isLoading ? "…" : monthAgg.returned}</p>
+              </div>
+            </div>
+            <p className="text-[10px] opacity-80 mb-1">الكميات أدناه محسوبة من الطلبات المُسلّمة فقط</p>
             <div className="grid grid-cols-3 gap-2 text-xs">
               <div className="bg-white/15 rounded-lg p-2">
                 <div className="flex items-center gap-1 opacity-80">

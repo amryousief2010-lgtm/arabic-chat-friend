@@ -152,17 +152,16 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
         const monthW = emptyW();
         const todayW = emptyW();
         const monthMoney = emptyM();
-        // Month weights count ONLY delivered orders; today weights remain all-statuses for the day
+        // كل الكميات (اليوم والشهر) تُحسب من الطلبات المُسلّمة فقط
         const deliveredMonthIds = new Set(filtered.filter((o) => o.status === "delivered").map((o) => o.id));
         const orderIdSet = new Set(filtered.map((o) => o.id));
         for (const it of items) {
           if (!orderIdSet.has(it.order_id)) continue;
+          if (!deliveredMonthIds.has(it.order_id)) continue;
           const cat = classify(it.product_name, it.product_id ? productCat.get(it.product_id) ?? null : null);
           if (cat === "other") continue;
           const qty = Number(it.quantity || 0);
-          if (deliveredMonthIds.has(it.order_id)) {
-            monthW[cat] += qty;
-          }
+          monthW[cat] += qty;
           const o = orderById.get(it.order_id);
           if (o && toCairoDateString(o.created_at) === todayStr) todayW[cat] += qty;
         }
