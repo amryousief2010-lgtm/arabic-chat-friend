@@ -1044,11 +1044,11 @@ const NewOrder = () => {
               candidates: d.candidates || [],
             });
             if (existing?.status === 'pending') {
-              toast.message('هذا الطلب مكرر — طلب الاعتماد مرسل بالفعل وبانتظار موافقة م. آلاء حامد والمدير التنفيذي معاً.');
+              toast.message('هذا الطلب مكرر — طلب الاعتماد مرسل بالفعل وبانتظار موافقة م. آلاء حامد.');
             } else if (existing?.status === 'rejected') {
               toast.error('هذا الطلب مكرر وتم رفضه من الإدارة، لا يمكن تسجيله.');
             } else {
-              toast.message('هذا الطلب مكرر ولن يتم تسجيله إلا بعد موافقة م. آلاء حامد والمدير التنفيذي.');
+              toast.message('هذا الطلب مكرر ولن يتم تسجيله إلا بعد موافقة م. آلاء حامد.');
             }
             setSubmitting(false);
             return;
@@ -1263,7 +1263,7 @@ const NewOrder = () => {
         } catch {
           setApprovalDialog((prev) => ({ ...prev, open: true, status: prev.status === 'pending' ? 'pending' : 'idle' }));
         }
-        toast.message('هذا الطلب مكرر ولن يتم تسجيله إلا بعد موافقة م. آلاء حامد والمدير التنفيذي معاً.');
+        toast.message('هذا الطلب مكرر ولن يتم تسجيله إلا بعد موافقة م. آلاء حامد.');
       } else {
         toast.error('حدث خطأ أثناء إنشاء الطلب');
       }
@@ -2481,9 +2481,9 @@ const NewOrder = () => {
       <Dialog open={approvalDialog.open} onOpenChange={(o) => setApprovalDialog((s) => ({ ...s, open: o }))}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>يلزم موافقة مزدوجة (التسويق + التنفيذي)</DialogTitle>
+            <DialogTitle>يلزم موافقة م. آلاء حامد</DialogTitle>
             <DialogDescription>
-              يوجد طلب مشابه مسجل بالفعل لهذا العميل اليوم. لا يمكن تسجيل الطلب إلا بعد موافقة كل من مديرة التسويق (م. آلاء حامد) والمدير التنفيذي معاً.
+              هذا العميل (بنفس رقم الهاتف) لديه طلب مسجل خلال الشهر الحالي مع مسوقة أخرى. لا يمكن تسجيل الطلب إلا بعد موافقة مديرة التسويق (م. آلاء حامد).
             </DialogDescription>
           </DialogHeader>
 
