@@ -239,6 +239,21 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
                 <ShoppingBag className="w-5 h-5" />
               </div>
             </div>
+            <div className="grid grid-cols-3 gap-2 text-[11px] mb-2">
+              <div className="bg-white/15 rounded-lg p-2 text-center">
+                <p className="opacity-80">مُسلّم</p>
+                <p className="font-bold text-sm">{isLoading ? "…" : today.delivered}</p>
+              </div>
+              <div className="bg-white/15 rounded-lg p-2 text-center">
+                <p className="opacity-80">قيد التوصيل</p>
+                <p className="font-bold text-sm">{isLoading ? "…" : today.inProgress}</p>
+              </div>
+              <div className="bg-white/15 rounded-lg p-2 text-center">
+                <p className="opacity-80">مرتجع/ملغي</p>
+                <p className="font-bold text-sm">{isLoading ? "…" : today.returned}</p>
+              </div>
+            </div>
+            <p className="text-[10px] opacity-80 mb-1">الكميات أدناه محسوبة من الطلبات المُسلّمة فقط</p>
             <div className="grid grid-cols-3 gap-2 text-xs">
               <div className="bg-white/15 rounded-lg p-2">
                 <div className="flex items-center gap-1 opacity-80">
