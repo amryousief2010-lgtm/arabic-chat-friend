@@ -20830,6 +20830,10 @@ export type Database = {
         }
         Returns: string
       }
+      customer_has_other_order_this_month: {
+        Args: { p_customer_id: string; p_user_id: string }
+        Returns: boolean
+      }
       customer_has_other_order_today: {
         Args: { p_customer_id: string; p_user_id: string }
         Returns: boolean
