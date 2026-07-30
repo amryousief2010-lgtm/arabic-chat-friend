@@ -12,9 +12,11 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import ZodexSheetUpdateButton from "@/components/warehouses/ZodexSheetUpdateButton";
+import { RelinkBillDialog } from "@/components/warehouses/RelinkBillDialog";
+import { LinkBillToOrderDialog } from "@/components/warehouses/LinkBillToOrderDialog";
 import {
   RefreshCw, Loader2, Link2, ExternalLink, ArrowLeft, PackageX,
-  AlertTriangle, Info, Wrench, Download, CheckCircle2, XCircle,
+  AlertTriangle, Info, Wrench, Download, CheckCircle2, XCircle, Trash2,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
