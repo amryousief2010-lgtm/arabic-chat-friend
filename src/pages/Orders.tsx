@@ -3586,6 +3586,22 @@ const Orders = () => {
         />
       )}
 
+      {billOrder && (
+        <RelinkBillDialog
+          open={!!billOrder}
+          onOpenChange={(o) => !o && setBillOrder(null)}
+          order={{
+            id: billOrder.id,
+            order_number: billOrder.order_number,
+            shipping_bill_no: (billOrder as any).shipping_bill_no,
+          }}
+          onLinked={() => {
+            setBillOrder(null);
+            fetchOrders();
+          }}
+        />
+      )}
+
       {swapOfferOrder && (
         <SwapOfferDialog
           open={!!swapOfferOrder}
