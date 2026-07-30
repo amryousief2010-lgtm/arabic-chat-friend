@@ -2200,6 +2200,16 @@ const Orders = () => {
                             {order.shipping_bill_no}
                           </span>
                         )}
+                        {canEditShippingBill && (
+                          <button
+                            type="button"
+                            onClick={() => setBillOrder(order)}
+                            className="text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded border border-primary/40 text-primary hover:bg-primary/10 whitespace-nowrap"
+                            title={order.shipping_bill_no ? "تعديل رقم بوليصة زودكس" : "إضافة رقم بوليصة زودكس يدويًا"}
+                          >
+                            {order.shipping_bill_no ? "تعديل البوليصة" : "+ بوليصة"}
+                          </button>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {isDuplicatePhone && (
