@@ -17,7 +17,7 @@ interface Props {
 }
 
 function normalizeBill(s: string) {
-  return String(s || "").trim().toUpperCase().replace(/\s+/g, "");
+  return String(s || "").trim().replace(/\s+/g, "");
 }
 
 export function RelinkBillDialog({ open, onOpenChange, order, onLinked }: Props) {
