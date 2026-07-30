@@ -167,6 +167,62 @@ export default function ZodexReview() {
   const [detailsErrById, setDetailsErrById] = useState<Record<string, string>>({});
   const [fetchingId, setFetchingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
+  const [relinkBill, setRelinkBill] = useState<
+    { billNo: string; missingId: string; defaultOrderNumber?: string } | null
+  >(null);
+  const [relinkOrder, setRelinkOrder] = useState<
+    { id: string; order_number: string; shipping_bill_no?: string | null } | null
+  >(null);
+
+  /** استبعاد بوليصة زودكس من شاشة المراجعة (بعد مراجعتها) */
+  const dismissBill = async (item: BillWithClassification) => {
+    if (!confirm(`حذف البوليصة ${item.bill.bill_no} من شاشة المراجعة؟`)) return;
+    setDismissingId(item.bill.id);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("zodex_missing_orders")
+        .update({
+          status: "ignored",
+          ignored_reason: "تمت المراجعة — استبعاد يدوي من شاشة مراجعة زودكس",
+          resolved_by: userData.user?.id ?? null,
+          resolved_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.bill.id);
+      if (error) throw error;
+      setClassified((s) => s.filter((c) => c.bill.id !== item.bill.id));
+      toast.success("تم الحذف من شاشة المراجعة");
+    } catch (e: any) {
+      toast.error(`فشل الحذف: ${e.message || e}`);
+    } finally {
+      setDismissingId(null);
+    }
+  };
+
+  /** استبعاد أوردر من قائمة "مش على زودكس" بعد مراجعته */
+  const dismissOrder = async (o: OrderRow) => {
+    if (!confirm(`حذف الأوردر ${o.order_number} من شاشة المراجعة؟`)) return;
+    setDismissingId(o.id);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const { error } = await (supabase as any)
+        .from("zodex_order_review_dismissals")
+        .insert({
+          order_id: o.id,
+          reason: "تمت المراجعة — استبعاد يدوي",
+          dismissed_by: userData.user?.id ?? null,
+        });
+      if (error) throw error;
+      setNoBillOrders((s) => s.filter((r) => r.id !== o.id));
+      toast.success("تم الحذف من شاشة المراجعة");
+    } catch (e: any) {
+      toast.error(`فشل الحذف: ${e.message || e}`);
+    } finally {
+      setDismissingId(null);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
