@@ -17,7 +17,7 @@ interface Props {
 }
 
 function normalizeBill(s: string) {
-  return String(s || "").trim().toUpperCase().replace(/\s+/g, "");
+  return String(s || "").trim().replace(/\s+/g, "");
 }
 
 export function RelinkBillDialog({ open, onOpenChange, order, onLinked }: Props) {
@@ -26,8 +26,8 @@ export function RelinkBillDialog({ open, onOpenChange, order, onLinked }: Props)
 
   const save = async () => {
     const clean = normalizeBill(bill);
-    if (!/^ZX\d{4,}$/i.test(clean)) {
-      toast.error("رقم البوليصة لازم يبدأ بـ ZX متبوعًا بأرقام");
+    if (clean.length < 5) {
+      toast.error("رقم البوليصة قصير جدًا — راجعه من زودكس");
       return;
     }
     setSaving(true);

@@ -12,9 +12,11 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import ZodexSheetUpdateButton from "@/components/warehouses/ZodexSheetUpdateButton";
+import { RelinkBillDialog } from "@/components/warehouses/RelinkBillDialog";
+import { LinkBillToOrderDialog } from "@/components/warehouses/LinkBillToOrderDialog";
 import {
   RefreshCw, Loader2, Link2, ExternalLink, ArrowLeft, PackageX,
-  AlertTriangle, Info, Wrench, Download, CheckCircle2, XCircle,
+  AlertTriangle, Info, Wrench, Download, CheckCircle2, XCircle, Trash2,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -165,6 +167,62 @@ export default function ZodexReview() {
   const [detailsErrById, setDetailsErrById] = useState<Record<string, string>>({});
   const [fetchingId, setFetchingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
+  const [relinkBill, setRelinkBill] = useState<
+    { billNo: string; missingId: string; defaultOrderNumber?: string } | null
+  >(null);
+  const [relinkOrder, setRelinkOrder] = useState<
+    { id: string; order_number: string; shipping_bill_no?: string | null } | null
+  >(null);
+
+  /** استبعاد بوليصة زودكس من شاشة المراجعة (بعد مراجعتها) */
+  const dismissBill = async (item: BillWithClassification) => {
+    if (!confirm(`حذف البوليصة ${item.bill.bill_no} من شاشة المراجعة؟`)) return;
+    setDismissingId(item.bill.id);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("zodex_missing_orders")
+        .update({
+          status: "ignored",
+          ignored_reason: "تمت المراجعة — استبعاد يدوي من شاشة مراجعة زودكس",
+          resolved_by: userData.user?.id ?? null,
+          resolved_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.bill.id);
+      if (error) throw error;
+      setClassified((s) => s.filter((c) => c.bill.id !== item.bill.id));
+      toast.success("تم الحذف من شاشة المراجعة");
+    } catch (e: any) {
+      toast.error(`فشل الحذف: ${e.message || e}`);
+    } finally {
+      setDismissingId(null);
+    }
+  };
+
+  /** استبعاد أوردر من قائمة "مش على زودكس" بعد مراجعته */
+  const dismissOrder = async (o: OrderRow) => {
+    if (!confirm(`حذف الأوردر ${o.order_number} من شاشة المراجعة؟`)) return;
+    setDismissingId(o.id);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const { error } = await (supabase as any)
+        .from("zodex_order_review_dismissals")
+        .insert({
+          order_id: o.id,
+          reason: "تمت المراجعة — استبعاد يدوي",
+          dismissed_by: userData.user?.id ?? null,
+        });
+      if (error) throw error;
+      setNoBillOrders((s) => s.filter((r) => r.id !== o.id));
+      toast.success("تم الحذف من شاشة المراجعة");
+    } catch (e: any) {
+      toast.error(`فشل الحذف: ${e.message || e}`);
+    } finally {
+      setDismissingId(null);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -236,7 +294,16 @@ export default function ZodexReview() {
 
       if (noBillRes.error) throw noBillRes.error;
 
+      // Orders manually dismissed after review → hide from this screen
+      const { data: dismissedRows } = await (supabase as any)
+        .from("zodex_order_review_dismissals")
+        .select("order_id");
+      const dismissedOrderIds = new Set(
+        ((dismissedRows || []) as any[]).map((r) => r.order_id),
+      );
+
       const filteredNoBill = ((noBillRes.data || []) as any[]).filter((o) => {
+        if (dismissedOrderIds.has(o.id)) return false;
         if (NON_SHIPPABLE_STATUSES.has(o.status)) return false;
         // Exclude private courier and other explicit non-zodex companies
         const sc = (o.shipping_company || "").trim();
@@ -496,6 +563,7 @@ export default function ZodexReview() {
                       <TableHead>الموديريتور</TableHead>
                       <TableHead>تاريخ الشحن</TableHead>
                       <TableHead>زودكس</TableHead>
+                      <TableHead className="text-center">إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -527,6 +595,32 @@ export default function ZodexReview() {
                           >
                             فتح <ExternalLink className="h-3 w-3" />
                           </a>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1"
+                              onClick={() => setRelinkBill({ billNo: c.bill.bill_no, missingId: c.bill.id })}
+                              title="ربط البوليصة بأوردر عندنا"
+                            >
+                              <Link2 className="h-3.5 w-3.5" />
+                              إعادة الربط
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-destructive h-8 w-8"
+                              disabled={dismissingId === c.bill.id}
+                              onClick={() => dismissBill(c)}
+                              title="حذف من شاشة المراجعة"
+                            >
+                              {dismissingId === c.bill.id
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <Trash2 className="h-4 w-4" />}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -565,6 +659,7 @@ export default function ZodexReview() {
                       <TableHead>الإجمالي</TableHead>
                       <TableHead>الحالة</TableHead>
                       <TableHead>عمر الأوردر</TableHead>
+                      <TableHead className="text-center">إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -577,6 +672,36 @@ export default function ZodexReview() {
                         <TableCell><Badge variant="outline">{o.status}</Badge></TableCell>
                         <TableCell className="text-xs">
                           {formatDistanceToNow(new Date(o.created_at), { locale: ar, addSuffix: true })}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1"
+                              onClick={() => setRelinkOrder({
+                                id: o.id,
+                                order_number: o.order_number,
+                                shipping_bill_no: o.shipping_bill_no,
+                              })}
+                              title="إضافة/إعادة ربط بوليصة زودكس"
+                            >
+                              <Link2 className="h-3.5 w-3.5" />
+                              إعادة الربط
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-destructive h-8 w-8"
+                              disabled={dismissingId === o.id}
+                              onClick={() => dismissOrder(o)}
+                              title="حذف من شاشة المراجعة"
+                            >
+                              {dismissingId === o.id
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <Trash2 className="h-4 w-4" />}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -694,37 +819,65 @@ export default function ZodexReview() {
                               {c.issue?.detail}
                             </TableCell>
                             <TableCell>
-                              {c.issue?.fixable || canForceFix ? (
-                                <div className="flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => doFix(c)}
-                                    disabled={fixingId === c.bill.id || rejectingId === c.bill.id}
-                                    className="gap-1"
-                                  >
-                                    {fixingId === c.bill.id ? (
-                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    ) : (
-                                      <Wrench className="h-3.5 w-3.5" />
-                                    )}
-                                    {c.issue?.kind === "suggested_match" ? "تأكيد الربط" : "إصلاح الربط"}
-                                  </Button>
-                                  {c.issue?.kind === "suggested_match" && (
+                              <div className="flex flex-wrap items-center gap-1">
+                                {c.issue?.fixable || canForceFix ? (
+                                  <>
                                     <Button
                                       size="sm"
-                                      variant="outline"
-                                      onClick={() => rejectSuggestion(c)}
+                                      onClick={() => doFix(c)}
                                       disabled={fixingId === c.bill.id || rejectingId === c.bill.id}
+                                      className="gap-1"
                                     >
-                                      {rejectingId === c.bill.id ? (
+                                      {fixingId === c.bill.id ? (
                                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                      ) : "رفض"}
+                                      ) : (
+                                        <Wrench className="h-3.5 w-3.5" />
+                                      )}
+                                      {c.issue?.kind === "suggested_match" ? "تأكيد الربط" : "إصلاح الربط"}
                                     </Button>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">اسحب زودكس للتأكيد</span>
-                              )}
+                                    {c.issue?.kind === "suggested_match" && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => rejectSuggestion(c)}
+                                        disabled={fixingId === c.bill.id || rejectingId === c.bill.id}
+                                      >
+                                        {rejectingId === c.bill.id ? (
+                                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        ) : "رفض"}
+                                      </Button>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">اسحب زودكس للتأكيد</span>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1"
+                                  onClick={() => setRelinkBill({
+                                    billNo: c.bill.bill_no,
+                                    missingId: c.bill.id,
+                                    defaultOrderNumber: cand?.order_number,
+                                  })}
+                                  title="إعادة ربط البوليصة بأوردر"
+                                >
+                                  <Link2 className="h-3.5 w-3.5" />
+                                  إعادة الربط
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="text-destructive h-8 w-8"
+                                  disabled={dismissingId === c.bill.id}
+                                  onClick={() => dismissBill(c)}
+                                  title="حذف من شاشة المراجعة"
+                                >
+                                  {dismissingId === c.bill.id
+                                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                                    : <Trash2 className="h-4 w-4" />}
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                           {isExpanded && (
@@ -813,6 +966,26 @@ export default function ZodexReview() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {relinkBill && (
+        <LinkBillToOrderDialog
+          open
+          onOpenChange={(v) => !v && setRelinkBill(null)}
+          billNo={relinkBill.billNo}
+          missingId={relinkBill.missingId}
+          defaultOrderNumber={relinkBill.defaultOrderNumber}
+          onLinked={() => { setRelinkBill(null); load(); }}
+        />
+      )}
+
+      {relinkOrder && (
+        <RelinkBillDialog
+          open
+          onOpenChange={(v) => !v && setRelinkOrder(null)}
+          order={relinkOrder}
+          onLinked={() => { setRelinkOrder(null); load(); }}
+        />
+      )}
     </div>
   );
 }

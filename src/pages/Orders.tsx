@@ -40,6 +40,7 @@ import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
 import AddOfferDialog from "@/components/orders/AddOfferDialog";
 import EditAddressWarehouseDialog from "@/components/orders/EditAddressWarehouseDialog";
 import EditCustomerInfoDialog from "@/components/orders/EditCustomerInfoDialog";
+import { RelinkBillDialog } from "@/components/warehouses/RelinkBillDialog";
 import PhoneWithCopy from "@/components/orders/PhoneWithCopy";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import QuickDeliveryDialog from "@/components/orders/QuickDeliveryDialog";
@@ -275,6 +276,12 @@ const Orders = () => {
  const { user, profile, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, roles, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems, canManageOrders } = useAuth();
   const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
    const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
+   // صلاحية إضافة/تعديل رقم بوليصة زودكس يدويًا على الأوردر (م/آلاء + الإدارة العليا + مدير المبيعات)
+   const canEditShippingBill =
+     isGeneralManager ||
+     isExecutiveManager ||
+     (roles || []).includes('marketing_sales_manager') ||
+     (roles || []).includes('sales_manager');
    // صلاحية إدارة/اختيار طريقة التحصيل — الأدوار المسؤولة عن التحصيل فعلياً فقط.
    // الأدوار التسويقية (مثل مديرة التسويق م/آلاء) تحدّث الحالة فقط بدون فتح شاشة التحصيل.
    const rolesList = (roles || []) as string[];
@@ -392,6 +399,7 @@ const Orders = () => {
   const [addOfferOrder, setAddOfferOrder] = useState<Order | null>(null);
   const [editAddressOrder, setEditAddressOrder] = useState<Order | null>(null);
   const [editCustomerOrder, setEditCustomerOrder] = useState<Order | null>(null);
+  const [billOrder, setBillOrder] = useState<Order | null>(null);
 
   const handlePrintOrder = (order: Order) => {
     printOrderInvoice({
@@ -2192,6 +2200,16 @@ const Orders = () => {
                             {order.shipping_bill_no}
                           </span>
                         )}
+                        {canEditShippingBill && (
+                          <button
+                            type="button"
+                            onClick={() => setBillOrder(order)}
+                            className="text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded border border-primary/40 text-primary hover:bg-primary/10 whitespace-nowrap"
+                            title={order.shipping_bill_no ? "تعديل رقم بوليصة زودكس" : "إضافة رقم بوليصة زودكس يدويًا"}
+                          >
+                            {order.shipping_bill_no ? "تعديل البوليصة" : "+ بوليصة"}
+                          </button>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {isDuplicatePhone && (
@@ -3575,6 +3593,22 @@ const Orders = () => {
           onSaved={(next) => {
             setOrders((prev) => prev.map((o) => o.id === editCustomerOrder.id ? { ...o, ...next } : o));
             setEditCustomerOrder(null);
+          }}
+        />
+      )}
+
+      {billOrder && (
+        <RelinkBillDialog
+          open={!!billOrder}
+          onOpenChange={(o) => !o && setBillOrder(null)}
+          order={{
+            id: billOrder.id,
+            order_number: billOrder.order_number,
+            shipping_bill_no: (billOrder as any).shipping_bill_no,
+          }}
+          onLinked={() => {
+            setBillOrder(null);
+            fetchOrders();
           }}
         />
       )}
