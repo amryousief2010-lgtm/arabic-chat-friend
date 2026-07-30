@@ -819,37 +819,65 @@ export default function ZodexReview() {
                               {c.issue?.detail}
                             </TableCell>
                             <TableCell>
-                              {c.issue?.fixable || canForceFix ? (
-                                <div className="flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => doFix(c)}
-                                    disabled={fixingId === c.bill.id || rejectingId === c.bill.id}
-                                    className="gap-1"
-                                  >
-                                    {fixingId === c.bill.id ? (
-                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    ) : (
-                                      <Wrench className="h-3.5 w-3.5" />
-                                    )}
-                                    {c.issue?.kind === "suggested_match" ? "تأكيد الربط" : "إصلاح الربط"}
-                                  </Button>
-                                  {c.issue?.kind === "suggested_match" && (
+                              <div className="flex flex-wrap items-center gap-1">
+                                {c.issue?.fixable || canForceFix ? (
+                                  <>
                                     <Button
                                       size="sm"
-                                      variant="outline"
-                                      onClick={() => rejectSuggestion(c)}
+                                      onClick={() => doFix(c)}
                                       disabled={fixingId === c.bill.id || rejectingId === c.bill.id}
+                                      className="gap-1"
                                     >
-                                      {rejectingId === c.bill.id ? (
+                                      {fixingId === c.bill.id ? (
                                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                      ) : "رفض"}
+                                      ) : (
+                                        <Wrench className="h-3.5 w-3.5" />
+                                      )}
+                                      {c.issue?.kind === "suggested_match" ? "تأكيد الربط" : "إصلاح الربط"}
                                     </Button>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">اسحب زودكس للتأكيد</span>
-                              )}
+                                    {c.issue?.kind === "suggested_match" && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => rejectSuggestion(c)}
+                                        disabled={fixingId === c.bill.id || rejectingId === c.bill.id}
+                                      >
+                                        {rejectingId === c.bill.id ? (
+                                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        ) : "رفض"}
+                                      </Button>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">اسحب زودكس للتأكيد</span>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1"
+                                  onClick={() => setRelinkBill({
+                                    billNo: c.bill.bill_no,
+                                    missingId: c.bill.id,
+                                    defaultOrderNumber: cand?.order_number,
+                                  })}
+                                  title="إعادة ربط البوليصة بأوردر"
+                                >
+                                  <Link2 className="h-3.5 w-3.5" />
+                                  إعادة الربط
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="text-destructive h-8 w-8"
+                                  disabled={dismissingId === c.bill.id}
+                                  onClick={() => dismissBill(c)}
+                                  title="حذف من شاشة المراجعة"
+                                >
+                                  {dismissingId === c.bill.id
+                                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                                    : <Trash2 className="h-4 w-4" />}
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                           {isExpanded && (
