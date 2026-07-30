@@ -966,6 +966,26 @@ export default function ZodexReview() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {relinkBill && (
+        <LinkBillToOrderDialog
+          open
+          onOpenChange={(v) => !v && setRelinkBill(null)}
+          billNo={relinkBill.billNo}
+          missingId={relinkBill.missingId}
+          defaultOrderNumber={relinkBill.defaultOrderNumber}
+          onLinked={() => { setRelinkBill(null); load(); }}
+        />
+      )}
+
+      {relinkOrder && (
+        <RelinkBillDialog
+          open
+          onOpenChange={(v) => !v && setRelinkOrder(null)}
+          order={relinkOrder}
+          onLinked={() => { setRelinkOrder(null); load(); }}
+        />
+      )}
     </div>
   );
 }
