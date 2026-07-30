@@ -19216,6 +19216,30 @@ export type Database = {
           },
         ]
       }
+      zodex_order_review_dismissals: {
+        Row: {
+          created_at: string
+          dismissed_by: string | null
+          id: string
+          order_id: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          dismissed_by?: string | null
+          id?: string
+          order_id: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          dismissed_by?: string | null
+          id?: string
+          order_id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       zodex_sync_runs: {
         Row: {
           created_at: string
