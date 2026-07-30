@@ -659,6 +659,7 @@ export default function ZodexReview() {
                       <TableHead>الإجمالي</TableHead>
                       <TableHead>الحالة</TableHead>
                       <TableHead>عمر الأوردر</TableHead>
+                      <TableHead className="text-center">إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -671,6 +672,36 @@ export default function ZodexReview() {
                         <TableCell><Badge variant="outline">{o.status}</Badge></TableCell>
                         <TableCell className="text-xs">
                           {formatDistanceToNow(new Date(o.created_at), { locale: ar, addSuffix: true })}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1"
+                              onClick={() => setRelinkOrder({
+                                id: o.id,
+                                order_number: o.order_number,
+                                shipping_bill_no: o.shipping_bill_no,
+                              })}
+                              title="إضافة/إعادة ربط بوليصة زودكس"
+                            >
+                              <Link2 className="h-3.5 w-3.5" />
+                              إعادة الربط
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-destructive h-8 w-8"
+                              disabled={dismissingId === o.id}
+                              onClick={() => dismissOrder(o)}
+                              title="حذف من شاشة المراجعة"
+                            >
+                              {dismissingId === o.id
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <Trash2 className="h-4 w-4" />}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
