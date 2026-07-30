@@ -563,6 +563,7 @@ export default function ZodexReview() {
                       <TableHead>الموديريتور</TableHead>
                       <TableHead>تاريخ الشحن</TableHead>
                       <TableHead>زودكس</TableHead>
+                      <TableHead className="text-center">إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
