@@ -294,7 +294,16 @@ export default function ZodexReview() {
 
       if (noBillRes.error) throw noBillRes.error;
 
+      // Orders manually dismissed after review → hide from this screen
+      const { data: dismissedRows } = await (supabase as any)
+        .from("zodex_order_review_dismissals")
+        .select("order_id");
+      const dismissedOrderIds = new Set(
+        ((dismissedRows || []) as any[]).map((r) => r.order_id),
+      );
+
       const filteredNoBill = ((noBillRes.data || []) as any[]).filter((o) => {
+        if (dismissedOrderIds.has(o.id)) return false;
         if (NON_SHIPPABLE_STATUSES.has(o.status)) return false;
         // Exclude private courier and other explicit non-zodex companies
         const sc = (o.shipping_company || "").trim();
