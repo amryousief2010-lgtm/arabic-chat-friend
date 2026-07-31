@@ -387,7 +387,7 @@ const DuplicateOrderApprovals = () => {
           <Button size="sm" variant="destructive" onClick={() => setDecision({ open: true, row, approve: false, reason: "" })}>
             <XCircle className="w-4 h-4 ms-1" /> رفض
           </Button>
-          <span className="text-xs text-muted-foreground self-center">لازم موافقة الاتنين لإتمام الأوردر</span>
+          <span className="text-xs text-muted-foreground self-center">قرار م. آلاء حامد نهائي ولا يحتاج موافقة أخرى</span>
         </div>
       )}
     </div>
