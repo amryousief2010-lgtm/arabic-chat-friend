@@ -73,9 +73,12 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
   }, [open, userId, date]);
 
   const rows = useMemo(() => {
-    const source = fetched ?? orders;
+    // Database results are already restricted to this user and Cairo-day range.
+    // Only filter by date when falling back to the Orders page's local data.
+    const source = fetched ?? orders.filter(
+      (o) => o.created_by === userId && toCairoDateString(o.created_at) === date,
+    );
     return source
-      .filter((o) => o.created_by === userId && toCairoDateString(o.created_at) === date)
       .map((o) => ({
         order_number: o.order_number,
         customer_name: o.customer_name || o.customers?.name || "-",

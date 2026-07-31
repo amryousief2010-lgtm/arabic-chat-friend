@@ -10,13 +10,16 @@
 /** Returns YYYY-MM-DD for the given instant rendered in Africa/Cairo. */
 export function toCairoDateString(value: Date | string | number): string {
   const d = value instanceof Date ? value : new Date(value);
-  // en-CA gives ISO-style YYYY-MM-DD.
-  return new Intl.DateTimeFormat("en-CA", {
+  // Build the value from parts instead of relying on locale output order.
+  // Some Android WebViews render en-CA as MM/DD/YYYY rather than YYYY-MM-DD.
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Africa/Cairo",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(d);
+  }).formatToParts(d);
+  const valueOf = (type: string) => parts.find((part) => part.type === type)?.value || "";
+  return `${valueOf("year")}-${valueOf("month")}-${valueOf("day")}`;
 }
 
 /** True if `created_at` falls on the same Cairo calendar day as `now`. */
