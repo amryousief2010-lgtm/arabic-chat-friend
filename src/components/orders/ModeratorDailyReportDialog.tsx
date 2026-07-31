@@ -89,6 +89,21 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
 
+  // Display as DD-MM-YYYY (اليوم-الشهر-السنة)
+  const displayDate = (() => {
+    const [y, m, d] = date.split("-");
+    return `${d}-${m}-${y}`;
+  })();
+  const selectedDateObj = (() => {
+    const [y, m, d] = date.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  })();
+  const shiftDay = (delta: number) => {
+    const next = new Date(selectedDateObj);
+    next.setDate(next.getDate() + delta);
+    setDate(toCairoDateString(next));
+  };
+
 
   const downloadImage = async () => {
     if (!reportRef.current) return;
