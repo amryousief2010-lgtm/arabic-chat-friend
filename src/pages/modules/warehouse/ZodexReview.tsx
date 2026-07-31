@@ -174,6 +174,9 @@ export default function ZodexReview() {
   const [relinkOrder, setRelinkOrder] = useState<
     { id: string; order_number: string; shipping_bill_no?: string | null } | null
   >(null);
+  const [billSuggestions, setBillSuggestions] = useState<
+    Record<string, { bill: MissingBill; via: string }>
+  >({});
 
   /** استبعاد بوليصة زودكس من شاشة المراجعة (بعد مراجعتها) */
   const dismissBill = async (item: BillWithClassification) => {
