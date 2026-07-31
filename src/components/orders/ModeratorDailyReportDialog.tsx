@@ -101,7 +101,8 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
   const shiftDay = (delta: number) => {
     const next = new Date(selectedDateObj);
     next.setDate(next.getDate() + delta);
-    setDate(toCairoDateString(next));
+    const p = (n: number) => String(n).padStart(2, "0");
+    setDate(`${next.getFullYear()}-${p(next.getMonth() + 1)}-${p(next.getDate())}`);
   };
 
 
