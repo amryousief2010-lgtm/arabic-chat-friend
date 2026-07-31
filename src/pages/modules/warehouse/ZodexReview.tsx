@@ -419,7 +419,8 @@ export default function ZodexReview() {
   const filteredOrders = !q ? noBillOrders : noBillOrders.filter((o) =>
     o.order_number?.toLowerCase().includes(q) ||
     (o.customers?.name || "").toLowerCase().includes(q) ||
-    (o.customers?.phone || "").includes(search.trim()),
+    (o.customers?.phone || "").includes(search.trim()) ||
+    (o.customers?.phone2 || "").includes(search.trim()),
   );
 
   const doFix = async (item: BillWithClassification) => {
@@ -692,9 +693,23 @@ export default function ZodexReview() {
                   <TableBody>
                     {filteredOrders.map((o) => (
                       <TableRow key={o.id}>
-                        <TableCell className="font-mono text-xs">{o.order_number}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {o.order_number}
+                          {billSuggestions[o.id] && (
+                            <div className="mt-1">
+                              <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-normal">
+                                موجود على زودكس ({billSuggestions[o.id].via}): {billSuggestions[o.id].bill.bill_no}
+                              </Badge>
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell>{o.customers?.name || "—"}</TableCell>
-                        <TableCell className="font-mono text-xs" dir="ltr">{o.customers?.phone || "—"}</TableCell>
+                        <TableCell className="font-mono text-xs" dir="ltr">
+                          <div>{o.customers?.phone || "—"}</div>
+                          {o.customers?.phone2 && (
+                            <div className="text-muted-foreground">{o.customers.phone2}</div>
+                          )}
+                        </TableCell>
                         <TableCell>{Number(o.total || 0).toLocaleString("ar-EG")} ج</TableCell>
                         <TableCell><Badge variant="outline">{o.status}</Badge></TableCell>
                         <TableCell className="text-xs">
