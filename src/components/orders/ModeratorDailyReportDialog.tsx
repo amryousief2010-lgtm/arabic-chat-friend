@@ -1,12 +1,13 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ImageDown, FileDown } from "lucide-react";
-import { toCairoDateString } from "@/lib/cairoDate";
+import { ImageDown, FileDown, Loader2 } from "lucide-react";
+import { toCairoDateString, cairoWallClockToUTC } from "@/lib/cairoDate";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface OrderLite {
@@ -32,10 +33,46 @@ interface Props {
 
 const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, moderatorName }: Props) => {
   const [date, setDate] = useState<string>(() => toCairoDateString(new Date()));
+  const [fetched, setFetched] = useState<OrderLite[] | null>(null);
+  const [loading, setLoading] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
+  // Fetch the selected day's orders straight from the database so changing the
+  // date isn't limited to whatever the Orders page currently has loaded.
+  useEffect(() => {
+    if (!open || !userId || !date) return;
+    let cancelled = false;
+    const run = async () => {
+      setLoading(true);
+      try {
+        const [y, m, d] = date.split("-").map(Number);
+        const from = cairoWallClockToUTC(y, m - 1, d, 0, 0, 0).toISOString();
+        const to = cairoWallClockToUTC(y, m - 1, d + 1, 0, 0, 0).toISOString();
+        const { data, error } = await supabase
+          .from("orders")
+          .select("id, order_number, total, created_at, created_by, customer_name, customer_phone, customer_phone2, customers(name, phone, phone2)")
+          .eq("created_by", userId)
+          .gte("created_at", from)
+          .lt("created_at", to)
+          .order("created_at", { ascending: true });
+        if (error) throw error;
+        if (!cancelled) setFetched((data || []) as any);
+      } catch (e: any) {
+        if (!cancelled) {
+          setFetched(null);
+          toast.error(e.message || "تعذّر تحميل طلبات هذا اليوم");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [open, userId, date]);
+
   const rows = useMemo(() => {
-    return orders
+    const source = fetched ?? orders;
+    return source
       .filter((o) => o.created_by === userId && toCairoDateString(o.created_at) === date)
       .map((o) => ({
         order_number: o.order_number,
@@ -43,12 +80,13 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
         customer_phone: o.customer_phone || o.customers?.phone || o.customer_phone2 || o.customers?.phone2 || "-",
         total: Number(o.total || 0),
       }));
-  }, [orders, userId, date]);
+  }, [fetched, orders, userId, date]);
 
   const totalSum = rows.reduce((s, r) => s + r.total, 0);
   const dateLabel = new Date(date + "T00:00:00").toLocaleDateString("ar-EG-u-nu-latn", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
+
 
   const downloadImage = async () => {
     if (!reportRef.current) return;
