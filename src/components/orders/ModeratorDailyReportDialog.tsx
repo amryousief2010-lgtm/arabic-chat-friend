@@ -5,7 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ImageDown, FileDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { ImageDown, FileDown, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { toCairoDateString, cairoWallClockToUTC } from "@/lib/cairoDate";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -87,6 +89,22 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
 
+  // Display as DD-MM-YYYY (اليوم-الشهر-السنة)
+  const displayDate = (() => {
+    const [y, m, d] = date.split("-");
+    return `${d}-${m}-${y}`;
+  })();
+  const selectedDateObj = (() => {
+    const [y, m, d] = date.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  })();
+  const shiftDay = (delta: number) => {
+    const next = new Date(selectedDateObj);
+    next.setDate(next.getDate() + delta);
+    const p = (n: number) => String(n).padStart(2, "0");
+    setDate(`${next.getFullYear()}-${p(next.getMonth() + 1)}-${p(next.getDate())}`);
+  };
+
 
   const downloadImage = async () => {
     if (!reportRef.current) return;
@@ -144,8 +162,37 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
         <div className="flex items-end gap-3 flex-wrap mb-4">
           <div>
             <Label className="text-xs">اختاري اليوم</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-44" />
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => shiftDay(-1)} aria-label="اليوم السابق">
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-40 justify-between font-mono text-sm">
+                    {displayDate}
+                    <CalendarIcon className="w-4 h-4 opacity-70" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDateObj}
+                    onSelect={(d) => {
+                      if (!d) return;
+                      const p = (n: number) => String(n).padStart(2, "0");
+                      setDate(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`);
+                    }}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => shiftDay(1)} aria-label="اليوم التالي">
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
+
           <Button onClick={downloadImage} className="gap-2 bg-primary text-white">
             <ImageDown className="w-4 h-4" /> تنزيل صورة
           </Button>
