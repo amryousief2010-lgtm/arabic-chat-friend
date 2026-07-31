@@ -71,6 +71,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       <PendingApprovalsAlert />
       <ExecutiveApprovalsAlert />
       <MegaDiscrepancyAlert />
+      <DuplicateApprovalsAlert />
+
 
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
