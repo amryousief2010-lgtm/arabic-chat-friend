@@ -37,7 +37,7 @@ interface OrderRow {
   fulfillment_type: string | null;
   total: number | null;
   created_at: string;
-  customers?: { name: string | null; phone: string | null } | null;
+  customers?: { name: string | null; phone: string | null; phone2?: string | null } | null;
 }
 
 interface BillWithClassification {
@@ -174,6 +174,9 @@ export default function ZodexReview() {
   const [relinkOrder, setRelinkOrder] = useState<
     { id: string; order_number: string; shipping_bill_no?: string | null } | null
   >(null);
+  const [billSuggestions, setBillSuggestions] = useState<
+    Record<string, { bill: MissingBill; via: string }>
+  >({});
 
   /** استبعاد بوليصة زودكس من شاشة المراجعة (بعد مراجعتها) */
   const dismissBill = async (item: BillWithClassification) => {
@@ -284,7 +287,7 @@ export default function ZodexReview() {
       // status not cancelled/draft/returned, older than 24h.
       const noBillRes = await supabase
         .from("orders")
-        .select("id, order_number, status, shipping_bill_no, shipping_company, source_warehouse_id, fulfillment_type, total, created_at, customers(name, phone)")
+        .select("id, order_number, status, shipping_bill_no, shipping_company, source_warehouse_id, fulfillment_type, total, created_at, customers(name, phone, phone2)")
         .is("shipping_bill_no", null)
         .gte("created_at", ZODEX_INTEGRATION_START)
         .lte("created_at", minAge)
@@ -320,6 +323,30 @@ export default function ZodexReview() {
       }) as OrderRow[];
 
       setNoBillOrders(filteredNoBill);
+
+      // 2b) Cross-check each no-bill order against pending Zodex bills using
+      // BOTH customer phones (many customers are registered with two numbers,
+      // and Zodex may hold the second one).
+      const pkey = (p?: string | null) => (p || "").replace(/\D+/g, "").slice(-9);
+      const billByPhone = new Map<string, MissingBill>();
+      for (const b of bills) {
+        const k = pkey(b.customer_phone);
+        if (k.length >= 9 && !billByPhone.has(k)) billByPhone.set(k, b);
+      }
+      const sugg: Record<string, { bill: MissingBill; via: string }> = {};
+      for (const o of filteredNoBill) {
+        const pairs: Array<[string | null | undefined, string]> = [
+          [o.customers?.phone, "الموبايل الأساسي"],
+          [o.customers?.phone2, "الموبايل الثاني"],
+        ];
+        for (const [ph, via] of pairs) {
+          const k = pkey(ph);
+          if (k.length < 9) continue;
+          const b = billByPhone.get(k);
+          if (b) { sugg[o.id] = { bill: b, via }; break; }
+        }
+      }
+      setBillSuggestions(sugg);
 
       // 3) Classify each bill (best candidate + link issue), skipping rejected pairings
       const classifiedList = await mapWithLimit(bills, 6, async (b): Promise<BillWithClassification> => {
@@ -392,7 +419,8 @@ export default function ZodexReview() {
   const filteredOrders = !q ? noBillOrders : noBillOrders.filter((o) =>
     o.order_number?.toLowerCase().includes(q) ||
     (o.customers?.name || "").toLowerCase().includes(q) ||
-    (o.customers?.phone || "").includes(search.trim()),
+    (o.customers?.phone || "").includes(search.trim()) ||
+    (o.customers?.phone2 || "").includes(search.trim()),
   );
 
   const doFix = async (item: BillWithClassification) => {
@@ -665,9 +693,23 @@ export default function ZodexReview() {
                   <TableBody>
                     {filteredOrders.map((o) => (
                       <TableRow key={o.id}>
-                        <TableCell className="font-mono text-xs">{o.order_number}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {o.order_number}
+                          {billSuggestions[o.id] && (
+                            <div className="mt-1">
+                              <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-normal">
+                                موجود على زودكس ({billSuggestions[o.id].via}): {billSuggestions[o.id].bill.bill_no}
+                              </Badge>
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell>{o.customers?.name || "—"}</TableCell>
-                        <TableCell className="font-mono text-xs" dir="ltr">{o.customers?.phone || "—"}</TableCell>
+                        <TableCell className="font-mono text-xs" dir="ltr">
+                          <div>{o.customers?.phone || "—"}</div>
+                          {o.customers?.phone2 && (
+                            <div className="text-muted-foreground">{o.customers.phone2}</div>
+                          )}
+                        </TableCell>
                         <TableCell>{Number(o.total || 0).toLocaleString("ar-EG")} ج</TableCell>
                         <TableCell><Badge variant="outline">{o.status}</Badge></TableCell>
                         <TableCell className="text-xs">
@@ -682,7 +724,8 @@ export default function ZodexReview() {
                               onClick={() => setRelinkOrder({
                                 id: o.id,
                                 order_number: o.order_number,
-                                shipping_bill_no: o.shipping_bill_no,
+                                shipping_bill_no:
+                                  o.shipping_bill_no || billSuggestions[o.id]?.bill.bill_no || null,
                               })}
                               title="إضافة/إعادة ربط بوليصة زودكس"
                             >
