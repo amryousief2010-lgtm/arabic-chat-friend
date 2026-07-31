@@ -8,6 +8,7 @@ import ClockCalendarWidget from "@/components/ClockCalendarWidget";
 import PendingApprovalsAlert from "@/components/lab-treasury/PendingApprovalsAlert";
 import ExecutiveApprovalsAlert from "@/components/executive/ExecutiveApprovalsAlert";
 import MegaDiscrepancyAlert from "@/components/orders/MegaDiscrepancyAlert";
+import DuplicateApprovalsAlert from "@/components/orders/DuplicateApprovalsAlert";
 
 import UnreadMessagesBanner from "@/components/internal-messages/UnreadMessagesBanner";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
