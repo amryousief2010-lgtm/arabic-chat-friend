@@ -89,42 +89,26 @@ function stripTags(s: string): string {
     .replace(/\s+/g, " ").trim();
 }
 
+// Lightweight regex-based parser. The previous implementation used deno_dom's
+// WASM DOMParser which blew the edge function CPU budget on large pages
+// (WORKER_RESOURCE_LIMIT). Regex scanning is ~100x cheaper here.
 function parseShippingRows(html: string, dbg?: any): ShipRow[] {
   const rows: ShipRow[] = [];
   const seen = new Set<string>();
 
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  if (!doc) { if (dbg) dbg.reason = "dom_parse_failed"; return rows; }
-
-  if (dbg) {
-    dbg.table_count = doc.querySelectorAll("table").length;
-    dbg.total_tr = doc.querySelectorAll("tr").length;
-    dbg.total_td = doc.querySelectorAll("td").length;
-    const firstDataTr: any = Array.from(doc.querySelectorAll("tr")).find((tr: any) =>
-      tr.querySelectorAll(":scope > td").length > 10
-    );
-    if (firstDataTr) {
-      const tds = firstDataTr.querySelectorAll(":scope > td");
-      dbg.first_data_row_cells = Array.from(tds).map((td: any) =>
-        (td.textContent || "").replace(/\s+/g, " ").trim().slice(0, 60)
-      );
-    }
-  }
-
-  // Iterate every tr in the document; a row belongs to the shipments table if
-  // one of its direct td cells is exactly "ZX...". This avoids ambiguity about
-  // nested tables (message-template tooltips live inside the row's own tds).
-  const allTrs = doc.querySelectorAll("tr") as unknown as Element[];
+  const chunks = html.split(/<tr[\s>]/i);
   let candidateTrs = 0;
-  for (const tr of allTrs) {
-    const tds = tr.querySelectorAll(":scope > td") as unknown as Element[];
-    if (!tds.length) continue;
-    const cells = Array.from(tds).map((td) =>
-      (td.textContent || "").replace(/\s+/g, " ").trim()
-    );
-    // Find bill number. Note the cell often reads "ZX80418582ZX80418582" —
-    // the site renders the bill twice (link text + copy button). We want the
-    // first ZX\d+ occurrence; \b at the end fails when a Z immediately follows.
+  for (const chunk of chunks) {
+    if (!/ZX\d+/.test(chunk)) continue;
+    const cells: string[] = [];
+    const tdRe = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = tdRe.exec(chunk)) !== null) {
+      cells.push(stripTags(m[1]));
+      if (cells.length > 40) break;
+    }
+    if (!cells.length) continue;
+
     let bill = "";
     for (const c of cells) {
       const bm = c.match(/ZX\d+/);
@@ -135,11 +119,7 @@ function parseShippingRows(html: string, dbg?: any): ShipRow[] {
     if (seen.has(bill)) continue;
     seen.add(bill);
 
-    // Collect ONLY the customer phones (columns موبايل 1 / موبايل 2). We do
-    // this by requiring the cell to contain nothing except digits / +, spaces
-    // and dashes. Cells like "نورا 01008853026" (moderator name + phone) are
-    // excluded — otherwise we'd wrongly match orders belonging to a customer
-    // whose phone happens to equal a moderator's phone.
+    // Only pure-phone cells (موبايل 1 / موبايل 2), never "name + phone" cells.
     const phoneSet = new Set<string>();
     for (const c of cells) {
       if (!c) continue;
@@ -173,6 +153,7 @@ function parseShippingRows(html: string, dbg?: any): ShipRow[] {
     rows.push({ bill_no: bill, phones: [...phoneSet], cod, status, receiver });
   }
   if (dbg) dbg.candidate_trs = candidateTrs;
+
   return rows;
 }
 
