@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ImageDown, FileDown, Loader2 } from "lucide-react";
+import { ImageDown, FileDown } from "lucide-react";
 import { toCairoDateString, cairoWallClockToUTC } from "@/lib/cairoDate";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
