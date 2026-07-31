@@ -22,9 +22,9 @@ type Row = {
  * معلّقة، يظهر تلقائياً أول ما تفتح التطبيق.
  */
 export default function DuplicateApprovalsAlert() {
-  const { isMarketingSalesManager, isGeneralManager } = useAuth();
+  const { roles, isGeneralManager } = useAuth();
   const navigate = useNavigate();
-  const canApprove = isMarketingSalesManager || isGeneralManager;
+  const canApprove = (roles || []).includes("marketing_sales_manager") || isGeneralManager;
   const [rows, setRows] = useState<Row[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [open, setOpen] = useState(false);
