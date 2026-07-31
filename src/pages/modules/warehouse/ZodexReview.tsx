@@ -724,7 +724,8 @@ export default function ZodexReview() {
                               onClick={() => setRelinkOrder({
                                 id: o.id,
                                 order_number: o.order_number,
-                                shipping_bill_no: o.shipping_bill_no,
+                                shipping_bill_no:
+                                  o.shipping_bill_no || billSuggestions[o.id]?.bill.bill_no || null,
                               })}
                               title="إضافة/إعادة ربط بوليصة زودكس"
                             >
