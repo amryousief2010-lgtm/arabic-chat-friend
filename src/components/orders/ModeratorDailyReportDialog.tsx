@@ -177,7 +177,11 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
                   <Calendar
                     mode="single"
                     selected={selectedDateObj}
-                    onSelect={(d) => d && setDate(toCairoDateString(d))}
+                    onSelect={(d) => {
+                      if (!d) return;
+                      const p = (n: number) => String(n).padStart(2, "0");
+                      setDate(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`);
+                    }}
                     initialFocus
                     className="pointer-events-auto"
                   />
