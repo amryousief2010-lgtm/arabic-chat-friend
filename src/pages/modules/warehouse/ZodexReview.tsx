@@ -37,7 +37,7 @@ interface OrderRow {
   fulfillment_type: string | null;
   total: number | null;
   created_at: string;
-  customers?: { name: string | null; phone: string | null } | null;
+  customers?: { name: string | null; phone: string | null; phone2?: string | null } | null;
 }
 
 interface BillWithClassification {
@@ -284,7 +284,7 @@ export default function ZodexReview() {
       // status not cancelled/draft/returned, older than 24h.
       const noBillRes = await supabase
         .from("orders")
-        .select("id, order_number, status, shipping_bill_no, shipping_company, source_warehouse_id, fulfillment_type, total, created_at, customers(name, phone)")
+        .select("id, order_number, status, shipping_bill_no, shipping_company, source_warehouse_id, fulfillment_type, total, created_at, customers(name, phone, phone2)")
         .is("shipping_bill_no", null)
         .gte("created_at", ZODEX_INTEGRATION_START)
         .lte("created_at", minAge)
@@ -320,6 +320,30 @@ export default function ZodexReview() {
       }) as OrderRow[];
 
       setNoBillOrders(filteredNoBill);
+
+      // 2b) Cross-check each no-bill order against pending Zodex bills using
+      // BOTH customer phones (many customers are registered with two numbers,
+      // and Zodex may hold the second one).
+      const pkey = (p?: string | null) => (p || "").replace(/\D+/g, "").slice(-9);
+      const billByPhone = new Map<string, MissingBill>();
+      for (const b of bills) {
+        const k = pkey(b.customer_phone);
+        if (k.length >= 9 && !billByPhone.has(k)) billByPhone.set(k, b);
+      }
+      const sugg: Record<string, { bill: MissingBill; via: string }> = {};
+      for (const o of filteredNoBill) {
+        const pairs: Array<[string | null | undefined, string]> = [
+          [o.customers?.phone, "الموبايل الأساسي"],
+          [o.customers?.phone2, "الموبايل الثاني"],
+        ];
+        for (const [ph, via] of pairs) {
+          const k = pkey(ph);
+          if (k.length < 9) continue;
+          const b = billByPhone.get(k);
+          if (b) { sugg[o.id] = { bill: b, via }; break; }
+        }
+      }
+      setBillSuggestions(sugg);
 
       // 3) Classify each bill (best candidate + link issue), skipping rejected pairings
       const classifiedList = await mapWithLimit(bills, 6, async (b): Promise<BillWithClassification> => {
