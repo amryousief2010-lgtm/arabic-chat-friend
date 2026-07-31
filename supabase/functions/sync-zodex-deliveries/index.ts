@@ -407,14 +407,16 @@ Deno.serve(async (req) => {
       let matchedOrder: any = null;
       {
         const { data } = await supabase.from("orders")
-          .select("id, total, delivered_at, status, collection_status, created_at, customer_id, customers(phone)")
+          .select("id, total, delivered_at, status, collection_status, created_at, customer_id, customers(phone, phone2)")
           .eq("shipping_bill_no", row.bill_no).maybeSingle();
         if (data) {
-          // Verify current customer phone still matches the Zodex row phone.
-          // If they diverged (customer merge / edit after previous sync), unlink
-          // and let the auto-matcher pick a fresh candidate.
-          const orderPhone = normalizePhone((data as any).customers?.phone || "");
-          if (orderPhone && row.customer_phone && orderPhone !== row.customer_phone) {
+          // A customer can have two phone numbers and Zodex may use either one.
+          // Unlink only when the Zodex phone matches neither saved number.
+          const customerPhones = [
+            normalizePhone((data as any).customers?.phone || ""),
+            normalizePhone((data as any).customers?.phone2 || ""),
+          ].filter(Boolean);
+          if (customerPhones.length && row.customer_phone && !customerPhones.includes(row.customer_phone)) {
             await supabase.from("orders").update({ shipping_bill_no: null }).eq("id", data.id);
           } else {
             matchedOrder = data;
@@ -430,7 +432,7 @@ Deno.serve(async (req) => {
         const winStart = new Date(new Date(row.shipment_date).getTime() - DATE_WINDOW_DAYS * 86400_000).toISOString();
         const winEnd = new Date(new Date(row.shipment_date).getTime() + DATE_WINDOW_DAYS * 86400_000).toISOString();
         const { data: candidates } = await supabase.from("orders")
-          .select("id, total, moderator, created_at, customer_id, shipping_bill_no, customers!inner(name, phone)")
+          .select("id, total, moderator, created_at, customer_id, shipping_bill_no, customers!inner(name, phone, phone2)")
           .is("shipping_bill_no", null)
           .gte("created_at", winStart)
           .lte("created_at", winEnd);
@@ -440,10 +442,13 @@ Deno.serve(async (req) => {
         // and NOT already claimed by an earlier Zodex row in this run.
         const strictHits = list.filter((c) => {
           if (claimedInThisRun.has(c.id)) return false;
-          const cp = normalizePhone(c.customers?.phone);
+           const customerPhones = [
+             normalizePhone(c.customers?.phone),
+             normalizePhone(c.customers?.phone2),
+           ].filter(Boolean);
           const amountOk = Math.abs(Number(c.total || 0) - row.cod_amount) <= PHONE_MATCH_AMOUNT_TOLERANCE;
           const modScore = tokenSetRatio(c.moderator || "", row.moderator_name);
-          return cp === row.customer_phone && amountOk && modScore >= 0.5;
+           return customerPhones.includes(row.customer_phone) && amountOk && modScore >= 0.5;
         });
 
         if (strictHits.length >= 1) {
@@ -714,15 +719,18 @@ Deno.serve(async (req) => {
           // candidate orders: no waybill yet, phone matches, amount close, within window
           const winStart = new Date(Date.now() - 30 * 86400_000).toISOString();
           const { data: candidates } = await supabase.from("orders")
-            .select("id, total, moderator, created_at, customers!inner(phone)")
+            .select("id, total, moderator, created_at, customers!inner(phone, phone2)")
             .is("shipping_bill_no", null)
             .gte("created_at", winStart)
             .order("created_at", { ascending: true });
           const hits = (candidates || []).filter((c: any) => {
-            const cp = normalizePhone(c.customers?.phone);
+            const customerPhones = [
+              normalizePhone(c.customers?.phone),
+              normalizePhone(c.customers?.phone2),
+            ].filter(Boolean);
             const amountOk = Math.abs(Number(c.total || 0) - amount) <= PHONE_MATCH_AMOUNT_TOLERANCE;
             const modOk = !modText || tokenSetRatio(c.moderator || "", modText) >= 0.5;
-            return cp === phone && amountOk && modOk;
+            return customerPhones.includes(phone) && amountOk && modOk;
           });
           if (hits.length >= 1) {
             await supabase.from("orders").update({
