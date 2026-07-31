@@ -144,8 +144,33 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
         <div className="flex items-end gap-3 flex-wrap mb-4">
           <div>
             <Label className="text-xs">اختاري اليوم</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-44" />
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => shiftDay(-1)} aria-label="اليوم السابق">
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-40 justify-between font-mono text-sm">
+                    {displayDate}
+                    <CalendarIcon className="w-4 h-4 opacity-70" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDateObj}
+                    onSelect={(d) => d && setDate(toCairoDateString(d))}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => shiftDay(1)} aria-label="اليوم التالي">
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
+
           <Button onClick={downloadImage} className="gap-2 bg-primary text-white">
             <ImageDown className="w-4 h-4" /> تنزيل صورة
           </Button>
