@@ -197,10 +197,15 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
               </div>
             </div>
 
-            {rows.length === 0 ? (
+            {loading ? (
+              <div style={{ textAlign: "center", padding: 24, color: "#888", fontSize: 12 }}>
+                جاري تحميل طلبات هذا اليوم…
+              </div>
+            ) : rows.length === 0 ? (
               <div style={{ textAlign: "center", padding: 24, color: "#888", fontSize: 12 }}>
                 لا توجد طلبات في هذا اليوم
               </div>
+
             ) : (
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 9, tableLayout: "fixed" }}>
                 <thead>
