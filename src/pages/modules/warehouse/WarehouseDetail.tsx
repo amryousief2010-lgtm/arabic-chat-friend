@@ -1252,8 +1252,13 @@ const WarehouseDetail = () => {
             </CardContent></Card>
           </TabsContent>
 
+          <TabsContent value="stock-audit" className="space-y-3">
+            <StockAuditTab warehouseId={id!} />
+          </TabsContent>
+
           <TabsContent value="movements" className="space-y-3">
             {/* فلاتر السنة/الشهر + زر طباعة السجل */}
+
             <Card><CardContent className="p-3 flex flex-wrap items-center gap-2">
               <span className="text-sm text-muted-foreground">عرض حسب:</span>
               <Select value={movYear} onValueChange={(v) => { setMovYear(v); if (v === "all") setMovMonth("all"); }}>
