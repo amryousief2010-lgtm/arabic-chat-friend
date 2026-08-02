@@ -21537,6 +21537,7 @@ export type Database = {
         Returns: boolean
       }
       is_manal_reviewer: { Args: { _uid: string }; Returns: boolean }
+      is_manual_stock_warehouse: { Args: { p_wh: string }; Returns: boolean }
       is_message_participant: {
         Args: { _message_id: string; _user_id: string }
         Returns: boolean
