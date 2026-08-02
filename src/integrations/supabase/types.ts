@@ -8326,6 +8326,91 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_item_merge_log: {
+        Row: {
+          canonical_item_id: string
+          canonical_name: string | null
+          canonical_stock_after: number
+          canonical_stock_before: number
+          created_at: string
+          id: string
+          merge_ref: string
+          moved_movements: number
+          source_item_id: string
+          source_name: string | null
+          source_stock_before: number
+        }
+        Insert: {
+          canonical_item_id: string
+          canonical_name?: string | null
+          canonical_stock_after?: number
+          canonical_stock_before?: number
+          created_at?: string
+          id?: string
+          merge_ref: string
+          moved_movements?: number
+          source_item_id: string
+          source_name?: string | null
+          source_stock_before?: number
+        }
+        Update: {
+          canonical_item_id?: string
+          canonical_name?: string | null
+          canonical_stock_after?: number
+          canonical_stock_before?: number
+          created_at?: string
+          id?: string
+          merge_ref?: string
+          moved_movements?: number
+          source_item_id?: string
+          source_name?: string | null
+          source_stock_before?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_item_merge_log_canonical_item_id_fkey"
+            columns: ["canonical_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_item_merge_log_canonical_item_id_fkey"
+            columns: ["canonical_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inventory_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_item_merge_log_canonical_item_id_fkey"
+            columns: ["canonical_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["inventory_item_id"]
+          },
+          {
+            foreignKeyName: "inventory_item_merge_log_source_item_id_fkey"
+            columns: ["source_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_item_merge_log_source_item_id_fkey"
+            columns: ["source_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_inventory_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_item_merge_log_source_item_id_fkey"
+            columns: ["source_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["inventory_item_id"]
+          },
+        ]
+      }
       inventory_items: {
         Row: {
           blocked_qty: number
