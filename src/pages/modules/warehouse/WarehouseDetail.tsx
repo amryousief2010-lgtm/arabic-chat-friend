@@ -1044,6 +1044,8 @@ const WarehouseDetail = () => {
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="items">الأصناف</TabsTrigger>
             <TabsTrigger value="movements">الحركات</TabsTrigger>
+            <TabsTrigger value="stock-audit">سجل تغيّر الأرصدة</TabsTrigger>
+
             <TabsTrigger value="low">منخفضة {lowStock.length > 0 && <Badge variant="destructive" className="mr-2">{lowStock.length}</Badge>}</TabsTrigger>
             {awaitingMyApproval.length > 0 && (
               <TabsTrigger value="approvals" className="gap-1">
