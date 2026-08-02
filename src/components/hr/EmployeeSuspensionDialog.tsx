@@ -53,6 +53,15 @@ const EmployeeSuspensionDialog = ({ open, onOpenChange, employee, onDone }: Prop
     }
   }, [open]);
 
+  // Auto-calculate dues whenever the dialog is open and the date changes
+  useEffect(() => {
+    if (open && suspensionDate) {
+      calculate(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, suspensionDate, employee.id]);
+
+
   const dailyValue = useMemo(
      () => (Number(employee.base_salary) || 0) / DAYS_PER_MONTH,
     [employee.base_salary]
@@ -70,11 +79,12 @@ const EmployeeSuspensionDialog = ({ open, onOpenChange, employee, onDone }: Prop
     [gross, deductionsAmount, advancesAmount]
   );
 
-  const calculate = async () => {
+  const calculate = async (silent = false) => {
     if (!suspensionDate) {
-      toast.error("أدخل تاريخ الإيقاف أولاً");
+      if (!silent) toast.error("أدخل تاريخ الإيقاف أولاً");
       return;
     }
+
     const d = new Date(suspensionDate);
     const month = d.getMonth() + 1;
     const year = d.getFullYear();
@@ -104,7 +114,7 @@ const EmployeeSuspensionDialog = ({ open, onOpenChange, employee, onDone }: Prop
     setMissingDocs(row ? { id: !!row.has_id, contract: !!row.has_contract } : { id: false, contract: false });
 
     setCalculated(true);
-    toast.success("تم حساب المستحق");
+    if (!silent) toast.success("تم حساب المستحق");
   };
 
   const confirm = async () => {
@@ -116,10 +126,7 @@ const EmployeeSuspensionDialog = ({ open, onOpenChange, employee, onDone }: Prop
       toast.error("سبب الإيقاف مطلوب");
       return;
     }
-    if (!calculated) {
-      toast.error("اضغط حساب المستحقات أولاً");
-      return;
-    }
+    if (!calculated) await calculate(true);
     setSaving(true);
     try {
       const { error: insErr } = await supabase.from("hr_employee_suspensions").insert({
@@ -256,7 +263,7 @@ const EmployeeSuspensionDialog = ({ open, onOpenChange, employee, onDone }: Prop
         </div>
 
         <div className="flex gap-2 mt-2">
-          <Button variant="outline" onClick={calculate}>
+          <Button variant="outline" onClick={() => calculate()}>
             <Calculator className="w-4 h-4 ml-1" /> حساب مستحقات الإيقاف
           </Button>
         </div>
@@ -289,10 +296,10 @@ const EmployeeSuspensionDialog = ({ open, onOpenChange, employee, onDone }: Prop
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
-          <Button variant="outline" onClick={print} disabled={!calculated}>
+          <Button variant="outline" onClick={print} >
             <Printer className="w-4 h-4 ml-1" /> طباعة إقرار الإيقاف
           </Button>
-          <Button onClick={confirm} disabled={saving || !canConfirm || !calculated} className="bg-rose-600 hover:bg-rose-700 text-white">
+          <Button onClick={confirm} disabled={saving || !canConfirm} className="bg-rose-600 hover:bg-rose-700 text-white">
             {saving ? "جارٍ التنفيذ..." : "تأكيد الإيقاف"}
           </Button>
         </DialogFooter>
