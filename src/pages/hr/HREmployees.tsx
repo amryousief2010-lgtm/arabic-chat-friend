@@ -702,7 +702,19 @@ const HREmployees = () => {
                                   <Edit className="w-3.5 h-3.5 ml-1" />تعديل
                                 </Button>
                               )}
+                              {isGeneralManager && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => deleteEmployee(e)}
+                                  title="حذف الموظف نهائيًا"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
                             </div>
+
                           </TableCell>
                         </TableRow>
                       );
