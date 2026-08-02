@@ -8718,6 +8718,45 @@ export type Database = {
           },
         ]
       }
+      inventory_stock_audit: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          delta: number | null
+          id: string
+          item_id: string
+          item_name: string | null
+          new_stock: number | null
+          old_stock: number | null
+          source: string | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          delta?: number | null
+          id?: string
+          item_id: string
+          item_name?: string | null
+          new_stock?: number | null
+          old_stock?: number | null
+          source?: string | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          delta?: number | null
+          id?: string
+          item_id?: string
+          item_name?: string | null
+          new_stock?: number | null
+          old_stock?: number | null
+          source?: string | null
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
       inventory_stock_snapshots: {
         Row: {
           created_at: string
