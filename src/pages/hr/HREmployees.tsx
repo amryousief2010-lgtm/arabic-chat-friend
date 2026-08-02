@@ -389,6 +389,34 @@ const HREmployees = () => {
     await load();
   };
 
+  const deleteEmployee = async (e: Employee) => {
+    if (!isGeneralManager) {
+      toast.error("حذف الموظف متاح للمدير العام فقط");
+      return;
+    }
+    if (!confirm(`تحذير: سيتم حذف الموظف ${e.full_name} (${e.code}) نهائيًا. هل أنت متأكد؟`)) return;
+    if (!confirm("تأكيد أخير: لا يمكن التراجع عن الحذف.")) return;
+    try {
+      await supabase.from("hr_audit_log").insert({
+        entity_type: "hr_employee",
+        entity_id: e.id,
+        employee_id: e.id,
+        action: "delete",
+        before_data: e as any,
+        reason: "حذف نهائي بواسطة المدير العام",
+        performed_by: user?.id,
+      });
+      const { error } = await supabase.from("hr_employees").delete().eq("id", e.id);
+      if (error) throw error;
+      toast.success(`تم حذف ${e.full_name}`);
+      await load();
+    } catch (err: any) {
+      toast.error("فشل الحذف: " + (err?.message || "خطأ غير معروف"));
+    }
+  };
+
+
+
   if (!canAccessPage) {
     return (
       <DashboardLayout>
