@@ -22,6 +22,8 @@ import { MeatFactoryToMainWarehouseInbox } from "@/components/warehouse/MeatFact
 import ManualStockAdditionDialog from "@/components/warehouse/ManualStockAdditionDialog";
 import ManualStockOutDialog from "@/components/warehouse/ManualStockOutDialog";
 import ItemMovementsDialog from "@/components/warehouse/ItemMovementsDialog";
+import StockAuditTab from "@/components/warehouses/StockAuditTab";
+
 import { History } from "lucide-react";
 import { isFeatureEnabled } from "@/config/featureFlags";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
