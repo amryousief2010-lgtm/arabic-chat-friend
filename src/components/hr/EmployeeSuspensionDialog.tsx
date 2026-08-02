@@ -53,6 +53,15 @@ const EmployeeSuspensionDialog = ({ open, onOpenChange, employee, onDone }: Prop
     }
   }, [open]);
 
+  // Auto-calculate dues whenever the dialog is open and the date changes
+  useEffect(() => {
+    if (open && suspensionDate) {
+      calculate(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, suspensionDate, employee.id]);
+
+
   const dailyValue = useMemo(
      () => (Number(employee.base_salary) || 0) / DAYS_PER_MONTH,
     [employee.base_salary]
