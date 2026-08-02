@@ -22,6 +22,8 @@ import { MeatFactoryToMainWarehouseInbox } from "@/components/warehouse/MeatFact
 import ManualStockAdditionDialog from "@/components/warehouse/ManualStockAdditionDialog";
 import ManualStockOutDialog from "@/components/warehouse/ManualStockOutDialog";
 import ItemMovementsDialog from "@/components/warehouse/ItemMovementsDialog";
+import StockAuditTab from "@/components/warehouses/StockAuditTab";
+
 import { History } from "lucide-react";
 import { isFeatureEnabled } from "@/config/featureFlags";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
@@ -1044,6 +1046,8 @@ const WarehouseDetail = () => {
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="items">الأصناف</TabsTrigger>
             <TabsTrigger value="movements">الحركات</TabsTrigger>
+            <TabsTrigger value="stock-audit">سجل تغيّر الأرصدة</TabsTrigger>
+
             <TabsTrigger value="low">منخفضة {lowStock.length > 0 && <Badge variant="destructive" className="mr-2">{lowStock.length}</Badge>}</TabsTrigger>
             {awaitingMyApproval.length > 0 && (
               <TabsTrigger value="approvals" className="gap-1">
@@ -1250,8 +1254,13 @@ const WarehouseDetail = () => {
             </CardContent></Card>
           </TabsContent>
 
+          <TabsContent value="stock-audit" className="space-y-3">
+            <StockAuditTab warehouseId={id!} />
+          </TabsContent>
+
           <TabsContent value="movements" className="space-y-3">
             {/* فلاتر السنة/الشهر + زر طباعة السجل */}
+
             <Card><CardContent className="p-3 flex flex-wrap items-center gap-2">
               <span className="text-sm text-muted-foreground">عرض حسب:</span>
               <Select value={movYear} onValueChange={(v) => { setMovYear(v); if (v === "all") setMovMonth("all"); }}>
