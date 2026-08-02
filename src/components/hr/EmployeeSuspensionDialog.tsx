@@ -79,11 +79,12 @@ const EmployeeSuspensionDialog = ({ open, onOpenChange, employee, onDone }: Prop
     [gross, deductionsAmount, advancesAmount]
   );
 
-  const calculate = async () => {
+  const calculate = async (silent = false) => {
     if (!suspensionDate) {
-      toast.error("أدخل تاريخ الإيقاف أولاً");
+      if (!silent) toast.error("أدخل تاريخ الإيقاف أولاً");
       return;
     }
+
     const d = new Date(suspensionDate);
     const month = d.getMonth() + 1;
     const year = d.getFullYear();
