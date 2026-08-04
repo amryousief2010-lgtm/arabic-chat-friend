@@ -706,7 +706,7 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
                       // "Previously received" — for legacy pending transfers dated before the new-cycle start.
                       const isLegacyPending = r.status === "pending" && new Date(r.date).getTime() < new Date(RECEIPTS_NEW_CYCLE_START).getTime();
                       const canMarkPrevious = canDispose && isLegacyPending && (r.kind === "slaughter" || r.kind === "meat_factory" || r.kind === "internal");
-                      const canReverse = canDispose && (r.status === "received" || r.status === "partial") && (r.kind === "slaughter" || r.kind === "meat_factory");
+                      const canReverse = canDispose && (r.status === "received" || r.status === "partial") && !r.src_kind && (r.kind === "slaughter" || r.kind === "meat_factory");
                       return (
                         <TableRow key={`${r.kind}-${r.id}`}>
                           <TableCell className="font-mono text-xs">{r.batch_no}</TableCell>
