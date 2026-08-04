@@ -912,7 +912,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                   agouza_reserved: agouzaPending[p.id] ?? 0,
                   main_actual: mainStock[p.id] ?? 0,
                   main_reserved: mainPending[p.id] ?? 0,
-                  main_freezers: mainFreezers[p.id] ?? 0,
+                  
                   main_fridge: mainFridge[p.id] ?? 0,
                 }));
                 const filter = search.trim() || undefined;

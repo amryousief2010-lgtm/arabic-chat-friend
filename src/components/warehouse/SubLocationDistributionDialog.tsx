@@ -252,7 +252,7 @@ export default function SubLocationDistributionDialog({
             {Math.abs(subTotal - mainActual) > 0.01 && (
               <div className="text-xs text-amber-600 mb-2">
                 ملاحظة: إجمالي التوزيع الفرعي ({fmt(subTotal)}) لا يساوي إجمالي المخزن الرئيسي ({fmt(mainActual)}).
-                يتم توزيع الأرصدة الجديدة تلقائيًا داخل "الفريزرات" — يمكنك استخدام النقل الداخلي لإعادة التوزيع.
+                يتم توزيع الأرصدة الجديدة تلقائيًا داخل "ثلاجة التجميد".
               </div>
             )}
 
