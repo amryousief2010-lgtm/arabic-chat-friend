@@ -834,8 +834,13 @@ const WarehouseDetail = () => {
   };
 
   const outgoingTransfers = transfers.filter(t => t.source_warehouse_id === id);
-  const incomingPending = transfers.filter(t => t.destination_warehouse_id === id && ["pending_receipt", "partially_received", "needs_manager_review"].includes(t.status));
+  // تحويلات واردة من أي مخزن تابع لمصنع اللحوم تُعرض في تبويب «وارد مصنع اللحوم» فقط
+  const isMeatFactorySource = (t: any) => (t.source?.name || "").includes("مصنع اللحوم");
+  const incomingPendingAllSources = transfers.filter(t => t.destination_warehouse_id === id && ["pending_receipt", "partially_received", "needs_manager_review"].includes(t.status));
+  const meatIncomingPending = incomingPendingAllSources.filter(isMeatFactorySource);
+  const incomingPending = incomingPendingAllSources.filter(t => !isMeatFactorySource(t));
   const incomingAll = transfers.filter(t => t.destination_warehouse_id === id);
+
   // Requests awaiting MY approval (I am the source warehouse, status pending_approval)
   const awaitingMyApproval = transfers.filter(t => t.source_warehouse_id === id && t.status === "pending_approval");
   // My own pending requests (I am destination, awaiting approval at source)
