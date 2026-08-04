@@ -198,6 +198,14 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
           p_warehouse_id: r.dest_warehouse_id,
         });
         if (error) throw error;
+      } else if (r.src_kind === "internal") {
+        const lines = (r.raw_lines || []).map((l) => ({ line_id: l.line_id, received_qty: l.qty, notes: null }));
+        const { error } = await supabase.rpc("confirm_transfer_receipt" as any, {
+          p_transfer_id: r.id,
+          p_lines: lines,
+          p_notes: null,
+        });
+        if (error) throw error;
       } else if (r.kind === "meat_factory") {
         const { error } = await supabase.rpc("receive_meat_production_transfer" as any, {
           _transfer_id: r.id,
