@@ -22,8 +22,8 @@ interface Props {
  * warehouse supervisor (or GM/EM) approves each row here.
  */
 export function MeatFactoryToMainWarehouseInbox({ defaultWarehouseId }: Props) {
-  const { canManageWarehouses, isGeneralManager, isExecutiveManager } = useAuth();
-  const canReceive = canManageWarehouses || isGeneralManager || isExecutiveManager;
+  const { canManageWarehouses, isGeneralManager, isExecutiveManager, isProductionManager, isWarehouseSupervisor } = useAuth();
+  const canReceive = canManageWarehouses || isGeneralManager || isExecutiveManager || isProductionManager || isWarehouseSupervisor;
 
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
