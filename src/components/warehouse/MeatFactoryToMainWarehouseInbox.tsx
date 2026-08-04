@@ -34,6 +34,10 @@ export function MeatFactoryToMainWarehouseInbox({ defaultWarehouseId }: Props) {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const [mfRows, setMfRows] = useState<any[]>([]);
+  const [mfReject, setMfReject] = useState<any | null>(null);
+  const [mfReason, setMfReason] = useState("");
+
   const fetchAll = async () => {
     setLoading(true);
     let q = supabase
@@ -42,13 +46,46 @@ export function MeatFactoryToMainWarehouseInbox({ defaultWarehouseId }: Props) {
       .order("created_at", { ascending: false })
       .limit(500);
     if (defaultWarehouseId) q = q.eq("destination_warehouse_id", defaultWarehouseId);
-    const { data, error } = await q;
+
+    let q2 = supabase
+      .from("mf_transfers")
+      .select("id, transfer_no, transfer_date, total_value, status, notes, created_at, destination_warehouse_id, lines:mf_transfer_lines(qty, unit_cost, total, fin:meat_finished_inventory(name_ar, unit))")
+      .eq("status", "awaiting_receipt")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (defaultWarehouseId) q2 = q2.eq("destination_warehouse_id", defaultWarehouseId);
+
+    const [{ data, error }, { data: mfData, error: mfErr }] = await Promise.all([q, q2]);
     if (error) toast.error(error.message);
+    if (mfErr) toast.error(mfErr.message);
     setRows(data || []);
+    setMfRows(mfData || []);
     setLoading(false);
   };
 
   useEffect(() => { fetchAll(); }, [defaultWarehouseId]);
+
+  const confirmMfReceive = async (t: any) => {
+    setBusy(true);
+    const { error } = await supabase.rpc("receive_mf_transfer", { p_id: t.id, p_notes: null });
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم اعتماد أمر النقل وإضافة الكميات للمخزن");
+    fetchAll();
+  };
+
+  const confirmMfReject = async () => {
+    if (!mfReject) return;
+    if (!mfReason.trim()) { toast.error("اكتب سبب الرفض"); return; }
+    setBusy(true);
+    const { error } = await supabase.rpc("reject_mf_transfer", { p_id: mfReject.id, p_reason: mfReason });
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم رفض أمر النقل وإرجاع الكميات للمصنع");
+    setMfReject(null);
+    fetchAll();
+  };
+
 
   const pending = useMemo(() => rows.filter(r => r.status === "pending"), [rows]);
   const received = useMemo(() => rows.filter(r => r.status === "received"), [rows]);
