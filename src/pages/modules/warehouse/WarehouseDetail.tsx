@@ -1148,6 +1148,7 @@ const WarehouseDetail = () => {
             {isMain && (
               <TabsTrigger value="meat-inbox" className="gap-1">
                 <Beef className="w-4 h-4" />وارد مصنع اللحوم
+                {meatIncomingPending.length > 0 && <Badge variant="destructive" className="mr-1">{meatIncomingPending.length}</Badge>}
               </TabsTrigger>
             )}
           </TabsList>
