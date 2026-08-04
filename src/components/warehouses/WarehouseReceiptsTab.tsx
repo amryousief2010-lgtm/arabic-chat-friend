@@ -719,7 +719,7 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
                           <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              {r.status === "pending" && (r.kind === "slaughter" || r.kind === "meat_factory") && (
+                              {r.status === "pending" && (r.kind === "slaughter" || r.kind === "meat_factory" || r.src_kind === "internal") && (
                                 <Button
                                   size="sm"
                                   variant="default"
