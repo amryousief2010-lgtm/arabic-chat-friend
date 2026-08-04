@@ -365,34 +365,30 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             .maybeSingle();
           setMainOpeningAt((ob as any)?.opened_at ?? null);
 
-          // توزيع المخزن الرئيسي على المواقع الفرعية (الفريزرات / ثلاجة التجميد) — للطباعة فقط
+          // توزيع المخزن الرئيسي على الموقع الفرعي الثابت (ثلاجة التجميد) — للطباعة فقط
           const { data: subs } = await supabase
             .from("warehouse_sublocations")
             .select("id, code")
             .eq("warehouse_id", main.id)
             .eq("is_active", true);
-          const freezerId = (subs || []).find((s: any) => s.code === "FREEZERS")?.id;
           const fridgeId = (subs || []).find((s: any) => s.code === "FRIDGE")?.id;
-          const subIds = [freezerId, fridgeId].filter(Boolean) as string[];
-          if (subIds.length > 0) {
+          if (fridgeId) {
             const { data: sItems } = await supabase
               .from("inventory_sublocation_items")
               .select("product_id, sublocation_id, stock")
-              .in("sublocation_id", subIds);
-            const fz: Record<string, number> = {};
+              .eq("sublocation_id", fridgeId);
             const fr: Record<string, number> = {};
             (sItems || []).forEach((r: any) => {
               if (!r.product_id) return;
-              const v = Number(r.stock || 0);
-              if (r.sublocation_id === freezerId) fz[r.product_id] = (fz[r.product_id] || 0) + v;
-              else if (r.sublocation_id === fridgeId) fr[r.product_id] = (fr[r.product_id] || 0) + v;
+              fr[r.product_id] = (fr[r.product_id] || 0) + Number(r.stock || 0);
             });
-            setMainFreezers(fz);
+            setMainFreezers({});
             setMainFridge(fr);
           } else {
             setMainFreezers({});
             setMainFridge({});
           }
+
         }
       }
     } finally {
@@ -916,7 +912,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
                   agouza_reserved: agouzaPending[p.id] ?? 0,
                   main_actual: mainStock[p.id] ?? 0,
                   main_reserved: mainPending[p.id] ?? 0,
-                  main_freezers: mainFreezers[p.id] ?? 0,
+                  
                   main_fridge: mainFridge[p.id] ?? 0,
                 }));
                 const filter = search.trim() || undefined;

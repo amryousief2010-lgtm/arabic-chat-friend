@@ -213,25 +213,23 @@ export const printWarehouseStock = (
     const label = side === "agouza" ? "مخزن العجوزة" : "المخزن الرئيسي";
     const showMainSplit =
       side === "main" && view === "actual" &&
-      rows.some((r) => r.main_freezers !== undefined || r.main_fridge !== undefined);
+      rows.some((r) => r.main_fridge !== undefined);
 
     if (showMainSplit) {
       headerCols = `<th style="width:70px">الوحدة</th>`
-        + `<th style="width:120px">الفريزرات</th>`
         + `<th style="width:120px">ثلاجة التجميد</th>`
         + `<th style="width:140px">${label} — الفعلي</th>`;
-      const totals = [0, 0, 0];
+      const totals = [0, 0];
       bodyRows = rows.map((r, i) => {
-        const fz = Number(r.main_freezers || 0);
         const fr = Number(r.main_fridge || 0);
         const total = Number((r.main_actual ?? r.main) || 0);
-        totals[0] += fz; totals[1] += fr; totals[2] += total;
+        totals[0] += fr; totals[1] += total;
         return `<tr><td>${i + 1}</td><td>${r.name}</td><td>${r.unit || "-"}</td>`
-          + `<td>${cellQty(fz, r.unit)}</td>`
           + `<td>${cellQty(fr, r.unit)}</td>`
           + `<td>${cellQty(total, r.unit)}</td></tr>`;
       }).join("");
       footerRow = `<tr><td colspan="3">الإجمالي</td>${totals.map(v => `<td>${footQty(v, anyKilo)}</td>`).join("")}</tr>`;
+
     } else {
       headerCols = `<th style="width:70px">الوحدة</th>${sample.labels.map(l => `<th style="width:140px">${label} — ${l}</th>`).join("")}`;
       const totals = new Array(sample.labels.length).fill(0);
