@@ -27,6 +27,7 @@ const fmt = (n: number | null | undefined, d = 2) => (n == null ? "—" : Number
 const STATUS_BADGE = (s: string) => {
   if (s === "posted") return <Badge className="bg-emerald-600">معتمدة</Badge>;
   if (s === "draft") return <Badge variant="outline" className="border-amber-400 text-amber-700">بانتظار الاعتماد</Badge>;
+  if (s === "awaiting_receipt") return <Badge variant="outline" className="border-sky-400 text-sky-700">بانتظار استلام المخزن</Badge>;
   if (s === "rejected") return <Badge variant="destructive">مرفوضة</Badge>;
   if (s === "cancelled") return <Badge variant="destructive">ملغاة</Badge>;
   return <Badge>{s}</Badge>;
@@ -1011,7 +1012,8 @@ const TransfersTab = ({ fins, warehouses, list, onReload, onPost, onPrint, onExc
                 <TableCell className="font-bold">{fmt(t.total_value)}</TableCell>
                 <TableCell>{STATUS_BADGE(t.status)}</TableCell>
                 <TableCell className="flex gap-1">
-                  {t.status === "draft" && <Button size="sm" onClick={() => onPost(t.id)}><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد</Button>}
+                  {t.status === "draft" && <Button size="sm" onClick={() => onPost(t.id)}><CheckCircle2 className="h-4 w-4 ml-1" />إرسال للمخزن</Button>}
+                  {t.status === "awaiting_receipt" && <span className="text-xs text-sky-700 self-center">بانتظار اعتماد مسؤول المخزن</span>}
                   <Button size="icon" variant="outline" onClick={() => onPrint("أمر نقل للمخزن الرئيسي", "أمر نقل", t.transfer_no, t.status, ["المنتج", "الكمية", "تكلفة/وحدة", "الإجمالي"], (t.lines || []).map((l: any) => [l.fin?.name_ar, fmt(l.qty), fmt(l.unit_cost), fmt(l.total)]), [{ label: "إجمالي القيمة", value: fmt(t.total_value) }, { label: "المخزن الوجهة", value: t.warehouse?.name || "—" }], t.notes)}><Printer className="h-4 w-4" /></Button>
                 </TableCell>
               </TableRow>
