@@ -834,8 +834,55 @@ const WarehouseDetail = () => {
   };
 
   const outgoingTransfers = transfers.filter(t => t.source_warehouse_id === id);
-  const incomingPending = transfers.filter(t => t.destination_warehouse_id === id && ["pending_receipt", "partially_received", "needs_manager_review"].includes(t.status));
+  // تحويلات واردة من أي مخزن تابع لمصنع اللحوم تُعرض في تبويب «وارد مصنع اللحوم» فقط
+  const isMeatFactorySource = (t: any) => (t.source?.name || "").includes("مصنع اللحوم");
+  const incomingPendingAllSources = transfers.filter(t => t.destination_warehouse_id === id && ["pending_receipt", "partially_received", "needs_manager_review"].includes(t.status));
+  const meatIncomingPending = incomingPendingAllSources.filter(isMeatFactorySource);
+  const incomingPending = incomingPendingAllSources.filter(t => !isMeatFactorySource(t));
   const incomingAll = transfers.filter(t => t.destination_warehouse_id === id);
+
+  const renderIncomingTransferCard = (t: any) => (
+    <Card key={t.id} className="border-amber-500/30">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Inbox className="w-5 h-5 text-amber-600" />
+              {t.transfer_no} • من {t.source?.name}
+            </CardTitle>
+            <CardDescription>{formatDateTime(t.sent_at || t.created_at)} • {(t.items || []).length} صنف</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            {statusBadge(t.status)}
+            {canManageWarehouses && (
+              <Button size="sm" onClick={() => openReceiveDialog(t)}>
+                <CheckCircle2 className="w-4 h-4 ml-1" />تأكيد الاستلام
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>الصنف</TableHead><TableHead>الكمية المرسلة</TableHead>
+            <TableHead>المستلم</TableHead><TableHead>نقص</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {(t.items || []).map((li: any) => (
+              <TableRow key={li.id}>
+                <TableCell className="font-medium">{li.item_name}</TableCell>
+                <TableCell>{li.sent_qty} {li.unit}</TableCell>
+                <TableCell>{li.received_qty ?? "—"}</TableCell>
+                <TableCell className={li.shortage_qty > 0 ? "text-destructive" : ""}>{li.shortage_qty || 0}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+
   // Requests awaiting MY approval (I am the source warehouse, status pending_approval)
   const awaitingMyApproval = transfers.filter(t => t.source_warehouse_id === id && t.status === "pending_approval");
   // My own pending requests (I am destination, awaiting approval at source)
@@ -1101,6 +1148,7 @@ const WarehouseDetail = () => {
             {isMain && (
               <TabsTrigger value="meat-inbox" className="gap-1">
                 <Beef className="w-4 h-4" />وارد مصنع اللحوم
+                {meatIncomingPending.length > 0 && <Badge variant="destructive" className="mr-1">{meatIncomingPending.length}</Badge>}
               </TabsTrigger>
             )}
           </TabsList>
@@ -1446,48 +1494,9 @@ const WarehouseDetail = () => {
           <TabsContent value="incoming" className="space-y-4">
             {incomingPending.length === 0 ? (
               <Card><CardContent className="py-10 text-center text-muted-foreground">لا توجد تحويلات بانتظار الاستلام</CardContent></Card>
-            ) : incomingPending.map(t => (
-              <Card key={t.id} className="border-amber-500/30">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Inbox className="w-5 h-5 text-amber-600" />
-                        {t.transfer_no} • من {t.source?.name}
-                      </CardTitle>
-                      <CardDescription>{formatDateTime(t.sent_at || t.created_at)} • {(t.items || []).length} صنف</CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {statusBadge(t.status)}
-                      {canManageWarehouses && (
-                        <Button size="sm" onClick={() => openReceiveDialog(t)}>
-                          <CheckCircle2 className="w-4 h-4 ml-1" />تأكيد الاستلام
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader><TableRow>
-                      <TableHead>الصنف</TableHead><TableHead>الكمية المرسلة</TableHead>
-                      <TableHead>المستلم</TableHead><TableHead>نقص</TableHead>
-                    </TableRow></TableHeader>
-                    <TableBody>
-                      {(t.items || []).map((li: any) => (
-                        <TableRow key={li.id}>
-                          <TableCell className="font-medium">{li.item_name}</TableCell>
-                          <TableCell>{li.sent_qty} {li.unit}</TableCell>
-                          <TableCell>{li.received_qty ?? "—"}</TableCell>
-                          <TableCell className={li.shortage_qty > 0 ? "text-destructive" : ""}>{li.shortage_qty || 0}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            ))}
+            ) : incomingPending.map(renderIncomingTransferCard)}
           </TabsContent>
+
 
           <TabsContent value="outgoing" className="space-y-4">
             {outgoingTransfers.length === 0 ? (
@@ -1745,6 +1754,16 @@ const WarehouseDetail = () => {
           )}
           {isMain && (
             <TabsContent value="meat-inbox" className="space-y-4">
+              {meatIncomingPending.length > 0 && (
+                <div className="space-y-4">
+                  <Card className="border-amber-400 bg-amber-50/40">
+                    <CardContent className="py-3 text-sm text-amber-900">
+                      <strong>أوامر نقل واردة من مخازن مصنع اللحوم (TR-)</strong> بانتظار تأكيد الاستلام — اتنقلت هنا بدل تبويب التحويلات الداخلية.
+                    </CardContent>
+                  </Card>
+                  {meatIncomingPending.map(renderIncomingTransferCard)}
+                </div>
+              )}
               <MeatFactoryToMainWarehouseInbox defaultWarehouseId={id!} />
             </TabsContent>
           )}
