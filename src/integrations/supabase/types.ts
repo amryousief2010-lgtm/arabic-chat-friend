@@ -13556,6 +13556,11 @@ export type Database = {
           notes: string | null
           posted_at: string | null
           posted_by: string | null
+          received_at: string | null
+          received_by: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
           status: string
           total_value: number
           transfer_date: string
@@ -13571,6 +13576,11 @@ export type Database = {
           notes?: string | null
           posted_at?: string | null
           posted_by?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           status?: string
           total_value?: number
           transfer_date?: string
@@ -13586,6 +13596,11 @@ export type Database = {
           notes?: string | null
           posted_at?: string | null
           posted_by?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           status?: string
           total_value?: number
           transfer_date?: string
@@ -22114,6 +22129,10 @@ export type Database = {
         Args: { _notes?: string; _received_qty?: number; _transfer_id: string }
         Returns: string
       }
+      receive_mf_transfer: {
+        Args: { p_id: string; p_notes?: string }
+        Returns: undefined
+      }
       receive_slaughter_batch: {
         Args: { p_batch_id: string; p_warehouse_id: string }
         Returns: Json
@@ -22196,6 +22215,10 @@ export type Database = {
       }
       reject_mf_invoice: {
         Args: { p_id: string; p_reason: string; p_table: string }
+        Returns: undefined
+      }
+      reject_mf_transfer: {
+        Args: { p_id: string; p_reason: string }
         Returns: undefined
       }
       reject_proposal: {
