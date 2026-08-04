@@ -132,6 +132,78 @@ export function MeatFactoryToMainWarehouseInbox({ defaultWarehouseId }: Props) {
         </CardContent>
       </Card>
 
+      {mfRows.length > 0 && (
+        <Card className="border-sky-300">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ArrowDown className="w-5 h-5 text-sky-600" /> أوامر نقل منتجات تامة بانتظار الاستلام
+              <Badge variant="secondary">{mfRows.length}</Badge>
+            </CardTitle>
+            <CardDescription>الكميات خرجت من المصنع ولن تدخل رصيد المخزن إلا بعد اعتمادك</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>رقم الأمر</TableHead>
+                  <TableHead>التاريخ</TableHead>
+                  <TableHead>الأصناف</TableHead>
+                  <TableHead>القيمة</TableHead>
+                  <TableHead className="text-left">إجراء</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {mfRows.map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell className="font-mono text-xs">{t.transfer_no}</TableCell>
+                    <TableCell className="text-xs">{t.transfer_date}</TableCell>
+                    <TableCell className="text-xs">
+                      {(t.lines || []).map((l: any, i: number) => (
+                        <div key={i}>{l.fin?.name_ar} — {Number(l.qty).toFixed(2)} {l.fin?.unit || ""}</div>
+                      ))}
+                    </TableCell>
+                    <TableCell className="font-semibold">{Number(t.total_value || 0).toFixed(2)}</TableCell>
+                    <TableCell className="text-left">
+                      {canReceive ? (
+                        <div className="flex items-center gap-2 justify-end">
+                          <Button size="sm" disabled={busy} onClick={() => confirmMfReceive(t)} className="bg-emerald-600 hover:bg-emerald-700">
+                            <CheckCircle2 className="w-4 h-4 ml-1" /> اعتماد الاستلام
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => { setMfReject(t); setMfReason(""); }}>
+                            <XCircle className="w-4 h-4 ml-1" /> رفض
+                          </Button>
+                        </div>
+                      ) : (
+                        <Badge variant="outline">عرض فقط</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={!!mfReject} onOpenChange={(v) => !v && setMfReject(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>رفض أمر النقل {mfReject?.transfer_no}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">هترجع كل كميات الأمر لمخزون المنتجات التامة بالمصنع.</p>
+            <Textarea value={mfReason} onChange={(e) => setMfReason(e.target.value)} rows={3} placeholder="سبب الرفض" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMfReject(null)}>إلغاء</Button>
+            <Button variant="destructive" onClick={confirmMfReject} disabled={busy}>
+              <XCircle className="w-4 h-4 ml-1" /> {busy ? "جارٍ..." : "تأكيد الرفض"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       {loading ? (
         <Card><CardContent className="py-10 text-center text-muted-foreground">جارٍ التحميل...</CardContent></Card>
       ) : pending.length === 0 ? (
