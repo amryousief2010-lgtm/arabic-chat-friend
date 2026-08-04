@@ -1753,6 +1753,16 @@ const WarehouseDetail = () => {
           )}
           {isMain && (
             <TabsContent value="meat-inbox" className="space-y-4">
+              {meatIncomingPending.length > 0 && (
+                <div className="space-y-4">
+                  <Card className="border-amber-400 bg-amber-50/40">
+                    <CardContent className="py-3 text-sm text-amber-900">
+                      <strong>أوامر نقل واردة من مخازن مصنع اللحوم (TR-)</strong> بانتظار تأكيد الاستلام — اتنقلت هنا بدل تبويب التحويلات الداخلية.
+                    </CardContent>
+                  </Card>
+                  {meatIncomingPending.map(renderIncomingTransferCard)}
+                </div>
+              )}
               <MeatFactoryToMainWarehouseInbox defaultWarehouseId={id!} />
             </TabsContent>
           )}
