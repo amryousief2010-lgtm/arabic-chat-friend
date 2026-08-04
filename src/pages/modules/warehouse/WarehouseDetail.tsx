@@ -841,6 +841,48 @@ const WarehouseDetail = () => {
   const incomingPending = incomingPendingAllSources.filter(t => !isMeatFactorySource(t));
   const incomingAll = transfers.filter(t => t.destination_warehouse_id === id);
 
+  const renderIncomingTransferCard = (t: any) => (
+    <Card key={t.id} className="border-amber-500/30">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Inbox className="w-5 h-5 text-amber-600" />
+              {t.transfer_no} • من {t.source?.name}
+            </CardTitle>
+            <CardDescription>{formatDateTime(t.sent_at || t.created_at)} • {(t.items || []).length} صنف</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            {statusBadge(t.status)}
+            {canManageWarehouses && (
+              <Button size="sm" onClick={() => openReceiveDialog(t)}>
+                <CheckCircle2 className="w-4 h-4 ml-1" />تأكيد الاستلام
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>الصنف</TableHead><TableHead>الكمية المرسلة</TableHead>
+            <TableHead>المستلم</TableHead><TableHead>نقص</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {(t.items || []).map((li: any) => (
+              <TableRow key={li.id}>
+                <TableCell className="font-medium">{li.item_name}</TableCell>
+                <TableCell>{li.sent_qty} {li.unit}</TableCell>
+                <TableCell>{li.received_qty ?? "—"}</TableCell>
+                <TableCell className={li.shortage_qty > 0 ? "text-destructive" : ""}>{li.shortage_qty || 0}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+
   // Requests awaiting MY approval (I am the source warehouse, status pending_approval)
   const awaitingMyApproval = transfers.filter(t => t.source_warehouse_id === id && t.status === "pending_approval");
   // My own pending requests (I am destination, awaiting approval at source)
