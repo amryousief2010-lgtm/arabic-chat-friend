@@ -34,6 +34,10 @@ interface ReceiptLine {
 interface ReceiptRow {
   id: string;
   kind: ReceiptKind;
+  /** Underlying source table when the row is displayed under a different tab. */
+  src_kind?: ReceiptKind;
+  /** Raw transfer lines (internal transfers) used for one-click approval. */
+  raw_lines?: { line_id: string; qty: number }[];
   batch_no: string;
   date: string; // ISO
   source_label: string;
@@ -194,6 +198,14 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
           p_warehouse_id: r.dest_warehouse_id,
         });
         if (error) throw error;
+      } else if (r.src_kind === "internal") {
+        const lines = (r.raw_lines || []).map((l) => ({ line_id: l.line_id, received_qty: l.qty, notes: null }));
+        const { error } = await supabase.rpc("confirm_transfer_receipt" as any, {
+          p_transfer_id: r.id,
+          p_lines: lines,
+          p_notes: null,
+        });
+        if (error) throw error;
       } else if (r.kind === "meat_factory") {
         const { error } = await supabase.rpc("receive_meat_production_transfer" as any, {
           _transfer_id: r.id,
@@ -223,9 +235,10 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
     if (!editTarget) return;
     setBusy(true);
     try {
-      const table = editTarget.kind === "internal" ? "warehouse_transfers"
-        : editTarget.kind === "meat_factory" ? "meat_production_transfers"
-        : editTarget.kind === "slaughter" ? "slaughter_batches"
+      const ek = editTarget.src_kind || editTarget.kind;
+      const table = ek === "internal" ? "warehouse_transfers"
+        : ek === "meat_factory" ? "meat_production_transfers"
+        : ek === "slaughter" ? "slaughter_batches"
         : null;
       if (!table) {
         toast.error("هذا النوع غير قابل للتعديل من هنا");
@@ -256,8 +269,9 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
     }
     setBusy(true);
     try {
-      const table = deleteTarget.kind === "internal" ? "warehouse_transfers"
-        : deleteTarget.kind === "meat_factory" ? "meat_production_transfers"
+      const dk = deleteTarget.src_kind || deleteTarget.kind;
+      const table = dk === "internal" ? "warehouse_transfers"
+        : dk === "meat_factory" ? "meat_production_transfers"
         : null;
       if (!table) {
         toast.error("هذا النوع غير قابل للحذف من هنا — استخدم زر «اعتبارها موردة سابقًا»");
@@ -452,9 +466,15 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
         const s = (tr as any).status as string;
         const isPending = ["pending_receipt","pending_approval","sent"].includes(s);
         const isPartial = s === "partial_received";
+        const srcName = (tr as any).source?.name || "";
+        const fromMeatFactory = srcName.includes("مصنع اللحوم");
         const row: ReceiptRow = {
           id: String((tr as any).id),
-          kind: "internal",
+          // Transfers coming out of any meat-factory warehouse belong to the
+          // "استلامات مصنع اللحوم" tab, even though they're internal transfers.
+          kind: fromMeatFactory ? "meat_factory" : "internal",
+          src_kind: "internal",
+          raw_lines: items.map((it) => ({ line_id: String(it.id), qty: Number(it.sent_qty || 0) })),
           batch_no: transferNo || `TR-${String((tr as any).id).slice(0, 8)}`,
           date: (tr as any).received_at || (tr as any).sent_at,
           source_label: (tr as any).source?.name || "—",
@@ -686,7 +706,7 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
                       // "Previously received" — for legacy pending transfers dated before the new-cycle start.
                       const isLegacyPending = r.status === "pending" && new Date(r.date).getTime() < new Date(RECEIPTS_NEW_CYCLE_START).getTime();
                       const canMarkPrevious = canDispose && isLegacyPending && (r.kind === "slaughter" || r.kind === "meat_factory" || r.kind === "internal");
-                      const canReverse = canDispose && (r.status === "received" || r.status === "partial") && (r.kind === "slaughter" || r.kind === "meat_factory");
+                      const canReverse = canDispose && (r.status === "received" || r.status === "partial") && !r.src_kind && (r.kind === "slaughter" || r.kind === "meat_factory");
                       return (
                         <TableRow key={`${r.kind}-${r.id}`}>
                           <TableCell className="font-mono text-xs">{r.batch_no}</TableCell>
@@ -699,7 +719,7 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
                           <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              {r.status === "pending" && (r.kind === "slaughter" || r.kind === "meat_factory") && (
+                              {r.status === "pending" && (r.kind === "slaughter" || r.kind === "meat_factory" || r.src_kind === "internal") && (
                                 <Button
                                   size="sm"
                                   variant="default"
