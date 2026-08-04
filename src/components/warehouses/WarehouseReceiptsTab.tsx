@@ -269,8 +269,9 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
     }
     setBusy(true);
     try {
-      const table = deleteTarget.kind === "internal" ? "warehouse_transfers"
-        : deleteTarget.kind === "meat_factory" ? "meat_production_transfers"
+      const dk = deleteTarget.src_kind || deleteTarget.kind;
+      const table = dk === "internal" ? "warehouse_transfers"
+        : dk === "meat_factory" ? "meat_production_transfers"
         : null;
       if (!table) {
         toast.error("هذا النوع غير قابل للحذف من هنا — استخدم زر «اعتبارها موردة سابقًا»");
