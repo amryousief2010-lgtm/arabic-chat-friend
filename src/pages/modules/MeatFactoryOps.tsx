@@ -27,6 +27,7 @@ const fmt = (n: number | null | undefined, d = 2) => (n == null ? "—" : Number
 const STATUS_BADGE = (s: string) => {
   if (s === "posted") return <Badge className="bg-emerald-600">معتمدة</Badge>;
   if (s === "draft") return <Badge variant="outline" className="border-amber-400 text-amber-700">بانتظار الاعتماد</Badge>;
+  if (s === "awaiting_receipt") return <Badge variant="outline" className="border-sky-400 text-sky-700">بانتظار استلام المخزن</Badge>;
   if (s === "rejected") return <Badge variant="destructive">مرفوضة</Badge>;
   if (s === "cancelled") return <Badge variant="destructive">ملغاة</Badge>;
   return <Badge>{s}</Badge>;
