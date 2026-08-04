@@ -854,7 +854,7 @@ const WarehouseDetail = () => {
           </div>
           <div className="flex items-center gap-2">
             {statusBadge(t.status)}
-            {canManageWarehouses && (
+            {(canManageWarehouses || isGeneralManager || isExecutiveManager || isProductionManager || isWarehouseSupervisor) && (
               <Button size="sm" onClick={() => openReceiveDialog(t)}>
                 <CheckCircle2 className="w-4 h-4 ml-1" />تأكيد الاستلام
               </Button>
