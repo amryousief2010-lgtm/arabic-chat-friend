@@ -235,9 +235,10 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
     if (!editTarget) return;
     setBusy(true);
     try {
-      const table = editTarget.kind === "internal" ? "warehouse_transfers"
-        : editTarget.kind === "meat_factory" ? "meat_production_transfers"
-        : editTarget.kind === "slaughter" ? "slaughter_batches"
+      const ek = editTarget.src_kind || editTarget.kind;
+      const table = ek === "internal" ? "warehouse_transfers"
+        : ek === "meat_factory" ? "meat_production_transfers"
+        : ek === "slaughter" ? "slaughter_batches"
         : null;
       if (!table) {
         toast.error("هذا النوع غير قابل للتعديل من هنا");
