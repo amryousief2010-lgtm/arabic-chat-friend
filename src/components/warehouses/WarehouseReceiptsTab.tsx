@@ -34,6 +34,10 @@ interface ReceiptLine {
 interface ReceiptRow {
   id: string;
   kind: ReceiptKind;
+  /** Underlying source table when the row is displayed under a different tab. */
+  src_kind?: ReceiptKind;
+  /** Raw transfer lines (internal transfers) used for one-click approval. */
+  raw_lines?: { line_id: string; qty: number }[];
   batch_no: string;
   date: string; // ISO
   source_label: string;
