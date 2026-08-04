@@ -466,9 +466,15 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
         const s = (tr as any).status as string;
         const isPending = ["pending_receipt","pending_approval","sent"].includes(s);
         const isPartial = s === "partial_received";
+        const srcName = (tr as any).source?.name || "";
+        const fromMeatFactory = srcName.includes("مصنع اللحوم");
         const row: ReceiptRow = {
           id: String((tr as any).id),
-          kind: "internal",
+          // Transfers coming out of any meat-factory warehouse belong to the
+          // "استلامات مصنع اللحوم" tab, even though they're internal transfers.
+          kind: fromMeatFactory ? "meat_factory" : "internal",
+          src_kind: "internal",
+          raw_lines: items.map((it) => ({ line_id: String(it.id), qty: Number(it.sent_qty || 0) })),
           batch_no: transferNo || `TR-${String((tr as any).id).slice(0, 8)}`,
           date: (tr as any).received_at || (tr as any).sent_at,
           source_label: (tr as any).source?.name || "—",
