@@ -109,6 +109,15 @@ export default function ManufacturingInvoices() {
     return m;
   }, [mappings]);
 
+  // منتجات مضافة يدويًا (تُحفظ محليًا وتظهر أيضًا من فواتير سابقة)
+  const [customProducts, setCustomProducts] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("mf_custom_products") || "[]"); } catch { return []; }
+  });
+  const [newProductOpen, setNewProductOpen] = useState(false);
+  const [newProductName, setNewProductName] = useState("");
+
+
+
   const fetchAll = async () => {
     const [whs, inv, ri, mp, cd] = await Promise.all([
       supabase.from("warehouses").select("id, name, type").order("name"),
