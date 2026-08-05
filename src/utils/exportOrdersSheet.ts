@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 /**
  * تصدير الطلبات بنفس تنسيق شيت "تسجيل اوردرات لحم نعام" (Google Form Responses):
@@ -34,7 +34,7 @@ const PRODUCT_COLUMNS = [
   "بيض",
   " دبوس6 كيلو",
   " فخدة او نص نعامة او نعامة صندوق",
-  "لحم",
+  "لحم قطع",
   "استيك",
   "موزة",
   "فراشة",
@@ -116,7 +116,7 @@ const RULES: Array<{ col: (typeof PRODUCT_COLUMNS)[number]; test: (n: string) =>
       n.includes("ذبيحه"),
   },
   // "لحم" عام — بعد كل الأصناف المتخصصة حتى لا يبتلع "لحم مفروم" مثلاً
-  { col: "لحم", test: (n) => n.includes("لحم") },
+  { col: "لحم قطع", test: (n) => n.includes("لحم") },
 ];
 
 
@@ -135,7 +135,7 @@ const STATUS_AR: Record<string, string> = {
   cancelled: "ملغي",
 };
 
-export function exportOrdersSheetStyle(
+export async function exportOrdersSheetStyle(
   orders: SheetExportOrder[],
   filename = `طلبات-تفصيلية-${new Date().toISOString().slice(0, 10)}.xlsx`,
 ) {
@@ -170,9 +170,29 @@ export function exportOrdersSheetStyle(
     return row;
   });
 
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws["!cols"] = Object.keys(rows[0] || {}).map((k) => ({ wch: Math.max(10, Math.min(30, k.length + 4)) }));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "الطلبات");
-  XLSX.writeFile(wb, filename, { bookType: "xlsx" });
+  const headers = Object.keys(rows[0] || {});
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("الطلبات", { views: [{ rightToLeft: true }] });
+  ws.columns = headers.map((h) => ({ header: h, key: h, width: Math.max(10, Math.min(30, h.length + 4)) }));
+  ws.getRow(1).font = { bold: true };
+
+  const FILL: Record<string, string> = { delivered: "FFCCE5FF", cancelled: "FFFFC7CE" };
+
+  rows.forEach((r, idx) => {
+    const row = ws.addRow(r);
+    const color = FILL[orders[idx]?.status || ""];
+    if (color) {
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
+      });
+    }
+  });
+
+  const buf = await wb.xlsx.writeBuffer();
+  const url = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
