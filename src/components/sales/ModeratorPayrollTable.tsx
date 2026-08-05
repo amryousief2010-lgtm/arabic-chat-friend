@@ -801,6 +801,22 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
               ))}
             </TableRow>
 
+            <TableRow className="bg-blue-50 dark:bg-blue-900/20">
+              <TableCell className="font-bold border">بونص الشهر السابق (ج.م)</TableCell>
+              {rows.map(r => (
+                <TableCell key={r.girl} className="text-center border">
+                  <button
+                    type="button"
+                    className="font-bold text-primary underline underline-offset-2 disabled:no-underline disabled:text-muted-foreground"
+                    disabled={!(carryByGirl.get(r.girl)?.details.length)}
+                    onClick={() => setPrevDialogGirl(r.girl)}
+                  >
+                    {fmt(r.prevBonus)}
+                  </button>
+                </TableCell>
+              ))}
+            </TableRow>
+
 
             <TableRow className="bg-primary/15">
               <TableCell className="font-bold border text-primary">إجمالي القبض (ج.م)</TableCell>
