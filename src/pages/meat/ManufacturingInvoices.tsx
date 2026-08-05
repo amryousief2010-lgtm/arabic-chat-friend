@@ -338,7 +338,7 @@ export default function ManufacturingInvoices() {
     setSelectedRecipeKey(key);
     const requested = qtyOverride && qtyOverride > 0 ? qtyOverride : r.batch_qty;
     const factor = requested / r.batch_qty;
-    if (PRODUCT_PRESETS.includes(r.product)) { setProductName(r.product); setProductNameOther(""); }
+    if (productOptions.includes(r.product)) { setProductName(r.product); setProductNameOther(""); }
     else { setProductName("أخرى"); setProductNameOther(r.product); }
     setFinishedQty(requested);
     setUnit(r.unit || "كجم");
