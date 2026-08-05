@@ -91,8 +91,10 @@ interface Props {
 const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { isGeneralManager, isExecutiveManager, isSalesManager, role } = useAuth();
+  const { isGeneralManager, isExecutiveManager, isSalesManager, role, user, profile } = useAuth();
   const canEdit = isGeneralManager || isExecutiveManager || isSalesManager || role === 'marketing_sales_manager';
+  const canApprove = canEdit;
+
   const [internalMonth, setInternalMonth] = useState(currentMonth);
   const [internalYear, setInternalYear] = useState(currentYear);
   const isControlled = month !== undefined && year !== undefined;
