@@ -73,18 +73,15 @@ const norm = (s: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-// الترتيب مهم: الأكثر تخصيصًا أولًا
+// الترتيب مهم: الأكثر تخصيصًا أولًا.
+// ملاحظة: عمود (فخدة/نص نعامة/نعامة صندوق) في الآخر ومقيَّد بشروط دقيقة
+// حتى لا يبتلع أصناف مثل "نص قوانص" أو "نص كيلو ...".
 const RULES: Array<{ col: (typeof PRODUCT_COLUMNS)[number]; test: (n: string) => boolean }> = [
   { col: "كفتة أرز", test: (n) => n.includes("كفت") && (n.includes("رز") || n.includes("ارز")) },
   { col: "برجر بالجبنة", test: (n) => n.includes("برجر") && n.includes("جبن") },
   { col: "قطعية الدبوس", test: (n) => n.includes("قطعيه الدبوس") || n.includes("قطعيه دبوس") },
   { col: " دبوس6 كيلو", test: (n) => n.includes("دبوس") },
-  {
-    col: " فخدة او نص نعامة او نعامة صندوق",
-    test: (n) => n.includes("فخده") || n.includes("نص") || n.includes("صندوق"),
-  },
   { col: "بيض", test: (n) => n.includes("بيض") },
-  { col: "لحم", test: (n) => n.includes("لحم") },
   { col: "استيك", test: (n) => n.includes("استيك") },
   { col: "موزة", test: (n) => n.includes("موزه") },
   { col: "فراشة", test: (n) => n.includes("فراشه") },
@@ -108,7 +105,20 @@ const RULES: Array<{ col: (typeof PRODUCT_COLUMNS)[number]; test: (n: string) =>
   { col: "مفروم", test: (n) => n.includes("مفروم") },
   { col: "ممبار", test: (n) => n.includes("ممبار") },
   { col: "نخاع", test: (n) => n.includes("نخاع") },
+  {
+    col: " فخدة او نص نعامة او نعامة صندوق",
+    test: (n) =>
+      n.includes("فخده") ||
+      n.includes("صندوق") ||
+      n === "نص" ||
+      n === "نص كامله" ||
+      n.includes("نص ذبيحه") ||
+      n.includes("ذبيحه"),
+  },
+  // "لحم" عام — بعد كل الأصناف المتخصصة حتى لا يبتلع "لحم مفروم" مثلاً
+  { col: "لحم", test: (n) => n.includes("لحم") },
 ];
+
 
 function mapProductColumn(productName: string): string | null {
   const n = norm(productName);
