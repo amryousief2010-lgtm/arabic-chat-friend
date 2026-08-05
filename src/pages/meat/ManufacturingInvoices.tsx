@@ -939,18 +939,33 @@ export default function ManufacturingInvoices() {
                     </Select>
                   </div>
                   <div>
-                    <Label>المنتج النهائي</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>المنتج النهائي</Label>
+                      <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs"
+                        onClick={() => { setNewProductOpen(v => !v); setNewProductName(""); }}>
+                        <Plus className="w-3 h-3 ml-1" /> منتج جديد
+                      </Button>
+                    </div>
                     <Select value={productName} onValueChange={setProductName}>
                       <SelectTrigger><SelectValue placeholder="اختر المنتج" /></SelectTrigger>
                       <SelectContent>
-                        {PRODUCT_PRESETS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        {productOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                         <SelectItem value="أخرى">أخرى (أدخل اسمًا)</SelectItem>
                       </SelectContent>
                     </Select>
+                    {newProductOpen && (
+                      <div className="mt-2 flex gap-2">
+                        <Input placeholder="اسم المنتج الجديد" value={newProductName}
+                          onChange={e => setNewProductName(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustomProduct(); } }} />
+                        <Button type="button" size="sm" onClick={addCustomProduct}>إضافة</Button>
+                      </div>
+                    )}
                     {productName === "أخرى" && (
                       <Input className="mt-2" placeholder="اسم المنتج" value={productNameOther} onChange={e => setProductNameOther(e.target.value)} />
                     )}
                   </div>
+
                   <div><Label>الكمية النهائية</Label><Input type="number" step="0.01" value={finishedQty || ""} onChange={e => setFinishedQty(Number(e.target.value))} /></div>
                   <div>
                     <Label>الوحدة</Label>
