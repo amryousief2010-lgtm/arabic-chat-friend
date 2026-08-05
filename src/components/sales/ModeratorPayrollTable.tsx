@@ -686,7 +686,23 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
               </SelectContent>
             </Select>
 
+            {selectedClosure ? (
+              <div className="flex items-center gap-2 text-xs md:text-sm text-green-700 dark:text-green-400 font-semibold">
+                <Button type="button" variant="outline" size="sm" disabled className="gap-1">
+                  <Lock className="h-4 w-4" /> تم اعتماد القبض
+                </Button>
+                <span>
+                  {new Date(selectedClosure.approved_at).toLocaleString('ar-EG', { timeZone: 'Africa/Cairo', dateStyle: 'short', timeStyle: 'short' })}
+                  {selectedClosure.approved_by_name ? ` — ${selectedClosure.approved_by_name}` : ''}
+                </span>
+              </div>
+            ) : canApprove ? (
+              <Button type="button" size="sm" className="gap-1" onClick={() => setConfirmOpen(true)}>
+                <CheckCircle2 className="h-4 w-4" /> تم اعتماد القبض
+              </Button>
+            ) : null}
           </div>
+
         </div>
       </CardHeader>
       <CardContent className="p-2 md:p-4">
