@@ -35,6 +35,7 @@ import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, C
 import { printOrderInvoice } from "@/lib/printUtils";
 import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth, cairoTodayStartUTC, toCairoDateString } from "@/lib/cairoDate";
 import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
+import { exportOrdersSheetStyle } from "@/utils/exportOrdersSheet";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
 import AddOfferDialog from "@/components/orders/AddOfferDialog";
@@ -2004,7 +2005,7 @@ const Orders = () => {
               </Select>
             )}
             {canExportExcel && (
-              <Button variant="outline" className="gap-2" onClick={() => exportOrdersToXLSX(filteredOrders)}>
+              <Button variant="outline" className="gap-2" onClick={() => exportOrdersSheetStyle(filteredOrders as any)}>
                 <FileDown className="w-4 h-4" /> Excel
               </Button>
             )}
