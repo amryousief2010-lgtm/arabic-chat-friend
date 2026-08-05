@@ -147,6 +147,7 @@ export default function ManufacturingInvoices() {
 
   const rawCandidates = useMemo(() => items.filter(i => i.kind === "raw" || i.kind === "spice"), [items]);
   const packCandidates = useMemo(() => items.filter(i => i.kind === "packaging"), [items]);
+
   // Search box for the packaging picker
   const [packSearch, setPackSearch] = useState("");
   const packCandidatesFiltered = useMemo(() => {
