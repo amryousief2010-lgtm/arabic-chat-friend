@@ -628,7 +628,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
 
 
   const renderBonusCell = (girl: Girl, value: number, field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate' | 'bone_rate', overridden: boolean) => {
-    if (!canEdit) {
+    if (!canEdit || selectedClosure) {
       return <span className="font-bold text-primary">{fmt(value)}</span>;
     }
     return (
