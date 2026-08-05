@@ -157,6 +157,30 @@ export default function ManufacturingInvoices() {
   const rawCandidates = useMemo(() => items.filter(i => i.kind === "raw" || i.kind === "spice"), [items]);
   const packCandidates = useMemo(() => items.filter(i => i.kind === "packaging"), [items]);
 
+  // قائمة المنتجات = الثابتة + المستخدمة في فواتير سابقة + المضافة يدويًا
+  const productOptions = useMemo(() => {
+    const set = new Set<string>(PRODUCT_PRESETS);
+    (invoices || []).forEach((i: any) => { const n = (i.product_name || "").trim(); if (n) set.add(n); });
+    customProducts.forEach(n => { if (n?.trim()) set.add(n.trim()); });
+    return Array.from(set);
+  }, [invoices, customProducts]);
+
+  const addCustomProduct = () => {
+    const n = newProductName.trim();
+    if (!n) { toast.error("أدخل اسم المنتج"); return; }
+    if (!customProducts.includes(n) && !productOptions.includes(n)) {
+      const next = [...customProducts, n];
+      setCustomProducts(next);
+      try { localStorage.setItem("mf_custom_products", JSON.stringify(next)); } catch { /* ignore */ }
+    }
+    setProductName(n);
+    setProductNameOther("");
+    setNewProductName("");
+    setNewProductOpen(false);
+    toast.success(`تمت إضافة المنتج «${n}» للقائمة`);
+  };
+
+
   // Search box for the packaging picker
   const [packSearch, setPackSearch] = useState("");
   const packCandidatesFiltered = useMemo(() => {
