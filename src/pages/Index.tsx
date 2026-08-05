@@ -4,6 +4,8 @@ import { getLandingForRole } from "@/constants/roleLandings";
 import { Button } from "@/components/ui/button";
 import { exportToPDF, exportToExcel } from "@/utils/exportReports";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import OrdersBySourceCard from "@/components/dashboard/OrdersBySourceCard";
+
 import Header from "@/components/layout/Header";
 import StatCard from "@/components/dashboard/StatCard";
 import ActiveUsersWidget from "@/components/ActiveUsersWidget";
@@ -473,7 +475,11 @@ const DashboardContent = () => {
         </Card>
       </div>
 
+      {/* الطلبات حسب مصدر العميل */}
+      <OrdersBySourceCard />
+
       {/* Recent Orders Table */}
+
       <Card className="glass-card mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
