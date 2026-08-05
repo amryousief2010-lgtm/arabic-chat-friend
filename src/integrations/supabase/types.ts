@@ -22359,6 +22359,10 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: Json
       }
+      resolve_inventory_transfer_destination: {
+        Args: { p_destination_warehouse_id: string; p_source_item_id: string }
+        Returns: string
+      }
       resolve_order_source_warehouse: {
         Args: { p_shipping_company: string }
         Returns: string
