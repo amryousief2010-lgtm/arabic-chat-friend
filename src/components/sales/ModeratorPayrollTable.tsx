@@ -849,8 +849,36 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
           * المبيعات تُحسب من الأوردرات المسلَّمة. الأسعار المستخدمة (لحوم/بالعظم/مصنعات) تتبع الأسعار في "جدول مبيعات المسوقات".<br />
           * بونص اللحوم = (بونص التارجت × كجم اللحوم) + ({BONE_BONUS_PER_KG} ج × كجم اللحوم بالعظم).
         </p>
+
+        <PrevMonthBonusDialog
+          open={!!prevDialogGirl}
+          onOpenChange={(v) => !v && setPrevDialogGirl(null)}
+          girl={prevDialogGirl || ''}
+          details={prevDialogGirl ? (carryByGirl.get(prevDialogGirl)?.details || []) : []}
+        />
+
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>اعتماد القبض</AlertDialogTitle>
+              <AlertDialogDescription>
+                {`هل أنت متأكد من اعتماد قبض شهر ${months.find(m => m.value === selectedMonth)?.label}؟ بعد الاعتماد سيتم تثبيت جميع نتائج القبض والتارجت، وأي أوردر تابع لهذا الشهر يتحول إلى تسليم ناجح بعد الاعتماد سيتم ترحيل بونصه إلى القبض التالي.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); approveMutation.mutate(); }}
+                disabled={approveMutation.isPending}
+              >
+                تأكيد الاعتماد
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
+
   );
 };
 
