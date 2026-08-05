@@ -480,6 +480,151 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     });
   }, [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS, chickQtyByGirl, chickBonusRate]);
 
+  // بونص الشهر السابق (الأوردرات المرحّلة) بأسعار تارجت الشهر الحالي
+  const carryByGirl = useMemo(() => {
+    const map = new Map<string, { bonus: number; details: CarriedDetail[] }>();
+    GIRLS.forEach(g => map.set(g, { bonus: 0, details: [] }));
+    carried.forEach((c: any) => {
+      const row = baseRows.find(r => r.girl === c.girl);
+      if (!row) return;
+      const entry = map.get(c.girl)!;
+      const originLabel = `${months.find(m => m.value === c.originMonth)?.label} ${c.originYear}`;
+      const push = (category: CarriedDetail['category'], quantity: number, rate: number, tierLabel: string) => {
+        if (!quantity) return;
+        const bonus = quantity * rate;
+        entry.details.push({
+          orderId: c.orderId, orderNumber: c.orderNumber, girl: c.girl, originLabel,
+          closureApprovedAt: c.closureApprovedAt, deliveredAt: c.deliveredAt,
+          category, quantity, tierLabel, rate, bonus,
+        });
+        entry.bonus += bonus;
+      };
+      push('مصنعات', c.procKg, row.procTier ? row.procRate : 0, row.procTier ? `التارجت ${row.procTier.label}` : 'لم يتحقق');
+      push('لحوم', c.meatKg, row.meatTier ? row.meatRate : 0, row.meatTier ? `التارجت ${row.meatTier.label}` : 'لم يتحقق');
+      push('لحوم بالعظم', c.boneKg, row.meatTier ? row.boneRate : 0, row.meatTier ? `التارجت ${row.meatTier.label}` : 'لم يتحقق');
+    });
+    return map;
+  }, [carried, baseRows]);
+
+  const liveRows = useMemo(() => baseRows.map(r => {
+    const prevBonus = carryByGirl.get(r.girl)?.bonus || 0;
+    return { ...r, prevBonus, total: r.total + prevBonus };
+  }), [baseRows, carryByGirl]);
+
+  // بعد الاعتماد: تُعرض النسخة المثبتة (Snapshot) بدل الحساب المباشر
+  const rows = useMemo(() => {
+    if (!selectedClosure || snapshots.length === 0) return liveRows;
+    return liveRows.map(r => {
+      const s = snapshots.find((x: any) => x.moderator_name === r.girl);
+      if (!s) return r;
+      return {
+        ...r,
+        base: Number(s.base_salary),
+        procSales: Number(s.processed_sales),
+        procKg: Number(s.processed_qty),
+        procRate: Number(s.processed_rate),
+        procBonus: Number(s.processed_bonus),
+        procTier: s.processed_tier_label ? { sales: 0, bonus: Number(s.processed_rate), label: s.processed_tier_label } : null,
+        meatSales: Number(s.meat_sales),
+        meatKg: Number(s.meat_qty),
+        meatRate: Number(s.meat_rate),
+        meatBonus: Number(s.meat_bonus),
+        meatTier: s.meat_tier_label ? { sales: 0, bonus: Number(s.meat_rate), label: s.meat_tier_label } : null,
+        boneKg: Number(s.bone_qty),
+        boneRate: Number(s.bone_rate),
+        boneBonus: Number(s.bone_bonus),
+        chickCount: Number(s.chick_count),
+        chickBonus: Number(s.chick_bonus),
+        prevBonus: Number(s.prev_month_bonus),
+        total: Number(s.grand_total),
+      };
+    });
+  }, [liveRows, snapshots, selectedClosure]);
+
+  const [prevDialogGirl, setPrevDialogGirl] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const approveMutation = useMutation({
+    mutationFn: async () => {
+      if (selectedClosure) throw new Error('تم اعتماد قبض هذا الشهر بالفعل');
+      const { data: closure, error } = await supabase
+        .from('payroll_month_closures')
+        .insert({
+          year: selectedYear,
+          month: selectedMonth,
+          approved_by: user?.id ?? null,
+          approved_by_name: profile?.full_name ?? null,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+
+      const snapPayload = liveRows.map(r => ({
+        closure_id: closure.id,
+        year: selectedYear,
+        month: selectedMonth,
+        moderator_name: r.girl,
+        base_salary: r.base,
+        processed_sales: r.procSales,
+        processed_tier_label: r.procTier?.label ?? null,
+        processed_qty: r.procKg,
+        processed_rate: r.procRate,
+        processed_bonus: r.procBonus,
+        meat_sales: r.meatSales,
+        meat_tier_label: r.meatTier?.label ?? null,
+        meat_qty: r.meatKg,
+        meat_rate: r.meatRate,
+        meat_bonus: r.meatBonus,
+        bone_qty: r.boneKg,
+        bone_rate: r.boneRate,
+        bone_bonus: r.boneBonus,
+        chick_count: r.chickCount,
+        chick_bonus: r.chickBonus,
+        total_bonus: r.procBonus + r.meatBonus + r.boneBonus + r.chickBonus,
+        prev_month_bonus: r.prevBonus,
+        grand_total: r.total,
+      }));
+      const { error: snapErr } = await supabase.from('payroll_month_snapshots').insert(snapPayload);
+      if (snapErr) throw snapErr;
+
+      const carriedPayload: any[] = [];
+      liveRows.forEach(r => {
+        (carryByGirl.get(r.girl)?.details || []).forEach(d => {
+          const src: any = carried.find((c: any) => c.orderId === d.orderId);
+          carriedPayload.push({
+            order_id: d.orderId,
+            order_number: d.orderNumber,
+            moderator_name: d.girl,
+            category: d.category,
+            origin_year: src?.originYear ?? selectedYear,
+            origin_month: src?.originMonth ?? selectedMonth,
+            paid_year: selectedYear,
+            paid_month: selectedMonth,
+            quantity: d.quantity,
+            rate: d.rate,
+            bonus_amount: d.bonus,
+            delivered_at: d.deliveredAt,
+            origin_closure_approved_at: d.closureApprovedAt,
+          });
+        });
+      });
+      if (carriedPayload.length > 0) {
+        const { error: carErr } = await supabase
+          .from('payroll_carried_orders')
+          .upsert(carriedPayload, { onConflict: 'order_id,category', ignoreDuplicates: true });
+        if (carErr) throw carErr;
+      }
+    },
+    onSuccess: () => {
+      setConfirmOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['payroll-month-closures'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-month-snapshots'] });
+      toast({ title: 'تم اعتماد القبض', description: 'تم تثبيت نتائج الشهر بنجاح' });
+    },
+    onError: (e: any) => toast({ title: 'تعذر الاعتماد', description: e.message, variant: 'destructive' }),
+  });
+
+
 
   const renderBonusCell = (girl: Girl, value: number, field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate' | 'bone_rate', overridden: boolean) => {
     if (!canEdit) {
