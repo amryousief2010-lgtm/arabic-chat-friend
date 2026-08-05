@@ -437,7 +437,8 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     onError: (e: any) => toast({ title: 'تعذر الحفظ', description: e.message, variant: 'destructive' }),
   });
 
-  const rows = useMemo(() => {
+  const baseRows = useMemo(() => {
+
     return GIRLS.map(g => {
       const meatKg = qty.meat[g] || 0;
       const boneKg = qty.bone[g] || 0;
