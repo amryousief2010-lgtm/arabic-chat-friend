@@ -293,6 +293,130 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     return r ? Number(r.bonus_amount) : 50;
   }, [tierSettings]);
 
+  // ===== اعتماد قبض الشهر (Closures) =====
+  const { data: closures = [] } = useQuery({
+    queryKey: ['payroll-month-closures'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payroll_month_closures')
+        .select('*')
+        .order('year')
+        .order('month');
+      if (error) throw error;
+      return data as Array<{ id: string; year: number; month: number; approved_at: string; approved_by_name: string | null }>;
+    },
+  });
+
+  const selectedClosure = useMemo(
+    () => closures.find(c => c.year === selectedYear && c.month === selectedMonth) || null,
+    [closures, selectedYear, selectedMonth],
+  );
+
+  const { data: snapshots = [] } = useQuery({
+    queryKey: ['payroll-month-snapshots', selectedMonth, selectedYear, selectedClosure?.id],
+    enabled: !!selectedClosure,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payroll_month_snapshots')
+        .select('*')
+        .eq('year', selectedYear)
+        .eq('month', selectedMonth);
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  // الأوردرات المرحّلة من شهور معتمدة إلى قبض الشهر المحدد
+  const { data: carried = [] } = useQuery({
+    queryKey: ['payroll-carried-orders', selectedMonth, selectedYear, closures.map(c => `${c.year}-${c.month}-${c.approved_at}`).join('|')],
+    enabled: closures.length > 0,
+    queryFn: async () => {
+      const idxOf = (y: number, m: number) => y * 12 + (m - 1);
+      const selIdx = idxOf(selectedYear, selectedMonth);
+      const closureAtIdx = (i: number) => {
+        const y = Math.floor(i / 12);
+        const m = (i % 12) + 1;
+        return closures.find(c => c.year === y && c.month === m) || null;
+      };
+      // الشهر الذي يُصرف فيه بونص الأوردر المرحّل: أول شهر تالٍ لم يكن معتمداً وقت التسليم
+      const payingIdx = (originIdx: number, deliveredAt: string) => {
+        for (let i = originIdx + 1; i <= selIdx; i++) {
+          const cl = closureAtIdx(i);
+          if (!cl || new Date(cl.approved_at).getTime() > new Date(deliveredAt).getTime()) return i;
+        }
+        return -1;
+      };
+
+      const out: Array<{
+        orderId: string; orderNumber: string; girl: Girl; deliveredAt: string;
+        originYear: number; originMonth: number; closureApprovedAt: string;
+      }> = [];
+
+      for (const cl of closures) {
+        const originIdx = idxOf(cl.year, cl.month);
+        if (originIdx >= selIdx) continue;
+        const start = cairoMonthStartUTC(cl.year, cl.month - 1).toISOString();
+        const end = cairoMonthStartUTC(cl.year, cl.month).toISOString();
+        const { data: rowsO, error } = await supabase
+          .from('orders')
+          .select('id, order_number, moderator, created_by, delivered_at')
+          .eq('status', 'delivered')
+          .gte('created_at', start)
+          .lt('created_at', end)
+          .gt('delivered_at', cl.approved_at);
+        if (error) throw error;
+        const candidates = (rowsO || []).filter(o => o.delivered_at && payingIdx(originIdx, o.delivered_at) === selIdx);
+        if (candidates.length === 0) continue;
+
+        const userIds = Array.from(new Set(candidates.map(o => o.created_by).filter(Boolean))) as string[];
+        let profileMap = new Map<string, string>();
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase.from('profile_directory').select('id, full_name').in('id', userIds);
+          profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+        }
+        candidates.forEach(o => {
+          const modName = o.moderator || '';
+          const creatorName = o.created_by ? (profileMap.get(o.created_by) || '') : '';
+          const girl = GIRLS.find(g => matches(modName, g) || matches(creatorName, g));
+          if (!girl) return;
+          out.push({
+            orderId: o.id,
+            orderNumber: o.order_number || '',
+            girl,
+            deliveredAt: o.delivered_at as string,
+            originYear: cl.year,
+            originMonth: cl.month,
+            closureApprovedAt: cl.approved_at,
+          });
+        });
+      }
+
+      if (out.length === 0) return [] as Array<typeof out[number] & { meatKg: number; boneKg: number; procKg: number }>;
+
+      const byId = new Map(out.map(o => [o.orderId, { ...o, meatKg: 0, boneKg: 0, procKg: 0 }]));
+      const ids = Array.from(byId.keys());
+      const ID_CHUNK = 200;
+      for (let i = 0; i < ids.length; i += ID_CHUNK) {
+        const chunk = ids.slice(i, i + ID_CHUNK);
+        const { data: items, error } = await supabase
+          .from('order_items')
+          .select('order_id, product_name, quantity')
+          .in('order_id', chunk);
+        if (error) throw error;
+        (items || []).forEach(it => {
+          const rec = byId.get(it.order_id);
+          if (!rec) return;
+          const pname = normalize(it.product_name || '');
+          const q = Number(it.quantity) || 0;
+          if (BONE_MEAT_KEYWORDS.some(k => pname.includes(normalize(k)))) { rec.boneKg += q; return; }
+          if (PROCESSED_KEYWORDS.some(k => pname.includes(normalize(k)))) { rec.procKg += q; return; }
+          if (MEAT_KEYWORDS.some(k => pname.includes(normalize(k)))) { rec.meatKg += q; }
+        });
+      }
+      return Array.from(byId.values());
+    },
+  });
+
 
   const overrideMutation = useMutation({
     mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate' | 'bone_rate'; value: number | null }) => {
