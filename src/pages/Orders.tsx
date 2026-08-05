@@ -1012,7 +1012,10 @@ const Orders = () => {
 
   const filteredOrders = useMemo(() => orders.filter((order) => {
     const matchesStatus =
-      filterStatus === "all" || order.status === filterStatus;
+      filterStatus === "all" ||
+      (filterStatus === "pending"
+        ? (order.status === "pending" || order.status === "processing")
+        : order.status === filterStatus);
     const qRaw = appliedSearch.trim();
     const q = qRaw.toLowerCase();
     const qNorm = normalizeArabic(qRaw);
