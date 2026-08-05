@@ -1107,15 +1107,8 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                 <Button onClick={() => setAssignOpen(true)} disabled={!selectedCustody}>
                   <Package2 className="w-4 h-4 ml-1" /> تسليم أوردرات للمندوب
                 </Button>
-                <Button
-                  variant="outline"
-                  className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                  onClick={() => setHandoverOpen(true)}
-                  disabled={!selectedCustody || !current || current.collected <= 0}
-                  title="توريد نقدية المندوب للخزينة الرئيسية بانتظار الاعتماد"
-                >
-                  <Coins className="w-4 h-4 ml-1" /> توريد نقدية ({fmt(current?.collected || 0)} ج.م)
-                </Button>
+                {/* زر التوريد الإجمالي اتشال — التوريد بيتم يوم بيوم من تبويب «تجميع حسب اليوم» */}
+
                 <Button variant="outline" disabled={!selectedCustody} onClick={() => printStatement("pdf")} title="طباعة كشف حساب المندوب (PDF/A4)">
                   <Printer className="w-4 h-4 ml-1" /> طباعة كشف
                 </Button>
