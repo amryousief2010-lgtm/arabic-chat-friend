@@ -6,10 +6,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Wallet, RotateCcw } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Wallet, RotateCcw, CheckCircle2, Lock } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
+import PrevMonthBonusDialog, { CarriedDetail } from './PrevMonthBonusDialog';
+
 
 const GIRLS = ['اية', 'نورا', 'منال'] as const;
 type Girl = typeof GIRLS[number];
@@ -85,8 +91,10 @@ interface Props {
 const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { isGeneralManager, isExecutiveManager, isSalesManager, role } = useAuth();
+  const { isGeneralManager, isExecutiveManager, isSalesManager, role, user, profile } = useAuth();
   const canEdit = isGeneralManager || isExecutiveManager || isSalesManager || role === 'marketing_sales_manager';
+  const canApprove = canEdit;
+
   const [internalMonth, setInternalMonth] = useState(currentMonth);
   const [internalYear, setInternalYear] = useState(currentYear);
   const isControlled = month !== undefined && year !== undefined;
@@ -285,6 +293,130 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     return r ? Number(r.bonus_amount) : 50;
   }, [tierSettings]);
 
+  // ===== اعتماد قبض الشهر (Closures) =====
+  const { data: closures = [] } = useQuery({
+    queryKey: ['payroll-month-closures'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payroll_month_closures')
+        .select('*')
+        .order('year')
+        .order('month');
+      if (error) throw error;
+      return data as Array<{ id: string; year: number; month: number; approved_at: string; approved_by_name: string | null }>;
+    },
+  });
+
+  const selectedClosure = useMemo(
+    () => closures.find(c => c.year === selectedYear && c.month === selectedMonth) || null,
+    [closures, selectedYear, selectedMonth],
+  );
+
+  const { data: snapshots = [] } = useQuery({
+    queryKey: ['payroll-month-snapshots', selectedMonth, selectedYear, selectedClosure?.id],
+    enabled: !!selectedClosure,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payroll_month_snapshots')
+        .select('*')
+        .eq('year', selectedYear)
+        .eq('month', selectedMonth);
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  // الأوردرات المرحّلة من شهور معتمدة إلى قبض الشهر المحدد
+  const { data: carried = [] } = useQuery({
+    queryKey: ['payroll-carried-orders', selectedMonth, selectedYear, closures.map(c => `${c.year}-${c.month}-${c.approved_at}`).join('|')],
+    enabled: closures.length > 0,
+    queryFn: async () => {
+      const idxOf = (y: number, m: number) => y * 12 + (m - 1);
+      const selIdx = idxOf(selectedYear, selectedMonth);
+      const closureAtIdx = (i: number) => {
+        const y = Math.floor(i / 12);
+        const m = (i % 12) + 1;
+        return closures.find(c => c.year === y && c.month === m) || null;
+      };
+      // الشهر الذي يُصرف فيه بونص الأوردر المرحّل: أول شهر تالٍ لم يكن معتمداً وقت التسليم
+      const payingIdx = (originIdx: number, deliveredAt: string) => {
+        for (let i = originIdx + 1; i <= selIdx; i++) {
+          const cl = closureAtIdx(i);
+          if (!cl || new Date(cl.approved_at).getTime() > new Date(deliveredAt).getTime()) return i;
+        }
+        return -1;
+      };
+
+      const out: Array<{
+        orderId: string; orderNumber: string; girl: Girl; deliveredAt: string;
+        originYear: number; originMonth: number; closureApprovedAt: string;
+      }> = [];
+
+      for (const cl of closures) {
+        const originIdx = idxOf(cl.year, cl.month);
+        if (originIdx >= selIdx) continue;
+        const start = cairoMonthStartUTC(cl.year, cl.month - 1).toISOString();
+        const end = cairoMonthStartUTC(cl.year, cl.month).toISOString();
+        const { data: rowsO, error } = await supabase
+          .from('orders')
+          .select('id, order_number, moderator, created_by, delivered_at')
+          .eq('status', 'delivered')
+          .gte('created_at', start)
+          .lt('created_at', end)
+          .gt('delivered_at', cl.approved_at);
+        if (error) throw error;
+        const candidates = (rowsO || []).filter(o => o.delivered_at && payingIdx(originIdx, o.delivered_at) === selIdx);
+        if (candidates.length === 0) continue;
+
+        const userIds = Array.from(new Set(candidates.map(o => o.created_by).filter(Boolean))) as string[];
+        let profileMap = new Map<string, string>();
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase.from('profile_directory').select('id, full_name').in('id', userIds);
+          profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+        }
+        candidates.forEach(o => {
+          const modName = o.moderator || '';
+          const creatorName = o.created_by ? (profileMap.get(o.created_by) || '') : '';
+          const girl = GIRLS.find(g => matches(modName, g) || matches(creatorName, g));
+          if (!girl) return;
+          out.push({
+            orderId: o.id,
+            orderNumber: o.order_number || '',
+            girl,
+            deliveredAt: o.delivered_at as string,
+            originYear: cl.year,
+            originMonth: cl.month,
+            closureApprovedAt: cl.approved_at,
+          });
+        });
+      }
+
+      if (out.length === 0) return [] as Array<typeof out[number] & { meatKg: number; boneKg: number; procKg: number }>;
+
+      const byId = new Map(out.map(o => [o.orderId, { ...o, meatKg: 0, boneKg: 0, procKg: 0 }]));
+      const ids = Array.from(byId.keys());
+      const ID_CHUNK = 200;
+      for (let i = 0; i < ids.length; i += ID_CHUNK) {
+        const chunk = ids.slice(i, i + ID_CHUNK);
+        const { data: items, error } = await supabase
+          .from('order_items')
+          .select('order_id, product_name, quantity')
+          .in('order_id', chunk);
+        if (error) throw error;
+        (items || []).forEach(it => {
+          const rec = byId.get(it.order_id);
+          if (!rec) return;
+          const pname = normalize(it.product_name || '');
+          const q = Number(it.quantity) || 0;
+          if (BONE_MEAT_KEYWORDS.some(k => pname.includes(normalize(k)))) { rec.boneKg += q; return; }
+          if (PROCESSED_KEYWORDS.some(k => pname.includes(normalize(k)))) { rec.procKg += q; return; }
+          if (MEAT_KEYWORDS.some(k => pname.includes(normalize(k)))) { rec.meatKg += q; }
+        });
+      }
+      return Array.from(byId.values());
+    },
+  });
+
 
   const overrideMutation = useMutation({
     mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate' | 'bone_rate'; value: number | null }) => {
@@ -305,7 +437,8 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     onError: (e: any) => toast({ title: 'تعذر الحفظ', description: e.message, variant: 'destructive' }),
   });
 
-  const rows = useMemo(() => {
+  const baseRows = useMemo(() => {
+
     return GIRLS.map(g => {
       const meatKg = qty.meat[g] || 0;
       const boneKg = qty.bone[g] || 0;
@@ -348,9 +481,154 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     });
   }, [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS, chickQtyByGirl, chickBonusRate]);
 
+  // بونص الشهر السابق (الأوردرات المرحّلة) بأسعار تارجت الشهر الحالي
+  const carryByGirl = useMemo(() => {
+    const map = new Map<string, { bonus: number; details: CarriedDetail[] }>();
+    GIRLS.forEach(g => map.set(g, { bonus: 0, details: [] }));
+    carried.forEach((c: any) => {
+      const row = baseRows.find(r => r.girl === c.girl);
+      if (!row) return;
+      const entry = map.get(c.girl)!;
+      const originLabel = `${months.find(m => m.value === c.originMonth)?.label} ${c.originYear}`;
+      const push = (category: CarriedDetail['category'], quantity: number, rate: number, tierLabel: string) => {
+        if (!quantity) return;
+        const bonus = quantity * rate;
+        entry.details.push({
+          orderId: c.orderId, orderNumber: c.orderNumber, girl: c.girl, originLabel,
+          closureApprovedAt: c.closureApprovedAt, deliveredAt: c.deliveredAt,
+          category, quantity, tierLabel, rate, bonus,
+        });
+        entry.bonus += bonus;
+      };
+      push('مصنعات', c.procKg, row.procTier ? row.procRate : 0, row.procTier ? `التارجت ${row.procTier.label}` : 'لم يتحقق');
+      push('لحوم', c.meatKg, row.meatTier ? row.meatRate : 0, row.meatTier ? `التارجت ${row.meatTier.label}` : 'لم يتحقق');
+      push('لحوم بالعظم', c.boneKg, row.meatTier ? row.boneRate : 0, row.meatTier ? `التارجت ${row.meatTier.label}` : 'لم يتحقق');
+    });
+    return map;
+  }, [carried, baseRows]);
+
+  const liveRows = useMemo(() => baseRows.map(r => {
+    const prevBonus = carryByGirl.get(r.girl)?.bonus || 0;
+    return { ...r, prevBonus, total: r.total + prevBonus };
+  }), [baseRows, carryByGirl]);
+
+  // بعد الاعتماد: تُعرض النسخة المثبتة (Snapshot) بدل الحساب المباشر
+  const rows = useMemo(() => {
+    if (!selectedClosure || snapshots.length === 0) return liveRows;
+    return liveRows.map(r => {
+      const s = snapshots.find((x: any) => x.moderator_name === r.girl);
+      if (!s) return r;
+      return {
+        ...r,
+        base: Number(s.base_salary),
+        procSales: Number(s.processed_sales),
+        procKg: Number(s.processed_qty),
+        procRate: Number(s.processed_rate),
+        procBonus: Number(s.processed_bonus),
+        procTier: s.processed_tier_label ? { sales: 0, bonus: Number(s.processed_rate), label: s.processed_tier_label } : null,
+        meatSales: Number(s.meat_sales),
+        meatKg: Number(s.meat_qty),
+        meatRate: Number(s.meat_rate),
+        meatBonus: Number(s.meat_bonus),
+        meatTier: s.meat_tier_label ? { sales: 0, bonus: Number(s.meat_rate), label: s.meat_tier_label } : null,
+        boneKg: Number(s.bone_qty),
+        boneRate: Number(s.bone_rate),
+        boneBonus: Number(s.bone_bonus),
+        chickCount: Number(s.chick_count),
+        chickBonus: Number(s.chick_bonus),
+        prevBonus: Number(s.prev_month_bonus),
+        total: Number(s.grand_total),
+      };
+    });
+  }, [liveRows, snapshots, selectedClosure]);
+
+  const [prevDialogGirl, setPrevDialogGirl] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const approveMutation = useMutation({
+    mutationFn: async () => {
+      if (selectedClosure) throw new Error('تم اعتماد قبض هذا الشهر بالفعل');
+      const { data: closure, error } = await supabase
+        .from('payroll_month_closures')
+        .insert({
+          year: selectedYear,
+          month: selectedMonth,
+          approved_by: user?.id ?? null,
+          approved_by_name: profile?.full_name ?? null,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+
+      const snapPayload = liveRows.map(r => ({
+        closure_id: closure.id,
+        year: selectedYear,
+        month: selectedMonth,
+        moderator_name: r.girl,
+        base_salary: r.base,
+        processed_sales: r.procSales,
+        processed_tier_label: r.procTier?.label ?? null,
+        processed_qty: r.procKg,
+        processed_rate: r.procRate,
+        processed_bonus: r.procBonus,
+        meat_sales: r.meatSales,
+        meat_tier_label: r.meatTier?.label ?? null,
+        meat_qty: r.meatKg,
+        meat_rate: r.meatRate,
+        meat_bonus: r.meatBonus,
+        bone_qty: r.boneKg,
+        bone_rate: r.boneRate,
+        bone_bonus: r.boneBonus,
+        chick_count: r.chickCount,
+        chick_bonus: r.chickBonus,
+        total_bonus: r.procBonus + r.meatBonus + r.boneBonus + r.chickBonus,
+        prev_month_bonus: r.prevBonus,
+        grand_total: r.total,
+      }));
+      const { error: snapErr } = await supabase.from('payroll_month_snapshots').insert(snapPayload);
+      if (snapErr) throw snapErr;
+
+      const carriedPayload: any[] = [];
+      liveRows.forEach(r => {
+        (carryByGirl.get(r.girl)?.details || []).forEach(d => {
+          const src: any = carried.find((c: any) => c.orderId === d.orderId);
+          carriedPayload.push({
+            order_id: d.orderId,
+            order_number: d.orderNumber,
+            moderator_name: d.girl,
+            category: d.category,
+            origin_year: src?.originYear ?? selectedYear,
+            origin_month: src?.originMonth ?? selectedMonth,
+            paid_year: selectedYear,
+            paid_month: selectedMonth,
+            quantity: d.quantity,
+            rate: d.rate,
+            bonus_amount: d.bonus,
+            delivered_at: d.deliveredAt,
+            origin_closure_approved_at: d.closureApprovedAt,
+          });
+        });
+      });
+      if (carriedPayload.length > 0) {
+        const { error: carErr } = await supabase
+          .from('payroll_carried_orders')
+          .upsert(carriedPayload, { onConflict: 'order_id,category', ignoreDuplicates: true });
+        if (carErr) throw carErr;
+      }
+    },
+    onSuccess: () => {
+      setConfirmOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['payroll-month-closures'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-month-snapshots'] });
+      toast({ title: 'تم اعتماد القبض', description: 'تم تثبيت نتائج الشهر بنجاح' });
+    },
+    onError: (e: any) => toast({ title: 'تعذر الاعتماد', description: e.message, variant: 'destructive' }),
+  });
+
+
 
   const renderBonusCell = (girl: Girl, value: number, field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate' | 'bone_rate', overridden: boolean) => {
-    if (!canEdit) {
+    if (!canEdit || selectedClosure) {
       return <span className="font-bold text-primary">{fmt(value)}</span>;
     }
     return (
@@ -408,7 +686,23 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
               </SelectContent>
             </Select>
 
+            {selectedClosure ? (
+              <div className="flex items-center gap-2 text-xs md:text-sm text-green-700 dark:text-green-400 font-semibold">
+                <Button type="button" variant="outline" size="sm" disabled className="gap-1">
+                  <Lock className="h-4 w-4" /> تم اعتماد القبض
+                </Button>
+                <span>
+                  {new Date(selectedClosure.approved_at).toLocaleString('ar-EG', { timeZone: 'Africa/Cairo', dateStyle: 'short', timeStyle: 'short' })}
+                  {selectedClosure.approved_by_name ? ` — ${selectedClosure.approved_by_name}` : ''}
+                </span>
+              </div>
+            ) : canApprove ? (
+              <Button type="button" size="sm" className="gap-1" onClick={() => setConfirmOpen(true)}>
+                <CheckCircle2 className="h-4 w-4" /> تم اعتماد القبض
+              </Button>
+            ) : null}
           </div>
+
         </div>
       </CardHeader>
       <CardContent className="p-2 md:p-4">
@@ -523,6 +817,22 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
               ))}
             </TableRow>
 
+            <TableRow className="bg-blue-50 dark:bg-blue-900/20">
+              <TableCell className="font-bold border">بونص الشهر السابق (ج.م)</TableCell>
+              {rows.map(r => (
+                <TableCell key={r.girl} className="text-center border">
+                  <button
+                    type="button"
+                    className="font-bold text-primary underline underline-offset-2 disabled:no-underline disabled:text-muted-foreground"
+                    disabled={!(carryByGirl.get(r.girl)?.details.length)}
+                    onClick={() => setPrevDialogGirl(r.girl)}
+                  >
+                    {fmt(r.prevBonus)}
+                  </button>
+                </TableCell>
+              ))}
+            </TableRow>
+
 
             <TableRow className="bg-primary/15">
               <TableCell className="font-bold border text-primary">إجمالي القبض (ج.م)</TableCell>
@@ -539,8 +849,36 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
           * المبيعات تُحسب من الأوردرات المسلَّمة. الأسعار المستخدمة (لحوم/بالعظم/مصنعات) تتبع الأسعار في "جدول مبيعات المسوقات".<br />
           * بونص اللحوم = (بونص التارجت × كجم اللحوم) + ({BONE_BONUS_PER_KG} ج × كجم اللحوم بالعظم).
         </p>
+
+        <PrevMonthBonusDialog
+          open={!!prevDialogGirl}
+          onOpenChange={(v) => !v && setPrevDialogGirl(null)}
+          girl={prevDialogGirl || ''}
+          details={prevDialogGirl ? (carryByGirl.get(prevDialogGirl)?.details || []) : []}
+        />
+
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>اعتماد القبض</AlertDialogTitle>
+              <AlertDialogDescription>
+                {`هل أنت متأكد من اعتماد قبض شهر ${months.find(m => m.value === selectedMonth)?.label}؟ بعد الاعتماد سيتم تثبيت جميع نتائج القبض والتارجت، وأي أوردر تابع لهذا الشهر يتحول إلى تسليم ناجح بعد الاعتماد سيتم ترحيل بونصه إلى القبض التالي.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); approveMutation.mutate(); }}
+                disabled={approveMutation.isPending}
+              >
+                تأكيد الاعتماد
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
+
   );
 };
 

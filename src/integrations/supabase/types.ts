@@ -14689,6 +14689,190 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_carried_orders: {
+        Row: {
+          bonus_amount: number
+          category: string
+          created_at: string
+          delivered_at: string | null
+          id: string
+          moderator_name: string
+          order_id: string
+          order_number: string | null
+          origin_closure_approved_at: string | null
+          origin_month: number
+          origin_year: number
+          paid_month: number
+          paid_year: number
+          quantity: number
+          rate: number
+        }
+        Insert: {
+          bonus_amount?: number
+          category: string
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          moderator_name: string
+          order_id: string
+          order_number?: string | null
+          origin_closure_approved_at?: string | null
+          origin_month: number
+          origin_year: number
+          paid_month: number
+          paid_year: number
+          quantity?: number
+          rate?: number
+        }
+        Update: {
+          bonus_amount?: number
+          category?: string
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          moderator_name?: string
+          order_id?: string
+          order_number?: string | null
+          origin_closure_approved_at?: string | null
+          origin_month?: number
+          origin_year?: number
+          paid_month?: number
+          paid_year?: number
+          quantity?: number
+          rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_carried_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_month_closures: {
+        Row: {
+          approved_at: string
+          approved_by: string | null
+          approved_by_name: string | null
+          created_at: string
+          id: string
+          month: number
+          year: number
+        }
+        Insert: {
+          approved_at?: string
+          approved_by?: string | null
+          approved_by_name?: string | null
+          created_at?: string
+          id?: string
+          month: number
+          year: number
+        }
+        Update: {
+          approved_at?: string
+          approved_by?: string | null
+          approved_by_name?: string | null
+          created_at?: string
+          id?: string
+          month?: number
+          year?: number
+        }
+        Relationships: []
+      }
+      payroll_month_snapshots: {
+        Row: {
+          base_salary: number
+          bone_bonus: number
+          bone_qty: number
+          bone_rate: number
+          chick_bonus: number
+          chick_count: number
+          closure_id: string
+          created_at: string
+          grand_total: number
+          id: string
+          meat_bonus: number
+          meat_qty: number
+          meat_rate: number
+          meat_sales: number
+          meat_tier_label: string | null
+          moderator_name: string
+          month: number
+          prev_month_bonus: number
+          processed_bonus: number
+          processed_qty: number
+          processed_rate: number
+          processed_sales: number
+          processed_tier_label: string | null
+          total_bonus: number
+          year: number
+        }
+        Insert: {
+          base_salary?: number
+          bone_bonus?: number
+          bone_qty?: number
+          bone_rate?: number
+          chick_bonus?: number
+          chick_count?: number
+          closure_id: string
+          created_at?: string
+          grand_total?: number
+          id?: string
+          meat_bonus?: number
+          meat_qty?: number
+          meat_rate?: number
+          meat_sales?: number
+          meat_tier_label?: string | null
+          moderator_name: string
+          month: number
+          prev_month_bonus?: number
+          processed_bonus?: number
+          processed_qty?: number
+          processed_rate?: number
+          processed_sales?: number
+          processed_tier_label?: string | null
+          total_bonus?: number
+          year: number
+        }
+        Update: {
+          base_salary?: number
+          bone_bonus?: number
+          bone_qty?: number
+          bone_rate?: number
+          chick_bonus?: number
+          chick_count?: number
+          closure_id?: string
+          created_at?: string
+          grand_total?: number
+          id?: string
+          meat_bonus?: number
+          meat_qty?: number
+          meat_rate?: number
+          meat_sales?: number
+          meat_tier_label?: string | null
+          moderator_name?: string
+          month?: number
+          prev_month_bonus?: number
+          processed_bonus?: number
+          processed_qty?: number
+          processed_rate?: number
+          processed_sales?: number
+          processed_tier_label?: string | null
+          total_bonus?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_month_snapshots_closure_id_fkey"
+            columns: ["closure_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_month_closures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pc_collections: {
         Row: {
           amount_collected: number
