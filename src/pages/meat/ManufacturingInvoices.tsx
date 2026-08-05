@@ -109,6 +109,15 @@ export default function ManufacturingInvoices() {
     return m;
   }, [mappings]);
 
+  // منتجات مضافة يدويًا (تُحفظ محليًا وتظهر أيضًا من فواتير سابقة)
+  const [customProducts, setCustomProducts] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("mf_custom_products") || "[]"); } catch { return []; }
+  });
+  const [newProductOpen, setNewProductOpen] = useState(false);
+  const [newProductName, setNewProductName] = useState("");
+
+
+
   const fetchAll = async () => {
     const [whs, inv, ri, mp, cd] = await Promise.all([
       supabase.from("warehouses").select("id, name, type").order("name"),
@@ -147,6 +156,31 @@ export default function ManufacturingInvoices() {
 
   const rawCandidates = useMemo(() => items.filter(i => i.kind === "raw" || i.kind === "spice"), [items]);
   const packCandidates = useMemo(() => items.filter(i => i.kind === "packaging"), [items]);
+
+  // قائمة المنتجات = الثابتة + المستخدمة في فواتير سابقة + المضافة يدويًا
+  const productOptions = useMemo(() => {
+    const set = new Set<string>(PRODUCT_PRESETS);
+    (invoices || []).forEach((i: any) => { const n = (i.product_name || "").trim(); if (n) set.add(n); });
+    customProducts.forEach(n => { if (n?.trim()) set.add(n.trim()); });
+    return Array.from(set);
+  }, [invoices, customProducts]);
+
+  const addCustomProduct = () => {
+    const n = newProductName.trim();
+    if (!n) { toast.error("أدخل اسم المنتج"); return; }
+    if (!customProducts.includes(n) && !productOptions.includes(n)) {
+      const next = [...customProducts, n];
+      setCustomProducts(next);
+      try { localStorage.setItem("mf_custom_products", JSON.stringify(next)); } catch { /* ignore */ }
+    }
+    setProductName(n);
+    setProductNameOther("");
+    setNewProductName("");
+    setNewProductOpen(false);
+    toast.success(`تمت إضافة المنتج «${n}» للقائمة`);
+  };
+
+
   // Search box for the packaging picker
   const [packSearch, setPackSearch] = useState("");
   const packCandidatesFiltered = useMemo(() => {
@@ -304,7 +338,7 @@ export default function ManufacturingInvoices() {
     setSelectedRecipeKey(key);
     const requested = qtyOverride && qtyOverride > 0 ? qtyOverride : r.batch_qty;
     const factor = requested / r.batch_qty;
-    if (PRODUCT_PRESETS.includes(r.product)) { setProductName(r.product); setProductNameOther(""); }
+    if (productOptions.includes(r.product)) { setProductName(r.product); setProductNameOther(""); }
     else { setProductName("أخرى"); setProductNameOther(r.product); }
     setFinishedQty(requested);
     setUnit(r.unit || "كجم");
@@ -905,18 +939,33 @@ export default function ManufacturingInvoices() {
                     </Select>
                   </div>
                   <div>
-                    <Label>المنتج النهائي</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>المنتج النهائي</Label>
+                      <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs"
+                        onClick={() => { setNewProductOpen(v => !v); setNewProductName(""); }}>
+                        <Plus className="w-3 h-3 ml-1" /> منتج جديد
+                      </Button>
+                    </div>
                     <Select value={productName} onValueChange={setProductName}>
                       <SelectTrigger><SelectValue placeholder="اختر المنتج" /></SelectTrigger>
                       <SelectContent>
-                        {PRODUCT_PRESETS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        {productOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                         <SelectItem value="أخرى">أخرى (أدخل اسمًا)</SelectItem>
                       </SelectContent>
                     </Select>
+                    {newProductOpen && (
+                      <div className="mt-2 flex gap-2">
+                        <Input placeholder="اسم المنتج الجديد" value={newProductName}
+                          onChange={e => setNewProductName(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustomProduct(); } }} />
+                        <Button type="button" size="sm" onClick={addCustomProduct}>إضافة</Button>
+                      </div>
+                    )}
                     {productName === "أخرى" && (
                       <Input className="mt-2" placeholder="اسم المنتج" value={productNameOther} onChange={e => setProductNameOther(e.target.value)} />
                     )}
                   </div>
+
                   <div><Label>الكمية النهائية</Label><Input type="number" step="0.01" value={finishedQty || ""} onChange={e => setFinishedQty(Number(e.target.value))} /></div>
                   <div>
                     <Label>الوحدة</Label>
