@@ -473,7 +473,11 @@ const DashboardContent = () => {
         </Card>
       </div>
 
+      {/* الطلبات حسب مصدر العميل */}
+      <OrdersBySourceCard />
+
       {/* Recent Orders Table */}
+
       <Card className="glass-card mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
