@@ -4,6 +4,8 @@ import { getLandingForRole } from "@/constants/roleLandings";
 import { Button } from "@/components/ui/button";
 import { exportToPDF, exportToExcel } from "@/utils/exportReports";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import OrdersBySourceCard from "@/components/dashboard/OrdersBySourceCard";
+
 import Header from "@/components/layout/Header";
 import StatCard from "@/components/dashboard/StatCard";
 import ActiveUsersWidget from "@/components/ActiveUsersWidget";
