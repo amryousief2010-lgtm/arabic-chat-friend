@@ -591,8 +591,17 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
           const c = collections.find((cl) => cl.order_id === a.order_id);
           return s + Number(c?.amount_collected || 0);
         }, 0);
-        const delivered = items.filter((a) => ["delivered", "collected", "completed"].includes(a.status)).length;
-        const returns = items.filter((a) => ["partially_returned", "fully_returned"].includes(a.status)).length;
+        const DELIVERED_SET = ["delivered", "collected", "completed"];
+        const RETURN_SET = ["partially_returned", "fully_returned"];
+        // اعتبر الأوردر مُسلَّمًا لو حالة التعيين أو حالة الأوردر نفسه تم التسليم/التحصيل
+        const returns = items.filter((a) => RETURN_SET.includes(a.status)).length;
+        const delivered = items.filter((a) => {
+          if (RETURN_SET.includes(a.status)) return false;
+          if (DELIVERED_SET.includes(a.status)) return true;
+          const o: any = orders.find((x) => x.id === a.order_id);
+          if (o && DELIVERED_SET.includes(o.status)) return true;
+          return !!collections.find((cl) => cl.order_id === a.order_id && Number(cl.amount_collected || 0) > 0);
+        }).length;
         const hasPriorDeposit = dayDeposits.length > 0;
         const isSupplemental = hasPriorDeposit && newCount > 0;
         // Fully deposited = at least one deposit exists AND no new undeposited orders remain
