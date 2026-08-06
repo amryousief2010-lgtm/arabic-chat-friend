@@ -292,6 +292,9 @@ Deno.serve(async (req) => {
 
     // 3) Match in memory, then UPDATE only the winners
     const auditInserts: any[] = [];
+    // Statuses that indicate a return/rejection on Zodex.
+    const RETURN_RE_LINK = /مرتجع|مرفوض|رفض|راجع|إلغاء|الغاء|ملغى/;
+    stats.returns_link_skipped = 0;
     for (const row of allRows) {
       const failure = (reason: string, extra: Record<string, any> = {}) => {
         if (stats.link_failures.length < 50) {
@@ -301,6 +304,15 @@ Deno.serve(async (req) => {
 
       if (!row.phones.length) { stats.no_phone_in_row++; failure("no_phone_in_row"); continue; }
       if (alreadyLinkedSet.has(row.bill_no)) { stats.already_linked++; continue; }
+      // NEVER heuristically claim an order for a return bill. A customer can have
+      // several bills on Zodex (one delivered, one returned); guessing by phone/COD
+      // would cancel the wrong order. Return bills act only on an existing exact link.
+      if (row.status && RETURN_RE_LINK.test(row.status)) {
+        stats.returns_link_skipped++;
+        failure("return_bill_not_auto_linked", { status: row.status });
+        continue;
+      }
+
 
       const candidates: any[] = [];
       const seenId = new Set<string>();
