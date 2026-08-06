@@ -393,10 +393,28 @@ Deno.serve(async (req) => {
         }
       }
 
+      stats.returns_conflict_delivered = 0;
+      stats.returns_conflicts = [] as any[];
       for (const row of returnRows) {
         const ord = linkedByBill.get(row.bill_no);
         if (!ord) { stats.returns_no_order++; continue; }
         if (ord.status === "cancelled") { stats.returns_skipped_already++; continue; }
+        // Guard: a customer can have more than one bill on Zodex (one delivered,
+        // one returned). Never auto-cancel an order that is already confirmed
+        // delivered — flag it for manual review instead.
+        if (ord.status === "delivered") {
+          stats.returns_conflict_delivered++;
+          if (stats.returns_conflicts.length < 20) {
+            stats.returns_conflicts.push({
+              bill_no: row.bill_no, order_number: ord.order_number, zodex_status: row.status,
+            });
+          }
+          continue;
+        }
+        // Guard: bills linked heuristically in this very run are not trustworthy
+        // enough to cancel on.
+        if (claimedThisRun.has(ord.id)) { stats.returns_skipped_already++; continue; }
+
 
         const stamp = new Date().toLocaleString("ar-EG");
         const reason = `مرتجع من زودكس (${row.status || "مرتجع"})`;
