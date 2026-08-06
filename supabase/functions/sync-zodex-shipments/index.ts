@@ -292,6 +292,9 @@ Deno.serve(async (req) => {
 
     // 3) Match in memory, then UPDATE only the winners
     const auditInserts: any[] = [];
+    // Statuses that indicate a return/rejection on Zodex.
+    const RETURN_RE_LINK = /مرتجع|مرفوض|رفض|راجع|إلغاء|الغاء|ملغى/;
+    stats.returns_link_skipped = 0;
     for (const row of allRows) {
       const failure = (reason: string, extra: Record<string, any> = {}) => {
         if (stats.link_failures.length < 50) {
@@ -301,6 +304,15 @@ Deno.serve(async (req) => {
 
       if (!row.phones.length) { stats.no_phone_in_row++; failure("no_phone_in_row"); continue; }
       if (alreadyLinkedSet.has(row.bill_no)) { stats.already_linked++; continue; }
+      // NEVER heuristically claim an order for a return bill. A customer can have
+      // several bills on Zodex (one delivered, one returned); guessing by phone/COD
+      // would cancel the wrong order. Return bills act only on an existing exact link.
+      if (row.status && RETURN_RE_LINK.test(row.status)) {
+        stats.returns_link_skipped++;
+        failure("return_bill_not_auto_linked", { status: row.status });
+        continue;
+      }
+
 
       const candidates: any[] = [];
       const seenId = new Set<string>();
@@ -381,10 +393,28 @@ Deno.serve(async (req) => {
         }
       }
 
+      stats.returns_conflict_delivered = 0;
+      stats.returns_conflicts = [] as any[];
       for (const row of returnRows) {
         const ord = linkedByBill.get(row.bill_no);
         if (!ord) { stats.returns_no_order++; continue; }
         if (ord.status === "cancelled") { stats.returns_skipped_already++; continue; }
+        // Guard: a customer can have more than one bill on Zodex (one delivered,
+        // one returned). Never auto-cancel an order that is already confirmed
+        // delivered — flag it for manual review instead.
+        if (ord.status === "delivered") {
+          stats.returns_conflict_delivered++;
+          if (stats.returns_conflicts.length < 20) {
+            stats.returns_conflicts.push({
+              bill_no: row.bill_no, order_number: ord.order_number, zodex_status: row.status,
+            });
+          }
+          continue;
+        }
+        // Guard: bills linked heuristically in this very run are not trustworthy
+        // enough to cancel on.
+        if (claimedThisRun.has(ord.id)) { stats.returns_skipped_already++; continue; }
+
 
         const stamp = new Date().toLocaleString("ar-EG");
         const reason = `مرتجع من زودكس (${row.status || "مرتجع"})`;
