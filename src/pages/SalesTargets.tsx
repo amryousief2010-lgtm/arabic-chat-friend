@@ -151,6 +151,8 @@ const SalesTargets = () => {
   });
 
   // Calculate achieved amounts from orders
+  const { cutoff: achievedCutoff } = usePayrollClosureCutoff(selectedYear, selectedMonth);
+
   const { data: achievedData = [] } = useQuery({
     queryKey: ['achieved-sales', selectedMonth, selectedYear, achievedCutoff],
     queryFn: async () => {
@@ -448,7 +450,7 @@ const SalesTargets = () => {
             <Button
               variant="outline"
               onClick={async () => {
-                await queryClient.invalidateQueries({ queryKey: ['achieved-sales', selectedMonth, selectedYear] });
+                await queryClient.invalidateQueries({ queryKey: ['achieved-sales', selectedMonth, selectedYear, achievedCutoff] });
                 await queryClient.invalidateQueries({ queryKey: ['sales-targets', selectedMonth, selectedYear] });
                 toast({ title: 'تم تحديث التارجت من آخر بيانات الطلبات' });
               }}

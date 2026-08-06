@@ -71,6 +71,8 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
     queryClient.invalidateQueries({ queryKey: ['moderator-orders-breakdown'] });
   };
 
+  const { cutoff } = usePayrollClosureCutoff(selectedYear, selectedMonth);
+
   const { data, isLoading } = useQuery({
     queryKey: ['moderator-orders-breakdown', selectedMonth, selectedYear, cutoff],
     refetchInterval: 60000,
