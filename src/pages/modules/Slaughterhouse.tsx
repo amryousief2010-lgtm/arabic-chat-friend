@@ -318,7 +318,7 @@ const Slaughterhouse = () => {
 
   const markAllTransferred = async (destination: "main" | "meat_factory") => {
     if (!untransferredBatches.length) return;
-    if (!confirm(`سيتم اعتبار كل تقسيمات الدفعات المكتملة (${untransferredBatches.length}) كمنقولة إلى ${destination === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي"} بدون تحريك المخزون. متابعة؟`)) return;
+    if (!confirm(`سيتم نقل كل تقسيمات الدفعات المكتملة (${untransferredBatches.length}) إلى ${destination === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي"} ودخول كمياتها للمخزون. متابعة؟`)) return;
     for (const x of untransferredBatches) {
       await markBatchTransferred(x.batch.id, destination);
     }
