@@ -21580,6 +21580,17 @@ export type Database = {
           has_id: boolean
         }[]
       }
+      get_or_create_wh_item: {
+        Args: {
+          p_category?: string
+          p_module?: string
+          p_name: string
+          p_product_id?: string
+          p_unit?: string
+          p_warehouse_id: string
+        }
+        Returns: string
+      }
       get_potential_duplicate_orders_report: {
         Args: { p_limit?: number }
         Returns: {
@@ -21941,6 +21952,10 @@ export type Database = {
           _qty: number
         }
         Returns: string
+      }
+      merge_inventory_items: {
+        Args: { p_canonical: string; p_ref?: string; p_source: string }
+        Returns: undefined
       }
       move_to_dlq: {
         Args: {
