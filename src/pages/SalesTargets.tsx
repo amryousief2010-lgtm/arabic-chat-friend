@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
+import { usePayrollClosureCutoff, applyClosureCutoff } from '@/hooks/usePayrollClosure';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -151,7 +152,7 @@ const SalesTargets = () => {
 
   // Calculate achieved amounts from orders
   const { data: achievedData = [] } = useQuery({
-    queryKey: ['achieved-sales', selectedMonth, selectedYear],
+    queryKey: ['achieved-sales', selectedMonth, selectedYear, achievedCutoff],
     queryFn: async () => {
       // حدود الشهر محسوبة بتوقيت القاهرة (UTC+2/+3) لأن أي طلب يُسجَّل
       // بعد منتصف ليل القاهرة يجب أن يُحسب على الشهر الجديد حتى لو كان
@@ -159,12 +160,13 @@ const SalesTargets = () => {
       const startDate = cairoMonthStartUTC(selectedYear, selectedMonth - 1);
       const endDate = cairoMonthStartUTC(selectedYear, selectedMonth);
 
-      const { data, error } = await supabase
+      const achievedQ = supabase
         .from('orders')
         .select('created_by, moderator, total')
         .gte('created_at', startDate.toISOString())
         .lt('created_at', endDate.toISOString())
         .eq('status', 'delivered');
+      const { data, error } = await applyClosureCutoff(achievedQ, achievedCutoff);
 
       if (error) throw error;
 

@@ -9,6 +9,7 @@ import { ShoppingCart, Plus, FileText, UserRound, Beef, Drumstick, Flame } from 
 import { MODERATORS, isOrderForModerator, ModeratorConfig, findModeratorByName } from "@/constants/moderators";
 import { useAuth } from "@/hooks/useAuth";
 import { cairoMonthStartUTC, currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
+import { usePayrollClosureCutoff, isDeliveredWithinClosure } from "@/hooks/usePayrollClosure";
 
 interface OrderRow {
   id: string;
@@ -17,6 +18,7 @@ interface OrderRow {
   moderator: string | null;
   created_by: string | null;
   created_at: string;
+  delivered_at?: string | null;
   shipping_company: string | null;
 }
 
@@ -69,8 +71,11 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
     { month: "long", year: "numeric" },
   );
 
+  // بعد اعتماد قبض الشهر تتجمّد نتائجه: أي أوردر يتسلّم بعد لحظة الاعتماد لا يُحتسب فيه
+  const { cutoff } = usePayrollClosureCutoff(viewYear, viewMonth + 1);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["moderator-quick-access-v2", privateDeliveryOnly, viewYear, viewMonth],
+    queryKey: ["moderator-quick-access-v2", privateDeliveryOnly, viewYear, viewMonth, cutoff],
     refetchInterval: 5 * 60_000,
     refetchOnWindowFocus: false,
     queryFn: async () => {
@@ -79,7 +84,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
 
       let q = supabase
         .from("orders")
-        .select("id, total, status, moderator, created_by, created_at, shipping_company")
+        .select("id, total, status, moderator, created_by, created_at, delivered_at, shipping_company")
         .gte("created_at", startOfMonth.toISOString())
         .lt("created_at", startOfNextMonth.toISOString());
       if (privateDeliveryOnly) q = q.eq("shipping_company", "مندوب خاص");
@@ -153,7 +158,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
         const todayW = emptyW();
         const monthMoney = emptyM();
         // كل الكميات (اليوم والشهر) تُحسب من الطلبات المُسلّمة فقط
-        const deliveredMonthIds = new Set(filtered.filter((o) => o.status === "delivered").map((o) => o.id));
+        const deliveredMonthIds = new Set(filtered.filter((o) => isDeliveredWithinClosure(o.status, o.delivered_at, cutoff)).map((o) => o.id));
         const orderIdSet = new Set(filtered.map((o) => o.id));
         for (const it of items) {
           if (!orderIdSet.has(it.order_id)) continue;

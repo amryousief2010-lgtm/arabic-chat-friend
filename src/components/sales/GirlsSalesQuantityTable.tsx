@@ -11,6 +11,7 @@ import { ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
+import { usePayrollClosureCutoff, applyClosureCutoff } from '@/hooks/usePayrollClosure';
 
 const validateNumber = (value: number, label: string): number | null => {
   if (Number.isNaN(value)) {
@@ -115,8 +116,10 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
   }, [prices]);
 
   // Fetch delivered orders + items for the selected month
+  const { cutoff } = usePayrollClosureCutoff(selectedYear, selectedMonth);
+
   const { data: autoQtyByGirl = { meat: {}, bone: {}, processed: {} } } = useQuery({
-    queryKey: ['girls-auto-qty', selectedMonth, selectedYear],
+    queryKey: ['girls-auto-qty', selectedMonth, selectedYear, cutoff],
     queryFn: async () => {
       // حدود الشهر بـ UTC لتطابق created_at المخزّن
       const startDate = cairoMonthStartUTC(selectedYear, selectedMonth - 1).toISOString();
@@ -129,12 +132,13 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
       const orders: Array<{ id: string; moderator: string | null; created_by: string | null }> = [];
       let offset = 0;
       while (true) {
-        const { data: chunk, error } = await supabase
+        const baseQ = supabase
           .from('orders')
           .select('id, moderator, created_by')
           .eq('status', 'delivered')
           .gte('created_at', startDate)
-          .lt('created_at', endDate)
+          .lt('created_at', endDate);
+        const { data: chunk, error } = await applyClosureCutoff(baseQ, cutoff)
           .range(offset, offset + PAGE - 1);
         if (error) throw error;
         if (!chunk || chunk.length === 0) break;
