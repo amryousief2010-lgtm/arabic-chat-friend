@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { MODERATORS, isOrderForModerator } from "@/constants/moderators";
 import { cairoMonthStartUTC, currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
+import { usePayrollClosureCutoff, isDeliveredWithinClosure } from "@/hooks/usePayrollClosure";
 
 type Category = "meat" | "bone" | "processed" | "other";
 
@@ -73,8 +74,10 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
     { month: "long", year: "numeric" },
   );
 
+  const { cutoff } = usePayrollClosureCutoff(viewYear, viewMonth + 1);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["moderators-aggregate-summary", viewYear, viewMonth],
+    queryKey: ["moderators-aggregate-summary", viewYear, viewMonth, cutoff],
     refetchInterval: 5 * 60_000,
     queryFn: async () => {
       const startOfMonth = cairoMonthStartUTC(viewYear, viewMonth);
@@ -83,7 +86,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
       // 1) Orders for this month (UTC boundaries — created_at is UTC)
       const { data: orders, error } = await supabase
         .from("orders")
-        .select("id, total, moderator, created_by, created_at, status")
+        .select("id, total, moderator, created_by, created_at, delivered_at, status")
         .gte("created_at", startOfMonth.toISOString())
         .lt("created_at", startOfNextMonth.toISOString());
       if (error) throw error;
@@ -164,10 +167,11 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
       );
       monthAgg.orders = girlsOrders.length;
       today.orders = todaysOrders.length;
-      monthAgg.delivered = girlsOrders.filter((o: any) => o.status === "delivered").length;
+      const isDeliv = (o: any) => isDeliveredWithinClosure(o.status, o.delivered_at, cutoff);
+      monthAgg.delivered = girlsOrders.filter(isDeliv).length;
       monthAgg.returned = girlsOrders.filter((o: any) => isReturned(o.status)).length;
       monthAgg.inProgress = monthAgg.orders - monthAgg.delivered - monthAgg.returned;
-      today.delivered = todaysOrders.filter((o: any) => o.status === "delivered").length;
+      today.delivered = todaysOrders.filter(isDeliv).length;
       today.returned = todaysOrders.filter((o: any) => isReturned(o.status)).length;
       today.inProgress = today.orders - today.delivered - today.returned;
       monthAgg.sales = girlsOrders.reduce(
@@ -183,7 +187,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
       for (const it of items) {
         const o = orderById.get(it.order_id);
         if (!o) continue;
-        if (o.status !== "delivered") continue;
+        if (!isDeliv(o)) continue;
         const cat = classify(
           it.product_name,
           it.product_id ? productCat.get(it.product_id) ?? null : null,

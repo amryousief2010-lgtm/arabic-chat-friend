@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 import PrevMonthBonusDialog, { CarriedDetail } from './PrevMonthBonusDialog';
+import { usePayrollClosureCutoff, applyClosureCutoff } from '@/hooks/usePayrollClosure';
 
 
 const GIRLS = ['اية', 'نورا', 'منال'] as const;
@@ -120,8 +121,10 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     return () => { window.removeEventListener('storage', handler); clearInterval(interval); };
   }, []);
 
+  const { cutoff } = usePayrollClosureCutoff(selectedYear, selectedMonth);
+
   const { data: qty = { meat: {}, bone: {}, processed: {} } as { meat: Record<string, number>; bone: Record<string, number>; processed: Record<string, number> } } = useQuery({
-    queryKey: ['girls-auto-qty', selectedMonth, selectedYear],
+    queryKey: ['girls-auto-qty', selectedMonth, selectedYear, cutoff],
     queryFn: async () => {
       // حدود الشهر بـ UTC لتطابق created_at المخزّن
       const startDate = cairoMonthStartUTC(selectedYear, selectedMonth - 1).toISOString();
@@ -133,12 +136,13 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const orders: Array<{ id: string; moderator: string | null; created_by: string | null }> = [];
       let offset = 0;
       while (true) {
-        const { data: chunk, error } = await supabase
+        const baseQ = supabase
           .from('orders')
           .select('id, moderator, created_by')
           .eq('status', 'delivered')
           .gte('created_at', startDate)
-          .lt('created_at', endDate)
+          .lt('created_at', endDate);
+        const { data: chunk, error } = await applyClosureCutoff(baseQ, cutoff)
           .range(offset, offset + PAGE_ORDERS - 1);
         if (error) throw error;
         if (!chunk || chunk.length === 0) break;

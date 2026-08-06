@@ -7,6 +7,7 @@ import { Users, Package, CheckCircle2, XCircle, Truck, RefreshCw, Bird } from 'l
 import { useAuth } from '@/hooks/useAuth';
 import { findModeratorByName } from '@/constants/moderators';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
+import { usePayrollClosureCutoff, isDeliveredWithinClosure } from '@/hooks/usePayrollClosure';
 
 const GIRLS = ['اية', 'نورا', 'منال'];
 
@@ -70,8 +71,10 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
     queryClient.invalidateQueries({ queryKey: ['moderator-orders-breakdown'] });
   };
 
+  const { cutoff } = usePayrollClosureCutoff(selectedYear, selectedMonth);
+
   const { data, isLoading } = useQuery({
-    queryKey: ['moderator-orders-breakdown', selectedMonth, selectedYear],
+    queryKey: ['moderator-orders-breakdown', selectedMonth, selectedYear, cutoff],
     refetchInterval: 60000,
     queryFn: async () => {
       // Cairo-timezone boundaries so orders logged just after Cairo midnight
@@ -81,7 +84,7 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
 
       const { data: orders, error } = await supabase
         .from('orders')
-        .select('status, moderator, created_by')
+        .select('status, moderator, created_by, delivered_at')
         .gte('created_at', startDate)
         .lt('created_at', endDate);
       if (error) throw error;
@@ -119,7 +122,7 @@ const ModeratorOrdersBreakdown = ({ month, year }: Props = {}) => {
         });
 
         const total = filtered.length;
-        const delivered = filtered.filter(o => o.status === 'delivered').length;
+        const delivered = filtered.filter((o: any) => isDeliveredWithinClosure(o.status, o.delivered_at, cutoff)).length;
         const cancelled = filtered.filter(o => o.status === 'cancelled').length;
         const pending = total - delivered - cancelled;
         const chicksDelivered = (chickOrders || [])
