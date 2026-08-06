@@ -193,11 +193,16 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
           toast.error("لا يمكن تحديد المخزن المستلم");
           return;
         }
-        const { error } = await supabase.rpc("receive_slaughter_batch" as any, {
+        const { data, error } = await supabase.rpc("receive_slaughter_batch" as any, {
           p_batch_id: batchId,
           p_warehouse_id: r.dest_warehouse_id,
         });
         if (error) throw error;
+        const cnt = Number((data as any)?.received_count ?? 0);
+        const kg = Number((data as any)?.total_kg ?? 0);
+        toast.success(`تم اعتماد الاستلام — ${cnt} صنف بإجمالي ${kg} كجم دخلت المخزن`);
+        await loadAll();
+        return;
       } else if (r.src_kind === "internal") {
         const lines = (r.raw_lines || []).map((l) => ({ line_id: l.line_id, received_qty: l.qty, notes: null }));
         const { error } = await supabase.rpc("confirm_transfer_receipt" as any, {
