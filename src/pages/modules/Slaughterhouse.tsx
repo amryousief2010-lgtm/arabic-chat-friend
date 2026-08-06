@@ -298,23 +298,21 @@ const Slaughterhouse = () => {
   const markBatchTransferred = async (batchId: string, destination: "main" | "meat_factory") => {
     const rows = outputs.filter(o =>
       o.batch_id === batchId &&
-      (o.received_status || "pending") !== "received" &&
+      ((o.received_status || "pending") !== "received") &&
       (o.quality_status || "accepted") === "accepted" &&
       Number(o.actual_weight_kg) > 0
     );
     if (!rows.length) { toast.error("لا توجد أصناف للتحديث"); return; }
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase
-      .from("slaughter_batch_outputs" as any)
-      .update({
-        received_status: "received",
-        received_at: new Date().toISOString(),
-        received_by: user?.id || null,
-        destination: destination === "meat_factory" ? "meat_factory" : "warehouse",
-      })
-      .in("id", rows.map(r => r.id));
+    const destLabel = destination === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي";
+    const wh = await findWarehouseByName(destination === "meat_factory" ? "%مصنع اللحوم%" : "%رئيسي%");
+    if (!wh) { toast.error(`لم يتم العثور على ${destLabel}`); return; }
+    const { data, error } = await supabase.rpc("receive_slaughter_batch" as any, {
+      p_batch_id: batchId,
+      p_warehouse_id: wh.id,
+    });
     if (error) { toast.error(error.message); return; }
-    toast.success(`تم اعتبار ${rows.length} صنف كمنقول إلى ${destination === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي"} (بدون تحريك مخزون)`);
+    const d: any = data || {};
+    toast.success(`تم نقل ${d.received_count || rows.length} صنف إلى ${destLabel} ودخلت الكميات المخزون (${Number(d.total_kg || 0).toFixed(1)} كجم)`);
     fetchAll();
   };
 
