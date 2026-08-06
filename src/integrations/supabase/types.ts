@@ -20693,6 +20693,7 @@ export type Database = {
         Args: { p_transfer_id: string }
         Returns: Json
       }
+      canonical_wh_item_name: { Args: { p_name: string }; Returns: string }
       check_duplicate_order_attempt: {
         Args: {
           p_customer_id: string
