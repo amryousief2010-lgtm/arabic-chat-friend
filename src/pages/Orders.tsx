@@ -444,7 +444,17 @@ const Orders = () => {
   }, [filterWarehouseChip]);
   const [filterModerator, setFilterModerator] = useState<string>("all");
   const [filterProduct, setFilterProduct] = useState<string>("all");
-  const [filterGovernorate, setFilterGovernorate] = useState<string>("all");
+  const [filterGovernorate, setFilterGovernorate] = useState<string>(initialParams.get("gov") || "all");
+  // فلتر الفترة الزمنية (حسب تاريخ تسجيل الأوردر)
+  const [periodPreset, setPeriodPreset] = useState<PeriodPreset>(
+    (initialParams.get("period") as PeriodPreset) || "none",
+  );
+  const [periodFrom, setPeriodFrom] = useState<string>(initialParams.get("from") || "");
+  const [periodTo, setPeriodTo] = useState<string>(initialParams.get("to") || "");
+  const activePeriod = useMemo(
+    () => resolvePeriod(periodPreset, periodFrom, periodTo),
+    [periodPreset, periodFrom, periodTo],
+  );
   const [filterFulfillment, setFilterFulfillment] = useState<string>("all");
   const [filterRoute, setFilterRoute] = useState<string>("all");
   const [filterCollectionMethod, setFilterCollectionMethod] = useState<string>("all");
