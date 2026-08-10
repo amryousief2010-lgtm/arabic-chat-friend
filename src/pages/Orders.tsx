@@ -1097,9 +1097,17 @@ const Orders = () => {
         if (!mod) return order.moderator_name === filterModerator;
         return isOrderForModerator(mod, order.moderator_name, order.moderator_name);
       })();
+    // مطابقة المحافظة بالمعرّف الموحد وليس بالنص الحرفي (تدعم كل صيغ الكتابة القديمة)
     const matchesGovernorate =
       filterGovernorate === "all" ||
-      (order.governorate || "").trim() === filterGovernorate;
+      governorateId(order.governorate) === filterGovernorate;
+    // مطابقة الفترة الزمنية حسب تاريخ تسجيل الأوردر بتوقيت القاهرة
+    const matchesPeriod =
+      !activePeriod ||
+      (() => {
+        const d = toCairoDateString(new Date(order.created_at));
+        return d >= activePeriod.fromYMD && d <= activePeriod.toYMD;
+      })();
     // مصدر التنفيذ: تصنيف موحّد يجمع نوع التنفيذ والمخزن أو شركة الشحن
     const fulfillmentKey = (() => {
       const ft = order.fulfillment_type;
