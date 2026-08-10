@@ -2027,9 +2027,11 @@ const NewOrder = () => {
                                 <Input
                                   type="number"
                                   className="h-8 text-sm"
-                                  value={item.customPrice ?? item.product.price}
-                                  onChange={(e) => updateCartItem(item.cartItemId, { customPrice: Number(e.target.value) })}
+                                  placeholder="0"
+                                  value={(() => { const v = item.customPrice ?? item.product.price; return Number(v) === 0 ? "" : v; })()}
+                                  onChange={(e) => updateCartItem(item.cartItemId, { customPrice: e.target.value === "" ? 0 : Number(e.target.value) })}
                                 />
+
                               </div>
                               <div>
                                 <Label className="text-xs">تبديل المنتج</Label>
