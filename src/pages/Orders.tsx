@@ -1970,10 +1970,40 @@ const Orders = () => {
               <SelectContent>
                 <SelectItem value="all">جميع المحافظات</SelectItem>
                 {availableGovernorates.map((g) => (
-                  <SelectItem key={g} value={g}>{g}</SelectItem>
+                  <SelectItem key={g.id} value={g.id}>{g.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {/* فلتر الفترة الزمنية — حسب تاريخ تسجيل الأوردر */}
+            <Select value={periodPreset} onValueChange={(v) => setPeriodPreset(v as PeriodPreset)}>
+              <SelectTrigger className="w-40 input-modern">
+                <SelectValue placeholder="الفترة الزمنية" />
+              </SelectTrigger>
+              <SelectContent>
+                {PERIOD_OPTIONS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {periodPreset === "custom" && (
+              <div className="flex items-center gap-1">
+                <Input type="date" className="w-36 input-modern" value={periodFrom} onChange={(e) => setPeriodFrom(e.target.value)} />
+                <span className="text-xs text-muted-foreground">إلى</span>
+                <Input type="date" className="w-36 input-modern" value={periodTo} onChange={(e) => setPeriodTo(e.target.value)} />
+              </div>
+            )}
+            {activePeriod && (
+              <div className="inline-flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+                <span className="text-primary font-semibold">{formatPeriodLabel(activePeriod)}</span>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => { setPeriodPreset("none"); setPeriodFrom(""); setPeriodTo(""); }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
             <Select value={filterRoute} onValueChange={setFilterRoute}>
               <SelectTrigger className="w-48 input-modern">
                 <SelectValue placeholder="فلترة حسب خط السير" />
