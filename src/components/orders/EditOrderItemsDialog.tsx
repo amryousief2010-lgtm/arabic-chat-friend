@@ -361,9 +361,11 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                     type="number"
                     min={0}
                     step={it.is_half_kg ? 0.5 : "any"}
-                    value={it.quantity}
+                    placeholder="0"
+                    value={Number(it.quantity) === 0 ? "" : it.quantity}
                     onChange={(e) => {
-                      updateItem(realIdx, { quantity: Number(e.target.value) });
+                      const v = e.target.value;
+                      updateItem(realIdx, { quantity: v === "" ? 0 : Number(v) });
                     }}
                   />
                   {it.is_half_kg && (
@@ -377,10 +379,15 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                   <Input
                     type="number"
                     min={0}
-                    value={it.unit_price}
+                    placeholder="0"
+                    value={Number(it.unit_price) === 0 ? "" : it.unit_price}
                     disabled={it.is_gift}
-                    onChange={(e) => updateItem(realIdx, { unit_price: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      updateItem(realIdx, { unit_price: v === "" ? 0 : Number(v) });
+                    }}
                   />
+
                 </div>
                 <div className="col-span-3 md:col-span-2 text-sm font-semibold">
                   {(Number(it.quantity) * Number(it.unit_price)).toLocaleString()} ج.م
