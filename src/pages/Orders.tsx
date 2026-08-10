@@ -598,6 +598,7 @@ const Orders = () => {
     const activeSearch = (searchOverride ?? appliedSearch).trim();
     const restrictToCurrentMonthForFetch =
       !activeSearch &&
+      !activePeriod &&
       filterMonth === "all" &&
       filterYear === "all" &&
       yearGroup === "all" &&
@@ -613,7 +614,13 @@ const Orders = () => {
       // كان created_at المخزّن بـ UTC لا يزال في الشهر السابق.
       let startDate: string | null = null;
       let endDate: string | null = null;
-      if (filterYear !== 'all') {
+      if (activePeriod) {
+        // فلتر الفترة الزمنية له الأولوية — حسب تاريخ تسجيل الأوردر
+        const [fy, fm, fd] = activePeriod.fromYMD.split('-').map(Number);
+        const [ty, tm, td] = activePeriod.toYMD.split('-').map(Number);
+        startDate = cairoWallClockToUTC(fy, fm - 1, fd, 0, 0, 0).toISOString();
+        endDate = new Date(cairoWallClockToUTC(ty, tm - 1, td, 0, 0, 0).getTime() + 26 * 60 * 60 * 1000).toISOString();
+      } else if (filterYear !== 'all') {
         const y = Number(filterYear);
         if (filterMonth !== 'all') {
           const m = Number(filterMonth);
