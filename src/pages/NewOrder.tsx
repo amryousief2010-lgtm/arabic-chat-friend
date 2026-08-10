@@ -182,8 +182,10 @@ const buildDuplicateItemsPayload = (cart: CartItem[]) =>
     product_name: item.product.name,
     quantity: item.isHalfKg ? item.quantity * 0.5 : item.quantity,
     unit_price: Number(item.customPrice ?? item.product.price),
-    offer_name: item.offerBoxName || null,
+    is_half_kg: !!item.isHalfKg,
+    offer_name: item.isOfferItem ? (item.offerBoxName || 'عرض') : null,
   }));
+
 
 const summarizeDuplicateItems = (items: Array<{ product_name?: string; quantity?: number; offer_name?: string | null }>) =>
   items
