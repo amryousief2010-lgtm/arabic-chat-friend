@@ -2132,9 +2132,11 @@ const NewOrder = () => {
                           <div className="flex gap-2">
                             <Input
                               type="number"
-                              value={deliveryFee}
-                              onChange={(e) => setDeliveryFee(Number(e.target.value))}
+                              placeholder="0"
+                              value={Number(deliveryFee) === 0 ? "" : deliveryFee}
+                              onChange={(e) => setDeliveryFee(e.target.value === "" ? 0 : Number(e.target.value))}
                             />
+
                             <Button
                               type="button"
                               variant="outline"
