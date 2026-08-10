@@ -1245,9 +1245,18 @@ const Orders = () => {
     sessionStorage.setItem('dup-alert-shown', '1');
   }, [user?.id, orders, duplicatePhoneOrderIds]);
 
-  const availableGovernorates = Array.from(
-    new Set(orders.map(o => (o.governorate || "").trim()).filter(Boolean))
-  ).sort((a, b) => a.localeCompare(b, 'ar'));
+  // قائمة المحافظات الموحدة الموجودة فعليًا في الطلبات (بالمعرّف + الاسم المعتمد)
+  const availableGovernorates = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const o of orders) {
+      const raw = (o.governorate || "").trim();
+      if (!raw) continue;
+      const id = governorateId(raw);
+      if (id) map.set(id, governorateLabel(raw));
+      else map.set(`raw:${raw}`, raw);
+    }
+    return Array.from(map, ([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label, 'ar'));
+  }, [orders]);
 
   const availableYears = Array.from(
     new Set([
