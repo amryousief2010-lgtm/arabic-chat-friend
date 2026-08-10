@@ -2565,7 +2565,17 @@ const NewOrder = () => {
                       delivery_address: deliveryAddress.trim() || selectedCustomer.address || null,
                       shipping_company: fulfillmentKey === 'delivery_main' ? 'مندوب خاص' : ((shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null),
                       fulfillment_type: fulfillmentKey.startsWith('pickup') ? 'pickup' : 'delivery',
+                      payment_method: paymentMethod,
+                      source: (source === 'أخرى' ? sourceCustom.trim() : source) || null,
+                      moderator: moderatorName,
+                      note: notes.trim() || null,
+                      discount: Number(discount) || 0,
+                      delivery_fee: hasOfferInCart ? (Number(deliveryFee) || 0) : 0,
+                      extra_charge: Number(extraCharge) || 0,
+                      extra_charge_reason: extraChargeReason.trim() || null,
+                      source_warehouse_id: (fulfillmentKey.endsWith('_agouza') ? agouzaWh?.id : mainWh?.id) || null,
                     },
+
                     p_proposed_items: buildDuplicateItemsPayload(cart),
                     p_attempt_audit_id: approvalDialog.attemptId || null,
                   });
