@@ -455,7 +455,46 @@ export default function ManufacturingInvoices() {
     return { ...row, created_by_name: creatorName };
   };
 
+  // يجلب الأرصدة الحيّة ويحسب المحجوز في الفواتير غير المعتمدة، ويُرجع قائمة العجز
+  const checkLiveStock = async (
+    lines: Line[]
+  ): Promise<{ item_id: string; name: string; required: number; available: number; reserved: number }[]> => {
+    const need = new Map<string, number>();
+    lines.forEach(l => need.set(l.item_id, (need.get(l.item_id) || 0) + Number(l.quantity || 0)));
+    const ids = Array.from(need.keys());
+    if (!ids.length) return [];
+
+    const [{ data: fresh }, { data: pendingInv }] = await Promise.all([
+      supabase.from("meat_factory_raw_items" as any).select("id,name,current_stock").in("id", ids),
+      supabase.from("meat_manufacturing_invoices" as any).select("id").in("status", ["draft", "pending"]),
+    ]);
+    const pendingIds = (pendingInv || []).map((i: any) => i.id);
+    const reserved = new Map<string, number>();
+    if (pendingIds.length) {
+      const { data: pl } = await supabase
+        .from("meat_manufacturing_invoice_lines" as any)
+        .select("item_id,quantity,invoice_id")
+        .in("invoice_id", pendingIds)
+        .in("item_id", ids);
+      (pl || []).forEach((r: any) => reserved.set(r.item_id, (reserved.get(r.item_id) || 0) + Number(r.quantity || 0)));
+    }
+
+    const out: { item_id: string; name: string; required: number; available: number; reserved: number }[] = [];
+    ids.forEach(id => {
+      const row: any = (fresh || []).find((f: any) => f.id === id);
+      const req = Number(need.get(id) || 0);
+      const stock = Number(row?.current_stock || 0);
+      const res = Number(reserved.get(id) || 0);
+      const name = row?.name || items.find(i => i.id === id)?.name || "صنف غير معروف";
+      if (!row || req > stock - res) {
+        out.push({ item_id: id, name, required: req, available: Math.max(stock - res, 0), reserved: res });
+      }
+    });
+    return out;
+  };
+
   const submitDraft = async (override?: { reason: string; similarId: string }) => {
+
     if (!factoryWarehouseId) { toast.error("اختر مخزن مصنع اللحوم"); return; }
     if (!finalProductName) { toast.error("اختر/أدخل اسم المنتج النهائي"); return; }
     if (!finishedQty || finishedQty <= 0) { toast.error("أدخل كمية المنتج التام"); return; }
