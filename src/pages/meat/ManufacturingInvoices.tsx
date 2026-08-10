@@ -477,6 +477,19 @@ export default function ManufacturingInvoices() {
       return;
     }
 
+    // فحص نهائي على الرصيد الفعلي لحظة الحفظ (مجمّع حسب الصنف + محجوز في فواتير معلّقة)
+    const shortages = await checkLiveStock(allLines);
+    if (shortages.length) {
+      toast.error(
+        "لا يمكن حفظ الفاتورة — رصيد غير كافٍ: " +
+          shortages.map(s => `${s.name} (المطلوب ${fmt(s.required)}، المتاح ${fmt(s.available)}${s.reserved > 0 ? `، محجوز بفواتير معلّقة ${fmt(s.reserved)}` : ""})`).join(" • "),
+        { duration: 9000 }
+      );
+      await fetchAll();
+      return;
+    }
+
+
     // Carryover-OUT validation
     if (hasCarryoverOut) {
       if (!carryoverOutQty || Number(carryoverOutQty) <= 0) {
