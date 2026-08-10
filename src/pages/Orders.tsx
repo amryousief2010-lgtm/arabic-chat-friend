@@ -430,7 +430,8 @@ const Orders = () => {
       created_by_name: order.moderator_name,
     });
   };
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const initialParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const [filterStatus, setFilterStatus] = useState<string>(initialParams.get("status") || "all");
   const [filterWarehouseChip, setFilterWarehouseChip] = useState<"all" | "main" | "agouza">(() => {
     try {
       const v = localStorage.getItem("orders.filterWarehouseChip");
