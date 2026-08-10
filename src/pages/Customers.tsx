@@ -1,3 +1,4 @@
+import GovernorateSelect from "@/components/shared/GovernorateSelect";
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -270,7 +271,7 @@ const Customers = () => {
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs">المحافظة</Label>
-                      <Input value={formData.governorate} onChange={(e) => setFormData({ ...formData, governorate: e.target.value })} placeholder="القاهرة / الجيزة..." className="input-modern" />
+                      <GovernorateSelect value={formData.governorate} onChange={(v) => setFormData({ ...formData, governorate: v })} className="input-modern" />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs">المنطقة</Label>

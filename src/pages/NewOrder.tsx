@@ -1,3 +1,4 @@
+import GovernorateSelect from "@/components/shared/GovernorateSelect";
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { findModeratorBySlug, findModeratorByName } from '@/constants/moderators';
@@ -1474,10 +1475,9 @@ const NewOrder = () => {
                       </div>
                       <div className="space-y-2">
                         <Label>المحافظة</Label>
-                        <Input
-                          placeholder="المحافظة"
+                        <GovernorateSelect
                           value={newCustomerGovernorate}
-                          onChange={(e) => setNewCustomerGovernorate(e.target.value)}
+                          onChange={setNewCustomerGovernorate}
                         />
                       </div>
                       <div className="space-y-2">

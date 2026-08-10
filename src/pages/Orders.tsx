@@ -33,7 +33,9 @@ import {
 } from "@/components/ui/select";
 import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin, Printer, AlertCircle, AlertTriangle, Wallet, Zap, UserCog, Search } from "lucide-react";
 import { printOrderInvoice } from "@/lib/printUtils";
-import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth, cairoTodayStartUTC, toCairoDateString } from "@/lib/cairoDate";
+import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth, cairoTodayStartUTC, toCairoDateString, cairoWallClockToUTC } from "@/lib/cairoDate";
+import { EGYPT_GOVERNORATES, governorateId, governorateLabel } from "@/lib/governorates";
+import { PERIOD_OPTIONS, PeriodPreset, resolvePeriod, formatPeriodLabel } from "@/lib/orderPeriod";
 import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
 import { exportOrdersSheetStyle } from "@/utils/exportOrdersSheet";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
@@ -428,7 +430,8 @@ const Orders = () => {
       created_by_name: order.moderator_name,
     });
   };
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const initialParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const [filterStatus, setFilterStatus] = useState<string>(initialParams.get("status") || "all");
   const [filterWarehouseChip, setFilterWarehouseChip] = useState<"all" | "main" | "agouza">(() => {
     try {
       const v = localStorage.getItem("orders.filterWarehouseChip");
@@ -441,7 +444,17 @@ const Orders = () => {
   }, [filterWarehouseChip]);
   const [filterModerator, setFilterModerator] = useState<string>("all");
   const [filterProduct, setFilterProduct] = useState<string>("all");
-  const [filterGovernorate, setFilterGovernorate] = useState<string>("all");
+  const [filterGovernorate, setFilterGovernorate] = useState<string>(initialParams.get("gov") || "all");
+  // فلتر الفترة الزمنية (حسب تاريخ تسجيل الأوردر)
+  const [periodPreset, setPeriodPreset] = useState<PeriodPreset>(
+    (initialParams.get("period") as PeriodPreset) || "none",
+  );
+  const [periodFrom, setPeriodFrom] = useState<string>(initialParams.get("from") || "");
+  const [periodTo, setPeriodTo] = useState<string>(initialParams.get("to") || "");
+  const activePeriod = useMemo(
+    () => resolvePeriod(periodPreset, periodFrom, periodTo),
+    [periodPreset, periodFrom, periodTo],
+  );
   const [filterFulfillment, setFilterFulfillment] = useState<string>("all");
   const [filterRoute, setFilterRoute] = useState<string>("all");
   const [filterCollectionMethod, setFilterCollectionMethod] = useState<string>("all");
@@ -455,6 +468,19 @@ const Orders = () => {
   const rangeParam = searchParams.get("range"); // '3d' | null
   const productIdParam = searchParams.get("product_id");
   const productNameParam = searchParams.get("product_name");
+  // حفظ الفلاتر في رابط الصفحة حتى لا تضيع عند التحديث أو الرجوع
+  useEffect(() => {
+    const next = new URLSearchParams(window.location.search);
+    const put = (k: string, v: string) => { if (v && v !== "all" && v !== "none") next.set(k, v); else next.delete(k); };
+    put("gov", filterGovernorate);
+    put("status", filterStatus);
+    put("period", periodPreset);
+    put("from", periodPreset === "custom" ? periodFrom : "");
+    put("to", periodPreset === "custom" ? periodTo : "");
+    if (next.toString() !== window.location.search.replace(/^\?/, "")) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [filterGovernorate, filterStatus, periodPreset, periodFrom, periodTo]);
   const yearGroup: YearGroup =
     yearParam === "2026" || yearParam === "pre2026" || yearParam === "all"
       ? (yearParam as YearGroup)
@@ -520,6 +546,7 @@ const Orders = () => {
   // لتفادي ظهور صفحة فارغة افتراضياً، نحمّل لهم كل الطلبات المسموح بها بدلاً من تقييد الشهر الحالي.
   const restrictToCurrentMonth =
     !appliedSearch &&
+    !activePeriod &&
     filterMonth === "all" &&
     filterYear === "all" &&
     yearGroup === "all" &&
@@ -534,7 +561,7 @@ const Orders = () => {
       const { data } = await supabase.from('delivery_routes').select('id,name,color').order('name', { ascending: true });
       setAvailableRoutes((data as any[]) || []);
     })();
-  }, [filterMonth, filterYear, yearGroup]);
+  }, [filterMonth, filterYear, yearGroup, activePeriod?.fromYMD, activePeriod?.toYMD]);
 
   // M4-B: Reload Agouza reservation status whenever the visible orders set changes.
   // Read-only; Agouza-only — other warehouses are skipped entirely.
@@ -571,6 +598,7 @@ const Orders = () => {
     const activeSearch = (searchOverride ?? appliedSearch).trim();
     const restrictToCurrentMonthForFetch =
       !activeSearch &&
+      !activePeriod &&
       filterMonth === "all" &&
       filterYear === "all" &&
       yearGroup === "all" &&
@@ -586,7 +614,13 @@ const Orders = () => {
       // كان created_at المخزّن بـ UTC لا يزال في الشهر السابق.
       let startDate: string | null = null;
       let endDate: string | null = null;
-      if (filterYear !== 'all') {
+      if (activePeriod) {
+        // فلتر الفترة الزمنية له الأولوية — حسب تاريخ تسجيل الأوردر
+        const [fy, fm, fd] = activePeriod.fromYMD.split('-').map(Number);
+        const [ty, tm, td] = activePeriod.toYMD.split('-').map(Number);
+        startDate = cairoWallClockToUTC(fy, fm - 1, fd, 0, 0, 0).toISOString();
+        endDate = new Date(cairoWallClockToUTC(ty, tm - 1, td, 0, 0, 0).getTime() + 26 * 60 * 60 * 1000).toISOString();
+      } else if (filterYear !== 'all') {
         const y = Number(filterYear);
         if (filterMonth !== 'all') {
           const m = Number(filterMonth);
@@ -1063,9 +1097,19 @@ const Orders = () => {
         if (!mod) return order.moderator_name === filterModerator;
         return isOrderForModerator(mod, order.moderator_name, order.moderator_name);
       })();
+    // مطابقة المحافظة بالمعرّف الموحد وليس بالنص الحرفي (تدعم كل صيغ الكتابة القديمة)
     const matchesGovernorate =
       filterGovernorate === "all" ||
-      (order.governorate || "").trim() === filterGovernorate;
+      (filterGovernorate.startsWith("raw:")
+        ? (order.governorate || "").trim() === filterGovernorate.slice(4)
+        : governorateId(order.governorate) === filterGovernorate);
+    // مطابقة الفترة الزمنية حسب تاريخ تسجيل الأوردر بتوقيت القاهرة
+    const matchesPeriod =
+      !activePeriod ||
+      (() => {
+        const d = toCairoDateString(new Date(order.created_at));
+        return d >= activePeriod.fromYMD && d <= activePeriod.toYMD;
+      })();
     // مصدر التنفيذ: تصنيف موحّد يجمع نوع التنفيذ والمخزن أو شركة الشحن
     const fulfillmentKey = (() => {
       const ft = order.fulfillment_type;
@@ -1135,10 +1179,10 @@ const Orders = () => {
       filterWarehouseChip === "all" ||
       (filterWarehouseChip === "main" && order.source_warehouse_id === MAIN_WAREHOUSE_ID) ||
       (filterWarehouseChip === "agouza" && order.source_warehouse_id === AGOUZA_WAREHOUSE_ID);
-    const baseMatch = matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam;
+    const baseMatch = matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesPeriod && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam;
     (order as any).__matchesBaseNoChip = baseMatch;
     return baseMatch && matchesWarehouseChip;
-  }), [orders, filterStatus, filterWarehouseChip, appliedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
+  }), [orders, filterStatus, filterWarehouseChip, appliedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, activePeriod, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
 
   // Counts per warehouse chip that honor ALL other filters (including current status).
   const warehouseChipCounts = useMemo(() => {
@@ -1203,9 +1247,18 @@ const Orders = () => {
     sessionStorage.setItem('dup-alert-shown', '1');
   }, [user?.id, orders, duplicatePhoneOrderIds]);
 
-  const availableGovernorates = Array.from(
-    new Set(orders.map(o => (o.governorate || "").trim()).filter(Boolean))
-  ).sort((a, b) => a.localeCompare(b, 'ar'));
+  // قائمة المحافظات الموحدة الموجودة فعليًا في الطلبات (بالمعرّف + الاسم المعتمد)
+  const availableGovernorates = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const o of orders) {
+      const raw = (o.governorate || "").trim();
+      if (!raw) continue;
+      const id = governorateId(raw);
+      if (id) map.set(id, governorateLabel(raw));
+      else map.set(`raw:${raw}`, raw);
+    }
+    return Array.from(map, ([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label, 'ar'));
+  }, [orders]);
 
   const availableYears = Array.from(
     new Set([
@@ -1919,10 +1972,40 @@ const Orders = () => {
               <SelectContent>
                 <SelectItem value="all">جميع المحافظات</SelectItem>
                 {availableGovernorates.map((g) => (
-                  <SelectItem key={g} value={g}>{g}</SelectItem>
+                  <SelectItem key={g.id} value={g.id}>{g.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {/* فلتر الفترة الزمنية — حسب تاريخ تسجيل الأوردر */}
+            <Select value={periodPreset} onValueChange={(v) => setPeriodPreset(v as PeriodPreset)}>
+              <SelectTrigger className="w-40 input-modern">
+                <SelectValue placeholder="الفترة الزمنية" />
+              </SelectTrigger>
+              <SelectContent>
+                {PERIOD_OPTIONS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {periodPreset === "custom" && (
+              <div className="flex items-center gap-1">
+                <Input type="date" className="w-36 input-modern" value={periodFrom} onChange={(e) => setPeriodFrom(e.target.value)} />
+                <span className="text-xs text-muted-foreground">إلى</span>
+                <Input type="date" className="w-36 input-modern" value={periodTo} onChange={(e) => setPeriodTo(e.target.value)} />
+              </div>
+            )}
+            {activePeriod && (
+              <div className="inline-flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+                <span className="text-primary font-semibold">{formatPeriodLabel(activePeriod)}</span>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => { setPeriodPreset("none"); setPeriodFrom(""); setPeriodTo(""); }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
             <Select value={filterRoute} onValueChange={setFilterRoute}>
               <SelectTrigger className="w-48 input-modern">
                 <SelectValue placeholder="فلترة حسب خط السير" />
