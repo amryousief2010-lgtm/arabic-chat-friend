@@ -386,14 +386,21 @@ export default function ManufacturingInvoices() {
     () => [...rawLines, ...packLines].filter(l => (l.item_name?.trim() || "") && !l.item_id),
     [rawLines, packLines]
   );
+  // العجز يُحسب على مستوى الصنف المجمّع (نفس منطق دالة الاعتماد التي تجمع البنود حسب item_id)
   const insufficientLines = useMemo(() => {
-    const all = [...rawLines, ...packLines];
-    return all.filter(l => {
-      if (!l.item_id || !l.quantity) return false;
-      const it = items.find(x => x.id === l.item_id);
-      return it && Number(l.quantity) > Number(it.current_stock || 0);
+    const all = [...rawLines, ...packLines].filter(l => l.item_id && Number(l.quantity) > 0);
+    const byItem = new Map<string, { item_id: string; item_name: string; quantity: number; tmp: string }>();
+    all.forEach(l => {
+      const cur = byItem.get(l.item_id);
+      if (cur) cur.quantity += Number(l.quantity || 0);
+      else byItem.set(l.item_id, { item_id: l.item_id, item_name: l.item_name, quantity: Number(l.quantity || 0), tmp: l.tmp });
+    });
+    return Array.from(byItem.values()).filter(g => {
+      const it = items.find(x => x.id === g.item_id);
+      return it && g.quantity > Number(it.current_stock || 0);
     });
   }, [rawLines, packLines, items]);
+
 
   const saveMapping = async (recipeName: string, kind: Kind, rawItemId: string) => {
     const it = items.find(i => i.id === rawItemId);
