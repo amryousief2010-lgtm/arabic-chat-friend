@@ -21169,6 +21169,10 @@ export type Database = {
         }
         Returns: string
       }
+      create_order_from_duplicate_approval: {
+        Args: { p_id: string }
+        Returns: string
+      }
       create_stocktaking_session: {
         Args: {
           p_count_date?: string
