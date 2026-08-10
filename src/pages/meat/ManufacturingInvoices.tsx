@@ -386,14 +386,21 @@ export default function ManufacturingInvoices() {
     () => [...rawLines, ...packLines].filter(l => (l.item_name?.trim() || "") && !l.item_id),
     [rawLines, packLines]
   );
+  // العجز يُحسب على مستوى الصنف المجمّع (نفس منطق دالة الاعتماد التي تجمع البنود حسب item_id)
   const insufficientLines = useMemo(() => {
-    const all = [...rawLines, ...packLines];
-    return all.filter(l => {
-      if (!l.item_id || !l.quantity) return false;
-      const it = items.find(x => x.id === l.item_id);
-      return it && Number(l.quantity) > Number(it.current_stock || 0);
+    const all = [...rawLines, ...packLines].filter(l => l.item_id && Number(l.quantity) > 0);
+    const byItem = new Map<string, { item_id: string; item_name: string; quantity: number; tmp: string }>();
+    all.forEach(l => {
+      const cur = byItem.get(l.item_id);
+      if (cur) cur.quantity += Number(l.quantity || 0);
+      else byItem.set(l.item_id, { item_id: l.item_id, item_name: l.item_name, quantity: Number(l.quantity || 0), tmp: l.tmp });
+    });
+    return Array.from(byItem.values()).filter(g => {
+      const it = items.find(x => x.id === g.item_id);
+      return it && g.quantity > Number(it.current_stock || 0);
     });
   }, [rawLines, packLines, items]);
+
 
   const saveMapping = async (recipeName: string, kind: Kind, rawItemId: string) => {
     const it = items.find(i => i.id === rawItemId);
@@ -448,7 +455,46 @@ export default function ManufacturingInvoices() {
     return { ...row, created_by_name: creatorName };
   };
 
+  // يجلب الأرصدة الحيّة ويحسب المحجوز في الفواتير غير المعتمدة، ويُرجع قائمة العجز
+  const checkLiveStock = async (
+    lines: Line[]
+  ): Promise<{ item_id: string; name: string; required: number; available: number; reserved: number }[]> => {
+    const need = new Map<string, number>();
+    lines.forEach(l => need.set(l.item_id, (need.get(l.item_id) || 0) + Number(l.quantity || 0)));
+    const ids = Array.from(need.keys());
+    if (!ids.length) return [];
+
+    const [{ data: fresh }, { data: pendingInv }] = await Promise.all([
+      supabase.from("meat_factory_raw_items" as any).select("id,name,current_stock").in("id", ids),
+      supabase.from("meat_manufacturing_invoices" as any).select("id").in("status", ["draft", "pending"]),
+    ]);
+    const pendingIds = (pendingInv || []).map((i: any) => i.id);
+    const reserved = new Map<string, number>();
+    if (pendingIds.length) {
+      const { data: pl } = await supabase
+        .from("meat_manufacturing_invoice_lines" as any)
+        .select("item_id,quantity,invoice_id")
+        .in("invoice_id", pendingIds)
+        .in("item_id", ids);
+      (pl || []).forEach((r: any) => reserved.set(r.item_id, (reserved.get(r.item_id) || 0) + Number(r.quantity || 0)));
+    }
+
+    const out: { item_id: string; name: string; required: number; available: number; reserved: number }[] = [];
+    ids.forEach(id => {
+      const row: any = (fresh || []).find((f: any) => f.id === id);
+      const req = Number(need.get(id) || 0);
+      const stock = Number(row?.current_stock || 0);
+      const res = Number(reserved.get(id) || 0);
+      const name = row?.name || items.find(i => i.id === id)?.name || "صنف غير معروف";
+      if (!row || req > stock - res) {
+        out.push({ item_id: id, name, required: req, available: Math.max(stock - res, 0), reserved: res });
+      }
+    });
+    return out;
+  };
+
   const submitDraft = async (override?: { reason: string; similarId: string }) => {
+
     if (!factoryWarehouseId) { toast.error("اختر مخزن مصنع اللحوم"); return; }
     if (!finalProductName) { toast.error("اختر/أدخل اسم المنتج النهائي"); return; }
     if (!finishedQty || finishedQty <= 0) { toast.error("أدخل كمية المنتج التام"); return; }
@@ -469,6 +515,19 @@ export default function ManufacturingInvoices() {
       toast.error("لا يمكن حفظ فاتورة تصنيع بدون بنود خامات وتغليف");
       return;
     }
+
+    // فحص نهائي على الرصيد الفعلي لحظة الحفظ (مجمّع حسب الصنف + محجوز في فواتير معلّقة)
+    const shortages = await checkLiveStock(allLines);
+    if (shortages.length) {
+      toast.error(
+        "لا يمكن حفظ الفاتورة — رصيد غير كافٍ: " +
+          shortages.map(s => `${s.name} (المطلوب ${fmt(s.required)}، المتاح ${fmt(s.available)}${s.reserved > 0 ? `، محجوز بفواتير معلّقة ${fmt(s.reserved)}` : ""})`).join(" • "),
+        { duration: 9000 }
+      );
+      await fetchAll();
+      return;
+    }
+
 
     // Carryover-OUT validation
     if (hasCarryoverOut) {
