@@ -2156,8 +2156,9 @@ const NewOrder = () => {
                         <Label>الخصم</Label>
                         <Input
                           type="number"
-                          value={discount}
-                          onChange={(e) => setDiscount(Number(e.target.value))}
+                          placeholder="0"
+                          value={Number(discount) === 0 ? "" : discount}
+                          onChange={(e) => setDiscount(e.target.value === "" ? 0 : Number(e.target.value))}
                         />
                     </div>
 
@@ -2171,10 +2172,11 @@ const NewOrder = () => {
                             min={0}
                             step="0.01"
                             placeholder="0"
-                            value={extraCharge}
-                            onChange={(e) => setExtraCharge(Number(e.target.value))}
+                            value={Number(extraCharge) === 0 ? "" : extraCharge}
+                            onChange={(e) => setExtraCharge(e.target.value === "" ? 0 : Number(e.target.value))}
                             className="w-full text-base h-11"
                           />
+
                         </div>
                         <div className="space-y-2">
                           <Label>سبب السعر الإضافي</Label>
