@@ -449,8 +449,8 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
               <Input
                 type="number"
                 min={0}
-                value={discount}
-                onChange={(e) => setDiscount(Number(e.target.value))}
+                value={Number(discount) === 0 ? "" : discount}
+                onChange={(e) => setDiscount(e.target.value === "" ? 0 : Number(e.target.value))}
                 className="max-w-[160px] text-end"
                 placeholder="0"
               />
@@ -462,11 +462,12 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                 <Input
                   type="number"
                   min={0}
-                  value={deliveryFee}
-                  onChange={(e) => setDeliveryFee(Number(e.target.value) || 0)}
+                  value={Number(deliveryFee) === 0 ? "" : deliveryFee}
+                  onChange={(e) => setDeliveryFee(e.target.value === "" ? 0 : Number(e.target.value) || 0)}
                   className="max-w-[160px] text-end"
                   placeholder="0"
                 />
+
               </div>
             )}
 
