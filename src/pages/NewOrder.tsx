@@ -182,8 +182,10 @@ const buildDuplicateItemsPayload = (cart: CartItem[]) =>
     product_name: item.product.name,
     quantity: item.isHalfKg ? item.quantity * 0.5 : item.quantity,
     unit_price: Number(item.customPrice ?? item.product.price),
-    offer_name: item.offerBoxName || null,
+    is_half_kg: !!item.isHalfKg,
+    offer_name: item.isOfferItem ? (item.offerBoxName || 'عرض') : null,
   }));
+
 
 const summarizeDuplicateItems = (items: Array<{ product_name?: string; quantity?: number; offer_name?: string | null }>) =>
   items
@@ -2563,7 +2565,17 @@ const NewOrder = () => {
                       delivery_address: deliveryAddress.trim() || selectedCustomer.address || null,
                       shipping_company: fulfillmentKey === 'delivery_main' ? 'مندوب خاص' : ((shippingCompany === 'أخرى' ? shippingCustom.trim() : shippingCompany) || null),
                       fulfillment_type: fulfillmentKey.startsWith('pickup') ? 'pickup' : 'delivery',
+                      payment_method: paymentMethod,
+                      source: (source === 'أخرى' ? sourceCustom.trim() : source) || null,
+                      moderator: moderatorName,
+                      note: notes.trim() || null,
+                      discount: Number(discount) || 0,
+                      delivery_fee: hasOfferInCart ? (Number(deliveryFee) || 0) : 0,
+                      extra_charge: Number(extraCharge) || 0,
+                      extra_charge_reason: extraChargeReason.trim() || null,
+                      source_warehouse_id: (fulfillmentKey.endsWith('_agouza') ? agouzaWh?.id : mainWh?.id) || null,
                     },
+
                     p_proposed_items: buildDuplicateItemsPayload(cart),
                     p_attempt_audit_id: approvalDialog.attemptId || null,
                   });
