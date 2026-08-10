@@ -1100,7 +1100,9 @@ const Orders = () => {
     // مطابقة المحافظة بالمعرّف الموحد وليس بالنص الحرفي (تدعم كل صيغ الكتابة القديمة)
     const matchesGovernorate =
       filterGovernorate === "all" ||
-      governorateId(order.governorate) === filterGovernorate;
+      (filterGovernorate.startsWith("raw:")
+        ? (order.governorate || "").trim() === filterGovernorate.slice(4)
+        : governorateId(order.governorate) === filterGovernorate);
     // مطابقة الفترة الزمنية حسب تاريخ تسجيل الأوردر بتوقيت القاهرة
     const matchesPeriod =
       !activePeriod ||
