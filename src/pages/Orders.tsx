@@ -468,6 +468,19 @@ const Orders = () => {
   const rangeParam = searchParams.get("range"); // '3d' | null
   const productIdParam = searchParams.get("product_id");
   const productNameParam = searchParams.get("product_name");
+  // حفظ الفلاتر في رابط الصفحة حتى لا تضيع عند التحديث أو الرجوع
+  useEffect(() => {
+    const next = new URLSearchParams(window.location.search);
+    const put = (k: string, v: string) => { if (v && v !== "all" && v !== "none") next.set(k, v); else next.delete(k); };
+    put("gov", filterGovernorate);
+    put("status", filterStatus);
+    put("period", periodPreset);
+    put("from", periodPreset === "custom" ? periodFrom : "");
+    put("to", periodPreset === "custom" ? periodTo : "");
+    if (next.toString() !== window.location.search.replace(/^\?/, "")) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [filterGovernorate, filterStatus, periodPreset, periodFrom, periodTo]);
   const yearGroup: YearGroup =
     yearParam === "2026" || yearParam === "pre2026" || yearParam === "all"
       ? (yearParam as YearGroup)
