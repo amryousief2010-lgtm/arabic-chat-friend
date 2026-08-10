@@ -1177,10 +1177,10 @@ const Orders = () => {
       filterWarehouseChip === "all" ||
       (filterWarehouseChip === "main" && order.source_warehouse_id === MAIN_WAREHOUSE_ID) ||
       (filterWarehouseChip === "agouza" && order.source_warehouse_id === AGOUZA_WAREHOUSE_ID);
-    const baseMatch = matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam;
+    const baseMatch = matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesPeriod && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam;
     (order as any).__matchesBaseNoChip = baseMatch;
     return baseMatch && matchesWarehouseChip;
-  }), [orders, filterStatus, filterWarehouseChip, appliedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
+  }), [orders, filterStatus, filterWarehouseChip, appliedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, activePeriod, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
 
   // Counts per warehouse chip that honor ALL other filters (including current status).
   const warehouseChipCounts = useMemo(() => {
