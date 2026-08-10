@@ -2392,9 +2392,10 @@ const NewOrder = () => {
                   </div>
                   <div className="col-span-3">
                     <Label className="text-xs">السعر</Label>
-                    <Input type="number" className="h-9" value={it.is_gift ? 0 : it.custom_price}
+                    <Input type="number" className="h-9" placeholder="0"
+                      value={it.is_gift || Number(it.custom_price) === 0 ? "" : it.custom_price}
                       disabled={it.is_gift}
-                      onChange={(e) => updateOfferPreviewItem(it.id, { custom_price: Number(e.target.value) })} />
+                      onChange={(e) => updateOfferPreviewItem(it.id, { custom_price: e.target.value === "" ? 0 : Number(e.target.value) })} />
                   </div>
                   <div className="col-span-2">
                     <Label className="text-xs">الكمية</Label>
@@ -2403,12 +2404,16 @@ const NewOrder = () => {
                       min={0.25}
                       step={0.25}
                       className="h-9"
-                      value={it.quantity}
+                      placeholder="0"
+                      value={Number(it.quantity) === 0 ? "" : it.quantity}
                       onChange={(e) => {
-                        const v = Number(e.target.value);
-                        updateOfferPreviewItem(it.id, { quantity: isNaN(v) || v <= 0 ? 0.5 : v });
+                        const raw = e.target.value;
+                        if (raw === "") return updateOfferPreviewItem(it.id, { quantity: 0 });
+                        const v = Number(raw);
+                        updateOfferPreviewItem(it.id, { quantity: isNaN(v) || v < 0 ? 0 : v });
                       }}
                     />
+
                   </div>
                   <div className="col-span-2 text-xs text-muted-foreground text-center pb-2">
                     {it.is_gift ? 'مجاني' : lineTotal.toLocaleString()}
