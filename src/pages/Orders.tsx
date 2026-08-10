@@ -546,6 +546,7 @@ const Orders = () => {
   // لتفادي ظهور صفحة فارغة افتراضياً، نحمّل لهم كل الطلبات المسموح بها بدلاً من تقييد الشهر الحالي.
   const restrictToCurrentMonth =
     !appliedSearch &&
+    !activePeriod &&
     filterMonth === "all" &&
     filterYear === "all" &&
     yearGroup === "all" &&
@@ -560,7 +561,7 @@ const Orders = () => {
       const { data } = await supabase.from('delivery_routes').select('id,name,color').order('name', { ascending: true });
       setAvailableRoutes((data as any[]) || []);
     })();
-  }, [filterMonth, filterYear, yearGroup]);
+  }, [filterMonth, filterYear, yearGroup, activePeriod?.fromYMD, activePeriod?.toYMD]);
 
   // M4-B: Reload Agouza reservation status whenever the visible orders set changes.
   // Read-only; Agouza-only — other warehouses are skipped entirely.
