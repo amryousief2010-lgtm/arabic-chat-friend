@@ -47,7 +47,7 @@ const currentYear = _cur.year;
 const currentMonth = _cur.monthIndex0 + 1;
 
 const normalize = (s: string) => (s || '').replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
-const matches = (name: string, target: string) => normalize(name.trim()).includes(normalize(target));
+const matches = (name: string, target: string) => matchesModeratorGroup(name, target);
 
 interface GirlData {
   bone_meat_qty: number;

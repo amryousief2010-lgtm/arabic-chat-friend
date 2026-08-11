@@ -41,11 +41,7 @@ interface ProfileRow {
   full_name: string;
 }
 
-const matches = (name: string, target: string) => {
-  if (!name) return false;
-  const normalize = (s: string) => s.replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
-  return normalize(name.trim()).includes(normalize(target));
-};
+const matches = (name: string, target: string) => matchesModeratorGroup(name, target);
 
 interface Props {
   month?: number;
