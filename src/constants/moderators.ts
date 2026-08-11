@@ -87,3 +87,16 @@ export const isOrderForModerator = (
   return creatorFullName ? nameMatches(creatorFullName) : false;
 };
 
+
+// مطابقة اسم مسوقة مع مفتاح تجميع مع مراعاة كل التسميات البديلة
+// (مثال: "منال" و"هاجر" نفس الشخص).
+export const matchesModeratorGroup = (name?: string | null, target?: string | null): boolean => {
+  if (!name || !target) return false;
+  const n = normalizeAr(name);
+  const t = normalizeAr(target);
+  const cfg = MODERATORS.find((m) =>
+    m.aliases.some((a) => t.includes(normalizeAr(a))),
+  );
+  const candidates = cfg ? cfg.aliases : [target];
+  return candidates.some((a) => n.includes(normalizeAr(a)));
+};
