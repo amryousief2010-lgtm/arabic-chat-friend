@@ -475,6 +475,11 @@ const DashboardContent = () => {
         </Card>
       </div>
 
+      {/* التسجيلات اليومية */}
+      <DailyRegistrationsTable />
+
+
+
       {/* الطلبات حسب مصدر العميل */}
       <OrdersBySourceCard />
 
