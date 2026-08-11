@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -130,9 +130,8 @@ const DailyRegistrationsTable = () => {
                   {days.map(d => {
                     const open = openDay === d.date;
                     return (
-                      <>
+                      <Fragment key={d.date}>
                         <TableRow
-                          key={d.date}
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => setOpenDay(open ? null : d.date)}
                         >
@@ -149,7 +148,7 @@ const DailyRegistrationsTable = () => {
                           </TableCell>
                         </TableRow>
                         {open && (
-                          <TableRow key={`${d.date}-detail`} className="bg-muted/30">
+                          <TableRow className="bg-muted/30">
                             <TableCell colSpan={4}>
                               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                                 {d.mods.map(m => (
@@ -164,7 +163,7 @@ const DailyRegistrationsTable = () => {
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
+                      </Fragment>
                     );
                   })}
                   <TableRow className="bg-muted/50 font-bold">
