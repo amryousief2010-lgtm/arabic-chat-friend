@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, Package, CheckCircle2, XCircle, Truck, RefreshCw, Bird } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { findModeratorByName } from '@/constants/moderators';
+import { findModeratorByName, matchesModeratorGroup } from '@/constants/moderators';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 import { usePayrollClosureCutoff, isDeliveredWithinClosure } from '@/hooks/usePayrollClosure';
 
@@ -41,11 +41,7 @@ interface ProfileRow {
   full_name: string;
 }
 
-const matches = (name: string, target: string) => {
-  if (!name) return false;
-  const normalize = (s: string) => s.replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
-  return normalize(name.trim()).includes(normalize(target));
-};
+const matches = (name: string, target: string) => matchesModeratorGroup(name, target);
 
 interface Props {
   month?: number;

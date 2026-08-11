@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 import PrevMonthBonusDialog, { CarriedDetail } from './PrevMonthBonusDialog';
 import { usePayrollClosureCutoff, applyClosureCutoff } from '@/hooks/usePayrollClosure';
+import { matchesModeratorGroup } from '@/constants/moderators';
 
 
 const GIRLS = ['اية', 'نورا', 'منال'] as const;
@@ -69,7 +70,7 @@ const currentYear = _cur.year;
 const currentMonth = _cur.monthIndex0 + 1;
 
 const normalize = (s: string) => (s || '').replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
-const matches = (name: string, target: string) => normalize(name.trim()).includes(normalize(target));
+const matches = (name: string, target: string) => matchesModeratorGroup(name, target);
 
 const PRICES_KEY = 'girls-sales-prices-v2';
 const defaultPrices = { meat_price: 390, bone_meat_price: 350, processed_price: 160 };

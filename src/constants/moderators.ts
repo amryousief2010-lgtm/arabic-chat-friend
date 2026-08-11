@@ -34,10 +34,10 @@ export const MODERATORS: ModeratorConfig[] = [
   {
     slug: "manal",
     // منال تركت الشركة وهاجر تشتغل مكانها على نفس الحساب.
-    // نحتفظ بـ canonicalModerator + aliases باسم "منال" حتى تبقى بيانات
-    // الأوردرات التاريخية مرتبطة بنفس الخانة، والاسم المعروض فقط تغيّر لهاجر.
+    // الأوردرات الجديدة تتسجل باسم "هاجر"، والأوردرات التاريخية باسم "منال"
+    // تفضل مرتبطة بنفس الخانة عن طريق aliases + matchesModeratorGroup.
     displayName: "هاجر",
-    canonicalModerator: "منال",
+    canonicalModerator: "هاجر",
     aliases: ["منال", "هاجر"],
     gradient: "from-chart-4 to-chart-4/70",
     iconBg: "bg-chart-4",
@@ -48,6 +48,7 @@ export const MODERATORS: ModeratorConfig[] = [
 // تُستخدم لعرض "هاجر" بدلاً من "منال" في الواجهات، مع الحفاظ على مفاتيح البيانات كما هي.
 export const displayModeratorName = (name: string): string =>
   name === "منال" ? "هاجر" : name;
+
 
 // Normalize Arabic for fuzzy comparison.
 export const normalizeAr = (s: string): string =>
@@ -86,3 +87,16 @@ export const isOrderForModerator = (
   return creatorFullName ? nameMatches(creatorFullName) : false;
 };
 
+
+// مطابقة اسم مسوقة مع مفتاح تجميع مع مراعاة كل التسميات البديلة
+// (مثال: "منال" و"هاجر" نفس الشخص).
+export const matchesModeratorGroup = (name?: string | null, target?: string | null): boolean => {
+  if (!name || !target) return false;
+  const n = normalizeAr(name);
+  const t = normalizeAr(target);
+  const cfg = MODERATORS.find((m) =>
+    m.aliases.some((a) => t.includes(normalizeAr(a))),
+  );
+  const candidates = cfg ? cfg.aliases : [target];
+  return candidates.some((a) => n.includes(normalizeAr(a)));
+};

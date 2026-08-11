@@ -8,6 +8,7 @@ import { CalendarDays, ChevronDown, ChevronLeft, FileSpreadsheet } from "lucide-
 import { supabase } from "@/integrations/supabase/client";
 import { cairoMonthStartUTC, currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
 import * as XLSX from "xlsx";
+import { displayModeratorName } from "@/constants/moderators";
 
 const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 
@@ -51,7 +52,7 @@ const DailyRegistrationsTable = () => {
 
     for (const r of rows) {
       const key = toCairoDateString(r.created_at);
-      const mod = (r.moderator || "غير محدد").trim() || "غير محدد";
+      const mod = displayModeratorName((r.moderator || "غير محدد").trim() || "غير محدد");
       const t = Number(r.total || 0);
       if (!dayMap[key]) dayMap[key] = { orders: 0, sales: 0, mods: {} };
       dayMap[key].orders++; dayMap[key].sales += t;
