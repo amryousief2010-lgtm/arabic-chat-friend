@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 import { usePayrollClosureCutoff, applyClosureCutoff } from '@/hooks/usePayrollClosure';
+import { matchesModeratorGroup } from '@/constants/moderators';
 
 const validateNumber = (value: number, label: string): number | null => {
   if (Number.isNaN(value)) {

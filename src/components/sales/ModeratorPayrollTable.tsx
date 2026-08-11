@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 import PrevMonthBonusDialog, { CarriedDetail } from './PrevMonthBonusDialog';
 import { usePayrollClosureCutoff, applyClosureCutoff } from '@/hooks/usePayrollClosure';
+import { matchesModeratorGroup } from '@/constants/moderators';
 
 
 const GIRLS = ['اية', 'نورا', 'منال'] as const;
