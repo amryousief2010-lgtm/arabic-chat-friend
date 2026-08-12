@@ -1051,8 +1051,15 @@ const Orders = () => {
     findModeratorByName(profile?.full_name)?.slug === 'noura' ||
     (user?.email || '').toLowerCase().startsWith('noura');
 
-  const filteredOrders = useMemo(() => orders.filter((order) => {
-    if (isNouraAccount && matchesModeratorGroup(order.moderator_name || (order as any).moderator, 'هاجر')) return false;
+  // الأوردرات المرئية لهذا الحساب (قبل الفلاتر) — تُستخدم أيضًا في التحليلات
+  const visibleOrders = useMemo(
+    () => (isNouraAccount
+      ? orders.filter((o) => !matchesModeratorGroup(o.moderator_name || (o as any).moderator, 'هاجر'))
+      : orders),
+    [orders, isNouraAccount],
+  );
+
+  const filteredOrders = useMemo(() => visibleOrders.filter((order) => {
     const matchesStatus =
       filterStatus === "all" ||
       (filterStatus === "pending"
@@ -1190,7 +1197,7 @@ const Orders = () => {
     const baseMatch = matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesPeriod && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam;
     (order as any).__matchesBaseNoChip = baseMatch;
     return baseMatch && matchesWarehouseChip;
-  }), [orders, isNouraAccount, filterStatus, filterWarehouseChip, appliedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, activePeriod, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
+  }), [visibleOrders, isNouraAccount, filterStatus, filterWarehouseChip, appliedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, activePeriod, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
 
   // Counts per warehouse chip that honor ALL other filters (including current status).
   const warehouseChipCounts = useMemo(() => {
@@ -1867,10 +1874,10 @@ const Orders = () => {
           >
             {showAnalytics ? 'إخفاء لوحة التحليلات' : 'عرض لوحة التحليلات'}
           </Button>
-          {showAnalytics && <div className="mt-3"><OrdersAnalytics orders={orders} /></div>}
+          {showAnalytics && <div className="mt-3"><OrdersAnalytics orders={visibleOrders} /></div>}
         </div>
       ) : (
-        <OrdersAnalytics orders={orders} />
+        <OrdersAnalytics orders={visibleOrders} />
       )}
 
       <Tabs value={yearGroup} onValueChange={(v) => setYearGroup(v as YearGroup)} className="mb-4">
