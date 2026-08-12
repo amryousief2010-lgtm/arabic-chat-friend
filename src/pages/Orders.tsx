@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { summarizeOrderItems } from "@/lib/orderItemSummary";
+
 import OrdersAnalytics from "@/components/dashboard/OrdersAnalytics";
 import ModeratorQuickAccessCards from "@/components/sales/ModeratorQuickAccessCards";
 import ModeratorsAggregateSummary from "@/components/sales/ModeratorsAggregateSummary";
