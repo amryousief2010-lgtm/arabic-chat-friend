@@ -135,6 +135,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: ShieldAlert, label: "موافقات تكرار الطلبات", path: "/duplicate-order-approvals", roles: ['marketing_sales_manager','marketing_sales_viewer'] },
       { icon: Users, label: "العملاء", path: "/customers", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: Gift, label: "صناديق العروض", path: "/offer-boxes", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
+      { icon: Truck, label: "ملخص توصيل الأوردرات", path: "/my-delivery-summary", roles: ['sales_moderator', 'general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
       { icon: Eye, label: "مراجعة أوردرات هاجر", path: "/hagar-orders-review", roles: ['sales_moderator'] },
       { icon: Target, label: "التارجت", path: "/sales-targets", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: UsersRound, label: "أداء الفريق", path: "/team-performance", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },

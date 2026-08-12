@@ -14,6 +14,7 @@ interface ProtectedRouteProps {
 const MODERATOR_ALLOWED_PREFIXES = [
   '/orders',
   '/hagar-orders-review',
+  '/my-delivery-summary',
   '/chick-orders',
   '/sales-targets',
   '/notifications',
