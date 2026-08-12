@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { summarizeOrderItems } from "@/lib/orderItemSummary";
+
 import OrdersAnalytics from "@/components/dashboard/OrdersAnalytics";
 import ModeratorQuickAccessCards from "@/components/sales/ModeratorQuickAccessCards";
 import ModeratorsAggregateSummary from "@/components/sales/ModeratorsAggregateSummary";
@@ -2230,13 +2232,15 @@ const Orders = () => {
               </div>
             ) : (
               filteredOrders.map((order) => {
-                const itemLines = order.items.map((it) => {
+                // عرض مختصر فقط: تجميع كميات نفس الصنف (بدون أي دمج للأسعار أو البيانات)
+                const itemLines = summarizeOrderItems(order.items as any).map((it) => {
                   const cleaned = it.product_name
                     .replace(/\s*\(عرض\)\s*/g, ' ')
                     .replace(/(^|\s)نعام(?=\s|$)/g, '$1')
                     .replace(/\s+/g, ' ').trim();
-                  return `${formatItemQty(it.quantity, it.unit)} ${cleaned || it.product_name}`;
+                  return `${formatItemQty(it.quantity, it.unit || undefined)} ${cleaned || it.product_name}`;
                 });
+
                 const isExpanded = expandedItems.has(order.id);
                 const hasMore = itemLines.length > 1;
                 const shownLines = isExpanded || !hasMore ? itemLines : [itemLines[0]];
@@ -2830,7 +2834,7 @@ const Orders = () => {
                       <span className="text-sm whitespace-normal break-words">
                         {order.items.length === 0
                           ? '-'
-                          : order.items
+                          : summarizeOrderItems(order.items as any)
                               .map((it) => {
                                 const cleaned = it.product_name
                                   .replace(/\s*\(عرض\)\s*/g, ' ')
@@ -2838,8 +2842,9 @@ const Orders = () => {
                                   .replace(/\s+/g, ' ')
                                   .trim();
                                 const cleanName = cleaned || it.product_name;
-                                return `${formatItemQty(it.quantity, it.unit)} ${cleanName}`;
+                                return `${formatItemQty(it.quantity, it.unit || undefined)} ${cleanName}`;
                               })
+
                               .join(' + ')}
                       </span>
                     </TableCell>
