@@ -1046,7 +1046,13 @@ const Orders = () => {
   };
 
 
+  // نورا تشوف أوردرات هاجر في شاشة "مراجعة أوردرات هاجر" فقط — تُخفى تمامًا من صفحة الطلبات
+  const isNouraAccount =
+    findModeratorByName(profile?.full_name)?.slug === 'noura' ||
+    (user?.email || '').toLowerCase().startsWith('noura');
+
   const filteredOrders = useMemo(() => orders.filter((order) => {
+    if (isNouraAccount && matchesModeratorGroup(order.moderator_name || (order as any).moderator, 'هاجر')) return false;
     const matchesStatus =
       filterStatus === "all" ||
       (filterStatus === "pending"
