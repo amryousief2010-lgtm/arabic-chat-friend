@@ -17,8 +17,8 @@ import {
 import { toast } from "sonner";
 import { formatDate } from "@/lib/dateFormat";
 import { summarizeOrderItems } from "@/lib/orderItemSummary";
-import { EGYPT_GOVERNORATES, governorateId, governorateLabel } from "@/lib/governorates";
-import { MODERATORS, ModeratorConfig, matchesModeratorGroup, normalizeAr } from "@/constants/moderators";
+import { governorateId, governorateLabel } from "@/lib/governorates";
+import { ModeratorConfig, matchesModeratorGroup, normalizeAr } from "@/constants/moderators";
 import { cairoTodayStartUTC, cairoMonthStartUTC, currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
 
 // عرض موحّد لملخص توصيل الأوردرات — للعرض فقط (لا تعديل على أي بيانات).
@@ -559,5 +559,3 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
     </div>
   );
 }
-
-export { MODERATORS, EGYPT_GOVERNORATES };
