@@ -50,6 +50,7 @@ import {
   ArrowLeftRight,
   Tag,
   FileSpreadsheet,
+  Eye,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { SIDEBAR_ITEM_MOVES, MARKETING_ONLY_EXTRA_PREFIXES } from "@/config/sidebarOverrides";
