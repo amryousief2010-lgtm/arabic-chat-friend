@@ -62,6 +62,7 @@ const Trust = lazy(() => import("@/pages/Trust"));
 const TeamPerformance = lazy(() => import("@/pages/TeamPerformance"));
 const SalesTargets = lazy(() => import("@/pages/SalesTargets"));
 const HagarOrdersReview = lazy(() => import("@/pages/HagarOrdersReview"));
+const MyDeliverySummary = lazy(() => import("@/pages/MyDeliverySummary"));
 const OfferBoxes = lazy(() => import("@/pages/OfferBoxes"));
 const Permissions = lazy(() => import("@/pages/Permissions"));
 const LowStock = lazy(() => import("@/pages/LowStock"));
@@ -510,6 +511,11 @@ const AnimatedRoutes = () => {
           <Route path="/team-performance" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><TeamPerformance /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/my-delivery-summary" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'sales_moderator']}>
+              <PageTransition><MyDeliverySummary /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/hagar-orders-review" element={
