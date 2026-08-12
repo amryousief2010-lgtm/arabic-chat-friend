@@ -21757,6 +21757,7 @@ export type Database = {
         Args: { _message_id: string; _user_id: string }
         Returns: boolean
       }
+      is_nora_reviewer: { Args: { _uid: string }; Returns: boolean }
       is_slaughter_custody_manager: { Args: { _uid: string }; Returns: boolean }
       is_social_media_manager: { Args: { _uid: string }; Returns: boolean }
       is_social_media_reviewer: { Args: { _uid: string }; Returns: boolean }
@@ -22209,6 +22210,10 @@ export type Database = {
       normalize_ar_name: { Args: { txt: string }; Returns: string }
       normalize_match_text: { Args: { input: string }; Returns: string }
       normalize_phone_eg: { Args: { input: string }; Returns: string }
+      order_is_hagar: {
+        Args: { _created_by: string; _moderator: string }
+        Returns: boolean
+      }
       order_is_nora_or_aya: {
         Args: { _created_by: string; _moderator: string }
         Returns: boolean
