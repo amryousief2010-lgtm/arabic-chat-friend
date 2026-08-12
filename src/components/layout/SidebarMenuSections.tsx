@@ -336,7 +336,7 @@ interface SidebarMenuProps {
 
 export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
   const location = useLocation();
-  const { role, roles, profile } = useAuth();
+  const { role, roles, profile, user } = useAuth();
   const { unreadCount } = useUnreadNotifications();
   const { total: labApprovalsCount } = useLabTreasuryApprovals();
   const { unreadCount: unreadInternalMessages } = useUnreadInternalMessages();
@@ -477,7 +477,12 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
         if (!hasAnyRole(item.roles)) return false;
         if (isMarketingOnly && !isPathAllowedForMarketingOnly(item.path)) return false;
         // مراجعة أوردرات هاجر: تظهر لنورا فقط (قراءة فقط)
-        if (item.path === '/hagar-orders-review' && findModeratorByName(profile?.full_name)?.slug !== 'noura') return false;
+        if (item.path === '/hagar-orders-review') {
+          const isNoura =
+            findModeratorByName(profile?.full_name)?.slug === 'noura' ||
+            (user?.email || '').toLowerCase().startsWith('noura');
+          if (!isNoura) return false;
+        }
         return true;
       }),
     }))

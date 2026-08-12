@@ -41,12 +41,14 @@ const statusColors: Record<string, string> = {
 // ممنوع أي تعديل أو حذف من هنا؛ العرض فقط لأغراض المراجعة،
 // ولا تختلط بأوردرات نورا نفسها (الفلترة على المسوقة "هاجر"/"منال").
 const HagarOrdersReview = () => {
-  const { profile, isGeneralManager, isExecutiveManager } = useAuth();
+  const { profile, user, isGeneralManager, isExecutiveManager } = useAuth();
   const [period, setPeriod] = useState<"today" | "month" | "year">("month");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const isNoura = findModeratorByName(profile?.full_name)?.slug === "noura";
+  const isNoura =
+    findModeratorByName(profile?.full_name)?.slug === "noura" ||
+    (user?.email || "").toLowerCase().startsWith("noura");
   const allowed = isNoura || isGeneralManager || isExecutiveManager;
 
   const range = useMemo(() => {
