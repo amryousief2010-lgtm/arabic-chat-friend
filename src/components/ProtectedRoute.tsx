@@ -13,6 +13,7 @@ interface ProtectedRouteProps {
 // hard-redirected to her own orders log with a clear toast.
 const MODERATOR_ALLOWED_PREFIXES = [
   '/orders',
+  '/hagar-orders-review',
   '/chick-orders',
   '/sales-targets',
   '/notifications',
