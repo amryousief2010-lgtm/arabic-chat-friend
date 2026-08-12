@@ -2834,7 +2834,7 @@ const Orders = () => {
                       <span className="text-sm whitespace-normal break-words">
                         {order.items.length === 0
                           ? '-'
-                          : order.items
+                          : summarizeOrderItems(order.items as any)
                               .map((it) => {
                                 const cleaned = it.product_name
                                   .replace(/\s*\(عرض\)\s*/g, ' ')
@@ -2842,8 +2842,9 @@ const Orders = () => {
                                   .replace(/\s+/g, ' ')
                                   .trim();
                                 const cleanName = cleaned || it.product_name;
-                                return `${formatItemQty(it.quantity, it.unit)} ${cleanName}`;
+                                return `${formatItemQty(it.quantity, it.unit || undefined)} ${cleanName}`;
                               })
+
                               .join(' + ')}
                       </span>
                     </TableCell>
