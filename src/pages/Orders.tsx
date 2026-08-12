@@ -2230,13 +2230,15 @@ const Orders = () => {
               </div>
             ) : (
               filteredOrders.map((order) => {
-                const itemLines = order.items.map((it) => {
+                // عرض مختصر فقط: تجميع كميات نفس الصنف (بدون أي دمج للأسعار أو البيانات)
+                const itemLines = summarizeOrderItems(order.items as any).map((it) => {
                   const cleaned = it.product_name
                     .replace(/\s*\(عرض\)\s*/g, ' ')
                     .replace(/(^|\s)نعام(?=\s|$)/g, '$1')
                     .replace(/\s+/g, ' ').trim();
-                  return `${formatItemQty(it.quantity, it.unit)} ${cleaned || it.product_name}`;
+                  return `${formatItemQty(it.quantity, it.unit || undefined)} ${cleaned || it.product_name}`;
                 });
+
                 const isExpanded = expandedItems.has(order.id);
                 const hasMore = itemLines.length > 1;
                 const shownLines = isExpanded || !hasMore ? itemLines : [itemLines[0]];
