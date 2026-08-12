@@ -50,6 +50,7 @@ import {
   ArrowLeftRight,
   Tag,
   FileSpreadsheet,
+  Eye,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { SIDEBAR_ITEM_MOVES, MARKETING_ONLY_EXTRA_PREFIXES } from "@/config/sidebarOverrides";
@@ -134,6 +135,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: ShieldAlert, label: "موافقات تكرار الطلبات", path: "/duplicate-order-approvals", roles: ['marketing_sales_manager','marketing_sales_viewer'] },
       { icon: Users, label: "العملاء", path: "/customers", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: Gift, label: "صناديق العروض", path: "/offer-boxes", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
+      { icon: Eye, label: "مراجعة أوردرات هاجر", path: "/hagar-orders-review", roles: ['sales_moderator'] },
       { icon: Target, label: "التارجت", path: "/sales-targets", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: UsersRound, label: "أداء الفريق", path: "/team-performance", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: UserCheck, label: "أداء الموديراتور", path: "/moderator-performance", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
@@ -474,6 +476,8 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
       items: section.items.filter((item) => {
         if (!hasAnyRole(item.roles)) return false;
         if (isMarketingOnly && !isPathAllowedForMarketingOnly(item.path)) return false;
+        // مراجعة أوردرات هاجر: تظهر لنورا فقط (قراءة فقط)
+        if (item.path === '/hagar-orders-review' && findModeratorByName(profile?.full_name)?.slug !== 'noura') return false;
         return true;
       }),
     }))
