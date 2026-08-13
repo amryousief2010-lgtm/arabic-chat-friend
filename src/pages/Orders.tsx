@@ -277,7 +277,12 @@ const formatItemQty = (qty: number, unit?: string): string => {
   return qtyStr ? `${qtyStr} ${suffix}` : suffix;
 };
 
-const Orders = () => {
+export interface OrdersPageProps {
+  /** عند تمريره: تعرض الصفحة أوردرات هذه المسوقة فقط (شاشة مراجعة) */
+  reviewModeratorGroup?: string;
+}
+
+const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
  const { user, profile, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, roles, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems, canManageOrders } = useAuth();
   const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
    const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
