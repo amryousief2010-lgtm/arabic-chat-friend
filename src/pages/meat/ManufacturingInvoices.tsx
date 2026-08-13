@@ -516,9 +516,13 @@ export default function ManufacturingInvoices() {
     if (insufficientLines.length > 0) {
       const first = insufficientLines[0];
       const it = items.find(x => x.id === first.item_id);
-      toast.error(`الرصيد غير كافٍ للصنف: ${first.item_name}. المطلوب: ${first.quantity}، المتاح: ${it?.current_stock ?? 0}.`);
+      const dup = first.parts.length > 1
+        ? ` (مكرر في ${first.parts.length} أسطر: ${first.parts.map(p => `${p.name} ${fmt(p.qty)}`).join(" + ")})`
+        : "";
+      toast.error(`الرصيد غير كافٍ للصنف: ${first.item_name}. المطلوب: ${fmt(first.quantity)}${dup}، المتاح: ${fmt(Number(it?.current_stock ?? 0))}.`);
       return;
     }
+
     const validRaw = rawLines.filter(l => l.item_id && l.quantity > 0);
     const validPack = packLines.filter(l => l.item_id && l.quantity > 0);
     const allLines = [...validRaw, ...validPack];
