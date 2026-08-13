@@ -277,7 +277,12 @@ const formatItemQty = (qty: number, unit?: string): string => {
   return qtyStr ? `${qtyStr} ${suffix}` : suffix;
 };
 
-const Orders = () => {
+export interface OrdersPageProps {
+  /** عند تمريره: تعرض الصفحة أوردرات هذه المسوقة فقط (شاشة مراجعة) */
+  reviewModeratorGroup?: string;
+}
+
+const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
  const { user, profile, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, roles, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems, canManageOrders } = useAuth();
   const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
    const canExportExcel = isGeneralManager || isExecutiveManager || roles.includes('marketing_sales_manager');
@@ -1053,10 +1058,16 @@ const Orders = () => {
 
   // الأوردرات المرئية لهذا الحساب (قبل الفلاتر) — تُستخدم أيضًا في التحليلات
   const visibleOrders = useMemo(
-    () => (isNouraAccount
-      ? orders.filter((o) => !matchesModeratorGroup(o.moderator_name || (o as any).moderator, 'هاجر'))
-      : orders),
-    [orders, isNouraAccount],
+    () => {
+      if (reviewModeratorGroup) {
+        // شاشة مراجعة: أوردرات المسوقة المحددة فقط
+        return orders.filter((o) => matchesModeratorGroup(o.moderator_name || (o as any).moderator, reviewModeratorGroup));
+      }
+      return isNouraAccount
+        ? orders.filter((o) => !matchesModeratorGroup(o.moderator_name || (o as any).moderator, 'هاجر'))
+        : orders;
+    },
+    [orders, isNouraAccount, reviewModeratorGroup],
   );
 
   const filteredOrders = useMemo(() => visibleOrders.filter((order) => {

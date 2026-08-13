@@ -1,13 +1,10 @@
 import { Navigate } from "react-router-dom";
-import DashboardLayout from "@/components/layout/DashboardLayout";
-import Header from "@/components/layout/Header";
-import DeliverySummary from "@/components/orders/DeliverySummary";
+import Orders from "@/pages/Orders";
 import { useAuth } from "@/hooks/useAuth";
-import { findModeratorByName, findModeratorBySlug } from "@/constants/moderators";
+import { findModeratorByName } from "@/constants/moderators";
 
-// شاشة مراجعة فقط (Read-only) لأوردرات هاجر — مخصّصة لحساب نورا.
-// ممنوع أي تعديل أو حذف من هنا؛ العرض فقط لأغراض المراجعة،
-// ولا تختلط بأوردرات نورا نفسها (الفلترة على المسوقة "هاجر"/"منال").
+// شاشة مراجعة فقط لأوردرات هاجر — مخصّصة لحساب نورا.
+// تعيد استخدام نفس مكوّن عرض الأوردرات (كروت صفحة الطلبات) مع تمرير أوردرات هاجر فقط.
 const HagarOrdersReview = () => {
   const { profile, user, isGeneralManager, isExecutiveManager } = useAuth();
 
@@ -18,19 +15,7 @@ const HagarOrdersReview = () => {
 
   if (!allowed) return <Navigate to="/orders" replace />;
 
-  const hagar = findModeratorBySlug("manal");
-
-  return (
-    <DashboardLayout>
-      <Header title="مراجعة أوردرات هاجر" subtitle="عرض للمراجعة فقط — لا يمكن التعديل أو الحذف" />
-      <DeliverySummary
-        mode="group"
-        moderator={hagar}
-        badgeLabel="أوردرات هاجر"
-        readOnlyNote="مراجعة فقط (بدون تعديل)"
-      />
-    </DashboardLayout>
-  );
+  return <Orders reviewModeratorGroup="هاجر" />;
 };
 
 export default HagarOrdersReview;
