@@ -1122,8 +1122,18 @@ export default function ManufacturingInvoices() {
                     <ul className="list-disc pr-5 space-y-0.5">
                       {insufficientLines.map(l => {
                         const it = items.find(x => x.id === l.item_id);
-                        return <li key={l.tmp}>الرصيد غير كافٍ للصنف: <b>{l.item_name}</b> — المطلوب: {fmt(l.quantity)}، المتاح: {fmt(it?.current_stock || 0)}.</li>;
+                        return (
+                          <li key={l.tmp}>
+                            الرصيد غير كافٍ للصنف: <b>{l.item_name}</b> — المطلوب: {fmt(l.quantity)}، المتاح: {fmt(it?.current_stock || 0)}.
+                            {l.parts.length > 1 && (
+                              <span className="block text-xs mt-0.5">
+                                ⚠️ الصنف مكرر في {l.parts.length} سطر ويُجمَع تلقائيًا: {l.parts.map(p => `${p.name} (${fmt(p.qty)})`).join(" + ")} = {fmt(l.quantity)}. احذف الأسطر المكررة أو صحّح الكميات.
+                              </span>
+                            )}
+                          </li>
+                        );
                       })}
+
                     </ul>
                   </div>
                 )}
