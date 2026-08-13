@@ -389,17 +389,28 @@ export default function ManufacturingInvoices() {
   // العجز يُحسب على مستوى الصنف المجمّع (نفس منطق دالة الاعتماد التي تجمع البنود حسب item_id)
   const insufficientLines = useMemo(() => {
     const all = [...rawLines, ...packLines].filter(l => l.item_id && Number(l.quantity) > 0);
-    const byItem = new Map<string, { item_id: string; item_name: string; quantity: number; tmp: string }>();
+    const byItem = new Map<string, { item_id: string; item_name: string; quantity: number; tmp: string; parts: { name: string; qty: number }[] }>();
     all.forEach(l => {
       const cur = byItem.get(l.item_id);
-      if (cur) cur.quantity += Number(l.quantity || 0);
-      else byItem.set(l.item_id, { item_id: l.item_id, item_name: l.item_name, quantity: Number(l.quantity || 0), tmp: l.tmp });
+      if (cur) {
+        cur.quantity += Number(l.quantity || 0);
+        cur.parts.push({ name: l.item_name, qty: Number(l.quantity || 0) });
+      } else {
+        byItem.set(l.item_id, {
+          item_id: l.item_id,
+          item_name: l.item_name,
+          quantity: Number(l.quantity || 0),
+          tmp: l.tmp,
+          parts: [{ name: l.item_name, qty: Number(l.quantity || 0) }],
+        });
+      }
     });
     return Array.from(byItem.values()).filter(g => {
       const it = items.find(x => x.id === g.item_id);
       return it && g.quantity > Number(it.current_stock || 0);
     });
   }, [rawLines, packLines, items]);
+
 
 
   const saveMapping = async (recipeName: string, kind: Kind, rawItemId: string) => {
@@ -505,9 +516,13 @@ export default function ManufacturingInvoices() {
     if (insufficientLines.length > 0) {
       const first = insufficientLines[0];
       const it = items.find(x => x.id === first.item_id);
-      toast.error(`الرصيد غير كافٍ للصنف: ${first.item_name}. المطلوب: ${first.quantity}، المتاح: ${it?.current_stock ?? 0}.`);
+      const dup = first.parts.length > 1
+        ? ` (مكرر في ${first.parts.length} أسطر: ${first.parts.map(p => `${p.name} ${fmt(p.qty)}`).join(" + ")})`
+        : "";
+      toast.error(`الرصيد غير كافٍ للصنف: ${first.item_name}. المطلوب: ${fmt(first.quantity)}${dup}، المتاح: ${fmt(Number(it?.current_stock ?? 0))}.`);
       return;
     }
+
     const validRaw = rawLines.filter(l => l.item_id && l.quantity > 0);
     const validPack = packLines.filter(l => l.item_id && l.quantity > 0);
     const allLines = [...validRaw, ...validPack];
@@ -1111,8 +1126,18 @@ export default function ManufacturingInvoices() {
                     <ul className="list-disc pr-5 space-y-0.5">
                       {insufficientLines.map(l => {
                         const it = items.find(x => x.id === l.item_id);
-                        return <li key={l.tmp}>الرصيد غير كافٍ للصنف: <b>{l.item_name}</b> — المطلوب: {fmt(l.quantity)}، المتاح: {fmt(it?.current_stock || 0)}.</li>;
+                        return (
+                          <li key={l.tmp}>
+                            الرصيد غير كافٍ للصنف: <b>{l.item_name}</b> — المطلوب: {fmt(l.quantity)}، المتاح: {fmt(it?.current_stock || 0)}.
+                            {l.parts.length > 1 && (
+                              <span className="block text-xs mt-0.5">
+                                ⚠️ الصنف مكرر في {l.parts.length} سطر ويُجمَع تلقائيًا: {l.parts.map(p => `${p.name} (${fmt(p.qty)})`).join(" + ")} = {fmt(l.quantity)}. احذف الأسطر المكررة أو صحّح الكميات.
+                              </span>
+                            )}
+                          </li>
+                        );
                       })}
+
                     </ul>
                   </div>
                 )}
