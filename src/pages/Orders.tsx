@@ -576,7 +576,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       const { data } = await supabase.from('delivery_routes').select('id,name,color').order('name', { ascending: true });
       setAvailableRoutes((data as any[]) || []);
     })();
-  }, [filterMonth, filterYear, yearGroup, activePeriod?.fromYMD, activePeriod?.toYMD]);
+  }, [filterMonth, filterYear, yearGroup, activePeriod?.fromYMD, activePeriod?.toYMD, filterProduct]);
 
   // تحميل كتالوج المنتجات كاملًا لفلتر المنتجات (مرة واحدة)
   useEffect(() => {
@@ -857,6 +857,60 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         setLoading(false);
         return;
       }
+
+      // ====== فرع فلتر المنتج: نجلب من الخادم كل الأوردرات التي تحتوي هذا المنتج ======
+      // بدون هذا الفرع كنا نعتمد على التحميل بالصفحات (الأحدث أولاً) فتظهر النتائج
+      // ناقصة (مثلاً تقف عند شهر 6) قبل اكتمال تحميل السنة كلها.
+      if (filterProduct !== 'all') {
+        const matchedIds = new Set<string>();
+        const ITEM_STEP = 1000;
+        for (let p = 0; ; p++) {
+          const { data: idRows, error: idErr } = await supabase
+            .from('order_items')
+            .select('order_id')
+            .eq('product_name', filterProduct)
+            .range(p * ITEM_STEP, (p + 1) * ITEM_STEP - 1);
+          if (idErr) throw idErr;
+          (idRows || []).forEach((r: any) => r.order_id && matchedIds.add(r.order_id));
+          if (!idRows || idRows.length < ITEM_STEP) break;
+        }
+        const allIds = Array.from(matchedIds);
+        let acc: Order[] = [];
+        const CHUNK = 200;
+        setOrders([]);
+        for (let i = 0; i < allIds.length; i += CHUNK) {
+          const chunk = allIds.slice(i, i + CHUNK);
+          let q = supabase
+            .from('orders')
+            .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate)`)
+            .in('id', chunk)
+            .order('created_at', { ascending: false });
+          if (startDate) q = q.gte('created_at', startDate);
+          if (endDate) q = q.lt('created_at', endDate);
+          const { data: ordsData, error: ordsErr } = await q;
+          if (ordsErr) throw ordsErr;
+          const ords = (ordsData || []) as any[];
+          if (ords.length === 0) continue;
+          const { data: itemsData, error: itemsErr } = await supabase
+            .from('order_items')
+            .select(ITEM_COLS)
+            .in('order_id', ords.map((o) => o.id));
+          if (itemsErr) throw itemsErr;
+          const byOrder: Record<string, any[]> = {};
+          (itemsData || []).forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
+          await loadLookups(ords, itemsData || []);
+          acc = acc.concat(formatBatch(ords, byOrder));
+          acc.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          (itemsData || []).forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
+          setOrders(applyStatusOverrides([...acc]));
+          setLoading(false);
+        }
+        setHasMorePages(false);
+        setLoading(false);
+        return;
+      }
+
+
 
       // على الموبايل: صفحة أولى أصغر ولا نحمّل الباقي إلا عند طلب المستخدم "تحميل المزيد"
       const mobileNow = typeof window !== 'undefined' && window.innerWidth < 768;
