@@ -467,6 +467,14 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   const [filterCollectionMethod, setFilterCollectionMethod] = useState<string>("all");
   const [availableRoutes, setAvailableRoutes] = useState<{ id: string; name: string; color: string }[]>([]);
   const [availableProducts, setAvailableProducts] = useState<string[]>([]);
+  // كتالوج كامل لكل المنتجات المسجلة (حتى لو مش موجودة في الأوردرات المحمّلة حاليًا)
+  const [catalogProducts, setCatalogProducts] = useState<string[]>([]);
+  const productFilterOptions = useMemo(() => {
+    const set = new Set<string>();
+    catalogProducts.forEach((n) => n && set.add(n));
+    availableProducts.forEach((n) => n && set.add(n));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ar'));
+  }, [catalogProducts, availableProducts]);
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
   const todayParam = searchParams.get("today") === "1";
@@ -569,6 +577,28 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       setAvailableRoutes((data as any[]) || []);
     })();
   }, [filterMonth, filterYear, yearGroup, activePeriod?.fromYMD, activePeriod?.toYMD]);
+
+  // تحميل كتالوج المنتجات كاملًا لفلتر المنتجات (مرة واحدة)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const names = new Set<string>();
+      const PAGE = 1000;
+      for (let page = 0; page < 20; page++) {
+        const { data, error } = await supabase
+          .from('products')
+          .select('name')
+          .order('name', { ascending: true })
+          .range(page * PAGE, page * PAGE + PAGE - 1);
+        if (error || !data || data.length === 0) break;
+        data.forEach((p: any) => p?.name && names.add(String(p.name)));
+        if (data.length < PAGE) break;
+      }
+      if (!cancelled) setCatalogProducts(Array.from(names));
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
 
   // M4-B: Reload Agouza reservation status whenever the visible orders set changes.
   // Read-only; Agouza-only — other warehouses are skipped entirely.
@@ -1986,7 +2016,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">جميع المنتجات</SelectItem>
-                {availableProducts.map((name) => (
+                {productFilterOptions.map((name) => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
                 ))}
               </SelectContent>
