@@ -498,8 +498,8 @@ export default function ZodexReview() {
   };
 
   return (
-    <div dir="rtl" className="container mx-auto p-4 space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+    <div dir="rtl" className="container mx-auto p-3 sm:p-4 space-y-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost" size="sm">
@@ -508,13 +508,13 @@ export default function ZodexReview() {
                 رجوع
               </Link>
             </Button>
-            <h1 className="text-2xl font-bold">مراجعة زودكس</h1>
+            <h1 className="text-lg sm:text-2xl font-bold">مراجعة زودكس</h1>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             فرق حقيقية بين نظامنا وزودكس — بوالص مفقودة عندنا، أوردرات مفقودة على زودكس، ومشاكل ربط تحتاج إصلاح.
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="grid grid-cols-2 md:flex md:items-center gap-2 [&_button]:w-full md:[&_button]:w-auto [&_button]:text-xs md:[&_button]:text-sm">
           <ZodexSheetUpdateButton />
           <ZodexSheetUpdateButton forceKind="delivered" label="شيت تسليمات فقط" />
           <ZodexSheetUpdateButton forceKind="returned" label="شيت مرتجعات فقط" />
@@ -524,6 +524,7 @@ export default function ZodexReview() {
           </Button>
         </div>
       </div>
+
 
       <Alert className="border-primary/30 bg-primary/5">
         <Info className="h-4 w-4 text-primary" />
@@ -537,22 +538,23 @@ export default function ZodexReview() {
         placeholder="ابحث برقم بوليصة / أوردر / اسم / موبايل"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="max-w-md"
+        className="w-full max-w-md"
       />
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="orphan-bills" className="gap-2">
+        <div className="-mx-3 px-3 overflow-x-auto sm:mx-0 sm:px-0">
+        <TabsList className="w-max min-w-full justify-start">
+          <TabsTrigger value="orphan-bills" className="gap-2 text-xs sm:text-sm whitespace-nowrap">
             <PackageX className="h-4 w-4" />
             بوالص زودكس مش عندنا
             <Badge variant="secondary" className="mr-1">{orphanBills.length}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="no-bill-orders" className="gap-2">
+          <TabsTrigger value="no-bill-orders" className="gap-2 text-xs sm:text-sm whitespace-nowrap">
             <PackageX className="h-4 w-4" />
             أوردرات عندنا مش على زودكس
             <Badge variant="secondary" className="mr-1">{noBillOrders.length}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="link-issues" className="gap-2">
+          <TabsTrigger value="link-issues" className="gap-2 text-xs sm:text-sm whitespace-nowrap">
             <AlertTriangle className="h-4 w-4" />
             مشاكل الربط
             <Badge variant="destructive" className="mr-1">{linkIssues.length}</Badge>
@@ -563,6 +565,8 @@ export default function ZodexReview() {
             )}
           </TabsTrigger>
         </TabsList>
+        </div>
+
 
         {/* Tab 1: Orphan bills — nothing matches in our system */}
         <TabsContent value="orphan-bills">
@@ -581,7 +585,8 @@ export default function ZodexReview() {
                   {orphanBills.length === 0 ? "مفيش بوالص يتيمة ✔" : "لا توجد نتائج"}
                 </div>
               ) : (
-                <Table>
+                <div className="w-full overflow-x-auto">
+                <Table className="min-w-[720px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>رقم البوليصة</TableHead>
@@ -654,6 +659,7 @@ export default function ZodexReview() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -678,7 +684,8 @@ export default function ZodexReview() {
                   {noBillOrders.length === 0 ? "كل أوردرات زودكس متسجلة ✔" : "لا توجد نتائج"}
                 </div>
               ) : (
-                <Table>
+                <div className="w-full overflow-x-auto">
+                <Table className="min-w-[720px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>رقم الأوردر</TableHead>
@@ -750,6 +757,7 @@ export default function ZodexReview() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -772,7 +780,8 @@ export default function ZodexReview() {
                   {linkIssues.length === 0 ? "مفيش مشاكل ربط ✔" : "لا توجد نتائج"}
                 </div>
               ) : (
-                <Table>
+                <div className="w-full overflow-x-auto">
+                <Table className="min-w-[720px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>البوليصة</TableHead>
@@ -1004,6 +1013,7 @@ export default function ZodexReview() {
                     })}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
