@@ -585,7 +585,8 @@ export default function ZodexReview() {
                   {orphanBills.length === 0 ? "مفيش بوالص يتيمة ✔" : "لا توجد نتائج"}
                 </div>
               ) : (
-                <Table>
+                <div className="w-full overflow-x-auto">
+                <Table className="min-w-[720px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>رقم البوليصة</TableHead>
@@ -658,6 +659,7 @@ export default function ZodexReview() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -682,7 +684,8 @@ export default function ZodexReview() {
                   {noBillOrders.length === 0 ? "كل أوردرات زودكس متسجلة ✔" : "لا توجد نتائج"}
                 </div>
               ) : (
-                <Table>
+                <div className="w-full overflow-x-auto">
+                <Table className="min-w-[720px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>رقم الأوردر</TableHead>
@@ -754,6 +757,7 @@ export default function ZodexReview() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -776,7 +780,8 @@ export default function ZodexReview() {
                   {linkIssues.length === 0 ? "مفيش مشاكل ربط ✔" : "لا توجد نتائج"}
                 </div>
               ) : (
-                <Table>
+                <div className="w-full overflow-x-auto">
+                <Table className="min-w-[720px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>البوليصة</TableHead>
@@ -1008,6 +1013,7 @@ export default function ZodexReview() {
                     })}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
