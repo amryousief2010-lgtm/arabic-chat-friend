@@ -576,7 +576,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       const { data } = await supabase.from('delivery_routes').select('id,name,color').order('name', { ascending: true });
       setAvailableRoutes((data as any[]) || []);
     })();
-  }, [filterMonth, filterYear, yearGroup, activePeriod?.fromYMD, activePeriod?.toYMD]);
+  }, [filterMonth, filterYear, yearGroup, activePeriod?.fromYMD, activePeriod?.toYMD, filterProduct]);
 
   // تحميل كتالوج المنتجات كاملًا لفلتر المنتجات (مرة واحدة)
   useEffect(() => {
