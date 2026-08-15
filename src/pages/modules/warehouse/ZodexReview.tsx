@@ -538,22 +538,23 @@ export default function ZodexReview() {
         placeholder="ابحث برقم بوليصة / أوردر / اسم / موبايل"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="max-w-md"
+        className="w-full max-w-md"
       />
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="orphan-bills" className="gap-2">
+        <div className="-mx-3 px-3 overflow-x-auto sm:mx-0 sm:px-0">
+        <TabsList className="w-max min-w-full justify-start">
+          <TabsTrigger value="orphan-bills" className="gap-2 text-xs sm:text-sm whitespace-nowrap">
             <PackageX className="h-4 w-4" />
             بوالص زودكس مش عندنا
             <Badge variant="secondary" className="mr-1">{orphanBills.length}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="no-bill-orders" className="gap-2">
+          <TabsTrigger value="no-bill-orders" className="gap-2 text-xs sm:text-sm whitespace-nowrap">
             <PackageX className="h-4 w-4" />
             أوردرات عندنا مش على زودكس
             <Badge variant="secondary" className="mr-1">{noBillOrders.length}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="link-issues" className="gap-2">
+          <TabsTrigger value="link-issues" className="gap-2 text-xs sm:text-sm whitespace-nowrap">
             <AlertTriangle className="h-4 w-4" />
             مشاكل الربط
             <Badge variant="destructive" className="mr-1">{linkIssues.length}</Badge>
@@ -564,6 +565,8 @@ export default function ZodexReview() {
             )}
           </TabsTrigger>
         </TabsList>
+        </div>
+
 
         {/* Tab 1: Orphan bills — nothing matches in our system */}
         <TabsContent value="orphan-bills">
