@@ -2016,7 +2016,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">جميع المنتجات</SelectItem>
-                {availableProducts.map((name) => (
+                {productFilterOptions.map((name) => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
                 ))}
               </SelectContent>
