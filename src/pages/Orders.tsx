@@ -1190,12 +1190,20 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     const matchesWarehouseScope =
       !isWarehouseSupervisor || fulfillmentKey === 'pickup_main' || fulfillmentKey === 'delivery_main';
     // إخفاء أوردرات ما قبل تاريخ بداية تشغيل المخزن الرئيسي (2026-06-18)
-    // عن مسؤول/مشرف المخزن والمدير التنفيذي. المدير العام فقط يرى الأرشيف.
+    // عن مسؤول/مشرف المخزن والمدير التنفيذي — إلا عند اختيار فلتر زمني صريح
+    // (سنة / شهر / فترة أو تبويب سنة) فحينها تظهر كل أوردرات المدى المطلوب.
+    const explicitDateFilter =
+      filterYear !== "all" ||
+      filterMonth !== "all" ||
+      !!activePeriod ||
+      yearGroup !== "all";
     const matchesOperationalStart =
       searchActive ||
       isGeneralManager ||
+      explicitDateFilter ||
       (!isWarehouseSupervisor && !isExecutiveManager) ||
       new Date(order.created_at) >= new Date('2026-06-18T00:00:00+02:00');
+
     // Dashboard "today" card deep-link filter: /orders?today=1&channel=main|agouza|unclassified
     // Uses Cairo timezone (same classification as useTodayOrdersBreakdown) so totals match the card exactly.
     let matchesDashboardToday = true;
