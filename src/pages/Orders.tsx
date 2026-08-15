@@ -467,6 +467,14 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   const [filterCollectionMethod, setFilterCollectionMethod] = useState<string>("all");
   const [availableRoutes, setAvailableRoutes] = useState<{ id: string; name: string; color: string }[]>([]);
   const [availableProducts, setAvailableProducts] = useState<string[]>([]);
+  // كتالوج كامل لكل المنتجات المسجلة (حتى لو مش موجودة في الأوردرات المحمّلة حاليًا)
+  const [catalogProducts, setCatalogProducts] = useState<string[]>([]);
+  const productFilterOptions = useMemo(() => {
+    const set = new Set<string>();
+    catalogProducts.forEach((n) => n && set.add(n));
+    availableProducts.forEach((n) => n && set.add(n));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ar'));
+  }, [catalogProducts, availableProducts]);
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
   const todayParam = searchParams.get("today") === "1";
