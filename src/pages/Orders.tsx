@@ -578,6 +578,28 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     })();
   }, [filterMonth, filterYear, yearGroup, activePeriod?.fromYMD, activePeriod?.toYMD]);
 
+  // تحميل كتالوج المنتجات كاملًا لفلتر المنتجات (مرة واحدة)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const names = new Set<string>();
+      const PAGE = 1000;
+      for (let page = 0; page < 20; page++) {
+        const { data, error } = await supabase
+          .from('products')
+          .select('name')
+          .order('name', { ascending: true })
+          .range(page * PAGE, page * PAGE + PAGE - 1);
+        if (error || !data || data.length === 0) break;
+        data.forEach((p: any) => p?.name && names.add(String(p.name)));
+        if (data.length < PAGE) break;
+      }
+      if (!cancelled) setCatalogProducts(Array.from(names));
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+
   // M4-B: Reload Agouza reservation status whenever the visible orders set changes.
   // Read-only; Agouza-only — other warehouses are skipped entirely.
   useEffect(() => {
