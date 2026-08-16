@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CalendarDays, ChevronDown, ChevronLeft, FileSpreadsheet } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, FileSpreadsheet, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cairoMonthStartUTC, currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
 import * as XLSX from "xlsx";
@@ -19,7 +19,7 @@ const DailyRegistrationsTable = () => {
   const { year, monthIndex0 } = currentCairoYearMonth();
   const from = useMemo(() => cairoMonthStartUTC(year, monthIndex0).toISOString(), [year, monthIndex0]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["daily-registrations", from],
     queryFn: async () => {
       let all: Row[] = [];
@@ -40,7 +40,10 @@ const DailyRegistrationsTable = () => {
       }
       return all;
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: 60 * 1000,
   });
 
   const { days, moderators, totalOrders, totalSales } = useMemo(() => {
@@ -106,9 +109,14 @@ const DailyRegistrationsTable = () => {
           <CalendarDays className="w-5 h-5 text-primary" />
           التسجيلات اليومية — {MONTH_AR[monthIndex0]} {year}
         </CardTitle>
-        <Button size="sm" variant="outline" onClick={exportExcel} disabled={isLoading || days.length === 0}>
-          <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={`w-4 h-4 ml-1 ${isFetching ? "animate-spin" : ""}`} /> تحديث
+          </Button>
+          <Button size="sm" variant="outline" onClick={exportExcel} disabled={isLoading || days.length === 0}>
+            <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
