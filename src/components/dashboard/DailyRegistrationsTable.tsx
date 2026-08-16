@@ -19,7 +19,7 @@ const DailyRegistrationsTable = () => {
   const { year, monthIndex0 } = currentCairoYearMonth();
   const from = useMemo(() => cairoMonthStartUTC(year, monthIndex0).toISOString(), [year, monthIndex0]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["daily-registrations", from],
     queryFn: async () => {
       let all: Row[] = [];
