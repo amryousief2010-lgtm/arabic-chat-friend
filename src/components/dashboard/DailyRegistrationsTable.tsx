@@ -40,7 +40,10 @@ const DailyRegistrationsTable = () => {
       }
       return all;
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: 60 * 1000,
   });
 
   const { days, moderators, totalOrders, totalSales } = useMemo(() => {
