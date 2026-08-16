@@ -109,9 +109,14 @@ const DailyRegistrationsTable = () => {
           <CalendarDays className="w-5 h-5 text-primary" />
           التسجيلات اليومية — {MONTH_AR[monthIndex0]} {year}
         </CardTitle>
-        <Button size="sm" variant="outline" onClick={exportExcel} disabled={isLoading || days.length === 0}>
-          <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={`w-4 h-4 ml-1 ${isFetching ? "animate-spin" : ""}`} /> تحديث
+          </Button>
+          <Button size="sm" variant="outline" onClick={exportExcel} disabled={isLoading || days.length === 0}>
+            <FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
