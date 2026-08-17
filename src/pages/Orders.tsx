@@ -2922,6 +2922,16 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                             <Pencil className="w-3 h-3" />
                           </button>
                         )}
+                        {canEditThisOrder(order) && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setEditAddressOrder(order); }}
+                            className="text-muted-foreground hover:text-primary p-0.5"
+                            title="تعديل طريقة التسليم والعنوان"
+                          >
+                            <MapPin className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
                     </TableCell>
 
@@ -3255,6 +3265,16 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                           <Button
                             variant="ghost"
                             size="icon"
+                            onClick={() => setEditAddressOrder(order)}
+                            title="تعديل طريقة التسليم والعنوان"
+                          >
+                            <MapPin className="w-4 h-4 text-primary" />
+                          </Button>
+                        )}
+                        {canEditThisOrder(order) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => setAddOfferOrder(order)}
                             title="إضافة بوكس / عرض"
                           >
@@ -3370,7 +3390,19 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                   <p className="font-semibold text-sm">{paymentLabels[selectedOrder.payment_method] || selectedOrder.payment_method}</p>
                 </div>
                 <div className="col-span-2">
-                  <p className="text-sm text-muted-foreground">المحافظة / عنوان التوصيل</p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-sm text-muted-foreground">المحافظة / عنوان التوصيل</p>
+                    {canEditThisOrder(selectedOrder) && (
+                      <button
+                        type="button"
+                        onClick={() => setEditAddressOrder(selectedOrder)}
+                        className="text-muted-foreground hover:text-primary p-0.5"
+                        title="تعديل طريقة التسليم والعنوان"
+                      >
+                        <MapPin className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                   <p className="font-semibold text-sm">
                     {selectedOrder.governorate ? `${selectedOrder.governorate} — ` : ''}
                     {selectedOrder.delivery_address || 'غير محدد'}
@@ -3799,7 +3831,10 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           initialPhone={editCustomerOrder.customer_phone}
           initialAddress={editCustomerOrder.delivery_address}
           onSaved={(next) => {
-            setOrders((prev) => prev.map((o) => o.id === editCustomerOrder.id ? { ...o, ...next } : o));
+            const patch: any = { ...next };
+            if (patch.governorate === undefined) delete patch.governorate;
+            setOrders((prev) => prev.map((o) => o.id === editCustomerOrder.id ? { ...o, ...patch } : o));
+            setSelectedOrder((prev: any) => (prev && prev.id === editCustomerOrder.id ? { ...prev, ...patch } : prev));
             setEditCustomerOrder(null);
           }}
         />

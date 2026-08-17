@@ -16,7 +16,12 @@ interface Props {
   initialName: string;
   initialPhone: string;
   initialAddress: string | null;
-  onSaved?: (next: { customer_name: string; customer_phone: string; delivery_address: string | null }) => void;
+  onSaved?: (next: {
+    customer_name: string;
+    customer_phone: string;
+    delivery_address: string | null;
+    governorate?: string | null;
+  }) => void;
 }
 
 export default function EditCustomerInfoDialog({
@@ -115,6 +120,7 @@ export default function EditCustomerInfoDialog({
         customer_name: cleanName,
         customer_phone: cleanPhone,
         delivery_address: orderPatch.delivery_address,
+        governorate: applyToCustomer && customerId ? (governorate.trim() || null) : undefined,
       });
       onOpenChange(false);
     } catch (e: any) {
