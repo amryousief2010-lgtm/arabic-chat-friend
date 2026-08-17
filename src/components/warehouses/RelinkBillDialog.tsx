@@ -104,7 +104,7 @@ export function RelinkBillDialog({ open, onOpenChange, order, onLinked }: Props)
         <DialogHeader>
           <DialogTitle>ربط بوليصة يدوي</DialogTitle>
           <DialogDescription>
-            أوردر <b>{order.order_number}</b> — ادخل رقم البوليصة من زودكس (يبدأ بـ ZX).
+            أوردر <b>{order.order_number}</b> — ادخل رقم البوليصة من زودكس (يبدأ بـ ZX)، أو سيب الخانة فاضية واضغط حفظ لمسح البوليصة.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 py-2">
@@ -116,7 +116,13 @@ export function RelinkBillDialog({ open, onOpenChange, order, onLinked }: Props)
             autoFocus
             dir="ltr"
           />
+          {!!bill && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => setBill("")}>
+              مسح رقم البوليصة
+            </Button>
+          )}
         </div>
+
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             إلغاء
