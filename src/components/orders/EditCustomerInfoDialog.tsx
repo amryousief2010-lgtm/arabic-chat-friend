@@ -16,7 +16,12 @@ interface Props {
   initialName: string;
   initialPhone: string;
   initialAddress: string | null;
-  onSaved?: (next: { customer_name: string; customer_phone: string; delivery_address: string | null }) => void;
+  onSaved?: (next: {
+    customer_name: string;
+    customer_phone: string;
+    delivery_address: string | null;
+    governorate?: string | null;
+  }) => void;
 }
 
 export default function EditCustomerInfoDialog({
