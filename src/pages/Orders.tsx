@@ -3255,6 +3255,16 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                           <Button
                             variant="ghost"
                             size="icon"
+                            onClick={() => setEditAddressOrder(order)}
+                            title="تعديل طريقة التسليم والعنوان"
+                          >
+                            <MapPin className="w-4 h-4 text-primary" />
+                          </Button>
+                        )}
+                        {canEditThisOrder(order) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => setAddOfferOrder(order)}
                             title="إضافة بوكس / عرض"
                           >
