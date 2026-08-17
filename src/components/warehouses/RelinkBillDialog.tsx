@@ -26,6 +26,33 @@ export function RelinkBillDialog({ open, onOpenChange, order, onLinked }: Props)
 
   const save = async () => {
     const clean = normalizeBill(bill);
+    if (clean.length === 0) {
+      // Remove the bill from the order
+      setSaving(true);
+      try {
+        const { error } = await supabase
+          .from("orders")
+          .update({ shipping_bill_no: null })
+          .eq("id", order.id);
+        if (error) throw error;
+        const { data: userData } = await supabase.auth.getUser();
+        await supabase.from("zodex_bill_link_audit").insert({
+          bill_no: order.shipping_bill_no || "",
+          order_id: order.id,
+          linked_by: userData?.user?.id,
+          match_reason: "manual_unlink",
+          previous_bill_no: order.shipping_bill_no || null,
+        });
+        toast.success("تم مسح رقم البوليصة من الأوردر");
+        onOpenChange(false);
+        onLinked?.();
+      } catch (e: any) {
+        toast.error(`فشل الحذف: ${e.message || e}`);
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     if (clean.length < 5) {
       toast.error("رقم البوليصة قصير جدًا — راجعه من زودكس");
       return;
@@ -49,6 +76,7 @@ export function RelinkBillDialog({ open, onOpenChange, order, onLinked }: Props)
         .update({ shipping_bill_no: clean })
         .eq("id", order.id);
       if (error) throw error;
+
 
       // audit
       const { data: userData } = await supabase.auth.getUser();
