@@ -3799,7 +3799,10 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           initialPhone={editCustomerOrder.customer_phone}
           initialAddress={editCustomerOrder.delivery_address}
           onSaved={(next) => {
-            setOrders((prev) => prev.map((o) => o.id === editCustomerOrder.id ? { ...o, ...next } : o));
+            const patch: any = { ...next };
+            if (patch.governorate === undefined) delete patch.governorate;
+            setOrders((prev) => prev.map((o) => o.id === editCustomerOrder.id ? { ...o, ...patch } : o));
+            setSelectedOrder((prev: any) => (prev && prev.id === editCustomerOrder.id ? { ...prev, ...patch } : prev));
             setEditCustomerOrder(null);
           }}
         />
