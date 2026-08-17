@@ -136,6 +136,9 @@ export default function EditAddressWarehouseDialog({
         fulfillment_type,
         shipping_company: shipping,
       };
+      // Any non shipping-company method must not keep a Zodex waybill
+      if (fKey !== "shipping_company") patch.shipping_bill_no = null;
+
       const { error } = await supabase.from("orders").update(patch).eq("id", orderId);
       if (error) throw error;
 
