@@ -3380,7 +3380,19 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                   <p className="font-semibold text-sm">{paymentLabels[selectedOrder.payment_method] || selectedOrder.payment_method}</p>
                 </div>
                 <div className="col-span-2">
-                  <p className="text-sm text-muted-foreground">المحافظة / عنوان التوصيل</p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-sm text-muted-foreground">المحافظة / عنوان التوصيل</p>
+                    {canEditThisOrder(selectedOrder) && (
+                      <button
+                        type="button"
+                        onClick={() => setEditAddressOrder(selectedOrder)}
+                        className="text-muted-foreground hover:text-primary p-0.5"
+                        title="تعديل طريقة التسليم والعنوان"
+                      >
+                        <MapPin className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                   <p className="font-semibold text-sm">
                     {selectedOrder.governorate ? `${selectedOrder.governorate} — ` : ''}
                     {selectedOrder.delivery_address || 'غير محدد'}
