@@ -2922,6 +2922,16 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                             <Pencil className="w-3 h-3" />
                           </button>
                         )}
+                        {canEditThisOrder(order) && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setEditAddressOrder(order); }}
+                            className="text-muted-foreground hover:text-primary p-0.5"
+                            title="تعديل طريقة التسليم والعنوان"
+                          >
+                            <MapPin className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
                     </TableCell>
 
