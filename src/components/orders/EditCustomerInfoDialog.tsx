@@ -120,6 +120,7 @@ export default function EditCustomerInfoDialog({
         customer_name: cleanName,
         customer_phone: cleanPhone,
         delivery_address: orderPatch.delivery_address,
+        governorate: applyToCustomer && customerId ? (governorate.trim() || null) : undefined,
       });
       onOpenChange(false);
     } catch (e: any) {
