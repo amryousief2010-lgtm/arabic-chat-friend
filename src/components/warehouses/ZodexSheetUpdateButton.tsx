@@ -20,19 +20,21 @@ interface Row {
 }
 
 const RETURN_RE = /مرتجع|مرفوض|رفض|راجع|إلغاء|الغاء|ملغى|ملغي/;
-const DELIVERED_RE = /تسليم|تم التوصيل|تم التسليم|ناجح|delivered|success/i;
-
-function normalizeBill(s: any) {
-  return String(s || "").trim().toUpperCase().replace(/\s+/g, "");
-}
+// Statuses that mean "still on the road" — MUST never be flipped to delivered,
+// even when the user uploads the sheet through the "تسليمات" button (forceKind).
+const PENDING_RE = /مؤجل|مؤجلة|معلق|معلقة|قيد|جار|جاري|جارى|بيك ?أب|بيك ?اب|pickup|pending|in ?transit|out ?for/i;
+// Only an explicit successful-delivery wording counts as delivered.
+const DELIVERED_RE = /تم التسليم|تم التوصيل|تسليم ناجح|توصيل ناجح|ناجح|delivered|success/i;
 
 function classify(status: string): Kind {
   const s = (status || "").trim();
   if (!s) return "unknown";
   if (RETURN_RE.test(s)) return "returned";
+  if (PENDING_RE.test(s)) return "unknown";
   if (DELIVERED_RE.test(s)) return "delivered";
   return "unknown";
 }
+
 
 interface Props {
   /** If provided, force a specific kind — otherwise auto-detect per row. */
