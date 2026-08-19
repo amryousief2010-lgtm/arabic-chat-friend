@@ -26,6 +26,11 @@ const PENDING_RE = /مؤجل|مؤجلة|معلق|معلقة|قيد|جار|جار
 // Only an explicit successful-delivery wording counts as delivered.
 const DELIVERED_RE = /تم التسليم|تم التوصيل|تسليم ناجح|توصيل ناجح|ناجح|delivered|success/i;
 
+function normalizeBill(s: any) {
+  return String(s || "").trim().toUpperCase().replace(/\s+/g, "");
+}
+
+
 function classify(status: string): Kind {
   const s = (status || "").trim();
   if (!s) return "unknown";
