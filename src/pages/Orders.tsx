@@ -76,7 +76,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
-import { formatDate } from "@/lib/dateFormat";
+import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import {
   AGOUZA_WAREHOUSE_ID,
   commitAgouzaForOrder,
