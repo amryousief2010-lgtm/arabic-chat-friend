@@ -76,7 +76,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
-import { formatDate } from "@/lib/dateFormat";
+import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import {
   AGOUZA_WAREHOUSE_ID,
   commitAgouzaForOrder,
@@ -2676,19 +2676,25 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                                 </Badge>
                               </div>
 
-                              <div className="flex items-center gap-2 text-xs">
-                                <span className="text-muted-foreground shrink-0">حالة التحديث:</span>
-                                {order.update_status_marker ? (
-                                  <Badge
-                                    className={`text-[11px] border ${updateMarkerMeta[order.update_status_marker].className}`}
-                                    title={order.update_status_updated_at ? `آخر تحديث: ${new Date(order.update_status_updated_at).toLocaleString('ar-EG')}` : undefined}
-                                  >
-                                    {updateMarkerMeta[order.update_status_marker].label}
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="text-[11px] text-muted-foreground border-muted">
-                                    لم يتم التحديث
-                                  </Badge>
+                              <div className="flex flex-col gap-1 text-xs">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-muted-foreground shrink-0">حالة التحديث:</span>
+                                  {order.update_status_marker ? (
+                                    <Badge
+                                      className={`text-[11px] border ${updateMarkerMeta[order.update_status_marker].className}`}
+                                    >
+                                      {updateMarkerMeta[order.update_status_marker].label}
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-[11px] text-muted-foreground border-muted">
+                                      لم يتم التحديث
+                                    </Badge>
+                                  )}
+                                </div>
+                                {order.update_status_updated_at && (
+                                  <div className="text-[11px] text-muted-foreground">
+                                    تم التغيير: {formatDateTime(order.update_status_updated_at)}
+                                  </div>
                                 )}
                               </div>
 
@@ -3065,6 +3071,11 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                             </Badge>
                           )}
                         </div>
+                        {order.update_status_updated_at && (
+                          <div className="text-[10px] text-muted-foreground">
+                            تم التغيير: {formatDateTime(order.update_status_updated_at)}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
