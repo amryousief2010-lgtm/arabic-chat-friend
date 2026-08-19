@@ -3071,6 +3071,11 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                             </Badge>
                           )}
                         </div>
+                        {order.update_status_updated_at && (
+                          <div className="text-[10px] text-muted-foreground">
+                            تم التغيير: {formatDateTime(order.update_status_updated_at)}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
