@@ -297,6 +297,7 @@ export default function SocialMediaDailyReport() {
       return;
     }
     setForm((f) => ({ ...f, id: data.id, status: data.status as DailyStatus }));
+    try { localStorage.removeItem(draftKey(user.id, form.report_date)); } catch { /* ignore */ }
     toast.success(status === "submitted" ? "تم إرسال التقرير للإدارة" : "تم حفظ المسودة");
   };
 
