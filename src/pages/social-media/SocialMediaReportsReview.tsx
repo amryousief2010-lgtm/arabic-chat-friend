@@ -515,20 +515,45 @@ export default function SocialMediaReportsReview() {
             </DialogHeader>
             {editing && (
               <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-                <pre className="text-xs whitespace-pre-wrap bg-muted/40 p-3 rounded">
-                  {JSON.stringify(
-                    Object.fromEntries(
-                      Object.entries(editing.row).filter(
-                        ([k]) =>
-                          !["id", "employee_id", "reviewed_by", "created_at", "updated_at"].includes(
-                            k
-                          )
-                      )
-                    ),
-                    null,
-                    2
-                  )}
-                </pre>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {Object.entries(editing.row)
+                    .filter(
+                      ([k, v]) =>
+                        !["id", "employee_id", "reviewed_by", "created_at", "updated_at"].includes(k) &&
+                        v !== null &&
+                        v !== "" &&
+                        typeof v !== "object"
+                    )
+                    .map(([k, v]) => (
+                      <div
+                        key={k}
+                        className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-2"
+                      >
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {FIELD_LABELS[k] ?? k}
+                        </span>
+                        <span className="text-sm font-medium break-all text-left" dir="auto">
+                          {typeof v === "boolean"
+                            ? v
+                              ? "نعم"
+                              : "لا"
+                            : String(v).startsWith("http") ? (
+                              <a
+                                href={String(v)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-primary underline"
+                              >
+                                فتح الرابط
+                              </a>
+                            ) : (
+                              String(v)
+                            )}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+
                 {editing.kind === "daily" && editing.row.complaint_attachment_path && (
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
