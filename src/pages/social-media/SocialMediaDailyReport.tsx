@@ -97,6 +97,7 @@ export default function SocialMediaDailyReport() {
   });
 
   const loadedKeyRef = useRef<string | null>(null);
+  const hydratedRef = useRef(false);
   const userId = user?.id;
 
   useEffect(() => {
