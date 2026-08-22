@@ -257,6 +257,33 @@ export default function SocialMediaDailyReport() {
     toast.success("تم حذف الصورة");
   };
 
+  const NUMERIC_FIELDS = [
+    "posts_count",
+    "reels_videos_count",
+    "interested_customers_count",
+    "reach_count",
+    "impressions_count",
+    "likes_count",
+    "comments_count",
+    "shares_count",
+    "new_followers_count",
+  ] as const;
+
+  const emptyOrZeroFields = NUMERIC_FIELDS.filter((k) => {
+    const v = String((form as any)[k] ?? "").trim();
+    return v === "" || toNum(v) === 0;
+  });
+  const allZero = emptyOrZeroFields.length === NUMERIC_FIELDS.length;
+
+  const requestSave = (status: DailyStatus) => {
+    if (allZero) {
+      setPendingStatus(status);
+      setConfirmOpen(true);
+      return;
+    }
+    save(status);
+  };
+
   const save = async (status: DailyStatus) => {
     if (!user || !profile) return;
     const err = validate(status === "submitted");
