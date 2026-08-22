@@ -86,14 +86,22 @@ export default function SocialMediaDailyReport() {
     platforms: [],
   });
 
+  const loadedKeyRef = useRef<string | null>(null);
+  const userId = user?.id;
+
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
+    const key = `${userId}|${form.report_date}`;
+    // Prevent re-fetching (and wiping typed values) when the auth object
+    // identity changes on token refresh — only load once per user+date.
+    if (loadedKeyRef.current === key) return;
+    loadedKeyRef.current = key;
     (async () => {
       setLoading(true);
       const { data, error } = await supabase
         .from("social_media_daily_reports")
         .select("*")
-        .eq("employee_id", user.id)
+        .eq("employee_id", userId)
         .eq("report_date", form.report_date)
         .maybeSingle();
       if (!error && data) {
