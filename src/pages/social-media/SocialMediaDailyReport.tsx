@@ -74,6 +74,8 @@ export default function SocialMediaDailyReport() {
   const canEditDate = isGeneralManager || isExecutiveManager;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<DailyStatus | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
