@@ -20,6 +20,8 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
+import SidebarToggleButton from "./SidebarToggleButton";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -52,6 +54,7 @@ const DashboardLayoutInner = ({ children }: DashboardLayoutProps) => {
 
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useSidebarCollapsed();
 
   const handleRefresh = useCallback(async () => {
     // Invalidate all queries to refresh data
@@ -89,10 +92,11 @@ const DashboardLayoutInner = ({ children }: DashboardLayoutProps) => {
       <DuplicateApprovalsAlert />
 
 
-      {/* Desktop Sidebar */}
-      <div className="hidden md:block">
+      {/* Desktop Sidebar (collapsible, state persisted in LocalStorage) */}
+      <div className={sidebarCollapsed ? "hidden" : "hidden md:block"}>
         <AppSidebar />
       </div>
+      <SidebarToggleButton collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
       
       {/* Mobile Bottom Navigation */}
       <MobileNavigation />
@@ -100,7 +104,7 @@ const DashboardLayoutInner = ({ children }: DashboardLayoutProps) => {
       {/* Main Content with Pull to Refresh */}
       <main 
         ref={containerRef}
-        className="md:mr-64 p-4 md:p-8 pb-32 md:pb-8 relative overflow-auto"
+        className={`${sidebarCollapsed ? "" : "md:mr-64"} p-4 md:p-8 pb-32 md:pb-8 relative overflow-auto`}
         style={{ 
           minHeight: 'calc(100vh - 4rem)',
           transform: pullDistance > 0 ? `translateY(${pullDistance}px)` : undefined,
