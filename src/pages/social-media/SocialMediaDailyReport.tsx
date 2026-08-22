@@ -160,9 +160,33 @@ export default function SocialMediaDailyReport() {
           platforms: [],
         }));
       }
+      // Restore any unsaved local draft for this user/date (survives reloads & session expiry)
+      try {
+        const raw = localStorage.getItem(draftKey(userId, form.report_date));
+        if (raw) {
+          const cached = JSON.parse(raw);
+          if (cached && cached.status !== "reviewed") {
+            setForm((f) => ({ ...f, ...cached, report_date: f.report_date, id: f.id, status: f.status }));
+            toast.info("تم استرجاع مسودة محفوظة محليًا لم يتم حفظها على السيرفر");
+          }
+        }
+      } catch { /* ignore */ }
       setLoading(false);
+      hydratedRef.current = true;
     })();
   }, [userId, form.report_date]);
+
+  // Local autosave while typing — avoids data loss on refresh / session expiry
+  useEffect(() => {
+    if (!userId || loading || !hydratedRef.current) return;
+    const t = setTimeout(() => {
+      try {
+        const { id, management_notes, status, report_date, ...rest } = form;
+        localStorage.setItem(draftKey(userId, form.report_date), JSON.stringify(rest));
+      } catch { /* ignore */ }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [form, userId, loading]);
 
   // Get signed URL for attachment preview
   useEffect(() => {
