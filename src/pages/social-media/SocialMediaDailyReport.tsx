@@ -152,7 +152,7 @@ export default function SocialMediaDailyReport() {
       }
       setLoading(false);
     })();
-  }, [user, form.report_date]);
+  }, [userId, form.report_date]);
 
   // Get signed URL for attachment preview
   useEffect(() => {
