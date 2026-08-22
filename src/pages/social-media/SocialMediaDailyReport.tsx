@@ -62,7 +62,7 @@ const statusBadge = (s: DailyStatus) => {
   return <Badge variant="outline">مسودة</Badge>;
 };
 
-const toNum = (s: string) => {
+const draftKey = (uid: string, date: string) => `sm_daily_draft:${uid}:${date}`;
   const n = parseInt(s, 10);
   return Number.isFinite(n) && n >= 0 ? n : 0;
 };
