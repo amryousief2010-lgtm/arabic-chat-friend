@@ -132,7 +132,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: Calculator, label: "تكاليف المنتجات وهامش الربح", path: "/product-costs", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
       { icon: ShoppingCart, label: "الطلبات", path: "/orders", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'marketing_sales_manager', 'financial_manager', 'quality_manager','marketing_sales_viewer'] },
       { icon: Bird, label: "طلبات الكتاكيت", path: "/chick-orders", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'accountant', 'financial_manager','marketing_sales_viewer'] },
-      { icon: ShieldAlert, label: "موافقات تكرار الطلبات", path: "/duplicate-order-approvals", roles: ['marketing_sales_manager','marketing_sales_viewer'] },
+      { icon: ShieldAlert, label: "موافقات تكرار الطلبات", path: "/duplicate-order-approvals", roles: ['general_manager','executive_manager','marketing_sales_manager','marketing_sales_viewer'] },
       { icon: Users, label: "العملاء", path: "/customers", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: Gift, label: "صناديق العروض", path: "/offer-boxes", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: Truck, label: "ملخص توصيل الأوردرات", path: "/my-delivery-summary", roles: ['sales_moderator', 'general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager'] },
