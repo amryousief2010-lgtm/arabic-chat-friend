@@ -21759,6 +21759,7 @@ export type Database = {
       }
       is_nora_reviewer: { Args: { _uid: string }; Returns: boolean }
       is_slaughter_custody_manager: { Args: { _uid: string }; Returns: boolean }
+      is_social_media_approver: { Args: { _uid: string }; Returns: boolean }
       is_social_media_manager: { Args: { _uid: string }; Returns: boolean }
       is_social_media_reviewer: { Args: { _uid: string }; Returns: boolean }
       lab_ledger_recompute_balance: {
