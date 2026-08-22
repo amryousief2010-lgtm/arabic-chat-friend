@@ -33,6 +33,33 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ShieldCheck, Eye, CheckCircle2, Trash2, Paperclip } from "lucide-react";
+
+const FIELD_LABELS: Record<string, string> = {
+  report_date: "تاريخ التقرير",
+  week_start: "بداية الأسبوع",
+  week_end: "نهاية الأسبوع",
+  employee_name: "الموظف",
+  platforms: "المنصات",
+  posts_count: "عدد المنشورات",
+  reels_videos_count: "عدد الريلز/الفيديوهات",
+  interested_customers_count: "عدد العملاء المهتمين",
+  reach_count: "الوصول",
+  impressions_count: "الظهور",
+  likes_count: "الإعجابات",
+  comments_count: "التعليقات",
+  shares_count: "المشاركات",
+  new_followers_count: "متابعون جدد",
+  top_engaging_content: "أعلى محتوى تفاعلاً",
+  issues_or_complaints: "مشاكل أو شكاوى",
+  tomorrow_content_suggestions: "مقترحات محتوى الغد",
+  next_week_plan: "خطة الأسبوع القادم",
+  additional_notes: "ملاحظات إضافية",
+  management_notes: "ملاحظة الإدارة",
+  status: "الحالة",
+  reviewed_at: "تاريخ المراجعة",
+  complaint_attachment_path: "مرفق الشكوى",
+};
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -515,20 +542,45 @@ export default function SocialMediaReportsReview() {
             </DialogHeader>
             {editing && (
               <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-                <pre className="text-xs whitespace-pre-wrap bg-muted/40 p-3 rounded">
-                  {JSON.stringify(
-                    Object.fromEntries(
-                      Object.entries(editing.row).filter(
-                        ([k]) =>
-                          !["id", "employee_id", "reviewed_by", "created_at", "updated_at"].includes(
-                            k
-                          )
-                      )
-                    ),
-                    null,
-                    2
-                  )}
-                </pre>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {Object.entries(editing.row)
+                    .filter(
+                      ([k, v]) =>
+                        !["id", "employee_id", "reviewed_by", "created_at", "updated_at"].includes(k) &&
+                        v !== null &&
+                        v !== "" &&
+                        typeof v !== "object"
+                    )
+                    .map(([k, v]) => (
+                      <div
+                        key={k}
+                        className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-2"
+                      >
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {FIELD_LABELS[k] ?? k}
+                        </span>
+                        <span className="text-sm font-medium break-all text-left" dir="auto">
+                          {typeof v === "boolean"
+                            ? v
+                              ? "نعم"
+                              : "لا"
+                            : String(v).startsWith("http") ? (
+                              <a
+                                href={String(v)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-primary underline"
+                              >
+                                فتح الرابط
+                              </a>
+                            ) : (
+                              String(v)
+                            )}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+
                 {editing.kind === "daily" && editing.row.complaint_attachment_path && (
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
