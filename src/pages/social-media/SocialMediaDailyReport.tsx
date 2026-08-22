@@ -168,10 +168,14 @@ export default function SocialMediaDailyReport() {
       // Restore any unsaved local draft for this user/date (survives reloads & session expiry)
       try {
         const raw = localStorage.getItem(draftKey(userId, form.report_date));
-        if (raw) {
-          const cached = JSON.parse(raw);
-          if (cached && cached.status !== "reviewed") {
-            setForm((f) => ({ ...f, ...cached, report_date: f.report_date, id: f.id, status: f.status }));
+        if (raw && (data as any)?.status !== "reviewed") {
+          const cached = JSON.parse(raw) || {};
+          const patch: any = {};
+          Object.entries(cached).forEach(([k, v]) => {
+            if (Array.isArray(v) ? v.length > 0 : v != null && String(v).trim() !== "") patch[k] = v;
+          });
+          if (Object.keys(patch).length) {
+            setForm((f) => ({ ...f, ...patch }));
             toast.info("تم استرجاع مسودة محفوظة محليًا لم يتم حفظها على السيرفر");
           }
         }
