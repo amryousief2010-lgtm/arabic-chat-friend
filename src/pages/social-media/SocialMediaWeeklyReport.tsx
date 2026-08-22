@@ -166,7 +166,7 @@ export default function SocialMediaWeeklyReport() {
       }
       setLoading(false);
     })();
-  }, [user, form.week_start_date, form.week_end_date]);
+  }, [userId, form.week_start_date, form.week_end_date]);
 
   const isLocked = form.status === "reviewed";
 
