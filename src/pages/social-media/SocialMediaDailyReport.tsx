@@ -13,6 +13,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { ClipboardList, Save, Send, History, Paperclip, X, ImageIcon, ChevronDown, Eye, Sparkles, Heart, MessageCircle, Share2, UserPlus, Instagram, Facebook, Youtube, Video as VideoIcon } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type DailyStatus = "draft" | "submitted" | "reviewed";
 const PLATFORMS: { key: string; label: string; icon: any }[] = [
