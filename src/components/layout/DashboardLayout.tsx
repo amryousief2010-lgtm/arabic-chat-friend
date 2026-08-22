@@ -54,6 +54,7 @@ const DashboardLayoutInner = ({ children }: DashboardLayoutProps) => {
 
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useSidebarCollapsed();
 
   const handleRefresh = useCallback(async () => {
     // Invalidate all queries to refresh data
