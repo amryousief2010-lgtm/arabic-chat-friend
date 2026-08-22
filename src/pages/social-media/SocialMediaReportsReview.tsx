@@ -33,6 +33,33 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ShieldCheck, Eye, CheckCircle2, Trash2, Paperclip } from "lucide-react";
+
+const FIELD_LABELS: Record<string, string> = {
+  report_date: "تاريخ التقرير",
+  week_start: "بداية الأسبوع",
+  week_end: "نهاية الأسبوع",
+  employee_name: "الموظف",
+  platforms: "المنصات",
+  posts_count: "عدد المنشورات",
+  reels_videos_count: "عدد الريلز/الفيديوهات",
+  interested_customers_count: "عدد العملاء المهتمين",
+  reach_count: "الوصول",
+  impressions_count: "الظهور",
+  likes_count: "الإعجابات",
+  comments_count: "التعليقات",
+  shares_count: "المشاركات",
+  new_followers_count: "متابعون جدد",
+  top_engaging_content: "أعلى محتوى تفاعلاً",
+  issues_or_complaints: "مشاكل أو شكاوى",
+  tomorrow_content_suggestions: "مقترحات محتوى الغد",
+  next_week_plan: "خطة الأسبوع القادم",
+  additional_notes: "ملاحظات إضافية",
+  management_notes: "ملاحظة الإدارة",
+  status: "الحالة",
+  reviewed_at: "تاريخ المراجعة",
+  complaint_attachment_path: "مرفق الشكوى",
+};
+
 import {
   AlertDialog,
   AlertDialogAction,
