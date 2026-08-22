@@ -79,7 +79,8 @@ const statusBadge = (s: string) => {
 };
 
 export default function SocialMediaReportsReview() {
-  const { user } = useAuth();
+  const { user, isGeneralManager, isExecutiveManager } = useAuth();
+  const canApprove = isGeneralManager || isExecutiveManager;
   const [daily, setDaily] = useState<any[]>([]);
   const [weekly, setWeekly] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -326,6 +327,7 @@ export default function SocialMediaReportsReview() {
                             >
                               <Eye className="w-4 h-4 ml-1" /> عرض
                             </Button>
+                            {canApprove && (
                             <Button
                               variant="destructive"
                               size="sm"
@@ -333,6 +335,7 @@ export default function SocialMediaReportsReview() {
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -383,6 +386,8 @@ export default function SocialMediaReportsReview() {
                                     variant="destructive"
                                     size="sm"
                                     onClick={() => setDeleteTarget({ kind: "daily", row: r })}
+                                    disabled={!canApprove}
+                                    hidden={!canApprove}
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </Button>
@@ -457,6 +462,7 @@ export default function SocialMediaReportsReview() {
                             >
                               <Eye className="w-4 h-4 ml-1" /> عرض
                             </Button>
+                            {canApprove && (
                             <Button
                               variant="destructive"
                               size="sm"
@@ -464,6 +470,7 @@ export default function SocialMediaReportsReview() {
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -515,6 +522,8 @@ export default function SocialMediaReportsReview() {
                                     variant="destructive"
                                     size="sm"
                                     onClick={() => setDeleteTarget({ kind: "weekly", row: r })}
+                                    disabled={!canApprove}
+                                    hidden={!canApprove}
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </Button>
@@ -606,6 +615,7 @@ export default function SocialMediaReportsReview() {
                   <Label>ملاحظة الإدارة</Label>
                   <Textarea
                     rows={3}
+                    disabled={!canApprove}
                     value={editing.notes}
                     onChange={(e) =>
                       setEditing((s) => (s ? { ...s, notes: e.target.value } : s))
@@ -615,12 +625,20 @@ export default function SocialMediaReportsReview() {
               </div>
             )}
             <DialogFooter>
-              <Button variant="outline" onClick={saveNotesOnly}>
-                حفظ الملاحظة
-              </Button>
-              <Button onClick={approve} disabled={editing?.row?.status === "reviewed"}>
-                <CheckCircle2 className="w-4 h-4 ml-2" /> اعتماد كمراجع
-              </Button>
+              {canApprove ? (
+                <>
+                  <Button variant="outline" onClick={saveNotesOnly}>
+                    حفظ الملاحظة
+                  </Button>
+                  <Button onClick={approve} disabled={editing?.row?.status === "reviewed"}>
+                    <CheckCircle2 className="w-4 h-4 ml-2" /> اعتماد التقرير
+                  </Button>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  الاطلاع فقط — الاعتماد متاح للمدير العام والمدير التنفيذي فقط.
+                </p>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
