@@ -92,10 +92,11 @@ const DashboardLayoutInner = ({ children }: DashboardLayoutProps) => {
       <DuplicateApprovalsAlert />
 
 
-      {/* Desktop Sidebar */}
-      <div className="hidden md:block">
+      {/* Desktop Sidebar (collapsible, state persisted in LocalStorage) */}
+      <div className={sidebarCollapsed ? "hidden" : "hidden md:block"}>
         <AppSidebar />
       </div>
+      <SidebarToggleButton collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
       
       {/* Mobile Bottom Navigation */}
       <MobileNavigation />
