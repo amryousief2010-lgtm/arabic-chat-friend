@@ -598,15 +598,21 @@ export default function SocialMediaDailyReport() {
               </div>
             )}
 
+            {!isLocked && allZero && (
+              <p className="mt-4 text-sm text-amber-600 text-center">
+                تنبيه: كل الأرقام فارغة أو أصفار — تأكد من إدخال البيانات قبل الحفظ.
+              </p>
+            )}
+
             <div className="flex flex-wrap gap-2 mt-6 justify-end">
               <Button
                 variant="outline"
                 disabled={saving || isLocked}
-                onClick={() => save("draft")}
+                onClick={() => requestSave("draft")}
               >
                 <Save className="w-4 h-4 ml-2" /> حفظ كمسودة
               </Button>
-              <Button disabled={saving || isLocked} onClick={() => save("submitted")}>
+              <Button disabled={saving || isLocked} onClick={() => requestSave("submitted")}>
                 <Send className="w-4 h-4 ml-2" /> حفظ وإرسال للإدارة
               </Button>
             </div>
@@ -618,6 +624,30 @@ export default function SocialMediaDailyReport() {
             )}
           </CardContent>
         </Card>
+
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>كل الأرقام فارغة أو أصفار</AlertDialogTitle>
+              <AlertDialogDescription>
+                لم يتم إدخال أي أرقام في حقول البوستات/الريلز/العملاء أو مؤشرات التفاعل. هل تريد
+                الحفظ بقيم صفرية فعلًا؟
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>رجوع وتعديل الأرقام</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  const s = pendingStatus;
+                  setPendingStatus(null);
+                  if (s) save(s);
+                }}
+              >
+                نعم، احفظ
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
