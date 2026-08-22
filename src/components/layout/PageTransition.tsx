@@ -33,7 +33,13 @@ const pageTransition: Transition = {
 };
 
 const PageTransition = ({ children }: PageTransitionProps) => {
-  return (
+  const { pathname } = useLocation();
+  const isChromeless =
+    CHROMELESS_ROUTES.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
+    (typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("embed") === "1");
+
+  const content = (
     <motion.div
       initial="initial"
       animate="animate"
@@ -44,6 +50,11 @@ const PageTransition = ({ children }: PageTransitionProps) => {
       {children}
     </motion.div>
   );
+
+  if (isChromeless) return content;
+
+  return <DashboardLayout>{content}</DashboardLayout>;
 };
+
 
 export default PageTransition;
