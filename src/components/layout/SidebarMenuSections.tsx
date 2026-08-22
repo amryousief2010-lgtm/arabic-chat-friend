@@ -299,7 +299,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: ShoppingCart, label: "مراجعة الطلبات (قراءة فقط)", path: "/orders", roles: ['social_media_manager'] },
       { icon: ClipboardList, label: "تقرير السوشيال ميديا اليومي", path: "/social-media/daily", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'social_media_manager','marketing_sales_viewer'] },
       { icon: CalendarClock, label: "تقرير السوشيال ميديا الأسبوعي", path: "/social-media/weekly", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'social_media_manager','marketing_sales_viewer'] },
-      { icon: History, label: "تقاريري السابقة", path: "/social-media/my-reports", roles: ['social_media_manager'] },
+      { icon: History, label: "تقاريري السابقة", path: "/social-media/my-reports", roles: ['social_media_manager', 'general_manager', 'executive_manager', 'marketing_sales_manager'] },
       { icon: ShieldCheck, label: "مراجعة تقارير السوشيال ميديا", path: "/social-media/review", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: Receipt, label: "مصروفات السوشيال", path: "/social-media/expenses", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: FileSpreadsheet, label: "تصدير التقارير", path: "/social-media/export", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
