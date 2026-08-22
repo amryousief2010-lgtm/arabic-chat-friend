@@ -20,6 +20,8 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
+import SidebarToggleButton from "./SidebarToggleButton";
 
 interface DashboardLayoutProps {
   children: ReactNode;
