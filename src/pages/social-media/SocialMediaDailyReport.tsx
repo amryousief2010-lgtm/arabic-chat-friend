@@ -63,6 +63,8 @@ const statusBadge = (s: DailyStatus) => {
 };
 
 const draftKey = (uid: string, date: string) => `sm_daily_draft:${uid}:${date}`;
+
+const toNum = (s: string) => {
   const n = parseInt(s, 10);
   return Number.isFinite(n) && n >= 0 ? n : 0;
 };
