@@ -1,4 +1,4 @@
-import { ReactNode, useCallback } from "react";
+import { ReactNode, createContext, useCallback, useContext } from "react";
 import AppSidebar from "./AppSidebar";
 import MobileNavigation from "./MobileNavigation";
 import PullToRefreshIndicator from "./PullToRefresh";
@@ -25,7 +25,19 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
+const DashboardLayoutContext = createContext(false);
+
+export const useInsideDashboardLayout = () => useContext(DashboardLayoutContext);
+
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+  // Prevent duplicated chrome when a page renders its own DashboardLayout
+  // inside the automatic one provided by the router.
+  const alreadyInsideLayout = useInsideDashboardLayout();
+  if (alreadyInsideLayout) return <>{children}</>;
+  return <DashboardLayoutInner>{children}</DashboardLayoutInner>;
+};
+
+const DashboardLayoutInner = ({ children }: DashboardLayoutProps) => {
   // Embed mode: when loaded inside an iframe/tab via ?embed=1, render only the
   // children without sidebar/header/widgets so the parent app shell is not duplicated.
   const isEmbed = typeof window !== "undefined"
@@ -60,13 +72,16 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   if (isEmbed) {
     return (
-      <div className="min-h-screen bg-background">
-        <main className="p-4 md:p-6">{children}</main>
-      </div>
+      <DashboardLayoutContext.Provider value={true}>
+        <div className="min-h-screen bg-background">
+          <main className="p-4 md:p-6">{children}</main>
+        </div>
+      </DashboardLayoutContext.Provider>
     );
   }
 
   return (
+    <DashboardLayoutContext.Provider value={true}>
     <div className="min-h-screen bg-background">
       <PendingApprovalsAlert />
       <ExecutiveApprovalsAlert />
@@ -113,6 +128,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       {/* Floating Clock + Calendar widget (visible to all users on every page) */}
       <ClockCalendarWidget />
     </div>
+    </DashboardLayoutContext.Provider>
   );
 };
 

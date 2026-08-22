@@ -1,9 +1,15 @@
 import { motion, type Transition, type Variants } from "framer-motion";
 import { ReactNode } from "react";
+import { useLocation } from "react-router-dom";
+import DashboardLayout from "./DashboardLayout";
 
 interface PageTransitionProps {
   children: ReactNode;
 }
+
+// Routes rendered without the app shell (no sidebar / bottom nav)
+const CHROMELESS_ROUTES = ["/auth", "/trust", "/install", "/unauthorized"];
+
 
 const pageVariants: Variants = {
   initial: {
@@ -27,7 +33,13 @@ const pageTransition: Transition = {
 };
 
 const PageTransition = ({ children }: PageTransitionProps) => {
-  return (
+  const { pathname } = useLocation();
+  const isChromeless =
+    CHROMELESS_ROUTES.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
+    (typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("embed") === "1");
+
+  const content = (
     <motion.div
       initial="initial"
       animate="animate"
@@ -38,6 +50,11 @@ const PageTransition = ({ children }: PageTransitionProps) => {
       {children}
     </motion.div>
   );
+
+  if (isChromeless) return content;
+
+  return <DashboardLayout>{content}</DashboardLayout>;
 };
+
 
 export default PageTransition;
