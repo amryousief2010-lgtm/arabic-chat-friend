@@ -574,7 +574,10 @@ export default function SocialMediaReportsReview() {
                                 فتح الرابط
                               </a>
                             ) : (
-                              String(v)
+                              (k === "status"
+                                ? { draft: "مسودة", submitted: "مُرسل", reviewed: "تمت المراجعة", approved: "معتمد" }[String(v)] ?? String(v)
+                                : String(v))
+
                             )}
                         </span>
                       </div>
