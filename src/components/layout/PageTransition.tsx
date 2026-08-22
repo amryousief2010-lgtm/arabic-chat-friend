@@ -1,9 +1,15 @@
 import { motion, type Transition, type Variants } from "framer-motion";
 import { ReactNode } from "react";
+import { useLocation } from "react-router-dom";
+import DashboardLayout from "./DashboardLayout";
 
 interface PageTransitionProps {
   children: ReactNode;
 }
+
+// Routes rendered without the app shell (no sidebar / bottom nav)
+const CHROMELESS_ROUTES = ["/auth", "/trust", "/install", "/unauthorized"];
+
 
 const pageVariants: Variants = {
   initial: {
