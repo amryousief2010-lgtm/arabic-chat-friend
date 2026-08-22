@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -108,14 +108,21 @@ export default function SocialMediaWeeklyReport() {
   });
   const [posts, setPosts] = useState<TopPost[]>([emptyPost()]);
 
+  const loadedKeyRef = useRef<string | null>(null);
+  const userId = user?.id;
+
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
+    const key = `${userId}|${form.week_start_date}|${form.week_end_date}`;
+    // Load once per user+week so a token refresh doesn't wipe typed values.
+    if (loadedKeyRef.current === key) return;
+    loadedKeyRef.current = key;
     (async () => {
       setLoading(true);
       const { data, error } = await supabase
         .from("social_media_weekly_reports")
         .select("*, social_media_weekly_top_posts(*)")
-        .eq("employee_id", user.id)
+        .eq("employee_id", userId)
         .eq("week_start_date", form.week_start_date)
         .eq("week_end_date", form.week_end_date)
         .maybeSingle();
@@ -159,7 +166,7 @@ export default function SocialMediaWeeklyReport() {
       }
       setLoading(false);
     })();
-  }, [user, form.week_start_date, form.week_end_date]);
+  }, [userId, form.week_start_date, form.week_end_date]);
 
   const isLocked = form.status === "reviewed";
 
