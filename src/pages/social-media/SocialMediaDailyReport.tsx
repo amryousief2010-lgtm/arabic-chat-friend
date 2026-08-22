@@ -13,6 +13,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { ClipboardList, Save, Send, History, Paperclip, X, ImageIcon, ChevronDown, Eye, Sparkles, Heart, MessageCircle, Share2, UserPlus, Instagram, Facebook, Youtube, Video as VideoIcon } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type DailyStatus = "draft" | "submitted" | "reviewed";
 const PLATFORMS: { key: string; label: string; icon: any }[] = [
@@ -52,6 +62,8 @@ const statusBadge = (s: DailyStatus) => {
   return <Badge variant="outline">مسودة</Badge>;
 };
 
+const draftKey = (uid: string, date: string) => `sm_daily_draft:${uid}:${date}`;
+
 const toNum = (s: string) => {
   const n = parseInt(s, 10);
   return Number.isFinite(n) && n >= 0 ? n : 0;
@@ -62,6 +74,8 @@ export default function SocialMediaDailyReport() {
   const canEditDate = isGeneralManager || isExecutiveManager;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<DailyStatus | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -87,6 +101,7 @@ export default function SocialMediaDailyReport() {
   });
 
   const loadedKeyRef = useRef<string | null>(null);
+  const hydratedRef = useRef(false);
   const userId = user?.id;
 
   useEffect(() => {
@@ -150,9 +165,37 @@ export default function SocialMediaDailyReport() {
           platforms: [],
         }));
       }
+      // Restore any unsaved local draft for this user/date (survives reloads & session expiry)
+      try {
+        const raw = localStorage.getItem(draftKey(userId, form.report_date));
+        if (raw && (data as any)?.status !== "reviewed") {
+          const cached = JSON.parse(raw) || {};
+          const patch: any = {};
+          Object.entries(cached).forEach(([k, v]) => {
+            if (Array.isArray(v) ? v.length > 0 : v != null && String(v).trim() !== "") patch[k] = v;
+          });
+          if (Object.keys(patch).length) {
+            setForm((f) => ({ ...f, ...patch }));
+            toast.info("تم استرجاع مسودة محفوظة محليًا لم يتم حفظها على السيرفر");
+          }
+        }
+      } catch { /* ignore */ }
       setLoading(false);
+      hydratedRef.current = true;
     })();
   }, [userId, form.report_date]);
+
+  // Local autosave while typing — avoids data loss on refresh / session expiry
+  useEffect(() => {
+    if (!userId || loading || !hydratedRef.current) return;
+    const t = setTimeout(() => {
+      try {
+        const { id, management_notes, status, report_date, ...rest } = form;
+        localStorage.setItem(draftKey(userId, form.report_date), JSON.stringify(rest));
+      } catch { /* ignore */ }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [form, userId, loading]);
 
   // Get signed URL for attachment preview
   useEffect(() => {
@@ -220,6 +263,33 @@ export default function SocialMediaDailyReport() {
     toast.success("تم حذف الصورة");
   };
 
+  const NUMERIC_FIELDS = [
+    "posts_count",
+    "reels_videos_count",
+    "interested_customers_count",
+    "reach_count",
+    "impressions_count",
+    "likes_count",
+    "comments_count",
+    "shares_count",
+    "new_followers_count",
+  ] as const;
+
+  const emptyOrZeroFields = NUMERIC_FIELDS.filter((k) => {
+    const v = String((form as any)[k] ?? "").trim();
+    return v === "" || toNum(v) === 0;
+  });
+  const allZero = emptyOrZeroFields.length === NUMERIC_FIELDS.length;
+
+  const requestSave = (status: DailyStatus) => {
+    if (allZero) {
+      setPendingStatus(status);
+      setConfirmOpen(true);
+      return;
+    }
+    save(status);
+  };
+
   const save = async (status: DailyStatus) => {
     if (!user || !profile) return;
     const err = validate(status === "submitted");
@@ -260,6 +330,7 @@ export default function SocialMediaDailyReport() {
       return;
     }
     setForm((f) => ({ ...f, id: data.id, status: data.status as DailyStatus }));
+    try { localStorage.removeItem(draftKey(user.id, form.report_date)); } catch { /* ignore */ }
     toast.success(status === "submitted" ? "تم إرسال التقرير للإدارة" : "تم حفظ المسودة");
   };
 
@@ -531,15 +602,21 @@ export default function SocialMediaDailyReport() {
               </div>
             )}
 
+            {!isLocked && allZero && (
+              <p className="mt-4 text-sm text-amber-600 text-center">
+                تنبيه: كل الأرقام فارغة أو أصفار — تأكد من إدخال البيانات قبل الحفظ.
+              </p>
+            )}
+
             <div className="flex flex-wrap gap-2 mt-6 justify-end">
               <Button
                 variant="outline"
                 disabled={saving || isLocked}
-                onClick={() => save("draft")}
+                onClick={() => requestSave("draft")}
               >
                 <Save className="w-4 h-4 ml-2" /> حفظ كمسودة
               </Button>
-              <Button disabled={saving || isLocked} onClick={() => save("submitted")}>
+              <Button disabled={saving || isLocked} onClick={() => requestSave("submitted")}>
                 <Send className="w-4 h-4 ml-2" /> حفظ وإرسال للإدارة
               </Button>
             </div>
@@ -551,6 +628,30 @@ export default function SocialMediaDailyReport() {
             )}
           </CardContent>
         </Card>
+
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>كل الأرقام فارغة أو أصفار</AlertDialogTitle>
+              <AlertDialogDescription>
+                لم يتم إدخال أي أرقام في حقول البوستات/الريلز/العملاء أو مؤشرات التفاعل. هل تريد
+                الحفظ بقيم صفرية فعلًا؟
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>رجوع وتعديل الأرقام</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  const s = pendingStatus;
+                  setPendingStatus(null);
+                  if (s) save(s);
+                }}
+              >
+                نعم، احفظ
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
