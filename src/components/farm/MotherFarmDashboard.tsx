@@ -165,12 +165,15 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
       const transferred = tFiltered.reduce((s, t) => s + (t.quantity || 0), 0);
       const wasted = wFiltered.reduce((s, w) => s + (w.egg_count || 0), 0);
       const lastDate = eFiltered.length ? eFiltered.reduce((m, e) => e.production_date > m ? e.production_date : m, "") : "-";
+      const idleDays = lastDate && lastDate !== "-"
+        ? Math.max(0, Math.floor((new Date(todayStr).getTime() - new Date(lastDate).getTime()) / 86400000))
+        : null;
       const avgPerFemale = female > 0 ? +(mEggs / female).toFixed(2) : 0;
 
       return {
         pen, familiesCount: fams.length, female, male,
         today: tEggs, week: wEggs, month: mEggs, year: yEggs,
-        transferred, wasted, lastDate, avgPerFemale,
+        transferred, wasted, lastDate, idleDays, avgPerFemale,
       };
     });
   }, [allPens, familiesByPen, eggs, transfers, waste]);
@@ -180,14 +183,17 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
     const monthValues = penAnalysis.map((p) => p.month).filter((v) => v > 0);
     const avg = monthValues.length ? monthValues.reduce((s, v) => s + v, 0) / monthValues.length : 0;
     return sorted.map((p) => {
-      let status: "جيد" | "متوسط" | "ضعيف" = "متوسط";
-      if (avg > 0) {
+      let status: "جيد" | "متوسط" | "ضعيف" | "متوقف" = "متوسط";
+      if (p.idleDays === null || p.idleDays > 45) {
+        status = "متوقف";
+      } else if (avg > 0) {
         if (p.month >= avg * 1.1) status = "جيد";
         else if (p.month < avg * 0.7) status = "ضعيف";
       }
       return { ...p, status };
     });
   }, [penAnalysis]);
+
 
   const weakestPen = penAnalysisRanked.find((p) => p.month > 0) || penAnalysisRanked[0];
   const top5 = [...penAnalysis].sort((a, b) => b.month - a.month).slice(0, 5);
