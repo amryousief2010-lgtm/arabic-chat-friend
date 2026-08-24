@@ -324,7 +324,8 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
     const rows = penRows.map((p) => ({
       "الملعب": p.pen, "عدد الأسر": p.familiesCount, "إناث": p.female, "ذكور": p.male,
       "إنتاج اليوم": p.today, "إنتاج الأسبوع": p.week, "إنتاج الشهر": p.month, "إنتاج السنة": p.year,
-      "متوسط/أنثى (شهر)": p.avgPerFemale, "منقول للمعمل": p.transferred, "هالك": p.wasted,
+      "متوسط/أنثى (شهر)": p.avgPerFemale, "متوسط/أنثى (السنة)": p.yearPerFemale,
+      "متوسط الملاعب سنويًا/أنثى": +yearAvgPerFemale.toFixed(2), "منقول للمعمل": p.transferred, "هالك": p.wasted,
       "آخر إنتاج": p.lastDate, "أيام التوقف": p.idleDays ?? "-", "الحالة": p.status,
       "حد التوقف (يوم)": idleThreshold,
     }));
@@ -348,7 +349,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(penRows.map((p) => ({
       "الملعب": p.pen, "أسر": p.familiesCount, "إناث": p.female, "ذكور": p.male,
       "اليوم": p.today, "الأسبوع": p.week, "الشهر": p.month, "السنة": p.year,
-      "متوسط/أنثى": p.avgPerFemale, "منقول": p.transferred, "هالك": p.wasted,
+      "متوسط/أنثى": p.avgPerFemale, "متوسط/أنثى (السنة)": p.yearPerFemale, "منقول": p.transferred, "هالك": p.wasted,
       "آخر إنتاج": p.lastDate, "أيام التوقف": p.idleDays ?? "-", "الحالة": p.status,
       "حد التوقف (يوم)": idleThreshold,
     }))), "الملاعب");
@@ -478,6 +479,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
                   <TableCell className="font-bold text-emerald-600">{p.month.toLocaleString()}</TableCell>
                   <TableCell>{p.week.toLocaleString()}</TableCell>
                   <TableCell>{p.avgPerFemale}</TableCell>
+                  <TableCell className="font-bold">{p.yearPerFemale}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -574,7 +576,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
           </div>
         </div>
         <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-          <ArrowUpDown className="w-3 h-3" /> يُحتسب «متوقف» عند تجاوز {idleThreshold} يوم بدون إنتاج — عدد الملاعب المعروضة: {penRows.length}
+          <ArrowUpDown className="w-3 h-3" /> التصنيف (جيد/متوسط/ضعيف) محسوب على إنتاج السنة كاملة لكل أنثى — متوسط الملاعب: {yearAvgPerFemale.toFixed(2)} بيضة/أنثى — و«متوقف» عند تجاوز {idleThreshold} يوم بدون إنتاج — عدد الملاعب المعروضة: {penRows.length}
         </p>
 
         <div className="overflow-auto max-h-[500px]">
@@ -589,7 +591,8 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
                 <TableHead>الأسبوع</TableHead>
                 <TableHead>الشهر</TableHead>
                 <TableHead>السنة</TableHead>
-                <TableHead>متوسط/أنثى</TableHead>
+                <TableHead>متوسط/أنثى (شهر)</TableHead>
+                <TableHead>متوسط/أنثى (سنة)</TableHead>
                 <TableHead>منقول</TableHead>
                 <TableHead>هالك</TableHead>
                 <TableHead>آخر إنتاج</TableHead>
@@ -609,6 +612,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
                   <TableCell className="font-bold">{p.month.toLocaleString()}</TableCell>
                   <TableCell>{p.year.toLocaleString()}</TableCell>
                   <TableCell>{p.avgPerFemale}</TableCell>
+                  <TableCell className="font-bold">{p.yearPerFemale}</TableCell>
                   <TableCell className="text-blue-600">{p.transferred.toLocaleString()}</TableCell>
                   <TableCell className="text-destructive">{p.wasted.toLocaleString()}</TableCell>
                   <TableCell className="text-xs">{p.lastDate}</TableCell>
@@ -621,7 +625,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
                 </TableRow>
               ))}
               {penRows.length === 0 && (
-                <TableRow><TableCell colSpan={14} className="text-center text-muted-foreground py-6">لا توجد بيانات ملاعب</TableCell></TableRow>
+                <TableRow><TableCell colSpan={15} className="text-center text-muted-foreground py-6">لا توجد بيانات ملاعب</TableCell></TableRow>
               )}
 
             </TableBody>
