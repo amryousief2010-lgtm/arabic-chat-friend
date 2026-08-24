@@ -315,11 +315,12 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
 
   // ============ Exports ============
   const exportPenAnalysis = () => {
-    const rows = penAnalysisRanked.map((p) => ({
+    const rows = penRows.map((p) => ({
       "الملعب": p.pen, "عدد الأسر": p.familiesCount, "إناث": p.female, "ذكور": p.male,
       "إنتاج اليوم": p.today, "إنتاج الأسبوع": p.week, "إنتاج الشهر": p.month, "إنتاج السنة": p.year,
       "متوسط/أنثى (شهر)": p.avgPerFemale, "منقول للمعمل": p.transferred, "هالك": p.wasted,
       "آخر إنتاج": p.lastDate, "أيام التوقف": p.idleDays ?? "-", "الحالة": p.status,
+      "حد التوقف (يوم)": idleThreshold,
     }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "تحليل الملاعب");
@@ -336,13 +337,16 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
       "ملاعب نشطة": kpis.activePens, "أسر نشطة": kpis.activeFamilies,
       "منقول للمعمل": kpis.transferredAll, "متبقي": kpis.remaining,
       "هالك": kpis.wasteAll, "نسبة الهالك %": kpis.wastePct,
+      "حد التوقف (يوم)": idleThreshold,
     }]), "المؤشرات");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(penAnalysisRanked.map((p) => ({
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(penRows.map((p) => ({
       "الملعب": p.pen, "أسر": p.familiesCount, "إناث": p.female, "ذكور": p.male,
       "اليوم": p.today, "الأسبوع": p.week, "الشهر": p.month, "السنة": p.year,
       "متوسط/أنثى": p.avgPerFemale, "منقول": p.transferred, "هالك": p.wasted,
-      "أيام التوقف": p.idleDays ?? "-", "الحالة": p.status,
+      "آخر إنتاج": p.lastDate, "أيام التوقف": p.idleDays ?? "-", "الحالة": p.status,
+      "حد التوقف (يوم)": idleThreshold,
     }))), "الملاعب");
+
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(last30Days), "آخر 30 يوم");
     XLSX.writeFile(wb, `Dashboard_مزرعة_الأمهات_${fmt(new Date())}.xlsx`);
     toast.success("تم التصدير");
