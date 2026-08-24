@@ -3940,6 +3940,27 @@ export type Database = {
           },
         ]
       }
+      farm_settings: {
+        Row: {
+          created_at: string
+          id: boolean
+          idle_days_threshold: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: boolean
+          idle_days_threshold?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: boolean
+          idle_days_threshold?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       farm_to_hatchery_shipments: {
         Row: {
           created_at: string
@@ -21576,6 +21597,7 @@ export type Database = {
         }[]
       }
       get_dashboard_overview: { Args: never; Returns: Json }
+      get_farm_idle_threshold: { Args: never; Returns: number }
       get_hr_documents_status: {
         Args: never
         Returns: {
