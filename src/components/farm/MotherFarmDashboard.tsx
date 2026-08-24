@@ -320,7 +320,34 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
   }, [eggs]);
 
   // ============ Exports ============
-  const exportPenAnalysis = () => {
+  const downloadWorkbook = async (
+    sheets: { name: string; rows: Record<string, any>[] }[],
+    filename: string,
+  ) => {
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    for (const s of sheets) {
+      const ws = wb.addWorksheet(s.name.slice(0, 31), { views: [{ rightToLeft: true }] });
+      const headers = Object.keys(s.rows[0] || { "لا توجد بيانات": "" });
+      ws.columns = headers.map((h) => ({ header: h, key: h, width: Math.max(12, Math.min(28, h.length + 6)) }));
+      ws.getRow(1).font = { bold: true };
+      s.rows.forEach((r) => ws.addRow(r));
+    }
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const exportPenAnalysis = async () => {
     const rows = penRows.map((p) => ({
       "الملعب": p.pen, "عدد الأسر": p.familiesCount, "إناث": p.female, "ذكور": p.male,
       "إنتاج اليوم": p.today, "إنتاج الأسبوع": p.week, "إنتاج الشهر": p.month, "إنتاج السنة": p.year,
@@ -329,15 +356,16 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
       "آخر إنتاج": p.lastDate, "أيام التوقف": p.idleDays ?? "-", "الحالة": p.status,
       "حد التوقف (يوم)": idleThreshold,
     }));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "تحليل الملاعب");
-    XLSX.writeFile(wb, `تحليل_الملاعب_${fmt(new Date())}.xlsx`);
-    toast.success("تم التصدير");
+    try {
+      await downloadWorkbook([{ name: "تحليل الملاعب", rows }], `pens-analysis-${fmt(new Date())}.xlsx`);
+      toast.success("تم التصدير");
+    } catch {
+      toast.error("تعذر إنشاء ملف الإكسل");
+    }
   };
 
-  const exportFull = () => {
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{
+  const exportFull = async () => {
+    const kpiRows = [{
       "إنتاج اليوم": kpis.today, "إنتاج الأسبوع": kpis.week, "إنتاج الشهر": kpis.month,
       "إنتاج السنة": kpis.year, "إجمالي تاريخي": kpis.allTime,
       "متوسط يومي": kpis.avgDaily, "متوسط أسبوعي": kpis.avgWeekly,
@@ -345,19 +373,29 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
       "منقول للمعمل": kpis.transferredAll, "متبقي": kpis.remaining,
       "هالك": kpis.wasteAll, "نسبة الهالك %": kpis.wastePct,
       "حد التوقف (يوم)": idleThreshold,
-    }]), "المؤشرات");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(penRows.map((p) => ({
+    }];
+    const penSheet = penRows.map((p) => ({
       "الملعب": p.pen, "أسر": p.familiesCount, "إناث": p.female, "ذكور": p.male,
       "اليوم": p.today, "الأسبوع": p.week, "الشهر": p.month, "السنة": p.year,
       "متوسط/أنثى": p.avgPerFemale, "متوسط/أنثى (السنة)": p.yearPerFemale, "منقول": p.transferred, "هالك": p.wasted,
       "آخر إنتاج": p.lastDate, "أيام التوقف": p.idleDays ?? "-", "الحالة": p.status,
       "حد التوقف (يوم)": idleThreshold,
-    }))), "الملاعب");
-
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(last30Days), "آخر 30 يوم");
-    XLSX.writeFile(wb, `Dashboard_مزرعة_الأمهات_${fmt(new Date())}.xlsx`);
-    toast.success("تم التصدير");
+    }));
+    try {
+      await downloadWorkbook(
+        [
+          { name: "المؤشرات", rows: kpiRows },
+          { name: "الملاعب", rows: penSheet },
+          { name: "آخر 30 يوم", rows: last30Days as any[] },
+        ],
+        `mother-farm-dashboard-${fmt(new Date())}.xlsx`,
+      );
+      toast.success("تم التصدير");
+    } catch {
+      toast.error("تعذر إنشاء ملف الإكسل");
+    }
   };
+
 
   const printDashboard = () => window.print();
 
