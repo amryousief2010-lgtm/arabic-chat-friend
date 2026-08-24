@@ -12,7 +12,7 @@ import {
   Calendar, Users, Printer, Download, Activity, RefreshCw, Save, ArrowUpDown,
 } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
-import * as XLSX from "xlsx";
+
 import { toast } from "sonner";
 import { format, startOfWeek, startOfMonth, startOfYear, subDays, subMonths, subYears } from "date-fns";
 
