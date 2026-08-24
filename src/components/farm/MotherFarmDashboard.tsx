@@ -261,7 +261,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
       "الملعب": p.pen, "عدد الأسر": p.familiesCount, "إناث": p.female, "ذكور": p.male,
       "إنتاج اليوم": p.today, "إنتاج الأسبوع": p.week, "إنتاج الشهر": p.month, "إنتاج السنة": p.year,
       "متوسط/أنثى (شهر)": p.avgPerFemale, "منقول للمعمل": p.transferred, "هالك": p.wasted,
-      "آخر إنتاج": p.lastDate, "الحالة": p.status,
+      "آخر إنتاج": p.lastDate, "أيام التوقف": p.idleDays ?? "-", "الحالة": p.status,
     }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "تحليل الملاعب");
@@ -283,7 +283,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
       "الملعب": p.pen, "أسر": p.familiesCount, "إناث": p.female, "ذكور": p.male,
       "اليوم": p.today, "الأسبوع": p.week, "الشهر": p.month, "السنة": p.year,
       "متوسط/أنثى": p.avgPerFemale, "منقول": p.transferred, "هالك": p.wasted,
-      "الحالة": p.status,
+      "أيام التوقف": p.idleDays ?? "-", "الحالة": p.status,
     }))), "الملاعب");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(last30Days), "آخر 30 يوم");
     XLSX.writeFile(wb, `Dashboard_مزرعة_الأمهات_${fmt(new Date())}.xlsx`);
@@ -416,7 +416,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
                   <TableCell className="font-bold text-rose-600">{p.month.toLocaleString()}</TableCell>
                   <TableCell>{p.week.toLocaleString()}</TableCell>
                   <TableCell>
-                    <Badge variant={p.status === "ضعيف" ? "destructive" : p.status === "جيد" ? "default" : "secondary"}>
+                    <Badge variant={p.status === "ضعيف" || p.status === "متوقف" ? "destructive" : p.status === "جيد" ? "default" : "secondary"}>
                       {p.status}
                     </Badge>
                   </TableCell>
@@ -480,6 +480,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
                 <TableHead>منقول</TableHead>
                 <TableHead>هالك</TableHead>
                 <TableHead>آخر إنتاج</TableHead>
+                <TableHead>أيام التوقف</TableHead>
                 <TableHead>الحالة</TableHead>
               </TableRow>
             </TableHeader>
@@ -498,15 +499,16 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
                   <TableCell className="text-blue-600">{p.transferred.toLocaleString()}</TableCell>
                   <TableCell className="text-destructive">{p.wasted.toLocaleString()}</TableCell>
                   <TableCell className="text-xs">{p.lastDate}</TableCell>
+                  <TableCell className={p.idleDays === null || p.idleDays > 45 ? "font-bold text-destructive" : ""}>{p.idleDays ?? "-"}</TableCell>
                   <TableCell>
-                    <Badge variant={p.status === "ضعيف" ? "destructive" : p.status === "جيد" ? "default" : "secondary"}>
+                    <Badge variant={p.status === "ضعيف" || p.status === "متوقف" ? "destructive" : p.status === "جيد" ? "default" : "secondary"}>
                       {p.status}
                     </Badge>
                   </TableCell>
                 </TableRow>
               ))}
               {penAnalysisRanked.length === 0 && (
-                <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground py-6">لا توجد بيانات ملاعب</TableCell></TableRow>
+                <TableRow><TableCell colSpan={14} className="text-center text-muted-foreground py-6">لا توجد بيانات ملاعب</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
