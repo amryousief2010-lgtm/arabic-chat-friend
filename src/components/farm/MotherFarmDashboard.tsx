@@ -260,7 +260,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
 
 
   const weakestPen = penAnalysisRanked.find((p) => p.month > 0) || penAnalysisRanked[0];
-  const top5 = [...penAnalysis].sort((a, b) => b.month - a.month).slice(0, 5);
+  const top5 = [...penAnalysis].sort((a, b) => b.yearPerFemale - a.yearPerFemale).slice(0, 5);
   const bottom5 = [...penAnalysisRanked].filter((p) => p.familiesCount > 0).slice(0, 5);
 
   // ============ Time-series ============
