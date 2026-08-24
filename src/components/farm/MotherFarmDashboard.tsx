@@ -214,30 +214,36 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
         ? Math.max(0, Math.floor((new Date(todayStr).getTime() - new Date(lastDate).getTime()) / 86400000))
         : null;
       const avgPerFemale = female > 0 ? +(mEggs / female).toFixed(2) : 0;
+      const yearPerFemale = female > 0 ? +(yEggs / female).toFixed(2) : 0;
 
       return {
         pen, familiesCount: fams.length, female, male,
         today: tEggs, week: wEggs, month: mEggs, year: yEggs,
-        transferred, wasted, lastDate, idleDays, avgPerFemale,
+        transferred, wasted, lastDate, idleDays, avgPerFemale, yearPerFemale,
       };
     });
   }, [allPens, familiesByPen, eggs, transfers, waste]);
 
+  // Classification is based on FULL-YEAR production per female (not the current month).
+  const yearAvgPerFemale = useMemo(() => {
+    const vals = penAnalysis.filter((p) => p.female > 0 && p.year > 0).map((p) => p.yearPerFemale);
+    return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
+  }, [penAnalysis]);
+
   const penAnalysisRanked = useMemo(() => {
-    const sorted = [...penAnalysis].sort((a, b) => a.month - b.month);
-    const monthValues = penAnalysis.map((p) => p.month).filter((v) => v > 0);
-    const avg = monthValues.length ? monthValues.reduce((s, v) => s + v, 0) / monthValues.length : 0;
+    const sorted = [...penAnalysis].sort((a, b) => a.yearPerFemale - b.yearPerFemale);
     return sorted.map((p) => {
       let status: "جيد" | "متوسط" | "ضعيف" | "متوقف" = "متوسط";
       if (p.idleDays === null || p.idleDays > idleThreshold) {
         status = "متوقف";
-      } else if (avg > 0) {
-        if (p.month >= avg * 1.1) status = "جيد";
-        else if (p.month < avg * 0.7) status = "ضعيف";
+      } else if (yearAvgPerFemale > 0) {
+        if (p.yearPerFemale >= yearAvgPerFemale * 1.1) status = "جيد";
+        else if (p.yearPerFemale < yearAvgPerFemale * 0.7) status = "ضعيف";
       }
       return { ...p, status };
     });
-  }, [penAnalysis, idleThreshold]);
+  }, [penAnalysis, idleThreshold, yearAvgPerFemale]);
+
 
   // Table rows after status filter + sorting (exports use the same rows)
   const penRows = useMemo(() => {
@@ -254,7 +260,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
 
 
   const weakestPen = penAnalysisRanked.find((p) => p.month > 0) || penAnalysisRanked[0];
-  const top5 = [...penAnalysis].sort((a, b) => b.month - a.month).slice(0, 5);
+  const top5 = [...penAnalysis].sort((a, b) => b.yearPerFemale - a.yearPerFemale).slice(0, 5);
   const bottom5 = [...penAnalysisRanked].filter((p) => p.familiesCount > 0).slice(0, 5);
 
   // ============ Time-series ============
@@ -318,7 +324,8 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
     const rows = penRows.map((p) => ({
       "الملعب": p.pen, "عدد الأسر": p.familiesCount, "إناث": p.female, "ذكور": p.male,
       "إنتاج اليوم": p.today, "إنتاج الأسبوع": p.week, "إنتاج الشهر": p.month, "إنتاج السنة": p.year,
-      "متوسط/أنثى (شهر)": p.avgPerFemale, "منقول للمعمل": p.transferred, "هالك": p.wasted,
+      "متوسط/أنثى (شهر)": p.avgPerFemale, "متوسط/أنثى (السنة)": p.yearPerFemale,
+      "متوسط الملاعب سنويًا/أنثى": +yearAvgPerFemale.toFixed(2), "منقول للمعمل": p.transferred, "هالك": p.wasted,
       "آخر إنتاج": p.lastDate, "أيام التوقف": p.idleDays ?? "-", "الحالة": p.status,
       "حد التوقف (يوم)": idleThreshold,
     }));
@@ -342,7 +349,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(penRows.map((p) => ({
       "الملعب": p.pen, "أسر": p.familiesCount, "إناث": p.female, "ذكور": p.male,
       "اليوم": p.today, "الأسبوع": p.week, "الشهر": p.month, "السنة": p.year,
-      "متوسط/أنثى": p.avgPerFemale, "منقول": p.transferred, "هالك": p.wasted,
+      "متوسط/أنثى": p.avgPerFemale, "متوسط/أنثى (السنة)": p.yearPerFemale, "منقول": p.transferred, "هالك": p.wasted,
       "آخر إنتاج": p.lastDate, "أيام التوقف": p.idleDays ?? "-", "الحالة": p.status,
       "حد التوقف (يوم)": idleThreshold,
     }))), "الملاعب");
@@ -461,10 +468,10 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-3">
             <Trophy className="w-5 h-5 text-amber-500" />
-            <h3 className="font-bold">أفضل 5 ملاعب إنتاجًا (الشهر)</h3>
+            <h3 className="font-bold">أفضل 5 ملاعب (إنتاج السنة/أنثى)</h3>
           </div>
           <Table>
-            <TableHeader><TableRow><TableHead>الملعب</TableHead><TableHead>الشهر</TableHead><TableHead>الأسبوع</TableHead><TableHead>متوسط/أنثى</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>الملعب</TableHead><TableHead>الشهر</TableHead><TableHead>الأسبوع</TableHead><TableHead>متوسط/أنثى (شهر)</TableHead><TableHead>سنة/أنثى</TableHead></TableRow></TableHeader>
             <TableBody>
               {top5.map((p) => (
                 <TableRow key={p.pen}>
@@ -472,6 +479,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
                   <TableCell className="font-bold text-emerald-600">{p.month.toLocaleString()}</TableCell>
                   <TableCell>{p.week.toLocaleString()}</TableCell>
                   <TableCell>{p.avgPerFemale}</TableCell>
+                  <TableCell className="font-bold">{p.yearPerFemale}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -568,7 +576,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
           </div>
         </div>
         <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-          <ArrowUpDown className="w-3 h-3" /> يُحتسب «متوقف» عند تجاوز {idleThreshold} يوم بدون إنتاج — عدد الملاعب المعروضة: {penRows.length}
+          <ArrowUpDown className="w-3 h-3" /> التصنيف (جيد/متوسط/ضعيف) محسوب على إنتاج السنة كاملة لكل أنثى — متوسط الملاعب: {yearAvgPerFemale.toFixed(2)} بيضة/أنثى — و«متوقف» عند تجاوز {idleThreshold} يوم بدون إنتاج — عدد الملاعب المعروضة: {penRows.length}
         </p>
 
         <div className="overflow-auto max-h-[500px]">
@@ -583,7 +591,8 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
                 <TableHead>الأسبوع</TableHead>
                 <TableHead>الشهر</TableHead>
                 <TableHead>السنة</TableHead>
-                <TableHead>متوسط/أنثى</TableHead>
+                <TableHead>متوسط/أنثى (شهر)</TableHead>
+                <TableHead>متوسط/أنثى (سنة)</TableHead>
                 <TableHead>منقول</TableHead>
                 <TableHead>هالك</TableHead>
                 <TableHead>آخر إنتاج</TableHead>
@@ -603,6 +612,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
                   <TableCell className="font-bold">{p.month.toLocaleString()}</TableCell>
                   <TableCell>{p.year.toLocaleString()}</TableCell>
                   <TableCell>{p.avgPerFemale}</TableCell>
+                  <TableCell className="font-bold">{p.yearPerFemale}</TableCell>
                   <TableCell className="text-blue-600">{p.transferred.toLocaleString()}</TableCell>
                   <TableCell className="text-destructive">{p.wasted.toLocaleString()}</TableCell>
                   <TableCell className="text-xs">{p.lastDate}</TableCell>
@@ -615,7 +625,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
                 </TableRow>
               ))}
               {penRows.length === 0 && (
-                <TableRow><TableCell colSpan={14} className="text-center text-muted-foreground py-6">لا توجد بيانات ملاعب</TableCell></TableRow>
+                <TableRow><TableCell colSpan={15} className="text-center text-muted-foreground py-6">لا توجد بيانات ملاعب</TableCell></TableRow>
               )}
 
             </TableBody>
