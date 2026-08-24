@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import {
   Egg, TrendingUp, TrendingDown, Truck, AlertTriangle, Trophy, Award,
-  Calendar, Users, Printer, Download, Activity,
+  Calendar, Users, Printer, Download, Activity, RefreshCw, Save, ArrowUpDown,
 } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import * as XLSX from "xlsx";
@@ -31,6 +31,51 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
   const [fromDate, setFromDate] = useState(fmt(startOfMonth(new Date())));
   const [toDate, setToDate] = useState(fmt(new Date()));
   const [penFilter, setPenFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "stopped" | "active">("all");
+  const [sortBy, setSortBy] = useState<"month" | "idleDesc" | "idleAsc">("month");
+  const [thresholdInput, setThresholdInput] = useState<string>("45");
+  const [savingThreshold, setSavingThreshold] = useState(false);
+  const [resyncing, setResyncing] = useState(false);
+  const queryClient = useQueryClient();
+
+  // ===== Idle-days threshold setting (stored in DB, no code change needed) =====
+  const { data: idleThreshold = 45 } = useQuery({
+    queryKey: ["farm_settings_idle_threshold"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("farm_settings").select("idle_days_threshold").maybeSingle();
+      if (error) throw error;
+      return data?.idle_days_threshold ?? 45;
+    },
+    staleTime: 60_000,
+  });
+
+  useEffect(() => { setThresholdInput(String(idleThreshold)); }, [idleThreshold]);
+
+  const saveThreshold = async () => {
+    const v = Number(thresholdInput);
+    if (!Number.isFinite(v) || v < 7 || v > 180) {
+      toast.error("أدخل عددًا بين 7 و180 يوم");
+      return;
+    }
+    setSavingThreshold(true);
+    const { error } = await supabase
+      .from("farm_settings").update({ idle_days_threshold: Math.round(v) }).eq("id", true);
+    setSavingThreshold(false);
+    if (error) { toast.error("تعذّر الحفظ: " + error.message); return; }
+    await queryClient.invalidateQueries({ queryKey: ["farm_settings_idle_threshold"] });
+    toast.success(`تم ضبط حد التوقف على ${Math.round(v)} يوم`);
+  };
+
+  const resyncStatuses = async () => {
+    setResyncing(true);
+    const { data, error } = await supabase.rpc("refresh_farm_family_statuses", { _idle_days: idleThreshold });
+    setResyncing(false);
+    if (error) { toast.error("تعذّر إعادة الحساب: " + error.message); return; }
+    await queryClient.invalidateQueries();
+    toast.success(`تم إعادة حساب حالات الأسر (تم تحديث ${data ?? 0} أسرة)`);
+  };
+
 
   // Pull waste
   const { data: waste = [] } = useQuery({
@@ -184,7 +229,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
     const avg = monthValues.length ? monthValues.reduce((s, v) => s + v, 0) / monthValues.length : 0;
     return sorted.map((p) => {
       let status: "جيد" | "متوسط" | "ضعيف" | "متوقف" = "متوسط";
-      if (p.idleDays === null || p.idleDays > 45) {
+      if (p.idleDays === null || p.idleDays > idleThreshold) {
         status = "متوقف";
       } else if (avg > 0) {
         if (p.month >= avg * 1.1) status = "جيد";
@@ -192,7 +237,20 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
       }
       return { ...p, status };
     });
-  }, [penAnalysis]);
+  }, [penAnalysis, idleThreshold]);
+
+  // Table rows after status filter + sorting (exports use the same rows)
+  const penRows = useMemo(() => {
+    let rows = penAnalysisRanked;
+    if (statusFilter === "stopped") rows = rows.filter((p) => p.status === "متوقف");
+    else if (statusFilter === "active") rows = rows.filter((p) => p.status !== "متوقف");
+    const val = (d: number | null) => (d === null ? Number.MAX_SAFE_INTEGER : d);
+    if (sortBy === "idleDesc") rows = [...rows].sort((a, b) => val(b.idleDays) - val(a.idleDays));
+    else if (sortBy === "idleAsc") rows = [...rows].sort((a, b) => val(a.idleDays) - val(b.idleDays));
+    return rows;
+  }, [penAnalysisRanked, statusFilter, sortBy]);
+
+
 
 
   const weakestPen = penAnalysisRanked.find((p) => p.month > 0) || penAnalysisRanked[0];
@@ -257,11 +315,12 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
 
   // ============ Exports ============
   const exportPenAnalysis = () => {
-    const rows = penAnalysisRanked.map((p) => ({
+    const rows = penRows.map((p) => ({
       "الملعب": p.pen, "عدد الأسر": p.familiesCount, "إناث": p.female, "ذكور": p.male,
       "إنتاج اليوم": p.today, "إنتاج الأسبوع": p.week, "إنتاج الشهر": p.month, "إنتاج السنة": p.year,
       "متوسط/أنثى (شهر)": p.avgPerFemale, "منقول للمعمل": p.transferred, "هالك": p.wasted,
       "آخر إنتاج": p.lastDate, "أيام التوقف": p.idleDays ?? "-", "الحالة": p.status,
+      "حد التوقف (يوم)": idleThreshold,
     }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "تحليل الملاعب");
@@ -278,13 +337,16 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
       "ملاعب نشطة": kpis.activePens, "أسر نشطة": kpis.activeFamilies,
       "منقول للمعمل": kpis.transferredAll, "متبقي": kpis.remaining,
       "هالك": kpis.wasteAll, "نسبة الهالك %": kpis.wastePct,
+      "حد التوقف (يوم)": idleThreshold,
     }]), "المؤشرات");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(penAnalysisRanked.map((p) => ({
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(penRows.map((p) => ({
       "الملعب": p.pen, "أسر": p.familiesCount, "إناث": p.female, "ذكور": p.male,
       "اليوم": p.today, "الأسبوع": p.week, "الشهر": p.month, "السنة": p.year,
       "متوسط/أنثى": p.avgPerFemale, "منقول": p.transferred, "هالك": p.wasted,
-      "أيام التوقف": p.idleDays ?? "-", "الحالة": p.status,
+      "آخر إنتاج": p.lastDate, "أيام التوقف": p.idleDays ?? "-", "الحالة": p.status,
+      "حد التوقف (يوم)": idleThreshold,
     }))), "الملاعب");
+
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(last30Days), "آخر 30 يوم");
     XLSX.writeFile(wb, `Dashboard_مزرعة_الأمهات_${fmt(new Date())}.xlsx`);
     toast.success("تم التصدير");
@@ -332,9 +394,26 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">حد التوقف (يوم)</label>
+            <div className="flex gap-1">
+              <Input
+                type="number" min={7} max={180} className="w-24"
+                value={thresholdInput}
+                onChange={(e) => setThresholdInput(e.target.value)}
+              />
+              <Button size="sm" variant="outline" onClick={saveThreshold} disabled={savingThreshold}>
+                <Save className="w-4 h-4 ml-1" />حفظ
+              </Button>
+            </div>
+          </div>
           <div className="flex-1" />
+          <Button size="sm" variant="secondary" onClick={resyncStatuses} disabled={resyncing}>
+            <RefreshCw className={`w-4 h-4 ml-1 ${resyncing ? "animate-spin" : ""}`} />إعادة حساب الحالات
+          </Button>
           <Button size="sm" variant="outline" onClick={printDashboard}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
           <Button size="sm" variant="outline" onClick={exportFull}><Download className="w-4 h-4 ml-1" />تصدير Excel</Button>
+
         </div>
       </Card>
 
@@ -458,12 +537,40 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
 
       {/* Pen analysis table */}
       <Card className="p-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-end justify-between gap-2 mb-3">
           <h3 className="font-bold">تحليل الملاعب الكامل</h3>
-          <Button size="sm" variant="outline" onClick={exportPenAnalysis}>
-            <Download className="w-4 h-4 ml-1" />تصدير Excel
-          </Button>
+          <div className="flex flex-wrap items-end gap-2 print:hidden">
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">الحالة</label>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  <SelectItem value="stopped">متوقف فقط</SelectItem>
+                  <SelectItem value="active">نشط فقط</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">الترتيب</label>
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="month">إنتاج الشهر (تصاعدي)</SelectItem>
+                  <SelectItem value="idleDesc">أيام التوقف (الأكثر أولًا)</SelectItem>
+                  <SelectItem value="idleAsc">أيام التوقف (الأقل أولًا)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button size="sm" variant="outline" onClick={exportPenAnalysis}>
+              <Download className="w-4 h-4 ml-1" />تصدير Excel
+            </Button>
+          </div>
         </div>
+        <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+          <ArrowUpDown className="w-3 h-3" /> يُحتسب «متوقف» عند تجاوز {idleThreshold} يوم بدون إنتاج — عدد الملاعب المعروضة: {penRows.length}
+        </p>
+
         <div className="overflow-auto max-h-[500px]">
           <Table>
             <TableHeader>
@@ -485,7 +592,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {penAnalysisRanked.map((p) => (
+              {penRows.map((p) => (
                 <TableRow key={p.pen}>
                   <TableCell className="font-bold">{p.pen}</TableCell>
                   <TableCell>{p.familiesCount}</TableCell>
@@ -499,7 +606,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
                   <TableCell className="text-blue-600">{p.transferred.toLocaleString()}</TableCell>
                   <TableCell className="text-destructive">{p.wasted.toLocaleString()}</TableCell>
                   <TableCell className="text-xs">{p.lastDate}</TableCell>
-                  <TableCell className={p.idleDays === null || p.idleDays > 45 ? "font-bold text-destructive" : ""}>{p.idleDays ?? "-"}</TableCell>
+                  <TableCell className={p.idleDays === null || p.idleDays > idleThreshold ? "font-bold text-destructive" : ""}>{p.idleDays ?? "-"}</TableCell>
                   <TableCell>
                     <Badge variant={p.status === "ضعيف" || p.status === "متوقف" ? "destructive" : p.status === "جيد" ? "default" : "secondary"}>
                       {p.status}
@@ -507,9 +614,10 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
                   </TableCell>
                 </TableRow>
               ))}
-              {penAnalysisRanked.length === 0 && (
+              {penRows.length === 0 && (
                 <TableRow><TableCell colSpan={14} className="text-center text-muted-foreground py-6">لا توجد بيانات ملاعب</TableCell></TableRow>
               )}
+
             </TableBody>
           </Table>
         </div>
