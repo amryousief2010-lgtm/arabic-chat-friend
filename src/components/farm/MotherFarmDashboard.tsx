@@ -547,7 +547,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {penAnalysisRanked.map((p) => (
+              {penRows.map((p) => (
                 <TableRow key={p.pen}>
                   <TableCell className="font-bold">{p.pen}</TableCell>
                   <TableCell>{p.familiesCount}</TableCell>
@@ -561,7 +561,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
                   <TableCell className="text-blue-600">{p.transferred.toLocaleString()}</TableCell>
                   <TableCell className="text-destructive">{p.wasted.toLocaleString()}</TableCell>
                   <TableCell className="text-xs">{p.lastDate}</TableCell>
-                  <TableCell className={p.idleDays === null || p.idleDays > 45 ? "font-bold text-destructive" : ""}>{p.idleDays ?? "-"}</TableCell>
+                  <TableCell className={p.idleDays === null || p.idleDays > idleThreshold ? "font-bold text-destructive" : ""}>{p.idleDays ?? "-"}</TableCell>
                   <TableCell>
                     <Badge variant={p.status === "ضعيف" || p.status === "متوقف" ? "destructive" : p.status === "جيد" ? "default" : "secondary"}>
                       {p.status}
@@ -569,9 +569,10 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
                   </TableCell>
                 </TableRow>
               ))}
-              {penAnalysisRanked.length === 0 && (
+              {penRows.length === 0 && (
                 <TableRow><TableCell colSpan={14} className="text-center text-muted-foreground py-6">لا توجد بيانات ملاعب</TableCell></TableRow>
               )}
+
             </TableBody>
           </Table>
         </div>
