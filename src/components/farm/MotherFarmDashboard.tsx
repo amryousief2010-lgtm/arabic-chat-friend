@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import {
   Egg, TrendingUp, TrendingDown, Truck, AlertTriangle, Trophy, Award,
-  Calendar, Users, Printer, Download, Activity,
+  Calendar, Users, Printer, Download, Activity, RefreshCw, Save, ArrowUpDown,
 } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import * as XLSX from "xlsx";
@@ -31,6 +31,51 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
   const [fromDate, setFromDate] = useState(fmt(startOfMonth(new Date())));
   const [toDate, setToDate] = useState(fmt(new Date()));
   const [penFilter, setPenFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "stopped" | "active">("all");
+  const [sortBy, setSortBy] = useState<"month" | "idleDesc" | "idleAsc">("month");
+  const [thresholdInput, setThresholdInput] = useState<string>("45");
+  const [savingThreshold, setSavingThreshold] = useState(false);
+  const [resyncing, setResyncing] = useState(false);
+  const queryClient = useQueryClient();
+
+  // ===== Idle-days threshold setting (stored in DB, no code change needed) =====
+  const { data: idleThreshold = 45 } = useQuery({
+    queryKey: ["farm_settings_idle_threshold"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("farm_settings").select("idle_days_threshold").maybeSingle();
+      if (error) throw error;
+      return data?.idle_days_threshold ?? 45;
+    },
+    staleTime: 60_000,
+  });
+
+  useEffect(() => { setThresholdInput(String(idleThreshold)); }, [idleThreshold]);
+
+  const saveThreshold = async () => {
+    const v = Number(thresholdInput);
+    if (!Number.isFinite(v) || v < 7 || v > 180) {
+      toast.error("أدخل عددًا بين 7 و180 يوم");
+      return;
+    }
+    setSavingThreshold(true);
+    const { error } = await supabase
+      .from("farm_settings").update({ idle_days_threshold: Math.round(v) }).eq("id", true);
+    setSavingThreshold(false);
+    if (error) { toast.error("تعذّر الحفظ: " + error.message); return; }
+    await queryClient.invalidateQueries({ queryKey: ["farm_settings_idle_threshold"] });
+    toast.success(`تم ضبط حد التوقف على ${Math.round(v)} يوم`);
+  };
+
+  const resyncStatuses = async () => {
+    setResyncing(true);
+    const { data, error } = await supabase.rpc("refresh_farm_family_statuses", { _idle_days: idleThreshold });
+    setResyncing(false);
+    if (error) { toast.error("تعذّر إعادة الحساب: " + error.message); return; }
+    await queryClient.invalidateQueries();
+    toast.success(`تم إعادة حساب حالات الأسر (تم تحديث ${data ?? 0} أسرة)`);
+  };
+
 
   // Pull waste
   const { data: waste = [] } = useQuery({
