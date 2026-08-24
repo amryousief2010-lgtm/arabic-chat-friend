@@ -214,30 +214,36 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
         ? Math.max(0, Math.floor((new Date(todayStr).getTime() - new Date(lastDate).getTime()) / 86400000))
         : null;
       const avgPerFemale = female > 0 ? +(mEggs / female).toFixed(2) : 0;
+      const yearPerFemale = female > 0 ? +(yEggs / female).toFixed(2) : 0;
 
       return {
         pen, familiesCount: fams.length, female, male,
         today: tEggs, week: wEggs, month: mEggs, year: yEggs,
-        transferred, wasted, lastDate, idleDays, avgPerFemale,
+        transferred, wasted, lastDate, idleDays, avgPerFemale, yearPerFemale,
       };
     });
   }, [allPens, familiesByPen, eggs, transfers, waste]);
 
+  // Classification is based on FULL-YEAR production per female (not the current month).
+  const yearAvgPerFemale = useMemo(() => {
+    const vals = penAnalysis.filter((p) => p.female > 0 && p.year > 0).map((p) => p.yearPerFemale);
+    return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
+  }, [penAnalysis]);
+
   const penAnalysisRanked = useMemo(() => {
-    const sorted = [...penAnalysis].sort((a, b) => a.month - b.month);
-    const monthValues = penAnalysis.map((p) => p.month).filter((v) => v > 0);
-    const avg = monthValues.length ? monthValues.reduce((s, v) => s + v, 0) / monthValues.length : 0;
+    const sorted = [...penAnalysis].sort((a, b) => a.yearPerFemale - b.yearPerFemale);
     return sorted.map((p) => {
       let status: "جيد" | "متوسط" | "ضعيف" | "متوقف" = "متوسط";
       if (p.idleDays === null || p.idleDays > idleThreshold) {
         status = "متوقف";
-      } else if (avg > 0) {
-        if (p.month >= avg * 1.1) status = "جيد";
-        else if (p.month < avg * 0.7) status = "ضعيف";
+      } else if (yearAvgPerFemale > 0) {
+        if (p.yearPerFemale >= yearAvgPerFemale * 1.1) status = "جيد";
+        else if (p.yearPerFemale < yearAvgPerFemale * 0.7) status = "ضعيف";
       }
       return { ...p, status };
     });
-  }, [penAnalysis, idleThreshold]);
+  }, [penAnalysis, idleThreshold, yearAvgPerFemale]);
+
 
   // Table rows after status filter + sorting (exports use the same rows)
   const penRows = useMemo(() => {
