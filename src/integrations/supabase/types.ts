@@ -22383,6 +22383,10 @@ export type Database = {
         }
         Returns: Json
       }
+      refresh_farm_family_statuses: {
+        Args: { _idle_days?: number }
+        Returns: number
+      }
       reject_agouza_cash_handover: {
         Args: { p_handover_id: string; p_reason: string }
         Returns: undefined
