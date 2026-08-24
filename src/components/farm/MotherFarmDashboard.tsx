@@ -520,12 +520,40 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
 
       {/* Pen analysis table */}
       <Card className="p-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-end justify-between gap-2 mb-3">
           <h3 className="font-bold">تحليل الملاعب الكامل</h3>
-          <Button size="sm" variant="outline" onClick={exportPenAnalysis}>
-            <Download className="w-4 h-4 ml-1" />تصدير Excel
-          </Button>
+          <div className="flex flex-wrap items-end gap-2 print:hidden">
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">الحالة</label>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  <SelectItem value="stopped">متوقف فقط</SelectItem>
+                  <SelectItem value="active">نشط فقط</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">الترتيب</label>
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="month">إنتاج الشهر (تصاعدي)</SelectItem>
+                  <SelectItem value="idleDesc">أيام التوقف (الأكثر أولًا)</SelectItem>
+                  <SelectItem value="idleAsc">أيام التوقف (الأقل أولًا)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button size="sm" variant="outline" onClick={exportPenAnalysis}>
+              <Download className="w-4 h-4 ml-1" />تصدير Excel
+            </Button>
+          </div>
         </div>
+        <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+          <ArrowUpDown className="w-3 h-3" /> يُحتسب «متوقف» عند تجاوز {idleThreshold} يوم بدون إنتاج — عدد الملاعب المعروضة: {penRows.length}
+        </p>
+
         <div className="overflow-auto max-h-[500px]">
           <Table>
             <TableHeader>
