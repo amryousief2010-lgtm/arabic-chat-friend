@@ -394,9 +394,26 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">حد التوقف (يوم)</label>
+            <div className="flex gap-1">
+              <Input
+                type="number" min={7} max={180} className="w-24"
+                value={thresholdInput}
+                onChange={(e) => setThresholdInput(e.target.value)}
+              />
+              <Button size="sm" variant="outline" onClick={saveThreshold} disabled={savingThreshold}>
+                <Save className="w-4 h-4 ml-1" />حفظ
+              </Button>
+            </div>
+          </div>
           <div className="flex-1" />
+          <Button size="sm" variant="secondary" onClick={resyncStatuses} disabled={resyncing}>
+            <RefreshCw className={`w-4 h-4 ml-1 ${resyncing ? "animate-spin" : ""}`} />إعادة حساب الحالات
+          </Button>
           <Button size="sm" variant="outline" onClick={printDashboard}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
           <Button size="sm" variant="outline" onClick={exportFull}><Download className="w-4 h-4 ml-1" />تصدير Excel</Button>
+
         </div>
       </Card>
 
