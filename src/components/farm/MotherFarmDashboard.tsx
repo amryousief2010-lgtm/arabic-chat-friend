@@ -229,7 +229,7 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
     const avg = monthValues.length ? monthValues.reduce((s, v) => s + v, 0) / monthValues.length : 0;
     return sorted.map((p) => {
       let status: "جيد" | "متوسط" | "ضعيف" | "متوقف" = "متوسط";
-      if (p.idleDays === null || p.idleDays > 45) {
+      if (p.idleDays === null || p.idleDays > idleThreshold) {
         status = "متوقف";
       } else if (avg > 0) {
         if (p.month >= avg * 1.1) status = "جيد";
@@ -237,7 +237,20 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
       }
       return { ...p, status };
     });
-  }, [penAnalysis]);
+  }, [penAnalysis, idleThreshold]);
+
+  // Table rows after status filter + sorting (exports use the same rows)
+  const penRows = useMemo(() => {
+    let rows = penAnalysisRanked;
+    if (statusFilter === "stopped") rows = rows.filter((p) => p.status === "متوقف");
+    else if (statusFilter === "active") rows = rows.filter((p) => p.status !== "متوقف");
+    const val = (d: number | null) => (d === null ? Number.MAX_SAFE_INTEGER : d);
+    if (sortBy === "idleDesc") rows = [...rows].sort((a, b) => val(b.idleDays) - val(a.idleDays));
+    else if (sortBy === "idleAsc") rows = [...rows].sort((a, b) => val(a.idleDays) - val(b.idleDays));
+    return rows;
+  }, [penAnalysisRanked, statusFilter, sortBy]);
+
+
 
 
   const weakestPen = penAnalysisRanked.find((p) => p.month > 0) || penAnalysisRanked[0];
