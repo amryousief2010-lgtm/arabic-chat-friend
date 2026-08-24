@@ -468,10 +468,10 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-3">
             <Trophy className="w-5 h-5 text-amber-500" />
-            <h3 className="font-bold">أفضل 5 ملاعب إنتاجًا (الشهر)</h3>
+            <h3 className="font-bold">أفضل 5 ملاعب (إنتاج السنة/أنثى)</h3>
           </div>
           <Table>
-            <TableHeader><TableRow><TableHead>الملعب</TableHead><TableHead>الشهر</TableHead><TableHead>الأسبوع</TableHead><TableHead>متوسط/أنثى</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>الملعب</TableHead><TableHead>الشهر</TableHead><TableHead>الأسبوع</TableHead><TableHead>متوسط/أنثى (شهر)</TableHead><TableHead>سنة/أنثى</TableHead></TableRow></TableHeader>
             <TableBody>
               {top5.map((p) => (
                 <TableRow key={p.pen}>
