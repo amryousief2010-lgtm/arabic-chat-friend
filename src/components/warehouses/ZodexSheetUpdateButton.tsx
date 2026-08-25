@@ -243,6 +243,15 @@ export default function ZodexSheetUpdateButton({ forceKind, label, variant = "ou
 
           {!result ? (
             <>
+              {forceKind === "returned" && (
+                <Alert className="mb-3 bg-red-50 border-red-300">
+                  <PackageX className="w-4 h-4" />
+                  <AlertTitle>شيت مرتجعات</AlertTitle>
+                  <AlertDescription>
+                    كل البوالص في الشيت ده هتتحدث كمرتجع (إلغاء الأوردر) بغض النظر عن عمود الحالة.
+                  </AlertDescription>
+                </Alert>
+              )}
               <div className="grid grid-cols-4 gap-3 mb-4">
                 <Stat label="إجمالي البوالص" value={rows.length} color="slate" />
                 <Stat label="تسليمات ناجحة" value={delivered.length} color="emerald" />
