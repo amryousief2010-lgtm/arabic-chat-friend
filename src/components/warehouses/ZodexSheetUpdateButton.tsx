@@ -86,10 +86,16 @@ export default function ZodexSheetUpdateButton({ forceKind, label, variant = "ou
         const cod = Number(r["COD"] ?? r["مبلغ التحصيل"] ?? r["قيمة التحصيل"] ?? 0) || 0;
         const dateVal = r["تاريخ انشاء الشحنة"] ?? r["التاريخ"] ?? r["تاريخ الشحن"] ?? "";
         const dateStr = dateVal instanceof Date ? dateVal.toISOString() : String(dateVal || "");
-        // forceKind may only *narrow* the auto classification; it can never turn a
-        // pending / in-transit / return row into a successful delivery.
+        // Returns sheet: the user explicitly uploads a returns-only export, so every
+        // ZX row counts as a return regardless of the delivery status column.
+        // Deliveries sheet: forceKind may only *narrow* the auto classification; it can
+        // never turn a pending / in-transit / return row into a successful delivery.
         const auto = classify(status);
-        const kind: Kind = !forceKind ? auto : (auto === forceKind ? forceKind : (status ? auto : forceKind));
+        const kind: Kind = forceKind === "returned"
+          ? "returned"
+          : !forceKind
+          ? auto
+          : (auto === forceKind ? forceKind : (status ? auto : forceKind));
 
         out.push({
           bill_no: bill,
