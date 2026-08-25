@@ -86,10 +86,16 @@ export default function ZodexSheetUpdateButton({ forceKind, label, variant = "ou
         const cod = Number(r["COD"] ?? r["مبلغ التحصيل"] ?? r["قيمة التحصيل"] ?? 0) || 0;
         const dateVal = r["تاريخ انشاء الشحنة"] ?? r["التاريخ"] ?? r["تاريخ الشحن"] ?? "";
         const dateStr = dateVal instanceof Date ? dateVal.toISOString() : String(dateVal || "");
-        // forceKind may only *narrow* the auto classification; it can never turn a
-        // pending / in-transit / return row into a successful delivery.
+        // Returns sheet: the user explicitly uploads a returns-only export, so every
+        // ZX row counts as a return regardless of the delivery status column.
+        // Deliveries sheet: forceKind may only *narrow* the auto classification; it can
+        // never turn a pending / in-transit / return row into a successful delivery.
         const auto = classify(status);
-        const kind: Kind = !forceKind ? auto : (auto === forceKind ? forceKind : (status ? auto : forceKind));
+        const kind: Kind = forceKind === "returned"
+          ? "returned"
+          : !forceKind
+          ? auto
+          : (auto === forceKind ? forceKind : (status ? auto : forceKind));
 
         out.push({
           bill_no: bill,
@@ -237,6 +243,15 @@ export default function ZodexSheetUpdateButton({ forceKind, label, variant = "ou
 
           {!result ? (
             <>
+              {forceKind === "returned" && (
+                <Alert className="mb-3 bg-red-50 border-red-300">
+                  <PackageX className="w-4 h-4" />
+                  <AlertTitle>شيت مرتجعات</AlertTitle>
+                  <AlertDescription>
+                    كل البوالص في الشيت ده هتتحدث كمرتجع (إلغاء الأوردر) بغض النظر عن عمود الحالة.
+                  </AlertDescription>
+                </Alert>
+              )}
               <div className="grid grid-cols-4 gap-3 mb-4">
                 <Stat label="إجمالي البوالص" value={rows.length} color="slate" />
                 <Stat label="تسليمات ناجحة" value={delivered.length} color="emerald" />
