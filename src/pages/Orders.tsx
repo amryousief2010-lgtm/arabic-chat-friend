@@ -1171,9 +1171,11 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     const addrNorm = normalizeArabic(order.delivery_address || "");
     const routeName = (order.route_name || "").toLowerCase();
     const routeNameNorm = normalizeArabic(order.route_name || "");
+    const billNo = (order.shipping_bill_no || "").toLowerCase();
     const matchesSearch =
       !q ||
       order.order_number.toLowerCase().includes(q) ||
+      (billNo && billNo.includes(q)) ||
       (qNorm && nameNorm.includes(qNorm)) ||
       (qNorm && govNorm.includes(qNorm)) ||
       (qNorm && addrNorm.includes(qNorm)) ||
