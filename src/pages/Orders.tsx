@@ -821,6 +821,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         // 2) جلب الطلبات: رقم طلب أو ينتمي لعميل مطابق أو عنوان تسليم مطابق.
         const orFilters: string[] = [
           `order_number.ilike.%${term}%`,
+          `shipping_bill_no.ilike.%${term}%`,
           `delivery_address.ilike.%${term}%`,
         ];
         if (termNorm && termNorm !== term.toLowerCase()) {
