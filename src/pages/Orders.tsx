@@ -821,6 +821,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         // 2) جلب الطلبات: رقم طلب أو ينتمي لعميل مطابق أو عنوان تسليم مطابق.
         const orFilters: string[] = [
           `order_number.ilike.%${term}%`,
+          `shipping_bill_no.ilike.%${term}%`,
           `delivery_address.ilike.%${term}%`,
         ];
         if (termNorm && termNorm !== term.toLowerCase()) {
@@ -1171,9 +1172,11 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     const addrNorm = normalizeArabic(order.delivery_address || "");
     const routeName = (order.route_name || "").toLowerCase();
     const routeNameNorm = normalizeArabic(order.route_name || "");
+    const billNo = (order.shipping_bill_no || "").toLowerCase();
     const matchesSearch =
       !q ||
       order.order_number.toLowerCase().includes(q) ||
+      (billNo && billNo.includes(q)) ||
       (qNorm && nameNorm.includes(qNorm)) ||
       (qNorm && govNorm.includes(qNorm)) ||
       (qNorm && addrNorm.includes(qNorm)) ||
