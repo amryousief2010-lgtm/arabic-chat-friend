@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Plus, FileText, UserRound, Beef, Drumstick, Flame } from "lucide-react";
-import { MODERATORS, isOrderForModerator, ModeratorConfig, findModeratorByName } from "@/constants/moderators";
+import { MODERATORS, isOrderForModerator, ModeratorConfig, findModeratorByName, isModeratorActiveInMonth } from "@/constants/moderators";
 import { useAuth } from "@/hooks/useAuth";
 import { cairoMonthStartUTC, currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
 import { usePayrollClosureCutoff, isDeliveredWithinClosure } from "@/hooks/usePayrollClosure";
@@ -54,8 +54,6 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
   const { user, profile, isGeneralManager, isExecutiveManager, isSalesManager } = useAuth();
   const canSeeAll = isGeneralManager || isExecutiveManager || isSalesManager;
   const ownMod = !canSeeAll ? findModeratorByName(profile?.full_name) : undefined;
-  const visibleModerators = canSeeAll ? MODERATORS : (ownMod ? [ownMod] : []);
-  const visibleSlugs = new Set(visibleModerators.map((m) => m.slug));
 
   // Boundaries computed in Africa/Cairo so orders logged just after Cairo
   // midnight (which are still in the previous UTC day) attribute to the
@@ -66,6 +64,11 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
   const viewMonth = (month ?? cur.monthIndex0 + 1) - 1; // 0-based
   const isCurrentMonth =
     viewYear === cur.year && viewMonth === cur.monthIndex0;
+
+  // تُعرض فقط المسوقات التي بدأت العمل في/قبل الشهر المعروض.
+  const activeModerators = MODERATORS.filter((m) => isModeratorActiveInMonth(m, viewYear, viewMonth + 1));
+  const visibleModerators = canSeeAll ? activeModerators : (ownMod ? activeModerators.filter((m) => m.slug === ownMod.slug) : []);
+  const visibleSlugs = new Set(visibleModerators.map((m) => m.slug));
   const monthLabel = new Date(Date.UTC(viewYear, viewMonth, 1)).toLocaleDateString(
     "en-GB",
     { month: "long", year: "numeric" },
@@ -148,7 +151,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
         (orders as OrderRow[]).map((o) => [o.id, o]),
       );
 
-      return MODERATORS.map((m) => {
+      return activeModerators.map((m) => {
         const filtered = (orders as OrderRow[]).filter((o) => orderToMod.get(o.id)?.slug === m.slug);
         const today = filtered.filter((o) => toCairoDateString(o.created_at) === todayStr);
         const monthTotal = filtered.reduce((s, o) => s + Number(o.total || 0), 0);

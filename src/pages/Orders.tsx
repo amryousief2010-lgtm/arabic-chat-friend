@@ -51,7 +51,7 @@ import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import QuickDeliveryDialog from "@/components/orders/QuickDeliveryDialog";
 import ModeratorDailyReportDialog from "@/components/orders/ModeratorDailyReportDialog";
 import ReassignOwnerDialog from "@/components/orders/ReassignOwnerDialog";
-import { findModeratorByName, isOrderForModerator, matchesModeratorGroup } from "@/constants/moderators";
+import { MODERATORS, findModeratorByName, isOrderForModerator, matchesModeratorGroup } from "@/constants/moderators";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -2204,10 +2204,9 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">جميع المسوقات</SelectItem>
-                  <SelectItem value="أية">آية</SelectItem>
-                  <SelectItem value="نورا">نورا</SelectItem>
-                  
-                  <SelectItem value="منال">هاجر</SelectItem>
+                  {MODERATORS.map((m) => (
+                    <SelectItem key={m.slug} value={m.canonicalModerator}>{m.displayName}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
