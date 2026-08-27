@@ -36,6 +36,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useModeratorPerformance, type YearFilter } from "@/hooks/useModeratorPerformance";
 import { exportModeratorPDF } from "@/utils/exportModeratorReport";
 import ModeratorComparison from "@/components/moderator/ModeratorComparison";
+import { MODERATORS } from "@/constants/moderators";
 
 const COLORS = [
   "hsl(var(--primary))",
@@ -231,7 +232,7 @@ const ModeratorPerformance = () => {
       <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
         <Header
           title="أداء الموديراتور"
-          subtitle="فريق المبيعات: آية، نورا، هاجر"
+          subtitle={`فريق المبيعات: ${MODERATORS.map((m) => m.displayName).join("، ")}`}
         />
         <div className="flex items-center gap-2 flex-wrap">
           <Tabs value={yearFilter} onValueChange={(v) => setYearFilter(v as YearFilter)}>

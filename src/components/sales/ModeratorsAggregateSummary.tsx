@@ -214,7 +214,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
           <div className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />
             <h3 className="text-base md:text-lg font-bold">
-              إجمالي مبيعات البنات (آية، نورا، هاجر)
+              إجمالي مبيعات البنات
             </h3>
             <Badge variant="outline" className="text-[10px]">
               {monthLabel}
