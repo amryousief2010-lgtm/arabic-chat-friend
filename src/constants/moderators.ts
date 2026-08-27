@@ -42,6 +42,14 @@ export const MODERATORS: ModeratorConfig[] = [
     gradient: "from-chart-4 to-chart-4/70",
     iconBg: "bg-chart-4",
   },
+  {
+    slug: "mariam",
+    displayName: "مريم",
+    canonicalModerator: "مريم",
+    aliases: ["مريم", "مريام"],
+    gradient: "from-chart-2 to-chart-2/70",
+    iconBg: "bg-chart-2",
+  },
 ];
 
 // اسم العرض للمسوقة استناداً إلى القيمة المخزّنة في orders.moderator أو مفاتيح التجميع.
