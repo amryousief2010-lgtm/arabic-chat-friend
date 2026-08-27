@@ -2204,10 +2204,9 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">جميع المسوقات</SelectItem>
-                  <SelectItem value="أية">آية</SelectItem>
-                  <SelectItem value="نورا">نورا</SelectItem>
-                  
-                  <SelectItem value="منال">هاجر</SelectItem>
+                  {MODERATORS.map((m) => (
+                    <SelectItem key={m.slug} value={m.canonicalModerator}>{m.displayName}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
