@@ -95,7 +95,8 @@ export const baseSalaryForKey = (key: string): number =>
 // اسم العرض للمسوقة استناداً إلى القيمة المخزّنة في orders.moderator أو مفاتيح التجميع.
 // تُستخدم لعرض "هاجر" بدلاً من "منال" في الواجهات، مع الحفاظ على مفاتيح البيانات كما هي.
 export const displayModeratorName = (name: string): string =>
-  name === "منال" ? "هاجر" : name;
+  MODERATORS.find((m) => m.payrollKey === name || m.canonicalModerator === name)?.displayName || name;
+
 
 
 // Normalize Arabic for fuzzy comparison.
