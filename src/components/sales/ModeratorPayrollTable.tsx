@@ -16,17 +16,10 @@ import { useToast } from '@/hooks/use-toast';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 import PrevMonthBonusDialog, { CarriedDetail } from './PrevMonthBonusDialog';
 import { usePayrollClosureCutoff, applyClosureCutoff } from '@/hooks/usePayrollClosure';
-import { matchesModeratorGroup } from '@/constants/moderators';
+import { matchesModeratorGroup, moderatorKeysForMonth, baseSalaryForKey, displayModeratorName } from '@/constants/moderators';
 
 
-const GIRLS = ['اية', 'نورا', 'منال'] as const;
-type Girl = typeof GIRLS[number];
-
-const BASE_SALARY: Record<Girl, number> = {
-  اية: 3000,
-  نورا: 2500,
-  منال: 2500,
-};
+type Girl = string;
 
 // Default tier ladders (used as fallback if target_bonus_settings is empty).
 const TIER_LABELS = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع'];
@@ -104,6 +97,12 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   const selectedYear = isControlled ? (year as number) : internalYear;
   const setSelectedMonth = setInternalMonth;
   const setSelectedYear = setInternalYear;
+
+  // قائمة المسوقات الفعّالة في الشهر المختار (تستبعد من لم تبدأ العمل بعد).
+  const GIRLS = useMemo(
+    () => moderatorKeysForMonth(selectedYear, selectedMonth),
+    [selectedYear, selectedMonth],
+  );
 
 
   const [prices, setPrices] = useState(defaultPrices);
@@ -472,7 +471,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const procOverridden = ov?.processed_bonus != null;
       const meatOverridden = ov?.meat_bonus != null;
       const boneOverridden = ov?.bone_bonus != null;
-      const base = BASE_SALARY[g];
+      const base = baseSalaryForKey(g);
       return {
         girl: g, base, meatKg, boneKg, procKg, chickCount,
         meatSales, procSales, procTier, meatTier,
@@ -717,7 +716,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
             <TableRow className="bg-muted/50">
               <TableHead className="text-right font-bold border">البيان</TableHead>
               {GIRLS.map(g => (
-                <TableHead key={g} className="text-center font-bold border text-primary">{g === 'منال' ? 'هاجر' : g}</TableHead>
+                <TableHead key={g} className="text-center font-bold border text-primary">{displayModeratorName(g)}</TableHead>
               ))}
             </TableRow>
           </TableHeader>

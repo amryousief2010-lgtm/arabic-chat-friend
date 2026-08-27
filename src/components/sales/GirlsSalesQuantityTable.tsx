@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 import { usePayrollClosureCutoff, applyClosureCutoff } from '@/hooks/usePayrollClosure';
-import { matchesModeratorGroup } from '@/constants/moderators';
+import { matchesModeratorGroup, moderatorKeysForMonth, ALL_MODERATOR_KEYS, displayModeratorName } from '@/constants/moderators';
 
 const validateNumber = (value: number, label: string): number | null => {
   if (Number.isNaN(value)) {
@@ -26,7 +26,6 @@ const validateNumber = (value: number, label: string): number | null => {
   return value;
 };
 
-const GIRLS = ['اية', 'نورا', 'منال'];
 
 // التصنيف المعتمد للمسوقات الأربعة (لا تُعدّل بدون طلب صريح):
 // لحوم: قطع، استيك، موزة، فراشة، قطعية الدبوس، تربيانكو، اسكالوب، رول، كباب
@@ -65,7 +64,7 @@ const STORAGE_KEY = 'girls-sales-quantity-table-v4';
 const PRICES_KEY = 'girls-sales-prices-v2';
 
 const emptyData = (): Record<string, GirlData> =>
-  GIRLS.reduce((acc, g) => {
+  ALL_MODERATOR_KEYS.reduce((acc, g) => {
     acc[g] = { bone_meat_qty: 0, processed_qty: 0 };
     return acc;
   }, {} as Record<string, GirlData>);
@@ -87,13 +86,19 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
   const setSelectedMonth = setInternalMonth;
   const setSelectedYear = setInternalYear;
 
+  // المسوقات الفعّالة في الشهر المختار فقط (حسب تاريخ بداية العمل).
+  const GIRLS = useMemo(
+    () => moderatorKeysForMonth(selectedYear, selectedMonth),
+    [selectedYear, selectedMonth],
+  );
+
   const [data, setData] = useState<Record<string, GirlData>>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         const merged = emptyData();
-        GIRLS.forEach(g => { merged[g] = { ...merged[g], ...(parsed[g] || {}) }; });
+        ALL_MODERATOR_KEYS.forEach(g => { merged[g] = { ...merged[g], ...(parsed[g] || {}) }; });
         return merged;
       }
     } catch {}
@@ -413,7 +418,7 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
               <TableRow className="bg-[hsl(140_60%_85%)] hover:bg-[hsl(140_60%_80%)]">
                 <TableHead className="text-right font-bold text-[hsl(140_70%_25%)]">البيان</TableHead>
                 {GIRLS.map((g) => (
-                  <TableHead key={g} className="text-center font-bold text-[hsl(140_70%_25%)]">{g === 'منال' ? 'هاجر' : g}</TableHead>
+                  <TableHead key={g} className="text-center font-bold text-[hsl(140_70%_25%)]">{displayModeratorName(g)}</TableHead>
                 ))}
               </TableRow>
             </TableHeader>
