@@ -9,6 +9,11 @@ export interface ModeratorConfig {
   // The canonical name to write into `orders.moderator` for NEW orders
   // created by this user. Keep matching how historical rows look.
   canonicalModerator: string;
+  // المفتاح المستخدم في جداول القبض/الكميات (بيانات تاريخية محفوظة بهذا الاسم).
+  payrollKey: string;
+  // تاريخ بداية العمل (YYYY-MM-DD). لا تُحسب لها تارجت/بونص/قبض قبل هذا الشهر.
+  startDate?: string;
+  baseSalary: number;
   aliases: string[];
   gradient: string; // tailwind gradient classes for the card
   iconBg: string;
@@ -19,6 +24,8 @@ export const MODERATORS: ModeratorConfig[] = [
     slug: "aya",
     displayName: "آية",
     canonicalModerator: "أية",
+    payrollKey: "اية",
+    baseSalary: 3000,
     aliases: ["اية", "آية", "أية", "ايه", "آيه", "أيه"],
     gradient: "from-primary to-primary/70",
     iconBg: "bg-primary",
@@ -27,6 +34,8 @@ export const MODERATORS: ModeratorConfig[] = [
     slug: "noura",
     displayName: "نورا",
     canonicalModerator: "نورا",
+    payrollKey: "نورا",
+    baseSalary: 2500,
     aliases: ["نورا", "نوره", "نورة"],
     gradient: "from-secondary to-secondary/70",
     iconBg: "bg-secondary",
@@ -38,6 +47,8 @@ export const MODERATORS: ModeratorConfig[] = [
     // تفضل مرتبطة بنفس الخانة عن طريق aliases + matchesModeratorGroup.
     displayName: "هاجر",
     canonicalModerator: "هاجر",
+    payrollKey: "منال",
+    baseSalary: 2500,
     aliases: ["منال", "هاجر"],
     gradient: "from-chart-4 to-chart-4/70",
     iconBg: "bg-chart-4",
@@ -46,11 +57,40 @@ export const MODERATORS: ModeratorConfig[] = [
     slug: "mariam",
     displayName: "مريم",
     canonicalModerator: "مريم",
+    payrollKey: "مريم",
+    // بداية العمل الرسمية — لا قبض/تارجت/بونص عن أي شهر قبلها.
+    startDate: "2026-09-01",
+    baseSalary: 2500,
     aliases: ["مريم", "مريام"],
     gradient: "from-chart-2 to-chart-2/70",
     iconBg: "bg-chart-2",
   },
 ];
+
+// هل المسوقة كانت على رأس العمل خلال شهر معيّن؟ (month = 1..12)
+export const isModeratorActiveInMonth = (
+  m: ModeratorConfig,
+  year: number,
+  month: number,
+): boolean => {
+  if (!m.startDate) return true;
+  const [sy, sm] = m.startDate.split("-").map(Number);
+  return year > sy || (year === sy && month >= sm);
+};
+
+// قائمة المسوقات الفعّالة في شهر معيّن (تُستخدم في التارجت/القبض/البونص/الإحصائيات).
+export const moderatorsForMonth = (year: number, month: number): ModeratorConfig[] =>
+  MODERATORS.filter((m) => isModeratorActiveInMonth(m, year, month));
+
+// مفاتيح القبض/الكميات للمسوقات الفعّالة في شهر معيّن.
+export const moderatorKeysForMonth = (year: number, month: number): string[] =>
+  moderatorsForMonth(year, month).map((m) => m.payrollKey);
+
+export const ALL_MODERATOR_KEYS: string[] = MODERATORS.map((m) => m.payrollKey);
+
+export const baseSalaryForKey = (key: string): number =>
+  MODERATORS.find((m) => m.payrollKey === key)?.baseSalary ?? 2500;
+
 
 // اسم العرض للمسوقة استناداً إلى القيمة المخزّنة في orders.moderator أو مفاتيح التجميع.
 // تُستخدم لعرض "هاجر" بدلاً من "منال" في الواجهات، مع الحفاظ على مفاتيح البيانات كما هي.
