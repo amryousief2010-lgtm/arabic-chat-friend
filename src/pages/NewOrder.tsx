@@ -304,6 +304,11 @@ const NewOrder = () => {
   const [shippingCustom, setShippingCustom] = useState('');
   // Fulfillment source — مصدر تنفيذ الطلب
   const [fulfillmentKey, setFulfillmentKey] = useState<'pickup_agouza'|'delivery_agouza'|'pickup_main'|'delivery_main'|''>('');
+  // أخطاء التحقق لنموذج العميل الجديد (كل الحقول إجبارية عدا رقم هاتف آخر)
+  const emptyCustomerErrors = { name: false, phone: false, address: false, city: false, governorate: false, source: false, fulfillment: false };
+  const [customerErrors, setCustomerErrors] = useState(emptyCustomerErrors);
+  const errCls = (bad: boolean) => (bad ? 'border-destructive ring-1 ring-destructive' : '');
+
   const [warehousesList, setWarehousesList] = useState<Array<{id:string;name:string}>>([]);
   const agouzaWh = useMemo(() => warehousesList.find(w => w.name?.includes('العجوزة')), [warehousesList]);
   const mainWh = useMemo(() => warehousesList.find(w => w.name?.includes('الرئيسي') || w.name?.includes('المقر')), [warehousesList]);
