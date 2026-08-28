@@ -1477,32 +1477,38 @@ const NewOrder = () => {
                       )}
 
                       <div className="space-y-2 md:col-span-2">
-                        <Label>العنوان</Label>
+                        <Label>العنوان <span className="text-destructive">*</span></Label>
                         <Input
                           placeholder="عنوان التوصيل"
                           value={newCustomerAddress}
-                          onChange={(e) => setNewCustomerAddress(e.target.value)}
+                          onChange={(e) => { setNewCustomerAddress(e.target.value); setCustomerErrors(p => ({ ...p, address: false })); }}
+                          className={errCls(customerErrors.address)}
                         />
+                        {customerErrors.address && <p className="text-xs text-destructive">العنوان مطلوب</p>}
                       </div>
                       <div className="space-y-2">
-                        <Label>المدينة</Label>
+                        <Label>المدينة <span className="text-destructive">*</span></Label>
                         <Input
                           placeholder="المدينة"
                           value={newCustomerCity}
-                          onChange={(e) => setNewCustomerCity(e.target.value)}
+                          onChange={(e) => { setNewCustomerCity(e.target.value); setCustomerErrors(p => ({ ...p, city: false })); }}
+                          className={errCls(customerErrors.city)}
                         />
+                        {customerErrors.city && <p className="text-xs text-destructive">المدينة مطلوبة</p>}
                       </div>
                       <div className="space-y-2">
-                        <Label>المحافظة</Label>
+                        <Label>المحافظة <span className="text-destructive">*</span></Label>
                         <GovernorateSelect
                           value={newCustomerGovernorate}
-                          onChange={setNewCustomerGovernorate}
+                          onChange={(v) => { setNewCustomerGovernorate(v); setCustomerErrors(p => ({ ...p, governorate: false })); }}
+                          className={errCls(customerErrors.governorate)}
                         />
+                        {customerErrors.governorate && <p className="text-xs text-destructive">المحافظة مطلوبة</p>}
                       </div>
                       <div className="space-y-2">
-                        <Label>مصدر العميل</Label>
-                        <Select value={newCustomerSource} onValueChange={setNewCustomerSource}>
-                          <SelectTrigger><SelectValue placeholder="اختر المصدر" /></SelectTrigger>
+                        <Label>مصدر العميل <span className="text-destructive">*</span></Label>
+                        <Select value={newCustomerSource} onValueChange={(v) => { setNewCustomerSource(v); setCustomerErrors(p => ({ ...p, source: false })); }}>
+                          <SelectTrigger className={errCls(customerErrors.source)}><SelectValue placeholder="اختر المصدر" /></SelectTrigger>
                           <SelectContent>
                             {['فيسبوك','حملات فيسبوك','انستجرام','تيك توك','واتساب','حملات واتساب','تلجرام','ويب سايت','إعلان','تسويق','مكالمة','شركة الشحن','استلام من المقر','أخرى'].map(s => (
                               <SelectItem key={s} value={s}>{s}</SelectItem>
@@ -1510,13 +1516,14 @@ const NewOrder = () => {
                           </SelectContent>
                         </Select>
                         {newCustomerSource === 'أخرى' && (
-                          <Input placeholder="أدخل المصدر" value={newCustomerSourceCustom} onChange={(e) => setNewCustomerSourceCustom(e.target.value)} />
+                          <Input placeholder="أدخل المصدر" value={newCustomerSourceCustom} onChange={(e) => { setNewCustomerSourceCustom(e.target.value); setCustomerErrors(p => ({ ...p, source: false })); }} className={errCls(customerErrors.source)} />
                         )}
+                        {customerErrors.source && <p className="text-xs text-destructive">مصدر العميل مطلوب</p>}
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label>مصدر تنفيذ الطلب <span className="text-destructive">*</span></Label>
-                        <Select value={fulfillmentKey} onValueChange={(v) => setFulfillmentKey(v as any)}>
-                          <SelectTrigger><SelectValue placeholder="اختر من أين يستلم العميل" /></SelectTrigger>
+                        <Select value={fulfillmentKey} onValueChange={(v) => { setFulfillmentKey(v as any); setCustomerErrors(p => ({ ...p, fulfillment: false })); }}>
+                          <SelectTrigger className={errCls(customerErrors.fulfillment)}><SelectValue placeholder="اختر من أين يستلم العميل" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="pickup_agouza">استلام من مخزن العجوزة</SelectItem>
                             <SelectItem value="delivery_agouza">توصيل من منفذ العجوزة</SelectItem>
@@ -1524,6 +1531,8 @@ const NewOrder = () => {
                             <SelectItem value="delivery_main">توصيل من المخزن الرئيسى</SelectItem>
                           </SelectContent>
                         </Select>
+                        {customerErrors.fulfillment && <p className="text-xs text-destructive">مصدر تنفيذ الطلب مطلوب</p>}
+
                         <p className="text-xs text-muted-foreground">
                           سيتم خصم المخزون من المخزن المختار. لو الكمية غير كافية يدخل تلقائياً فى أمر إنتاج/ذبح.
                         </p>
