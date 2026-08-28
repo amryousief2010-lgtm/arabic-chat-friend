@@ -979,7 +979,9 @@ const NewOrder = () => {
     setNewCustomerSourceCustom('');
     setNewCustomerShipping('');
     setNewCustomerShippingCustom('');
+    setCustomerErrors(emptyCustomerErrors);
   };
+
 
   // Products that require a deposit (عربون) transfer receipt before submission
   const requiresDepositReceipt = useMemo(() => {
