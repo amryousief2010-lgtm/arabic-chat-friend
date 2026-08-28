@@ -865,10 +865,22 @@ const NewOrder = () => {
   const handleAddCustomer = async () => {
     const normalizedPhone = normalizePhone(newCustomerPhone);
     const normalizedPhone2 = normalizePhone(newCustomerPhone2);
-    if (!newCustomerName.trim() || !normalizedPhone) {
-      toast.error('يرجى إدخال اسم العميل ورقم الهاتف');
+    const finalSourceRaw = newCustomerSource === 'أخرى' ? newCustomerSourceCustom.trim() : newCustomerSource;
+    const errs = {
+      name: !newCustomerName.trim(),
+      phone: !normalizedPhone,
+      address: !newCustomerAddress.trim(),
+      city: !newCustomerCity.trim(),
+      governorate: !newCustomerGovernorate.trim(),
+      source: !finalSourceRaw,
+      fulfillment: !fulfillmentKey,
+    };
+    setCustomerErrors(errs);
+    if (Object.values(errs).some(Boolean)) {
+      toast.error('يرجى استكمال جميع الخانات المطلوبة بالأحمر');
       return;
     }
+
 
     try {
       const finalSource = (newCustomerSource === 'أخرى' ? newCustomerSourceCustom.trim() : newCustomerSource) || null;
