@@ -1416,21 +1416,26 @@ const NewOrder = () => {
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2 md:col-span-2">
-                        <Label>الاسم *</Label>
+                        <Label>الاسم <span className="text-destructive">*</span></Label>
                         <Input
                           placeholder="اسم العميل"
                           value={newCustomerName}
-                          onChange={(e) => setNewCustomerName(e.target.value)}
+                          onChange={(e) => { setNewCustomerName(e.target.value); setCustomerErrors(p => ({ ...p, name: false })); }}
+                          className={errCls(customerErrors.name)}
                         />
+                        {customerErrors.name && <p className="text-xs text-destructive">اسم العميل مطلوب</p>}
                       </div>
                       <div className="space-y-2">
-                        <Label>رقم الهاتف *</Label>
+                        <Label>رقم الهاتف <span className="text-destructive">*</span></Label>
                         <Input
                           placeholder="01xxxxxxxxx"
                           value={newCustomerPhone}
-                          onChange={(e) => setNewCustomerPhone(e.target.value)}
+                          onChange={(e) => { setNewCustomerPhone(e.target.value); setCustomerErrors(p => ({ ...p, phone: false })); }}
+                          className={errCls(customerErrors.phone)}
                         />
+                        {customerErrors.phone && <p className="text-xs text-destructive">رقم الهاتف مطلوب</p>}
                       </div>
+
                       <div className="space-y-2">
                         <Label>رقم هاتف آخر (اختياري)</Label>
                         <Input
