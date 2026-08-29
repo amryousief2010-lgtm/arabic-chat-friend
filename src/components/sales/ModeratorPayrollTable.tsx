@@ -468,6 +468,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const meatBonus = ov?.meat_bonus != null ? Number(ov.meat_bonus) : calcMeatBonus;
       const boneBonus = ov?.bone_bonus != null ? Number(ov.bone_bonus) : calcBoneBonus;
       const chickBonus = chickCount * chickBonusRate;
+      const deductions = ov?.deduction != null ? Number(ov.deduction) : 0;
       const procOverridden = ov?.processed_bonus != null;
       const meatOverridden = ov?.meat_bonus != null;
       const boneOverridden = ov?.bone_bonus != null;
@@ -478,9 +479,9 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         procRate, procRateOverridden,
         meatRate, meatRateOverridden,
         boneRate, boneRateOverridden,
-        procBonus, meatBonus, boneBonus, chickBonus,
+        procBonus, meatBonus, boneBonus, chickBonus, deductions,
         procOverridden, meatOverridden, boneOverridden,
-        total: base + procBonus + meatBonus + boneBonus + chickBonus,
+        total: base + procBonus + meatBonus + boneBonus + chickBonus - deductions,
       };
     });
   }, [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS, chickQtyByGirl, chickBonusRate]);
