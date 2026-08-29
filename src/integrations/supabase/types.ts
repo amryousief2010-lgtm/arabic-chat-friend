@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -14670,6 +14670,7 @@ export type Database = {
           bone_bonus: number | null
           bone_rate: number | null
           created_at: string
+          deduction: number | null
           id: string
           meat_bonus: number | null
           meat_rate: number | null
@@ -14684,6 +14685,7 @@ export type Database = {
           bone_bonus?: number | null
           bone_rate?: number | null
           created_at?: string
+          deduction?: number | null
           id?: string
           meat_bonus?: number | null
           meat_rate?: number | null
@@ -14698,6 +14700,7 @@ export type Database = {
           bone_bonus?: number | null
           bone_rate?: number | null
           created_at?: string
+          deduction?: number | null
           id?: string
           meat_bonus?: number | null
           meat_rate?: number | null
@@ -14812,6 +14815,7 @@ export type Database = {
           chick_count: number
           closure_id: string
           created_at: string
+          deductions: number
           grand_total: number
           id: string
           meat_bonus: number
@@ -14839,6 +14843,7 @@ export type Database = {
           chick_count?: number
           closure_id: string
           created_at?: string
+          deductions?: number
           grand_total?: number
           id?: string
           meat_bonus?: number
@@ -14866,6 +14871,7 @@ export type Database = {
           chick_count?: number
           closure_id?: string
           created_at?: string
+          deductions?: number
           grand_total?: number
           id?: string
           meat_bonus?: number

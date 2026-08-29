@@ -262,7 +262,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         .eq('month', selectedMonth)
         .eq('year', selectedYear);
       if (error) throw error;
-      return data as Array<{ moderator_name: string; processed_bonus: number | null; meat_bonus: number | null; bone_bonus: number | null; processed_rate: number | null; meat_rate: number | null; bone_rate: number | null }>;
+      return data as Array<{ moderator_name: string; processed_bonus: number | null; meat_bonus: number | null; bone_bonus: number | null; processed_rate: number | null; meat_rate: number | null; bone_rate: number | null; deduction: number | null }>;
     },
   });
 
@@ -423,7 +423,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
 
 
   const overrideMutation = useMutation({
-    mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate' | 'bone_rate'; value: number | null }) => {
+    mutationFn: async ({ girl, field, value }: { girl: Girl; field: 'processed_bonus' | 'meat_bonus' | 'bone_bonus' | 'processed_rate' | 'meat_rate' | 'bone_rate' | 'deduction'; value: number | null }) => {
       const payload: any = {
         moderator_name: girl,
         month: selectedMonth,
@@ -468,6 +468,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const meatBonus = ov?.meat_bonus != null ? Number(ov.meat_bonus) : calcMeatBonus;
       const boneBonus = ov?.bone_bonus != null ? Number(ov.bone_bonus) : calcBoneBonus;
       const chickBonus = chickCount * chickBonusRate;
+      const deductions = ov?.deduction != null ? Number(ov.deduction) : 0;
       const procOverridden = ov?.processed_bonus != null;
       const meatOverridden = ov?.meat_bonus != null;
       const boneOverridden = ov?.bone_bonus != null;
@@ -478,9 +479,9 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         procRate, procRateOverridden,
         meatRate, meatRateOverridden,
         boneRate, boneRateOverridden,
-        procBonus, meatBonus, boneBonus, chickBonus,
+        procBonus, meatBonus, boneBonus, chickBonus, deductions,
         procOverridden, meatOverridden, boneOverridden,
-        total: base + procBonus + meatBonus + boneBonus + chickBonus,
+        total: base + procBonus + meatBonus + boneBonus + chickBonus - deductions,
       };
     });
   }, [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS, chickQtyByGirl, chickBonusRate]);
@@ -541,6 +542,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         chickCount: Number(s.chick_count),
         chickBonus: Number(s.chick_bonus),
         prevBonus: Number(s.prev_month_bonus),
+        deductions: Number((s as any).deductions ?? 0),
         total: Number(s.grand_total),
       };
     });
@@ -587,6 +589,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         chick_bonus: r.chickBonus,
         total_bonus: r.procBonus + r.meatBonus + r.boneBonus + r.chickBonus,
         prev_month_bonus: r.prevBonus,
+        deductions: r.deductions,
         grand_total: r.total,
       }));
       const { error: snapErr } = await supabase.from('payroll_month_snapshots').insert(snapPayload);
@@ -833,6 +836,33 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
                   >
                     {fmt(r.prevBonus)}
                   </button>
+                </TableCell>
+              ))}
+            </TableRow>
+
+            <TableRow className="bg-destructive/10">
+              <TableCell className="font-bold border text-destructive">الخصومات (ج.م)</TableCell>
+              {rows.map(r => (
+                <TableCell key={r.girl} className="text-center border">
+                  {canEdit && !selectedClosure ? (
+                    <Input
+                      type="number"
+                      min={0}
+                      defaultValue={r.deductions ? Math.round(r.deductions) : ''}
+                      placeholder="0"
+                      key={`${r.girl}-deduction-${selectedMonth}-${selectedYear}-${r.deductions}`}
+                      className="h-8 text-center w-24 mx-auto"
+                      onBlur={(e) => {
+                        const raw = e.target.value.trim();
+                        const v = raw === '' ? null : Number(raw);
+                        if ((v ?? 0) !== Math.round(r.deductions || 0)) {
+                          overrideMutation.mutate({ girl: r.girl, field: 'deduction', value: v });
+                        }
+                      }}
+                    />
+                  ) : (
+                    <span className="font-bold text-destructive">{r.deductions ? `- ${fmt(r.deductions)}` : '0'}</span>
+                  )}
                 </TableCell>
               ))}
             </TableRow>
