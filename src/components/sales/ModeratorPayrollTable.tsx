@@ -840,6 +840,33 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
               ))}
             </TableRow>
 
+            <TableRow className="bg-destructive/10">
+              <TableCell className="font-bold border text-destructive">الخصومات (ج.م)</TableCell>
+              {rows.map(r => (
+                <TableCell key={r.girl} className="text-center border">
+                  {canEdit && !selectedClosure ? (
+                    <Input
+                      type="number"
+                      min={0}
+                      defaultValue={r.deductions ? Math.round(r.deductions) : ''}
+                      placeholder="0"
+                      key={`${r.girl}-deduction-${selectedMonth}-${selectedYear}-${r.deductions}`}
+                      className="h-8 text-center w-24 mx-auto"
+                      onBlur={(e) => {
+                        const raw = e.target.value.trim();
+                        const v = raw === '' ? null : Number(raw);
+                        if ((v ?? 0) !== Math.round(r.deductions || 0)) {
+                          overrideMutation.mutate({ girl: r.girl, field: 'deduction', value: v });
+                        }
+                      }}
+                    />
+                  ) : (
+                    <span className="font-bold text-destructive">{r.deductions ? `- ${fmt(r.deductions)}` : '0'}</span>
+                  )}
+                </TableCell>
+              ))}
+            </TableRow>
+
 
             <TableRow className="bg-primary/15">
               <TableCell className="font-bold border text-primary">إجمالي القبض (ج.م)</TableCell>
