@@ -542,6 +542,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         chickCount: Number(s.chick_count),
         chickBonus: Number(s.chick_bonus),
         prevBonus: Number(s.prev_month_bonus),
+        deductions: Number((s as any).deductions ?? 0),
         total: Number(s.grand_total),
       };
     });
