@@ -588,6 +588,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         chick_bonus: r.chickBonus,
         total_bonus: r.procBonus + r.meatBonus + r.boneBonus + r.chickBonus,
         prev_month_bonus: r.prevBonus,
+        deductions: r.deductions,
         grand_total: r.total,
       }));
       const { error: snapErr } = await supabase.from('payroll_month_snapshots').insert(snapPayload);
