@@ -249,52 +249,64 @@ const ManagerReview = () => {
     }
   };
 
+  const viewOnlyBadge = (
+    <Badge variant="outline" className="font-normal">
+      عرض فقط — لا تملك صلاحية تنفيذ الإجراء
+    </Badge>
+  );
+
   const renderActions = (t: Task) => {
     if (t.status !== "open" && t.status !== "in_progress") {
       return <Badge variant="secondary">{t.status === "resolved" ? "تم الحل" : "مرفوض"}</Badge>;
     }
+    const dismissBtn = canAdmin ? (
+      <Button size="sm" variant="outline" onClick={() => openDismissDialog(t)}>
+        <XCircle className="w-3 h-3 ml-1" /> رفض
+      </Button>
+    ) : null;
+
     if (t.task_type === "missing_barcode") {
+      if (!canAdmin) return viewOnlyBadge;
       return (
         <div className="flex gap-2">
           <Button size="sm" onClick={() => openBarcodeDialog(t)}>
             <Barcode className="w-3 h-3 ml-1" /> تعيين باركود
           </Button>
-          <Button size="sm" variant="outline" onClick={() => openDismissDialog(t)}>
-            <XCircle className="w-3 h-3 ml-1" /> رفض
-          </Button>
+          {dismissBtn}
         </div>
       );
     }
     if (t.task_type === "negative_stock") {
+      const allowed = canAdmin || (canReconcile && t.module === "warehouse");
+      if (!allowed) return viewOnlyBadge;
       return (
         <div className="flex gap-2">
           <Button size="sm" onClick={() => openStockDialog(t)}>
             <RefreshCw className="w-3 h-3 ml-1" /> تسوية مخزون
           </Button>
-          <Button size="sm" variant="outline" onClick={() => openDismissDialog(t)}>
-            <XCircle className="w-3 h-3 ml-1" /> رفض
-          </Button>
+          {dismissBtn}
         </div>
       );
     }
     if (t.task_type === "cost_review") {
+      if (!canApproveCost) return viewOnlyBadge;
       return (
         <div className="flex gap-2">
           <Button size="sm" onClick={() => openCostDialog(t)}>
             <DollarSign className="w-3 h-3 ml-1" /> اعتماد تكلفة
           </Button>
-          <Button size="sm" variant="outline" onClick={() => openDismissDialog(t)}>
-            <XCircle className="w-3 h-3 ml-1" /> رفض
-          </Button>
+          {dismissBtn}
         </div>
       );
     }
+    if (!canAdmin) return viewOnlyBadge;
     return (
       <Button size="sm" variant="outline" onClick={() => openDismissDialog(t)}>
         <CheckCircle2 className="w-3 h-3 ml-1" /> إغلاق
       </Button>
     );
   };
+
 
   const severityColor = (s: string) => {
     if (s === "critical") return "destructive";
