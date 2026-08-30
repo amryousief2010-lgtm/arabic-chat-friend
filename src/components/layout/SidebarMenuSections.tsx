@@ -302,9 +302,11 @@ export const moduleSections: ModuleSection[] = [
     id: "management",
     icon: BarChart3,
     label: "12. الإدارة والمالية والتقارير",
-    roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'main_treasury_accountant' as any, 'main_treasury_approver' as any, 'slaughterhouse_manager', 'production_manager', 'meat_factory_manager', 'feed_factory_manager', 'quality_manager'],
+    roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'main_treasury_accountant' as any, 'main_treasury_approver' as any, 'slaughterhouse_manager', 'production_manager', 'meat_factory_manager', 'feed_factory_manager', 'quality_manager', 'warehouse_supervisor'],
     items: [
+      { icon: ShieldCheck, label: "مركز مراجعة المدير", path: "/manager-review", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager', 'meat_factory_manager', 'feed_factory_manager', 'quality_manager'] },
       { icon: Wallet, label: "الميزانية الشهرية للأقسام", path: "/modules/department-monthly-budget", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
+
       { icon: Wallet, label: "موقف ميزانيات الأقسام", path: "/modules/departments-status", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
       { icon: Wallet, label: "التقارير المالية", path: "/financial-reports", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'sales_manager'] },
       { icon: ShieldCheck, label: "الخزنة الرئيسية للشركة — أ. محمد شعلة", path: "/main-treasury", roles: ['general_manager', 'executive_manager', 'financial_manager', 'main_treasury_accountant' as any, 'main_treasury_approver' as any] },
