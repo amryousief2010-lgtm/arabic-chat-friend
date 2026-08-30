@@ -31,7 +31,7 @@ export function useReservedQuantities(warehouseId: string | null | undefined, it
         });
         const itemToProduct = mapItemToProduct(invRows);
 
-        const productIds = Array.from(new Set(Object.values(itemToProduct)));
+        const productIds: string[] = Array.from(new Set(Object.values(itemToProduct)));
         if (productIds.length === 0) { if (!cancelled) setReservedByItem({}); return; }
 
         // pending orders for this warehouse
