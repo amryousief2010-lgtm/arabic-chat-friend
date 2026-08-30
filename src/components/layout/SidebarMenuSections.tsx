@@ -125,7 +125,7 @@ export const moduleSections: ModuleSection[] = [
   {
     id: "sales",
     icon: Megaphone,
-    label: "1. التسويق والمبيعات",
+    label: "1. المبيعات والطلبات",
     roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'marketing_sales_manager', 'financial_manager', 'quality_manager','marketing_sales_viewer'],
     items: [
       { icon: Package, label: "المنتجات", path: "/products", roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'marketing_sales_manager', 'quality_manager','marketing_sales_viewer'] },
@@ -145,13 +145,12 @@ export const moduleSections: ModuleSection[] = [
       { icon: TrendingUp, label: "تحليل الأداء اليومي وخطة الشهر", path: "/sales/daily-performance-analysis", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant','marketing_sales_viewer'] },
       { icon: AlertTriangle, label: "مراجعة زودكس (فروق وربط)", path: "/modules/warehouses/zodex-review", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant','marketing_sales_viewer'] },
       { icon: Tag, label: "الأسعار الداخلية بين الأقسام", path: "/modules/internal-prices-settings", roles: ['general_manager', 'executive_manager', 'financial_manager', 'slaughterhouse_manager', 'production_manager'] },
-      { icon: Upload, label: "استيراد البيانات", path: "/import-sales", roles: ['general_manager'] },
     ],
   },
   {
     id: "farm",
     icon: Egg,
-    label: "2. مزرعة الأمهات والإنتاج",
+    label: "3. مزرعة الأمهات والإنتاج",
     roles: ['general_manager', 'executive_manager', 'farm_manager', 'production_manager', 'quality_manager'],
     items: [
       { icon: Egg, label: "إدارة المزرعة", path: "/farm", roles: ['general_manager', 'executive_manager', 'farm_manager', 'production_manager', 'quality_manager'] },
@@ -162,7 +161,7 @@ export const moduleSections: ModuleSection[] = [
   {
     id: "hatchery",
     icon: FlaskConical,
-    label: "3. المعمل وتفريغ الكتاكيت",
+    label: "4. المعمل وتفريخ الكتاكيت",
     roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager', 'lab_treasury_keeper', 'lab_treasury_approver', 'lab_external_collector','lab_treasury_viewer'],
     items: [
       // تم تبسيط القائمة الجانبية: كل الصفحات الفرعية متاحة من داخل صفحة معمل التفريخ والحضانات (Tabs + روابط سريعة)
@@ -175,7 +174,7 @@ export const moduleSections: ModuleSection[] = [
   {
     id: "brooding",
     icon: Bird,
-    label: "4. التحضين والتسمين",
+    label: "5. التحضين والتسمين",
     roles: ['general_manager', 'executive_manager', 'brooding_manager', 'brooding_dashboard_viewer'],
     items: [
       { icon: Bird, label: "لوحة التحضين والتسمين", path: "/modules/brooding", roles: ['general_manager', 'executive_manager', 'brooding_manager', 'brooding_dashboard_viewer'] },
@@ -184,7 +183,7 @@ export const moduleSections: ModuleSection[] = [
   {
     id: "slaughterhouse",
     icon: Beef,
-    label: "5. المجزر وإنتاج اللحوم",
+    label: "6. المجزر وإنتاج اللحوم",
     roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'production_manager', 'quality_manager', 'slaughterhouse_custody_keeper', 'lab_treasury_approver'],
     items: [
       { icon: Beef, label: "إدارة المجزر", path: "/modules/slaughterhouse", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'production_manager', 'quality_manager'] },
@@ -198,7 +197,7 @@ export const moduleSections: ModuleSection[] = [
   {
     id: "meat-factory",
     icon: Factory,
-    label: "6. مصنع اللحوم",
+    label: "7. مصنع اللحوم",
     roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager', 'warehouse_supervisor'],
     items: [
       // لوحة التحكم
@@ -207,7 +206,8 @@ export const moduleSections: ModuleSection[] = [
       // التصنيع والتشغيل
       { group: "التصنيع والتشغيل", icon: Factory, label: "فاتورة تصنيع / سجل الفواتير", path: "/meat-factory/manufacturing", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager'] },
       { group: "التصنيع والتشغيل", icon: Factory, label: "تركيبات التصنيع (مرجع)", path: "/meat-factory/recipes", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager'] },
-      { group: "التصنيع والتشغيل", icon: Factory, label: "تصنيع المنتجات (شاشة قديمة)", path: "/modules/meat-factory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager'] },
+      // مخفي من السايدبار فقط — المسار والصفحة والصلاحيات تعمل عند الفتح المباشر
+      // { group: "التصنيع والتشغيل", icon: Factory, label: "تصنيع المنتجات (شاشة قديمة)", path: "/modules/meat-factory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager'] },
       { group: "التصنيع والتشغيل", icon: Factory, label: "العجينة المرحلة", path: "/meat-factory/carryover-dough", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager', 'warehouse_supervisor'] },
       // المشتريات والموردين
       { group: "المشتريات والموردين", icon: ShoppingCart, label: "فواتير مشتريات مصنع اللحوم", path: "/meat-factory/purchase-invoices", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
@@ -218,7 +218,7 @@ export const moduleSections: ModuleSection[] = [
   {
     id: "feed-factory",
     icon: Wheat,
-    label: "7. مصنع الأعلاف",
+    label: "8. مصنع الأعلاف",
     roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager', 'accountant', 'financial_manager', 'warehouse_supervisor'],
     items: [
       { icon: Wheat, label: "تصنيع الأعلاف", path: "/modules/feed-factory", roles: ['general_manager', 'executive_manager', 'feed_factory_manager', 'production_manager', 'quality_manager'] },
@@ -258,7 +258,8 @@ export const moduleSections: ModuleSection[] = [
       { icon: Warehouse, label: "إدارة المخازن", path: "/modules/warehouses", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'production_manager', 'quality_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager', 'accountant', 'financial_manager','marketing_sales_viewer'] },
       { icon: Wallet, label: "تحصيل المندوب الخاص", path: "/private-delivery-collection", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
       // تنبيهات وتشغيل
-      { icon: AlertTriangle, label: "مخزون منخفض", path: "/low-stock", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager'] },
+      // مخفي من السايدبار فقط — المسار والصفحة والصلاحيات تعمل عند الفتح المباشر
+      // { icon: AlertTriangle, label: "مخزون منخفض", path: "/low-stock", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager'] },
       { icon: ClipboardList, label: "قائمة التصنيع", path: "/manufacturing-queue", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager'] },
       { icon: History, label: "سجل تزويد المخزون", path: "/stock-replenishment-log", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
       // أدوات إدارية متقدمة — للمدير العام/التنفيذي فقط
@@ -267,7 +268,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: ShieldCheck, label: "مطابقة المخزون (تخطيط)", path: "/stock-reconciliation", roles: ['general_manager', 'executive_manager'] },
       { icon: ShieldCheck, label: "اعتماد وصفات الإنتاج (BOM)", path: "/bom-approval", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
       { icon: Factory, label: "دفعات مصنع اللحوم", path: "/meat-factory/batches", roles: ['general_manager', 'executive_manager'] },
-      { icon: Wheat, label: "دفعات مصنع الأعلاف", path: "/feed-factory/batches", roles: ['general_manager', 'executive_manager'] },
+      // مكرر — موجود داخل قسم مصنع الأعلاف
     ],
   },
   {
@@ -283,7 +284,8 @@ export const moduleSections: ModuleSection[] = [
       { icon: Package, label: "تسليم المخزن", path: "/private-courier/handovers", roles: ['general_manager','executive_manager','warehouse_supervisor','sales_manager'] },
       { icon: ShoppingCart, label: "تقرير التحصيل", path: "/private-courier/collections", roles: ['general_manager','executive_manager','sales_manager','accountant'] },
       { icon: ShoppingCart, label: "طلباتي (قديم)", path: "/orders", roles: ['private_delivery_rep'] },
-      { icon: Truck, label: "خطوط السير (قديم)", path: "/delivery-routes", roles: ['general_manager', 'executive_manager', 'private_delivery_rep'] },
+      // مخفي من السايدبار فقط — المسار والصفحة والصلاحيات تعمل عند الفتح المباشر
+      // { icon: Truck, label: "خطوط السير (قديم)", path: "/delivery-routes", roles: ['general_manager', 'executive_manager', 'private_delivery_rep'] },
       { icon: Truck, label: "أسعار شحن المندوب الخاص", path: "/private-delivery-pricing", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'private_delivery_rep', 'sales_moderator','marketing_sales_viewer'] },
       { icon: Bell, label: "الإشعارات", path: "/notifications", roles: ['private_delivery_rep'] },
     ],
@@ -291,7 +293,7 @@ export const moduleSections: ModuleSection[] = [
   {
     id: "social-media",
     icon: Megaphone,
-    label: "11. تقارير السوشيال ميديا",
+    label: "2. السوشيال ميديا والتسويق",
     roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'social_media_manager','marketing_sales_viewer'],
     items: [
       { icon: BarChart3, label: "لوحة التسويق والمبيعات", path: "/social-media/marketing-dashboard", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
