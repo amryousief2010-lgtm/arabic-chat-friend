@@ -254,7 +254,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: ClipboardList, label: "قائمة التصنيع", path: "/manufacturing-queue", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager'] },
       { icon: History, label: "سجل تزويد المخزون", path: "/stock-replenishment-log", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
       // أدوات إدارية متقدمة — للمدير العام/التنفيذي فقط
-      { icon: ShieldCheck, label: "مركز مراجعة المدير", path: "/manager-review", roles: ['general_manager', 'executive_manager'] },
+      // "مركز مراجعة المدير" انتقل إلى قسم 12. الإدارة والمالية والتقارير (المرحلة الرابعة)
       { icon: Boxes, label: "محرك المخزون", path: "/inventory", roles: ['general_manager', 'executive_manager'] },
       { icon: ShieldCheck, label: "مطابقة المخزون (تخطيط)", path: "/stock-reconciliation", roles: ['general_manager', 'executive_manager'] },
       { icon: ShieldCheck, label: "اعتماد وصفات الإنتاج (BOM)", path: "/bom-approval", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
@@ -302,9 +302,11 @@ export const moduleSections: ModuleSection[] = [
     id: "management",
     icon: BarChart3,
     label: "12. الإدارة والمالية والتقارير",
-    roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'main_treasury_accountant' as any, 'main_treasury_approver' as any, 'slaughterhouse_manager', 'production_manager', 'meat_factory_manager', 'feed_factory_manager', 'quality_manager'],
+    roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'main_treasury_accountant' as any, 'main_treasury_approver' as any, 'slaughterhouse_manager', 'production_manager', 'meat_factory_manager', 'feed_factory_manager', 'quality_manager', 'warehouse_supervisor'],
     items: [
+      { icon: ShieldCheck, label: "مركز مراجعة المدير", path: "/manager-review", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager', 'meat_factory_manager', 'feed_factory_manager', 'quality_manager'] },
       { icon: Wallet, label: "الميزانية الشهرية للأقسام", path: "/modules/department-monthly-budget", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
+
       { icon: Wallet, label: "موقف ميزانيات الأقسام", path: "/modules/departments-status", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
       { icon: Wallet, label: "التقارير المالية", path: "/financial-reports", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'sales_manager'] },
       { icon: ShieldCheck, label: "الخزنة الرئيسية للشركة — أ. محمد شعلة", path: "/main-treasury", roles: ['general_manager', 'executive_manager', 'financial_manager', 'main_treasury_accountant' as any, 'main_treasury_approver' as any] },

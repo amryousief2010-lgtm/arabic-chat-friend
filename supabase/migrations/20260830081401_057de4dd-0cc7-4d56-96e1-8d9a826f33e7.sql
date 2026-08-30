@@ -1,0 +1,1 @@
+REVOKE ALL ON public.data_quality_tasks FROM anon;

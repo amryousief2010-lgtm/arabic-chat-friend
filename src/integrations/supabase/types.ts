@@ -22020,6 +22020,13 @@ export type Database = {
         }
         Returns: Json
       }
+      mr_can_admin: { Args: { _uid?: string }; Returns: boolean }
+      mr_can_approve_cost: { Args: { _uid?: string }; Returns: boolean }
+      mr_can_reconcile_stock: { Args: { _uid?: string }; Returns: boolean }
+      mr_can_view_task: {
+        Args: { _module: string; _task_type: string; _uid: string }
+        Returns: boolean
+      }
       mr_dismiss_task: {
         Args: { p_reason: string; p_task_id: string }
         Returns: Json
