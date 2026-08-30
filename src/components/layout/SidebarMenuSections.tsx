@@ -103,17 +103,6 @@ export const moduleSections: ModuleSection[] = [
     ],
   },
   {
-    id: "management",
-    icon: BarChart3,
-    label: "الإدارة والتقارير",
-    roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'],
-    items: [
-      { icon: Wallet, label: "الميزانية الشهرية للأقسام", path: "/modules/department-monthly-budget", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
-      { icon: Wallet, label: "موقف ميزانيات الأقسام", path: "/modules/departments-status", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
-      { icon: Wallet, label: "التقارير المالية", path: "/financial-reports", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'sales_manager'] },
-    ],
-  },
-  {
     id: "internal-messages",
     icon: Mail,
     label: "الرسائل الداخلية",
@@ -143,8 +132,6 @@ export const moduleSections: ModuleSection[] = [
       { icon: BarChart3, label: "التقارير", path: "/reports", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'quality_manager','marketing_sales_viewer'] },
       { icon: MessageSquare, label: "حملات واتساب", path: "/marketing/whatsapp-campaigns", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: TrendingUp, label: "تحليل الأداء اليومي وخطة الشهر", path: "/sales/daily-performance-analysis", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant','marketing_sales_viewer'] },
-      { icon: AlertTriangle, label: "مراجعة زودكس (فروق وربط)", path: "/modules/warehouses/zodex-review", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant','marketing_sales_viewer'] },
-      { icon: Tag, label: "الأسعار الداخلية بين الأقسام", path: "/modules/internal-prices-settings", roles: ['general_manager', 'executive_manager', 'financial_manager', 'slaughterhouse_manager', 'production_manager'] },
     ],
   },
   {
@@ -207,7 +194,6 @@ export const moduleSections: ModuleSection[] = [
       { icon: Beef, label: "إذن ذبح النعام", path: "/modules/slaughterhouse/permit", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'production_manager', 'quality_manager'] },
       { icon: Package, label: "مخزن التغليف والتعبئة", path: "/modules/packaging", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager'] },
       { icon: Wallet, label: "خزنة عهدة المجزر — محمد شعلة", path: "/slaughterhouse-custody", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'lab_treasury_approver', 'slaughterhouse_custody_keeper'] },
-      { icon: ShieldCheck, label: "الخزنة الرئيسية للشركة — أ. محمد شعلة", path: "/main-treasury", roles: ['general_manager', 'executive_manager', 'financial_manager', 'main_treasury_accountant' as any, 'main_treasury_approver' as any] },
       { icon: Wheat, label: "مخزن علف المجزر — علف النعام التسمين", path: "/modules/slaughterhouse/feed-store", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'warehouse_supervisor', 'feed_factory_manager', 'production_manager'] },
     ],
   },
@@ -249,8 +235,6 @@ export const moduleSections: ModuleSection[] = [
 
       
       
-      { icon: Factory, label: "نظرة عامة على المصانع", path: "/factories/overview", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager'] },
-      { icon: Factory, label: "تقارير المصانع", path: "/factories/reports", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'quality_manager'] },
     ],
   },
   {
@@ -263,7 +247,7 @@ export const moduleSections: ModuleSection[] = [
 
       // مركز إدارة المخازن الموحّد — كل التابات والصفحات في شاشة واحدة
       { icon: Warehouse, label: "إدارة المخازن", path: "/modules/warehouses", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'production_manager', 'quality_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager', 'accountant', 'financial_manager','marketing_sales_viewer'] },
-      { icon: Wallet, label: "تحصيل المندوب الخاص", path: "/private-delivery-collection", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
+      { icon: AlertTriangle, label: "مراجعة زودكس (فروق وربط)", path: "/modules/warehouses/zodex-review", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant','marketing_sales_viewer'] },
       // تنبيهات وتشغيل
       // مخفي من السايدبار فقط — المسار والصفحة والصلاحيات تعمل عند الفتح المباشر
       // { icon: AlertTriangle, label: "مخزون منخفض", path: "/low-stock", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager'] },
@@ -282,9 +266,10 @@ export const moduleSections: ModuleSection[] = [
     id: "private-delivery",
     icon: Truck,
     label: "10. المندوب الخاص وخطوط السير",
-    roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'warehouse_supervisor', 'private_delivery_rep', 'sales_moderator','marketing_sales_viewer'],
+    roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'financial_manager', 'marketing_sales_manager', 'warehouse_supervisor', 'private_delivery_rep', 'sales_moderator','marketing_sales_viewer'],
     items: [
       { icon: Truck, label: "لوحة المندوب الخاص", path: "/private-courier", roles: ['general_manager','executive_manager','sales_manager','marketing_sales_manager','accountant','warehouse_supervisor','private_delivery_rep','marketing_sales_viewer'] },
+      { icon: Wallet, label: "تحصيل المندوب الخاص", path: "/private-delivery-collection", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
       { icon: ShoppingCart, label: "تخطيط الخطوط والتعيين", path: "/private-courier/planning", roles: ['general_manager','executive_manager','sales_manager','marketing_sales_manager','marketing_sales_viewer'] },
       { icon: Truck, label: "إدارة خطوط السير", path: "/private-courier/routes", roles: ['general_manager','executive_manager','sales_manager','marketing_sales_manager','marketing_sales_viewer'] },
       { icon: ShoppingCart, label: "طلباتي (مندوب)", path: "/private-courier/my-deliveries", roles: ['private_delivery_rep'] },
@@ -314,9 +299,24 @@ export const moduleSections: ModuleSection[] = [
     ],
   },
   {
+    id: "management",
+    icon: BarChart3,
+    label: "12. الإدارة والمالية والتقارير",
+    roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'main_treasury_accountant' as any, 'main_treasury_approver' as any, 'slaughterhouse_manager', 'production_manager', 'meat_factory_manager', 'feed_factory_manager', 'quality_manager'],
+    items: [
+      { icon: Wallet, label: "الميزانية الشهرية للأقسام", path: "/modules/department-monthly-budget", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
+      { icon: Wallet, label: "موقف ميزانيات الأقسام", path: "/modules/departments-status", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
+      { icon: Wallet, label: "التقارير المالية", path: "/financial-reports", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'sales_manager'] },
+      { icon: ShieldCheck, label: "الخزنة الرئيسية للشركة — أ. محمد شعلة", path: "/main-treasury", roles: ['general_manager', 'executive_manager', 'financial_manager', 'main_treasury_accountant' as any, 'main_treasury_approver' as any] },
+      { icon: Tag, label: "الأسعار الداخلية بين الأقسام", path: "/modules/internal-prices-settings", roles: ['general_manager', 'executive_manager', 'financial_manager', 'slaughterhouse_manager', 'production_manager'] },
+      { icon: Factory, label: "نظرة عامة على المصانع", path: "/factories/overview", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager'] },
+      { icon: Factory, label: "تقارير المصانع", path: "/factories/reports", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager', 'quality_manager'] },
+    ],
+  },
+  {
     id: "system",
     icon: Settings,
-    label: "النظام",
+    label: "النظام والأدوات",
     roles: ['general_manager'],
     items: [
       { icon: Settings, label: "الإعدادات", path: "/settings", roles: ['general_manager'] },
