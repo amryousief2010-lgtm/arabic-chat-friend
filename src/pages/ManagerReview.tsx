@@ -66,7 +66,16 @@ const MODULES = ["all", "meat", "feed", "shared", "warehouse"];
 const STATUSES = ["open", "in_progress", "resolved", "dismissed"];
 
 const ManagerReview = () => {
+  const { roles, role } = useAuth();
+  const userRoles: string[] = roles && roles.length > 0 ? roles : role ? [role] : [];
+  const hasRole = (...r: string[]) => r.some((x) => userRoles.includes(x));
+  // صلاحيات الكتابة المعتمدة (المرحلة الرابعة) — القاعدة هي طبقة الحماية النهائية
+  const canAdmin = hasRole("general_manager", "executive_manager");
+  const canReconcile = canAdmin || hasRole("warehouse_supervisor");
+  const canApproveCost = canAdmin || hasRole("accountant", "financial_manager", "cost_accountant");
+
   const [tasks, setTasks] = useState<Task[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("missing_barcode");
   const [search, setSearch] = useState("");
