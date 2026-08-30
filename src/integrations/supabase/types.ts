@@ -21745,6 +21745,163 @@ export type Database = {
         Args: { p_item_id: string; p_qty: number }
         Returns: Json
       }
+      inv_can_view_cost: { Args: never; Returns: boolean }
+      inv_get_financial_balances: {
+        Args: {
+          p_active_only?: boolean
+          p_limit?: number
+          p_modules?: string[]
+          p_offset?: number
+          p_warehouse_ids?: string[]
+        }
+        Returns: {
+          available_stock: number
+          blocked_stock: number
+          category: string
+          current_stock: number
+          has_zero_cost: boolean
+          inventory_item_id: string
+          is_active: boolean
+          item_code: string
+          item_name: string
+          last_movement_date: string
+          module: string
+          product_id: string
+          reserved_stock: number
+          total_value: number
+          unit: string
+          unit_cost: number
+          warehouse_id: string
+          warehouse_name: string
+        }[]
+      }
+      inv_get_financial_movements: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_item_id?: string
+          p_limit?: number
+          p_modules?: string[]
+          p_movement_types?: string[]
+          p_offset?: number
+          p_warehouse_ids?: string[]
+        }
+        Returns: {
+          approval_status: string
+          destination_warehouse_id: string
+          item_id: string
+          item_name: string
+          module: string
+          movement_id: string
+          movement_no: string
+          movement_type: string
+          performed_at: string
+          performed_by: string
+          quantity: number
+          reason: string
+          reference: string
+          source_warehouse_id: string
+          total_cost: number
+          unit: string
+          unit_cost: number
+          warehouse_id: string
+          warehouse_name: string
+        }[]
+      }
+      inv_get_operational_balances: {
+        Args: {
+          p_active_only?: boolean
+          p_limit?: number
+          p_modules?: string[]
+          p_offset?: number
+          p_search?: string
+          p_warehouse_ids?: string[]
+        }
+        Returns: {
+          available_stock: number
+          blocked_stock: number
+          category: string
+          current_stock: number
+          inventory_item_id: string
+          is_active: boolean
+          is_low_stock: boolean
+          item_code: string
+          item_name: string
+          last_movement_date: string
+          low_stock_threshold: number
+          module: string
+          product_id: string
+          reserved_stock: number
+          unit: string
+          warehouse_id: string
+          warehouse_name: string
+          warehouse_type: string
+        }[]
+      }
+      inv_get_operational_movements: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_item_id?: string
+          p_limit?: number
+          p_modules?: string[]
+          p_movement_no?: string
+          p_movement_types?: string[]
+          p_offset?: number
+          p_warehouse_ids?: string[]
+        }
+        Returns: {
+          approval_status: string
+          created_at: string
+          destination_warehouse_id: string
+          item_code: string
+          item_id: string
+          item_name: string
+          module: string
+          movement_id: string
+          movement_no: string
+          movement_type: string
+          performed_at: string
+          performed_by: string
+          quantity: number
+          reason: string
+          reference: string
+          reference_id: string
+          reference_type: string
+          source_warehouse_id: string
+          unit: string
+          warehouse_id: string
+          warehouse_name: string
+        }[]
+      }
+      inv_get_sales_availability: {
+        Args: {
+          p_active_only?: boolean
+          p_limit?: number
+          p_offset?: number
+          p_product_ids?: string[]
+          p_warehouse_ids?: string[]
+        }
+        Returns: {
+          available_stock: number
+          blocked_stock: number
+          current_stock: number
+          inventory_item_id: string
+          is_active: boolean
+          is_low_stock: boolean
+          item_code: string
+          item_name: string
+          product_id: string
+          reserved_stock: number
+          unit: string
+          warehouse_id: string
+          warehouse_name: string
+        }[]
+      }
+      inv_has_any_role: {
+        Args: { _roles: Database["public"]["Enums"]["app_role"][] }
+        Returns: boolean
+      }
       inv_post_movement: {
         Args: {
           p_item_id: string
