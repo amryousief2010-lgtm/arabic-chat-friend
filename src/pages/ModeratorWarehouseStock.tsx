@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Printer, RefreshCw, Search, Warehouse } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { printWarehouseStock } from "@/lib/printUtils";
+import { getSalesInventoryAvailability, sumAvailableByProduct } from "@/lib/inventoryReadApi";
 import {
   MODERATORS,
   findModeratorBySlug,
