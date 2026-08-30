@@ -44,6 +44,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/dateFormat";
+import { useAuth } from "@/hooks/useAuth";
+
 
 type Task = {
   id: string;
