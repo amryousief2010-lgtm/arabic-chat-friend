@@ -277,7 +277,9 @@ const ManagerReview = () => {
       );
     }
     if (t.task_type === "negative_stock") {
-      const allowed = canAdmin || (canReconcile && t.module === "warehouse");
+      const allowed =
+        canAdmin ||
+        (canReconcile && t.module === "warehouse" && t.reference_table === "inventory_items");
       if (!allowed) return viewOnlyBadge;
       return (
         <div className="flex gap-2">
