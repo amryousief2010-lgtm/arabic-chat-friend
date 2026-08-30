@@ -4,10 +4,11 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, CheckCircle2, AlertTriangle, ShieldAlert, ShieldQuestion } from "lucide-react";
+import { Loader2, CheckCircle2, ShieldAlert, ShieldQuestion, Eye, ExternalLink } from "lucide-react";
 
 const TYPE_LABEL: Record<string, string> = {
   negative_stock: "رصيد سالب",
@@ -24,11 +25,16 @@ const SEV_VAR: Record<string, "default" | "secondary" | "destructive" | "outline
 };
 
 export default function DataQualityTasks() {
+  const { roles, role } = useAuth();
+  const userRoles: string[] = roles && roles.length > 0 ? roles : role ? [role] : [];
+  const canOpenReviewCenter = [
+    "general_manager", "executive_manager", "warehouse_supervisor", "accountant",
+    "financial_manager", "meat_factory_manager", "feed_factory_manager", "quality_manager",
+  ].some((r) => userRoles.includes(r));
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("open");
   const [moduleFilter, setModuleFilter] = useState("all");
-  const [notes, setNotes] = useState<Record<string, string>>({});
 
   const load = async () => {
     setLoading(true);
@@ -42,29 +48,21 @@ export default function DataQualityTasks() {
 
   useEffect(() => { load(); }, [statusFilter, moduleFilter]);
 
-  const resolve = async (id: string, status: "resolved" | "dismissed") => {
-    const { data: user } = await supabase.auth.getUser();
-    const { error } = await supabase
-      .from("data_quality_tasks")
-      .update({
-        status,
-        resolved_by: user.user?.id,
-        resolved_at: new Date().toISOString(),
-        resolution_notes: notes[id] || null,
-      })
-      .eq("id", id);
-    if (error) toast.error(error.message);
-    else { toast.success("تم تحديث المهمة"); load(); }
-  };
-
   return (
     <DashboardLayout>
       <div className="space-y-4 p-4">
         <div>
           <h1 className="text-2xl font-bold">مهام جودة البيانات</h1>
           <p className="text-muted-foreground text-sm">
-            الأرصدة السالبة، الباركود المفقود، تعارض البيانات، وتسويات المخزون.
+            الأرصدة السالبة، الباركود المفقود، تعارض البيانات، وتسويات المخزون. هذه الشاشة للعرض فقط.
           </p>
+          {canOpenReviewCenter && (
+            <Button asChild variant="outline" size="sm" className="mt-2">
+              <Link to="/manager-review">
+                <ExternalLink className="w-4 h-4 ml-1" /> فتح مركز مراجعة المدير
+              </Link>
+            </Button>
+          )}
         </div>
 
         <div className="flex gap-2">
@@ -120,17 +118,8 @@ export default function DataQualityTasks() {
                     </div>
                   )}
                   {t.status === "open" || t.status === "in_progress" ? (
-                    <div className="space-y-2">
-                      <Textarea placeholder="ملاحظات الحل (اختياري)" value={notes[t.id] ?? ""}
-                        onChange={(e) => setNotes({ ...notes, [t.id]: e.target.value })} />
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => resolve(t.id, "resolved")}>
-                          <CheckCircle2 className="w-4 h-4 ml-1" /> حل
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => resolve(t.id, "dismissed")}>
-                          <AlertTriangle className="w-4 h-4 ml-1" /> رفض
-                        </Button>
-                      </div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Eye className="w-3 h-3" /> عرض فقط — التنفيذ يتم من مركز مراجعة المدير
                     </div>
                   ) : (
                     <div className="text-xs text-muted-foreground">
