@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
+import { getSalesInventoryAvailability, mapItemToProduct } from "@/lib/inventoryReadApi";
 
 /**
  * Returns reserved (pending-but-not-dispatched) qty per inventory_item.id for a warehouse,
