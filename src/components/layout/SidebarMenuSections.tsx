@@ -148,6 +148,23 @@ export const moduleSections: ModuleSection[] = [
     ],
   },
   {
+    id: "social-media",
+    icon: Megaphone,
+    label: "2. السوشيال ميديا والتسويق",
+    roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'social_media_manager','marketing_sales_viewer'],
+    items: [
+      { icon: BarChart3, label: "لوحة التسويق والمبيعات", path: "/social-media/marketing-dashboard", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
+      { icon: LayoutDashboard, label: "لوحة السوشيال ميديا", path: "/social-media/dashboard", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'social_media_manager','marketing_sales_viewer'] },
+      { icon: ShoppingCart, label: "مراجعة الطلبات (قراءة فقط)", path: "/orders", roles: ['social_media_manager'] },
+      { icon: ClipboardList, label: "تقرير السوشيال ميديا اليومي", path: "/social-media/daily", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'social_media_manager','marketing_sales_viewer'] },
+      { icon: CalendarClock, label: "تقرير السوشيال ميديا الأسبوعي", path: "/social-media/weekly", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'social_media_manager','marketing_sales_viewer'] },
+      { icon: History, label: "تقاريري السابقة", path: "/social-media/my-reports", roles: ['social_media_manager', 'general_manager', 'executive_manager', 'marketing_sales_manager'] },
+      { icon: ShieldCheck, label: "مراجعة تقارير السوشيال ميديا", path: "/social-media/review", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
+      { icon: Receipt, label: "مصروفات السوشيال", path: "/social-media/expenses", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
+      { icon: FileSpreadsheet, label: "تصدير التقارير", path: "/social-media/export", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
+    ],
+  },
+  {
     id: "farm",
     icon: Egg,
     label: "3. مزرعة الأمهات والإنتاج",
@@ -237,16 +254,6 @@ export const moduleSections: ModuleSection[] = [
     ],
   },
   {
-    id: "hr",
-    icon: UsersRound,
-    label: "8. الموارد البشرية",
-    roles: ['general_manager', 'executive_manager', 'hr_manager'],
-    items: [
-      { icon: UsersRound, label: "الموارد البشرية", path: "/modules/hr", roles: ['general_manager', 'executive_manager', 'hr_manager'] },
-      { icon: Users, label: "الموظفين (نظام)", path: "/employees", roles: ['general_manager'] },
-    ],
-  },
-  {
     id: "warehouses",
     icon: Warehouse,
     label: "9. المخازن",
@@ -291,26 +298,9 @@ export const moduleSections: ModuleSection[] = [
     ],
   },
   {
-    id: "social-media",
-    icon: Megaphone,
-    label: "2. السوشيال ميديا والتسويق",
-    roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'social_media_manager','marketing_sales_viewer'],
-    items: [
-      { icon: BarChart3, label: "لوحة التسويق والمبيعات", path: "/social-media/marketing-dashboard", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
-      { icon: LayoutDashboard, label: "لوحة السوشيال ميديا", path: "/social-media/dashboard", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'social_media_manager','marketing_sales_viewer'] },
-      { icon: ShoppingCart, label: "مراجعة الطلبات (قراءة فقط)", path: "/orders", roles: ['social_media_manager'] },
-      { icon: ClipboardList, label: "تقرير السوشيال ميديا اليومي", path: "/social-media/daily", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'social_media_manager','marketing_sales_viewer'] },
-      { icon: CalendarClock, label: "تقرير السوشيال ميديا الأسبوعي", path: "/social-media/weekly", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'social_media_manager','marketing_sales_viewer'] },
-      { icon: History, label: "تقاريري السابقة", path: "/social-media/my-reports", roles: ['social_media_manager', 'general_manager', 'executive_manager', 'marketing_sales_manager'] },
-      { icon: ShieldCheck, label: "مراجعة تقارير السوشيال ميديا", path: "/social-media/review", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
-      { icon: Receipt, label: "مصروفات السوشيال", path: "/social-media/expenses", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
-      { icon: FileSpreadsheet, label: "تصدير التقارير", path: "/social-media/export", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
-    ],
-  },
-  {
-    id: "hr-staff",
+    id: "hr",
     icon: UsersRound,
-    label: "شؤون الموظفين",
+    label: "11. الموارد البشرية",
     roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'],
     items: [
       { icon: LayoutDashboard, label: "لوحة شؤون الموظفين", path: "/hr", roles: ['general_manager', 'executive_manager', 'hr_manager'] },
@@ -319,7 +309,8 @@ export const moduleSections: ModuleSection[] = [
       { icon: Receipt, label: "تقرير سلف الموظفين", path: "/hr/advances-report", roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'] },
       { icon: Receipt, label: "خصومات الموظفين", path: "/hr/deductions", roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'] },
       { icon: Wallet, label: "تقرير قبض موظفي يوم 1", path: "/hr/payday-report", roles: ['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager'] },
-      { icon: KeyRound, label: "حسابات دخول الموظفين", path: "/modules/hr", roles: ['general_manager', 'executive_manager'] },
+      { icon: KeyRound, label: "حسابات دخول الموظفين", path: "/modules/hr", roles: ['general_manager', 'executive_manager', 'hr_manager'] },
+      { icon: Users, label: "إدارة المستخدمين والصلاحيات", path: "/employees", roles: ['general_manager'] },
     ],
   },
   {
@@ -329,6 +320,7 @@ export const moduleSections: ModuleSection[] = [
     roles: ['general_manager'],
     items: [
       { icon: Settings, label: "الإعدادات", path: "/settings", roles: ['general_manager'] },
+      { icon: Upload, label: "استيراد بيانات المبيعات التاريخية", path: "/import-sales", roles: ['general_manager'] },
     ],
   },
 ];
