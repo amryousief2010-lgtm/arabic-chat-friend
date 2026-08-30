@@ -236,6 +236,10 @@ const ManagerReview = () => {
       const map: Record<string, string> = {
         BARCODE_REQUIRED: "الباركود مطلوب",
         BARCODE_DUPLICATE: "هذا الباركود مستخدم بالفعل لمنتج آخر",
+        NOT_AUTHORIZED_FOR_TARGET: "غير مصرح لك بتعديل هذا السجل — مسؤول المخازن مقيّد بأصناف المخزون فقط",
+        TARGET_MISMATCH: "السجل المستهدف لا يطابق المهمة",
+        TASK_NOT_OPEN: "المهمة غير مفتوحة",
+        TASK_TYPE_MISMATCH: "نوع المهمة غير مطابق للإجراء",
         NOT_AUTHORIZED: "غير مصرح لك بتنفيذ هذا الإجراء",
         REASON_REQUIRED: "يرجى كتابة سبب التعديل",
         INVALID_COST: "يجب أن تكون التكلفة أكبر من صفر",
@@ -277,7 +281,9 @@ const ManagerReview = () => {
       );
     }
     if (t.task_type === "negative_stock") {
-      const allowed = canAdmin || (canReconcile && t.module === "warehouse");
+      const allowed =
+        canAdmin ||
+        (canReconcile && t.module === "warehouse" && t.reference_table === "inventory_items");
       if (!allowed) return viewOnlyBadge;
       return (
         <div className="flex gap-2">
