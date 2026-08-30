@@ -63,6 +63,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { normalizePhone } from '@/lib/normalizePhone';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AGOUZA_WAREHOUSE_ID, reserveAgouzaForOrder } from '@/lib/agouzaReservations';
+import { getSalesInventoryAvailability, sumAvailableByProduct } from '@/lib/inventoryReadApi';
 
 
 interface Product {
