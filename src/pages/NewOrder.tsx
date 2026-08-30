@@ -63,6 +63,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { normalizePhone } from '@/lib/normalizePhone';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AGOUZA_WAREHOUSE_ID, reserveAgouzaForOrder } from '@/lib/agouzaReservations';
+import { getSalesInventoryAvailability, sumAvailableByProduct } from '@/lib/inventoryReadApi';
 
 
 interface Product {
@@ -451,26 +452,13 @@ const NewOrder = () => {
 
       setInventoryLoading(true);
       try {
-        const inventoryRes: any = await withTimedQuery(
-          '[NewOrder] inventory_items query',
-          () => supabase
-            .from('inventory_items')
-            .select('warehouse_id, product_id, stock, reserved_qty, blocked_qty')
-            .in('warehouse_id', whIds)
-            .not('product_id', 'is', null),
+        const invRows = await withTimedQuery(
+          '[NewOrder] inventory availability rpc',
+          () => getSalesInventoryAvailability({ warehouseIds: whIds, activeOnly: false }),
         );
-        const invRows = inventoryRes?.data || [];
-        if (inventoryRes?.error) throw inventoryRes.error;
 
-        const ag: Record<string, number> = {};
-        const mn: Record<string, number> = {};
-        (invRows || []).forEach((r: any) => {
-          const avail = Number(r.stock || 0) - Number(r.reserved_qty || 0) - Number(r.blocked_qty || 0);
-          if (r.warehouse_id === agouza?.id) ag[r.product_id] = (ag[r.product_id] || 0) + avail;
-          if (r.warehouse_id === main?.id) mn[r.product_id] = (mn[r.product_id] || 0) + avail;
-        });
-        setAgouzaStock(ag);
-        setMainStock(mn);
+        setAgouzaStock(sumAvailableByProduct(invRows, agouza?.id));
+        setMainStock(sumAvailableByProduct(invRows, main?.id));
       } catch (error) {
         console.error('Inventory fetch failed:', error);
         setInventoryError(getErrorMessage(error, 'استغرق تحميل المخزون وقتًا أطول من المتوقع.'));

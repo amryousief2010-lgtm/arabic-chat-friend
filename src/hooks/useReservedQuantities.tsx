@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
+import { getSalesInventoryAvailability, mapItemToProduct } from "@/lib/inventoryReadApi";
 
 /**
  * Returns reserved (pending-but-not-dispatched) qty per inventory_item.id for a warehouse,
@@ -22,15 +23,15 @@ export function useReservedQuantities(warehouseId: string | null | undefined, it
       }
       setLoading(true);
       try {
-        // map inventory_item.id -> product_id
-        const { data: invRows } = await supabase
-          .from("inventory_items")
-          .select("id, product_id, warehouse_id")
-          .in("id", itemIds);
-        const itemToProduct: Record<string, string> = {};
-        (invRows || []).forEach((r: any) => { if (r.product_id) itemToProduct[r.id] = r.product_id; });
+        // map inventory_item.id -> product_id (secure read layer, no cost columns)
+        const invRows = await getSalesInventoryAvailability({
+          inventoryItemIds: itemIds,
+          warehouseIds: [warehouseId],
+          activeOnly: false,
+        });
+        const itemToProduct = mapItemToProduct(invRows);
 
-        const productIds = Array.from(new Set(Object.values(itemToProduct)));
+        const productIds: string[] = Array.from(new Set(Object.values(itemToProduct)));
         if (productIds.length === 0) { if (!cancelled) setReservedByItem({}); return; }
 
         // pending orders for this warehouse
@@ -66,6 +67,10 @@ export function useReservedQuantities(warehouseId: string | null | undefined, it
           out[itemId] = pid ? (productReserved[pid] || 0) : 0;
         }
         if (!cancelled) setReservedByItem(out);
+      } catch (e) {
+        // No direct-table fallback: surface an empty map instead of stale/unsafe data.
+        console.error("useReservedQuantities: availability load failed");
+        if (!cancelled) setReservedByItem({});
       } finally {
         if (!cancelled) setLoading(false);
       }

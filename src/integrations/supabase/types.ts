@@ -21877,6 +21877,7 @@ export type Database = {
       inv_get_sales_availability: {
         Args: {
           p_active_only?: boolean
+          p_inventory_item_ids?: string[]
           p_limit?: number
           p_offset?: number
           p_product_ids?: string[]
