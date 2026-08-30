@@ -97,27 +97,24 @@ const ModeratorWarehouseStock = () => {
       }
       setModeratorProductIds(prodSet);
 
-      // Warehouse stock.
+      // Warehouse stock (via the secure inventory read layer — no cost columns).
       const whs = wRes.data || [];
       const agouza = whs.find((w: any) => w.name?.includes("العجوزة"));
       const main = whs.find((w: any) => w.name?.includes("الرئيسي") || w.name?.includes("المقر"));
       const whIds = [agouza?.id, main?.id].filter(Boolean) as string[];
       if (whIds.length > 0) {
-        const { data: invRows } = await supabase
-          .from("inventory_items")
-          .select("warehouse_id, product_id, stock, reserved_qty, blocked_qty")
-          .in("warehouse_id", whIds)
-          .not("product_id", "is", null);
-        const ag: Record<string, number> = {};
-        const mn: Record<string, number> = {};
-        (invRows || []).forEach((r: any) => {
-          const avail = Number(r.stock || 0) - Number(r.reserved_qty || 0) - Number(r.blocked_qty || 0);
-          if (r.warehouse_id === agouza?.id) ag[r.product_id] = (ag[r.product_id] || 0) + avail;
-          if (r.warehouse_id === main?.id) mn[r.product_id] = (mn[r.product_id] || 0) + avail;
+        const invRows = await getSalesInventoryAvailability({
+          warehouseIds: whIds,
+          productIds: prodSet.size > 0 ? Array.from(prodSet) : null,
+          activeOnly: false,
         });
-        setAgouzaStock(ag);
-        setMainStock(mn);
+        setAgouzaStock(sumAvailableByProduct(invRows, agouza?.id));
+        setMainStock(sumAvailableByProduct(invRows, main?.id));
       }
+    } catch (e) {
+      console.error("Warehouse stock load failed");
+      setAgouzaStock({});
+      setMainStock({});
     } finally {
       setLoading(false);
     }
