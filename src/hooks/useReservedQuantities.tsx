@@ -67,6 +67,10 @@ export function useReservedQuantities(warehouseId: string | null | undefined, it
           out[itemId] = pid ? (productReserved[pid] || 0) : 0;
         }
         if (!cancelled) setReservedByItem(out);
+      } catch (e) {
+        // No direct-table fallback: surface an empty map instead of stale/unsafe data.
+        console.error("useReservedQuantities: availability load failed");
+        if (!cancelled) setReservedByItem({});
       } finally {
         if (!cancelled) setLoading(false);
       }
