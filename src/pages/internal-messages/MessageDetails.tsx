@@ -196,6 +196,18 @@ const MessageDetails = () => {
   }
 
   const { message, recipients, attachments, replies } = q.data;
+  const isSender = message.sender_id === user?.id;
+  const dueDate = message.reply_due_at ? new Date(message.reply_due_at) : null;
+  const stats = {
+    total: recipients.length,
+    read: recipients.filter((r) => !!r.read_at).length,
+    replied: recipients.filter((r) => !!r.replied_at).length,
+    pending: recipients.filter((r) => !r.replied_at).length,
+    overdue:
+      message.requires_reply && dueDate && dueDate < new Date()
+        ? recipients.filter((r) => !r.replied_at).length
+        : 0,
+  };
 
   return (
     <DashboardLayout>
