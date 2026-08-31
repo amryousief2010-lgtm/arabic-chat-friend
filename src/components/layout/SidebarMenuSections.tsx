@@ -190,7 +190,7 @@ export const moduleSections: ModuleSection[] = [
     id: "slaughterhouse",
     icon: Beef,
     label: "6. المجزر وإنتاج اللحوم",
-    roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'production_manager', 'quality_manager', 'slaughterhouse_custody_keeper', 'lab_treasury_approver'],
+    roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'production_manager', 'quality_manager', 'slaughterhouse_custody_keeper', 'lab_treasury_approver', 'financial_manager', 'main_treasury_accountant' as any, 'main_treasury_approver' as any],
     items: [
       { icon: Beef, label: "إدارة المجزر", path: "/modules/slaughterhouse", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'production_manager', 'quality_manager'] },
       { icon: Beef, label: "إذن ذبح النعام", path: "/modules/slaughterhouse/permit", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'production_manager', 'quality_manager'] },
