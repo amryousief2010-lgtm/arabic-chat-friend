@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { RecipientSelector } from "./RecipientSelector";
 import { toast } from "sonner";
 import { Paperclip, Send, Loader2, X } from "lucide-react";
