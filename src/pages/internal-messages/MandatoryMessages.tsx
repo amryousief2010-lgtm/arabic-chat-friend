@@ -65,7 +65,7 @@ const MandatoryMessages = () => {
         .eq("is_deleted", false);
       const list = msgs || [];
       if (list.length === 0) return [];
-      const senderIds = Array.from(new Set(list.map((m: any) => String(m.sender_id))));
+      const senderIds: string[] = Array.from(new Set<string>(list.map((m: any) => String(m.sender_id))));
       const { data: profiles } = await supabase.from("profile_directory").select("id, full_name").in("id", senderIds);
       const nameMap = new Map((profiles || []).map((p: any) => [p.id, p.full_name || "موظف"]));
       const repliedMap = new Map(rows.map((r: any) => [r.message_id, r.replied_at]));
@@ -101,7 +101,7 @@ const MandatoryMessages = () => {
         .from("internal_message_recipients")
         .select("message_id, recipient_id, read_at, replied_at")
         .in("message_id", list.map((m: any) => String(m.id)));
-      const ids = Array.from(new Set((recs || []).map((r: any) => String(r.recipient_id))));
+      const ids: string[] = Array.from(new Set<string>((recs || []).map((r: any) => String(r.recipient_id))));
       const { data: profiles } = ids.length
         ? await supabase.from("profile_directory").select("id, full_name").in("id", ids)
         : { data: [] as any[] };
