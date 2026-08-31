@@ -11,6 +11,7 @@ import MegaDiscrepancyAlert from "@/components/orders/MegaDiscrepancyAlert";
 import DuplicateApprovalsAlert from "@/components/orders/DuplicateApprovalsAlert";
 
 import UnreadMessagesBanner from "@/components/internal-messages/UnreadMessagesBanner";
+import MandatoryMessagesGate from "@/components/internal-messages/MandatoryMessagesGate";
 import { useOrderNotifications } from "@/hooks/useOrderNotifications";
 import { useDailyReminders } from "@/hooks/useDailyReminders";
 import { useInternalMessageRealtime } from "@/hooks/useInternalMessageRealtime";
@@ -115,6 +116,7 @@ const DashboardLayoutInner = ({ children }: DashboardLayoutProps) => {
           pullDistance={pullDistance}
           isRefreshing={isRefreshing}
         />
+        <MandatoryMessagesGate />
         <UnreadMessagesBanner />
         {children}
         
