@@ -8252,6 +8252,7 @@ export type Database = {
           message_id: string
           read_at: string | null
           recipient_id: string
+          replied_at: string | null
         }
         Insert: {
           archived_at?: string | null
@@ -8260,6 +8261,7 @@ export type Database = {
           message_id: string
           read_at?: string | null
           recipient_id: string
+          replied_at?: string | null
         }
         Update: {
           archived_at?: string | null
@@ -8268,6 +8270,7 @@ export type Database = {
           message_id?: string
           read_at?: string | null
           recipient_id?: string
+          replied_at?: string | null
         }
         Relationships: [
           {
@@ -8319,6 +8322,8 @@ export type Database = {
           id: string
           is_deleted: boolean
           priority: string
+          reply_due_at: string | null
+          requires_reply: boolean
           sender_id: string
           subject: string
           updated_at: string
@@ -8330,6 +8335,8 @@ export type Database = {
           id?: string
           is_deleted?: boolean
           priority?: string
+          reply_due_at?: string | null
+          requires_reply?: boolean
           sender_id: string
           subject: string
           updated_at?: string
@@ -8341,6 +8348,8 @@ export type Database = {
           id?: string
           is_deleted?: boolean
           priority?: string
+          reply_due_at?: string | null
+          requires_reply?: boolean
           sender_id?: string
           subject?: string
           updated_at?: string
@@ -21733,6 +21742,10 @@ export type Database = {
           p_source_table: string
           p_status: string
         }
+        Returns: string
+      }
+      im_send_reply: {
+        Args: { p_body: string; p_message_id: string }
         Returns: string
       }
       import_post_catalog: { Args: { p_run_id: string }; Returns: Json }
