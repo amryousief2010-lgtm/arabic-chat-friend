@@ -210,7 +210,16 @@ const MessageDetails = () => {
             variant="outline"
             size="sm"
             onClick={() => (myRow.archived_at ? unarchive.mutate() : archive.mutate())}
-            disabled={archive.isPending || unarchive.isPending}
+            disabled={
+              archive.isPending ||
+              unarchive.isPending ||
+              (!myRow.archived_at && message.requires_reply && !myRow.replied_at)
+            }
+            title={
+              !myRow.archived_at && message.requires_reply && !myRow.replied_at
+                ? "يجب إرسال رد قبل الأرشفة"
+                : undefined
+            }
           >
             <Archive className="w-4 h-4 ml-1" />
             {myRow.archived_at ? "إلغاء الأرشفة" : "أرشفة"}
@@ -222,21 +231,71 @@ const MessageDetails = () => {
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-lg">{message.subject}</CardTitle>
-            <PriorityBadge priority={message.priority} />
+            <div className="flex items-center gap-2">
+              {message.requires_reply && <Badge variant="destructive">يتطلب ردًا</Badge>}
+              <PriorityBadge priority={message.priority} />
+            </div>
           </div>
           <div className="text-sm text-muted-foreground">
             من: <span className="font-medium">{message.sender_name}</span> ·{" "}
             {format(new Date(message.created_at), "PPpp", { locale: ar })}
           </div>
-          <div className="text-xs text-muted-foreground flex flex-wrap gap-1">
-            إلى:
-            {recipients.map((r) => (
-              <Badge key={r.id} variant={r.read_at ? "secondary" : "outline"} className="gap-1">
-                {r.read_at ? <CheckCircle2 className="w-3 h-3 text-green-600" /> : <Circle className="w-3 h-3" />}
-                {r.recipient_name}
-              </Badge>
-            ))}
-          </div>
+          {message.reply_due_at && (
+            <div className="text-xs text-muted-foreground">
+              آخر موعد للرد: {format(new Date(message.reply_due_at), "PPp", { locale: ar })}
+            </div>
+          )}
+          {isSender ? (
+            <div className="space-y-2 pt-2">
+              <div className="flex flex-wrap gap-2 text-xs">
+                <Badge variant="outline">المستلمون: {stats.total}</Badge>
+                <Badge variant="outline">قرأوا: {stats.read}</Badge>
+                <Badge variant="secondary">ردوا: {stats.replied}</Badge>
+                <Badge variant="outline">بانتظار الرد: {stats.pending}</Badge>
+                {stats.overdue > 0 && <Badge variant="destructive">متأخرون: {stats.overdue}</Badge>}
+              </div>
+              <div className="rounded-lg border divide-y">
+                {recipients.map((r) => {
+                  const late =
+                    message.requires_reply && !r.replied_at && message.reply_due_at
+                      ? new Date(message.reply_due_at) < new Date()
+                      : false;
+                  return (
+                    <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 p-2 text-xs">
+                      <span className="font-medium text-foreground">{r.recipient_name}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={r.read_at ? "secondary" : "outline"} className="gap-1">
+                          {r.read_at ? <CheckCircle2 className="w-3 h-3 text-green-600" /> : <Circle className="w-3 h-3" />}
+                          {r.read_at ? `قرأ · ${format(new Date(r.read_at), "PPp", { locale: ar })}` : "لم يفتح"}
+                        </Badge>
+                        {message.requires_reply && (
+                          <Badge variant={r.replied_at ? "secondary" : late ? "destructive" : "outline"}>
+                            {r.replied_at
+                              ? `تم الرد · ${format(new Date(r.replied_at), "PPp", { locale: ar })}`
+                              : late
+                                ? "متأخر عن الرد"
+                                : r.read_at
+                                  ? "قرأ ولم يرد"
+                                  : "لم يرد"}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="text-xs text-muted-foreground flex flex-wrap gap-1">
+              إلى:
+              {recipients.map((r) => (
+                <Badge key={r.id} variant={r.read_at ? "secondary" : "outline"} className="gap-1">
+                  {r.read_at ? <CheckCircle2 className="w-3 h-3 text-green-600" /> : <Circle className="w-3 h-3" />}
+                  {r.recipient_name}
+                </Badge>
+              ))}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <p className="whitespace-pre-wrap leading-relaxed">{message.body}</p>
