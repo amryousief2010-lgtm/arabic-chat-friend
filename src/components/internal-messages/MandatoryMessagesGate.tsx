@@ -69,7 +69,8 @@ const MandatoryMessagesGate = () => {
       const list = msgs || [];
       if (list.length === 0) return [];
 
-      const senderIds = Array.from(new Set(list.map((m: any) => m.sender_id as string)));
+      const senderIds: string[] = Array.from(new Set(list.map((m: any) => String(m.sender_id))));
+      const msgIds: string[] = list.map((m: any) => String(m.id));
       const [{ data: profiles }, { data: atts }] = await Promise.all([
         supabase.from("profile_directory").select("id, full_name").in("id", senderIds),
         (supabase as any)
