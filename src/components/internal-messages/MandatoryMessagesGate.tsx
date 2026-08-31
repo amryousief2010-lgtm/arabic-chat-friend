@@ -76,7 +76,7 @@ const MandatoryMessagesGate = () => {
         (supabase as any)
           .from("internal_message_attachments")
           .select("id, message_id, file_url, file_name, file_type")
-          .in("message_id", list.map((m: any) => m.id)),
+          .in("message_id", msgIds),
       ]);
       const nameMap = new Map((profiles || []).map((p: any) => [p.id, p.full_name || "موظف"]));
       const attMap = new Map<string, Attachment[]>();
