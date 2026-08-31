@@ -133,6 +133,26 @@ export const ComposeMessageDialog = ({ open, onOpenChange }: Props) => {
               </SelectContent>
             </Select>
           </div>
+          {isGeneralManager && (
+            <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="requires-reply" className="cursor-pointer">
+                  يتطلب ردًا من الموظف
+                </Label>
+                <Switch id="requires-reply" checked={requiresReply} onCheckedChange={setRequiresReply} />
+              </div>
+              {requiresReply && (
+                <div>
+                  <Label className="mb-1.5 block text-sm">آخر موعد للرد (اختياري)</Label>
+                  <Input
+                    type="datetime-local"
+                    value={replyDueAt}
+                    onChange={(e) => setReplyDueAt(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
           <div>
             <Label className="mb-1.5 block">نص الرسالة</Label>
             <Textarea
