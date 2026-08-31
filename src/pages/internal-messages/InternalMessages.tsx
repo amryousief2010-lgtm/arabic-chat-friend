@@ -9,9 +9,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Paperclip, Plus, Inbox, Send as SendIcon, Archive, Mail, MailOpen } from "lucide-react";
+import { Paperclip, Plus, Inbox, Send as SendIcon, Archive, Mail, MailOpen, AlertTriangle } from "lucide-react";
 import { PriorityBadge, MessagePriority } from "@/components/internal-messages/PriorityBadge";
 import { ComposeMessageDialog } from "@/components/internal-messages/ComposeMessageDialog";
+import { useMandatoryMessages } from "@/hooks/useMandatoryMessages";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -55,6 +56,7 @@ const InternalMessages = () => {
     ["all", "unread", "important", "urgent"].includes(initialFilter) ? initialFilter : "all",
   );
   const [compose, setCompose] = useState(false);
+  const { pendingCount: mandatoryPending } = useMandatoryMessages();
 
   useEffect(() => {
     const f = searchParams.get("filter") as Filter | null;
