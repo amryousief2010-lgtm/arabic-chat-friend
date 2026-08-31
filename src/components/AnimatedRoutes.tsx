@@ -407,6 +407,12 @@ const AnimatedRoutes = () => {
               <PageTransition><InternalMessageDetails /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/mandatory-messages" element={
+            <ProtectedRoute>
+              <PageTransition><MandatoryMessages /></PageTransition>
+            </ProtectedRoute>
+          } />
+
 
           <Route path="/social-media/daily" element={
             <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager', 'marketing_sales_viewer']}>
