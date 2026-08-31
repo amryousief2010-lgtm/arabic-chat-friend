@@ -5,16 +5,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { useQueryClient } from '@tanstack/react-query';
 
-const managerRoles = ['general_manager', 'executive_manager', 'sales_manager'];
-
-const statusLabels: Record<string, string> = {
-  pending: 'قيد الانتظار',
-  processing: 'قيد التجهيز',
-  ready: 'جاهز للتسليم',
-  delivered: 'تم التسليم',
-  cancelled: 'ملغي',
-};
-
 // Create notification sound using Web Audio API
 const playNotificationSound = () => {
   try {
