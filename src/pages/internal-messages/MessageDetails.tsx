@@ -25,6 +25,8 @@ interface MessageData {
   created_at: string;
   sender_id: string;
   sender_name: string;
+  requires_reply: boolean;
+  reply_due_at: string | null;
 }
 interface RecipientData {
   id: string;
@@ -32,6 +34,7 @@ interface RecipientData {
   recipient_name: string;
   read_at: string | null;
   archived_at: string | null;
+  replied_at: string | null;
 }
 interface AttachmentData {
   id: string;
@@ -60,13 +63,13 @@ const MessageDetails = () => {
     queryFn: async () => {
       const { data: m } = await (supabase as any)
         .from("internal_messages")
-        .select("id, subject, body, priority, has_attachments, created_at, sender_id")
+        .select("id, subject, body, priority, has_attachments, created_at, sender_id, requires_reply, reply_due_at")
         .eq("id", messageId)
         .maybeSingle();
       if (!m) throw new Error("الرسالة غير موجودة أو لا تملك صلاحية الوصول");
 
       const [{ data: recs }, { data: atts }, { data: reps }] = await Promise.all([
-        (supabase as any).from("internal_message_recipients").select("id, recipient_id, read_at, archived_at").eq("message_id", messageId),
+        (supabase as any).from("internal_message_recipients").select("id, recipient_id, read_at, archived_at, replied_at").eq("message_id", messageId),
         (supabase as any).from("internal_message_attachments").select("id, file_url, file_name, file_type").eq("message_id", messageId),
         (supabase as any).from("internal_message_replies").select("id, sender_id, body, created_at").eq("message_id", messageId).order("created_at"),
       ]);
@@ -120,6 +123,9 @@ const MessageDetails = () => {
   const archive = useMutation({
     mutationFn: async () => {
       if (!myRow) return;
+      if (q.data?.message.requires_reply && !myRow.replied_at) {
+        throw new Error("يجب إرسال رد قبل أرشفة هذه الرسالة");
+      }
       const { error } = await (supabase as any)
         .from("internal_message_recipients")
         .update({ archived_at: new Date().toISOString() })
@@ -156,16 +162,21 @@ const MessageDetails = () => {
   const sendReply = useMutation({
     mutationFn: async () => {
       if (!replyText.trim()) throw new Error("اكتب رد");
-      const { error } = await (supabase as any).from("internal_message_replies").insert({
-        message_id: messageId,
-        sender_id: user!.id,
-        body: replyText.trim(),
+      const { error } = await (supabase as any).rpc("im_send_reply", {
+        p_message_id: messageId,
+        p_body: replyText.trim(),
       });
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes("empty_reply_not_allowed")) throw new Error("لا يمكن إرسال رد فارغ");
+        if (error.message?.includes("not_a_participant")) throw new Error("لا تملك صلاحية الرد على هذه الرسالة");
+        throw new Error("تعذر إرسال الرد، تحقق من الاتصال ثم أعد المحاولة");
+      }
     },
     onSuccess: () => {
       setReplyText("");
       qc.invalidateQueries({ queryKey: ["internal-message", messageId] });
+      qc.invalidateQueries({ queryKey: ["internal-messages"] });
+      qc.invalidateQueries({ queryKey: ["mandatory-internal-messages"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
