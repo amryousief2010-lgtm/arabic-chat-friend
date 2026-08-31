@@ -590,6 +590,11 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
                             {approvalsCount > 99 ? "99+" : approvalsCount}
                           </Badge>
                         )}
+                        {showMandatoryBadge && (
+                          <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs animate-pulse">
+                            {mandatoryPending > 99 ? "99+" : mandatoryPending}
+                          </Badge>
+                        )}
                       </Link>
                     );
                   };
