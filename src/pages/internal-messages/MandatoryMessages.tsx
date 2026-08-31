@@ -60,7 +60,7 @@ const MandatoryMessages = () => {
       const { data: msgs } = await (supabase as any)
         .from("internal_messages")
         .select("id, subject, body, priority, created_at, reply_due_at, sender_id")
-        .in("id", rows.map((r: any) => r.message_id))
+        .in("id", rows.map((r: any) => String(r.message_id)))
         .eq("requires_reply", true)
         .eq("is_deleted", false);
       const list = msgs || [];
@@ -100,7 +100,7 @@ const MandatoryMessages = () => {
       const { data: recs } = await (supabase as any)
         .from("internal_message_recipients")
         .select("message_id, recipient_id, read_at, replied_at")
-        .in("message_id", list.map((m: any) => m.id));
+        .in("message_id", list.map((m: any) => String(m.id)));
       const ids = Array.from(new Set((recs || []).map((r: any) => String(r.recipient_id))));
       const { data: profiles } = ids.length
         ? await supabase.from("profile_directory").select("id, full_name").in("id", ids)
