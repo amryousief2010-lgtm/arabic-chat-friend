@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { RecipientSelector } from "./RecipientSelector";
 import { toast } from "sonner";
 import { Paperclip, Send, Loader2, X } from "lucide-react";
@@ -19,13 +20,15 @@ interface Props {
 }
 
 export const ComposeMessageDialog = ({ open, onOpenChange }: Props) => {
-  const { user } = useAuth();
+  const { user, isGeneralManager } = useAuth();
   const qc = useQueryClient();
   const [recipients, setRecipients] = useState<string[]>([]);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [priority, setPriority] = useState<MessagePriority>("normal");
   const [files, setFiles] = useState<File[]>([]);
+  const [requiresReply, setRequiresReply] = useState(true);
+  const [replyDueAt, setReplyDueAt] = useState("");
 
   const reset = () => {
     setRecipients([]);
@@ -33,6 +36,8 @@ export const ComposeMessageDialog = ({ open, onOpenChange }: Props) => {
     setBody("");
     setPriority("normal");
     setFiles([]);
+    setRequiresReply(true);
+    setReplyDueAt("");
   };
 
   const send = useMutation({
@@ -41,6 +46,8 @@ export const ComposeMessageDialog = ({ open, onOpenChange }: Props) => {
       if (recipients.length === 0) throw new Error("اختر مستلمًا واحدًا على الأقل");
       if (!subject.trim()) throw new Error("العنوان مطلوب");
       if (!body.trim()) throw new Error("نص الرسالة مطلوب");
+
+      const mandatory = isGeneralManager && requiresReply;
 
       // 1) insert message
       const { data: msg, error: msgErr } = await (supabase as any)
@@ -51,6 +58,8 @@ export const ComposeMessageDialog = ({ open, onOpenChange }: Props) => {
           body: body.trim(),
           priority,
           has_attachments: files.length > 0,
+          requires_reply: mandatory,
+          reply_due_at: mandatory && replyDueAt ? new Date(replyDueAt).toISOString() : null,
         })
         .select("id")
         .single();
@@ -125,6 +134,26 @@ export const ComposeMessageDialog = ({ open, onOpenChange }: Props) => {
               </SelectContent>
             </Select>
           </div>
+          {isGeneralManager && (
+            <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="requires-reply" className="cursor-pointer">
+                  يتطلب ردًا من الموظف
+                </Label>
+                <Switch id="requires-reply" checked={requiresReply} onCheckedChange={setRequiresReply} />
+              </div>
+              {requiresReply && (
+                <div>
+                  <Label className="mb-1.5 block text-sm">آخر موعد للرد (اختياري)</Label>
+                  <Input
+                    type="datetime-local"
+                    value={replyDueAt}
+                    onChange={(e) => setReplyDueAt(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
           <div>
             <Label className="mb-1.5 block">نص الرسالة</Label>
             <Textarea

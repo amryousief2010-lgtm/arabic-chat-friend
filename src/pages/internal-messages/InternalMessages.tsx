@@ -39,7 +39,9 @@ interface SentRow {
   priority: MessagePriority;
   has_attachments: boolean;
   created_at: string;
-  recipients: { recipient_id: string; recipient_name: string; read_at: string | null }[];
+  requires_reply?: boolean;
+  reply_due_at?: string | null;
+  recipients: { recipient_id: string; recipient_name: string; read_at: string | null; replied_at: string | null }[];
 }
 
 const InternalMessages = () => {
@@ -133,7 +135,7 @@ const InternalMessages = () => {
     queryFn: async (): Promise<SentRow[]> => {
       const { data: msgs } = await (supabase as any)
         .from("internal_messages")
-        .select("id, subject, body, priority, has_attachments, created_at")
+        .select("id, subject, body, priority, has_attachments, created_at, requires_reply, reply_due_at")
         .eq("sender_id", user!.id)
         .eq("is_deleted", false)
         .order("created_at", { ascending: false });
@@ -142,7 +144,7 @@ const InternalMessages = () => {
       const ids = rows.map((m: any) => m.id);
       const { data: recs } = await (supabase as any)
         .from("internal_message_recipients")
-        .select("message_id, recipient_id, read_at")
+        .select("message_id, recipient_id, read_at, replied_at")
         .in("message_id", ids);
       const recipientIds = Array.from(new Set((recs || []).map((r: any) => r.recipient_id as string))) as string[];
       const { data: profiles } = recipientIds.length
@@ -152,7 +154,7 @@ const InternalMessages = () => {
       const byMsg = new Map<string, SentRow["recipients"]>();
       (recs || []).forEach((r: any) => {
         const list = byMsg.get(r.message_id) || [];
-        list.push({ recipient_id: r.recipient_id, recipient_name: nameMap.get(r.recipient_id) || "موظف", read_at: r.read_at });
+        list.push({ recipient_id: r.recipient_id, recipient_name: nameMap.get(r.recipient_id) || "موظف", read_at: r.read_at, replied_at: r.replied_at });
         byMsg.set(r.message_id, list);
       });
       return rows.map((m: any) => ({ ...m, recipients: byMsg.get(m.id) || [] }));
@@ -274,6 +276,8 @@ const MessageListSent = ({ rows, onOpen, loading }: { rows: SentRow[]; onOpen: (
     <div className="space-y-2">
       {rows.map((m) => {
         const readCount = m.recipients.filter((r) => r.read_at).length;
+        const repliedCount = m.recipients.filter((r) => r.replied_at).length;
+        const overdue = !!m.requires_reply && !!m.reply_due_at && new Date(m.reply_due_at) < new Date() && repliedCount < m.recipients.length;
         return (
           <Card key={m.id} className="glass-card cursor-pointer hover:shadow-md transition" onClick={() => onOpen(m.id)}>
             <CardContent className="p-4">
@@ -290,6 +294,14 @@ const MessageListSent = ({ rows, onOpen, loading }: { rows: SentRow[]; onOpen: (
                   <Badge variant="outline" className="text-xs">
                     قرأها {readCount} من {m.recipients.length}
                   </Badge>
+                  {m.requires_reply && (
+                    <>
+                      <Badge variant="secondary" className="text-xs">
+                        رد {repliedCount} من {m.recipients.length}
+                      </Badge>
+                      {overdue && <Badge variant="destructive" className="text-xs">متأخرون عن الرد</Badge>}
+                    </>
+                  )}
                   {m.has_attachments && <Paperclip className="w-4 h-4 text-muted-foreground" />}
                   <div className="text-xs text-muted-foreground">
                     {formatDistanceToNow(new Date(m.created_at), { addSuffix: true, locale: ar })}

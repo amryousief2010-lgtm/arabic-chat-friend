@@ -25,6 +25,8 @@ interface MessageData {
   created_at: string;
   sender_id: string;
   sender_name: string;
+  requires_reply: boolean;
+  reply_due_at: string | null;
 }
 interface RecipientData {
   id: string;
@@ -32,6 +34,7 @@ interface RecipientData {
   recipient_name: string;
   read_at: string | null;
   archived_at: string | null;
+  replied_at: string | null;
 }
 interface AttachmentData {
   id: string;
@@ -60,13 +63,13 @@ const MessageDetails = () => {
     queryFn: async () => {
       const { data: m } = await (supabase as any)
         .from("internal_messages")
-        .select("id, subject, body, priority, has_attachments, created_at, sender_id")
+        .select("id, subject, body, priority, has_attachments, created_at, sender_id, requires_reply, reply_due_at")
         .eq("id", messageId)
         .maybeSingle();
       if (!m) throw new Error("الرسالة غير موجودة أو لا تملك صلاحية الوصول");
 
       const [{ data: recs }, { data: atts }, { data: reps }] = await Promise.all([
-        (supabase as any).from("internal_message_recipients").select("id, recipient_id, read_at, archived_at").eq("message_id", messageId),
+        (supabase as any).from("internal_message_recipients").select("id, recipient_id, read_at, archived_at, replied_at").eq("message_id", messageId),
         (supabase as any).from("internal_message_attachments").select("id, file_url, file_name, file_type").eq("message_id", messageId),
         (supabase as any).from("internal_message_replies").select("id, sender_id, body, created_at").eq("message_id", messageId).order("created_at"),
       ]);
@@ -120,6 +123,9 @@ const MessageDetails = () => {
   const archive = useMutation({
     mutationFn: async () => {
       if (!myRow) return;
+      if (q.data?.message.requires_reply && !myRow.replied_at) {
+        throw new Error("يجب إرسال رد قبل أرشفة هذه الرسالة");
+      }
       const { error } = await (supabase as any)
         .from("internal_message_recipients")
         .update({ archived_at: new Date().toISOString() })
@@ -156,16 +162,21 @@ const MessageDetails = () => {
   const sendReply = useMutation({
     mutationFn: async () => {
       if (!replyText.trim()) throw new Error("اكتب رد");
-      const { error } = await (supabase as any).from("internal_message_replies").insert({
-        message_id: messageId,
-        sender_id: user!.id,
-        body: replyText.trim(),
+      const { error } = await (supabase as any).rpc("im_send_reply", {
+        p_message_id: messageId,
+        p_body: replyText.trim(),
       });
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes("empty_reply_not_allowed")) throw new Error("لا يمكن إرسال رد فارغ");
+        if (error.message?.includes("not_a_participant")) throw new Error("لا تملك صلاحية الرد على هذه الرسالة");
+        throw new Error("تعذر إرسال الرد، تحقق من الاتصال ثم أعد المحاولة");
+      }
     },
     onSuccess: () => {
       setReplyText("");
       qc.invalidateQueries({ queryKey: ["internal-message", messageId] });
+      qc.invalidateQueries({ queryKey: ["internal-messages"] });
+      qc.invalidateQueries({ queryKey: ["mandatory-internal-messages"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -185,6 +196,18 @@ const MessageDetails = () => {
   }
 
   const { message, recipients, attachments, replies } = q.data;
+  const isSender = message.sender_id === user?.id;
+  const dueDate = message.reply_due_at ? new Date(message.reply_due_at) : null;
+  const stats = {
+    total: recipients.length,
+    read: recipients.filter((r) => !!r.read_at).length,
+    replied: recipients.filter((r) => !!r.replied_at).length,
+    pending: recipients.filter((r) => !r.replied_at).length,
+    overdue:
+      message.requires_reply && dueDate && dueDate < new Date()
+        ? recipients.filter((r) => !r.replied_at).length
+        : 0,
+  };
 
   return (
     <DashboardLayout>
@@ -199,7 +222,16 @@ const MessageDetails = () => {
             variant="outline"
             size="sm"
             onClick={() => (myRow.archived_at ? unarchive.mutate() : archive.mutate())}
-            disabled={archive.isPending || unarchive.isPending}
+            disabled={
+              archive.isPending ||
+              unarchive.isPending ||
+              (!myRow.archived_at && message.requires_reply && !myRow.replied_at)
+            }
+            title={
+              !myRow.archived_at && message.requires_reply && !myRow.replied_at
+                ? "يجب إرسال رد قبل الأرشفة"
+                : undefined
+            }
           >
             <Archive className="w-4 h-4 ml-1" />
             {myRow.archived_at ? "إلغاء الأرشفة" : "أرشفة"}
@@ -211,21 +243,71 @@ const MessageDetails = () => {
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-lg">{message.subject}</CardTitle>
-            <PriorityBadge priority={message.priority} />
+            <div className="flex items-center gap-2">
+              {message.requires_reply && <Badge variant="destructive">يتطلب ردًا</Badge>}
+              <PriorityBadge priority={message.priority} />
+            </div>
           </div>
           <div className="text-sm text-muted-foreground">
             من: <span className="font-medium">{message.sender_name}</span> ·{" "}
             {format(new Date(message.created_at), "PPpp", { locale: ar })}
           </div>
-          <div className="text-xs text-muted-foreground flex flex-wrap gap-1">
-            إلى:
-            {recipients.map((r) => (
-              <Badge key={r.id} variant={r.read_at ? "secondary" : "outline"} className="gap-1">
-                {r.read_at ? <CheckCircle2 className="w-3 h-3 text-green-600" /> : <Circle className="w-3 h-3" />}
-                {r.recipient_name}
-              </Badge>
-            ))}
-          </div>
+          {message.reply_due_at && (
+            <div className="text-xs text-muted-foreground">
+              آخر موعد للرد: {format(new Date(message.reply_due_at), "PPp", { locale: ar })}
+            </div>
+          )}
+          {isSender ? (
+            <div className="space-y-2 pt-2">
+              <div className="flex flex-wrap gap-2 text-xs">
+                <Badge variant="outline">المستلمون: {stats.total}</Badge>
+                <Badge variant="outline">قرأوا: {stats.read}</Badge>
+                <Badge variant="secondary">ردوا: {stats.replied}</Badge>
+                <Badge variant="outline">بانتظار الرد: {stats.pending}</Badge>
+                {stats.overdue > 0 && <Badge variant="destructive">متأخرون: {stats.overdue}</Badge>}
+              </div>
+              <div className="rounded-lg border divide-y">
+                {recipients.map((r) => {
+                  const late =
+                    message.requires_reply && !r.replied_at && message.reply_due_at
+                      ? new Date(message.reply_due_at) < new Date()
+                      : false;
+                  return (
+                    <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 p-2 text-xs">
+                      <span className="font-medium text-foreground">{r.recipient_name}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={r.read_at ? "secondary" : "outline"} className="gap-1">
+                          {r.read_at ? <CheckCircle2 className="w-3 h-3 text-green-600" /> : <Circle className="w-3 h-3" />}
+                          {r.read_at ? `قرأ · ${format(new Date(r.read_at), "PPp", { locale: ar })}` : "لم يفتح"}
+                        </Badge>
+                        {message.requires_reply && (
+                          <Badge variant={r.replied_at ? "secondary" : late ? "destructive" : "outline"}>
+                            {r.replied_at
+                              ? `تم الرد · ${format(new Date(r.replied_at), "PPp", { locale: ar })}`
+                              : late
+                                ? "متأخر عن الرد"
+                                : r.read_at
+                                  ? "قرأ ولم يرد"
+                                  : "لم يرد"}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="text-xs text-muted-foreground flex flex-wrap gap-1">
+              إلى:
+              {recipients.map((r) => (
+                <Badge key={r.id} variant={r.read_at ? "secondary" : "outline"} className="gap-1">
+                  {r.read_at ? <CheckCircle2 className="w-3 h-3 text-green-600" /> : <Circle className="w-3 h-3" />}
+                  {r.recipient_name}
+                </Badge>
+              ))}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <p className="whitespace-pre-wrap leading-relaxed">{message.body}</p>
