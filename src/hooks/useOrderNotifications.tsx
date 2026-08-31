@@ -39,103 +39,53 @@ const playNotificationSound = () => {
   }
 };
 
+/**
+ * In-app order notifications.
+ *
+ * Notification rows are now created by the database trigger
+ * `trg_notify_order_lifecycle_*`, so the client only listens and surfaces them
+ * (toast + sound). RLS makes sure each user only receives the rows they may see,
+ * which also removes the duplicate inserts we had when several managers were
+ * online at the same time.
+ */
 export const useOrderNotifications = () => {
   const { toast } = useToast();
-  const { user, role } = useAuth();
+  const { user } = useAuth();
   const { settings } = useNotificationSettings();
   const queryClient = useQueryClient();
-  const isManager = role ? managerRoles.includes(role) : false;
 
   useEffect(() => {
     if (!user) return;
 
-    console.log('Setting up order notifications...');
-
     const channel = supabase
-      .channel('orders-realtime')
+      .channel('order-notifications-inapp')
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'orders',
-        },
-        async (payload) => {
-          console.log('New order created:', payload);
-          const newOrder = payload.new as { id: string; order_number: string; total: number };
-          
-          const title = '🆕 طلب جديد';
-          const description = `تم إنشاء الطلب ${newOrder.order_number} بقيمة ${newOrder.total} ر.س`;
-          
-          // Save notification to database (only managers can insert)
-          if (isManager) {
-            await supabase.from('notifications').insert({
-              title,
-              description,
-              type: 'new_order',
-              order_id: newOrder.id,
-            });
-          }
-          
-          // Invalidate notifications query
+        { event: 'INSERT', schema: 'public', table: 'notifications' },
+        (payload) => {
+          const row = payload.new as {
+            title: string;
+            description: string;
+            type: string | null;
+            order_id: string | null;
+          };
+
+          if (row.type !== 'new_order' && row.type !== 'status_update') return;
+
           queryClient.invalidateQueries({ queryKey: ['notifications'] });
           queryClient.invalidateQueries({ queryKey: ['unread-notifications'] });
-          
-          // Play notification sound if enabled
-          if (settings.soundEnabled) {
-            playNotificationSound();
-          }
-          
-          toast({ title, description });
+          queryClient.invalidateQueries({ queryKey: ['orders'] });
+
+          if (settings.soundEnabled) playNotificationSound();
+
+          toast({ title: row.title, description: row.description });
         }
       )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-        },
-        async (payload) => {
-          console.log('Order updated:', payload);
-          const oldOrder = payload.old as { status: string };
-          const updatedOrder = payload.new as { id: string; order_number: string; status: string };
-          
-          if (oldOrder.status !== updatedOrder.status) {
-            const newStatusLabel = statusLabels[updatedOrder.status] || updatedOrder.status;
-            const title = '📦 تحديث حالة الطلب';
-            const description = `الطلب ${updatedOrder.order_number} أصبح: ${newStatusLabel}`;
-            
-            // Save notification to database (only managers can insert)
-            if (isManager) {
-              await supabase.from('notifications').insert({
-                title,
-                description,
-                type: 'status_update',
-                order_id: updatedOrder.id,
-              });
-            }
-            
-            // Invalidate notifications query
-            queryClient.invalidateQueries({ queryKey: ['notifications'] });
-            queryClient.invalidateQueries({ queryKey: ['unread-notifications'] });
-            
-            // Play notification sound if enabled
-            if (settings.soundEnabled) {
-              playNotificationSound();
-            }
-            
-            toast({ title, description });
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log('Subscription status:', status);
-      });
+      .subscribe();
 
     return () => {
-      console.log('Cleaning up order notifications...');
       supabase.removeChannel(channel);
     };
-  }, [user, toast, settings.soundEnabled, queryClient, isManager]);
+  }, [user, toast, settings.soundEnabled, queryClient]);
 };
+
