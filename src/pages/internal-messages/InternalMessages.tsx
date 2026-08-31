@@ -9,9 +9,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Paperclip, Plus, Inbox, Send as SendIcon, Archive, Mail, MailOpen } from "lucide-react";
+import { Paperclip, Plus, Inbox, Send as SendIcon, Archive, Mail, MailOpen, AlertTriangle } from "lucide-react";
 import { PriorityBadge, MessagePriority } from "@/components/internal-messages/PriorityBadge";
 import { ComposeMessageDialog } from "@/components/internal-messages/ComposeMessageDialog";
+import { useMandatoryMessages } from "@/hooks/useMandatoryMessages";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -55,6 +56,7 @@ const InternalMessages = () => {
     ["all", "unread", "important", "urgent"].includes(initialFilter) ? initialFilter : "all",
   );
   const [compose, setCompose] = useState(false);
+  const { pendingCount: mandatoryPending } = useMandatoryMessages();
 
   useEffect(() => {
     const f = searchParams.get("filter") as Filter | null;
@@ -177,8 +179,17 @@ const InternalMessages = () => {
     <DashboardLayout>
       <Header title="الرسائل الداخلية" subtitle="رسائل خاصة بين موظفي التطبيق" />
 
-      <div className="flex items-center justify-between mb-4">
-        <div />
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+        <Button
+          variant={mandatoryPending > 0 ? "destructive" : "outline"}
+          className="gap-2"
+          onClick={() => navigate("/mandatory-messages")}
+        >
+          <AlertTriangle className="w-4 h-4" /> الرسائل الإلزامية
+          {mandatoryPending > 0 && (
+            <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-xs">{mandatoryPending}</Badge>
+          )}
+        </Button>
         <Button onClick={() => setCompose(true)} className="gap-2">
           <Plus className="w-4 h-4" /> إنشاء رسالة جديدة
         </Button>

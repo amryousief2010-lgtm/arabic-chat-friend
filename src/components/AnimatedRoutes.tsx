@@ -222,6 +222,7 @@ const PCCollections = lazy(() => import("@/pages/private-courier/Collections"));
 const AiOperationsAssistant = lazy(() => import("@/pages/AiOperationsAssistant"));
 const InternalMessages = lazy(() => import("@/pages/internal-messages/InternalMessages"));
 const InternalMessageDetails = lazy(() => import("@/pages/internal-messages/MessageDetails"));
+const MandatoryMessages = lazy(() => import("@/pages/internal-messages/MandatoryMessages"));
 const SocialMediaDailyReport = lazy(() => import("@/pages/social-media/SocialMediaDailyReport"));
 const SocialMediaWeeklyReport = lazy(() => import("@/pages/social-media/SocialMediaWeeklyReport"));
 const SocialMediaMyReports = lazy(() => import("@/pages/social-media/SocialMediaMyReports"));
@@ -407,6 +408,12 @@ const AnimatedRoutes = () => {
               <PageTransition><InternalMessageDetails /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/mandatory-messages" element={
+            <ProtectedRoute>
+              <PageTransition><MandatoryMessages /></PageTransition>
+            </ProtectedRoute>
+          } />
+
 
           <Route path="/social-media/daily" element={
             <ProtectedRoute allowedRoles={['general_manager','executive_manager','marketing_sales_manager','social_media_manager', 'marketing_sales_viewer']}>

@@ -58,6 +58,7 @@ import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 import { useLabTreasuryApprovals } from "@/hooks/useLabTreasuryApprovals";
 import { useExecutiveApprovals } from "@/hooks/useExecutiveApprovals";
 import { useUnreadInternalMessages } from "@/hooks/useUnreadInternalMessages";
+import { useMandatoryMessages } from "@/hooks/useMandatoryMessages";
 import { findModeratorByName } from "@/constants/moderators";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -109,6 +110,7 @@ export const moduleSections: ModuleSection[] = [
     roles: ['general_manager','executive_manager','sales_manager','sales_moderator','accountant','warehouse_supervisor','farm_manager','hatchery_manager','brooding_manager','slaughterhouse_manager','meat_factory_manager','feed_factory_manager','hr_manager','production_manager','marketing_sales_manager','financial_manager','quality_manager','shipping_company','private_delivery_rep','agouza_warehouse_keeper','brooding_dashboard_viewer','lab_treasury_keeper','lab_external_collector','lab_treasury_approver','slaughterhouse_custody_keeper','marketing_sales_viewer','lab_treasury_viewer'],
     items: [
       { icon: Mail, label: "الرسائل الداخلية", path: "/internal-messages", roles: ['general_manager','executive_manager','sales_manager','sales_moderator','accountant','warehouse_supervisor','farm_manager','hatchery_manager','brooding_manager','slaughterhouse_manager','meat_factory_manager','feed_factory_manager','hr_manager','production_manager','marketing_sales_manager','financial_manager','quality_manager','shipping_company','private_delivery_rep','agouza_warehouse_keeper','brooding_dashboard_viewer','lab_treasury_keeper','lab_external_collector','lab_treasury_approver','slaughterhouse_custody_keeper','marketing_sales_viewer','lab_treasury_viewer'] },
+      { icon: AlertTriangle, label: "الرسائل الإلزامية", path: "/mandatory-messages", roles: ['general_manager','executive_manager','sales_manager','sales_moderator','accountant','warehouse_supervisor','farm_manager','hatchery_manager','brooding_manager','slaughterhouse_manager','meat_factory_manager','feed_factory_manager','hr_manager','production_manager','marketing_sales_manager','financial_manager','quality_manager','shipping_company','private_delivery_rep','agouza_warehouse_keeper','brooding_dashboard_viewer','lab_treasury_keeper','lab_external_collector','lab_treasury_approver','slaughterhouse_custody_keeper','marketing_sales_viewer','lab_treasury_viewer'] },
     ],
   },
   {
@@ -337,6 +339,7 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
   const { unreadCount } = useUnreadNotifications();
   const { total: labApprovalsCount } = useLabTreasuryApprovals();
   const { unreadCount: unreadInternalMessages } = useUnreadInternalMessages();
+  const { pendingCount: mandatoryPending } = useMandatoryMessages();
   const { counts: approvalsCounts } = useExecutiveApprovals();
   const approvalsCount = approvalsCounts.all;
   // Sales moderators now use the same /orders page as managers (RLS scopes
@@ -553,6 +556,7 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
                     const showLabBadge = item.path === "/lab-treasury" && labApprovalsCount > 0;
                     const showInternalMsgBadge = item.path === "/internal-messages" && unreadInternalMessages > 0;
                     const showApprovalsBadge = item.path === "/approvals-center" && approvalsCount > 0;
+                    const showMandatoryBadge = item.path === "/mandatory-messages" && mandatoryPending > 0;
                     return (
                       <Link
                         key={item.path + item.label}
@@ -584,6 +588,11 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
                         {showApprovalsBadge && (
                           <Badge className="h-5 min-w-5 px-1.5 text-xs bg-purple-600 hover:bg-purple-700">
                             {approvalsCount > 99 ? "99+" : approvalsCount}
+                          </Badge>
+                        )}
+                        {showMandatoryBadge && (
+                          <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs animate-pulse">
+                            {mandatoryPending > 99 ? "99+" : mandatoryPending}
                           </Badge>
                         )}
                       </Link>
