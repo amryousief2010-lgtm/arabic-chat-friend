@@ -58,6 +58,7 @@ import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 import { useLabTreasuryApprovals } from "@/hooks/useLabTreasuryApprovals";
 import { useExecutiveApprovals } from "@/hooks/useExecutiveApprovals";
 import { useUnreadInternalMessages } from "@/hooks/useUnreadInternalMessages";
+import { useMandatoryMessages } from "@/hooks/useMandatoryMessages";
 import { findModeratorByName } from "@/constants/moderators";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -338,6 +339,7 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
   const { unreadCount } = useUnreadNotifications();
   const { total: labApprovalsCount } = useLabTreasuryApprovals();
   const { unreadCount: unreadInternalMessages } = useUnreadInternalMessages();
+  const { pendingCount: mandatoryPending } = useMandatoryMessages();
   const { counts: approvalsCounts } = useExecutiveApprovals();
   const approvalsCount = approvalsCounts.all;
   // Sales moderators now use the same /orders page as managers (RLS scopes
