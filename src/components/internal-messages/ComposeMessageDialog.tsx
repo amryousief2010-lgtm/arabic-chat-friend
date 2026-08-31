@@ -19,13 +19,15 @@ interface Props {
 }
 
 export const ComposeMessageDialog = ({ open, onOpenChange }: Props) => {
-  const { user } = useAuth();
+  const { user, isGeneralManager } = useAuth();
   const qc = useQueryClient();
   const [recipients, setRecipients] = useState<string[]>([]);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [priority, setPriority] = useState<MessagePriority>("normal");
   const [files, setFiles] = useState<File[]>([]);
+  const [requiresReply, setRequiresReply] = useState(true);
+  const [replyDueAt, setReplyDueAt] = useState("");
 
   const reset = () => {
     setRecipients([]);
@@ -33,6 +35,8 @@ export const ComposeMessageDialog = ({ open, onOpenChange }: Props) => {
     setBody("");
     setPriority("normal");
     setFiles([]);
+    setRequiresReply(true);
+    setReplyDueAt("");
   };
 
   const send = useMutation({
@@ -41,6 +45,8 @@ export const ComposeMessageDialog = ({ open, onOpenChange }: Props) => {
       if (recipients.length === 0) throw new Error("اختر مستلمًا واحدًا على الأقل");
       if (!subject.trim()) throw new Error("العنوان مطلوب");
       if (!body.trim()) throw new Error("نص الرسالة مطلوب");
+
+      const mandatory = isGeneralManager && requiresReply;
 
       // 1) insert message
       const { data: msg, error: msgErr } = await (supabase as any)
@@ -51,6 +57,8 @@ export const ComposeMessageDialog = ({ open, onOpenChange }: Props) => {
           body: body.trim(),
           priority,
           has_attachments: files.length > 0,
+          requires_reply: mandatory,
+          reply_due_at: mandatory && replyDueAt ? new Date(replyDueAt).toISOString() : null,
         })
         .select("id")
         .single();
