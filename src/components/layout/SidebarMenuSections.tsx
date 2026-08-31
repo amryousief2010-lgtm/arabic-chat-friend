@@ -554,6 +554,7 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
                     const showLabBadge = item.path === "/lab-treasury" && labApprovalsCount > 0;
                     const showInternalMsgBadge = item.path === "/internal-messages" && unreadInternalMessages > 0;
                     const showApprovalsBadge = item.path === "/approvals-center" && approvalsCount > 0;
+                    const showMandatoryBadge = item.path === "/mandatory-messages" && mandatoryPending > 0;
                     return (
                       <Link
                         key={item.path + item.label}
