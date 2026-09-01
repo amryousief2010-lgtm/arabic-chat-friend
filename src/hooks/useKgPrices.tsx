@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -23,6 +23,13 @@ const QK = ["sales-kg-prices"];
  */
 export function useKgPrices() {
   const queryClient = useQueryClient();
+  // This hook is rendered by more than one table on the targets page. Each
+  // instance must own a distinct channel; reusing one channel name makes the
+  // realtime client return an already-subscribed channel and then reject the
+  // next postgres_changes callback.
+  const channelNameRef = useRef(
+    `sales-kg-prices-realtime-${crypto.randomUUID()}`,
+  );
 
   const { data: row } = useQuery({
     queryKey: QK,
@@ -40,7 +47,7 @@ export function useKgPrices() {
 
   useEffect(() => {
     const channel = supabase
-      .channel("sales-kg-prices-realtime")
+      .channel(channelNameRef.current)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "sales_kg_price_settings" },
