@@ -1168,10 +1168,12 @@ const NewOrder = () => {
         unit_price: number;
         total_price: number;
         is_half_kg: boolean;
+        is_gift: boolean;
         offer_name: string | null;
       };
       const rawRows: RawRow[] = cart.map(item => {
-        const fullKgPrice = item.customPrice ?? item.product.price;
+        const isGift = !!item.isGift;
+        const fullKgPrice = isGift ? 0 : (item.customPrice ?? item.product.price);
         const isHalf = !!item.isHalfKg;
         // item.quantity for half-kg lines = عدد عبوات نصف الكيلو
         const quantity = isHalf ? item.quantity * 0.5 : item.quantity;
@@ -1184,16 +1186,19 @@ const NewOrder = () => {
           unit_price: unitPrice,
           total_price: Math.round(unitPrice * quantity * 100) / 100,
           is_half_kg: isHalf,
+          is_gift: isGift,
           offer_name: item.isOfferItem ? (item.offerBoxName || 'عرض') : null,
         };
       });
 
       // Merge same-product lines (e.g. نص + نص من نفس المنتج => 1 كجم).
+      // الهدايا تظل سطرًا مستقلًا حتى لا تختلط بالأصناف المدفوعة.
       const grouped = new Map<string, RawRow[]>();
       for (const r of rawRows) {
-        const arr = grouped.get(r.product_id) || [];
+        const key = `${r.product_id}|${r.is_gift ? 'gift' : 'paid'}`;
+        const arr = grouped.get(key) || [];
         arr.push(r);
-        grouped.set(r.product_id, arr);
+        grouped.set(key, arr);
       }
 
       const orderItems = Array.from(grouped.values()).map(arr => {
@@ -1216,6 +1221,7 @@ const NewOrder = () => {
           unit_price: totalQty > 0 ? Math.round((totalPrice / totalQty) * 10000) / 10000 : 0,
           total_price: totalPrice,
           is_half_kg: anyHalf && arr.every(r => r.is_half_kg),
+          is_gift: arr[0].is_gift,
           offer_name: offerName,
         } as any;
       });
