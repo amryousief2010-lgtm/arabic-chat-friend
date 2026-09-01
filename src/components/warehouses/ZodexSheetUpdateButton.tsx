@@ -337,12 +337,26 @@ export default function ZodexSheetUpdateButton({ forceKind, label, variant = "ou
               {result.not_found.length > 0 && (
                 <Alert className="bg-amber-50 border-amber-300">
                   <AlertTriangle className="w-4 h-4" />
-                  <AlertTitle>بوالص مش موجودة في نظامنا</AlertTitle>
+                  <AlertTitle>بوالص جديدة مش موجودة في نظامنا</AlertTitle>
                   <AlertDescription className="text-xs max-h-40 overflow-y-auto font-mono">
                     {result.not_found.join("، ")}
                   </AlertDescription>
                 </Alert>
               )}
+              {result.not_found_seen > 0 && (
+                <div className="text-xs text-muted-foreground flex items-center justify-between gap-2 border rounded-md px-3 py-2">
+                  <span>{result.not_found_seen} بوليصة مش عندنا تمت مراجعتها قبل كدا (مخفية)</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => { clearAckedBills(); toast.success("تم مسح قائمة البوالص المُراجَعة"); }}
+                  >
+                    مسح قائمة المراجَعة
+                  </Button>
+                </div>
+              )}
+
               {result.errors.length > 0 && (
                 <Alert variant="destructive">
                   <AlertTitle>أخطاء</AlertTitle>
