@@ -476,7 +476,7 @@ const OrderDetails = () => {
                   </CardTitle>
                   {((canEditItems && order.status !== 'cancelled') || canSwapOffer) && (
                     <div className="flex flex-wrap gap-2">
-                      {canSwapOffer && order.items.some((it) => it.offer_name) && (
+                      {canSwapOffer && order.items.length > 0 && (
                         <Button
                           variant="outline"
                           size="sm"
