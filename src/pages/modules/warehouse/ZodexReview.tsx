@@ -291,9 +291,8 @@ export default function ZodexReview() {
         .is("shipping_bill_no", null)
         .gte("created_at", ZODEX_INTEGRATION_START)
         .lte("created_at", minAge)
-        .eq("fulfillment_type", "delivery")
         .order("created_at", { ascending: false })
-        .limit(500);
+        .limit(1000);
 
       if (noBillRes.error) throw noBillRes.error;
 
@@ -311,15 +310,17 @@ export default function ZodexReview() {
         // Exclude private courier and other explicit non-zodex companies
         const sc = (o.shipping_company || "").trim();
         if (sc === "مندوب خاص") return false;
-        const scLower = sc.toLowerCase();
         if (sc && !/zodex|زودكس/i.test(sc)) {
           // Explicit other shipping company (Bosta, العاصمة...) → not our concern
           return false;
         }
         // At this point sc is either empty or references zodex.
-        // Include only Agouza warehouse orders (that's where Zodex ships from) OR explicit zodex.
         if (/zodex|زودكس/i.test(sc)) return true;
-        return o.source_warehouse_id === AGOUZA_WAREHOUSE_ID;
+        if (o.source_warehouse_id === AGOUZA_WAREHOUSE_ID) return true;
+        // Unclassified orders (no fulfillment source at all) may still have been
+        // shipped via Zodex — surface them for review instead of hiding them.
+        if (!o.source_warehouse_id && !sc) return true;
+        return false;
       }) as OrderRow[];
 
       setNoBillOrders(filteredNoBill);
@@ -702,6 +703,13 @@ export default function ZodexReview() {
                       <TableRow key={o.id}>
                         <TableCell className="font-mono text-xs">
                           {o.order_number}
+                          {!o.source_warehouse_id && !o.shipping_company && (
+                            <div className="mt-1">
+                              <Badge variant="outline" className="text-[10px] font-normal border-orange-300 text-orange-700">
+                                بدون منفذ تنفيذ محدد
+                              </Badge>
+                            </div>
+                          )}
                           {billSuggestions[o.id] && (
                             <div className="mt-1">
                               <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-normal">
