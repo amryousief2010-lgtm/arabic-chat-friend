@@ -313,9 +313,7 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
               </Select>
             </div>
 
-                </SelectContent>
-              </Select>
-            </div>
+
 
             {/* Step 2: pick new offer */}
             <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
