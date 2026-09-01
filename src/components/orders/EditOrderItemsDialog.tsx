@@ -353,7 +353,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                     value={it.product_id || ""}
                     onValueChange={(v) => handleProductChange(realIdx, v)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="font-semibold text-primary border-primary/40 bg-primary/5">
                       <SelectValue placeholder="اختر منتج" />
                     </SelectTrigger>
                     <SelectContent>
