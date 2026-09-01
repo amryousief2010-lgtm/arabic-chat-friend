@@ -269,7 +269,7 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
       if (insErr) throw insErr;
 
 
-      toast.success(`تم استبدال العرض "${selectedRemoveOffer}" بـ "${selectedNewOffer.name}"`);
+      toast.success(`تم استبدال "${groupLabel(selectedRemoveOffer)}" بـ "${selectedNewOffer.name}"`);
       onOpenChange(false);
       onSaved();
     } catch (e: any) {
@@ -286,29 +286,33 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PackageOpen className="w-5 h-5 text-primary" />
-            استبدال عرض بعرض آخر
+            استبدال منتجات الطلب بعرض / بوكس
           </DialogTitle>
         </DialogHeader>
 
         {offerGroups.length === 0 ? (
           <div className="p-6 text-center text-muted-foreground">
-            لا يحتوي هذا الطلب على أي عرض حالياً لاستبداله.
+            لا توجد منتجات في هذا الطلب لاستبدالها.
           </div>
         ) : (
           <div className="space-y-5">
             {/* Step 1: pick offer to remove */}
             <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
-              <label className="text-sm font-medium">العرض المراد حذفه من الطلب</label>
+              <label className="text-sm font-medium">ما الذي سيتم حذفه من الطلب</label>
               <Select value={selectedRemoveOffer} onValueChange={setSelectedRemoveOffer}>
                 <SelectTrigger>
-                  <SelectValue placeholder="اختر العرض" />
+                  <SelectValue placeholder="اختر العرض أو المنتجات الحالية" />
                 </SelectTrigger>
                 <SelectContent>
                   {offerGroups.map((g) => (
                     <SelectItem key={g.name} value={g.name}>
-                      {g.name} — {g.total.toLocaleString()} ج.م ({g.itemIds.length} منتج)
+                      {groupLabel(g.name)} — {g.total.toLocaleString()} ج.م ({g.itemIds.length} منتج)
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
                 </SelectContent>
               </Select>
             </div>
