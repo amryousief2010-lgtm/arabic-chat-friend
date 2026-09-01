@@ -119,6 +119,7 @@ interface CartItem {
   customPrice?: number; // For offer box items
   isOfferItem?: boolean;
   isHalfKg?: boolean; // نصف كيلو: السعر = price/2 ، الكمية 2 = 1 كيلو
+  isGift?: boolean; // هدية مجانية (سعر 0)
   offerBoxId?: string;
   offerBoxName?: string;
 }
