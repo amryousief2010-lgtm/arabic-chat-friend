@@ -39,8 +39,12 @@ export function useKgPrices() {
   });
 
   useEffect(() => {
+    // This hook is rendered by more than one table, and React development mode
+    // also replays effects. A fresh topic per effect run prevents either case
+    // from reusing an already-subscribed channel.
+    const channelName = `sales-kg-prices-realtime-${crypto.randomUUID()}`;
     const channel = supabase
-      .channel("sales-kg-prices-realtime")
+      .channel(channelName)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "sales_kg_price_settings" },
