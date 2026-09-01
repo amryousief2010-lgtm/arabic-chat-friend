@@ -2805,7 +2805,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                                     <PackagePlus className="w-4 h-4 text-primary" />
                                   </Button>
                                 )}
-                                {order.status !== 'delivered' && order.status !== 'cancelled' && order.items.some((it) => it.offer_name) && !isPrivateDeliveryRep && (
+                                {order.status !== 'delivered' && order.status !== 'cancelled' && order.items.length > 0 && !isPrivateDeliveryRep && (
                                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSwapOfferOrder(order)} title="استبدال العرض">
                                     <PackageOpen className="w-4 h-4 text-primary" />
                                   </Button>
