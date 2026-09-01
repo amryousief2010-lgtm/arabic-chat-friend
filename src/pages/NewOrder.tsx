@@ -822,7 +822,21 @@ const NewOrder = () => {
     updateCartItem(cartItemId, { product: newProduct });
   };
 
+  // هدية مجانية على الأصناف الفردية (لحوم/مصنعات) بدون بوكس
+  const toggleCartGift = (cartItemId: string) => {
+    setCart(prev => prev.map(item => {
+      if (item.cartItemId !== cartItemId) return item;
+      const becomingGift = !item.isGift;
+      return {
+        ...item,
+        isGift: becomingGift,
+        customPrice: becomingGift ? 0 : undefined,
+      };
+    }));
+  };
+
   const subtotal = cart.reduce((sum, item) => {
+    if (item.isGift) return sum;
     const fullKgPrice = item.customPrice ?? item.product.price;
     // For half-kg lines, item.quantity = عدد عبوات النصف كيلو، السعر بالكيلو
     const lineTotal = item.isHalfKg
