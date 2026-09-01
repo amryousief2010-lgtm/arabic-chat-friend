@@ -66,7 +66,6 @@ const currentMonth = _cur.monthIndex0 + 1;
 const normalize = (s: string) => (s || '').replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
 const matches = (name: string, target: string) => matchesModeratorGroup(name, target);
 
-const defaultPrices = { meat_price: 390, bone_meat_price: 350, processed_price: 160 };
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
 
