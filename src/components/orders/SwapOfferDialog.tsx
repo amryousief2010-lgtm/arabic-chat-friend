@@ -76,6 +76,8 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
   const [selectedNewOfferId, setSelectedNewOfferId] = useState<string>("");
   const [previewItems, setPreviewItems] = useState<PreviewItem[]>([]);
 
+  const NO_OFFER_KEY = "__no_offer__";
+
   const offerGroups: CurrentOfferGroup[] = useMemo(() => {
     const map = new Map<string, CurrentOfferGroup>();
     currentItems.forEach((it) => {
@@ -85,8 +87,22 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
       g.total += Number(it.total_price);
       map.set(it.offer_name, g);
     });
-    return Array.from(map.values());
+    const groups = Array.from(map.values());
+    // العميل ممكن يكون طلب قطعيات (بدون عرض) وبعدين يغيّر رأيه ويطلب بوكس:
+    // نضيف مجموعة افتراضية بكل المنتجات العادية عشان تُستبدل بالعرض الجديد.
+    const plain = currentItems.filter((it) => !it.offer_name);
+    if (plain.length > 0) {
+      groups.push({
+        name: NO_OFFER_KEY,
+        itemIds: plain.map((it) => it.id),
+        total: plain.reduce((s, it) => s + Number(it.total_price || 0), 0),
+      });
+    }
+    return groups;
   }, [currentItems]);
+
+  const groupLabel = (name: string) =>
+    name === NO_OFFER_KEY ? "المنتجات الحالية (بدون عرض)" : name;
 
   useEffect(() => {
     if (!open) return;
@@ -96,6 +112,7 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
 
   const fetchData = async () => {
     setLoading(true);
