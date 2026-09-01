@@ -3294,7 +3294,8 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                           </Button>
                         )}
                         {order.status !== 'delivered' && order.status !== 'cancelled' &&
-                          order.items.some((it) => it.offer_name) && !isPrivateDeliveryRep && (
+                          order.items.length > 0 && !isPrivateDeliveryRep && (
+
                             <Button
                               variant="ghost"
                               size="icon"
