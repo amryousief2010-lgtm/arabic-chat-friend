@@ -60,9 +60,11 @@ export default function ZodexSheetUpdateButton({ forceKind, label, variant = "ou
     delivered: number;
     returned: number;
     not_found: string[];
+    not_found_seen: number;
     skipped: number;
     errors: string[];
   } | null>(null);
+
 
   const handleFile = async (file: File) => {
     setLoading(true);
