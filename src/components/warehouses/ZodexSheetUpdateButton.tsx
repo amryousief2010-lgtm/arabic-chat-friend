@@ -187,9 +187,11 @@ export default function ZodexSheetUpdateButton({ forceKind, label, variant = "ou
           res.returned++;
         }
       }
-
-      setResult(res);
+      const acked = loadAckedBills();
+      const freshNotFound = res.not_found.filter((b) => !acked.has(b));
+      setResult({ ...res, not_found: freshNotFound, not_found_seen: res.not_found.length - freshNotFound.length });
       toast.success(`تم تحديث ${res.delivered} تسليم و ${res.returned} مرتجع`);
+
     } catch (e: any) {
       toast.error(e?.message || "فشل التحديث");
     } finally {
