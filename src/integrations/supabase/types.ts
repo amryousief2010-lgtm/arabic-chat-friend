@@ -15635,6 +15635,39 @@ export type Database = {
         }
         Relationships: []
       }
+      sales_kg_price_settings: {
+        Row: {
+          bone_meat_price: number
+          created_at: string
+          id: string
+          meat_price: number
+          processed_price: number
+          singleton: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          bone_meat_price?: number
+          created_at?: string
+          id?: string
+          meat_price?: number
+          processed_price?: number
+          singleton?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          bone_meat_price?: number
+          created_at?: string
+          id?: string
+          meat_price?: number
+          processed_price?: number
+          singleton?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       sales_targets: {
         Row: {
           achieved_amount: number
