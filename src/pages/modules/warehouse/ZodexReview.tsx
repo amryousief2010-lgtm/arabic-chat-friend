@@ -291,9 +291,8 @@ export default function ZodexReview() {
         .is("shipping_bill_no", null)
         .gte("created_at", ZODEX_INTEGRATION_START)
         .lte("created_at", minAge)
-        .eq("fulfillment_type", "delivery")
         .order("created_at", { ascending: false })
-        .limit(500);
+        .limit(1000);
 
       if (noBillRes.error) throw noBillRes.error;
 
