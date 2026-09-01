@@ -1499,15 +1499,14 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     return true;
   };
 
-  // Same rule for editing customer info (name / phone / address).
+  // تعديل بيانات العميل (الاسم/الهاتف/العنوان) مسموح دائمًا — حتى بعد التسليم أو المرتجع —
+  // لأن الفريق يحتاج تصحيح بيانات التواصل في أي وقت. القفل بعد التسليم يخص المنتجات فقط.
   const canEditCustomerFor = (order: Order): boolean => {
-    if (order.status === 'delivered' || order.status === 'cancelled') {
-      return isGeneralManager || isExecutiveManager;
-    }
     if (canManageOrders) return true;
     if (isSalesModerator && user?.id && (!order.created_by || order.created_by === user.id)) return true;
     return false;
   };
+
 
   // نافذة اختيار طريقة التحصيل قبل تأكيد التسليم (لا تمس منطق التسليم/المخزون/المالية).
   const [pendingDeliveryOrderId, setPendingDeliveryOrderId] = useState<string | null>(null);
