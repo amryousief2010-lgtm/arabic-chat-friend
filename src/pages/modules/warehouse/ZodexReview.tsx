@@ -703,6 +703,13 @@ export default function ZodexReview() {
                       <TableRow key={o.id}>
                         <TableCell className="font-mono text-xs">
                           {o.order_number}
+                          {!o.source_warehouse_id && !o.shipping_company && (
+                            <div className="mt-1">
+                              <Badge variant="outline" className="text-[10px] font-normal border-orange-300 text-orange-700">
+                                بدون منفذ تنفيذ محدد
+                              </Badge>
+                            </div>
+                          )}
                           {billSuggestions[o.id] && (
                             <div className="mt-1">
                               <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-normal">
