@@ -40,6 +40,31 @@ function classify(status: string): Kind {
   return "unknown";
 }
 
+// Bills that were already reviewed and confirmed as "not in our system".
+// Stored locally so the same waybills don't get re-flagged on every upload.
+const ACK_KEY = "zodex_ack_missing_bills";
+
+function loadAckedBills(): Set<string> {
+  try {
+    const raw = localStorage.getItem(ACK_KEY);
+    return new Set<string>(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function ackBills(bills: string[]) {
+  try {
+    const set = loadAckedBills();
+    bills.forEach((b) => set.add(b));
+    localStorage.setItem(ACK_KEY, JSON.stringify([...set].slice(-5000)));
+  } catch { /* ignore */ }
+}
+
+function clearAckedBills() {
+  try { localStorage.removeItem(ACK_KEY); } catch { /* ignore */ }
+}
+
 
 interface Props {
   /** If provided, force a specific kind — otherwise auto-detect per row. */
@@ -60,9 +85,11 @@ export default function ZodexSheetUpdateButton({ forceKind, label, variant = "ou
     delivered: number;
     returned: number;
     not_found: string[];
+    not_found_seen: number;
     skipped: number;
     errors: string[];
   } | null>(null);
+
 
   const handleFile = async (file: File) => {
     setLoading(true);
@@ -185,9 +212,11 @@ export default function ZodexSheetUpdateButton({ forceKind, label, variant = "ou
           res.returned++;
         }
       }
-
-      setResult(res);
+      const acked = loadAckedBills();
+      const freshNotFound = res.not_found.filter((b) => !acked.has(b));
+      setResult({ ...res, not_found: freshNotFound, not_found_seen: res.not_found.length - freshNotFound.length });
       toast.success(`تم تحديث ${res.delivered} تسليم و ${res.returned} مرتجع`);
+
     } catch (e: any) {
       toast.error(e?.message || "فشل التحديث");
     } finally {
@@ -196,6 +225,10 @@ export default function ZodexSheetUpdateButton({ forceKind, label, variant = "ou
   };
 
   const reset = () => {
+    // Mark the currently shown "not in our system" bills as reviewed so they
+    // don't show up again on the next sheet upload.
+    if (result?.not_found?.length) ackBills(result.not_found);
+
     setRows([]);
     setResult(null);
     setFilename("");
@@ -308,12 +341,26 @@ export default function ZodexSheetUpdateButton({ forceKind, label, variant = "ou
               {result.not_found.length > 0 && (
                 <Alert className="bg-amber-50 border-amber-300">
                   <AlertTriangle className="w-4 h-4" />
-                  <AlertTitle>بوالص مش موجودة في نظامنا</AlertTitle>
+                  <AlertTitle>بوالص جديدة مش موجودة في نظامنا</AlertTitle>
                   <AlertDescription className="text-xs max-h-40 overflow-y-auto font-mono">
                     {result.not_found.join("، ")}
                   </AlertDescription>
                 </Alert>
               )}
+              {result.not_found_seen > 0 && (
+                <div className="text-xs text-muted-foreground flex items-center justify-between gap-2 border rounded-md px-3 py-2">
+                  <span>{result.not_found_seen} بوليصة مش عندنا تمت مراجعتها قبل كدا (مخفية)</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => { clearAckedBills(); toast.success("تم مسح قائمة البوالص المُراجَعة"); }}
+                  >
+                    مسح قائمة المراجَعة
+                  </Button>
+                </div>
+              )}
+
               {result.errors.length > 0 && (
                 <Alert variant="destructive">
                   <AlertTitle>أخطاء</AlertTitle>
