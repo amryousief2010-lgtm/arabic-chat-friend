@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useKgPrices } from '@/hooks/useKgPrices';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -106,6 +107,7 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
   });
 
   const { prices, updatePrices } = useKgPrices();
+  const [priceDraft, setPriceDraft] = useState<Partial<Record<keyof Prices, string>>>({});
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
@@ -386,24 +388,27 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
             <Label>سعر كيلو اللحوم (ج.م)</Label>
             <Input
               type="number" min="0"
-              value={prices.meat_price || ''}
-              onChange={(e) => updatePrice('meat_price', Number(e.target.value), 'سعر كيلو اللحوم')}
+              value={priceDraft.meat_price ?? (prices.meat_price || '')}
+              onChange={(e) => setPriceDraft(d => ({ ...d, meat_price: e.target.value }))}
+              onBlur={() => commitPrice('meat_price', 'سعر كيلو اللحوم')}
             />
           </div>
           <div className="space-y-2">
             <Label>سعر كيلو اللحوم بالعظم (ج.م)</Label>
             <Input
               type="number" min="0"
-              value={prices.bone_meat_price || ''}
-              onChange={(e) => updatePrice('bone_meat_price', Number(e.target.value), 'سعر كيلو اللحوم بالعظم')}
+              value={priceDraft.bone_meat_price ?? (prices.bone_meat_price || '')}
+              onChange={(e) => setPriceDraft(d => ({ ...d, bone_meat_price: e.target.value }))}
+              onBlur={() => commitPrice('bone_meat_price', 'سعر كيلو اللحوم بالعظم')}
             />
           </div>
           <div className="space-y-2">
             <Label>سعر كيلو المصنعات (ج.م)</Label>
             <Input
               type="number" min="0"
-              value={prices.processed_price || ''}
-              onChange={(e) => updatePrice('processed_price', Number(e.target.value), 'سعر كيلو المصنعات')}
+              value={priceDraft.processed_price ?? (prices.processed_price || '')}
+              onChange={(e) => setPriceDraft(d => ({ ...d, processed_price: e.target.value }))}
+              onBlur={() => commitPrice('processed_price', 'سعر كيلو المصنعات')}
             />
           </div>
         </div>
