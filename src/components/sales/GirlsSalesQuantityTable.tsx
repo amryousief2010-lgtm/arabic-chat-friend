@@ -298,11 +298,20 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
     setData(prev => ({ ...prev, [girl]: { ...prev[girl], [field]: valid } }));
   };
 
-  const updatePrice = (field: keyof Prices, value: number, label: string) => {
-    const valid = validateNumber(value, label);
-    if (valid === null) return;
-    setPrices(p => ({ ...p, [field]: valid }));
+  const commitPrice = async (field: keyof Prices, label: string) => {
+    const raw = priceDraft[field];
+    if (raw === undefined) return;
+    const valid = validateNumber(Number(raw), label);
+    setPriceDraft(d => { const n = { ...d }; delete n[field]; return n; });
+    if (valid === null || valid === Number(prices[field])) return;
+    try {
+      await updatePrices({ [field]: valid } as Partial<Prices>);
+      toast.success('تم تحديث السعر لكل جداول التارجت');
+    } catch (e: any) {
+      toast.error(e?.message || 'تعذر حفظ السعر');
+    }
   };
+
 
   const totals = useMemo(() => {
     return GIRLS.reduce((acc, g) => {
