@@ -225,6 +225,10 @@ export default function ZodexSheetUpdateButton({ forceKind, label, variant = "ou
   };
 
   const reset = () => {
+    // Mark the currently shown "not in our system" bills as reviewed so they
+    // don't show up again on the next sheet upload.
+    if (result?.not_found?.length) ackBills(result.not_found);
+
     setRows([]);
     setResult(null);
     setFilename("");
