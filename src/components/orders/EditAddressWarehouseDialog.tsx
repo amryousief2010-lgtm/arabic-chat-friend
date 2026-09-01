@@ -153,7 +153,12 @@ export default function EditAddressWarehouseDialog({
       });
       onOpenChange(false);
     } catch (e: any) {
-      toast.error(e.message || "تعذّر حفظ التعديلات");
+      const m = String(e?.message || "");
+      toast.error(
+        m.includes("fulfillment_source_required")
+          ? "يجب تحديد المنفذ (الرئيسي/العجوزة) أو شركة الشحن"
+          : m || "تعذّر حفظ التعديلات"
+      );
     } finally {
       setSaving(false);
     }

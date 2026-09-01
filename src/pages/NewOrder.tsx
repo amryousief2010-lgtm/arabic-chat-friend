@@ -1274,6 +1274,9 @@ const NewOrder = () => {
           setApprovalDialog((prev) => ({ ...prev, open: true, status: prev.status === 'pending' ? 'pending' : 'idle' }));
         }
         toast.message('هذا الطلب مكرر ولن يتم تسجيله إلا بعد موافقة م. آلاء حامد.');
+      } else if (msg.includes('fulfillment_source_required')) {
+        setCustomerErrors((p) => ({ ...p, fulfillment: true }));
+        toast.error('مصدر تنفيذ الطلب مطلوب — حدّد استلام/توصيل والمنفذ قبل الحفظ');
       } else {
         toast.error('حدث خطأ أثناء إنشاء الطلب');
       }
