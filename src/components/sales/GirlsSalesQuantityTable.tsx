@@ -105,21 +105,12 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
     return emptyData();
   });
 
-  const [prices, setPrices] = useState<Prices>(() => {
-    try {
-      const saved = localStorage.getItem(PRICES_KEY);
-      if (saved) return { meat_price: 390, bone_meat_price: 350, processed_price: 160, ...JSON.parse(saved) };
-    } catch {}
-    return { meat_price: 390, bone_meat_price: 350, processed_price: 160 };
-  });
+  const { prices, updatePrices } = useKgPrices();
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
   }, [data]);
 
-  useEffect(() => {
-    try { localStorage.setItem(PRICES_KEY, JSON.stringify(prices)); } catch {}
-  }, [prices]);
 
   // Fetch delivered orders + items for the selected month
   const { cutoff } = usePayrollClosureCutoff(selectedYear, selectedMonth);
