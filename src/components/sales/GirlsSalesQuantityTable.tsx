@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useKgPrices } from '@/hooks/useKgPrices';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -105,21 +106,13 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
     return emptyData();
   });
 
-  const [prices, setPrices] = useState<Prices>(() => {
-    try {
-      const saved = localStorage.getItem(PRICES_KEY);
-      if (saved) return { meat_price: 390, bone_meat_price: 350, processed_price: 160, ...JSON.parse(saved) };
-    } catch {}
-    return { meat_price: 390, bone_meat_price: 350, processed_price: 160 };
-  });
+  const { prices, updatePrices } = useKgPrices();
+  const [priceDraft, setPriceDraft] = useState<Partial<Record<keyof Prices, string>>>({});
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
   }, [data]);
 
-  useEffect(() => {
-    try { localStorage.setItem(PRICES_KEY, JSON.stringify(prices)); } catch {}
-  }, [prices]);
 
   // Fetch delivered orders + items for the selected month
   const { cutoff } = usePayrollClosureCutoff(selectedYear, selectedMonth);
@@ -307,11 +300,20 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
     setData(prev => ({ ...prev, [girl]: { ...prev[girl], [field]: valid } }));
   };
 
-  const updatePrice = (field: keyof Prices, value: number, label: string) => {
-    const valid = validateNumber(value, label);
-    if (valid === null) return;
-    setPrices(p => ({ ...p, [field]: valid }));
+  const commitPrice = async (field: keyof Prices, label: string) => {
+    const raw = priceDraft[field];
+    if (raw === undefined) return;
+    const valid = validateNumber(Number(raw), label);
+    setPriceDraft(d => { const n = { ...d }; delete n[field]; return n; });
+    if (valid === null || valid === Number(prices[field])) return;
+    try {
+      await updatePrices({ [field]: valid } as Partial<Prices>);
+      toast.success('تم تحديث السعر لكل جداول التارجت');
+    } catch (e: any) {
+      toast.error(e?.message || 'تعذر حفظ السعر');
+    }
   };
+
 
   const totals = useMemo(() => {
     return GIRLS.reduce((acc, g) => {
@@ -386,24 +388,27 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
             <Label>سعر كيلو اللحوم (ج.م)</Label>
             <Input
               type="number" min="0"
-              value={prices.meat_price || ''}
-              onChange={(e) => updatePrice('meat_price', Number(e.target.value), 'سعر كيلو اللحوم')}
+              value={priceDraft.meat_price ?? (prices.meat_price || '')}
+              onChange={(e) => setPriceDraft(d => ({ ...d, meat_price: e.target.value }))}
+              onBlur={() => commitPrice('meat_price', 'سعر كيلو اللحوم')}
             />
           </div>
           <div className="space-y-2">
             <Label>سعر كيلو اللحوم بالعظم (ج.م)</Label>
             <Input
               type="number" min="0"
-              value={prices.bone_meat_price || ''}
-              onChange={(e) => updatePrice('bone_meat_price', Number(e.target.value), 'سعر كيلو اللحوم بالعظم')}
+              value={priceDraft.bone_meat_price ?? (prices.bone_meat_price || '')}
+              onChange={(e) => setPriceDraft(d => ({ ...d, bone_meat_price: e.target.value }))}
+              onBlur={() => commitPrice('bone_meat_price', 'سعر كيلو اللحوم بالعظم')}
             />
           </div>
           <div className="space-y-2">
             <Label>سعر كيلو المصنعات (ج.م)</Label>
             <Input
               type="number" min="0"
-              value={prices.processed_price || ''}
-              onChange={(e) => updatePrice('processed_price', Number(e.target.value), 'سعر كيلو المصنعات')}
+              value={priceDraft.processed_price ?? (prices.processed_price || '')}
+              onChange={(e) => setPriceDraft(d => ({ ...d, processed_price: e.target.value }))}
+              onBlur={() => commitPrice('processed_price', 'سعر كيلو المصنعات')}
             />
           </div>
         </div>

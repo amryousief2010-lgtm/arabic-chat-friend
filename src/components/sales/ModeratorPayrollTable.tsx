@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useKgPrices } from '@/hooks/useKgPrices';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,8 +66,6 @@ const currentMonth = _cur.monthIndex0 + 1;
 const normalize = (s: string) => (s || '').replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
 const matches = (name: string, target: string) => matchesModeratorGroup(name, target);
 
-const PRICES_KEY = 'girls-sales-prices-v2';
-const defaultPrices = { meat_price: 390, bone_meat_price: 350, processed_price: 160 };
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
 
@@ -105,21 +104,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   );
 
 
-  const [prices, setPrices] = useState(defaultPrices);
-
-  useEffect(() => {
-    const load = () => {
-      try {
-        const saved = localStorage.getItem(PRICES_KEY);
-        if (saved) setPrices({ ...defaultPrices, ...JSON.parse(saved) });
-      } catch {}
-    };
-    load();
-    const handler = () => load();
-    window.addEventListener('storage', handler);
-    const interval = setInterval(load, 3000);
-    return () => { window.removeEventListener('storage', handler); clearInterval(interval); };
-  }, []);
+  const { prices } = useKgPrices();
 
   const { cutoff } = usePayrollClosureCutoff(selectedYear, selectedMonth);
 
