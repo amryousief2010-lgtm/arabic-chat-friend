@@ -310,15 +310,17 @@ export default function ZodexReview() {
         // Exclude private courier and other explicit non-zodex companies
         const sc = (o.shipping_company || "").trim();
         if (sc === "مندوب خاص") return false;
-        const scLower = sc.toLowerCase();
         if (sc && !/zodex|زودكس/i.test(sc)) {
           // Explicit other shipping company (Bosta, العاصمة...) → not our concern
           return false;
         }
         // At this point sc is either empty or references zodex.
-        // Include only Agouza warehouse orders (that's where Zodex ships from) OR explicit zodex.
         if (/zodex|زودكس/i.test(sc)) return true;
-        return o.source_warehouse_id === AGOUZA_WAREHOUSE_ID;
+        if (o.source_warehouse_id === AGOUZA_WAREHOUSE_ID) return true;
+        // Unclassified orders (no fulfillment source at all) may still have been
+        // shipped via Zodex — surface them for review instead of hiding them.
+        if (!o.source_warehouse_id && !sc) return true;
+        return false;
       }) as OrderRow[];
 
       setNoBillOrders(filteredNoBill);
