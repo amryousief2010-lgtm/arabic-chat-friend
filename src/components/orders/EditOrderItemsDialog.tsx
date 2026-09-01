@@ -187,10 +187,20 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     }
   };
 
+  // أسماء العروض الموجودة أصلاً في الطلب — نحافظ على ظهورها حتى بعد التعديل.
+  const orderOfferNames = Array.from(
+    new Set(
+      [...initialItems, ...items]
+        .map((it) => it.offer_name)
+        .filter((x): x is string => !!x)
+    )
+  );
+  const defaultOfferName = orderOfferNames.length === 1 ? orderOfferNames[0] : null;
+
   const handleAdd = () => {
     setItems((prev) => [
       ...prev,
-      { product_id: null, product_name: "", quantity: 1, unit_price: 0 },
+      { product_id: null, product_name: "", quantity: 1, unit_price: 0, offer_name: defaultOfferName },
     ]);
   };
 
@@ -203,9 +213,11 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         quantity: 1,
         unit_price: 0,
         is_gift: true,
+        offer_name: defaultOfferName,
       },
     ]);
   };
+
 
   const handleSave = async () => {
     if (savingRef.current) return;
