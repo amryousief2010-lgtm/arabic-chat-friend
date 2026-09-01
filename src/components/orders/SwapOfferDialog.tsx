@@ -76,6 +76,8 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
   const [selectedNewOfferId, setSelectedNewOfferId] = useState<string>("");
   const [previewItems, setPreviewItems] = useState<PreviewItem[]>([]);
 
+  const NO_OFFER_KEY = "__no_offer__";
+
   const offerGroups: CurrentOfferGroup[] = useMemo(() => {
     const map = new Map<string, CurrentOfferGroup>();
     currentItems.forEach((it) => {
@@ -85,8 +87,22 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
       g.total += Number(it.total_price);
       map.set(it.offer_name, g);
     });
-    return Array.from(map.values());
+    const groups = Array.from(map.values());
+    // العميل ممكن يكون طلب قطعيات (بدون عرض) وبعدين يغيّر رأيه ويطلب بوكس:
+    // نضيف مجموعة افتراضية بكل المنتجات العادية عشان تُستبدل بالعرض الجديد.
+    const plain = currentItems.filter((it) => !it.offer_name);
+    if (plain.length > 0) {
+      groups.push({
+        name: NO_OFFER_KEY,
+        itemIds: plain.map((it) => it.id),
+        total: plain.reduce((s, it) => s + Number(it.total_price || 0), 0),
+      });
+    }
+    return groups;
   }, [currentItems]);
+
+  const groupLabel = (name: string) =>
+    name === NO_OFFER_KEY ? "المنتجات الحالية (بدون عرض)" : name;
 
   useEffect(() => {
     if (!open) return;
@@ -96,6 +112,7 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
 
   const fetchData = async () => {
     setLoading(true);
@@ -252,7 +269,7 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
       if (insErr) throw insErr;
 
 
-      toast.success(`تم استبدال العرض "${selectedRemoveOffer}" بـ "${selectedNewOffer.name}"`);
+      toast.success(`تم استبدال "${groupLabel(selectedRemoveOffer)}" بـ "${selectedNewOffer.name}"`);
       onOpenChange(false);
       onSaved();
     } catch (e: any) {
@@ -269,32 +286,34 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PackageOpen className="w-5 h-5 text-primary" />
-            استبدال عرض بعرض آخر
+            استبدال منتجات الطلب بعرض / بوكس
           </DialogTitle>
         </DialogHeader>
 
         {offerGroups.length === 0 ? (
           <div className="p-6 text-center text-muted-foreground">
-            لا يحتوي هذا الطلب على أي عرض حالياً لاستبداله.
+            لا توجد منتجات في هذا الطلب لاستبدالها.
           </div>
         ) : (
           <div className="space-y-5">
             {/* Step 1: pick offer to remove */}
             <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
-              <label className="text-sm font-medium">العرض المراد حذفه من الطلب</label>
+              <label className="text-sm font-medium">ما الذي سيتم حذفه من الطلب</label>
               <Select value={selectedRemoveOffer} onValueChange={setSelectedRemoveOffer}>
                 <SelectTrigger>
-                  <SelectValue placeholder="اختر العرض" />
+                  <SelectValue placeholder="اختر العرض أو المنتجات الحالية" />
                 </SelectTrigger>
                 <SelectContent>
                   {offerGroups.map((g) => (
                     <SelectItem key={g.name} value={g.name}>
-                      {g.name} — {g.total.toLocaleString()} ج.م ({g.itemIds.length} منتج)
+                      {groupLabel(g.name)} — {g.total.toLocaleString()} ج.م ({g.itemIds.length} منتج)
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
+
 
             {/* Step 2: pick new offer */}
             <div className="space-y-2 p-3 rounded-lg border bg-muted/30">

@@ -186,9 +186,10 @@ const OrderDetails = () => {
   // so the 4 sales moderators and the marketing manager can swap only on non-delivered, non-cancelled orders.
   const canSwapOffer = (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager || isSalesModerator)
     && order?.status !== 'delivered' && order?.status !== 'cancelled';
-  const canEditCustomerInfo = isLockedForModerators
-    ? (isGeneralManager || isExecutiveManager)
-    : (isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager || isSalesModerator);
+  // بيانات العميل: التعديل متاح دائمًا (حتى بعد التسليم أو المرتجع) لأن تصحيح
+  // الاسم/الهاتف/العنوان مطلوب في أي وقت. القفل بعد التسليم يخص المنتجات فقط.
+  const canEditCustomerInfo = isGeneralManager || isExecutiveManager || isSalesManager || isMarketingSalesManager || isSalesModerator;
+
 
   const openEditCustomer = () => {
     if (!order) return;
@@ -475,7 +476,7 @@ const OrderDetails = () => {
                   </CardTitle>
                   {((canEditItems && order.status !== 'cancelled') || canSwapOffer) && (
                     <div className="flex flex-wrap gap-2">
-                      {canSwapOffer && order.items.some((it) => it.offer_name) && (
+                      {canSwapOffer && order.items.length > 0 && (
                         <Button
                           variant="outline"
                           size="sm"

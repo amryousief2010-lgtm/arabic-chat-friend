@@ -187,10 +187,20 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     }
   };
 
+  // أسماء العروض الموجودة أصلاً في الطلب — نحافظ على ظهورها حتى بعد التعديل.
+  const orderOfferNames = Array.from(
+    new Set(
+      [...initialItems, ...items]
+        .map((it) => it.offer_name)
+        .filter((x): x is string => !!x)
+    )
+  );
+  const defaultOfferName = orderOfferNames.length === 1 ? orderOfferNames[0] : null;
+
   const handleAdd = () => {
     setItems((prev) => [
       ...prev,
-      { product_id: null, product_name: "", quantity: 1, unit_price: 0 },
+      { product_id: null, product_name: "", quantity: 1, unit_price: 0, offer_name: defaultOfferName },
     ]);
   };
 
@@ -203,9 +213,11 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         quantity: 1,
         unit_price: 0,
         is_gift: true,
+        offer_name: defaultOfferName,
       },
     ]);
   };
+
 
   const handleSave = async () => {
     if (savingRef.current) return;
@@ -402,7 +414,31 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                     <Trash2 className="w-4 h-4 text-destructive" />
                   </Button>
                 </div>
+                {orderOfferNames.length > 0 && (
+                  <div className="col-span-12">
+                    <label className="text-xs text-muted-foreground">العرض / البوكس</label>
+                    <Select
+                      value={it.offer_name || "__none__"}
+                      onValueChange={(v) =>
+                        updateItem(realIdx, { offer_name: v === "__none__" ? null : v })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">بدون عرض</SelectItem>
+                        {orderOfferNames.map((n) => (
+                          <SelectItem key={n} value={n}>
+                            {n}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
+
             );
           })}
 
