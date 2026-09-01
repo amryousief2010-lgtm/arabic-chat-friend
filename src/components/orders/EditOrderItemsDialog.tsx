@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Gift } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { computeOrderTotals, isOfferShippingLine } from "@/lib/orderTotals";
@@ -353,7 +353,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                     value={it.product_id || ""}
                     onValueChange={(v) => handleProductChange(realIdx, v)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="font-semibold text-primary border-primary/40 bg-primary/5">
                       <SelectValue placeholder="اختر منتج" />
                     </SelectTrigger>
                     <SelectContent>
@@ -404,7 +404,24 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                 <div className="col-span-3 md:col-span-2 text-sm font-semibold">
                   {(Number(it.quantity) * Number(it.unit_price)).toLocaleString()} ج.م
                 </div>
-                <div className="col-span-1 flex justify-end">
+                <div className="col-span-1 flex justify-end gap-1">
+                  <Button
+                    type="button"
+                    variant={it.is_gift ? "default" : "ghost"}
+                    size="icon"
+                    title={it.is_gift ? "إلغاء الهدية المجانية" : "تحويل الصنف إلى هدية مجانية"}
+                    className={it.is_gift ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "text-emerald-700"}
+                    onClick={() => {
+                      const becomingGift = !it.is_gift;
+                      const p = products.find((x) => x.id === it.product_id);
+                      updateItem(realIdx, {
+                        is_gift: becomingGift,
+                        unit_price: becomingGift ? 0 : Number(p?.price || 0),
+                      });
+                    }}
+                  >
+                    <Gift className="w-4 h-4" />
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"

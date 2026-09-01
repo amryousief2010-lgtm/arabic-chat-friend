@@ -119,6 +119,7 @@ interface CartItem {
   customPrice?: number; // For offer box items
   isOfferItem?: boolean;
   isHalfKg?: boolean; // نصف كيلو: السعر = price/2 ، الكمية 2 = 1 كيلو
+  isGift?: boolean; // هدية مجانية (سعر 0)
   offerBoxId?: string;
   offerBoxName?: string;
 }
@@ -821,7 +822,21 @@ const NewOrder = () => {
     updateCartItem(cartItemId, { product: newProduct });
   };
 
+  // هدية مجانية على الأصناف الفردية (لحوم/مصنعات) بدون بوكس
+  const toggleCartGift = (cartItemId: string) => {
+    setCart(prev => prev.map(item => {
+      if (item.cartItemId !== cartItemId) return item;
+      const becomingGift = !item.isGift;
+      return {
+        ...item,
+        isGift: becomingGift,
+        customPrice: becomingGift ? 0 : undefined,
+      };
+    }));
+  };
+
   const subtotal = cart.reduce((sum, item) => {
+    if (item.isGift) return sum;
     const fullKgPrice = item.customPrice ?? item.product.price;
     // For half-kg lines, item.quantity = عدد عبوات النصف كيلو، السعر بالكيلو
     const lineTotal = item.isHalfKg
@@ -1153,10 +1168,12 @@ const NewOrder = () => {
         unit_price: number;
         total_price: number;
         is_half_kg: boolean;
+        is_gift: boolean;
         offer_name: string | null;
       };
       const rawRows: RawRow[] = cart.map(item => {
-        const fullKgPrice = item.customPrice ?? item.product.price;
+        const isGift = !!item.isGift;
+        const fullKgPrice = isGift ? 0 : (item.customPrice ?? item.product.price);
         const isHalf = !!item.isHalfKg;
         // item.quantity for half-kg lines = عدد عبوات نصف الكيلو
         const quantity = isHalf ? item.quantity * 0.5 : item.quantity;
@@ -1169,16 +1186,19 @@ const NewOrder = () => {
           unit_price: unitPrice,
           total_price: Math.round(unitPrice * quantity * 100) / 100,
           is_half_kg: isHalf,
+          is_gift: isGift,
           offer_name: item.isOfferItem ? (item.offerBoxName || 'عرض') : null,
         };
       });
 
       // Merge same-product lines (e.g. نص + نص من نفس المنتج => 1 كجم).
+      // الهدايا تظل سطرًا مستقلًا حتى لا تختلط بالأصناف المدفوعة.
       const grouped = new Map<string, RawRow[]>();
       for (const r of rawRows) {
-        const arr = grouped.get(r.product_id) || [];
+        const key = `${r.product_id}|${r.is_gift ? 'gift' : 'paid'}`;
+        const arr = grouped.get(key) || [];
         arr.push(r);
-        grouped.set(r.product_id, arr);
+        grouped.set(key, arr);
       }
 
       const orderItems = Array.from(grouped.values()).map(arr => {
@@ -1201,6 +1221,7 @@ const NewOrder = () => {
           unit_price: totalQty > 0 ? Math.round((totalPrice / totalQty) * 10000) / 10000 : 0,
           total_price: totalPrice,
           is_half_kg: anyHalf && arr.every(r => r.is_half_kg),
+          is_gift: arr[0].is_gift,
           offer_name: offerName,
         } as any;
       });
@@ -1979,7 +2000,7 @@ const NewOrder = () => {
                     )}
                     <div className="space-y-3 max-h-96 overflow-auto">
                       {cart.filter((item) => !item.isOfferItem || !item.offerBoxId || expandedOfferBoxes[item.offerBoxId]).map((item) => {
-                        const fullKgPrice = item.customPrice ?? item.product.price;
+                        const fullKgPrice = item.isGift ? 0 : (item.customPrice ?? item.product.price);
                         const halfPacketPrice = fullKgPrice * 0.5; // سعر العبوة (نص كيلو)
                         const kgEquivalent = item.isHalfKg
                           ? item.quantity * 0.5
@@ -1991,13 +2012,20 @@ const NewOrder = () => {
                         <div
                           key={item.cartItemId}
                           className={`p-3 rounded-lg ${
-                            item.isOfferItem ? 'bg-green-50 dark:bg-green-950/20 border border-green-200' : 'bg-muted/50'
+                            item.isGift
+                              ? 'bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-300'
+                              : item.isOfferItem ? 'bg-green-50 dark:bg-green-950/20 border border-green-200' : 'bg-muted/50'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-medium text-sm truncate">{item.product.name}</p>
+                                <p className="font-medium text-sm truncate text-primary">{item.product.name}</p>
+                                {item.isGift && (
+                                  <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">
+                                    <Gift className="w-3 h-3 ml-1" /> هدية مجانية
+                                  </Badge>
+                                )}
                                 {item.isOfferItem && (
                                   <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
                                     {item.offerBoxName ? `عرض: ${item.offerBoxName}` : 'عرض'}
@@ -2008,7 +2036,11 @@ const NewOrder = () => {
                                 )}
                               </div>
                               <p className="text-sm text-muted-foreground">
-                                {item.isHalfKg ? (
+                                {item.isGift ? (
+                                  <span className="font-semibold text-emerald-700">
+                                    مجاني — {item.quantity} {item.isHalfKg ? '× نص كيلو' : ''}
+                                  </span>
+                                ) : item.isHalfKg ? (
                                   <>
                                     <span className="text-primary font-medium">{kgEquivalent} كجم</span>
                                     <span className="mr-2">({item.quantity} × نص كيلو)</span>
@@ -2031,6 +2063,17 @@ const NewOrder = () => {
                               ) : null}
                             </div>
                             <div className="flex items-center gap-1">
+                              {!item.isOfferItem && (
+                                <Button
+                                  variant={item.isGift ? 'default' : 'ghost'}
+                                  size="icon"
+                                  className={`h-7 w-7 ${item.isGift ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'text-emerald-700'}`}
+                                  title={item.isGift ? 'إلغاء الهدية المجانية' : 'تحويل الصنف إلى هدية مجانية'}
+                                  onClick={() => toggleCartGift(item.cartItemId)}
+                                >
+                                  <Gift className="w-3 h-3" />
+                                </Button>
+                              )}
                               <Button variant="outline" size="icon" className="h-7 w-7"
                                 onClick={() => updateQuantityById(item.cartItemId, -1)}>
                                 <Minus className="w-3 h-3" />
