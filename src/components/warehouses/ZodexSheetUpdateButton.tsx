@@ -40,6 +40,31 @@ function classify(status: string): Kind {
   return "unknown";
 }
 
+// Bills that were already reviewed and confirmed as "not in our system".
+// Stored locally so the same waybills don't get re-flagged on every upload.
+const ACK_KEY = "zodex_ack_missing_bills";
+
+function loadAckedBills(): Set<string> {
+  try {
+    const raw = localStorage.getItem(ACK_KEY);
+    return new Set<string>(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function ackBills(bills: string[]) {
+  try {
+    const set = loadAckedBills();
+    bills.forEach((b) => set.add(b));
+    localStorage.setItem(ACK_KEY, JSON.stringify([...set].slice(-5000)));
+  } catch { /* ignore */ }
+}
+
+function clearAckedBills() {
+  try { localStorage.removeItem(ACK_KEY); } catch { /* ignore */ }
+}
+
 
 interface Props {
   /** If provided, force a specific kind — otherwise auto-detect per row. */
