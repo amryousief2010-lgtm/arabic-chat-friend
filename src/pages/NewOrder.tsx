@@ -608,6 +608,27 @@ const NewOrder = () => {
     setCustomQty(s => ({ ...s, [product.id]: '' }));
   };
 
+  // إضافة صنف كهدية مجانية (سعر 0)
+  const addGiftToCart = (product: Product, isHalfKg?: boolean) => {
+    const existing = cart.find(
+      i => !i.isOfferItem && i.isGift && i.product.id === product.id && !!i.isHalfKg === !!isHalfKg
+    );
+    if (existing) {
+      setCart(cart.map(i => i.cartItemId === existing.cartItemId ? { ...i, quantity: i.quantity + 1 } : i));
+    } else {
+      setCart(prev => [...prev, {
+        cartItemId: genCartId(),
+        product,
+        quantity: 1,
+        customPrice: 0,
+        isHalfKg,
+        isGift: true,
+      }]);
+    }
+    toast.success(`تمت إضافة ${product.name} كهدية مجانية`);
+  };
+
+
   // Offer preview dialog state
   const [offerPreview, setOfferPreview] = useState<{ box: OfferBox; items: OfferPreviewItem[] } | null>(null);
 
@@ -1823,18 +1844,53 @@ const NewOrder = () => {
                                           <Plus className="w-3 h-3" />
                                         </Button>
                                       </div>
+                                      <div className="grid grid-cols-2 gap-1.5">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-8 text-xs border-emerald-500 text-emerald-700 hover:bg-emerald-50"
+                                          onClick={() => addGiftToCart(product)}
+                                          title="إضافة كيلو كهدية مجانية"
+                                        >
+                                          <Gift className="w-3 h-3 ml-1" />
+                                          هدية كيلو
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-8 text-xs border-emerald-500 text-emerald-700 hover:bg-emerald-50"
+                                          onClick={() => addGiftToCart(product, true)}
+                                          title="إضافة نصف كيلو كهدية مجانية"
+                                        >
+                                          <Gift className="w-3 h-3 ml-1" />
+                                          هدية ½
+                                        </Button>
+                                      </div>
                                     </div>
                                   ) : (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-8 text-xs w-full"
-                                      onClick={() => addToCart(product)}
-                                    >
-                                      <Plus className="w-3 h-3 ml-1" />
-                                      إضافة
-                                    </Button>
+                                    <div className="flex flex-col gap-1.5">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 text-xs w-full"
+                                        onClick={() => addToCart(product)}
+                                      >
+                                        <Plus className="w-3 h-3 ml-1" />
+                                        إضافة
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 text-xs w-full border-emerald-500 text-emerald-700 hover:bg-emerald-50"
+                                        onClick={() => addGiftToCart(product)}
+                                        title="إضافة كهدية مجانية"
+                                      >
+                                        <Gift className="w-3 h-3 ml-1" />
+                                        هدية
+                                      </Button>
+                                    </div>
                                   )}
+
                                 </td>
                               </tr>
                             );
@@ -1917,18 +1973,53 @@ const NewOrder = () => {
                                     <Plus className="w-3 h-3" />
                                   </Button>
                                 </div>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-9 text-xs border-emerald-500 text-emerald-700 hover:bg-emerald-50"
+                                    onClick={() => addGiftToCart(product)}
+                                    title="إضافة كيلو كهدية مجانية"
+                                  >
+                                    <Gift className="w-3 h-3 ml-1" />
+                                    هدية كيلو
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-9 text-xs border-emerald-500 text-emerald-700 hover:bg-emerald-50"
+                                    onClick={() => addGiftToCart(product, true)}
+                                    title="إضافة نصف كيلو كهدية مجانية"
+                                  >
+                                    <Gift className="w-3 h-3 ml-1" />
+                                    هدية ½
+                                  </Button>
+                                </div>
                               </div>
                             ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-9 text-xs w-full"
-                                onClick={() => addToCart(product)}
-                              >
-                                <Plus className="w-3 h-3 ml-1" />
-                                إضافة
-                              </Button>
+                              <div className="flex flex-col gap-1.5">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-9 text-xs w-full"
+                                  onClick={() => addToCart(product)}
+                                >
+                                  <Plus className="w-3 h-3 ml-1" />
+                                  إضافة
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-9 text-xs w-full border-emerald-500 text-emerald-700 hover:bg-emerald-50"
+                                  onClick={() => addGiftToCart(product)}
+                                  title="إضافة كهدية مجانية"
+                                >
+                                  <Gift className="w-3 h-3 ml-1" />
+                                  هدية
+                                </Button>
+                              </div>
                             )}
+
                           </div>
                         );
                       })}
