@@ -11,7 +11,7 @@ export interface KgPrices {
 export const defaultKgPrices: KgPrices = {
   meat_price: 390,
   bone_meat_price: 350,
-  processed_price: 160,
+  processed_price: 140,
 };
 
 const QK = ["sales-kg-prices"];
