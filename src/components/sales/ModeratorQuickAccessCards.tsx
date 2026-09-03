@@ -10,6 +10,7 @@ import { MODERATORS, isOrderForModerator, ModeratorConfig, findModeratorByName, 
 import { useAuth } from "@/hooks/useAuth";
 import { cairoMonthStartUTC, currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
 import { usePayrollClosureCutoff, isDeliveredWithinClosure } from "@/hooks/usePayrollClosure";
+import { useKgPrices } from "@/hooks/useKgPrices";
 
 interface OrderRow {
   id: string;
@@ -77,8 +78,11 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
   // بعد اعتماد قبض الشهر تتجمّد نتائجه: أي أوردر يتسلّم بعد لحظة الاعتماد لا يُحتسب فيه
   const { cutoff } = usePayrollClosureCutoff(viewYear, viewMonth + 1);
 
+  // أسعار الكيلو المشتركة من قاعدة البيانات (نفس مصدر جداول التارجت)
+  const { prices } = useKgPrices();
+
   const { data, isLoading } = useQuery({
-    queryKey: ["moderator-quick-access-v2", privateDeliveryOnly, viewYear, viewMonth, cutoff],
+    queryKey: ["moderator-quick-access-v2", privateDeliveryOnly, viewYear, viewMonth, cutoff, prices.meat_price, prices.bone_meat_price, prices.processed_price],
     refetchInterval: 5 * 60_000,
     refetchOnWindowFocus: false,
     queryFn: async () => {
@@ -173,11 +177,10 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
           const o = orderById.get(it.order_id);
           if (o && toCairoDateString(o.created_at) === todayStr) todayW[cat] += qty;
         }
-        // EGP amounts use the same fixed per-kg prices as جدول البيان (Sales Targets):
-        // لحوم 390 ج/كجم، بالعظم 350 ج/كجم، مصنعات 160 ج/كجم
-        monthMoney.meat = monthW.meat * 390;
-        monthMoney.bone = monthW.bone * 350;
-        monthMoney.processed = monthW.processed * 160;
+        // القيم بالجنيه تستخدم أسعار الكيلو المشتركة نفسها المستخدمة في جداول التارجت
+        monthMoney.meat = monthW.meat * prices.meat_price;
+        monthMoney.bone = monthW.bone * prices.bone_meat_price;
+        monthMoney.processed = monthW.processed * prices.processed_price;
 
         return {
           slug: m.slug,
