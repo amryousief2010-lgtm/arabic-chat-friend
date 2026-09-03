@@ -140,8 +140,8 @@ const CateringProducts = () => {
                   <TableCell className="font-semibold">{p.name}</TableCell>
                   <TableCell><Badge variant="secondary">{SECTIONS[p.kitchen_section] || p.kitchen_section}</Badge></TableCell>
                   <TableCell>{p.unit}</TableCell>
-                  <TableCell>{Number(p.computed_cost).toLocaleString()} ر.س</TableCell>
-                  <TableCell className="font-bold text-primary">{Number(p.sale_price).toLocaleString()} ر.س</TableCell>
+                  <TableCell>{Number(p.computed_cost).toLocaleString()} ج.م</TableCell>
+                  <TableCell className="font-bold text-primary">{Number(p.sale_price).toLocaleString()} ج.م</TableCell>
                   <TableCell className="text-end">
                     <Button variant="ghost" size="icon" onClick={() => startEdit(p)}><Pencil className="w-4 h-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => remove(p.id)} className="text-destructive"><Trash2 className="w-4 h-4" /></Button>
@@ -167,7 +167,7 @@ const CateringProducts = () => {
             </div>
             <div><Label>الفئة</Label><Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></div>
             <div><Label>الوحدة</Label><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></div>
-            <div><Label>سعر البيع (ر.س)</Label><Input type="number" step="0.01" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: Number(e.target.value) })} /></div>
+            <div><Label>سعر البيع (ج.م)</Label><Input type="number" step="0.01" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: Number(e.target.value) })} /></div>
           </div>
 
           <div className="border rounded-lg p-3 bg-muted/30">
@@ -188,14 +188,14 @@ const CateringProducts = () => {
                         </Select>
                       </div>
                       <Input className="col-span-3" type="number" step="0.001" value={r.quantity} onChange={(e) => updateRecipe(i, { quantity: Number(e.target.value) })} placeholder="الكمية" />
-                      <span className="col-span-2 text-sm text-muted-foreground">{m ? `${(Number(m.unit_cost) * r.quantity).toFixed(2)} ر.س` : "-"}</span>
+                      <span className="col-span-2 text-sm text-muted-foreground">{m ? `${(Number(m.unit_cost) * r.quantity).toFixed(2)} ج.م` : "-"}</span>
                       <Button variant="ghost" size="icon" className="col-span-1 text-destructive" onClick={() => removeRecipe(i)}><Trash2 className="w-4 h-4" /></Button>
                     </div>
                   );
                 })}
                 <div className="flex justify-between pt-2 border-t font-bold">
                   <span>التكلفة المحسوبة:</span>
-                  <span className="text-primary">{computedCost.toFixed(2)} ر.س</span>
+                  <span className="text-primary">{computedCost.toFixed(2)} ج.م</span>
                 </div>
               </div>
             )}
@@ -211,11 +211,11 @@ const CateringProducts = () => {
             {aiResult ? (
               <div className="text-sm space-y-1">
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="text-center p-2 rounded bg-card"><p className="text-xs text-muted-foreground">سوق منخفض</p><p className="font-bold">{aiResult.market_low ?? "-"} ر.س</p></div>
-                  <div className="text-center p-2 rounded bg-card"><p className="text-xs text-muted-foreground">سوق متوسط</p><p className="font-bold">{aiResult.market_avg ?? "-"} ر.س</p></div>
-                  <div className="text-center p-2 rounded bg-card"><p className="text-xs text-muted-foreground">سوق مرتفع</p><p className="font-bold">{aiResult.market_high ?? "-"} ر.س</p></div>
+                  <div className="text-center p-2 rounded bg-card"><p className="text-xs text-muted-foreground">سوق منخفض</p><p className="font-bold">{aiResult.market_low ?? "-"} ج.م</p></div>
+                  <div className="text-center p-2 rounded bg-card"><p className="text-xs text-muted-foreground">سوق متوسط</p><p className="font-bold">{aiResult.market_avg ?? "-"} ج.م</p></div>
+                  <div className="text-center p-2 rounded bg-card"><p className="text-xs text-muted-foreground">سوق مرتفع</p><p className="font-bold">{aiResult.market_high ?? "-"} ج.م</p></div>
                 </div>
-                <p><span className="text-muted-foreground">السعر المقترح:</span> <strong className="text-primary">{aiResult.suggested_price} ر.س</strong> (هامش {aiResult.suggested_margin_pct}%)</p>
+                <p><span className="text-muted-foreground">السعر المقترح:</span> <strong className="text-primary">{aiResult.suggested_price} ج.م</strong> (هامش {aiResult.suggested_margin_pct}%)</p>
                 {aiResult.reasoning && <p className="text-muted-foreground italic">{aiResult.reasoning}</p>}
               </div>
             ) : <p className="text-sm text-muted-foreground">سيقوم الذكاء الاصطناعي بتقدير سعر السوق السعودي والهامش المناسب.</p>}

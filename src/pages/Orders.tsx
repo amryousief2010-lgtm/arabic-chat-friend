@@ -1869,7 +1869,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       const diff = mismatch.currentTotal - mismatch.deliveredTotal;
       const diffLabel = `${diff > 0 ? '+' : ''}${diff.toFixed(2)}`;
       const title = '⚠️ اختلاف في قيمة التحصيل — تنبيه للمحاسب';
-      const description = `الطلب ${mismatch.orderNumber}: قيمة التسليم ${mismatch.deliveredTotal.toFixed(2)} ر.س — قيمة التحصيل ${mismatch.currentTotal.toFixed(2)} ر.س — الفرق ${diffLabel} ر.س`;
+      const description = `الطلب ${mismatch.orderNumber}: قيمة التسليم ${mismatch.deliveredTotal.toFixed(2)} ج.م — قيمة التحصيل ${mismatch.currentTotal.toFixed(2)} ج.م — الفرق ${diffLabel} ج.م`;
       toast.warning(title, { description, duration: 10000 });
       await supabase.from('notifications').insert({
         title,
@@ -3749,16 +3749,16 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                     <div className="rounded-lg border bg-muted/40 p-3 space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">قيمة التسليم:</span>
-                        <span className="font-semibold">{collectionMismatch.deliveredTotal.toFixed(2)} ر.س</span>
+                        <span className="font-semibold">{collectionMismatch.deliveredTotal.toFixed(2)} ج.م</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">قيمة التحصيل الحالية:</span>
-                        <span className="font-semibold">{collectionMismatch.currentTotal.toFixed(2)} ر.س</span>
+                        <span className="font-semibold">{collectionMismatch.currentTotal.toFixed(2)} ج.م</span>
                       </div>
                       <div className="flex justify-between border-t pt-2">
                         <span className="text-muted-foreground">الفرق:</span>
                         <span className={`font-bold ${diff > 0 ? 'text-success' : 'text-destructive'}`}>
-                          {diff > 0 ? '+' : ''}{diff.toFixed(2)} ر.س
+                          {diff > 0 ? '+' : ''}{diff.toFixed(2)} ج.م
                         </span>
                       </div>
                     </div>
