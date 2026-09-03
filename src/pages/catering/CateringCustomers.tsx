@@ -104,7 +104,7 @@ const CateringCustomers = () => {
                   <TableCell dir="ltr" className="font-mono">{c.phone}</TableCell>
                   <TableCell>{c.city || "-"}</TableCell>
                   <TableCell>{c.total_orders}</TableCell>
-                  <TableCell>{Number(c.total_spent).toLocaleString()} ر.س</TableCell>
+                  <TableCell>{Number(c.total_spent).toLocaleString()} ج.م</TableCell>
                   <TableCell className="text-end">
                     <Button variant="ghost" size="icon" onClick={() => startEdit(c)}><Pencil className="w-4 h-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => remove(c.id)} className="text-destructive"><Trash2 className="w-4 h-4" /></Button>

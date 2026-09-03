@@ -81,7 +81,7 @@ async function fetchAll<T = any>(table: string, select = "*") {
 }
 
 const fmt = (n: number) => new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 0 }).format(Math.round(n || 0));
-const fmtMoney = (n: number) => `${fmt(n)} ر.س`;
+const fmtMoney = (n: number) => `${fmt(n)} ج.م`;
 const pct = (n: number, d: number) => (d > 0 ? ((n / d) * 100).toFixed(1) + "%" : "—");
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--secondary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--muted))"];

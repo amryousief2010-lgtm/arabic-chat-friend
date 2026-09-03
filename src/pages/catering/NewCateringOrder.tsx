@@ -180,7 +180,7 @@ const NewCateringOrder = () => {
                   </div>
                   <Input type="number" className="w-20" value={it.quantity} onChange={(e) => updateItem(i, { quantity: Number(e.target.value) })} />
                   <Input type="number" step="0.01" className="w-24" value={it.unit_price} onChange={(e) => updateItem(i, { unit_price: Number(e.target.value) })} />
-                  <span className="w-24 text-end font-bold">{(it.quantity * it.unit_price).toFixed(2)} ر.س</span>
+                  <span className="w-24 text-end font-bold">{(it.quantity * it.unit_price).toFixed(2)} ج.م</span>
                   <Button variant="ghost" size="icon" onClick={() => removeItem(i)} className="text-destructive"><Trash2 className="w-4 h-4" /></Button>
                 </div>
               ))}
@@ -213,8 +213,8 @@ const NewCateringOrder = () => {
                 <div><Label>توصيل</Label><Input type="number" step="0.01" value={deliveryFee} onChange={(e) => setDeliveryFee(Number(e.target.value))} /></div>
               </div>
               <div className="border-t pt-3 space-y-1 text-sm">
-                <div className="flex justify-between"><span>المجموع الفرعي</span><span>{subtotal.toFixed(2)} ر.س</span></div>
-                <div className="flex justify-between text-lg font-bold text-primary"><span>الإجمالي</span><span>{total.toFixed(2)} ر.س</span></div>
+                <div className="flex justify-between"><span>المجموع الفرعي</span><span>{subtotal.toFixed(2)} ج.م</span></div>
+                <div className="flex justify-between text-lg font-bold text-primary"><span>الإجمالي</span><span>{total.toFixed(2)} ج.م</span></div>
               </div>
               <Button onClick={save} disabled={saving} className="w-full bg-gradient-to-r from-primary to-accent gap-2">
                 <Save className="w-4 h-4" /> {saving ? "جارِ الحفظ..." : "حفظ الطلب"}

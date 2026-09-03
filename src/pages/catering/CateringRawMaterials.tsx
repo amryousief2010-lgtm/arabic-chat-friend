@@ -76,7 +76,7 @@ const CateringRawMaterials = () => {
                     <TableCell className="font-semibold">{r.name}</TableCell>
                     <TableCell>{r.category || "-"}</TableCell>
                     <TableCell>{r.unit}</TableCell>
-                    <TableCell>{Number(r.unit_cost).toLocaleString()} ر.س</TableCell>
+                    <TableCell>{Number(r.unit_cost).toLocaleString()} ج.م</TableCell>
                     <TableCell>{Number(r.stock).toLocaleString()} {r.unit}</TableCell>
                     <TableCell>
                       {low ? <Badge variant="destructive" className="gap-1"><AlertTriangle className="w-3 h-3" /> منخفض</Badge> : <Badge variant="secondary">جيد</Badge>}
@@ -99,7 +99,7 @@ const CateringRawMaterials = () => {
             <div className="col-span-2"><Label>الاسم *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <div><Label>الفئة</Label><Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></div>
             <div><Label>الوحدة</Label><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></div>
-            <div><Label>تكلفة الوحدة (ر.س)</Label><Input type="number" step="0.01" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: Number(e.target.value) })} /></div>
+            <div><Label>تكلفة الوحدة (ج.م)</Label><Input type="number" step="0.01" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: Number(e.target.value) })} /></div>
             <div><Label>الرصيد الحالي</Label><Input type="number" step="0.01" value={form.stock} onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })} /></div>
             <div><Label>حد المخزون المنخفض</Label><Input type="number" step="0.01" value={form.low_stock_threshold} onChange={(e) => setForm({ ...form, low_stock_threshold: Number(e.target.value) })} /></div>
             <div><Label>المورد</Label>

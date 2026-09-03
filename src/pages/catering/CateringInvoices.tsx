@@ -36,7 +36,7 @@ const CateringInvoices = () => {
                   : sales.map((i) => (
                     <TableRow key={i.id}>
                       <TableCell className="font-mono">{i.invoice_number}</TableCell>
-                      <TableCell className="font-bold">{Number(i.total).toLocaleString()} ر.س</TableCell>
+                      <TableCell className="font-bold">{Number(i.total).toLocaleString()} ج.م</TableCell>
                       <TableCell><Badge variant={i.payment_status === "paid" ? "default" : "secondary"}>{i.payment_status}</Badge></TableCell>
                       <TableCell>{formatDate(i.created_at)}</TableCell>
                     </TableRow>
@@ -54,7 +54,7 @@ const CateringInvoices = () => {
                   : mfg.map((i) => (
                     <TableRow key={i.id}>
                       <TableCell className="font-mono">{i.invoice_number}</TableCell>
-                      <TableCell className="font-bold">{Number(i.total_cost).toLocaleString()} ر.س</TableCell>
+                      <TableCell className="font-bold">{Number(i.total_cost).toLocaleString()} ج.م</TableCell>
                       <TableCell>{formatDate(i.created_at)}</TableCell>
                     </TableRow>
                   ))}

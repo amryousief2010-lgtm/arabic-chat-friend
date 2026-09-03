@@ -1220,7 +1220,7 @@ const Slaughterhouse = () => {
             <div>
               <p className="text-[11px] font-medium text-amber-700/80 dark:text-amber-300/80 tracking-wide">تكلفة الكيلو</p>
               <p className="mt-1 text-3xl font-extrabold text-amber-700 dark:text-amber-300 tabular-nums">
-                {avgCost.toFixed(0)} <span className="text-xs font-semibold text-amber-600/70 dark:text-amber-300/70">ر.س</span>
+                {avgCost.toFixed(0)} <span className="text-xs font-semibold text-amber-600/70 dark:text-amber-300/70">ج.م</span>
               </p>
             </div>
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100/80 dark:bg-amber-500/15">
@@ -1695,7 +1695,7 @@ const Slaughterhouse = () => {
                       <div><Label>عدد الطيور (مبدئي)</Label><Input type="number" value={receiptForm.bird_count || ""} onChange={e => setReceiptForm({ ...receiptForm, bird_count: +e.target.value })} /></div>
                       <div><Label>الوزن الإجمالي (مبدئي)</Label><Input type="number" step="0.1" value={receiptForm.total_weight_kg || ""} onChange={e => setReceiptForm({ ...receiptForm, total_weight_kg: +e.target.value })} /></div>
                       <div><Label>متوسط العمر (أيام)</Label><Input type="number" value={receiptForm.avg_age_days || ""} onChange={e => setReceiptForm({ ...receiptForm, avg_age_days: +e.target.value })} /></div>
-                      <div><Label>السعر/كجم (ر.س)</Label><Input type="number" step="0.01" value={receiptForm.price_per_kg || ""} onChange={e => setReceiptForm({ ...receiptForm, price_per_kg: +e.target.value })} /></div>
+                      <div><Label>السعر/كجم (ج.م)</Label><Input type="number" step="0.01" value={receiptForm.price_per_kg || ""} onChange={e => setReceiptForm({ ...receiptForm, price_per_kg: +e.target.value })} /></div>
                       <div><Label>نافق عند الوصول</Label><Input type="number" value={receiptForm.dead_on_arrival || ""} onChange={e => setReceiptForm({ ...receiptForm, dead_on_arrival: +e.target.value })} /></div>
                       <div className="sm:col-span-2"><Label>ملاحظات</Label><Textarea value={receiptForm.notes} onChange={e => setReceiptForm({ ...receiptForm, notes: e.target.value })} /></div>
                       <div className="sm:col-span-2 text-xs text-muted-foreground bg-muted/40 p-2 rounded">
@@ -1923,7 +1923,7 @@ const Slaughterhouse = () => {
                       value={String(editReceiptForm.total_weight_kg ?? editReceipt.total_weight_kg ?? "")}
                       onChange={e => setEditReceiptForm({ ...editReceiptForm, total_weight_kg: +e.target.value })} />
                   </div>
-                  <div><Label>السعر/كجم (ر.س)</Label>
+                  <div><Label>السعر/كجم (ج.م)</Label>
                     <Input type="number" step="0.01"
                       value={String(editReceiptForm.price_per_kg ?? editReceipt.price_per_kg ?? "")}
                       onChange={e => setEditReceiptForm({ ...editReceiptForm, price_per_kg: +e.target.value })} />
@@ -2020,7 +2020,7 @@ const Slaughterhouse = () => {
                       </Select>
                     </div>
                     <div><Label>الهاتف</Label><Input value={workerForm.phone} onChange={e => setWorkerForm({ ...workerForm, phone: e.target.value })} /></div>
-                    <div><Label>الأجر اليومي (ر.س)</Label><Input type="number" value={workerForm.daily_wage || ""} onChange={e => setWorkerForm({ ...workerForm, daily_wage: +e.target.value })} /></div>
+                    <div><Label>الأجر اليومي (ج.م)</Label><Input type="number" value={workerForm.daily_wage || ""} onChange={e => setWorkerForm({ ...workerForm, daily_wage: +e.target.value })} /></div>
                   </div>
                   <DialogFooter><Button onClick={saveWorker}>حفظ</Button></DialogFooter>
                 </DialogContent>
@@ -2037,7 +2037,7 @@ const Slaughterhouse = () => {
                       <TableCell className="font-semibold flex items-center gap-2"><Users className="w-4 h-4 text-muted-foreground" />{w.full_name}</TableCell>
                       <TableCell>{({ slaughterer: "ذبّاح", cutter: "مقطّع", packer: "معبّئ", supervisor: "مشرف", quality_inspector: "مفتش جودة" } as any)[w.role] || w.role}</TableCell>
                       <TableCell>{w.phone || "-"}</TableCell>
-                      <TableCell>{w.daily_wage} ر.س</TableCell>
+                      <TableCell>{w.daily_wage} ج.م</TableCell>
                       <TableCell>{w.is_active ? <Badge className="bg-emerald-500/20 text-emerald-700">نشط</Badge> : <Badge variant="outline">موقوف</Badge>}</TableCell>
                     </TableRow>
                   ))}
@@ -2380,8 +2380,8 @@ const BirdsDialog = ({ receiptId, receipt, birds, onClose, onUpdate }: {
           <div className="p-2 bg-muted/40 rounded">العدد: <b>{totals.count}</b></div>
           <div className="p-2 bg-muted/40 rounded">إجمالي وزن قائم: <b>{totals.live.toFixed(1)} كجم</b></div>
           <div className="p-2 bg-muted/40 rounded">إجمالي وزن الذبح: <b>{totals.slaughter.toFixed(1)} كجم</b></div>
-          <div className="p-2 bg-muted/40 rounded">تكلفة الشراء: <b>{totals.purchase.toFixed(0)} ر.س</b></div>
-          <div className="p-2 bg-muted/40 rounded">تكلفة العلف: <b>{totals.feed.toFixed(0)} ر.س</b></div>
+          <div className="p-2 bg-muted/40 rounded">تكلفة الشراء: <b>{totals.purchase.toFixed(0)} ج.م</b></div>
+          <div className="p-2 bg-muted/40 rounded">تكلفة العلف: <b>{totals.feed.toFixed(0)} ج.م</b></div>
         </div>
         <Table>
           <TableHeader><TableRow>
@@ -3799,7 +3799,7 @@ const TransfersTab = ({ transfers, branches, batches, onStatus }: {
                   <Badge variant="outline">{s.count}</Badge>
                 </div>
                 <div className="text-xs text-muted-foreground">إجمالي: <b className="text-foreground">{s.weight.toFixed(1)} كجم</b></div>
-                <div className="text-xs text-muted-foreground">القيمة: <b className="text-foreground">{s.value.toFixed(0)} ر.س</b></div>
+                <div className="text-xs text-muted-foreground">القيمة: <b className="text-foreground">{s.value.toFixed(0)} ج.م</b></div>
               </CardContent>
             </Card>
           );

@@ -280,8 +280,8 @@ const SalesTargets = () => {
     // Summary section
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Total Target: ${totalTarget.toLocaleString()} SAR`, 20, 40);
-    doc.text(`Total Achieved: ${totalAchieved.toLocaleString()} SAR`, 20, 50);
+    doc.text(`Total Target: ${totalTarget.toLocaleString()} EGP`, 20, 40);
+    doc.text(`Total Achieved: ${totalAchieved.toLocaleString()} EGP`, 20, 50);
     doc.text(`Achievement Rate: ${overallPercentage.toFixed(1)}%`, 20, 60);
     doc.text(`Employees who achieved target: ${achievedCount} / ${targetsWithAchieved.length}`, 20, 70);
     
@@ -292,8 +292,8 @@ const SalesTargets = () => {
         : 0;
       return [
         target.profile?.full_name || 'Unknown',
-        `${Number(target.target_amount).toLocaleString()} SAR`,
-        `${target.achieved_amount.toLocaleString()} SAR`,
+        `${Number(target.target_amount).toLocaleString()} EGP`,
+        `${target.achieved_amount.toLocaleString()} EGP`,
         `${percentage.toFixed(1)}%`,
         percentage >= 100 ? 'Achieved' : 'In Progress'
       ];
@@ -496,7 +496,7 @@ const SalesTargets = () => {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>المبلغ المستهدف (ر.س)</Label>
+                      <Label>المبلغ المستهدف (ج.م)</Label>
                       <Input
                         type="number"
                         value={newTarget.target_amount}
@@ -566,7 +566,7 @@ const SalesTargets = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">إجمالي الأهداف</p>
-                  <p className="text-2xl font-bold">{totalTarget.toLocaleString()} ر.س</p>
+                  <p className="text-2xl font-bold">{totalTarget.toLocaleString()} ج.م</p>
                 </div>
               </div>
             </CardContent>
@@ -579,7 +579,7 @@ const SalesTargets = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">إجمالي المحقق</p>
-                  <p className="text-2xl font-bold">{totalAchieved.toLocaleString()} ر.س</p>
+                  <p className="text-2xl font-bold">{totalAchieved.toLocaleString()} ج.م</p>
                 </div>
               </div>
             </CardContent>
@@ -644,7 +644,7 @@ const SalesTargets = () => {
                     <XAxis type="number" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                     <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 12 }} />
                     <Tooltip 
-                      formatter={(value: number) => [`${value.toLocaleString()} ر.س`, '']}
+                      formatter={(value: number) => [`${value.toLocaleString()} ج.م`, '']}
                       labelFormatter={(label) => label}
                       contentStyle={{ 
                         backgroundColor: 'hsl(var(--card))', 
@@ -733,8 +733,8 @@ const SalesTargets = () => {
                         <TableCell className="font-medium">
                           {target.profile?.full_name || 'غير معروف'}
                         </TableCell>
-                        <TableCell>{Number(target.target_amount).toLocaleString()} ر.س</TableCell>
-                        <TableCell>{target.achieved_amount.toLocaleString()} ر.س</TableCell>
+                        <TableCell>{Number(target.target_amount).toLocaleString()} ج.م</TableCell>
+                        <TableCell>{target.achieved_amount.toLocaleString()} ج.م</TableCell>
                         <TableCell>{percentage.toFixed(1)}%</TableCell>
                         <TableCell className="w-40">
                           <Progress 

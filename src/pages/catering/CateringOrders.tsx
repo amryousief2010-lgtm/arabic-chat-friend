@@ -71,7 +71,7 @@ const CateringOrders = () => {
                   <TableCell className="font-semibold">{o.customer_name_snapshot}</TableCell>
                   <TableCell><Badge variant="secondary">{o.sales_team === "b2b" ? "شركات" : "أفراد"}</Badge></TableCell>
                   <TableCell>{o.delivery_date ? `${o.delivery_date}${o.delivery_time ? " " + o.delivery_time.slice(0, 5) : ""}` : "-"}</TableCell>
-                  <TableCell className="font-bold text-primary">{Number(o.total).toLocaleString()} ر.س</TableCell>
+                  <TableCell className="font-bold text-primary">{Number(o.total).toLocaleString()} ج.م</TableCell>
                   <TableCell><Badge variant="outline">{o.payment_method === "bank_transfer" ? "تحويل" : o.payment_method === "cash" ? "نقدي" : "آجل"}</Badge></TableCell>
                   <TableCell>
                     <select className="bg-background border rounded px-2 py-1 text-xs" value={o.status} onChange={(e) => updateStatus(o.id, e.target.value)}>
