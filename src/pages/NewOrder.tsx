@@ -608,6 +608,27 @@ const NewOrder = () => {
     setCustomQty(s => ({ ...s, [product.id]: '' }));
   };
 
+  // إضافة صنف كهدية مجانية (سعر 0)
+  const addGiftToCart = (product: Product, isHalfKg?: boolean) => {
+    const existing = cart.find(
+      i => !i.isOfferItem && i.isGift && i.product.id === product.id && !!i.isHalfKg === !!isHalfKg
+    );
+    if (existing) {
+      setCart(cart.map(i => i.cartItemId === existing.cartItemId ? { ...i, quantity: i.quantity + 1 } : i));
+    } else {
+      setCart(prev => [...prev, {
+        cartItemId: genCartId(),
+        product,
+        quantity: 1,
+        customPrice: 0,
+        isHalfKg,
+        isGift: true,
+      }]);
+    }
+    toast.success(`تمت إضافة ${product.name} كهدية مجانية`);
+  };
+
+
   // Offer preview dialog state
   const [offerPreview, setOfferPreview] = useState<{ box: OfferBox; items: OfferPreviewItem[] } | null>(null);
 
