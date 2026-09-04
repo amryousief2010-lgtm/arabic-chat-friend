@@ -2515,8 +2515,8 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                     </div>
 
                     {(() => {
-                      const offers = order.offer_instances.length > 0
-                        ? order.offer_instances.map((entry) => `${entry.offer_name}${entry.quantity > 1 ? ` × ${entry.quantity}` : ''}`)
+                      const offers = (order.offer_instances || []).length > 0
+                        ? (order.offer_instances || []).map((entry) => `${entry.offer_name}${entry.quantity > 1 ? ` × ${entry.quantity}` : ''}`)
                         : Array.from(new Set(order.items.map((it) => it.offer_name).filter(Boolean) as string[]));
                       return offers.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
@@ -2999,8 +2999,8 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                     </TableCell>
                     <TableCell className="max-w-[160px]">
                       {(() => {
-                        const offers = order.offer_instances.length > 0
-                          ? order.offer_instances.map((entry) => `${entry.offer_name}${entry.quantity > 1 ? ` × ${entry.quantity}` : ''}`)
+                        const offers = (order.offer_instances || []).length > 0
+                          ? (order.offer_instances || []).map((entry) => `${entry.offer_name}${entry.quantity > 1 ? ` × ${entry.quantity}` : ''}`)
                           : Array.from(
                               new Set(
                                 order.items
