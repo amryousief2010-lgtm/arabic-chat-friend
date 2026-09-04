@@ -14113,6 +14113,54 @@ export type Database = {
           },
         ]
       }
+      order_offer_instances: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          offer_box_id: string | null
+          offer_name: string
+          order_id: string
+          quantity: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          offer_box_id?: string | null
+          offer_name: string
+          order_id: string
+          quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          offer_box_id?: string | null
+          offer_name?: string
+          order_id?: string
+          quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_offer_instances_offer_box_id_fkey"
+            columns: ["offer_box_id"]
+            isOneToOne: false
+            referencedRelation: "offer_boxes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_offer_instances_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_owner_reassignment_audit: {
         Row: {
           changed_at: string
