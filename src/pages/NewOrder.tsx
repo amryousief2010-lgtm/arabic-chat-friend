@@ -1253,6 +1253,24 @@ const NewOrder = () => {
 
       if (itemsError) throw itemsError;
 
+      // Persist box identity/count independently from product lines, which may
+      // be merged or edited later.
+      const offerInstanceRows = Object.entries(offerInstanceCounts)
+        .filter(([, quantity]) => quantity > 0)
+        .map(([offerBoxId, quantity]) => ({
+          order_id: order.id,
+          offer_box_id: offerBoxId,
+          offer_name: offerBoxes.find((box) => box.id === offerBoxId)?.name || 'عرض',
+          quantity,
+          created_by: user?.id || null,
+        }));
+      if (offerInstanceRows.length > 0) {
+        const { error: offersError } = await supabase
+          .from('order_offer_instances')
+          .insert(offerInstanceRows);
+        if (offersError) throw offersError;
+      }
+
       // M4-B: Agouza-only reservation (no stock mutation here).
       // Affects ONLY orders whose source warehouse is Agouza. Other warehouses untouched.
       if (sourceWh.id === AGOUZA_WAREHOUSE_ID) {
