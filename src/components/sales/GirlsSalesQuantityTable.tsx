@@ -106,7 +106,7 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
     return emptyData();
   });
 
-  const { prices, updatePrices } = useKgPrices();
+  const { prices, updatePrices, canEditPrices } = useKgPrices({ year: selectedYear, month: selectedMonth });
   const [priceDraft, setPriceDraft] = useState<Partial<Record<keyof Prices, string>>>({});
 
   useEffect(() => {
@@ -383,6 +383,11 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Price controls */}
+        {!canEditPrices && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2">
+            أسعار هذا الشهر مثبتة تاريخيًا ولا يمكن تعديلها. الأسعار الجديدة تسري من سبتمبر 2026 فصاعدًا.
+          </p>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-lg bg-muted/40 border">
           <div className="space-y-2">
             <Label>سعر كيلو اللحوم (ج.م)</Label>
@@ -390,6 +395,7 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
               type="number" min="0"
               value={priceDraft.meat_price ?? (prices.meat_price || '')}
               onChange={(e) => setPriceDraft(d => ({ ...d, meat_price: e.target.value }))}
+              disabled={!canEditPrices}
               onBlur={() => commitPrice('meat_price', 'سعر كيلو اللحوم')}
             />
           </div>
@@ -399,6 +405,7 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
               type="number" min="0"
               value={priceDraft.bone_meat_price ?? (prices.bone_meat_price || '')}
               onChange={(e) => setPriceDraft(d => ({ ...d, bone_meat_price: e.target.value }))}
+              disabled={!canEditPrices}
               onBlur={() => commitPrice('bone_meat_price', 'سعر كيلو اللحوم بالعظم')}
             />
           </div>
@@ -408,6 +415,7 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
               type="number" min="0"
               value={priceDraft.processed_price ?? (prices.processed_price || '')}
               onChange={(e) => setPriceDraft(d => ({ ...d, processed_price: e.target.value }))}
+              disabled={!canEditPrices}
               onBlur={() => commitPrice('processed_price', 'سعر كيلو المصنعات')}
             />
           </div>

@@ -79,7 +79,7 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
   const { cutoff } = usePayrollClosureCutoff(viewYear, viewMonth + 1);
 
   // أسعار الكيلو المشتركة من قاعدة البيانات (نفس مصدر جداول التارجت)
-  const { prices } = useKgPrices();
+  const { prices } = useKgPrices({ year: viewYear, month: viewMonth + 1 });
 
   const { data, isLoading } = useQuery({
     queryKey: ["moderator-quick-access-v2", privateDeliveryOnly, viewYear, viewMonth, cutoff, prices.meat_price, prices.bone_meat_price, prices.processed_price],
