@@ -100,6 +100,11 @@ interface OrderItem {
   offer_name?: string | null;
 }
 
+interface OrderOfferInstance {
+  offer_name: string;
+  quantity: number;
+}
+
 interface Order {
   id: string;
   order_number: string;
@@ -130,6 +135,7 @@ interface Order {
   route_id: string | null;
   route_name: string | null;
   items: OrderItem[];
+  offer_instances: OrderOfferInstance[];
   update_status_marker?: UpdateStatusMarker | null;
   update_status_updated_at?: string | null;
   collection_method?: CollectionMethod | null;
@@ -744,6 +750,10 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
             unit: (item.product_id && productsMap[item.product_id]) || 'كجم',
             offer_name: (item as any).offer_name ?? null,
           })),
+          offer_instances: ((order as any).order_offer_instances || []).map((entry: any) => ({
+            offer_name: entry.offer_name,
+            quantity: Number(entry.quantity) || 1,
+          })),
           update_status_marker: ((order as any).update_status_marker ?? null) as UpdateStatusMarker | null,
           update_status_updated_at: (order as any).update_status_updated_at ?? null,
           collection_method: ((order as any).collection_method ?? null) as CollectionMethod | null,
@@ -832,7 +842,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         }
         const { data, error } = await supabase
           .from('orders')
-          .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate)`)
+          .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`)
           .or(orFilters.join(','))
           .order('created_at', { ascending: false })
           .limit(300);
@@ -883,7 +893,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           const chunk = allIds.slice(i, i + CHUNK);
           let q = supabase
             .from('orders')
-            .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate)`)
+            .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`)
             .in('id', chunk)
             .order('created_at', { ascending: false });
           if (startDate) q = q.gte('created_at', startDate);
@@ -922,7 +932,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       const fetchPage = async (page: number) => {
         let q = supabase
           .from('orders')
-          .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate)`)
+          .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`)
           .order('created_at', { ascending: false })
           .range(page * ORDERS_PAGE, (page + 1) * ORDERS_PAGE - 1);
         if (startDate) q = q.gte('created_at', startDate);
@@ -1023,7 +1033,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg';
       let q = supabase
         .from('orders')
-        .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate)`)
+        .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`)
         .order('created_at', { ascending: false })
         .range(nextPage * pageSize, (nextPage + 1) * pageSize - 1);
       if (startDate) q = q.gte('created_at', startDate);
@@ -1109,6 +1119,10 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           total_price: Number(it.total_price) || 0,
           unit: (it.product_id && prodMap[it.product_id]) || undefined,
           offer_name: it.offer_name || null,
+        })),
+        offer_instances: (o.order_offer_instances || []).map((entry: any) => ({
+          offer_name: entry.offer_name,
+          quantity: Number(entry.quantity) || 1,
         })),
         update_status_marker: o.update_status_marker,
         update_status_updated_at: o.update_status_updated_at,
@@ -2501,7 +2515,9 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                     </div>
 
                     {(() => {
-                      const offers = Array.from(new Set(order.items.map((it) => it.offer_name).filter(Boolean) as string[]));
+                      const offers = (order.offer_instances || []).length > 0
+                        ? (order.offer_instances || []).map((entry) => `${entry.offer_name}${entry.quantity > 1 ? ` × ${entry.quantity}` : ''}`)
+                        : Array.from(new Set(order.items.map((it) => it.offer_name).filter(Boolean) as string[]));
                       return offers.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {offers.map((name) => (
@@ -2983,16 +2999,18 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                     </TableCell>
                     <TableCell className="max-w-[160px]">
                       {(() => {
-                        const offers = Array.from(
-                          new Set(
-                            order.items
-                              .map((it) =>
-                                it.offer_name ||
-                                (/(عرض)/.test(it.product_name) ? 'عرض' : null)
+                        const offers = (order.offer_instances || []).length > 0
+                          ? (order.offer_instances || []).map((entry) => `${entry.offer_name}${entry.quantity > 1 ? ` × ${entry.quantity}` : ''}`)
+                          : Array.from(
+                              new Set(
+                                order.items
+                                  .map((it) =>
+                                    it.offer_name ||
+                                    (/(عرض)/.test(it.product_name) ? 'عرض' : null)
+                                  )
+                                  .filter(Boolean) as string[]
                               )
-                              .filter(Boolean) as string[]
-                          )
-                        );
+                            );
                         return offers.length === 0 ? (
                           <span className="text-muted-foreground">-</span>
                         ) : (
