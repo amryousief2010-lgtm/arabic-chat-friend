@@ -14,6 +14,26 @@ export const defaultKgPrices: KgPrices = {
   processed_price: 140,
 };
 
+/**
+ * أسعار الشهور السابقة مجمّدة: أسعار الكيلو الحالية تسري من سبتمبر 2026 فصاعدًا،
+ * وأي شهر قبل ذلك يستخدم الأسعار التاريخية ولا يتأثر بأي تعديل جديد.
+ */
+export const KG_PRICES_EFFECTIVE_FROM = { year: 2026, month: 9 };
+
+export const legacyKgPrices: KgPrices = {
+  meat_price: 390,
+  bone_meat_price: 350,
+  processed_price: 160,
+};
+
+export function isHistoricalKgMonth(year?: number, month?: number) {
+  if (!year || !month) return false;
+  return (
+    year < KG_PRICES_EFFECTIVE_FROM.year ||
+    (year === KG_PRICES_EFFECTIVE_FROM.year && month < KG_PRICES_EFFECTIVE_FROM.month)
+  );
+}
+
 const QK = ["sales-kg-prices"];
 
 /**
@@ -21,7 +41,8 @@ const QK = ["sales-kg-prices"];
  * محفوظة في قاعدة البيانات، فأي تعديل ينعكس فورًا على كل جداول صفحة التارجت
  * ولكل المستخدمين، للشهر الحالي والشهور القادمة.
  */
-export function useKgPrices() {
+export function useKgPrices(period?: { year?: number; month?: number }) {
+  const isHistorical = isHistoricalKgMonth(period?.year, period?.month);
   const queryClient = useQueryClient();
 
   const { data: row } = useQuery({
@@ -56,11 +77,13 @@ export function useKgPrices() {
     };
   }, [queryClient]);
 
-  const prices: KgPrices = {
+  const livePrices: KgPrices = {
     meat_price: Number(row?.meat_price ?? defaultKgPrices.meat_price),
     bone_meat_price: Number(row?.bone_meat_price ?? defaultKgPrices.bone_meat_price),
     processed_price: Number(row?.processed_price ?? defaultKgPrices.processed_price),
   };
+
+  const prices: KgPrices = isHistorical ? legacyKgPrices : livePrices;
 
   const updateMutation = useMutation({
     mutationFn: async (patch: Partial<KgPrices>) => {
@@ -73,12 +96,18 @@ export function useKgPrices() {
       } else {
         const { error } = await supabase
           .from("sales_kg_price_settings")
-          .insert({ singleton: true, ...prices, ...patch });
+          .insert({ singleton: true, ...livePrices, ...patch });
         if (error) throw error;
       }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QK }),
   });
 
-  return { prices, updatePrices: updateMutation.mutateAsync, isSaving: updateMutation.isPending };
+  return {
+    prices,
+    isHistorical,
+    canEditPrices: !isHistorical,
+    updatePrices: updateMutation.mutateAsync,
+    isSaving: updateMutation.isPending,
+  };
 }

@@ -104,7 +104,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   );
 
 
-  const { prices } = useKgPrices();
+  const { prices } = useKgPrices({ year: selectedYear, month: selectedMonth });
 
   const { cutoff } = usePayrollClosureCutoff(selectedYear, selectedMonth);
 

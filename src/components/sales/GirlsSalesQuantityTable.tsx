@@ -106,7 +106,7 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
     return emptyData();
   });
 
-  const { prices, updatePrices } = useKgPrices();
+  const { prices, updatePrices, canEditPrices } = useKgPrices({ year: selectedYear, month: selectedMonth });
   const [priceDraft, setPriceDraft] = useState<Partial<Record<keyof Prices, string>>>({});
 
   useEffect(() => {
