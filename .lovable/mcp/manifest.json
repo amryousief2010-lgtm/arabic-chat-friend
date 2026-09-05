@@ -112,7 +112,7 @@
       {
         "name": "list_products",
         "title": "List products",
-        "description": "List products with name, category, selling price and current stock. Optionally search by name or list only low-stock items.",
+        "description": "قائمة المنتجات بأسمائها وفئاتها وسعر البيع ووحدة القياس. تحذير: حقل stock هنا حقل تجميعي قديم على مستوى المنتج ولا يمثل رصيد مخزن محدد — لأرصدة المخازن (فعلي/محجوز/متاح) استخدم أداة inventory_balances.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -123,15 +123,23 @@
           "properties": {
             "search": {
               "type": "string",
-              "description": "Case-insensitive substring of the product name."
+              "description": "بحث جزئي في اسم المنتج."
             },
-            "low_stock_only": {
+            "category": {
+              "type": "string",
+              "description": "تصفية بالفئة."
+            },
+            "active_only": {
               "type": "boolean",
-              "description": "Return only products with stock at or below 10."
+              "description": "المنتجات النشطة فقط."
             },
-            "limit": {
+            "page": {
               "type": "number",
-              "description": "Max rows to return (default 50, max 200)."
+              "description": "رقم الصفحة يبدأ من 1."
+            },
+            "page_size": {
+              "type": "number",
+              "description": "حجم الصفحة (افتراضي 50، أقصى 200)."
             }
           },
           "additionalProperties": false,

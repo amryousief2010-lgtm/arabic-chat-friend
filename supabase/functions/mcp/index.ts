@@ -179,26 +179,39 @@ import { z as z4 } from "npm:zod@^3.25.76";
 var list_products_default = defineTool4({
   name: "list_products",
   title: "List products",
-  description: "List products with name, category, selling price and current stock. Optionally search by name or list only low-stock items.",
+  description: "\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0645\u0646\u062A\u062C\u0627\u062A \u0628\u0623\u0633\u0645\u0627\u0626\u0647\u0627 \u0648\u0641\u0626\u0627\u062A\u0647\u0627 \u0648\u0633\u0639\u0631 \u0627\u0644\u0628\u064A\u0639 \u0648\u0648\u062D\u062F\u0629 \u0627\u0644\u0642\u064A\u0627\u0633. \u062A\u062D\u0630\u064A\u0631: \u062D\u0642\u0644 stock \u0647\u0646\u0627 \u062D\u0642\u0644 \u062A\u062C\u0645\u064A\u0639\u064A \u0642\u062F\u064A\u0645 \u0639\u0644\u0649 \u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0645\u0646\u062A\u062C \u0648\u0644\u0627 \u064A\u0645\u062B\u0644 \u0631\u0635\u064A\u062F \u0645\u062E\u0632\u0646 \u0645\u062D\u062F\u062F \u2014 \u0644\u0623\u0631\u0635\u062F\u0629 \u0627\u0644\u0645\u062E\u0627\u0632\u0646 (\u0641\u0639\u0644\u064A/\u0645\u062D\u062C\u0648\u0632/\u0645\u062A\u0627\u062D) \u0627\u0633\u062A\u062E\u062F\u0645 \u0623\u062F\u0627\u0629 inventory_balances.",
   inputSchema: {
-    search: z4.string().optional().describe("Case-insensitive substring of the product name."),
-    low_stock_only: z4.boolean().optional().describe("Return only products with stock at or below 10."),
-    limit: z4.number().optional().describe("Max rows to return (default 50, max 200).")
+    search: z4.string().optional().describe("\u0628\u062D\u062B \u062C\u0632\u0626\u064A \u0641\u064A \u0627\u0633\u0645 \u0627\u0644\u0645\u0646\u062A\u062C."),
+    category: z4.string().optional().describe("\u062A\u0635\u0641\u064A\u0629 \u0628\u0627\u0644\u0641\u0626\u0629."),
+    active_only: z4.boolean().optional().describe("\u0627\u0644\u0645\u0646\u062A\u062C\u0627\u062A \u0627\u0644\u0646\u0634\u0637\u0629 \u0641\u0642\u0637."),
+    page: z4.number().optional().describe("\u0631\u0642\u0645 \u0627\u0644\u0635\u0641\u062D\u0629 \u064A\u0628\u062F\u0623 \u0645\u0646 1."),
+    page_size: z4.number().optional().describe("\u062D\u062C\u0645 \u0627\u0644\u0635\u0641\u062D\u0629 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A 50\u060C \u0623\u0642\u0635\u0649 200).")
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ search, low_stock_only, limit }, ctx) => {
+  handler: async ({ search, category, active_only, page, page_size }, ctx) => {
     if (!ctx.isAuthenticated())
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     const supabase = supabaseForUser(ctx);
-    let q = supabase.from("products").select("name, category, price, stock, unit, is_active").order("name", { ascending: true }).limit(Math.min(Math.max(limit ?? 50, 1), 200));
+    const size = Math.min(Math.max(page_size ?? 50, 1), 200);
+    const pg = Math.max(page ?? 1, 1);
+    const from = (pg - 1) * size;
+    let q = supabase.from("products").select("id, name, category, price, unit, stock, is_active", { count: "exact" }).order("name", { ascending: true });
     if (search) q = q.ilike("name", `%${search}%`);
-    if (low_stock_only) q = q.lte("stock", 10);
-    const { data, error } = await q;
+    if (category) q = q.eq("category", category);
+    if (active_only) q = q.eq("is_active", true);
+    const { data, error, count } = await q.range(from, from + size - 1);
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    return {
-      content: [{ type: "text", text: JSON.stringify(data ?? []) }],
-      structuredContent: { products: data ?? [] }
+    const payload = {
+      total_count: count ?? 0,
+      page: pg,
+      page_size: size,
+      returned: (data ?? []).length,
+      has_more: from + (data ?? []).length < (count ?? 0),
+      currency: "EGP",
+      stock_field_note: "products.stock \u062D\u0642\u0644 \u0642\u062F\u064A\u0645 \u0639\u0644\u0649 \u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0645\u0646\u062A\u062C (\u0644\u064A\u0633 \u0631\u0635\u064A\u062F \u0645\u062E\u0632\u0646). \u0627\u0633\u062A\u062E\u062F\u0645 inventory_balances \u0644\u0644\u0631\u0635\u064A\u062F \u0627\u0644\u0641\u0639\u0644\u064A \u0648\u0627\u0644\u0645\u062D\u062C\u0648\u0632 \u0648\u0627\u0644\u0645\u062A\u0627\u062D \u0644\u0643\u0644 \u0645\u062E\u0632\u0646 \u0648\u0648\u062D\u062F\u0629.",
+      products: data ?? []
     };
+    return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload };
   }
 });
 
