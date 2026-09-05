@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { getLandingForRole } from '@/constants/roleLandings';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,9 @@ const loginSchema = z.object({
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const rawNext = searchParams.get('next');
+  const nextPath = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null;
   const { user, role, signIn, loading: authLoading } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -28,9 +31,13 @@ const Auth = () => {
 
   useEffect(() => {
     if (user && !authLoading && role !== null) {
+      if (nextPath) {
+        window.location.replace(nextPath);
+        return;
+      }
       navigate(getLandingForRole(role), { replace: true });
     }
-  }, [user, role, authLoading, navigate]);
+  }, [user, role, authLoading, navigate, nextPath]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

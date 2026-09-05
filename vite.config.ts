@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
 
 // Build version (timestamp-based, regenerated each build)
 const APP_VERSION = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 12);
@@ -112,6 +113,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     emitVersionJson(),
+    mcpPlugin(),
   ].filter(Boolean),
   resolve: {
     alias: {

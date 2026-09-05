@@ -16,6 +16,7 @@
     "@capacitor/core": "^8.3.4",
     "@capacitor/ios": "^8.3.4",
     "@hookform/resolvers": "^3.10.0",
+    "@lovable.dev/mcp-js": "^2.0.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-aspect-ratio": "^1.1.8",
