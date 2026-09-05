@@ -846,7 +846,10 @@ var manufacturing_report_default = defineTool12({
         output_kg: Number(
           rows.reduce((s, r) => s + num4(r.total_meat_kg), 0).toFixed(2)
         ),
-        total_cost: Number(rows.reduce((s, r) => s + num4(r.total_cost), 0).toFixed(2)),
+        total_cost: Number(
+          rows.reduce((s, r) => s + num4(r.total_allocatable_cost ?? r.total_birds_cost), 0).toFixed(2)
+        ),
+        avg_yield_pct: rows.length ? Number((rows.reduce((s, r) => s + num4(r.actual_yield_pct), 0) / rows.length).toFixed(2)) : 0,
         rows: rows.slice(0, 100)
       };
     }
