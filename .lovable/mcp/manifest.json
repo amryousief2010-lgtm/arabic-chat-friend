@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "sdk_version": "2.0.2",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://ssznmzijopyxkwpctcxw.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "naam-al-asima-management-system",
+      "version": "0.1.0",
+      "title": "Naam Al-Asima Management System"
+    },
+    "tools": [
+      {
+        "name": "list_orders",
+        "title": "List orders",
+        "description": "List recent orders (order number, status, totals, dates). Optionally filter by status, moderator, or a created_at date range.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "description": "Order status filter, e.g. pending, delivered, cancelled."
+            },
+            "moderator": {
+              "type": "string",
+              "description": "Moderator name filter (exact match)."
+            },
+            "date_from": {
+              "type": "string",
+              "description": "ISO date (YYYY-MM-DD) lower bound on created_at."
+            },
+            "date_to": {
+              "type": "string",
+              "description": "ISO date (YYYY-MM-DD) upper bound on created_at."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Max rows to return (default 25, max 100)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_order",
+        "title": "Get order details",
+        "description": "Get one order by its order number, including its line items (product, quantity, prices).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "order_number": {
+              "type": "string",
+              "description": "The order number, e.g. ORD-20260904-303259."
+            }
+          },
+          "required": [
+            "order_number"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "sales_summary",
+        "title": "Sales summary",
+        "description": "Aggregated sales summary for a date range: order counts by status, total sales, average order value, and top moderators.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "date_from": {
+              "type": "string",
+              "description": "Start date (YYYY-MM-DD)."
+            },
+            "date_to": {
+              "type": "string",
+              "description": "End date (YYYY-MM-DD)."
+            }
+          },
+          "required": [
+            "date_from",
+            "date_to"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_products",
+        "title": "List products",
+        "description": "List products with name, category, selling price and current stock. Optionally search by name or list only low-stock items.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "search": {
+              "type": "string",
+              "description": "Case-insensitive substring of the product name."
+            },
+            "low_stock_only": {
+              "type": "boolean",
+              "description": "Return only products with stock at or below 10."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Max rows to return (default 50, max 200)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
