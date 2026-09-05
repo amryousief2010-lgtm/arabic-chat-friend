@@ -49,16 +49,16 @@ export default defineTool({
     if (date_from && date_to) {
       const { data, error } = await supabase
         .from("main_treasury_transactions")
-        .select("transaction_type, category, amount, transaction_date, status")
-        .gte("transaction_date", date_from)
-        .lte("transaction_date", date_to)
+        .select("txn_type, category_id, amount, txn_date, status, description")
+        .gte("txn_date", date_from)
+        .lte("txn_date", date_to)
         .limit(10000);
       if (error) notes.push(`main_treasury_transactions: ${error.message}`);
       const rows = (data as any[]) ?? [];
-      const bucket = (type: string) => rows.filter((r) => String(r.transaction_type) === type);
+      const bucket = (type: string) => rows.filter((r) => String(r.txn_type) === type);
       const byCat = (list: any[]) => {
         const m = new Map<string, number>();
-        for (const r of list) m.set(r.category || "غير مصنف", (m.get(r.category || "غير مصنف") ?? 0) + num(r.amount));
+        for (const r of list) m.set(r.category_id || "غير مصنف", (m.get(r.category_id || "غير مصنف") ?? 0) + num(r.amount));
         return Array.from(m.entries())
           .map(([category, total]) => ({ category, total: Number(total.toFixed(2)) }))
           .sort((a, b) => b.total - a.total);

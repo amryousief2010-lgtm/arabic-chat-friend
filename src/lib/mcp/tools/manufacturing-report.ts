@@ -46,10 +46,10 @@ export default defineTool({
         invoices_active: active.length,
         invoices_cancelled: rows.length - active.length,
         produced_kg: Number(
-          active.reduce((s, r) => s + num(r.total_output_kg ?? r.output_kg ?? r.total_kg), 0).toFixed(2),
+          active.reduce((s, r) => s + num(r.finished_qty), 0).toFixed(2),
         ),
         total_cost: Number(
-          active.reduce((s, r) => s + num(r.total_cost ?? r.cost_total), 0).toFixed(2),
+          active.reduce((s, r) => s + num(r.total_manufacturing_cost ?? r.materials_total_cost), 0).toFixed(2),
         ),
         rows: active.slice(0, 100),
       };
@@ -67,7 +67,7 @@ export default defineTool({
       out.feed_factory = {
         batches: rows.length,
         produced_kg: Number(
-          rows.reduce((s, r) => s + num(r.produced_qty ?? r.output_kg ?? r.total_kg), 0).toFixed(2),
+          rows.reduce((s, r) => s + num(r.actual_quantity), 0).toFixed(2),
         ),
         total_cost: Number(rows.reduce((s, r) => s + num(r.total_cost), 0).toFixed(2)),
         rows: rows.slice(0, 100),
@@ -78,8 +78,8 @@ export default defineTool({
       const { data, error } = await supabase
         .from("slaughter_batches")
         .select("*")
-        .gte("created_at", from)
-        .lte("created_at", to)
+        .gte("slaughter_date", date_from)
+        .lte("slaughter_date", date_to)
         .limit(2000);
       if (error) notes.push(`slaughter: ${error.message}`);
       const rows = ((data as any[]) ?? []).filter(
@@ -87,9 +87,9 @@ export default defineTool({
       );
       out.slaughterhouse = {
         batches: rows.length,
-        birds: rows.reduce((s, r) => s + num(r.birds_count ?? r.bird_count), 0),
+        birds: rows.reduce((s, r) => s + num(r.birds_slaughtered), 0),
         output_kg: Number(
-          rows.reduce((s, r) => s + num(r.total_output_kg ?? r.net_weight ?? r.total_kg), 0).toFixed(2),
+          rows.reduce((s, r) => s + num(r.total_meat_kg), 0).toFixed(2),
         ),
         total_cost: Number(rows.reduce((s, r) => s + num(r.total_cost), 0).toFixed(2)),
         rows: rows.slice(0, 100),

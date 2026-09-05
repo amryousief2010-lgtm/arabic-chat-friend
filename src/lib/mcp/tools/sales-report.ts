@@ -68,14 +68,14 @@ export default defineTool({
     if (include_collections !== false) {
       const { data: dep } = await supabase
         .from("courier_daily_cash_deposits")
-        .select("deposit_date, total_amount, status")
+        .select("deposit_date, amount, orders_count, courier_name")
         .gte("deposit_date", date_from)
         .lte("deposit_date", date_to);
       if (dep)
         collections = {
           source: "courier_daily_cash_deposits",
           deposits_count: dep.length,
-          total_deposited: sum(dep as any[], (r) => num(r.total_amount)),
+          total_deposited: sum(dep as any[], (r) => num(r.amount)),
         };
     }
 

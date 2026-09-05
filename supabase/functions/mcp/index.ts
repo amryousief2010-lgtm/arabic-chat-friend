@@ -736,12 +736,12 @@ var sales_report_default = defineTool11({
     };
     let collections = null;
     if (include_collections !== false) {
-      const { data: dep } = await supabase.from("courier_daily_cash_deposits").select("deposit_date, total_amount, status").gte("deposit_date", date_from).lte("deposit_date", date_to);
+      const { data: dep } = await supabase.from("courier_daily_cash_deposits").select("deposit_date, amount, orders_count, courier_name").gte("deposit_date", date_from).lte("deposit_date", date_to);
       if (dep)
         collections = {
           source: "courier_daily_cash_deposits",
           deposits_count: dep.length,
-          total_deposited: sum(dep, (r) => num3(r.total_amount))
+          total_deposited: sum(dep, (r) => num3(r.amount))
         };
     }
     const payload = {
@@ -813,10 +813,10 @@ var manufacturing_report_default = defineTool12({
         invoices_active: active.length,
         invoices_cancelled: rows.length - active.length,
         produced_kg: Number(
-          active.reduce((s, r) => s + num4(r.total_output_kg ?? r.output_kg ?? r.total_kg), 0).toFixed(2)
+          active.reduce((s, r) => s + num4(r.finished_qty), 0).toFixed(2)
         ),
         total_cost: Number(
-          active.reduce((s, r) => s + num4(r.total_cost ?? r.cost_total), 0).toFixed(2)
+          active.reduce((s, r) => s + num4(r.total_manufacturing_cost ?? r.materials_total_cost), 0).toFixed(2)
         ),
         rows: active.slice(0, 100)
       };
@@ -828,23 +828,23 @@ var manufacturing_report_default = defineTool12({
       out.feed_factory = {
         batches: rows.length,
         produced_kg: Number(
-          rows.reduce((s, r) => s + num4(r.produced_qty ?? r.output_kg ?? r.total_kg), 0).toFixed(2)
+          rows.reduce((s, r) => s + num4(r.actual_quantity), 0).toFixed(2)
         ),
         total_cost: Number(rows.reduce((s, r) => s + num4(r.total_cost), 0).toFixed(2)),
         rows: rows.slice(0, 100)
       };
     }
     if (u === "slaughter" || u === "all") {
-      const { data, error } = await supabase.from("slaughter_batches").select("*").gte("created_at", from).lte("created_at", to).limit(2e3);
+      const { data, error } = await supabase.from("slaughter_batches").select("*").gte("slaughter_date", date_from).lte("slaughter_date", date_to).limit(2e3);
       if (error) notes.push(`slaughter: ${error.message}`);
       const rows = (data ?? []).filter(
         (r) => String(r.status ?? "").toLowerCase() !== "cancelled"
       );
       out.slaughterhouse = {
         batches: rows.length,
-        birds: rows.reduce((s, r) => s + num4(r.birds_count ?? r.bird_count), 0),
+        birds: rows.reduce((s, r) => s + num4(r.birds_slaughtered), 0),
         output_kg: Number(
-          rows.reduce((s, r) => s + num4(r.total_output_kg ?? r.net_weight ?? r.total_kg), 0).toFixed(2)
+          rows.reduce((s, r) => s + num4(r.total_meat_kg), 0).toFixed(2)
         ),
         total_cost: Number(rows.reduce((s, r) => s + num4(r.total_cost), 0).toFixed(2)),
         rows: rows.slice(0, 100)
@@ -907,13 +907,13 @@ var finance_report_default = defineTool13({
       payload.treasury_balances = balances;
     }
     if (date_from && date_to) {
-      const { data, error } = await supabase.from("main_treasury_transactions").select("transaction_type, category, amount, transaction_date, status").gte("transaction_date", date_from).lte("transaction_date", date_to).limit(1e4);
+      const { data, error } = await supabase.from("main_treasury_transactions").select("txn_type, category_id, amount, txn_date, status, description").gte("txn_date", date_from).lte("txn_date", date_to).limit(1e4);
       if (error) notes.push(`main_treasury_transactions: ${error.message}`);
       const rows = data ?? [];
-      const bucket = (type) => rows.filter((r) => String(r.transaction_type) === type);
+      const bucket = (type) => rows.filter((r) => String(r.txn_type) === type);
       const byCat = (list) => {
         const m = /* @__PURE__ */ new Map();
-        for (const r of list) m.set(r.category || "\u063A\u064A\u0631 \u0645\u0635\u0646\u0641", (m.get(r.category || "\u063A\u064A\u0631 \u0645\u0635\u0646\u0641") ?? 0) + num5(r.amount));
+        for (const r of list) m.set(r.category_id || "\u063A\u064A\u0631 \u0645\u0635\u0646\u0641", (m.get(r.category_id || "\u063A\u064A\u0631 \u0645\u0635\u0646\u0641") ?? 0) + num5(r.amount));
         return Array.from(m.entries()).map(([category, total]) => ({ category, total: Number(total.toFixed(2)) })).sort((a, b) => b.total - a.total);
       };
       payload.main_treasury_flows = {
