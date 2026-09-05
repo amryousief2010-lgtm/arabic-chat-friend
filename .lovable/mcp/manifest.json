@@ -12,10 +12,350 @@
   "mcp": {
     "server": {
       "name": "naam-al-asima-management-system",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "title": "Naam Al-Asima Management System"
     },
     "tools": [
+      {
+        "name": "system_map",
+        "title": "System map",
+        "description": "خريطة النظام: الأقسام ووظائفها ومصادر البيانات (جداول/عروض) والعلاقات بينها وقواعد العمل والمؤشرات. ابدأ بهذه الأداة لفهم النظام قبل الاستعلام.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "section": {
+              "type": "string",
+              "description": "اختياري: اسم قسم لعرض تفاصيله فقط، مثل inventory أو sales_orders."
+            },
+            "include_datasets": {
+              "type": "boolean",
+              "description": "تضمين قائمة مصادر البيانات لكل قسم (افتراضي true)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_datasets",
+        "title": "List datasets",
+        "description": "استعراض مصادر البيانات المتاحة للقراءة (جداول وعروض) مع القسم والأعمدة والعلاقات. استخدمها لمعرفة أسماء الأعمدة قبل استدعاء query_dataset.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "section": {
+              "type": "string",
+              "description": "تصفية بالقسم، مثل inventory أو finance."
+            },
+            "search": {
+              "type": "string",
+              "description": "بحث نصي في اسم المصدر أو أعمدته."
+            },
+            "include_columns": {
+              "type": "boolean",
+              "description": "تضمين أسماء الأعمدة (افتراضي true)."
+            },
+            "limit": {
+              "type": "number",
+              "description": "عدد النتائج (افتراضي 100، أقصى 400)."
+            },
+            "offset": {
+              "type": "number",
+              "description": "بداية الترقيم (افتراضي 0)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "query_dataset",
+        "title": "Query dataset",
+        "description": "استعلام عام للقراءة من أي مصدر بيانات في النظام (جدول أو عرض) مع فلاتر وترتيب وترقيم صفحات وعدد إجمالي دقيق. القراءة تتم بصلاحيات المستخدم الموقّع فقط. استخدم list_datasets لمعرفة الأعمدة.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dataset": {
+              "type": "string",
+              "description": "اسم الجدول أو العرض، مثل orders أو inventory_movements."
+            },
+            "select": {
+              "type": "string",
+              "description": "أعمدة مفصولة بفواصل (افتراضي كل الأعمدة)."
+            },
+            "filters": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "column": {
+                    "type": "string",
+                    "description": "اسم العمود."
+                  },
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "eq",
+                      "neq",
+                      "gt",
+                      "gte",
+                      "lt",
+                      "lte",
+                      "like",
+                      "ilike",
+                      "in",
+                      "is_null",
+                      "not_null"
+                    ],
+                    "description": "المُعامل: eq, neq, gt, gte, lt, lte, like, ilike, in, is_null, not_null."
+                  },
+                  "value": {
+                    "type": "string",
+                    "description": "القيمة؛ لـ in افصل بفواصل. غير مطلوبة مع is_null/not_null."
+                  }
+                },
+                "required": [
+                  "column",
+                  "op"
+                ],
+                "additionalProperties": false
+              },
+              "description": "قائمة الفلاتر."
+            },
+            "search": {
+              "type": "string",
+              "description": "بحث نصي (ilike) في العمود المحدد في search_column."
+            },
+            "search_column": {
+              "type": "string",
+              "description": "العمود المستخدم مع search."
+            },
+            "order_by": {
+              "type": "string",
+              "description": "عمود الترتيب (افتراضي created_at إن وُجد)."
+            },
+            "ascending": {
+              "type": "boolean",
+              "description": "ترتيب تصاعدي (افتراضي false)."
+            },
+            "page": {
+              "type": "number",
+              "description": "رقم الصفحة يبدأ من 1."
+            },
+            "page_size": {
+              "type": "number",
+              "description": "حجم الصفحة (افتراضي 50، أقصى 500)."
+            }
+          },
+          "required": [
+            "dataset"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_record",
+        "title": "Get record details",
+        "description": "قراءة سجل واحد من أي مصدر بيانات بالمعرّف (أو بعمود آخر)، مع تحميل السجلات المرتبطة به من الجداول الأبناء (البنود، الحركات، المرفقات، سجل التعديلات).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dataset": {
+              "type": "string",
+              "description": "اسم الجدول، مثل orders أو meat_factory_batches."
+            },
+            "id": {
+              "type": "string",
+              "description": "قيمة المعرّف."
+            },
+            "id_column": {
+              "type": "string",
+              "description": "عمود المعرّف (افتراضي id)."
+            },
+            "include_related": {
+              "type": "boolean",
+              "description": "تحميل السجلات المرتبطة (افتراضي true)."
+            },
+            "related_limit": {
+              "type": "number",
+              "description": "عدد السجلات المرتبطة لكل جدول (افتراضي 50، أقصى 200)."
+            }
+          },
+          "required": [
+            "dataset",
+            "id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "inventory_balances",
+        "title": "Inventory balances",
+        "description": "أرصدة المخزون لكل صنف داخل كل مخزن من نفس الطبقة الآمنة التي تستخدمها شاشات التطبيق: الرصيد الفعلي والمحجوز والمحظور والمتاح ووحدة القياس. أعمدة التكلفة والقيمة تظهر فقط للأدوار المالية المصرح لها.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "search": {
+              "type": "string",
+              "description": "بحث في اسم الصنف أو كوده."
+            },
+            "warehouse_ids": {
+              "type": "string",
+              "description": "معرفات مخازن مفصولة بفواصل."
+            },
+            "modules": {
+              "type": "string",
+              "description": "وحدات/موديولات مفصولة بفواصل، مثل main,agouza,meat."
+            },
+            "active_only": {
+              "type": "boolean",
+              "description": "الأصناف النشطة فقط (افتراضي true)."
+            },
+            "include_cost": {
+              "type": "boolean",
+              "description": "محاولة إرجاع التكلفة والقيمة (للأدوار المالية فقط)."
+            },
+            "low_stock_only": {
+              "type": "boolean",
+              "description": "الأصناف تحت حد إعادة الطلب فقط."
+            },
+            "page": {
+              "type": "number",
+              "description": "رقم الصفحة يبدأ من 1."
+            },
+            "page_size": {
+              "type": "number",
+              "description": "حجم الصفحة (افتراضي 100، أقصى 500)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "inventory_movements",
+        "title": "Inventory movements",
+        "description": "حركات الأصناف (استلام، صرف، تحويل بين المخازن، جرد، هالك، تسويات) من نفس الطبقة الآمنة المستخدمة في التطبيق، مع فلاتر بالتاريخ والمخزن والصنف ونوع الحركة.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "warehouse_ids": {
+              "type": "string",
+              "description": "معرفات مخازن مفصولة بفواصل."
+            },
+            "modules": {
+              "type": "string",
+              "description": "موديولات مفصولة بفواصل."
+            },
+            "movement_types": {
+              "type": "string",
+              "description": "أنواع الحركة مفصولة بفواصل، مثل in,out,transfer,adjustment."
+            },
+            "item_id": {
+              "type": "string",
+              "description": "معرّف صنف المخزون."
+            },
+            "date_from": {
+              "type": "string",
+              "description": "من تاريخ YYYY-MM-DD."
+            },
+            "date_to": {
+              "type": "string",
+              "description": "إلى تاريخ YYYY-MM-DD."
+            },
+            "include_cost": {
+              "type": "boolean",
+              "description": "إرجاع التكلفة (للأدوار المالية فقط)."
+            },
+            "page": {
+              "type": "number",
+              "description": "رقم الصفحة يبدأ من 1."
+            },
+            "page_size": {
+              "type": "number",
+              "description": "حجم الصفحة (افتراضي 100، أقصى 500)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_products",
+        "title": "List products",
+        "description": "قائمة المنتجات بأسمائها وفئاتها وسعر البيع ووحدة القياس. تحذير: حقل stock هنا حقل تجميعي قديم على مستوى المنتج ولا يمثل رصيد مخزن محدد — لأرصدة المخازن (فعلي/محجوز/متاح) استخدم أداة inventory_balances.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "search": {
+              "type": "string",
+              "description": "بحث جزئي في اسم المنتج."
+            },
+            "category": {
+              "type": "string",
+              "description": "تصفية بالفئة."
+            },
+            "active_only": {
+              "type": "boolean",
+              "description": "المنتجات النشطة فقط."
+            },
+            "page": {
+              "type": "number",
+              "description": "رقم الصفحة يبدأ من 1."
+            },
+            "page_size": {
+              "type": "number",
+              "description": "حجم الصفحة (افتراضي 50، أقصى 200)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
       {
         "name": "list_orders",
         "title": "List orders",
@@ -110,9 +450,9 @@
         "outputSchema": null
       },
       {
-        "name": "list_products",
-        "title": "List products",
-        "description": "List products with name, category, selling price and current stock. Optionally search by name or list only low-stock items.",
+        "name": "sales_report",
+        "title": "Sales report (orders vs delivered vs collected)",
+        "description": "تقرير مبيعات تفصيلي لفترة: يفصل قيمة الطلبات المسجّلة عن المبيعات المسلّمة فعليًا عن التحصيل النقدي، مع الإلغاءات والمرتجعات والخصومات والشحن، وتوزيع حسب الحالة والمنفذ والمصدر والمودريتور.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -121,17 +461,103 @@
         "inputSchema": {
           "type": "object",
           "properties": {
-            "search": {
+            "date_from": {
               "type": "string",
-              "description": "Case-insensitive substring of the product name."
+              "description": "من تاريخ YYYY-MM-DD (على created_at)."
             },
-            "low_stock_only": {
+            "date_to": {
+              "type": "string",
+              "description": "إلى تاريخ YYYY-MM-DD."
+            },
+            "moderator": {
+              "type": "string",
+              "description": "تصفية بموظفة المبيعات."
+            },
+            "fulfillment_type": {
+              "type": "string",
+              "description": "منفذ التنفيذ، مثل main_warehouse أو agouza أو delivery."
+            },
+            "include_collections": {
               "type": "boolean",
-              "description": "Return only products with stock at or below 10."
+              "description": "تضمين التحصيل من إيداعات المناديب (افتراضي true)."
+            }
+          },
+          "required": [
+            "date_from",
+            "date_to"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "manufacturing_report",
+        "title": "Manufacturing report",
+        "description": "تقرير التصنيع لفترة: مصنع اللحوم (فواتير التصنيع والكميات المنتجة والملغاة)، مصنع الأعلاف (دفعات الإنتاج وتكلفتها)، والمجزر (دفعات الذبح ومخرجاتها). يوضح الكميات بالكيلو والتكاليف بالجنيه.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "date_from": {
+              "type": "string",
+              "description": "من تاريخ YYYY-MM-DD."
             },
-            "limit": {
-              "type": "number",
-              "description": "Max rows to return (default 50, max 200)."
+            "date_to": {
+              "type": "string",
+              "description": "إلى تاريخ YYYY-MM-DD."
+            },
+            "unit": {
+              "type": "string",
+              "enum": [
+                "meat",
+                "feed",
+                "slaughter",
+                "all"
+              ],
+              "description": "الوحدة الإنتاجية المطلوبة (افتراضي all)."
+            }
+          },
+          "required": [
+            "date_from",
+            "date_to"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "finance_report",
+        "title": "Finance report",
+        "description": "التقرير المالي: أرصدة الخزائن (الرئيسية، المعمل، المصانع، عُهد المجزر)، والمصروفات والإيرادات خلال فترة، والمديونيات المفتوحة. كل القيم بالجنيه المصري وتظهر حسب صلاحيات المستخدم.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "date_from": {
+              "type": "string",
+              "description": "من تاريخ YYYY-MM-DD (للحركات)."
+            },
+            "date_to": {
+              "type": "string",
+              "description": "إلى تاريخ YYYY-MM-DD."
+            },
+            "include_balances": {
+              "type": "boolean",
+              "description": "تضمين أرصدة الخزائن (افتراضي true)."
+            },
+            "include_receivables": {
+              "type": "boolean",
+              "description": "تضمين مديونيات العملاء (افتراضي true)."
             }
           },
           "additionalProperties": false,
