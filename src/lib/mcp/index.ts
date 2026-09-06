@@ -12,6 +12,12 @@ import inventoryMovementsTool from "./tools/inventory-movements";
 import salesReportTool from "./tools/sales-report";
 import manufacturingReportTool from "./tools/manufacturing-report";
 import financeReportTool from "./tools/finance-report";
+import hrReportTool from "./tools/hr-report";
+import customersReportTool from "./tools/customers-report";
+import deliveryReportTool from "./tools/delivery-report";
+import marketingReportTool from "./tools/marketing-report";
+import messagesAndDocumentsTool from "./tools/messages-and-documents";
+
 
 const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unset";
 
