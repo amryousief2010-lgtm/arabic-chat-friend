@@ -944,13 +944,420 @@ var finance_report_default = defineTool13({
   }
 });
 
+// src/lib/mcp/tools/hr-report.ts
+import { defineTool as defineTool14 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { z as z14 } from "npm:zod@^3.25.76";
+var hr_report_default = defineTool14({
+  name: "hr_report",
+  title: "HR report",
+  description: "\u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u0648\u0627\u0631\u062F \u0627\u0644\u0628\u0634\u0631\u064A\u0629: \u0627\u0644\u0645\u0648\u0638\u0641\u0648\u0646 \u0627\u0644\u0646\u0634\u0637\u0648\u0646 \u0648\u0627\u0644\u0645\u0648\u0642\u0648\u0641\u0648\u0646 \u062D\u0633\u0628 \u0627\u0644\u0642\u0633\u0645 \u0648\u0627\u0644\u0645\u0648\u0642\u0639 \u0648\u0646\u0648\u0639 \u0627\u0644\u062A\u0639\u064A\u064A\u0646\u060C \u0648\u0627\u0644\u062E\u0635\u0648\u0645\u0627\u062A \u0627\u0644\u0645\u0639\u062A\u0645\u062F\u0629\u060C \u0648\u0645\u0633\u064A\u0651\u0631\u0627\u062A \u0627\u0644\u0631\u0648\u0627\u062A\u0628 (\u0627\u0644\u0623\u0633\u0627\u0633\u064A/\u0627\u0644\u0628\u0648\u0646\u0635/\u0627\u0644\u0633\u0644\u0641/\u0627\u0644\u062E\u0635\u0648\u0645\u0627\u062A/\u0627\u0644\u0635\u0627\u0641\u064A) \u0644\u0634\u0647\u0631 \u0645\u062D\u062F\u062F. \u0642\u0631\u0627\u0621\u0629 \u0641\u0642\u0637 \u0628\u0635\u0644\u0627\u062D\u064A\u0627\u062A \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645.",
+  inputSchema: {
+    month: z14.number().optional().describe("\u0627\u0644\u0634\u0647\u0631 1-12 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A \u0627\u0644\u0634\u0647\u0631 \u0627\u0644\u062D\u0627\u0644\u064A)."),
+    year: z14.number().optional().describe("\u0627\u0644\u0633\u0646\u0629 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A \u0627\u0644\u0633\u0646\u0629 \u0627\u0644\u062D\u0627\u0644\u064A\u0629)."),
+    department: z14.string().optional().describe("\u062A\u0635\u0641\u064A\u0629 \u0628\u0627\u0644\u0642\u0633\u0645."),
+    status: z14.string().optional().describe("\u062D\u0627\u0644\u0629 \u0627\u0644\u0645\u0648\u0638\u0641: active \u0623\u0648 inactive."),
+    include_employees: z14.boolean().optional().describe("\u0625\u0631\u062C\u0627\u0639 \u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0645\u0648\u0638\u0641\u064A\u0646 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A false\u060C \u0645\u0644\u062E\u0635 \u0641\u0642\u0637)."),
+    limit: z14.number().optional().describe("\u062D\u062F \u0635\u0641\u0648\u0641 \u0627\u0644\u0642\u0648\u0627\u0626\u0645 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A 200\u060C \u0623\u0642\u0635\u0649 1000).")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ month, year, department, status, include_employees, limit }, ctx) => {
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    const supabase = supabaseForUser(ctx);
+    const now = /* @__PURE__ */ new Date();
+    const m = month ?? now.getUTCMonth() + 1;
+    const y = year ?? now.getUTCFullYear();
+    const cap = Math.min(Math.max(limit ?? 200, 1), 1e3);
+    let empQ = supabase.from("hr_employees").select(
+      "id,code,full_name,job_title,department,employment_type,base_salary,daily_rate,status,is_suspended,start_date,current_location_id"
+    ).limit(cap);
+    if (department) empQ = empQ.eq("department", department);
+    if (status) empQ = empQ.eq("status", status);
+    const [emp, ded, pay] = await Promise.all([
+      empQ,
+      supabase.from("hr_deductions").select("id,employee_id,deduction_type,amount,status,deduction_date").eq("month", m).eq("year", y).limit(cap),
+      supabase.from("hr_payroll_payouts").select(
+        "id,employee_id,base_salary,bonus_amount,advances_amount,penalties_amount,absence_amount,other_deductions_amount,net_amount,status,pay_day"
+      ).eq("month", m).eq("year", y).limit(cap)
+    ]);
+    const err = emp.error || ded.error || pay.error;
+    if (err) return { content: [{ type: "text", text: err.message }], isError: true };
+    const employees = emp.data ?? [];
+    const deductions = ded.data ?? [];
+    const payouts = pay.data ?? [];
+    const sum = (rows, k) => rows.reduce((a, r) => a + Number(r[k] ?? 0), 0);
+    const byKey = (rows, k) => rows.reduce((acc, r) => {
+      const key = String(r[k] ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+    const payload = {
+      period: { month: m, year: y },
+      currency: "EGP",
+      employees_summary: {
+        total: employees.length,
+        active: employees.filter((e) => e.status === "active").length,
+        suspended: employees.filter((e) => e.is_suspended).length,
+        by_department: byKey(employees, "department"),
+        by_employment_type: byKey(employees, "employment_type"),
+        total_base_salaries: sum(employees, "base_salary")
+      },
+      deductions_summary: {
+        count: deductions.length,
+        total_amount: sum(deductions, "amount"),
+        approved_amount: sum(
+          deductions.filter((d) => d.status === "approved"),
+          "amount"
+        ),
+        by_type: deductions.reduce((acc, d) => {
+          const k = String(d.deduction_type ?? "other");
+          acc[k] = (acc[k] ?? 0) + Number(d.amount ?? 0);
+          return acc;
+        }, {})
+      },
+      payroll_summary: {
+        payouts_count: payouts.length,
+        base: sum(payouts, "base_salary"),
+        bonus: sum(payouts, "bonus_amount"),
+        advances: sum(payouts, "advances_amount"),
+        penalties: sum(payouts, "penalties_amount"),
+        absence: sum(payouts, "absence_amount"),
+        other_deductions: sum(payouts, "other_deductions_amount"),
+        net_total: sum(payouts, "net_amount")
+      },
+      ...include_employees ? { employees } : {},
+      note: "\u0627\u0644\u0631\u0648\u0627\u062A\u0628 \u0648\u0627\u0644\u062E\u0635\u0648\u0645\u0627\u062A \u0628\u0627\u0644\u062C\u0646\u064A\u0647 \u0627\u0644\u0645\u0635\u0631\u064A. \u0627\u0644\u0635\u0641\u0648\u0641 \u063A\u064A\u0631 \u0627\u0644\u0645\u0635\u0631\u062D \u0628\u0647\u0627 \u0644\u0627 \u062A\u0638\u0647\u0631 \u0628\u0633\u0628\u0628 \u0633\u064A\u0627\u0633\u0627\u062A \u0627\u0644\u0623\u0645\u0627\u0646 (RLS)."
+    };
+    return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload };
+  }
+});
+
+// src/lib/mcp/tools/customers-report.ts
+import { defineTool as defineTool15 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { z as z15 } from "npm:zod@^3.25.76";
+var customers_report_default = defineTool15({
+  name: "customers_report",
+  title: "Customers report",
+  description: "\u062A\u062D\u0644\u064A\u0644 \u0627\u0644\u0639\u0645\u0644\u0627\u0621: \u0627\u0644\u0639\u062F\u062F \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A\u060C \u0627\u0644\u062A\u0648\u0632\u064A\u0639 \u062D\u0633\u0628 \u0627\u0644\u0645\u062D\u0627\u0641\u0638\u0629 \u0648\u0627\u0644\u0645\u0635\u062F\u0631 \u0648\u0642\u0646\u0627\u0629 \u0627\u0644\u062A\u0648\u0627\u0635\u0644\u060C \u0623\u0639\u0644\u0649 \u0627\u0644\u0639\u0645\u0644\u0627\u0621 \u0625\u0646\u0641\u0627\u0642\u064B\u0627\u060C \u0648\u0627\u0644\u0639\u0645\u0644\u0627\u0621 \u0627\u0644\u062C\u062F\u062F \u062E\u0644\u0627\u0644 \u0641\u062A\u0631\u0629. \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0627\u062A\u0635\u0627\u0644 \u0644\u0627 \u062A\u064F\u0631\u062C\u0639 \u0625\u0644\u0627 \u0639\u0646\u062F \u0637\u0644\u0628\u0647\u0627 \u0635\u0631\u0627\u062D\u0629\u064B \u0648\u0648\u0641\u0642 \u0635\u0644\u0627\u062D\u064A\u0627\u062A \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645.",
+  inputSchema: {
+    date_from: z15.string().optional().describe("\u0645\u0646 \u062A\u0627\u0631\u064A\u062E \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0639\u0645\u064A\u0644 YYYY-MM-DD."),
+    date_to: z15.string().optional().describe("\u0625\u0644\u0649 \u062A\u0627\u0631\u064A\u062E YYYY-MM-DD."),
+    governorate: z15.string().optional().describe("\u062A\u0635\u0641\u064A\u0629 \u0628\u0627\u0644\u0645\u062D\u0627\u0641\u0638\u0629."),
+    source: z15.string().optional().describe("\u062A\u0635\u0641\u064A\u0629 \u0628\u0645\u0635\u062F\u0631 \u0627\u0644\u0639\u0645\u064A\u0644."),
+    min_total_spent: z15.number().optional().describe("\u062D\u062F \u0623\u062F\u0646\u0649 \u0644\u0625\u062C\u0645\u0627\u0644\u064A \u0625\u0646\u0641\u0627\u0642 \u0627\u0644\u0639\u0645\u064A\u0644."),
+    include_contacts: z15.boolean().optional().describe("\u0625\u0631\u062C\u0627\u0639 \u0627\u0644\u0627\u0633\u0645 \u0648\u0627\u0644\u0647\u0627\u062A\u0641 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A false)."),
+    top_limit: z15.number().optional().describe("\u0639\u062F\u062F \u0623\u0639\u0644\u0649 \u0627\u0644\u0639\u0645\u0644\u0627\u0621 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A 20\u060C \u0623\u0642\u0635\u0649 200).")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ date_from, date_to, governorate, source, min_total_spent, include_contacts, top_limit }, ctx) => {
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    const supabase = supabaseForUser(ctx);
+    const cap = Math.min(Math.max(top_limit ?? 20, 1), 200);
+    const cols = include_contacts ? "id,name,phone,governorate,area,source,communication_channel,shipping_company,total_orders,total_spent,created_at" : "id,governorate,area,source,communication_channel,shipping_company,total_orders,total_spent,created_at";
+    let base = supabase.from("customers").select(cols, { count: "exact", head: true });
+    let list = supabase.from("customers").select(cols).order("total_spent", { ascending: false }).limit(cap);
+    let agg = supabase.from("customers").select("governorate,source,communication_channel,total_orders,total_spent").limit(5e3);
+    const applyAll = (q) => {
+      let r = q;
+      if (date_from) r = r.gte("created_at", `${date_from}T00:00:00Z`);
+      if (date_to) r = r.lte("created_at", `${date_to}T23:59:59Z`);
+      if (governorate) r = r.eq("governorate", governorate);
+      if (source) r = r.eq("source", source);
+      if (min_total_spent != null) r = r.gte("total_spent", min_total_spent);
+      return r;
+    };
+    base = applyAll(base);
+    list = applyAll(list);
+    agg = applyAll(agg);
+    const [countRes, listRes, aggRes] = await Promise.all([base, list, agg]);
+    const err = countRes.error || listRes.error || aggRes.error;
+    if (err) return { content: [{ type: "text", text: err.message }], isError: true };
+    const rows = aggRes.data ?? [];
+    const group = (k) => rows.reduce((acc, r) => {
+      const key = String(r[k] ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
+      acc[key] = acc[key] ?? { customers: 0, spent: 0 };
+      acc[key].customers += 1;
+      acc[key].spent += Number(r.total_spent ?? 0);
+      return acc;
+    }, {});
+    const payload = {
+      period: { from: date_from ?? null, to: date_to ?? null },
+      currency: "EGP",
+      total_customers: countRes.count ?? 0,
+      sampled_for_grouping: rows.length,
+      totals: {
+        orders: rows.reduce((a, r) => a + Number(r.total_orders ?? 0), 0),
+        spent: rows.reduce((a, r) => a + Number(r.total_spent ?? 0), 0)
+      },
+      by_governorate: group("governorate"),
+      by_source: group("source"),
+      by_channel: group("communication_channel"),
+      top_customers: listRes.data ?? [],
+      contacts_included: Boolean(include_contacts),
+      note: "total_spent/total_orders \u062D\u0642\u0648\u0644 \u062A\u062C\u0645\u064A\u0639\u064A\u0629 \u0639\u0644\u0649 \u0627\u0644\u0639\u0645\u064A\u0644\u061B \u0644\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u0627\u0644\u0645\u0633\u0644\u0651\u0645\u0629 \u0627\u0644\u062F\u0642\u064A\u0642\u0629 \u0627\u0633\u062A\u062E\u062F\u0645 sales_report. \u0627\u0644\u062A\u062C\u0645\u064A\u0639 \u0645\u062D\u0633\u0648\u0628 \u0639\u0644\u0649 \u0639\u064A\u0651\u0646\u0629 \u062D\u062A\u0649 5000 \u0639\u0645\u064A\u0644."
+    };
+    return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload };
+  }
+});
+
+// src/lib/mcp/tools/delivery-report.ts
+import { defineTool as defineTool16 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { z as z16 } from "npm:zod@^3.25.76";
+var delivery_report_default = defineTool16({
+  name: "delivery_report",
+  title: "Delivery & couriers report",
+  description: "\u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0634\u062D\u0646 \u0648\u0627\u0644\u062A\u0648\u0635\u064A\u0644: \u0627\u0644\u0637\u0644\u0628\u0627\u062A \u062D\u0633\u0628 \u0634\u0631\u0643\u0629 \u0627\u0644\u0634\u062D\u0646 \u0648\u0645\u0646\u0641\u0630 \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u0648\u062D\u0627\u0644\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u0645 \u0648\u0627\u0644\u062A\u062D\u0635\u064A\u0644\u060C \u0648\u0628\u0648\u0627\u0644\u0635 \u0627\u0644\u0634\u062D\u0646\u060C \u0648\u062A\u0643\u0644\u064A\u0641\u0627\u062A \u0627\u0644\u0645\u0646\u0627\u062F\u064A\u0628\u060C \u0648\u0625\u063A\u0644\u0627\u0642\u0627\u062A \u064A\u0648\u0645 \u0627\u0644\u0645\u0646\u062F\u0648\u0628 (\u0628\u0636\u0627\u0639\u0629 \u062E\u0627\u0631\u062C\u0629/\u0645\u0631\u062A\u062C\u0639\u0629/\u0646\u0642\u062F \u0645\u062D\u0635\u0651\u0644/\u0639\u062C\u0632 \u0623\u0648 \u0641\u0627\u0626\u0636).",
+  inputSchema: {
+    date_from: z16.string().optional().describe("\u0645\u0646 \u062A\u0627\u0631\u064A\u062E YYYY-MM-DD (\u0639\u0644\u0649 \u062A\u0627\u0631\u064A\u062E \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0637\u0644\u0628)."),
+    date_to: z16.string().optional().describe("\u0625\u0644\u0649 \u062A\u0627\u0631\u064A\u062E YYYY-MM-DD."),
+    shipping_company: z16.string().optional().describe("\u062A\u0635\u0641\u064A\u0629 \u0628\u0634\u0631\u0643\u0629 \u0627\u0644\u0634\u062D\u0646."),
+    courier_name: z16.string().optional().describe("\u062A\u0635\u0641\u064A\u0629 \u0628\u0627\u0633\u0645 \u0627\u0644\u0645\u0646\u062F\u0648\u0628 \u0641\u064A \u0627\u0644\u062A\u0643\u0644\u064A\u0641\u0627\u062A \u0648\u0627\u0644\u0625\u063A\u0644\u0627\u0642\u0627\u062A."),
+    include_closures: z16.boolean().optional().describe("\u062A\u0636\u0645\u064A\u0646 \u0625\u063A\u0644\u0627\u0642\u0627\u062A \u064A\u0648\u0645 \u0627\u0644\u0645\u0646\u062F\u0648\u0628 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A true)."),
+    limit: z16.number().optional().describe("\u062D\u062F \u0627\u0644\u0635\u0641\u0648\u0641 \u0627\u0644\u062A\u0641\u0635\u064A\u0644\u064A\u0629 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A 500\u060C \u0623\u0642\u0635\u0649 2000).")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ date_from, date_to, shipping_company, courier_name, include_closures, limit }, ctx) => {
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    const supabase = supabaseForUser(ctx);
+    const cap = Math.min(Math.max(limit ?? 500, 1), 2e3);
+    let ordersQ = supabase.from("orders").select(
+      "id,order_number,status,collection_status,shipping_company,fulfillment_type,shipping_bill_no,delivery_fee,total,delivered_at,created_at,courier_cash_due,collection_method"
+    ).order("created_at", { ascending: false }).limit(cap);
+    if (date_from) ordersQ = ordersQ.gte("created_at", `${date_from}T00:00:00Z`);
+    if (date_to) ordersQ = ordersQ.lte("created_at", `${date_to}T23:59:59Z`);
+    if (shipping_company) ordersQ = ordersQ.eq("shipping_company", shipping_company);
+    let assignQ = supabase.from("courier_order_assignments").select("id,order_id,courier_name,status,assigned_at,delivered_at,collected_at,returned_at").order("assigned_at", { ascending: false }).limit(cap);
+    if (courier_name) assignQ = assignQ.eq("courier_name", courier_name);
+    if (date_from) assignQ = assignQ.gte("assigned_at", `${date_from}T00:00:00Z`);
+    if (date_to) assignQ = assignQ.lte("assigned_at", `${date_to}T23:59:59Z`);
+    let closuresQ = supabase.from("courier_daily_closures").select(
+      "id,closure_date,goods_out,goods_returned,sales_value,discounts_value,cash_collected,remaining_goods,remaining_cash,deficit_or_surplus,status"
+    ).order("closure_date", { ascending: false }).limit(cap);
+    if (date_from) closuresQ = closuresQ.gte("closure_date", date_from);
+    if (date_to) closuresQ = closuresQ.lte("closure_date", date_to);
+    const [ord, asg, clo] = await Promise.all([
+      ordersQ,
+      assignQ,
+      include_closures === false ? Promise.resolve({ data: [], error: null }) : closuresQ
+    ]);
+    const err = ord.error || asg.error || clo.error;
+    if (err) return { content: [{ type: "text", text: err.message }], isError: true };
+    const orders = ord.data ?? [];
+    const num6 = (v) => Number(v ?? 0);
+    const group = (k) => orders.reduce((acc, o) => {
+      const key = String(o[k] ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
+      acc[key] = acc[key] ?? { orders: 0, value: 0, delivered: 0 };
+      acc[key].orders += 1;
+      acc[key].value += num6(o.total);
+      if (o.status === "delivered") acc[key].delivered += 1;
+      return acc;
+    }, {});
+    const closures = clo.data ?? [];
+    const payload = {
+      period: { from: date_from ?? null, to: date_to ?? null },
+      currency: "EGP",
+      orders_sampled: orders.length,
+      totals: {
+        orders_value: orders.reduce((a, o) => a + num6(o.total), 0),
+        delivered_value: orders.filter((o) => o.status === "delivered").reduce((a, o) => a + num6(o.total), 0),
+        delivery_fees: orders.reduce((a, o) => a + num6(o.delivery_fee), 0),
+        without_shipping_bill: orders.filter((o) => !o.shipping_bill_no).length
+      },
+      by_shipping_company: group("shipping_company"),
+      by_fulfillment_type: group("fulfillment_type"),
+      by_status: group("status"),
+      by_collection_status: group("collection_status"),
+      courier_assignments: asg.data ?? [],
+      courier_closures: closures,
+      closures_totals: {
+        cash_collected: closures.reduce((a, c) => a + num6(c.cash_collected), 0),
+        deficit_or_surplus: closures.reduce((a, c) => a + num6(c.deficit_or_surplus), 0)
+      },
+      note: "\u0627\u0644\u0641\u062A\u0631\u0629 \u0645\u062D\u0633\u0648\u0628\u0629 \u0639\u0644\u0649 \u062A\u0627\u0631\u064A\u062E \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0637\u0644\u0628 (UTC)\u061B \u0627\u0644\u062A\u0633\u0644\u064A\u0645 \u064A\u064F\u0642\u0627\u0633 \u0628\u062D\u0627\u0644\u0629 delivered. \u0627\u0644\u0623\u0631\u0642\u0627\u0645 \u0645\u062D\u062F\u0648\u062F\u0629 \u0628\u0639\u062F\u062F \u0627\u0644\u0635\u0641\u0648\u0641 \u0627\u0644\u0645\u0633\u062D\u0648\u0628\u0629 (limit)."
+    };
+    return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload };
+  }
+});
+
+// src/lib/mcp/tools/marketing-report.ts
+import { defineTool as defineTool17 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { z as z17 } from "npm:zod@^3.25.76";
+var marketing_report_default = defineTool17({
+  name: "marketing_report",
+  title: "Marketing & moderators report",
+  description: "\u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u062A\u0633\u0648\u064A\u0642 \u0648\u0627\u0644\u0645\u0648\u062F\u0631\u064A\u062A\u0648\u0631: \u0623\u0647\u062F\u0627\u0641 \u0627\u0644\u0645\u0648\u0638\u0641\u064A\u0646 \u0648\u0627\u0644\u0645\u062D\u0642\u0642 \u0645\u0646\u0647\u0627\u060C \u0623\u062F\u0627\u0621 \u0627\u0644\u0645\u0648\u062F\u0631\u064A\u062A\u0648\u0631 \u0645\u0646 \u0627\u0644\u0637\u0644\u0628\u0627\u062A (\u0639\u062F\u062F \u0627\u0644\u0637\u0644\u0628\u0627\u062A \u0648\u0627\u0644\u0645\u0633\u0644\u0651\u0645 \u0648\u0627\u0644\u0642\u064A\u0645\u0629)\u060C \u062A\u0642\u0627\u0631\u064A\u0631 \u0627\u0644\u0633\u0648\u0634\u064A\u0627\u0644 \u0645\u064A\u062F\u064A\u0627 \u0627\u0644\u064A\u0648\u0645\u064A\u0629 \u0648\u0627\u0644\u0623\u0633\u0628\u0648\u0639\u064A\u0629\u060C \u0648\u0645\u0635\u0631\u0648\u0641\u0627\u062A \u0627\u0644\u0625\u0639\u0644\u0627\u0646\u0627\u062A \u062D\u0633\u0628 \u0627\u0644\u0645\u0646\u0635\u0629 \u0648\u0627\u0644\u062D\u0645\u0644\u0629.",
+  inputSchema: {
+    month: z17.number().optional().describe("\u0627\u0644\u0634\u0647\u0631 1-12 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A \u0627\u0644\u0634\u0647\u0631 \u0627\u0644\u062D\u0627\u0644\u064A)."),
+    year: z17.number().optional().describe("\u0627\u0644\u0633\u0646\u0629 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A \u0627\u0644\u0633\u0646\u0629 \u0627\u0644\u062D\u0627\u0644\u064A\u0629)."),
+    include_social: z17.boolean().optional().describe("\u062A\u0636\u0645\u064A\u0646 \u062A\u0642\u0627\u0631\u064A\u0631 \u0627\u0644\u0633\u0648\u0634\u064A\u0627\u0644 \u0645\u064A\u062F\u064A\u0627 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A true)."),
+    limit: z17.number().optional().describe("\u062D\u062F \u0627\u0644\u0635\u0641\u0648\u0641 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A 500\u060C \u0623\u0642\u0635\u0649 2000).")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ month, year, include_social, limit }, ctx) => {
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    const supabase = supabaseForUser(ctx);
+    const now = /* @__PURE__ */ new Date();
+    const m = month ?? now.getUTCMonth() + 1;
+    const y = year ?? now.getUTCFullYear();
+    const cap = Math.min(Math.max(limit ?? 500, 1), 2e3);
+    const start = new Date(Date.UTC(y, m - 1, 1)).toISOString();
+    const end = new Date(Date.UTC(y, m, 1)).toISOString();
+    const startDate = start.slice(0, 10);
+    const endDate = end.slice(0, 10);
+    const social = include_social === false;
+    const [targets, orders, daily, weekly, expenses] = await Promise.all([
+      supabase.from("sales_targets").select("*").eq("month", m).eq("year", y).limit(cap),
+      supabase.from("orders").select("id,moderator,status,total,source,created_at").gte("created_at", start).lt("created_at", end).limit(5e3),
+      social ? Promise.resolve({ data: [], error: null }) : supabase.from("social_media_daily_reports").select(
+        "id,report_date,employee_name,posts_count,reels_videos_count,interested_customers_count,reach_count,impressions_count,likes_count,comments_count,shares_count,new_followers_count,status"
+      ).gte("report_date", startDate).lt("report_date", endDate).limit(cap),
+      social ? Promise.resolve({ data: [], error: null }) : supabase.from("social_media_weekly_reports").select(
+        "id,week_start_date,week_end_date,employee_name,facebook_followers_growth,instagram_followers_growth,tiktok_followers_growth,youtube_followers_growth,leads_count,best_platform,status"
+      ).gte("week_start_date", startDate).lt("week_start_date", endDate).limit(cap),
+      supabase.from("social_media_expenses").select("id,expense_date,expense_type,platform,campaign_name,amount,is_approved").gte("expense_date", startDate).lt("expense_date", endDate).limit(cap)
+    ]);
+    const err = targets.error || orders.error || daily.error || weekly.error || expenses.error;
+    if (err) return { content: [{ type: "text", text: err.message }], isError: true };
+    const rows = orders.data ?? [];
+    const num6 = (v) => Number(v ?? 0);
+    const perModerator = rows.reduce((acc, o) => {
+      const k = String(o.moderator ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
+      acc[k] = acc[k] ?? { orders: 0, orders_value: 0, delivered: 0, delivered_value: 0, cancelled: 0 };
+      acc[k].orders += 1;
+      acc[k].orders_value += num6(o.total);
+      if (o.status === "delivered") {
+        acc[k].delivered += 1;
+        acc[k].delivered_value += num6(o.total);
+      }
+      if (o.status === "cancelled") acc[k].cancelled += 1;
+      return acc;
+    }, {});
+    const bySource = rows.reduce((acc, o) => {
+      const k = String(o.source ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
+      acc[k] = acc[k] ?? { orders: 0, value: 0 };
+      acc[k].orders += 1;
+      acc[k].value += num6(o.total);
+      return acc;
+    }, {});
+    const exp = expenses.data ?? [];
+    const adSpend = exp.reduce((a, e) => a + num6(e.amount), 0);
+    const deliveredValue = rows.filter((o) => o.status === "delivered").reduce((a, o) => a + num6(o.total), 0);
+    const socialRows = daily.data ?? [];
+    const payload = {
+      period: { month: m, year: y },
+      currency: "EGP",
+      targets: targets.data ?? [],
+      moderators_performance: perModerator,
+      orders_by_source: bySource,
+      ad_spend: {
+        total: adSpend,
+        approved: exp.filter((e) => e.is_approved).reduce((a, e) => a + num6(e.amount), 0),
+        by_platform: exp.reduce((acc, e) => {
+          const k = String(e.platform ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
+          acc[k] = (acc[k] ?? 0) + num6(e.amount);
+          return acc;
+        }, {}),
+        by_campaign: exp.reduce((acc, e) => {
+          const k = String(e.campaign_name ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
+          acc[k] = (acc[k] ?? 0) + num6(e.amount);
+          return acc;
+        }, {})
+      },
+      delivered_sales_value: deliveredValue,
+      roas_delivered_over_adspend: adSpend > 0 ? Number((deliveredValue / adSpend).toFixed(2)) : null,
+      social_media: {
+        daily_reports_count: socialRows.length,
+        totals: {
+          posts: socialRows.reduce((a, r) => a + num6(r.posts_count), 0),
+          reels_videos: socialRows.reduce((a, r) => a + num6(r.reels_videos_count), 0),
+          interested_customers: socialRows.reduce((a, r) => a + num6(r.interested_customers_count), 0),
+          reach: socialRows.reduce((a, r) => a + num6(r.reach_count), 0),
+          impressions: socialRows.reduce((a, r) => a + num6(r.impressions_count), 0),
+          new_followers: socialRows.reduce((a, r) => a + num6(r.new_followers_count), 0)
+        },
+        weekly_reports: weekly.data ?? []
+      },
+      note: "\u0627\u0644\u0641\u062A\u0631\u0629 \u0639\u0644\u0649 \u062A\u0627\u0631\u064A\u062E \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0637\u0644\u0628 (UTC). \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u0627\u0644\u0645\u0639\u062A\u0645\u062F\u0629 \u0647\u064A \u0627\u0644\u0637\u0644\u0628\u0627\u062A \u0628\u062D\u0627\u0644\u0629 delivered \u0641\u0642\u0637\u060C \u0648\u0627\u0644\u0625\u0644\u063A\u0627\u0621\u0627\u062A \u0645\u0633\u062A\u0628\u0639\u062F\u0629 \u0645\u0646 \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A."
+    };
+    return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload };
+  }
+});
+
+// src/lib/mcp/tools/messages-and-documents.ts
+import { defineTool as defineTool18 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { z as z18 } from "npm:zod@^3.25.76";
+var messages_and_documents_default = defineTool18({
+  name: "messages_and_documents",
+  title: "Internal messages & documents",
+  description: "\u0627\u0644\u0631\u0633\u0627\u0626\u0644 \u0627\u0644\u062F\u0627\u062E\u0644\u064A\u0629 (\u0627\u0644\u0645\u0631\u0633\u0644\u060C \u0627\u0644\u0645\u0648\u0636\u0648\u0639\u060C \u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629\u060C \u0627\u0644\u0631\u0633\u0627\u0626\u0644 \u0627\u0644\u0625\u0644\u0632\u0627\u0645\u064A\u0629 \u0648\u062D\u0627\u0644\u0629 \u0627\u0644\u0631\u062F) \u0648\u0627\u0644\u0645\u0631\u0641\u0642\u0627\u062A \u0627\u0644\u0645\u0631\u062A\u0628\u0637\u0629 \u0628\u0647\u0627\u060C \u0648\u0645\u0633\u062A\u0646\u062F\u0627\u062A \u0627\u0644\u0645\u0648\u0638\u0641\u064A\u0646 \u0627\u0644\u0645\u0633\u062C\u0644\u0629. \u0642\u0631\u0627\u0621\u0629 \u0628\u064A\u0627\u0646\u0627\u062A \u0648\u0635\u0641\u064A\u0629 \u0641\u0642\u0637 \u0648\u0641\u0642 \u0635\u0644\u0627\u062D\u064A\u0627\u062A \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645\u061B \u0645\u062D\u062A\u0648\u0649 \u0627\u0644\u0645\u0644\u0641\u0627\u062A \u0646\u0641\u0633\u0647 \u0644\u0627 \u064A\u064F\u0646\u0632\u064E\u0651\u0644 \u0639\u0628\u0631 \u0647\u0630\u0627 \u0627\u0644\u0631\u0628\u0637.",
+  inputSchema: {
+    scope: z18.enum(["messages", "attachments", "employee_documents", "all"]).optional().describe("\u0646\u0637\u0627\u0642 \u0627\u0644\u0642\u0631\u0627\u0621\u0629 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A all)."),
+    date_from: z18.string().optional().describe("\u0645\u0646 \u062A\u0627\u0631\u064A\u062E YYYY-MM-DD."),
+    date_to: z18.string().optional().describe("\u0625\u0644\u0649 \u062A\u0627\u0631\u064A\u062E YYYY-MM-DD."),
+    requires_reply: z18.boolean().optional().describe("\u0627\u0644\u0631\u0633\u0627\u0626\u0644 \u0627\u0644\u0625\u0644\u0632\u0627\u0645\u064A\u0629 \u0627\u0644\u062A\u064A \u062A\u062A\u0637\u0644\u0628 \u0631\u062F\u064B\u0627 \u0641\u0642\u0637."),
+    search: z18.string().optional().describe("\u0628\u062D\u062B \u0641\u064A \u0645\u0648\u0636\u0648\u0639 \u0627\u0644\u0631\u0633\u0627\u0644\u0629."),
+    limit: z18.number().optional().describe("\u062D\u062F \u0627\u0644\u0635\u0641\u0648\u0641 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A 100\u060C \u0623\u0642\u0635\u0649 500).")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ scope, date_from, date_to, requires_reply, search, limit }, ctx) => {
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    const supabase = supabaseForUser(ctx);
+    const cap = Math.min(Math.max(limit ?? 100, 1), 500);
+    const s = scope ?? "all";
+    const wantMsgs = s === "all" || s === "messages";
+    const wantAtt = s === "all" || s === "attachments";
+    const wantDocs = s === "all" || s === "employee_documents";
+    const empty = Promise.resolve({ data: [], error: null });
+    let msgQ = supabase.from("internal_messages").select("id,sender_id,subject,priority,requires_reply,reply_due_at,has_attachments,is_deleted,created_at").eq("is_deleted", false).order("created_at", { ascending: false }).limit(cap);
+    if (date_from) msgQ = msgQ.gte("created_at", `${date_from}T00:00:00Z`);
+    if (date_to) msgQ = msgQ.lte("created_at", `${date_to}T23:59:59Z`);
+    if (requires_reply) msgQ = msgQ.eq("requires_reply", true);
+    if (search) msgQ = msgQ.ilike("subject", `%${search}%`);
+    const [msgs, atts, docs] = await Promise.all([
+      wantMsgs ? msgQ : empty,
+      wantAtt ? supabase.from("internal_message_attachments").select("id,message_id,file_name,file_type,file_size,created_at").order("created_at", { ascending: false }).limit(cap) : empty,
+      wantDocs ? supabase.from("hr_employee_documents").select("id,employee_id,document_type,file_name,file_type,file_size,is_active,uploaded_at").eq("is_active", true).order("uploaded_at", { ascending: false }).limit(cap) : empty
+    ]);
+    const err = msgs.error || atts.error || docs.error;
+    if (err) return { content: [{ type: "text", text: err.message }], isError: true };
+    const messages = msgs.data ?? [];
+    let recipients = [];
+    if (messages.length) {
+      const ids = messages.slice(0, 100).map((m) => m.id);
+      const { data } = await supabase.from("internal_message_recipients").select("message_id,recipient_id,read_at,replied_at").in("message_id", ids).limit(1e3);
+      recipients = data ?? [];
+    }
+    const payload = {
+      scope: s,
+      period: { from: date_from ?? null, to: date_to ?? null },
+      messages,
+      messages_summary: {
+        total: messages.length,
+        mandatory: messages.filter((m) => m.requires_reply).length,
+        recipients_tracked: recipients.length,
+        read: recipients.filter((r) => r.read_at).length,
+        replied: recipients.filter((r) => r.replied_at).length
+      },
+      recipients,
+      attachments: atts.data ?? [],
+      employee_documents: docs.data ?? [],
+      note: "\u062A\u064F\u0639\u0631\u0636 \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0648\u0635\u0641\u064A\u0629 \u0641\u0642\u0637 (\u0627\u0633\u0645 \u0627\u0644\u0645\u0644\u0641 \u0648\u0646\u0648\u0639\u0647 \u0648\u062D\u062C\u0645\u0647) \u062F\u0648\u0646 \u0631\u0648\u0627\u0628\u0637 \u062A\u0646\u0632\u064A\u0644 \u0623\u0648 \u0645\u062D\u062A\u0648\u0649\u060C \u0648\u0627\u0644\u0642\u0631\u0627\u0621\u0629 \u0628\u0635\u0644\u0627\u062D\u064A\u0627\u062A \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 (RLS)."
+    };
+    return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload };
+  }
+});
+
 // src/lib/mcp/index.ts
 var projectRef = "ssznmzijopyxkwpctcxw";
 var mcp_default = defineMcp({
   name: "naam-al-asima-management-system",
   title: "Naam Al-Asima Management System",
-  version: "0.2.0",
-  instructions: "\u0623\u062F\u0648\u0627\u062A \u0642\u0631\u0627\u0621\u0629 \u0641\u0642\u0637 \u0644\u0646\u0638\u0627\u0645 \u0625\u062F\u0627\u0631\u0629 \u0646\u0639\u0627\u0645 \u0627\u0644\u0639\u0627\u0635\u0645\u0629 (Capital Ostrich). \u0627\u0628\u062F\u0623 \u062F\u0627\u0626\u0645\u064B\u0627 \u0628\u0640 `system_map` \u0644\u0641\u0647\u0645 \u0627\u0644\u0623\u0642\u0633\u0627\u0645 \u0648\u0642\u0648\u0627\u0639\u062F \u0627\u0644\u0639\u0645\u0644\u060C \u062B\u0645 `list_datasets` \u0644\u0645\u0639\u0631\u0641\u0629 \u0627\u0644\u0623\u0639\u0645\u062F\u0629\u060C \u062B\u0645 `query_dataset` \u0644\u0644\u0627\u0633\u062A\u0639\u0644\u0627\u0645 \u0627\u0644\u0639\u0627\u0645 \u0645\u0639 \u0627\u0644\u062A\u0631\u0642\u064A\u0645 \u0648\u0627\u0644\u0639\u062F\u062F \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A\u060C \u0648`get_record` \u0644\u062A\u0641\u0627\u0635\u064A\u0644 \u0633\u062C\u0644 \u0648\u0633\u062C\u0644\u0627\u062A\u0647 \u0627\u0644\u0645\u0631\u062A\u0628\u0637\u0629. \u0644\u0644\u0645\u062E\u0632\u0648\u0646 \u0627\u0633\u062A\u062E\u062F\u0645 `inventory_balances` \u0648`inventory_movements` (\u0648\u0644\u064A\u0633 products.stock). \u0644\u0644\u062A\u0642\u0627\u0631\u064A\u0631 \u0627\u0644\u062C\u0627\u0647\u0632\u0629: `sales_report` (\u064A\u0641\u0635\u0644 \u0642\u064A\u0645\u0629 \u0627\u0644\u0637\u0644\u0628\u0627\u062A \u0639\u0646 \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u0627\u0644\u0645\u0633\u0644\u0651\u0645\u0629 \u0639\u0646 \u0627\u0644\u062A\u062D\u0635\u064A\u0644)\u060C `manufacturing_report`\u060C `finance_report`. \u0627\u0644\u0639\u0645\u0644\u0629 \u0627\u0644\u062C\u0646\u064A\u0647 \u0627\u0644\u0645\u0635\u0631\u064A\u060C \u0627\u0644\u0623\u0648\u0632\u0627\u0646 \u0628\u0627\u0644\u0643\u064A\u0644\u0648\u060C \u0627\u0644\u062A\u0648\u0627\u0631\u064A\u062E UTC \u0648\u0627\u0644\u0639\u0645\u0644 \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u064A \u0628\u062A\u0648\u0642\u064A\u062A \u0627\u0644\u0642\u0627\u0647\u0631\u0629. \u0643\u0644 \u0627\u0644\u0642\u0631\u0627\u0621\u0627\u062A \u062A\u0646\u0641\u0630 \u0628\u0635\u0644\u0627\u062D\u064A\u0627\u062A \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u0645\u0648\u0642\u0651\u0639 (RLS) \u0648\u0644\u0627 \u062A\u0648\u062C\u062F \u0623\u062F\u0648\u0627\u062A \u062A\u0639\u062F\u064A\u0644 \u0623\u0648 \u062D\u0630\u0641.",
+  version: "0.3.0",
+  instructions: "\u0623\u062F\u0648\u0627\u062A \u0642\u0631\u0627\u0621\u0629 \u0641\u0642\u0637 \u0644\u0646\u0638\u0627\u0645 \u0625\u062F\u0627\u0631\u0629 \u0646\u0639\u0627\u0645 \u0627\u0644\u0639\u0627\u0635\u0645\u0629 (Capital Ostrich). \u0627\u0628\u062F\u0623 \u062F\u0627\u0626\u0645\u064B\u0627 \u0628\u0640 `system_map` \u0644\u0641\u0647\u0645 \u0627\u0644\u0623\u0642\u0633\u0627\u0645 \u0648\u0642\u0648\u0627\u0639\u062F \u0627\u0644\u0639\u0645\u0644\u060C \u062B\u0645 `list_datasets` \u0644\u0645\u0639\u0631\u0641\u0629 \u0627\u0644\u0623\u0639\u0645\u062F\u0629\u060C \u062B\u0645 `query_dataset` \u0644\u0644\u0627\u0633\u062A\u0639\u0644\u0627\u0645 \u0627\u0644\u0639\u0627\u0645 \u0645\u0639 \u0627\u0644\u062A\u0631\u0642\u064A\u0645 \u0648\u0627\u0644\u0639\u062F\u062F \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A\u060C \u0648`get_record` \u0644\u062A\u0641\u0627\u0635\u064A\u0644 \u0633\u062C\u0644 \u0648\u0633\u062C\u0644\u0627\u062A\u0647 \u0627\u0644\u0645\u0631\u062A\u0628\u0637\u0629. \u0644\u0644\u0645\u062E\u0632\u0648\u0646 \u0627\u0633\u062A\u062E\u062F\u0645 `inventory_balances` \u0648`inventory_movements` (\u0648\u0644\u064A\u0633 products.stock). \u0644\u0644\u062A\u0642\u0627\u0631\u064A\u0631 \u0627\u0644\u062C\u0627\u0647\u0632\u0629: `sales_report` (\u064A\u0641\u0635\u0644 \u0642\u064A\u0645\u0629 \u0627\u0644\u0637\u0644\u0628\u0627\u062A \u0639\u0646 \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u0627\u0644\u0645\u0633\u0644\u0651\u0645\u0629 \u0639\u0646 \u0627\u0644\u062A\u062D\u0635\u064A\u0644)\u060C `manufacturing_report`\u060C `finance_report`\u060C `hr_report` (\u0627\u0644\u0645\u0648\u0638\u0641\u0648\u0646 \u0648\u0627\u0644\u062E\u0635\u0648\u0645\u0627\u062A \u0648\u0627\u0644\u0631\u0648\u0627\u062A\u0628)\u060C `customers_report` (\u062A\u062D\u0644\u064A\u0644 \u0627\u0644\u0639\u0645\u0644\u0627\u0621)\u060C `delivery_report` (\u0627\u0644\u0634\u062D\u0646 \u0648\u0627\u0644\u0645\u0646\u0627\u062F\u064A\u0628 \u0648\u0627\u0644\u062A\u062D\u0635\u064A\u0644)\u060C `marketing_report` (\u0627\u0644\u062A\u0627\u0631\u062C\u062A \u0648\u0623\u062F\u0627\u0621 \u0627\u0644\u0645\u0648\u062F\u0631\u064A\u062A\u0648\u0631 \u0648\u0627\u0644\u0633\u0648\u0634\u064A\u0627\u0644 \u0645\u064A\u062F\u064A\u0627 \u0648\u0627\u0644\u0625\u0639\u0644\u0627\u0646\u0627\u062A)\u060C \u0648`messages_and_documents` (\u0627\u0644\u0631\u0633\u0627\u0626\u0644 \u0627\u0644\u062F\u0627\u062E\u0644\u064A\u0629 \u0648\u0627\u0644\u0645\u0631\u0641\u0642\u0627\u062A \u0648\u0645\u0633\u062A\u0646\u062F\u0627\u062A \u0627\u0644\u0645\u0648\u0638\u0641\u064A\u0646 \u0643\u0628\u064A\u0627\u0646\u0627\u062A \u0648\u0635\u0641\u064A\u0629 \u0641\u0642\u0637). \u0627\u0644\u0639\u0645\u0644\u0629 \u0627\u0644\u062C\u0646\u064A\u0647 \u0627\u0644\u0645\u0635\u0631\u064A\u060C \u0627\u0644\u0623\u0648\u0632\u0627\u0646 \u0628\u0627\u0644\u0643\u064A\u0644\u0648\u060C \u0627\u0644\u062A\u0648\u0627\u0631\u064A\u062E UTC \u0648\u0627\u0644\u0639\u0645\u0644 \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u064A \u0628\u062A\u0648\u0642\u064A\u062A \u0627\u0644\u0642\u0627\u0647\u0631\u0629. \u0643\u0644 \u0627\u0644\u0642\u0631\u0627\u0621\u0627\u062A \u062A\u0646\u0641\u0630 \u0628\u0635\u0644\u0627\u062D\u064A\u0627\u062A \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u0645\u0648\u0642\u0651\u0639 (RLS) \u0648\u0644\u0627 \u062A\u0648\u062C\u062F \u0623\u062F\u0648\u0627\u062A \u062A\u0639\u062F\u064A\u0644 \u0623\u0648 \u062D\u0630\u0641.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
@@ -968,7 +1375,12 @@ var mcp_default = defineMcp({
     sales_summary_default,
     sales_report_default,
     manufacturing_report_default,
-    finance_report_default
+    finance_report_default,
+    hr_report_default,
+    customers_report_default,
+    delivery_report_default,
+    marketing_report_default,
+    messages_and_documents_default
   ]
 });
 

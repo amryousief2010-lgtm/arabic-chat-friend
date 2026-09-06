@@ -12,7 +12,7 @@
   "mcp": {
     "server": {
       "name": "naam-al-asima-management-system",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "title": "Naam Al-Asima Management System"
     },
     "tools": [
@@ -558,6 +558,218 @@
             "include_receivables": {
               "type": "boolean",
               "description": "تضمين مديونيات العملاء (افتراضي true)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "hr_report",
+        "title": "HR report",
+        "description": "تقرير الموارد البشرية: الموظفون النشطون والموقوفون حسب القسم والموقع ونوع التعيين، والخصومات المعتمدة، ومسيّرات الرواتب (الأساسي/البونص/السلف/الخصومات/الصافي) لشهر محدد. قراءة فقط بصلاحيات المستخدم.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "month": {
+              "type": "number",
+              "description": "الشهر 1-12 (افتراضي الشهر الحالي)."
+            },
+            "year": {
+              "type": "number",
+              "description": "السنة (افتراضي السنة الحالية)."
+            },
+            "department": {
+              "type": "string",
+              "description": "تصفية بالقسم."
+            },
+            "status": {
+              "type": "string",
+              "description": "حالة الموظف: active أو inactive."
+            },
+            "include_employees": {
+              "type": "boolean",
+              "description": "إرجاع قائمة الموظفين (افتراضي false، ملخص فقط)."
+            },
+            "limit": {
+              "type": "number",
+              "description": "حد صفوف القوائم (افتراضي 200، أقصى 1000)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "customers_report",
+        "title": "Customers report",
+        "description": "تحليل العملاء: العدد الإجمالي، التوزيع حسب المحافظة والمصدر وقناة التواصل، أعلى العملاء إنفاقًا، والعملاء الجدد خلال فترة. بيانات الاتصال لا تُرجع إلا عند طلبها صراحةً ووفق صلاحيات المستخدم.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "date_from": {
+              "type": "string",
+              "description": "من تاريخ إنشاء العميل YYYY-MM-DD."
+            },
+            "date_to": {
+              "type": "string",
+              "description": "إلى تاريخ YYYY-MM-DD."
+            },
+            "governorate": {
+              "type": "string",
+              "description": "تصفية بالمحافظة."
+            },
+            "source": {
+              "type": "string",
+              "description": "تصفية بمصدر العميل."
+            },
+            "min_total_spent": {
+              "type": "number",
+              "description": "حد أدنى لإجمالي إنفاق العميل."
+            },
+            "include_contacts": {
+              "type": "boolean",
+              "description": "إرجاع الاسم والهاتف (افتراضي false)."
+            },
+            "top_limit": {
+              "type": "number",
+              "description": "عدد أعلى العملاء (افتراضي 20، أقصى 200)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "delivery_report",
+        "title": "Delivery & couriers report",
+        "description": "تقرير الشحن والتوصيل: الطلبات حسب شركة الشحن ومنفذ التنفيذ وحالة التسليم والتحصيل، وبوالص الشحن، وتكليفات المناديب، وإغلاقات يوم المندوب (بضاعة خارجة/مرتجعة/نقد محصّل/عجز أو فائض).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "date_from": {
+              "type": "string",
+              "description": "من تاريخ YYYY-MM-DD (على تاريخ إنشاء الطلب)."
+            },
+            "date_to": {
+              "type": "string",
+              "description": "إلى تاريخ YYYY-MM-DD."
+            },
+            "shipping_company": {
+              "type": "string",
+              "description": "تصفية بشركة الشحن."
+            },
+            "courier_name": {
+              "type": "string",
+              "description": "تصفية باسم المندوب في التكليفات والإغلاقات."
+            },
+            "include_closures": {
+              "type": "boolean",
+              "description": "تضمين إغلاقات يوم المندوب (افتراضي true)."
+            },
+            "limit": {
+              "type": "number",
+              "description": "حد الصفوف التفصيلية (افتراضي 500، أقصى 2000)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "marketing_report",
+        "title": "Marketing & moderators report",
+        "description": "تقرير التسويق والمودريتور: أهداف الموظفين والمحقق منها، أداء المودريتور من الطلبات (عدد الطلبات والمسلّم والقيمة)، تقارير السوشيال ميديا اليومية والأسبوعية، ومصروفات الإعلانات حسب المنصة والحملة.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "month": {
+              "type": "number",
+              "description": "الشهر 1-12 (افتراضي الشهر الحالي)."
+            },
+            "year": {
+              "type": "number",
+              "description": "السنة (افتراضي السنة الحالية)."
+            },
+            "include_social": {
+              "type": "boolean",
+              "description": "تضمين تقارير السوشيال ميديا (افتراضي true)."
+            },
+            "limit": {
+              "type": "number",
+              "description": "حد الصفوف (افتراضي 500، أقصى 2000)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "messages_and_documents",
+        "title": "Internal messages & documents",
+        "description": "الرسائل الداخلية (المرسل، الموضوع، الأولوية، الرسائل الإلزامية وحالة الرد) والمرفقات المرتبطة بها، ومستندات الموظفين المسجلة. قراءة بيانات وصفية فقط وفق صلاحيات المستخدم؛ محتوى الملفات نفسه لا يُنزَّل عبر هذا الربط.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "enum": [
+                "messages",
+                "attachments",
+                "employee_documents",
+                "all"
+              ],
+              "description": "نطاق القراءة (افتراضي all)."
+            },
+            "date_from": {
+              "type": "string",
+              "description": "من تاريخ YYYY-MM-DD."
+            },
+            "date_to": {
+              "type": "string",
+              "description": "إلى تاريخ YYYY-MM-DD."
+            },
+            "requires_reply": {
+              "type": "boolean",
+              "description": "الرسائل الإلزامية التي تتطلب ردًا فقط."
+            },
+            "search": {
+              "type": "string",
+              "description": "بحث في موضوع الرسالة."
+            },
+            "limit": {
+              "type": "number",
+              "description": "حد الصفوف (افتراضي 100، أقصى 500)."
             }
           },
           "additionalProperties": false,
