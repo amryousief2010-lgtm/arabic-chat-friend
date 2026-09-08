@@ -129,7 +129,7 @@ export function useExecutiveApprovals() {
           .limit(200),
         (supabase as any)
           .from("mf_manufacturing")
-          .select("id, invoice_no, mfg_date, produced_qty, extra_cost, total_cost, notes, status, created_at, created_by, fin:meat_finished_inventory(name_ar, unit), raw_lines:mf_mfg_raw_lines(qty, raw:meat_raw_inventory(name_ar, unit)), pack_lines:mf_mfg_pack_lines(qty, pack:meat_packaging_inventory(name_ar, unit))")
+          .select("id, invoice_no, mfg_date:invoice_date, produced_qty, extra_cost, total_cost, notes, status, created_at, created_by, fin:meat_finished_inventory(name_ar, unit), raw_lines:mf_mfg_raw_lines(qty, raw:meat_raw_inventory(name_ar, unit)), pack_lines:mf_mfg_pack_lines(qty, pack:meat_packaging_inventory(name_ar, unit))")
           .eq("status", "draft")
           .order("created_at", { ascending: false })
           .limit(200),
