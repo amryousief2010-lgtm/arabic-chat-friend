@@ -162,7 +162,12 @@ export default function MeatCostVariance() {
                           <Badge variant="outline" className="text-xs mr-2">بدون بطاقة مخزون</Badge>
                         )}
                       </TableCell>
-                      <TableCell>{n(r.invoices_count)}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" className="h-7 px-2 gap-1" onClick={() => setInvoicesFor(r.product_name)}>
+                          <FileText className="w-3.5 h-3.5" />
+                          {n(r.invoices_count)}
+                        </Button>
+                      </TableCell>
                       <TableCell>{n(r.total_qty).toLocaleString("ar-EG", { maximumFractionDigits: 2 })}</TableCell>
                       <TableCell>{money(r.raw_per_unit)}</TableCell>
                       <TableCell>{money(r.spice_per_unit)}</TableCell>
