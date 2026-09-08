@@ -186,7 +186,54 @@ export default function MeatCostVariance() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!invoicesFor} onOpenChange={(o) => !o && setInvoicesFor(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader><DialogTitle>فواتير تصنيع: {invoicesFor}</DialogTitle></DialogHeader>
+          {invLoading ? (
+            <div className="py-6 text-center text-muted-foreground">جارٍ التحميل...</div>
+          ) : invoices.length === 0 ? (
+            <div className="py-6 text-center text-muted-foreground">لا توجد فواتير معتمدة لهذا الصنف</div>
+          ) : (
+            <div className="overflow-x-auto max-h-[60vh]">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead className="text-right">رقم الفاتورة</TableHead>
+                  <TableHead className="text-right">التاريخ</TableHead>
+                  <TableHead className="text-right">الكمية</TableHead>
+                  <TableHead className="text-right">خامات</TableHead>
+                  <TableHead className="text-right">توابل</TableHead>
+                  <TableHead className="text-right">تغليف</TableHead>
+                  <TableHead className="text-right">مصاريف</TableHead>
+                  <TableHead className="text-right">الإجمالي</TableHead>
+                  <TableHead />
+                </TableRow></TableHeader>
+                <TableBody>
+                  {invoices.map((inv) => (
+                    <TableRow key={inv.id}>
+                      <TableCell className="font-medium">{inv.invoice_no}</TableCell>
+                      <TableCell>{new Date(inv.created_at).toLocaleDateString("ar-EG")}</TableCell>
+                      <TableCell>{n(inv.finished_qty).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} {inv.unit}</TableCell>
+                      <TableCell>{money(inv.raw_cost)}</TableCell>
+                      <TableCell>{money(inv.spice_cost)}</TableCell>
+                      <TableCell>{money(inv.packaging_cost)}</TableCell>
+                      <TableCell>{money(inv.extra_cost)}</TableCell>
+                      <TableCell className="font-semibold text-primary">{money(inv.total_manufacturing_cost)}</TableCell>
+                      <TableCell>
+                        <Link to={`/meat-factory/manufacturing/${inv.id}`}>
+                          <Button variant="ghost" size="sm" className="h-7 px-2"><ExternalLink className="w-3.5 h-3.5" /></Button>
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
+
   );
 }
 
