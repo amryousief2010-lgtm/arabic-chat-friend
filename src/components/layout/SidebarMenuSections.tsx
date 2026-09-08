@@ -121,6 +121,9 @@ export const moduleSections: ModuleSection[] = [
     items: [
       { icon: Package, label: "المنتجات", path: "/products", roles: ['general_manager', 'executive_manager', 'sales_manager', 'warehouse_supervisor', 'marketing_sales_manager', 'quality_manager','marketing_sales_viewer'] },
       { icon: Calculator, label: "تكاليف المنتجات وهامش الربح", path: "/product-costs", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
+      { icon: Gift, label: "تكلفة وربح البوكسات", path: "/box-costs", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'sales_manager', 'marketing_sales_manager', 'meat_factory_manager', 'cost_accountant'] },
+      { icon: Calculator, label: "فروقات تكلفة الصنف التام", path: "/meat-cost-variance", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'meat_factory_manager', 'cost_accountant'] },
+
       { icon: ShoppingCart, label: "الطلبات", path: "/orders", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'marketing_sales_manager', 'financial_manager', 'quality_manager','marketing_sales_viewer'] },
       { icon: Bird, label: "طلبات الكتاكيت", path: "/chick-orders", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'accountant', 'financial_manager','marketing_sales_viewer'] },
       { icon: ShieldAlert, label: "موافقات تكرار الطلبات", path: "/duplicate-order-approvals", roles: ['general_manager','executive_manager','sales_manager'] },
