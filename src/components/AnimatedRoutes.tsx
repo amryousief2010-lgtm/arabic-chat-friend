@@ -35,6 +35,9 @@ const lazy: typeof reactLazy = ((factory: any) =>
 const Index = lazy(() => import("@/pages/Index"));
 const Products = lazy(() => import("@/pages/Products"));
 const ProductCosts = lazy(() => import("@/pages/ProductCosts"));
+const BoxCosts = lazy(() => import("@/pages/BoxCosts"));
+const MeatCostVariance = lazy(() => import("@/pages/MeatCostVariance"));
+
 const OrderStatusAudit = lazy(() => import("@/pages/OrderStatusAudit"));
 const SendMessage = lazy(() => import("@/pages/SendMessage"));
 const FinancialReports = lazy(() => import("@/pages/FinancialReports"));
@@ -740,6 +743,17 @@ const AnimatedRoutes = () => {
               <PageTransition><ProductCosts /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/box-costs" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'sales_manager', 'marketing_sales_manager', 'meat_factory_manager']}>
+              <PageTransition><BoxCosts /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/meat-cost-variance" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'meat_factory_manager']}>
+              <PageTransition><MeatCostVariance /></PageTransition>
+            </ProtectedRoute>
+          } />
+
           <Route path="/order-status-audit" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'financial_manager', 'marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><OrderStatusAudit /></PageTransition>
