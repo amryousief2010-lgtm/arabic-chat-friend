@@ -13858,6 +13858,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "offer_box_items_offer_box_id_fkey"
+            columns: ["offer_box_id"]
+            isOneToOne: false
+            referencedRelation: "v_offer_box_cost_lines"
+            referencedColumns: ["box_id"]
+          },
+          {
+            foreignKeyName: "offer_box_items_offer_box_id_fkey"
+            columns: ["offer_box_id"]
+            isOneToOne: false
+            referencedRelation: "v_offer_box_costs"
+            referencedColumns: ["box_id"]
+          },
+          {
             foreignKeyName: "offer_box_items_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
@@ -14151,6 +14165,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "offer_boxes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_offer_instances_offer_box_id_fkey"
+            columns: ["offer_box_id"]
+            isOneToOne: false
+            referencedRelation: "v_offer_box_cost_lines"
+            referencedColumns: ["box_id"]
+          },
+          {
+            foreignKeyName: "order_offer_instances_offer_box_id_fkey"
+            columns: ["offer_box_id"]
+            isOneToOne: false
+            referencedRelation: "v_offer_box_costs"
+            referencedColumns: ["box_id"]
           },
           {
             foreignKeyName: "order_offer_instances_order_id_fkey"
@@ -20260,6 +20288,47 @@ export type Database = {
         }
         Relationships: []
       }
+      v_meat_cost_variance: {
+        Row: {
+          actual_unit_cost: number | null
+          canon_name: string | null
+          extra_cost: number | null
+          extra_per_unit: number | null
+          finished_avg_cost: number | null
+          invoices_count: number | null
+          last_approved_at: string | null
+          packaging_cost: number | null
+          packaging_per_unit: number | null
+          product_cost_price: number | null
+          product_name: string | null
+          product_sale_price: number | null
+          raw_cost: number | null
+          raw_per_unit: number | null
+          spice_cost: number | null
+          spice_per_unit: number | null
+          total_cost: number | null
+          total_qty: number | null
+          variance: number | null
+          variance_pct: number | null
+        }
+        Relationships: []
+      }
+      v_meat_finished_actual_cost: {
+        Row: {
+          actual_unit_cost: number | null
+          canon_name: string | null
+          extra_cost: number | null
+          invoices_count: number | null
+          last_approved_at: string | null
+          packaging_cost: number | null
+          product_name: string | null
+          raw_cost: number | null
+          spice_cost: number | null
+          total_cost: number | null
+          total_qty: number | null
+        }
+        Relationships: []
+      }
       v_mother_farm_feed_balance: {
         Row: {
           balance_kg: number | null
@@ -20267,6 +20336,79 @@ export type Database = {
           last_consumption_kg: number | null
           last_supply_at: string | null
           last_supply_kg: number | null
+        }
+        Relationships: []
+      }
+      v_offer_box_cost_lines: {
+        Row: {
+          actual_unit_cost: number | null
+          box_id: string | null
+          box_name: string | null
+          extra_per_unit: number | null
+          is_gift: boolean | null
+          line_cost: number | null
+          line_price: number | null
+          packaging_per_unit: number | null
+          product_cost_price: number | null
+          product_id: string | null
+          product_name: string | null
+          quantity: number | null
+          raw_per_unit: number | null
+          spice_per_unit: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_box_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_box_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_agouza_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "offer_box_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "offer_box_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_reconciliation"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
+      v_offer_box_costs: {
+        Row: {
+          below_min_profit: boolean | null
+          box_id: string | null
+          box_name: string | null
+          expires_at: string | null
+          extra_cost: number | null
+          is_active: boolean | null
+          items_count: number | null
+          items_value: number | null
+          items_without_cost: number | null
+          legacy_cost: number | null
+          offer_price: number | null
+          packaging_cost: number | null
+          profit: number | null
+          profit_pct: number | null
+          raw_cost: number | null
+          shipping_cost: number | null
+          spice_cost: number | null
+          starts_at: string | null
+          total_cost: number | null
+          total_qty: number | null
         }
         Relationships: []
       }
@@ -22242,6 +22384,10 @@ export type Database = {
       merge_inventory_items: {
         Args: { p_canonical: string; p_ref?: string; p_source: string }
         Returns: undefined
+      }
+      mf_recalc_finished_cost: {
+        Args: { p_product_name: string }
+        Returns: number
       }
       move_to_dlq: {
         Args: {
