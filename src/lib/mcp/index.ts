@@ -18,6 +18,7 @@ import deliveryReportTool from "./tools/delivery-report";
 import marketingReportTool from "./tools/marketing-report";
 import messagesAndDocumentsTool from "./tools/messages-and-documents";
 import meatFactoryReportTool from "./tools/meat-factory-report";
+import boxCostsReportTool from "./tools/box-costs-report";
 
 
 const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unset";
