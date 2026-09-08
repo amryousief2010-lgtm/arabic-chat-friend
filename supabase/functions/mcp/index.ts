@@ -1145,12 +1145,12 @@ var delivery_report_default = defineTool16({
     const err = ord.error || asg.error || clo.error;
     if (err) return { content: [{ type: "text", text: err.message }], isError: true };
     const orders = ord.data ?? [];
-    const num6 = (v) => Number(v ?? 0);
+    const num7 = (v) => Number(v ?? 0);
     const group = (k) => orders.reduce((acc, o) => {
       const key = String(o[k] ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
       acc[key] = acc[key] ?? { orders: 0, value: 0, delivered: 0 };
       acc[key].orders += 1;
-      acc[key].value += num6(o.total);
+      acc[key].value += num7(o.total);
       if (o.status === "delivered") acc[key].delivered += 1;
       return acc;
     }, {});
@@ -1160,9 +1160,9 @@ var delivery_report_default = defineTool16({
       currency: "EGP",
       orders_sampled: orders.length,
       totals: {
-        orders_value: orders.reduce((a, o) => a + num6(o.total), 0),
-        delivered_value: orders.filter((o) => o.status === "delivered").reduce((a, o) => a + num6(o.total), 0),
-        delivery_fees: orders.reduce((a, o) => a + num6(o.delivery_fee), 0),
+        orders_value: orders.reduce((a, o) => a + num7(o.total), 0),
+        delivered_value: orders.filter((o) => o.status === "delivered").reduce((a, o) => a + num7(o.total), 0),
+        delivery_fees: orders.reduce((a, o) => a + num7(o.delivery_fee), 0),
         without_shipping_bill: orders.filter((o) => !o.shipping_bill_no).length
       },
       by_shipping_company: group("shipping_company"),
@@ -1172,8 +1172,8 @@ var delivery_report_default = defineTool16({
       courier_assignments: asg.data ?? [],
       courier_closures: closures,
       closures_totals: {
-        cash_collected: closures.reduce((a, c) => a + num6(c.cash_collected), 0),
-        deficit_or_surplus: closures.reduce((a, c) => a + num6(c.deficit_or_surplus), 0)
+        cash_collected: closures.reduce((a, c) => a + num7(c.cash_collected), 0),
+        deficit_or_surplus: closures.reduce((a, c) => a + num7(c.deficit_or_surplus), 0)
       },
       note: "\u0627\u0644\u0641\u062A\u0631\u0629 \u0645\u062D\u0633\u0648\u0628\u0629 \u0639\u0644\u0649 \u062A\u0627\u0631\u064A\u062E \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0637\u0644\u0628 (UTC)\u061B \u0627\u0644\u062A\u0633\u0644\u064A\u0645 \u064A\u064F\u0642\u0627\u0633 \u0628\u062D\u0627\u0644\u0629 delivered. \u0627\u0644\u0623\u0631\u0642\u0627\u0645 \u0645\u062D\u062F\u0648\u062F\u0629 \u0628\u0639\u062F\u062F \u0627\u0644\u0635\u0641\u0648\u0641 \u0627\u0644\u0645\u0633\u062D\u0648\u0628\u0629 (limit)."
     };
@@ -1222,15 +1222,15 @@ var marketing_report_default = defineTool17({
     const err = targets.error || orders.error || daily.error || weekly.error || expenses.error;
     if (err) return { content: [{ type: "text", text: err.message }], isError: true };
     const rows = orders.data ?? [];
-    const num6 = (v) => Number(v ?? 0);
+    const num7 = (v) => Number(v ?? 0);
     const perModerator = rows.reduce((acc, o) => {
       const k = String(o.moderator ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
       acc[k] = acc[k] ?? { orders: 0, orders_value: 0, delivered: 0, delivered_value: 0, cancelled: 0 };
       acc[k].orders += 1;
-      acc[k].orders_value += num6(o.total);
+      acc[k].orders_value += num7(o.total);
       if (o.status === "delivered") {
         acc[k].delivered += 1;
-        acc[k].delivered_value += num6(o.total);
+        acc[k].delivered_value += num7(o.total);
       }
       if (o.status === "cancelled") acc[k].cancelled += 1;
       return acc;
@@ -1239,12 +1239,12 @@ var marketing_report_default = defineTool17({
       const k = String(o.source ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
       acc[k] = acc[k] ?? { orders: 0, value: 0 };
       acc[k].orders += 1;
-      acc[k].value += num6(o.total);
+      acc[k].value += num7(o.total);
       return acc;
     }, {});
     const exp = expenses.data ?? [];
-    const adSpend = exp.reduce((a, e) => a + num6(e.amount), 0);
-    const deliveredValue = rows.filter((o) => o.status === "delivered").reduce((a, o) => a + num6(o.total), 0);
+    const adSpend = exp.reduce((a, e) => a + num7(e.amount), 0);
+    const deliveredValue = rows.filter((o) => o.status === "delivered").reduce((a, o) => a + num7(o.total), 0);
     const socialRows = daily.data ?? [];
     const payload = {
       period: { month: m, year: y },
@@ -1254,15 +1254,15 @@ var marketing_report_default = defineTool17({
       orders_by_source: bySource,
       ad_spend: {
         total: adSpend,
-        approved: exp.filter((e) => e.is_approved).reduce((a, e) => a + num6(e.amount), 0),
+        approved: exp.filter((e) => e.is_approved).reduce((a, e) => a + num7(e.amount), 0),
         by_platform: exp.reduce((acc, e) => {
           const k = String(e.platform ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
-          acc[k] = (acc[k] ?? 0) + num6(e.amount);
+          acc[k] = (acc[k] ?? 0) + num7(e.amount);
           return acc;
         }, {}),
         by_campaign: exp.reduce((acc, e) => {
           const k = String(e.campaign_name ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
-          acc[k] = (acc[k] ?? 0) + num6(e.amount);
+          acc[k] = (acc[k] ?? 0) + num7(e.amount);
           return acc;
         }, {})
       },
@@ -1271,12 +1271,12 @@ var marketing_report_default = defineTool17({
       social_media: {
         daily_reports_count: socialRows.length,
         totals: {
-          posts: socialRows.reduce((a, r) => a + num6(r.posts_count), 0),
-          reels_videos: socialRows.reduce((a, r) => a + num6(r.reels_videos_count), 0),
-          interested_customers: socialRows.reduce((a, r) => a + num6(r.interested_customers_count), 0),
-          reach: socialRows.reduce((a, r) => a + num6(r.reach_count), 0),
-          impressions: socialRows.reduce((a, r) => a + num6(r.impressions_count), 0),
-          new_followers: socialRows.reduce((a, r) => a + num6(r.new_followers_count), 0)
+          posts: socialRows.reduce((a, r) => a + num7(r.posts_count), 0),
+          reels_videos: socialRows.reduce((a, r) => a + num7(r.reels_videos_count), 0),
+          interested_customers: socialRows.reduce((a, r) => a + num7(r.interested_customers_count), 0),
+          reach: socialRows.reduce((a, r) => a + num7(r.reach_count), 0),
+          impressions: socialRows.reduce((a, r) => a + num7(r.impressions_count), 0),
+          new_followers: socialRows.reduce((a, r) => a + num7(r.new_followers_count), 0)
         },
         weekly_reports: weekly.data ?? []
       },
@@ -1351,13 +1351,347 @@ var messages_and_documents_default = defineTool18({
   }
 });
 
+// src/lib/mcp/tools/meat-factory-report.ts
+import { defineTool as defineTool19 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { z as z19 } from "npm:zod@^3.25.76";
+var num6 = (v) => {
+  const x = Number(v);
+  return Number.isFinite(x) ? x : 0;
+};
+var r2 = (n) => Number(n.toFixed(2));
+var notCancelled = (r) => String(r.status ?? "").toLowerCase() !== "cancelled";
+var SECTIONS = [
+  "manufacturing",
+  "batches",
+  "inventory",
+  "purchases",
+  "sales",
+  "returns",
+  "transfers",
+  "carryover_dough",
+  "stocktaking",
+  "treasury",
+  "recipes",
+  "products"
+];
+var meat_factory_report_default = defineTool19({
+  name: "meat_factory_report",
+  title: "Meat factory full report",
+  description: "\u062A\u0642\u0631\u064A\u0631 \u0634\u0627\u0645\u0644 \u0644\u0645\u0635\u0646\u0639 \u0627\u0644\u0644\u062D\u0648\u0645 \u0628\u0643\u0644 \u0641\u0631\u0648\u0639\u0647 \u0627\u0644\u062F\u0627\u062E\u0644\u064A\u0629: \u0641\u0648\u0627\u062A\u064A\u0631 \u0627\u0644\u062A\u0635\u0646\u064A\u0639 \u0648\u0628\u0646\u0648\u062F\u0647\u0627\u060C \u062F\u0641\u0639\u0627\u062A \u0627\u0644\u0625\u0646\u062A\u0627\u062C \u0648\u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643 \u0648\u0627\u0644\u062A\u0639\u0628\u0626\u0629\u060C \u0645\u062E\u0632\u0648\u0646 \u0627\u0644\u062E\u0627\u0645\u0627\u062A \u0648\u0627\u0644\u062A\u0648\u0627\u0628\u0644 \u0648\u0627\u0644\u062A\u063A\u0644\u064A\u0641 \u0648\u0627\u0644\u0645\u0646\u062A\u062C \u0627\u0644\u062A\u0627\u0645\u060C \u0627\u0644\u0645\u0634\u062A\u0631\u064A\u0627\u062A \u0648\u0627\u0644\u0645\u0648\u0631\u062F\u064A\u0646\u060C \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u0648\u0627\u0644\u0645\u0631\u062A\u062C\u0639\u0627\u062A\u060C \u0627\u0644\u062A\u062D\u0648\u064A\u0644\u0627\u062A \u0644\u0644\u0645\u062E\u0632\u0646 \u0627\u0644\u0631\u0626\u064A\u0633\u064A\u060C \u0627\u0644\u0639\u062C\u064A\u0646\u0629 \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u0629 (carryover)\u060C \u0627\u0644\u062C\u0631\u062F \u0648\u0627\u0644\u0641\u0631\u0648\u0642\u0627\u062A\u060C \u062E\u0632\u064A\u0646\u0629 \u0627\u0644\u0645\u0635\u0646\u0639\u060C \u0648\u0627\u0644\u0648\u0635\u0641\u0627\u062A (BOM) \u0648\u0625\u0635\u062F\u0627\u0631\u0627\u062A\u0647\u0627\u060C \u0628\u0627\u0644\u0625\u0636\u0627\u0641\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0646\u062A\u062C\u0627\u062A \u0648\u062A\u0643\u0627\u0644\u064A\u0641\u0647\u0627. \u0627\u0644\u0643\u0645\u064A\u0627\u062A \u0628\u0627\u0644\u0643\u064A\u0644\u0648/\u0627\u0644\u0648\u062D\u062F\u0629 \u0648\u0627\u0644\u0642\u064A\u0645 \u0628\u0627\u0644\u062C\u0646\u064A\u0647 \u0627\u0644\u0645\u0635\u0631\u064A. \u0642\u0631\u0627\u0621\u0629 \u0641\u0642\u0637 \u0648\u062D\u0633\u0628 \u0635\u0644\u0627\u062D\u064A\u0627\u062A \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 (RLS).",
+  inputSchema: {
+    date_from: z19.string().optional().describe("\u0645\u0646 \u062A\u0627\u0631\u064A\u062E YYYY-MM-DD (\u0627\u0641\u062A\u0631\u0627\u0636\u064A \u0623\u0648\u0644 \u0627\u0644\u0634\u0647\u0631 \u0627\u0644\u062D\u0627\u0644\u064A)."),
+    date_to: z19.string().optional().describe("\u0625\u0644\u0649 \u062A\u0627\u0631\u064A\u062E YYYY-MM-DD (\u0627\u0641\u062A\u0631\u0627\u0636\u064A \u0627\u0644\u064A\u0648\u0645)."),
+    sections: z19.array(z19.enum(SECTIONS)).optional().describe("\u0627\u0644\u0623\u0642\u0633\u0627\u0645 \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629\u061B \u0627\u0644\u0627\u0641\u062A\u0631\u0627\u0636\u064A \u0643\u0644 \u0627\u0644\u0623\u0642\u0633\u0627\u0645."),
+    include_lines: z19.boolean().optional().describe("\u062A\u0636\u0645\u064A\u0646 \u0628\u0646\u0648\u062F \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u0648\u0627\u0644\u062F\u0641\u0639\u0627\u062A \u0627\u0644\u062A\u0641\u0635\u064A\u0644\u064A\u0629 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A false \u0644\u0644\u0627\u062E\u062A\u0635\u0627\u0631)."),
+    limit: z19.number().int().min(1).max(500).optional().describe("\u0623\u0642\u0635\u0649 \u0639\u062F\u062F \u0633\u062C\u0644\u0627\u062A \u0644\u0643\u0644 \u0642\u0633\u0645 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A 100).")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ date_from, date_to, sections, include_lines, limit }, ctx) => {
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    const supabase = supabaseForUser(ctx);
+    const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    const dFrom = date_from ?? `${today.slice(0, 7)}-01`;
+    const dTo = date_to ?? today;
+    const tsFrom = `${dFrom}T00:00:00Z`;
+    const tsTo = `${dTo}T23:59:59Z`;
+    const cap = limit ?? 100;
+    const want = (s) => !sections || sections.length === 0 || sections.includes(s);
+    const notes = [];
+    const out = {};
+    const grab = async (label, q) => {
+      const { data, error } = await q;
+      if (error) {
+        notes.push(`${label}: ${error.message}`);
+        return [];
+      }
+      return data ?? [];
+    };
+    if (want("manufacturing")) {
+      const rows = await grab(
+        "meat_manufacturing_invoices",
+        supabase.from("meat_manufacturing_invoices").select("*").gte("created_at", tsFrom).lte("created_at", tsTo).order("created_at", { ascending: false }).limit(2e3)
+      );
+      const active = rows.filter(notCancelled);
+      let lines = [];
+      if (include_lines && active.length) {
+        lines = await grab(
+          "meat_manufacturing_invoice_lines",
+          supabase.from("meat_manufacturing_invoice_lines").select("*").in("invoice_id", active.slice(0, cap).map((r) => r.id)).limit(5e3)
+        );
+      }
+      const byStatus = /* @__PURE__ */ new Map();
+      rows.forEach((r) => byStatus.set(String(r.status ?? "-"), (byStatus.get(String(r.status ?? "-")) ?? 0) + 1));
+      out.manufacturing = {
+        invoices_total: rows.length,
+        invoices_active: active.length,
+        invoices_cancelled: rows.length - active.length,
+        by_status: Object.fromEntries(byStatus),
+        produced_qty: r2(active.reduce((s, r) => s + num6(r.finished_qty), 0)),
+        cost_breakdown: {
+          raw: r2(active.reduce((s, r) => s + num6(r.raw_cost), 0)),
+          spices: r2(active.reduce((s, r) => s + num6(r.spice_cost), 0)),
+          packaging: r2(active.reduce((s, r) => s + num6(r.packaging_cost), 0)),
+          extra: r2(active.reduce((s, r) => s + num6(r.extra_cost), 0)),
+          total: r2(
+            active.reduce((s, r) => s + num6(r.total_manufacturing_cost ?? r.materials_total_cost), 0)
+          )
+        },
+        rows: active.slice(0, cap),
+        lines: include_lines ? lines : void 0
+      };
+    }
+    if (want("batches")) {
+      const rows = await grab(
+        "meat_factory_batches",
+        supabase.from("meat_factory_batches").select("*").gte("created_at", tsFrom).lte("created_at", tsTo).order("created_at", { ascending: false }).limit(2e3)
+      );
+      const active = rows.filter(notCancelled);
+      let consumption = [];
+      let packaging = [];
+      if (include_lines && active.length) {
+        const ids = active.slice(0, cap).map((r) => r.id);
+        consumption = await grab(
+          "meat_factory_batch_consumption",
+          supabase.from("meat_factory_batch_consumption").select("*").in("batch_id", ids).limit(5e3)
+        );
+        packaging = await grab(
+          "meat_factory_batch_packaging",
+          supabase.from("meat_factory_batch_packaging").select("*").in("batch_id", ids).limit(5e3)
+        );
+      }
+      out.batches = {
+        total: rows.length,
+        active: active.length,
+        cancelled: rows.length - active.length,
+        planned_qty: r2(active.reduce((s, r) => s + num6(r.planned_qty), 0)),
+        actual_qty: r2(active.reduce((s, r) => s + num6(r.actual_qty), 0)),
+        waste_qty: r2(active.reduce((s, r) => s + num6(r.waste_qty), 0)),
+        total_cost: r2(active.reduce((s, r) => s + num6(r.total_cost), 0)),
+        posted_to_inventory: active.filter((r) => r.posted_to_inventory).length,
+        rows: active.slice(0, cap),
+        consumption_lines: include_lines ? consumption : void 0,
+        packaging_lines: include_lines ? packaging : void 0
+      };
+    }
+    if (want("inventory")) {
+      const [raw, spice, pack, finished, moves] = await Promise.all([
+        grab("meat_raw_inventory", supabase.from("meat_raw_inventory").select("*").limit(1e3)),
+        grab("meat_factory_raw_items", supabase.from("meat_factory_raw_items").select("*").limit(1e3)),
+        grab("meat_packaging_inventory", supabase.from("meat_packaging_inventory").select("*").limit(1e3)),
+        grab("meat_finished_inventory", supabase.from("meat_finished_inventory").select("*").limit(1e3)),
+        grab(
+          "meat_factory_inventory_moves",
+          supabase.from("meat_factory_inventory_moves").select("*").gte("created_at", tsFrom).lte("created_at", tsTo).order("created_at", { ascending: false }).limit(cap)
+        )
+      ]);
+      const value = (rows, costKey) => r2(rows.reduce((s, r) => s + num6(r.stock ?? r.current_stock) * num6(r[costKey]), 0));
+      out.inventory = {
+        raw_materials: {
+          items: raw.length,
+          stock_value: value(raw, "avg_cost"),
+          low_stock: raw.filter((r) => num6(r.stock) <= num6(r.reorder_level)).length,
+          rows: raw.slice(0, cap)
+        },
+        raw_and_spice_items: {
+          items: spice.length,
+          stock_value: value(spice, "avg_cost"),
+          rows: spice.slice(0, cap)
+        },
+        packaging: {
+          items: pack.length,
+          stock_value: value(pack, "avg_cost"),
+          rows: pack.slice(0, cap)
+        },
+        finished_goods: {
+          items: finished.length,
+          stock_value: value(finished, "avg_prod_cost"),
+          rows: finished.slice(0, cap)
+        },
+        recent_moves: moves
+      };
+    }
+    if (want("purchases")) {
+      const rows = await grab(
+        "meat_factory_purchases",
+        supabase.from("meat_factory_purchases").select("*").gte("purchase_date", dFrom).lte("purchase_date", dTo).order("purchase_date", { ascending: false }).limit(2e3)
+      );
+      const active = rows.filter(notCancelled);
+      let lines = [];
+      if (include_lines && active.length) {
+        lines = await grab(
+          "meat_factory_purchase_lines",
+          supabase.from("meat_factory_purchase_lines").select("*").in("purchase_id", active.slice(0, cap).map((r) => r.id)).limit(5e3)
+        );
+      }
+      const bySupplier = /* @__PURE__ */ new Map();
+      active.forEach(
+        (r) => bySupplier.set(String(r.supplier ?? "-"), r2((bySupplier.get(String(r.supplier ?? "-")) ?? 0) + num6(r.total_amount)))
+      );
+      out.purchases = {
+        count: active.length,
+        total_amount: r2(active.reduce((s, r) => s + num6(r.total_amount), 0)),
+        by_supplier: Object.fromEntries(bySupplier),
+        rows: active.slice(0, cap),
+        lines: include_lines ? lines : void 0
+      };
+    }
+    if (want("sales")) {
+      const rows = await grab(
+        "meat_factory_sales",
+        supabase.from("meat_factory_sales").select("*").gte("sale_date", dFrom).lte("sale_date", dTo).order("sale_date", { ascending: false }).limit(2e3)
+      );
+      const active = rows.filter(notCancelled);
+      let lines = [];
+      if (active.length) {
+        lines = await grab(
+          "meat_factory_sales_lines",
+          supabase.from("meat_factory_sales_lines").select("*").in("sale_id", active.map((r) => r.id).slice(0, 500)).limit(5e3)
+        );
+      }
+      out.sales = {
+        invoices: active.length,
+        total_amount: r2(active.reduce((s, r) => s + num6(r.total_amount), 0)),
+        qty_sold: r2(lines.reduce((s, r) => s + num6(r.quantity), 0)),
+        cost_of_sales: r2(lines.reduce((s, r) => s + num6(r.quantity) * num6(r.unit_cost_snapshot), 0)),
+        rows: active.slice(0, cap),
+        lines: include_lines ? lines : void 0
+      };
+    }
+    if (want("returns")) {
+      const rows = await grab(
+        "meat_factory_sales_returns",
+        supabase.from("meat_factory_sales_returns").select("*").gte("return_date", dFrom).lte("return_date", dTo).order("return_date", { ascending: false }).limit(1e3)
+      );
+      const active = rows.filter(notCancelled);
+      out.returns = {
+        count: active.length,
+        total_amount: r2(active.reduce((s, r) => s + num6(r.total_amount), 0)),
+        rows: active.slice(0, cap)
+      };
+    }
+    if (want("transfers")) {
+      const rows = await grab(
+        "meat_production_transfers",
+        supabase.from("meat_production_transfers").select("*").gte("created_at", tsFrom).lte("created_at", tsTo).order("created_at", { ascending: false }).limit(2e3)
+      );
+      const byStatus = /* @__PURE__ */ new Map();
+      rows.forEach((r) => byStatus.set(String(r.status ?? "-"), (byStatus.get(String(r.status ?? "-")) ?? 0) + 1));
+      out.transfers = {
+        count: rows.length,
+        by_status: Object.fromEntries(byStatus),
+        qty: r2(rows.reduce((s, r) => s + num6(r.quantity), 0)),
+        total_cost: r2(rows.reduce((s, r) => s + num6(r.total_cost), 0)),
+        pending_receipt: rows.filter((r) => String(r.status ?? "").toLowerCase() === "pending").length,
+        rows: rows.slice(0, cap)
+      };
+    }
+    if (want("carryover_dough")) {
+      const [rows, usage] = await Promise.all([
+        grab("meat_factory_carryover_dough", supabase.from("meat_factory_carryover_dough").select("*").limit(1e3)),
+        grab(
+          "meat_factory_carryover_dough_usage",
+          supabase.from("meat_factory_carryover_dough_usage").select("*").gte("created_at", tsFrom).lte("created_at", tsTo).limit(1e3)
+        )
+      ]);
+      out.carryover_dough = {
+        records: rows.length,
+        remaining_kg: r2(rows.reduce((s, r) => s + num6(r.remaining_qty_kg), 0)),
+        remaining_value: r2(rows.reduce((s, r) => s + num6(r.remaining_qty_kg) * num6(r.unit_cost), 0)),
+        used_in_period_kg: r2(usage.reduce((s, r) => s + num6(r.used_qty_kg), 0)),
+        rows: rows.slice(0, cap),
+        usage: usage.slice(0, cap)
+      };
+    }
+    if (want("stocktaking")) {
+      const rows = await grab(
+        "meat_factory_stocktaking",
+        supabase.from("meat_factory_stocktaking").select("*").gte("taken_date", dFrom).lte("taken_date", dTo).order("taken_date", { ascending: false }).limit(500)
+      );
+      let lines = [];
+      if (rows.length) {
+        lines = await grab(
+          "meat_factory_stocktaking_lines",
+          supabase.from("meat_factory_stocktaking_lines").select("*").in("stocktake_id", rows.map((r) => r.id).slice(0, 200)).limit(5e3)
+        );
+      }
+      out.stocktaking = {
+        sessions: rows.length,
+        diff_value: r2(lines.reduce((s, r) => s + num6(r.diff_value), 0)),
+        lines_with_diff: lines.filter((r) => num6(r.diff_qty) !== 0).length,
+        rows: rows.slice(0, cap),
+        lines: include_lines ? lines : void 0
+      };
+    }
+    if (want("treasury")) {
+      const rows = await grab(
+        "meat_factory_treasury_txns",
+        supabase.from("meat_factory_treasury_txns").select("*").gte("txn_date", dFrom).lte("txn_date", dTo).order("txn_date", { ascending: false }).limit(5e3)
+      );
+      const dir = (d) => r2(rows.filter((r) => String(r.direction) === d).reduce((s, r) => s + num6(r.amount), 0));
+      out.treasury = {
+        transactions: rows.length,
+        income: dir("in"),
+        expense: dir("out"),
+        net: r2(dir("in") - dir("out")),
+        rows: rows.slice(0, cap)
+      };
+    }
+    if (want("recipes")) {
+      const [recipes, status] = await Promise.all([
+        grab("meat_factory_recipes", supabase.from("meat_factory_recipes").select("*").limit(3e3)),
+        grab("meat_recipe_version_status", supabase.from("meat_recipe_version_status").select("*").limit(1e3))
+      ]);
+      const byProduct = /* @__PURE__ */ new Map();
+      recipes.forEach((r) => {
+        const k = String(r.product_code);
+        if (!byProduct.has(k)) byProduct.set(k, /* @__PURE__ */ new Set());
+        byProduct.get(k).add(num6(r.version));
+      });
+      out.recipes = {
+        products_with_bom: byProduct.size,
+        lines: recipes.length,
+        active_versions: status.filter((s) => s.is_active),
+        versions: Array.from(byProduct.entries()).map(([code, vs]) => ({
+          product_code: code,
+          versions: Array.from(vs).sort((a, b) => a - b)
+        })),
+        rows: include_lines ? recipes.slice(0, 1e3) : void 0
+      };
+    }
+    if (want("products")) {
+      const rows = await grab(
+        "meat_factory_products",
+        supabase.from("meat_factory_products").select("*").limit(1e3)
+      );
+      out.products = {
+        count: rows.length,
+        active: rows.filter((r) => r.is_active !== false).length,
+        rows: rows.slice(0, cap)
+      };
+    }
+    const payload = {
+      module: "meat_factory",
+      period: { from: dFrom, to: dTo },
+      currency: "EGP",
+      weight_unit: "kg",
+      generated_at: (/* @__PURE__ */ new Date()).toISOString(),
+      note: "\u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u0648\u0627\u0644\u062F\u0641\u0639\u0627\u062A \u0627\u0644\u0645\u0644\u063A\u0627\u0629 \u0645\u0633\u062A\u0628\u0639\u062F\u0629 \u0645\u0646 \u0627\u0644\u0643\u0645\u064A\u0627\u062A \u0648\u0627\u0644\u062A\u0643\u0627\u0644\u064A\u0641 (\u0643\u0645\u064A\u0627\u062A\u0647\u0627 \u062A\u0631\u062A\u062F \u0644\u0644\u0645\u062E\u0632\u0648\u0646 \u062A\u0644\u0642\u0627\u0626\u064A\u064B\u0627). \u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0648\u0627\u0644\u0642\u064A\u0645 \u0627\u0644\u0645\u0627\u0644\u064A\u0629 \u062A\u0638\u0647\u0631 \u0641\u0642\u0637 \u0644\u0644\u0623\u062F\u0648\u0627\u0631 \u0627\u0644\u0645\u0635\u0631\u0651\u062D \u0644\u0647\u0627 \u0639\u0628\u0631 RLS. \u0645\u0635\u062F\u0631 \u0623\u0631\u0635\u062F\u0629 \u0627\u0644\u0645\u062E\u0632\u0648\u0646 \u0647\u0648 \u062C\u062F\u0627\u0648\u0644 \u0645\u062E\u0632\u0648\u0646 \u0627\u0644\u0645\u0635\u0646\u0639 \u0648\u0644\u064A\u0633 products.stock.",
+      access_notes: notes,
+      sections_returned: Object.keys(out),
+      ...out
+    };
+    return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload };
+  }
+});
+
 // src/lib/mcp/index.ts
 var projectRef = "ssznmzijopyxkwpctcxw";
 var mcp_default = defineMcp({
   name: "naam-al-asima-management-system",
   title: "Naam Al-Asima Management System",
-  version: "0.3.0",
-  instructions: "\u0623\u062F\u0648\u0627\u062A \u0642\u0631\u0627\u0621\u0629 \u0641\u0642\u0637 \u0644\u0646\u0638\u0627\u0645 \u0625\u062F\u0627\u0631\u0629 \u0646\u0639\u0627\u0645 \u0627\u0644\u0639\u0627\u0635\u0645\u0629 (Capital Ostrich). \u0627\u0628\u062F\u0623 \u062F\u0627\u0626\u0645\u064B\u0627 \u0628\u0640 `system_map` \u0644\u0641\u0647\u0645 \u0627\u0644\u0623\u0642\u0633\u0627\u0645 \u0648\u0642\u0648\u0627\u0639\u062F \u0627\u0644\u0639\u0645\u0644\u060C \u062B\u0645 `list_datasets` \u0644\u0645\u0639\u0631\u0641\u0629 \u0627\u0644\u0623\u0639\u0645\u062F\u0629\u060C \u062B\u0645 `query_dataset` \u0644\u0644\u0627\u0633\u062A\u0639\u0644\u0627\u0645 \u0627\u0644\u0639\u0627\u0645 \u0645\u0639 \u0627\u0644\u062A\u0631\u0642\u064A\u0645 \u0648\u0627\u0644\u0639\u062F\u062F \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A\u060C \u0648`get_record` \u0644\u062A\u0641\u0627\u0635\u064A\u0644 \u0633\u062C\u0644 \u0648\u0633\u062C\u0644\u0627\u062A\u0647 \u0627\u0644\u0645\u0631\u062A\u0628\u0637\u0629. \u0644\u0644\u0645\u062E\u0632\u0648\u0646 \u0627\u0633\u062A\u062E\u062F\u0645 `inventory_balances` \u0648`inventory_movements` (\u0648\u0644\u064A\u0633 products.stock). \u0644\u0644\u062A\u0642\u0627\u0631\u064A\u0631 \u0627\u0644\u062C\u0627\u0647\u0632\u0629: `sales_report` (\u064A\u0641\u0635\u0644 \u0642\u064A\u0645\u0629 \u0627\u0644\u0637\u0644\u0628\u0627\u062A \u0639\u0646 \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u0627\u0644\u0645\u0633\u0644\u0651\u0645\u0629 \u0639\u0646 \u0627\u0644\u062A\u062D\u0635\u064A\u0644)\u060C `manufacturing_report`\u060C `finance_report`\u060C `hr_report` (\u0627\u0644\u0645\u0648\u0638\u0641\u0648\u0646 \u0648\u0627\u0644\u062E\u0635\u0648\u0645\u0627\u062A \u0648\u0627\u0644\u0631\u0648\u0627\u062A\u0628)\u060C `customers_report` (\u062A\u062D\u0644\u064A\u0644 \u0627\u0644\u0639\u0645\u0644\u0627\u0621)\u060C `delivery_report` (\u0627\u0644\u0634\u062D\u0646 \u0648\u0627\u0644\u0645\u0646\u0627\u062F\u064A\u0628 \u0648\u0627\u0644\u062A\u062D\u0635\u064A\u0644)\u060C `marketing_report` (\u0627\u0644\u062A\u0627\u0631\u062C\u062A \u0648\u0623\u062F\u0627\u0621 \u0627\u0644\u0645\u0648\u062F\u0631\u064A\u062A\u0648\u0631 \u0648\u0627\u0644\u0633\u0648\u0634\u064A\u0627\u0644 \u0645\u064A\u062F\u064A\u0627 \u0648\u0627\u0644\u0625\u0639\u0644\u0627\u0646\u0627\u062A)\u060C \u0648`messages_and_documents` (\u0627\u0644\u0631\u0633\u0627\u0626\u0644 \u0627\u0644\u062F\u0627\u062E\u0644\u064A\u0629 \u0648\u0627\u0644\u0645\u0631\u0641\u0642\u0627\u062A \u0648\u0645\u0633\u062A\u0646\u062F\u0627\u062A \u0627\u0644\u0645\u0648\u0638\u0641\u064A\u0646 \u0643\u0628\u064A\u0627\u0646\u0627\u062A \u0648\u0635\u0641\u064A\u0629 \u0641\u0642\u0637). \u0627\u0644\u0639\u0645\u0644\u0629 \u0627\u0644\u062C\u0646\u064A\u0647 \u0627\u0644\u0645\u0635\u0631\u064A\u060C \u0627\u0644\u0623\u0648\u0632\u0627\u0646 \u0628\u0627\u0644\u0643\u064A\u0644\u0648\u060C \u0627\u0644\u062A\u0648\u0627\u0631\u064A\u062E UTC \u0648\u0627\u0644\u0639\u0645\u0644 \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u064A \u0628\u062A\u0648\u0642\u064A\u062A \u0627\u0644\u0642\u0627\u0647\u0631\u0629. \u0643\u0644 \u0627\u0644\u0642\u0631\u0627\u0621\u0627\u062A \u062A\u0646\u0641\u0630 \u0628\u0635\u0644\u0627\u062D\u064A\u0627\u062A \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u0645\u0648\u0642\u0651\u0639 (RLS) \u0648\u0644\u0627 \u062A\u0648\u062C\u062F \u0623\u062F\u0648\u0627\u062A \u062A\u0639\u062F\u064A\u0644 \u0623\u0648 \u062D\u0630\u0641.",
+  version: "0.4.0",
+  instructions: "\u0623\u062F\u0648\u0627\u062A \u0642\u0631\u0627\u0621\u0629 \u0641\u0642\u0637 \u0644\u0646\u0638\u0627\u0645 \u0625\u062F\u0627\u0631\u0629 \u0646\u0639\u0627\u0645 \u0627\u0644\u0639\u0627\u0635\u0645\u0629 (Capital Ostrich). \u0627\u0628\u062F\u0623 \u062F\u0627\u0626\u0645\u064B\u0627 \u0628\u0640 `system_map` \u0644\u0641\u0647\u0645 \u0627\u0644\u0623\u0642\u0633\u0627\u0645 \u0648\u0642\u0648\u0627\u0639\u062F \u0627\u0644\u0639\u0645\u0644\u060C \u062B\u0645 `list_datasets` \u0644\u0645\u0639\u0631\u0641\u0629 \u0627\u0644\u0623\u0639\u0645\u062F\u0629\u060C \u062B\u0645 `query_dataset` \u0644\u0644\u0627\u0633\u062A\u0639\u0644\u0627\u0645 \u0627\u0644\u0639\u0627\u0645 \u0645\u0639 \u0627\u0644\u062A\u0631\u0642\u064A\u0645 \u0648\u0627\u0644\u0639\u062F\u062F \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A\u060C \u0648`get_record` \u0644\u062A\u0641\u0627\u0635\u064A\u0644 \u0633\u062C\u0644 \u0648\u0633\u062C\u0644\u0627\u062A\u0647 \u0627\u0644\u0645\u0631\u062A\u0628\u0637\u0629. \u0644\u0644\u0645\u062E\u0632\u0648\u0646 \u0627\u0633\u062A\u062E\u062F\u0645 `inventory_balances` \u0648`inventory_movements` (\u0648\u0644\u064A\u0633 products.stock). \u0644\u0644\u062A\u0642\u0627\u0631\u064A\u0631 \u0627\u0644\u062C\u0627\u0647\u0632\u0629: `sales_report` (\u064A\u0641\u0635\u0644 \u0642\u064A\u0645\u0629 \u0627\u0644\u0637\u0644\u0628\u0627\u062A \u0639\u0646 \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u0627\u0644\u0645\u0633\u0644\u0651\u0645\u0629 \u0639\u0646 \u0627\u0644\u062A\u062D\u0635\u064A\u0644)\u060C `manufacturing_report`\u060C `meat_factory_report` (\u062A\u0642\u0631\u064A\u0631 \u0645\u0635\u0646\u0639 \u0627\u0644\u0644\u062D\u0648\u0645 \u0627\u0644\u0634\u0627\u0645\u0644 \u0628\u0643\u0644 \u0641\u0631\u0648\u0639\u0647: \u0627\u0644\u062A\u0635\u0646\u064A\u0639 \u0648\u0627\u0644\u062F\u0641\u0639\u0627\u062A \u0648\u0627\u0644\u0645\u062E\u0632\u0648\u0646 \u0648\u0627\u0644\u0645\u0634\u062A\u0631\u064A\u0627\u062A \u0648\u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u0648\u0627\u0644\u0645\u0631\u062A\u062C\u0639\u0627\u062A \u0648\u0627\u0644\u062A\u062D\u0648\u064A\u0644\u0627\u062A \u0648\u0627\u0644\u0639\u062C\u064A\u0646\u0629 \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u0629 \u0648\u0627\u0644\u062C\u0631\u062F \u0648\u0627\u0644\u062E\u0632\u064A\u0646\u0629 \u0648\u0627\u0644\u0648\u0635\u0641\u0627\u062A \u0648\u0627\u0644\u0645\u0646\u062A\u062C\u0627\u062A)\u060C `finance_report`\u060C `hr_report` (\u0627\u0644\u0645\u0648\u0638\u0641\u0648\u0646 \u0648\u0627\u0644\u062E\u0635\u0648\u0645\u0627\u062A \u0648\u0627\u0644\u0631\u0648\u0627\u062A\u0628)\u060C `customers_report` (\u062A\u062D\u0644\u064A\u0644 \u0627\u0644\u0639\u0645\u0644\u0627\u0621)\u060C `delivery_report` (\u0627\u0644\u0634\u062D\u0646 \u0648\u0627\u0644\u0645\u0646\u0627\u062F\u064A\u0628 \u0648\u0627\u0644\u062A\u062D\u0635\u064A\u0644)\u060C `marketing_report` (\u0627\u0644\u062A\u0627\u0631\u062C\u062A \u0648\u0623\u062F\u0627\u0621 \u0627\u0644\u0645\u0648\u062F\u0631\u064A\u062A\u0648\u0631 \u0648\u0627\u0644\u0633\u0648\u0634\u064A\u0627\u0644 \u0645\u064A\u062F\u064A\u0627 \u0648\u0627\u0644\u0625\u0639\u0644\u0627\u0646\u0627\u062A)\u060C \u0648`messages_and_documents` (\u0627\u0644\u0631\u0633\u0627\u0626\u0644 \u0627\u0644\u062F\u0627\u062E\u0644\u064A\u0629 \u0648\u0627\u0644\u0645\u0631\u0641\u0642\u0627\u062A \u0648\u0645\u0633\u062A\u0646\u062F\u0627\u062A \u0627\u0644\u0645\u0648\u0638\u0641\u064A\u0646 \u0643\u0628\u064A\u0627\u0646\u0627\u062A \u0648\u0635\u0641\u064A\u0629 \u0641\u0642\u0637). \u0627\u0644\u0639\u0645\u0644\u0629 \u0627\u0644\u062C\u0646\u064A\u0647 \u0627\u0644\u0645\u0635\u0631\u064A\u060C \u0627\u0644\u0623\u0648\u0632\u0627\u0646 \u0628\u0627\u0644\u0643\u064A\u0644\u0648\u060C \u0627\u0644\u062A\u0648\u0627\u0631\u064A\u062E UTC \u0648\u0627\u0644\u0639\u0645\u0644 \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u064A \u0628\u062A\u0648\u0642\u064A\u062A \u0627\u0644\u0642\u0627\u0647\u0631\u0629. \u0643\u0644 \u0627\u0644\u0642\u0631\u0627\u0621\u0627\u062A \u062A\u0646\u0641\u0630 \u0628\u0635\u0644\u0627\u062D\u064A\u0627\u062A \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u0645\u0648\u0642\u0651\u0639 (RLS) \u0648\u0644\u0627 \u062A\u0648\u062C\u062F \u0623\u062F\u0648\u0627\u062A \u062A\u0639\u062F\u064A\u0644 \u0623\u0648 \u062D\u0630\u0641.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
@@ -1375,6 +1709,7 @@ var mcp_default = defineMcp({
     sales_summary_default,
     sales_report_default,
     manufacturing_report_default,
+    meat_factory_report_default,
     finance_report_default,
     hr_report_default,
     customers_report_default,

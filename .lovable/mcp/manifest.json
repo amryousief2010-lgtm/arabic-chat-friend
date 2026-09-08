@@ -12,7 +12,7 @@
   "mcp": {
     "server": {
       "name": "naam-al-asima-management-system",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "title": "Naam Al-Asima Management System"
     },
     "tools": [
@@ -526,6 +526,63 @@
             "date_from",
             "date_to"
           ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "meat_factory_report",
+        "title": "Meat factory full report",
+        "description": "تقرير شامل لمصنع اللحوم بكل فروعه الداخلية: فواتير التصنيع وبنودها، دفعات الإنتاج والاستهلاك والتعبئة، مخزون الخامات والتوابل والتغليف والمنتج التام، المشتريات والموردين، المبيعات والمرتجعات، التحويلات للمخزن الرئيسي، العجينة المرحّلة (carryover)، الجرد والفروقات، خزينة المصنع، والوصفات (BOM) وإصداراتها، بالإضافة إلى المنتجات وتكاليفها. الكميات بالكيلو/الوحدة والقيم بالجنيه المصري. قراءة فقط وحسب صلاحيات المستخدم (RLS).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "date_from": {
+              "type": "string",
+              "description": "من تاريخ YYYY-MM-DD (افتراضي أول الشهر الحالي)."
+            },
+            "date_to": {
+              "type": "string",
+              "description": "إلى تاريخ YYYY-MM-DD (افتراضي اليوم)."
+            },
+            "sections": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "manufacturing",
+                  "batches",
+                  "inventory",
+                  "purchases",
+                  "sales",
+                  "returns",
+                  "transfers",
+                  "carryover_dough",
+                  "stocktaking",
+                  "treasury",
+                  "recipes",
+                  "products"
+                ]
+              },
+              "description": "الأقسام المطلوبة؛ الافتراضي كل الأقسام."
+            },
+            "include_lines": {
+              "type": "boolean",
+              "description": "تضمين بنود الفواتير والدفعات التفصيلية (افتراضي false للاختصار)."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "description": "أقصى عدد سجلات لكل قسم (افتراضي 100)."
+            }
+          },
           "additionalProperties": false,
           "$schema": "http://json-schema.org/draft-07/schema#"
         },
