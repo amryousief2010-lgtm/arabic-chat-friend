@@ -558,7 +558,7 @@ export default function SocialMediaReportsReview() {
                         !["id", "employee_id", "reviewed_by", "created_at", "updated_at"].includes(k) &&
                         v !== null &&
                         v !== "" &&
-                        typeof v !== "object"
+                        (Array.isArray(v) ? v.length > 0 : typeof v !== "object")
                     )
                     .map(([k, v]) => (
                       <div
@@ -569,7 +569,9 @@ export default function SocialMediaReportsReview() {
                           {FIELD_LABELS[k] ?? k}
                         </span>
                         <span className="text-sm font-medium break-all text-left" dir="auto">
-                          {typeof v === "boolean"
+                          {Array.isArray(v)
+                            ? v.join("، ")
+                            : typeof v === "boolean"
                             ? v
                               ? "نعم"
                               : "لا"

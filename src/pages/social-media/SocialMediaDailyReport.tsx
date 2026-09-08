@@ -102,6 +102,9 @@ export default function SocialMediaDailyReport() {
 
   const loadedKeyRef = useRef<string | null>(null);
   const hydratedRef = useRef(false);
+  // Skips the local autosave for the state update that follows a successful
+  // server save, so a saved report never leaves a phantom "unsaved draft".
+  const skipAutosaveRef = useRef(false);
   const userId = user?.id;
 
   useEffect(() => {
@@ -188,6 +191,10 @@ export default function SocialMediaDailyReport() {
   // Local autosave while typing — avoids data loss on refresh / session expiry
   useEffect(() => {
     if (!userId || loading || !hydratedRef.current) return;
+    if (skipAutosaveRef.current) {
+      skipAutosaveRef.current = false;
+      return;
+    }
     const t = setTimeout(() => {
       try {
         const { id, management_notes, status, report_date, ...rest } = form;
@@ -329,6 +336,7 @@ export default function SocialMediaDailyReport() {
       toast.error("تعذّر الحفظ", { description: error.message });
       return;
     }
+    skipAutosaveRef.current = true;
     setForm((f) => ({ ...f, id: data.id, status: data.status as DailyStatus }));
     try { localStorage.removeItem(draftKey(user.id, form.report_date)); } catch { /* ignore */ }
     toast.success(status === "submitted" ? "تم إرسال التقرير للإدارة" : "تم حفظ المسودة");

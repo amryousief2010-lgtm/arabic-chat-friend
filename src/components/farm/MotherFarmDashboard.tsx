@@ -59,10 +59,14 @@ const MotherFarmDashboard = ({ families, eggs, transfers }: Props) => {
       return;
     }
     setSavingThreshold(true);
-    const { error } = await supabase
-      .from("farm_settings").update({ idle_days_threshold: Math.round(v) }).eq("id", true);
+    const { data: updated, error } = await supabase
+      .from("farm_settings").update({ idle_days_threshold: Math.round(v) }).eq("id", true).select("id");
     setSavingThreshold(false);
     if (error) { toast.error("تعذّر الحفظ: " + error.message); return; }
+    if (!updated || updated.length === 0) {
+      toast.error("لا تملك صلاحية تعديل حد التوقف");
+      return;
+    }
     await queryClient.invalidateQueries({ queryKey: ["farm_settings_idle_threshold"] });
     toast.success(`تم ضبط حد التوقف على ${Math.round(v)} يوم`);
   };

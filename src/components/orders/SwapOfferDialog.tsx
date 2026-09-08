@@ -268,6 +268,32 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
       const { error: insErr } = await supabase.from("order_items").insert(toInsert);
       if (insErr) throw insErr;
 
+      // Keep the box identity/count record in sync: drop the swapped-out box,
+      // then add (or increment) the new one.
+      await supabase
+        .from("order_offer_instances")
+        .delete()
+        .eq("order_id", orderId)
+        .eq("offer_name", group.name);
+      const { data: existingInstance } = await supabase
+        .from("order_offer_instances")
+        .select("id, quantity")
+        .eq("order_id", orderId)
+        .eq("offer_name", selectedNewOffer.name)
+        .maybeSingle();
+      if (existingInstance) {
+        await supabase
+          .from("order_offer_instances")
+          .update({ quantity: Number(existingInstance.quantity || 0) + 1 })
+          .eq("id", existingInstance.id);
+      } else {
+        await supabase.from("order_offer_instances").insert({
+          order_id: orderId,
+          offer_box_id: selectedNewOfferId ?? null,
+          offer_name: selectedNewOffer.name,
+          quantity: 1,
+        });
+      }
 
       toast.success(`تم استبدال "${groupLabel(selectedRemoveOffer)}" بـ "${selectedNewOffer.name}"`);
       onOpenChange(false);

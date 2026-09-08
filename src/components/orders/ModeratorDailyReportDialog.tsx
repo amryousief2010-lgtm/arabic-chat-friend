@@ -52,7 +52,7 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
         const to = cairoWallClockToUTC(y, m - 1, d + 1, 0, 0, 0).toISOString();
         const { data, error } = await supabase
           .from("orders")
-          .select("id, order_number, total, created_at, created_by, customer_name, customer_phone, customer_phone2, customers(name, phone, phone2)")
+          .select("id, order_number, total, created_at, created_by, customers(name, phone, phone2)")
           .eq("created_by", userId)
           .gte("created_at", from)
           .lt("created_at", to)

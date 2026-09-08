@@ -200,6 +200,26 @@ const AddOfferDialog = ({ open, onOpenChange, orderId, onSaved }: Props) => {
       const { error: insErr } = await supabase.from("order_items").insert(toInsert);
       if (insErr) throw insErr;
 
+      // Keep the box identity/count record in sync with the order contents.
+      const { data: existing } = await supabase
+        .from("order_offer_instances")
+        .select("id, quantity")
+        .eq("order_id", orderId)
+        .eq("offer_name", selectedOffer.name)
+        .maybeSingle();
+      if (existing) {
+        await supabase
+          .from("order_offer_instances")
+          .update({ quantity: Number(existing.quantity || 0) + 1 })
+          .eq("id", existing.id);
+      } else {
+        await supabase.from("order_offer_instances").insert({
+          order_id: orderId,
+          offer_box_id: selectedOfferId,
+          offer_name: selectedOffer.name,
+          quantity: 1,
+        });
+      }
 
       toast.success(`تم إضافة العرض "${selectedOffer.name}" إلى الطلب`);
       onOpenChange(false);
