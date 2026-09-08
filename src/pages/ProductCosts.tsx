@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Calculator, Save, Search, TrendingUp, Package, Info } from "lucide-react";
+import { Calculator, Save, Search, TrendingUp, Package, Info, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 interface ProductCost {
