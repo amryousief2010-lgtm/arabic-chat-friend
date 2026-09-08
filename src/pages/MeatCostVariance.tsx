@@ -38,7 +38,26 @@ const n = (v: unknown) => Number(v ?? 0);
 const money = (v: unknown) => n(v).toLocaleString("ar-EG", { maximumFractionDigits: 2 }) + " ج";
 
 export default function MeatCostVariance() {
-  const [search, setSearch] = useState("");
+  const [params] = useSearchParams();
+  const [search, setSearch] = useState(params.get("product") ?? "");
+  const [invoicesFor, setInvoicesFor] = useState<string | null>(null);
+
+  const { data: invoices = [], isLoading: invLoading } = useQuery({
+    queryKey: ["mf-invoices-for-product", invoicesFor],
+    enabled: !!invoicesFor,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("meat_manufacturing_invoices")
+        .select("id,invoice_no,product_name,finished_qty,unit,status,raw_cost,spice_cost,packaging_cost,extra_cost,total_manufacturing_cost,created_at")
+        .eq("product_name", invoicesFor)
+        .in("status", ["approved", "transferred"])
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["meat-cost-variance"],
