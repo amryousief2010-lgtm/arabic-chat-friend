@@ -357,15 +357,20 @@ const ProductCosts = () => {
                         {profit.toFixed(2)} ج
                       </TableCell>
                       <TableCell>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => saveMutation.mutate(p.id)}
-                          disabled={saveMutation.isPending}
-                        >
-                          <Save className="w-3 h-3 ml-1" /> حفظ
-                        </Button>
+                        {fromInvoices ? (
+                          <span className="text-xs text-muted-foreground">تلقائي</span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => saveMutation.mutate(p.id)}
+                            disabled={saveMutation.isPending}
+                          >
+                            <Save className="w-3 h-3 ml-1" /> حفظ
+                          </Button>
+                        )}
                       </TableCell>
+
                     </TableRow>
                   );
                 })}
