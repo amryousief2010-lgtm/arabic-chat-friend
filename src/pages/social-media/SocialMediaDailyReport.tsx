@@ -336,6 +336,7 @@ export default function SocialMediaDailyReport() {
       toast.error("تعذّر الحفظ", { description: error.message });
       return;
     }
+    skipAutosaveRef.current = true;
     setForm((f) => ({ ...f, id: data.id, status: data.status as DailyStatus }));
     try { localStorage.removeItem(draftKey(user.id, form.report_date)); } catch { /* ignore */ }
     toast.success(status === "submitted" ? "تم إرسال التقرير للإدارة" : "تم حفظ المسودة");
