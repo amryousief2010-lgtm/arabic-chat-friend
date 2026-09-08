@@ -49,6 +49,36 @@ const ProductCosts = () => {
     },
   });
 
+  // Actual cost per finished item, derived from APPROVED meat manufacturing invoices
+  const { data: actualCosts = [] } = useQuery({
+    queryKey: ["meat-actual-costs"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("v_meat_cost_variance")
+        .select("product_name,actual_unit_cost,raw_per_unit,spice_per_unit,packaging_per_unit,extra_per_unit,invoices_count");
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        product_name: string;
+        actual_unit_cost: number | null;
+        raw_per_unit: number | null;
+        spice_per_unit: number | null;
+        packaging_per_unit: number | null;
+        extra_per_unit: number | null;
+        invoices_count: number | null;
+      }>;
+    },
+  });
+
+  const norm = (s: string) =>
+    (s || "").replace(/[\u064B-\u0652]/g, "").replace(/[أإآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/\s+/g, " ").trim();
+
+  const actualByName = useMemo(() => {
+    const m = new Map<string, (typeof actualCosts)[number]>();
+    actualCosts.forEach((a) => m.set(norm(a.product_name), a));
+    return m;
+  }, [actualCosts]);
+
+
   useEffect(() => {
     if (products.length === 0) return;
     setEdits((prev) => {
