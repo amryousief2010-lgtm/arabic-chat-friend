@@ -308,7 +308,15 @@ const ProductCosts = () => {
                       <TableCell>
                         {fromInvoices ? (
                           <div>
-                            <Badge className="text-xs">فواتير التصنيع</Badge>
+                            <Link
+                              to={`/meat-cost-variance?product=${encodeURIComponent(p.name)}`}
+                              className="inline-flex items-center gap-1"
+                            >
+                              <Badge className="text-xs cursor-pointer hover:opacity-80">
+                                فواتير التصنيع
+                                <ExternalLink className="w-3 h-3 mr-1" />
+                              </Badge>
+                            </Link>
                             <div className="text-[11px] text-muted-foreground mt-1">
                               خامات {Number(actual!.raw_per_unit ?? 0).toFixed(2)} · توابل{" "}
                               {Number(actual!.spice_per_unit ?? 0).toFixed(2)} · تغليف{" "}
@@ -319,6 +327,7 @@ const ProductCosts = () => {
                         ) : (
                           <Badge variant="outline" className="text-xs">إدخال يدوي</Badge>
                         )}
+
                       </TableCell>
                       <TableCell>
                         {fromInvoices ? (
