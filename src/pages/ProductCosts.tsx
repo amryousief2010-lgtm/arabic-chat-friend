@@ -269,6 +269,7 @@ const ProductCosts = () => {
                 <TableRow>
                   <TableHead className="text-right">المنتج</TableHead>
                   <TableHead className="text-right">الفئة</TableHead>
+                  <TableHead className="text-right">مصدر التكلفة</TableHead>
                   <TableHead className="text-right">التكلفة الفعلية</TableHead>
                   <TableHead className="text-right">سعر البيع (للعرض فقط)</TableHead>
                   <TableHead className="text-right">نسبة الربح %</TableHead>
@@ -278,12 +279,16 @@ const ProductCosts = () => {
               </TableHeader>
               <TableBody>
                 {filtered.map((p) => {
-                  const raw = edits[p.id] ?? "";
+                  const actual = actualByName.get(norm(p.name));
+                  const fromInvoices = !!actual && Number(actual.actual_unit_cost ?? 0) > 0;
+                  const raw = fromInvoices
+                    ? String(actual!.actual_unit_cost)
+                    : edits[p.id] ?? "";
                   const cost = parseFloat(raw) || 0;
                   const price = p.price || 0;
                   const profit = price - cost;
                   const margin = cost > 0 ? ((price - cost) / cost) * 100 : 0;
-                  const hasCost = (p.cost_price ?? 0) > 0;
+                  const hasCost = cost > 0;
                   return (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium">
@@ -299,17 +304,37 @@ const ProductCosts = () => {
                         <Badge variant="secondary">{p.category || "-"}</Badge>
                       </TableCell>
                       <TableCell>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          className="w-28"
-                          value={raw}
-                          onChange={(ev) =>
-                            setEdits((prev) => ({ ...prev, [p.id]: ev.target.value }))
-                          }
-                          placeholder="0.00"
-                        />
+                        {fromInvoices ? (
+                          <div>
+                            <Badge className="text-xs">فواتير التصنيع</Badge>
+                            <div className="text-[11px] text-muted-foreground mt-1">
+                              خامات {Number(actual!.raw_per_unit ?? 0).toFixed(2)} · توابل{" "}
+                              {Number(actual!.spice_per_unit ?? 0).toFixed(2)} · تغليف{" "}
+                              {Number(actual!.packaging_per_unit ?? 0).toFixed(2)} · مصاريف{" "}
+                              {Number(actual!.extra_per_unit ?? 0).toFixed(2)}
+                            </div>
+                          </div>
+                        ) : (
+                          <Badge variant="outline" className="text-xs">إدخال يدوي</Badge>
+                        )}
                       </TableCell>
+                      <TableCell>
+                        {fromInvoices ? (
+                          <span className="font-semibold text-primary">{cost.toFixed(2)} ج</span>
+                        ) : (
+                          <Input
+                            type="number"
+                            step="0.01"
+                            className="w-28"
+                            value={raw}
+                            onChange={(ev) =>
+                              setEdits((prev) => ({ ...prev, [p.id]: ev.target.value }))
+                            }
+                            placeholder="0.00"
+                          />
+                        )}
+                      </TableCell>
+
                       <TableCell className="font-semibold text-muted-foreground">
                         {price.toFixed(2)} ج
                       </TableCell>
