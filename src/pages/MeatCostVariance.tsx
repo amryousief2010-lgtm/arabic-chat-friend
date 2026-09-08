@@ -159,11 +159,7 @@ export default function MeatCostVariance() {
           )}
         </CardContent>
       </Card>
-    </CardContentWrapper>
+    </DashboardLayout>
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CardContentWrapper(props: any) {
-  return props.children;
-}
