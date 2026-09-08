@@ -1145,12 +1145,12 @@ var delivery_report_default = defineTool16({
     const err = ord.error || asg.error || clo.error;
     if (err) return { content: [{ type: "text", text: err.message }], isError: true };
     const orders = ord.data ?? [];
-    const num7 = (v) => Number(v ?? 0);
+    const num8 = (v) => Number(v ?? 0);
     const group = (k) => orders.reduce((acc, o) => {
       const key = String(o[k] ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
       acc[key] = acc[key] ?? { orders: 0, value: 0, delivered: 0 };
       acc[key].orders += 1;
-      acc[key].value += num7(o.total);
+      acc[key].value += num8(o.total);
       if (o.status === "delivered") acc[key].delivered += 1;
       return acc;
     }, {});
@@ -1160,9 +1160,9 @@ var delivery_report_default = defineTool16({
       currency: "EGP",
       orders_sampled: orders.length,
       totals: {
-        orders_value: orders.reduce((a, o) => a + num7(o.total), 0),
-        delivered_value: orders.filter((o) => o.status === "delivered").reduce((a, o) => a + num7(o.total), 0),
-        delivery_fees: orders.reduce((a, o) => a + num7(o.delivery_fee), 0),
+        orders_value: orders.reduce((a, o) => a + num8(o.total), 0),
+        delivered_value: orders.filter((o) => o.status === "delivered").reduce((a, o) => a + num8(o.total), 0),
+        delivery_fees: orders.reduce((a, o) => a + num8(o.delivery_fee), 0),
         without_shipping_bill: orders.filter((o) => !o.shipping_bill_no).length
       },
       by_shipping_company: group("shipping_company"),
@@ -1172,8 +1172,8 @@ var delivery_report_default = defineTool16({
       courier_assignments: asg.data ?? [],
       courier_closures: closures,
       closures_totals: {
-        cash_collected: closures.reduce((a, c) => a + num7(c.cash_collected), 0),
-        deficit_or_surplus: closures.reduce((a, c) => a + num7(c.deficit_or_surplus), 0)
+        cash_collected: closures.reduce((a, c) => a + num8(c.cash_collected), 0),
+        deficit_or_surplus: closures.reduce((a, c) => a + num8(c.deficit_or_surplus), 0)
       },
       note: "\u0627\u0644\u0641\u062A\u0631\u0629 \u0645\u062D\u0633\u0648\u0628\u0629 \u0639\u0644\u0649 \u062A\u0627\u0631\u064A\u062E \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0637\u0644\u0628 (UTC)\u061B \u0627\u0644\u062A\u0633\u0644\u064A\u0645 \u064A\u064F\u0642\u0627\u0633 \u0628\u062D\u0627\u0644\u0629 delivered. \u0627\u0644\u0623\u0631\u0642\u0627\u0645 \u0645\u062D\u062F\u0648\u062F\u0629 \u0628\u0639\u062F\u062F \u0627\u0644\u0635\u0641\u0648\u0641 \u0627\u0644\u0645\u0633\u062D\u0648\u0628\u0629 (limit)."
     };
@@ -1222,15 +1222,15 @@ var marketing_report_default = defineTool17({
     const err = targets.error || orders.error || daily.error || weekly.error || expenses.error;
     if (err) return { content: [{ type: "text", text: err.message }], isError: true };
     const rows = orders.data ?? [];
-    const num7 = (v) => Number(v ?? 0);
+    const num8 = (v) => Number(v ?? 0);
     const perModerator = rows.reduce((acc, o) => {
       const k = String(o.moderator ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
       acc[k] = acc[k] ?? { orders: 0, orders_value: 0, delivered: 0, delivered_value: 0, cancelled: 0 };
       acc[k].orders += 1;
-      acc[k].orders_value += num7(o.total);
+      acc[k].orders_value += num8(o.total);
       if (o.status === "delivered") {
         acc[k].delivered += 1;
-        acc[k].delivered_value += num7(o.total);
+        acc[k].delivered_value += num8(o.total);
       }
       if (o.status === "cancelled") acc[k].cancelled += 1;
       return acc;
@@ -1239,12 +1239,12 @@ var marketing_report_default = defineTool17({
       const k = String(o.source ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
       acc[k] = acc[k] ?? { orders: 0, value: 0 };
       acc[k].orders += 1;
-      acc[k].value += num7(o.total);
+      acc[k].value += num8(o.total);
       return acc;
     }, {});
     const exp = expenses.data ?? [];
-    const adSpend = exp.reduce((a, e) => a + num7(e.amount), 0);
-    const deliveredValue = rows.filter((o) => o.status === "delivered").reduce((a, o) => a + num7(o.total), 0);
+    const adSpend = exp.reduce((a, e) => a + num8(e.amount), 0);
+    const deliveredValue = rows.filter((o) => o.status === "delivered").reduce((a, o) => a + num8(o.total), 0);
     const socialRows = daily.data ?? [];
     const payload = {
       period: { month: m, year: y },
@@ -1254,15 +1254,15 @@ var marketing_report_default = defineTool17({
       orders_by_source: bySource,
       ad_spend: {
         total: adSpend,
-        approved: exp.filter((e) => e.is_approved).reduce((a, e) => a + num7(e.amount), 0),
+        approved: exp.filter((e) => e.is_approved).reduce((a, e) => a + num8(e.amount), 0),
         by_platform: exp.reduce((acc, e) => {
           const k = String(e.platform ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
-          acc[k] = (acc[k] ?? 0) + num7(e.amount);
+          acc[k] = (acc[k] ?? 0) + num8(e.amount);
           return acc;
         }, {}),
         by_campaign: exp.reduce((acc, e) => {
           const k = String(e.campaign_name ?? "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F");
-          acc[k] = (acc[k] ?? 0) + num7(e.amount);
+          acc[k] = (acc[k] ?? 0) + num8(e.amount);
           return acc;
         }, {})
       },
@@ -1271,12 +1271,12 @@ var marketing_report_default = defineTool17({
       social_media: {
         daily_reports_count: socialRows.length,
         totals: {
-          posts: socialRows.reduce((a, r) => a + num7(r.posts_count), 0),
-          reels_videos: socialRows.reduce((a, r) => a + num7(r.reels_videos_count), 0),
-          interested_customers: socialRows.reduce((a, r) => a + num7(r.interested_customers_count), 0),
-          reach: socialRows.reduce((a, r) => a + num7(r.reach_count), 0),
-          impressions: socialRows.reduce((a, r) => a + num7(r.impressions_count), 0),
-          new_followers: socialRows.reduce((a, r) => a + num7(r.new_followers_count), 0)
+          posts: socialRows.reduce((a, r) => a + num8(r.posts_count), 0),
+          reels_videos: socialRows.reduce((a, r) => a + num8(r.reels_videos_count), 0),
+          interested_customers: socialRows.reduce((a, r) => a + num8(r.interested_customers_count), 0),
+          reach: socialRows.reduce((a, r) => a + num8(r.reach_count), 0),
+          impressions: socialRows.reduce((a, r) => a + num8(r.impressions_count), 0),
+          new_followers: socialRows.reduce((a, r) => a + num8(r.new_followers_count), 0)
         },
         weekly_reports: weekly.data ?? []
       },
@@ -1685,12 +1685,158 @@ var meat_factory_report_default = defineTool19({
   }
 });
 
+// src/lib/mcp/tools/box-costs-report.ts
+import { defineTool as defineTool20 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { z as z20 } from "npm:zod@^3.25.76";
+var num7 = (v) => {
+  const x = Number(v);
+  return Number.isFinite(x) ? x : 0;
+};
+var box_costs_report_default = defineTool20({
+  name: "box_costs_report",
+  title: "Box costs & manufacturing cost variance",
+  description: "\u062A\u0642\u0631\u064A\u0631 \u062A\u0643\u0644\u0641\u0629 \u0643\u0644 \u0628\u0648\u0643\u0633/\u0639\u0631\u0636 (\u062E\u0627\u0645\u0627\u062A + \u062A\u0648\u0627\u0628\u0644 + \u062A\u063A\u0644\u064A\u0641 + \u0645\u0635\u0627\u0631\u064A\u0641) \u0648\u0627\u0644\u0631\u0628\u062D \u0645\u0642\u0627\u0628\u0644 \u0633\u0639\u0631 \u0627\u0644\u0639\u0631\u0636\u060C \u0628\u0627\u0644\u0625\u0636\u0627\u0641\u0629 \u0625\u0644\u0649 \u0641\u0631\u0648\u0642\u0627\u062A \u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u0635\u0646\u0641 \u0627\u0644\u062A\u0627\u0645 \u0628\u064A\u0646 \u0627\u0644\u0645\u062A\u0648\u0633\u0637 \u0627\u0644\u0645\u0633\u062C\u0651\u0644 \u0648\u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u0641\u0639\u0644\u064A\u0629 \u0627\u0644\u0645\u062D\u0633\u0648\u0628\u0629 \u0645\u0646 \u0641\u0648\u0627\u062A\u064A\u0631 \u0627\u0644\u062A\u0635\u0646\u064A\u0639 \u0627\u0644\u0645\u0639\u062A\u0645\u062F\u0629 \u0623\u0648 \u0627\u0644\u0645\u062D\u0648\u0651\u0644\u0629. \u0627\u0644\u0639\u0645\u0644\u0629 \u0627\u0644\u062C\u0646\u064A\u0647 \u0627\u0644\u0645\u0635\u0631\u064A \u0648\u0627\u0644\u0623\u0648\u0632\u0627\u0646 \u0628\u0627\u0644\u0643\u064A\u0644\u0648. \u0627\u0644\u0642\u0631\u0627\u0621\u0629 \u0641\u0642\u0637 \u0648\u0628\u0635\u0644\u0627\u062D\u064A\u0627\u062A \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 (RLS).",
+  inputSchema: {
+    section: z20.enum(["boxes", "variance", "both"]).optional().describe("boxes = \u062A\u0643\u0644\u0641\u0629 \u0648\u0631\u0628\u062D \u0627\u0644\u0628\u0648\u0643\u0633\u0627\u062A\u060C variance = \u0641\u0631\u0648\u0642\u0627\u062A \u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u0623\u0635\u0646\u0627\u0641 \u0627\u0644\u062A\u0627\u0645\u0629\u060C both = \u0627\u0644\u0627\u062B\u0646\u0627\u0646 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A)."),
+    search: z20.string().optional().describe("\u0628\u062D\u062B \u0628\u0627\u0633\u0645 \u0627\u0644\u0628\u0648\u0643\u0633 \u0623\u0648 \u0627\u0633\u0645 \u0627\u0644\u0635\u0646\u0641 \u0627\u0644\u062A\u0627\u0645."),
+    active_only: z20.boolean().optional().describe("\u0627\u0644\u0628\u0648\u0643\u0633\u0627\u062A \u0627\u0644\u0646\u0634\u0637\u0629 \u0641\u0642\u0637 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A true)."),
+    below_min_profit_only: z20.boolean().optional().describe("\u0627\u0644\u0628\u0648\u0643\u0633\u0627\u062A \u0627\u0644\u062A\u064A \u0631\u0628\u062D\u0647\u0627 \u0623\u0642\u0644 \u0645\u0646 \u0627\u0644\u062D\u062F \u0627\u0644\u0623\u062F\u0646\u0649 100 \u062C\u0646\u064A\u0647 \u0641\u0642\u0637."),
+    variance_only: z20.boolean().optional().describe("\u0627\u0644\u0623\u0635\u0646\u0627\u0641 \u0627\u0644\u062A\u064A \u0628\u0647\u0627 \u0641\u0631\u0642 \u062A\u0643\u0644\u0641\u0629 \u0641\u0639\u0644\u064A \u0641\u0642\u0637."),
+    include_box_lines: z20.boolean().optional().describe("\u0625\u0631\u062C\u0627\u0639 \u062A\u0641\u0627\u0635\u064A\u0644 \u0623\u0635\u0646\u0627\u0641 \u0643\u0644 \u0628\u0648\u0643\u0633 \u0648\u062A\u0643\u0644\u0641\u062A\u0647\u0627."),
+    page: z20.number().optional().describe("\u0631\u0642\u0645 \u0627\u0644\u0635\u0641\u062D\u0629 \u064A\u0628\u062F\u0623 \u0645\u0646 1."),
+    page_size: z20.number().optional().describe("\u062D\u062C\u0645 \u0627\u0644\u0635\u0641\u062D\u0629 (\u0627\u0641\u062A\u0631\u0627\u0636\u064A 100\u060C \u0623\u0642\u0635\u0649 500).")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ section, search, active_only, below_min_profit_only, variance_only, include_box_lines, page, page_size }, ctx) => {
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    const supabase = supabaseForUser(ctx);
+    const sec = section ?? "both";
+    const size = Math.min(Math.max(page_size ?? 100, 1), 500);
+    const pg = Math.max(page ?? 1, 1);
+    const from = (pg - 1) * size;
+    const to = from + size - 1;
+    const term = search?.trim();
+    const result = {
+      meta: {
+        currency: "EGP",
+        min_profit_threshold: 100,
+        cost_source: "\u0641\u0648\u0627\u062A\u064A\u0631 \u062A\u0635\u0646\u064A\u0639 \u0645\u0635\u0646\u0639 \u0627\u0644\u0644\u062D\u0648\u0645 \u0628\u062D\u0627\u0644\u0629 approved \u0623\u0648 transferred",
+        generated_at: (/* @__PURE__ */ new Date()).toISOString(),
+        page: pg,
+        page_size: size
+      }
+    };
+    if (sec === "boxes" || sec === "both") {
+      let q = supabase.from("v_offer_box_costs").select("*", { count: "exact" }).order("box_name").range(from, to);
+      if (active_only ?? true) q = q.eq("is_active", true);
+      if (below_min_profit_only) q = q.eq("below_min_profit", true);
+      if (term) q = q.ilike("box_name", `%${term}%`);
+      const { data, error, count } = await q;
+      if (error) return { content: [{ type: "text", text: `boxes error: ${error.message}` }], isError: true };
+      const boxes = data ?? [];
+      result.boxes = {
+        total_count: count ?? boxes.length,
+        rows: boxes.map((b) => ({
+          box_id: b.box_id,
+          box_name: b.box_name,
+          is_active: b.is_active,
+          offer_price: num7(b.offer_price),
+          shipping_cost: num7(b.shipping_cost),
+          items_count: num7(b.items_count),
+          total_qty: num7(b.total_qty),
+          cost_breakdown: {
+            raw: num7(b.raw_cost),
+            spice: num7(b.spice_cost),
+            packaging: num7(b.packaging_cost),
+            extra: num7(b.extra_cost),
+            legacy_fallback: num7(b.legacy_cost),
+            total: num7(b.total_cost)
+          },
+          items_value: num7(b.items_value),
+          profit: num7(b.profit),
+          profit_pct: num7(b.profit_pct),
+          below_min_profit: Boolean(b.below_min_profit),
+          items_without_cost: num7(b.items_without_cost)
+        })),
+        summary: {
+          boxes: boxes.length,
+          below_min_profit: boxes.filter((b) => b.below_min_profit).length,
+          avg_profit: boxes.length ? boxes.reduce((s, b) => s + num7(b.profit), 0) / boxes.length : 0
+        }
+      };
+      if (include_box_lines && boxes.length) {
+        const ids = boxes.map((b) => b.box_id);
+        const { data: lines } = await supabase.from("v_offer_box_cost_lines").select("*").in("box_id", ids);
+        result.box_lines = (lines ?? []).map((l) => ({
+          box_id: l.box_id,
+          box_name: l.box_name,
+          product_name: l.product_name,
+          quantity: num7(l.quantity),
+          is_gift: Boolean(l.is_gift),
+          line_price: num7(l.line_price),
+          actual_unit_cost: l.actual_unit_cost == null ? null : num7(l.actual_unit_cost),
+          product_cost_price: l.product_cost_price == null ? null : num7(l.product_cost_price),
+          per_unit: {
+            raw: num7(l.raw_per_unit),
+            spice: num7(l.spice_per_unit),
+            packaging: num7(l.packaging_per_unit),
+            extra: num7(l.extra_per_unit)
+          },
+          line_cost: num7(l.line_cost)
+        }));
+      }
+    }
+    if (sec === "variance" || sec === "both") {
+      let q = supabase.from("v_meat_cost_variance").select("*", { count: "exact" }).order("product_name").range(from, to);
+      if (term) q = q.ilike("product_name", `%${term}%`);
+      const { data, error, count } = await q;
+      if (error) return { content: [{ type: "text", text: `variance error: ${error.message}` }], isError: true };
+      let rows = data ?? [];
+      if (variance_only) rows = rows.filter((r) => Math.abs(num7(r.variance)) > 0.01);
+      result.cost_variance = {
+        total_count: count ?? rows.length,
+        rows: rows.map((r) => ({
+          product_name: r.product_name,
+          invoices_count: num7(r.invoices_count),
+          total_qty: num7(r.total_qty),
+          cost_breakdown: {
+            raw: num7(r.raw_cost),
+            spice: num7(r.spice_cost),
+            packaging: num7(r.packaging_cost),
+            extra: num7(r.extra_cost),
+            total: num7(r.total_cost)
+          },
+          per_unit: {
+            raw: num7(r.raw_per_unit),
+            spice: num7(r.spice_per_unit),
+            packaging: num7(r.packaging_per_unit),
+            extra: num7(r.extra_per_unit)
+          },
+          actual_unit_cost: num7(r.actual_unit_cost),
+          recorded_avg_cost: r.finished_avg_cost == null ? null : num7(r.finished_avg_cost),
+          product_cost_price: r.product_cost_price == null ? null : num7(r.product_cost_price),
+          product_sale_price: r.product_sale_price == null ? null : num7(r.product_sale_price),
+          variance: num7(r.variance),
+          variance_pct: num7(r.variance_pct),
+          last_approved_at: r.last_approved_at
+        })),
+        summary: {
+          items: rows.length,
+          mismatched: rows.filter((r) => Math.abs(num7(r.variance)) > 0.01).length
+        }
+      };
+    }
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  }
+});
+
 // src/lib/mcp/index.ts
 var projectRef = "ssznmzijopyxkwpctcxw";
 var mcp_default = defineMcp({
   name: "naam-al-asima-management-system",
   title: "Naam Al-Asima Management System",
-  version: "0.4.0",
+  version: "0.5.0",
   instructions: "\u0623\u062F\u0648\u0627\u062A \u0642\u0631\u0627\u0621\u0629 \u0641\u0642\u0637 \u0644\u0646\u0638\u0627\u0645 \u0625\u062F\u0627\u0631\u0629 \u0646\u0639\u0627\u0645 \u0627\u0644\u0639\u0627\u0635\u0645\u0629 (Capital Ostrich). \u0627\u0628\u062F\u0623 \u062F\u0627\u0626\u0645\u064B\u0627 \u0628\u0640 `system_map` \u0644\u0641\u0647\u0645 \u0627\u0644\u0623\u0642\u0633\u0627\u0645 \u0648\u0642\u0648\u0627\u0639\u062F \u0627\u0644\u0639\u0645\u0644\u060C \u062B\u0645 `list_datasets` \u0644\u0645\u0639\u0631\u0641\u0629 \u0627\u0644\u0623\u0639\u0645\u062F\u0629\u060C \u062B\u0645 `query_dataset` \u0644\u0644\u0627\u0633\u062A\u0639\u0644\u0627\u0645 \u0627\u0644\u0639\u0627\u0645 \u0645\u0639 \u0627\u0644\u062A\u0631\u0642\u064A\u0645 \u0648\u0627\u0644\u0639\u062F\u062F \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A\u060C \u0648`get_record` \u0644\u062A\u0641\u0627\u0635\u064A\u0644 \u0633\u062C\u0644 \u0648\u0633\u062C\u0644\u0627\u062A\u0647 \u0627\u0644\u0645\u0631\u062A\u0628\u0637\u0629. \u0644\u0644\u0645\u062E\u0632\u0648\u0646 \u0627\u0633\u062A\u062E\u062F\u0645 `inventory_balances` \u0648`inventory_movements` (\u0648\u0644\u064A\u0633 products.stock). \u0644\u0644\u062A\u0642\u0627\u0631\u064A\u0631 \u0627\u0644\u062C\u0627\u0647\u0632\u0629: `sales_report` (\u064A\u0641\u0635\u0644 \u0642\u064A\u0645\u0629 \u0627\u0644\u0637\u0644\u0628\u0627\u062A \u0639\u0646 \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u0627\u0644\u0645\u0633\u0644\u0651\u0645\u0629 \u0639\u0646 \u0627\u0644\u062A\u062D\u0635\u064A\u0644)\u060C `manufacturing_report`\u060C `meat_factory_report` (\u062A\u0642\u0631\u064A\u0631 \u0645\u0635\u0646\u0639 \u0627\u0644\u0644\u062D\u0648\u0645 \u0627\u0644\u0634\u0627\u0645\u0644 \u0628\u0643\u0644 \u0641\u0631\u0648\u0639\u0647: \u0627\u0644\u062A\u0635\u0646\u064A\u0639 \u0648\u0627\u0644\u062F\u0641\u0639\u0627\u062A \u0648\u0627\u0644\u0645\u062E\u0632\u0648\u0646 \u0648\u0627\u0644\u0645\u0634\u062A\u0631\u064A\u0627\u062A \u0648\u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u0648\u0627\u0644\u0645\u0631\u062A\u062C\u0639\u0627\u062A \u0648\u0627\u0644\u062A\u062D\u0648\u064A\u0644\u0627\u062A \u0648\u0627\u0644\u0639\u062C\u064A\u0646\u0629 \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u0629 \u0648\u0627\u0644\u062C\u0631\u062F \u0648\u0627\u0644\u062E\u0632\u064A\u0646\u0629 \u0648\u0627\u0644\u0648\u0635\u0641\u0627\u062A \u0648\u0627\u0644\u0645\u0646\u062A\u062C\u0627\u062A)\u060C `finance_report`\u060C `hr_report` (\u0627\u0644\u0645\u0648\u0638\u0641\u0648\u0646 \u0648\u0627\u0644\u062E\u0635\u0648\u0645\u0627\u062A \u0648\u0627\u0644\u0631\u0648\u0627\u062A\u0628)\u060C `customers_report` (\u062A\u062D\u0644\u064A\u0644 \u0627\u0644\u0639\u0645\u0644\u0627\u0621)\u060C `delivery_report` (\u0627\u0644\u0634\u062D\u0646 \u0648\u0627\u0644\u0645\u0646\u0627\u062F\u064A\u0628 \u0648\u0627\u0644\u062A\u062D\u0635\u064A\u0644)\u060C `marketing_report` (\u0627\u0644\u062A\u0627\u0631\u062C\u062A \u0648\u0623\u062F\u0627\u0621 \u0627\u0644\u0645\u0648\u062F\u0631\u064A\u062A\u0648\u0631 \u0648\u0627\u0644\u0633\u0648\u0634\u064A\u0627\u0644 \u0645\u064A\u062F\u064A\u0627 \u0648\u0627\u0644\u0625\u0639\u0644\u0627\u0646\u0627\u062A)\u060C \u0648`messages_and_documents` (\u0627\u0644\u0631\u0633\u0627\u0626\u0644 \u0627\u0644\u062F\u0627\u062E\u0644\u064A\u0629 \u0648\u0627\u0644\u0645\u0631\u0641\u0642\u0627\u062A \u0648\u0645\u0633\u062A\u0646\u062F\u0627\u062A \u0627\u0644\u0645\u0648\u0638\u0641\u064A\u0646 \u0643\u0628\u064A\u0627\u0646\u0627\u062A \u0648\u0635\u0641\u064A\u0629 \u0641\u0642\u0637). \u0627\u0644\u0639\u0645\u0644\u0629 \u0627\u0644\u062C\u0646\u064A\u0647 \u0627\u0644\u0645\u0635\u0631\u064A\u060C \u0627\u0644\u0623\u0648\u0632\u0627\u0646 \u0628\u0627\u0644\u0643\u064A\u0644\u0648\u060C \u0627\u0644\u062A\u0648\u0627\u0631\u064A\u062E UTC \u0648\u0627\u0644\u0639\u0645\u0644 \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u064A \u0628\u062A\u0648\u0642\u064A\u062A \u0627\u0644\u0642\u0627\u0647\u0631\u0629. \u0643\u0644 \u0627\u0644\u0642\u0631\u0627\u0621\u0627\u062A \u062A\u0646\u0641\u0630 \u0628\u0635\u0644\u0627\u062D\u064A\u0627\u062A \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u0645\u0648\u0642\u0651\u0639 (RLS) \u0648\u0644\u0627 \u062A\u0648\u062C\u062F \u0623\u062F\u0648\u0627\u062A \u062A\u0639\u062F\u064A\u0644 \u0623\u0648 \u062D\u0630\u0641.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
@@ -1710,6 +1856,7 @@ var mcp_default = defineMcp({
     sales_report_default,
     manufacturing_report_default,
     meat_factory_report_default,
+    box_costs_report_default,
     finance_report_default,
     hr_report_default,
     customers_report_default,

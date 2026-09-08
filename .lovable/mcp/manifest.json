@@ -12,7 +12,7 @@
   "mcp": {
     "server": {
       "name": "naam-al-asima-management-system",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "title": "Naam Al-Asima Management System"
     },
     "tools": [
@@ -581,6 +581,61 @@
               "minimum": 1,
               "maximum": 500,
               "description": "أقصى عدد سجلات لكل قسم (افتراضي 100)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "box_costs_report",
+        "title": "Box costs & manufacturing cost variance",
+        "description": "تقرير تكلفة كل بوكس/عرض (خامات + توابل + تغليف + مصاريف) والربح مقابل سعر العرض، بالإضافة إلى فروقات تكلفة الصنف التام بين المتوسط المسجّل والتكلفة الفعلية المحسوبة من فواتير التصنيع المعتمدة أو المحوّلة. العملة الجنيه المصري والأوزان بالكيلو. القراءة فقط وبصلاحيات المستخدم (RLS).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "section": {
+              "type": "string",
+              "enum": [
+                "boxes",
+                "variance",
+                "both"
+              ],
+              "description": "boxes = تكلفة وربح البوكسات، variance = فروقات تكلفة الأصناف التامة، both = الاثنان (افتراضي)."
+            },
+            "search": {
+              "type": "string",
+              "description": "بحث باسم البوكس أو اسم الصنف التام."
+            },
+            "active_only": {
+              "type": "boolean",
+              "description": "البوكسات النشطة فقط (افتراضي true)."
+            },
+            "below_min_profit_only": {
+              "type": "boolean",
+              "description": "البوكسات التي ربحها أقل من الحد الأدنى 100 جنيه فقط."
+            },
+            "variance_only": {
+              "type": "boolean",
+              "description": "الأصناف التي بها فرق تكلفة فعلي فقط."
+            },
+            "include_box_lines": {
+              "type": "boolean",
+              "description": "إرجاع تفاصيل أصناف كل بوكس وتكلفتها."
+            },
+            "page": {
+              "type": "number",
+              "description": "رقم الصفحة يبدأ من 1."
+            },
+            "page_size": {
+              "type": "number",
+              "description": "حجم الصفحة (افتراضي 100، أقصى 500)."
             }
           },
           "additionalProperties": false,
