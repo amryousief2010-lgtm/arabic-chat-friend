@@ -45,6 +45,7 @@ export default defineMcp({
     salesSummaryTool,
     salesReportTool,
     manufacturingReportTool,
+    meatFactoryReportTool,
     financeReportTool,
     hrReportTool,
     customersReportTool,
