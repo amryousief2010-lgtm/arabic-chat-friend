@@ -744,12 +744,12 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/box-costs" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'sales_manager', 'marketing_sales_manager', 'meat_factory_manager', 'cost_accountant']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'sales_manager', 'marketing_sales_manager', 'meat_factory_manager']}>
               <PageTransition><BoxCosts /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/meat-cost-variance" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'meat_factory_manager', 'cost_accountant']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'meat_factory_manager']}>
               <PageTransition><MeatCostVariance /></PageTransition>
             </ProtectedRoute>
           } />
