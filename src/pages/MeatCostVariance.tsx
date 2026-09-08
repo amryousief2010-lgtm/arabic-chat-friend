@@ -1,13 +1,16 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Info, Scale, AlertTriangle } from "lucide-react";
+import { Search, Info, Scale, AlertTriangle, FileText, ExternalLink } from "lucide-react";
 
 type Row = {
   canon_name: string;
@@ -35,7 +38,26 @@ const n = (v: unknown) => Number(v ?? 0);
 const money = (v: unknown) => n(v).toLocaleString("ar-EG", { maximumFractionDigits: 2 }) + " ج";
 
 export default function MeatCostVariance() {
-  const [search, setSearch] = useState("");
+  const [params] = useSearchParams();
+  const [search, setSearch] = useState(params.get("product") ?? "");
+  const [invoicesFor, setInvoicesFor] = useState<string | null>(null);
+
+  const { data: invoices = [], isLoading: invLoading } = useQuery({
+    queryKey: ["mf-invoices-for-product", invoicesFor],
+    enabled: !!invoicesFor,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("meat_manufacturing_invoices")
+        .select("id,invoice_no,product_name,finished_qty,unit,status,raw_cost,spice_cost,packaging_cost,extra_cost,total_manufacturing_cost,created_at")
+        .eq("product_name", invoicesFor)
+        .in("status", ["approved", "transferred"])
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["meat-cost-variance"],
@@ -140,7 +162,12 @@ export default function MeatCostVariance() {
                           <Badge variant="outline" className="text-xs mr-2">بدون بطاقة مخزون</Badge>
                         )}
                       </TableCell>
-                      <TableCell>{n(r.invoices_count)}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" className="h-7 px-2 gap-1" onClick={() => setInvoicesFor(r.product_name)}>
+                          <FileText className="w-3.5 h-3.5" />
+                          {n(r.invoices_count)}
+                        </Button>
+                      </TableCell>
                       <TableCell>{n(r.total_qty).toLocaleString("ar-EG", { maximumFractionDigits: 2 })}</TableCell>
                       <TableCell>{money(r.raw_per_unit)}</TableCell>
                       <TableCell>{money(r.spice_per_unit)}</TableCell>
@@ -159,7 +186,54 @@ export default function MeatCostVariance() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!invoicesFor} onOpenChange={(o) => !o && setInvoicesFor(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader><DialogTitle>فواتير تصنيع: {invoicesFor}</DialogTitle></DialogHeader>
+          {invLoading ? (
+            <div className="py-6 text-center text-muted-foreground">جارٍ التحميل...</div>
+          ) : invoices.length === 0 ? (
+            <div className="py-6 text-center text-muted-foreground">لا توجد فواتير معتمدة لهذا الصنف</div>
+          ) : (
+            <div className="overflow-x-auto max-h-[60vh]">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead className="text-right">رقم الفاتورة</TableHead>
+                  <TableHead className="text-right">التاريخ</TableHead>
+                  <TableHead className="text-right">الكمية</TableHead>
+                  <TableHead className="text-right">خامات</TableHead>
+                  <TableHead className="text-right">توابل</TableHead>
+                  <TableHead className="text-right">تغليف</TableHead>
+                  <TableHead className="text-right">مصاريف</TableHead>
+                  <TableHead className="text-right">الإجمالي</TableHead>
+                  <TableHead />
+                </TableRow></TableHeader>
+                <TableBody>
+                  {invoices.map((inv) => (
+                    <TableRow key={inv.id}>
+                      <TableCell className="font-medium">{inv.invoice_no}</TableCell>
+                      <TableCell>{new Date(inv.created_at).toLocaleDateString("ar-EG")}</TableCell>
+                      <TableCell>{n(inv.finished_qty).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} {inv.unit}</TableCell>
+                      <TableCell>{money(inv.raw_cost)}</TableCell>
+                      <TableCell>{money(inv.spice_cost)}</TableCell>
+                      <TableCell>{money(inv.packaging_cost)}</TableCell>
+                      <TableCell>{money(inv.extra_cost)}</TableCell>
+                      <TableCell className="font-semibold text-primary">{money(inv.total_manufacturing_cost)}</TableCell>
+                      <TableCell>
+                        <Link to={`/meat-factory/manufacturing/${inv.id}`}>
+                          <Button variant="ghost" size="sm" className="h-7 px-2"><ExternalLink className="w-3.5 h-3.5" /></Button>
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
+
   );
 }
 
