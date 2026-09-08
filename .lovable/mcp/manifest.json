@@ -12,7 +12,7 @@
   "mcp": {
     "server": {
       "name": "naam-al-asima-management-system",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "title": "Naam Al-Asima Management System"
     },
     "tools": [
