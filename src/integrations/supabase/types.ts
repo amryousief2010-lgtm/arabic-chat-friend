@@ -23062,6 +23062,8 @@ export type Database = {
         }
         Returns: Json
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       slaughter_daily_summary: { Args: { p_date: string }; Returns: Json }
       slaughter_outputs_backfill_product_ids: { Args: never; Returns: number }
       submit_agouza_cash_handover: {
