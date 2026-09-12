@@ -29,6 +29,7 @@ import * as XLSX from "xlsx";
 import HatcheryClientMetrics from "@/components/hatchery/HatcheryClientMetrics";
 import { printBatchStatement } from "@/lib/hatcheryStatements";
 import HatcheryGroupedBatches from "@/components/hatchery/HatcheryGroupedBatches";
+import QuickAddHatchCustomerDialog from "@/components/hatchery/QuickAddHatchCustomerDialog";
 import {
   addDays,
   computeStage,
@@ -405,6 +406,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [showNew, setShowNew] = useState(false);
+  const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [activeBatch, setActiveBatch] = useState<any>(null);
   const [detailBatch, setDetailBatch] = useState<any>(null);
   const [filter, setFilter] = useState<QuickFilter>("all");
@@ -657,10 +659,32 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
                   <Plus className="w-4 h-4 ml-1" />دفعة جديدة
                 </Button>
               )}
+
+              {canManage && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowNewCustomer(true)}
+                  className="h-9 border-purple-300 text-purple-700 hover:bg-purple-50"
+                >
+                  <Users className="w-4 h-4 ml-1" />عميل جديد
+                </Button>
+              )}
             </div>
           </div>
         </div>
       </Card>
+
+      {showNewCustomer && (
+        <QuickAddHatchCustomerDialog
+          open={showNewCustomer}
+          onClose={() => setShowNewCustomer(false)}
+          existing={clients}
+          onCreated={() => {
+            qc.invalidateQueries({ queryKey: ["hatch_customers_all"] });
+            onRefresh?.();
+          }}
+        />
+      )}
 
       {viewMode === "grouped" ? (
         <>
