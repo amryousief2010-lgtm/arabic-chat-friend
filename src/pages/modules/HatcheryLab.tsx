@@ -406,6 +406,7 @@ const BatchesTab = ({ lots, clients, settings, canManage, onRefresh }: any) => {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [showNew, setShowNew] = useState(false);
+  const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [activeBatch, setActiveBatch] = useState<any>(null);
   const [detailBatch, setDetailBatch] = useState<any>(null);
   const [filter, setFilter] = useState<QuickFilter>("all");
