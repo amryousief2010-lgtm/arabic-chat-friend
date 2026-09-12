@@ -29,6 +29,7 @@ import * as XLSX from "xlsx";
 import HatcheryClientMetrics from "@/components/hatchery/HatcheryClientMetrics";
 import { printBatchStatement } from "@/lib/hatcheryStatements";
 import HatcheryGroupedBatches from "@/components/hatchery/HatcheryGroupedBatches";
+import QuickAddHatchCustomerDialog from "@/components/hatchery/QuickAddHatchCustomerDialog";
 import {
   addDays,
   computeStage,
