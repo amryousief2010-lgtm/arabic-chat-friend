@@ -372,9 +372,11 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <span className="font-semibold text-sm">{o.customer_name}</span>
                     {o.customer_phone && (
-                      <a href={`tel:${o.customer_phone}`} className="inline-flex items-center gap-1 text-primary text-sm font-mono" dir="ltr">
-                        <Phone className="w-3.5 h-3.5" /> {o.customer_phone}
-                      </a>
+                      <span className="inline-flex items-center gap-1 text-primary text-sm">
+                        <Phone className="w-3.5 h-3.5" />
+                        <a href={`tel:${o.customer_phone}`} className="font-mono" dir="ltr">{o.customer_phone}</a>
+                        <CopyPhoneButton phone={o.customer_phone} />
+                      </span>
                     )}
                   </div>
                   <div className="flex items-center justify-between gap-2 text-sm">
