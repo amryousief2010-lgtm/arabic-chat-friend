@@ -4001,7 +4001,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       )}
 
       {/* Popup alert for م. آلاء حامد عند فتح التطبيق إذا كان هناك طلبات بأرقام مكررة */}
-      <Dialog open={showDupAlert} onOpenChange={setShowDupAlert}>
+      <Dialog open={showDupAlert} onOpenChange={(v) => { if (!v) acknowledgeDupAlert(); }}>
         <DialogContent className="max-w-md" dir="rtl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
