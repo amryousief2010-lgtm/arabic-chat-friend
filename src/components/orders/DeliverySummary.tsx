@@ -15,7 +15,7 @@ import { Phone, Filter, RotateCcw, ShoppingCart, TrendingUp, Clock } from "lucid
 import { toast } from "sonner";
 import { formatDate } from "@/lib/dateFormat";
 import { governorateId, governorateLabel } from "@/lib/governorates";
-import { ModeratorConfig, matchesModeratorGroup, normalizeAr } from "@/constants/moderators";
+import { ModeratorConfig, matchesModeratorGroup, normalizeAr, MODERATORS, displayModeratorName } from "@/constants/moderators";
 import { cairoTodayStartUTC, cairoMonthStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
 
 // ملخص توصيل الأوردرات — جدول مختصر للعرض فقط.
