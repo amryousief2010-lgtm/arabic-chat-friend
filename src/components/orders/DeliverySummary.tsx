@@ -94,6 +94,7 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
     status: "all",
     governorate: "all",
     channel: "all",
+    moderatorKey: "all",
     q: "",
   };
   const [draft, setDraft] = useState(emptyFilters);
