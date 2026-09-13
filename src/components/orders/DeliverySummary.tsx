@@ -422,7 +422,10 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
                       <TableCell className="py-2 font-semibold">{o.customer_name}</TableCell>
                       <TableCell className="py-2">
                         {o.customer_phone ? (
-                          <a href={`tel:${o.customer_phone}`} className="font-mono text-xs text-primary" dir="ltr">{o.customer_phone}</a>
+                          <span className="inline-flex items-center gap-1" dir="ltr">
+                            <a href={`tel:${o.customer_phone}`} className="font-mono text-xs text-primary">{o.customer_phone}</a>
+                            <CopyPhoneButton phone={o.customer_phone} />
+                          </span>
                         ) : "—"}
                       </TableCell>
                       <TableCell className="py-2 font-bold text-primary">{o.total.toLocaleString()}</TableCell>
