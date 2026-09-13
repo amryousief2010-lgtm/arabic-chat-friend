@@ -323,6 +323,21 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
                 </SelectContent>
               </Select>
             </div>
+            {mode === "all" && (
+              <div>
+                <Label className="text-xs">المسوقة</Label>
+                <Select value={draft.moderatorKey} onValueChange={(v) => setDraft({ ...draft, moderatorKey: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">كل المسوقات</SelectItem>
+                    {MODERATORS.map((m) => (
+                      <SelectItem key={m.slug} value={m.canonicalModerator}>{m.displayName}</SelectItem>
+                    ))}
+                    <SelectItem value="none">بدون مسوقة</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="sm:col-span-2">
               <Label className="text-xs">بحث (رقم الأوردر / العميل / الهاتف)</Label>
               <Input value={draft.q} onChange={(e) => setDraft({ ...draft, q: e.target.value })} placeholder="اكتب للبحث" />
