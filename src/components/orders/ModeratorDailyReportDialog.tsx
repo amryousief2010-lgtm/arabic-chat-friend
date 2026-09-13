@@ -309,7 +309,7 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
                 marginBottom: 10,
               }}
             >
-              <div style={{ fontSize: 14, fontWeight: 800 }}>تقرير طلبات {moderatorName}</div>
+              <div style={{ fontSize: 14, fontWeight: 800 }}>تقرير طلبات {reportTitleName}</div>
               <div style={{ fontSize: 10, opacity: 0.95, marginTop: 2 }}>{dateLabel}</div>
             </div>
 
@@ -326,6 +326,18 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
               </div>
             </div>
 
+            {viewingAll && perModerator.length > 0 && (
+              <div style={{ border: "1px solid #eee", borderRadius: 6, padding: 6, marginBottom: 10 }}>
+                <div style={{ fontSize: 9, color: "#666", marginBottom: 4 }}>تفصيل حسب المسوقة</div>
+                {perModerator.map(([name, v]) => (
+                  <div key={name} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, padding: "2px 0" }}>
+                    <span style={{ fontWeight: 700 }}>{name}</span>
+                    <span>{v.count} طلب — {v.total.toLocaleString()} ج.م</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {loading ? (
               <div style={{ textAlign: "center", padding: 24, color: "#888", fontSize: 12 }}>
                 جاري تحميل طلبات هذا اليوم…
@@ -339,12 +351,14 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 9, tableLayout: "fixed" }}>
                 <thead>
                   <tr style={{ background: "#f3f0fa" }}>
-                    <th style={{ ...thStyle, width: "32%" }}>رقم الطلب</th>
-                    <th style={{ ...thStyle, width: "24%" }}>العميل</th>
-                    <th style={{ ...thStyle, width: "24%" }}>الهاتف</th>
-                    <th style={{ ...thStyle, width: "20%" }}>الإجمالي</th>
+                    <th style={{ ...thStyle, width: viewingAll ? "26%" : "32%" }}>رقم الطلب</th>
+                    {viewingAll && <th style={{ ...thStyle, width: "16%" }}>المسوقة</th>}
+                    <th style={{ ...thStyle, width: viewingAll ? "20%" : "24%" }}>العميل</th>
+                    <th style={{ ...thStyle, width: viewingAll ? "20%" : "24%" }}>الهاتف</th>
+                    <th style={{ ...thStyle, width: "18%" }}>الإجمالي</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {rows.map((r, i) => (
                     <tr key={r.order_number} style={{ background: i % 2 ? "#fafafa" : "#fff" }}>
