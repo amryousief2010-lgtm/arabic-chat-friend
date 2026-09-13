@@ -74,8 +74,8 @@ const shippingLabel = (o: OrderRow): string => {
 type PeriodKey = "today" | "last7" | "month" | "prev_month" | "last2" | "custom";
 
 export interface DeliverySummaryProps {
-  /** own = أوردرات المسوقة الحالية فقط | group = مجموعة مسوقة محددة (مراجعة) */
-  mode: "own" | "group";
+  /** own = أوردرات المسوقة الحالية فقط | group = مجموعة مسوقة محددة | all = كل المسوقات */
+  mode: "own" | "group" | "all";
   moderator?: ModeratorConfig;
   /** userId used when no moderator config matched (own mode) */
   userId?: string;
