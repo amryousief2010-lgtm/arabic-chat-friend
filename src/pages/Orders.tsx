@@ -2308,15 +2308,16 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
             <Button variant="outline" className="gap-2" onClick={() => exportOrdersToPDF(filteredOrders)}>
               <FileText className="w-4 h-4" /> PDF
             </Button>
-            {isSalesModerator && user?.id && (
+            {((isSalesModerator || canExportExcel) && user?.id) && (
               <Button
                 variant="default"
                 className="gap-2 bg-primary/90 hover:bg-primary text-white"
                 onClick={() => setModDailyReportOpen(true)}
               >
-                <FileDown className="w-4 h-4" /> تقرير طلباتي
+                <FileDown className="w-4 h-4" /> {isSalesModerator ? "تقرير طلباتي" : "ملخص طلبات المسوقات"}
               </Button>
             )}
+
             <Button
               onClick={() => setQuickDeliveryOpen(true)}
               className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
