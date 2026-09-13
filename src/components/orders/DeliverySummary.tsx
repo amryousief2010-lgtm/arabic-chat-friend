@@ -381,7 +381,14 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
                     <span className="font-bold text-primary">{o.total.toLocaleString()} ج.م</span>
                     <span className="text-xs text-muted-foreground">{formatDate(o.created_at)}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground">شركة الشحن: {shippingLabel(o)}</div>
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span>شركة الشحن: {shippingLabel(o)}</span>
+                    {mode === "all" && (
+                      <span className="font-semibold text-foreground">
+                        {o.moderator ? displayModeratorName(o.moderator.trim()) : "بدون مسوقة"}
+                      </span>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}
