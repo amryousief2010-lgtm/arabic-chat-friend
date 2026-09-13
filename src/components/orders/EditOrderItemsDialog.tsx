@@ -285,6 +285,34 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
       });
       if (saveError) throw saveError;
 
+      // اسم البوكس يجب أن يظل ظاهرًا على الطلب بعد أي تعديل في المنتجات.
+      // نُبقي سجلات البوكس كما هي، ونضيف السجل المفقود فقط إن لم يكن موجودًا.
+      try {
+        const offerNamesAfterEdit = Array.from(
+          new Set(
+            [...itemsForWrite.filter((it) => !it._deleted), ...initialItems]
+              .map((it) => it.offer_name)
+              .filter((x): x is string => !!x)
+          )
+        );
+        if (offerNamesAfterEdit.length > 0) {
+          const { data: existingInstances } = await supabase
+            .from("order_offer_instances")
+            .select("offer_name")
+            .eq("order_id", orderId);
+          const known = new Set((existingInstances || []).map((r: any) => r.offer_name));
+          const missing = offerNamesAfterEdit
+            .filter((n) => !known.has(n))
+            .map((n) => ({ order_id: orderId, offer_name: n, quantity: 1 }));
+          if (missing.length > 0) {
+            await supabase.from("order_offer_instances").insert(missing);
+          }
+        }
+      } catch (e) {
+        console.error("offer instance sync failed", e);
+      }
+
+
       // M4-B: re-reserve Agouza stock if this order is sourced from Agouza warehouse.
       // No effect on Main warehouse, Kimo, couriers, or any other source.
       const srcWh = await fetchOrderSourceWarehouseId(orderId);
