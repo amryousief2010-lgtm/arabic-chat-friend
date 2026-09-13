@@ -761,9 +761,12 @@ const NewOrder = () => {
       }
       return next;
     });
-    setOfferInstanceCounts(prev => ({ ...prev, [boxId]: (prev[boxId] || 0) + 1 }));
-    if (added > 0) toast.success(`تم إضافة عرض "${boxName}" للسلة`);
+    if (added > 0) {
+      setOfferInstanceCounts(prev => ({ ...prev, [boxId]: (prev[boxId] || 0) + 1 }));
+      toast.success(`تم إضافة عرض "${boxName}" للسلة`);
+    }
     setOfferPreview(null);
+
   };
 
   const updateQuantityById = (cartItemId: string, delta: number) => {
@@ -1255,15 +1258,43 @@ const NewOrder = () => {
 
       // Persist box identity/count independently from product lines, which may
       // be merged or edited later.
-      const offerInstanceRows = Object.entries(offerInstanceCounts)
-        .filter(([, quantity]) => quantity > 0)
-        .map(([offerBoxId, quantity]) => ({
-          order_id: order.id,
-          offer_box_id: offerBoxId,
-          offer_name: offerBoxes.find((box) => box.id === offerBoxId)?.name || 'عرض',
-          quantity,
-          created_by: user?.id || null,
-        }));
+      // The stored count is DERIVED from the actual cart contents (total box
+      // quantities ÷ one box template), so a mis-click on "إضافة العرض" can
+      // never record 3 boxes for an order that really contains only one.
+      const boxIdsInCart = Array.from(
+        new Set(cart.filter(i => i.isOfferItem && i.offerBoxId).map(i => i.offerBoxId as string))
+      );
+      const templateQtyByBox: Record<string, number> = {};
+      if (boxIdsInCart.length > 0) {
+        const { data: tplRows } = await supabase
+          .from('offer_box_items')
+          .select('offer_box_id, quantity')
+          .in('offer_box_id', boxIdsInCart);
+        for (const r of tplRows || []) {
+          const bid = (r as any).offer_box_id as string;
+          templateQtyByBox[bid] = (templateQtyByBox[bid] || 0) + Number((r as any).quantity || 0);
+        }
+      }
+      const cartQtyByBox: Record<string, number> = {};
+      for (const i of cart) {
+        if (!i.isOfferItem || !i.offerBoxId) continue;
+        const q = i.isHalfKg ? i.quantity * 0.5 : i.quantity;
+        cartQtyByBox[i.offerBoxId] = (cartQtyByBox[i.offerBoxId] || 0) + q;
+      }
+      const offerInstanceRows = boxIdsInCart
+        .map((offerBoxId) => {
+          const tpl = templateQtyByBox[offerBoxId] || 0;
+          const derived = tpl > 0 ? Math.round((cartQtyByBox[offerBoxId] || 0) / tpl) : 0;
+          const quantity = Math.max(1, derived || offerInstanceCounts[offerBoxId] || 1);
+          return {
+            order_id: order.id,
+            offer_box_id: offerBoxId,
+            offer_name: offerBoxes.find((box) => box.id === offerBoxId)?.name || 'عرض',
+            quantity,
+            created_by: user?.id || null,
+          };
+        });
+
       if (offerInstanceRows.length > 0) {
         const { error: offersError } = await supabase
           .from('order_offer_instances')
