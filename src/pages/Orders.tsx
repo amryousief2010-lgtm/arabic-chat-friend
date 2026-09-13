@@ -4046,15 +4046,17 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         }}
       />
 
-      {isSalesModerator && user?.id && (
+      {(isSalesModerator || canExportExcel) && user?.id && (
         <ModeratorDailyReportDialog
           open={modDailyReportOpen}
           onOpenChange={setModDailyReportOpen}
           orders={orders as any}
           userId={user.id}
           moderatorName={profile?.full_name || "المسوقة"}
+          canViewAll={!isSalesModerator && canExportExcel}
         />
       )}
+
 
 
       {reassignOrder && (
