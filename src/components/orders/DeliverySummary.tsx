@@ -222,6 +222,11 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
         if (!key) return false;
       }
       if (applied.channel !== "all" && shippingLabel(o) !== applied.channel) return false;
+      if (applied.moderatorKey !== "all") {
+        if (applied.moderatorKey === "none") {
+          if ((o.moderator || "").trim()) return false;
+        } else if (!matchesModeratorGroup(o.moderator, applied.moderatorKey)) return false;
+      }
       if (!q) return true;
       const digits = applied.q.replace(/\D/g, "");
       return (
