@@ -17,6 +17,7 @@ import { formatDate } from "@/lib/dateFormat";
 import { governorateId, governorateLabel } from "@/lib/governorates";
 import { ModeratorConfig, matchesModeratorGroup, normalizeAr, MODERATORS, displayModeratorName } from "@/constants/moderators";
 import { cairoTodayStartUTC, cairoMonthStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
+import CopyPhoneButton from "@/components/orders/CopyPhoneButton";
 
 // ملخص توصيل الأوردرات — جدول مختصر للعرض فقط.
 // ممنوع هنا: المحتويات/المنتجات/الكميات/البوكسات/رقم البوليصة.
@@ -372,9 +373,11 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <span className="font-semibold text-sm">{o.customer_name}</span>
                     {o.customer_phone && (
-                      <a href={`tel:${o.customer_phone}`} className="inline-flex items-center gap-1 text-primary text-sm font-mono" dir="ltr">
-                        <Phone className="w-3.5 h-3.5" /> {o.customer_phone}
-                      </a>
+                      <span className="inline-flex items-center gap-1 text-primary text-sm">
+                        <Phone className="w-3.5 h-3.5" />
+                        <a href={`tel:${o.customer_phone}`} className="font-mono" dir="ltr">{o.customer_phone}</a>
+                        <CopyPhoneButton phone={o.customer_phone} />
+                      </span>
                     )}
                   </div>
                   <div className="flex items-center justify-between gap-2 text-sm">
@@ -419,7 +422,10 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
                       <TableCell className="py-2 font-semibold">{o.customer_name}</TableCell>
                       <TableCell className="py-2">
                         {o.customer_phone ? (
-                          <a href={`tel:${o.customer_phone}`} className="font-mono text-xs text-primary" dir="ltr">{o.customer_phone}</a>
+                          <span className="inline-flex items-center gap-1" dir="ltr">
+                            <a href={`tel:${o.customer_phone}`} className="font-mono text-xs text-primary">{o.customer_phone}</a>
+                            <CopyPhoneButton phone={o.customer_phone} />
+                          </span>
                         ) : "—"}
                       </TableCell>
                       <TableCell className="py-2 font-bold text-primary">{o.total.toLocaleString()}</TableCell>
