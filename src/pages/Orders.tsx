@@ -219,6 +219,14 @@ const normalizeArabic = (s: string): string =>
     .replace(/\s+/g, " ")
     .trim();
 
+// تحويل الأرقام العربية/الفارسية إلى أرقام إنجليزية حتى يعمل البحث برقم الموبايل
+// أو رقم الطلب سواء كُتب ١٢٣ أو 123.
+const toAsciiDigits = (s: string): string =>
+  (s || "")
+    .toString()
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
+
 const statusColors: Record<OrderStatus, string> = {
   pending: "bg-warning text-warning-foreground",
   processing: "bg-primary text-primary-foreground",
@@ -582,7 +590,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       const { data } = await supabase.from('delivery_routes').select('id,name,color').order('name', { ascending: true });
       setAvailableRoutes((data as any[]) || []);
     })();
-  }, [filterMonth, filterYear, yearGroup, activePeriod?.fromYMD, activePeriod?.toYMD, filterProduct]);
+  }, [filterMonth, filterYear, yearGroup, activePeriod?.fromYMD, activePeriod?.toYMD, filterProduct, filterModerator]);
 
   // تحميل كتالوج المنتجات كاملًا لفلتر المنتجات (مرة واحدة)
   useEffect(() => {
@@ -808,7 +816,8 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
 
       // ====== فرع البحث: نجلب فقط الطلبات المطابقة بدل تحميل كل الشهر ======
       if (activeSearch) {
-        const term = activeSearch;
+        // ندعم كتابة الأرقام بالعربية (٠١٢٣) بتحويلها لأرقام إنجليزية قبل البحث
+        const term = toAsciiDigits(activeSearch);
         const termNorm = normalizeArabic(term);
         const digits = term.replace(/[^\d]/g, "");
         // 1) ابحث عن العملاء المطابقين بالاسم أو الهاتف الأساسي أو الهاتف الإضافي أو المحافظة
@@ -922,6 +931,50 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       }
 
 
+
+      // ====== فرع فلتر المسوقة: نجلب كل أوردراتها من الخادم ======
+      // بدون هذا الفرع كانت الفلترة تتم على الصفحات المحمّلة فقط، فتظهر النتيجة
+      // فارغة لمسوقة أوردراتها خارج أول صفحة (مثل مريم).
+      if (filterModerator !== 'all') {
+        const modCfg = findModeratorByName(filterModerator);
+        const aliases = modCfg ? modCfg.aliases : [filterModerator];
+        // أرقام المستخدمين الذين تطابق أسماؤهم المسوقة (لأوردرات بدون حقل moderator)
+        const { data: profs } = await supabase.from('profile_directory').select('id, full_name');
+        const creatorIds = (profs || [])
+          .filter((p: any) => p.full_name && aliases.some((a) => normalizeArabic(p.full_name).includes(normalizeArabic(a))))
+          .map((p: any) => p.id);
+        const orParts = aliases.map((a) => `moderator.ilike.%${a}%`);
+        if (creatorIds.length > 0) orParts.push(`created_by.in.(${creatorIds.join(',')})`);
+        let q = supabase
+          .from('orders')
+          .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`)
+          .or(orParts.join(','))
+          .order('created_at', { ascending: false })
+          .limit(1000);
+        if (startDate) q = q.gte('created_at', startDate);
+        if (endDate) q = q.lt('created_at', endDate);
+        const { data: modData, error: modErr } = await q;
+        if (modErr) throw modErr;
+        const ords = (modData || []) as any[];
+        let items: any[] = [];
+        if (ords.length > 0) {
+          const { data: itemsData, error: itemsErr } = await supabase
+            .from('order_items')
+            .select(ITEM_COLS)
+            .in('order_id', ords.map((o) => o.id));
+          if (itemsErr) throw itemsErr;
+          items = itemsData || [];
+        }
+        await loadLookups(ords, items);
+        const byOrder: Record<string, any[]> = {};
+        items.forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
+        items.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
+        setOrders(applyStatusOverrides(formatBatch(ords, byOrder)));
+        setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
+        setHasMorePages(false);
+        setLoading(false);
+        return;
+      }
 
       // على الموبايل: صفحة أولى أصغر ولا نحمّل الباقي إلا عند طلب المستخدم "تحميل المزيد"
       const mobileNow = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -1175,7 +1228,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       (filterStatus === "pending"
         ? (order.status === "pending" || order.status === "processing")
         : order.status === filterStatus);
-    const qRaw = appliedSearch.trim();
+    const qRaw = toAsciiDigits(appliedSearch.trim());
     const q = qRaw.toLowerCase();
     const qNorm = normalizeArabic(qRaw);
     const normalizedPhoneQuery = q.replace(/[^\d]/g, "");
