@@ -363,6 +363,7 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
                   {rows.map((r, i) => (
                     <tr key={r.order_number} style={{ background: i % 2 ? "#fafafa" : "#fff" }}>
                       <td style={{ ...tdStyle, wordBreak: "break-all" }}>{r.order_number}</td>
+                      {viewingAll && <td style={{ ...tdStyle, wordBreak: "break-word" }}>{r.moderator}</td>}
                       <td style={{ ...tdStyle, wordBreak: "break-word" }}>{r.customer_name}</td>
                       <td style={{ ...tdStyle, direction: "ltr", textAlign: "right" as const, wordBreak: "break-all" }}>{r.customer_phone}</td>
                       <td style={{ ...tdStyle, fontWeight: 700 }}>{r.total.toLocaleString()} ج.م</td>
