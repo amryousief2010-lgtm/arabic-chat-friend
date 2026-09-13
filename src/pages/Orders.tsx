@@ -1184,7 +1184,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       (filterStatus === "pending"
         ? (order.status === "pending" || order.status === "processing")
         : order.status === filterStatus);
-    const qRaw = appliedSearch.trim();
+    const qRaw = toAsciiDigits(appliedSearch.trim());
     const q = qRaw.toLowerCase();
     const qNorm = normalizeArabic(qRaw);
     const normalizedPhoneQuery = q.replace(/[^\d]/g, "");
