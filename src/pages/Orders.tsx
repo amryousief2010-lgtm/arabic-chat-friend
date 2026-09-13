@@ -4027,7 +4027,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                 </div>
               ))}
             </div>
-            <Button className="w-full" onClick={() => setShowDupAlert(false)}>
+            <Button className="w-full" onClick={acknowledgeDupAlert}>
               فهمت، سأراجع الطلبات
             </Button>
           </div>
