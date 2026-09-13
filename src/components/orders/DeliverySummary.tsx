@@ -424,6 +424,11 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
                       </TableCell>
                       <TableCell className="py-2 font-bold text-primary">{o.total.toLocaleString()}</TableCell>
                       <TableCell className="py-2"><Badge className={statusColors[o.status] || ""}>{statusLabels[o.status] || o.status}</Badge></TableCell>
+                      {mode === "all" && (
+                        <TableCell className="py-2 text-xs font-semibold">
+                          {o.moderator ? displayModeratorName(o.moderator.trim()) : "بدون مسوقة"}
+                        </TableCell>
+                      )}
                       <TableCell className="py-2 text-xs">{shippingLabel(o)}</TableCell>
                       <TableCell className="py-2 text-xs text-muted-foreground">{formatDate(o.created_at)}</TableCell>
                     </TableRow>
