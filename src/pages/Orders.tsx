@@ -816,7 +816,8 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
 
       // ====== فرع البحث: نجلب فقط الطلبات المطابقة بدل تحميل كل الشهر ======
       if (activeSearch) {
-        const term = activeSearch;
+        // ندعم كتابة الأرقام بالعربية (٠١٢٣) بتحويلها لأرقام إنجليزية قبل البحث
+        const term = toAsciiDigits(activeSearch);
         const termNorm = normalizeArabic(term);
         const digits = term.replace(/[^\d]/g, "");
         // 1) ابحث عن العملاء المطابقين بالاسم أو الهاتف الأساسي أو الهاتف الإضافي أو المحافظة
