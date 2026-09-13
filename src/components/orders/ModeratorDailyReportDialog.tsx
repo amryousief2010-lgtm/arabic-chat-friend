@@ -222,11 +222,26 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>تقرير طلباتي اليومي</DialogTitle>
+          <DialogTitle>{canViewAll ? "ملخص طلبات المسوقات اليومي" : "تقرير طلباتي اليومي"}</DialogTitle>
         </DialogHeader>
 
         <div className="flex items-end gap-3 flex-wrap mb-4">
+          {canViewAll && (
+            <div>
+              <Label className="text-xs">المسوقة</Label>
+              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل المسوقات</SelectItem>
+                  {moderators.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div>
+
             <Label className="text-xs">اختاري اليوم</Label>
             <div className="flex items-center gap-1">
               <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => shiftDay(-1)} aria-label="اليوم السابق">
