@@ -932,6 +932,50 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
 
 
 
+      // ====== فرع فلتر المسوقة: نجلب كل أوردراتها من الخادم ======
+      // بدون هذا الفرع كانت الفلترة تتم على الصفحات المحمّلة فقط، فتظهر النتيجة
+      // فارغة لمسوقة أوردراتها خارج أول صفحة (مثل مريم).
+      if (filterModerator !== 'all') {
+        const modCfg = findModeratorByName(filterModerator);
+        const aliases = modCfg ? modCfg.aliases : [filterModerator];
+        // أرقام المستخدمين الذين تطابق أسماؤهم المسوقة (لأوردرات بدون حقل moderator)
+        const { data: profs } = await supabase.from('profile_directory').select('id, full_name');
+        const creatorIds = (profs || [])
+          .filter((p: any) => p.full_name && aliases.some((a) => normalizeArabic(p.full_name).includes(normalizeArabic(a))))
+          .map((p: any) => p.id);
+        const orParts = aliases.map((a) => `moderator.ilike.%${a}%`);
+        if (creatorIds.length > 0) orParts.push(`created_by.in.(${creatorIds.join(',')})`);
+        let q = supabase
+          .from('orders')
+          .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`)
+          .or(orParts.join(','))
+          .order('created_at', { ascending: false })
+          .limit(1000);
+        if (startDate) q = q.gte('created_at', startDate);
+        if (endDate) q = q.lt('created_at', endDate);
+        const { data: modData, error: modErr } = await q;
+        if (modErr) throw modErr;
+        const ords = (modData || []) as any[];
+        let items: any[] = [];
+        if (ords.length > 0) {
+          const { data: itemsData, error: itemsErr } = await supabase
+            .from('order_items')
+            .select(ITEM_COLS)
+            .in('order_id', ords.map((o) => o.id));
+          if (itemsErr) throw itemsErr;
+          items = itemsData || [];
+        }
+        await loadLookups(ords, items);
+        const byOrder: Record<string, any[]> = {};
+        items.forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
+        items.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
+        setOrders(applyStatusOverrides(formatBatch(ords, byOrder)));
+        setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
+        setHasMorePages(false);
+        setLoading(false);
+        return;
+      }
+
       // على الموبايل: صفحة أولى أصغر ولا نحمّل الباقي إلا عند طلب المستخدم "تحميل المزيد"
       const mobileNow = typeof window !== 'undefined' && window.innerWidth < 768;
       const ORDERS_PAGE = mobileNow ? 30 : 100;
