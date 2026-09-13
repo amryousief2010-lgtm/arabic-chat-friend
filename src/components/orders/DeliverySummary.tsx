@@ -17,6 +17,7 @@ import { formatDate } from "@/lib/dateFormat";
 import { governorateId, governorateLabel } from "@/lib/governorates";
 import { ModeratorConfig, matchesModeratorGroup, normalizeAr, MODERATORS, displayModeratorName } from "@/constants/moderators";
 import { cairoTodayStartUTC, cairoMonthStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
+import CopyPhoneButton from "@/components/orders/CopyPhoneButton";
 
 // ملخص توصيل الأوردرات — جدول مختصر للعرض فقط.
 // ممنوع هنا: المحتويات/المنتجات/الكميات/البوكسات/رقم البوليصة.
