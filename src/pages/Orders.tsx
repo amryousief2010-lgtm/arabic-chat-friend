@@ -219,6 +219,14 @@ const normalizeArabic = (s: string): string =>
     .replace(/\s+/g, " ")
     .trim();
 
+// تحويل الأرقام العربية/الفارسية إلى أرقام إنجليزية حتى يعمل البحث برقم الموبايل
+// أو رقم الطلب سواء كُتب ١٢٣ أو 123.
+const toAsciiDigits = (s: string): string =>
+  (s || "")
+    .toString()
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
+
 const statusColors: Record<OrderStatus, string> = {
   pending: "bg-warning text-warning-foreground",
   processing: "bg-primary text-primary-foreground",
