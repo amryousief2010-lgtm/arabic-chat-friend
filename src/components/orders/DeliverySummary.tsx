@@ -15,7 +15,7 @@ import { Phone, Filter, RotateCcw, ShoppingCart, TrendingUp, Clock } from "lucid
 import { toast } from "sonner";
 import { formatDate } from "@/lib/dateFormat";
 import { governorateId, governorateLabel } from "@/lib/governorates";
-import { ModeratorConfig, matchesModeratorGroup, normalizeAr } from "@/constants/moderators";
+import { ModeratorConfig, matchesModeratorGroup, normalizeAr, MODERATORS, displayModeratorName } from "@/constants/moderators";
 import { cairoTodayStartUTC, cairoMonthStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
 
 // ملخص توصيل الأوردرات — جدول مختصر للعرض فقط.
@@ -74,8 +74,8 @@ const shippingLabel = (o: OrderRow): string => {
 type PeriodKey = "today" | "last7" | "month" | "prev_month" | "last2" | "custom";
 
 export interface DeliverySummaryProps {
-  /** own = أوردرات المسوقة الحالية فقط | group = مجموعة مسوقة محددة (مراجعة) */
-  mode: "own" | "group";
+  /** own = أوردرات المسوقة الحالية فقط | group = مجموعة مسوقة محددة | all = كل المسوقات */
+  mode: "own" | "group" | "all";
   moderator?: ModeratorConfig;
   /** userId used when no moderator config matched (own mode) */
   userId?: string;
@@ -94,6 +94,7 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
     status: "all",
     governorate: "all",
     channel: "all",
+    moderatorKey: "all",
     q: "",
   };
   const [draft, setDraft] = useState(emptyFilters);
@@ -221,6 +222,11 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
         if (!key) return false;
       }
       if (applied.channel !== "all" && shippingLabel(o) !== applied.channel) return false;
+      if (applied.moderatorKey !== "all") {
+        if (applied.moderatorKey === "none") {
+          if ((o.moderator || "").trim()) return false;
+        } else if (!matchesModeratorGroup(o.moderator, applied.moderatorKey)) return false;
+      }
       if (!q) return true;
       const digits = applied.q.replace(/\D/g, "");
       return (
@@ -317,6 +323,21 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
                 </SelectContent>
               </Select>
             </div>
+            {mode === "all" && (
+              <div>
+                <Label className="text-xs">المسوقة</Label>
+                <Select value={draft.moderatorKey} onValueChange={(v) => setDraft({ ...draft, moderatorKey: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">كل المسوقات</SelectItem>
+                    {MODERATORS.map((m) => (
+                      <SelectItem key={m.slug} value={m.canonicalModerator}>{m.displayName}</SelectItem>
+                    ))}
+                    <SelectItem value="none">بدون مسوقة</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="sm:col-span-2">
               <Label className="text-xs">بحث (رقم الأوردر / العميل / الهاتف)</Label>
               <Input value={draft.q} onChange={(e) => setDraft({ ...draft, q: e.target.value })} placeholder="اكتب للبحث" />
@@ -360,7 +381,14 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
                     <span className="font-bold text-primary">{o.total.toLocaleString()} ج.م</span>
                     <span className="text-xs text-muted-foreground">{formatDate(o.created_at)}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground">شركة الشحن: {shippingLabel(o)}</div>
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span>شركة الشحن: {shippingLabel(o)}</span>
+                    {mode === "all" && (
+                      <span className="font-semibold text-foreground">
+                        {o.moderator ? displayModeratorName(o.moderator.trim()) : "بدون مسوقة"}
+                      </span>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -377,6 +405,7 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
                     <TableHead>الهاتف</TableHead>
                     <TableHead>الإجمالي</TableHead>
                     <TableHead>الحالة</TableHead>
+                    {mode === "all" && <TableHead>المسوقة</TableHead>}
                     <TableHead>شركة الشحن</TableHead>
                     <TableHead>التاريخ</TableHead>
                   </TableRow>
@@ -395,6 +424,11 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
                       </TableCell>
                       <TableCell className="py-2 font-bold text-primary">{o.total.toLocaleString()}</TableCell>
                       <TableCell className="py-2"><Badge className={statusColors[o.status] || ""}>{statusLabels[o.status] || o.status}</Badge></TableCell>
+                      {mode === "all" && (
+                        <TableCell className="py-2 text-xs font-semibold">
+                          {o.moderator ? displayModeratorName(o.moderator.trim()) : "بدون مسوقة"}
+                        </TableCell>
+                      )}
                       <TableCell className="py-2 text-xs">{shippingLabel(o)}</TableCell>
                       <TableCell className="py-2 text-xs text-muted-foreground">{formatDate(o.created_at)}</TableCell>
                     </TableRow>
