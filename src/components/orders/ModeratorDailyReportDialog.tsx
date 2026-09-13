@@ -31,18 +31,62 @@ interface Props {
   orders: OrderLite[];
   userId: string;
   moderatorName: string;
+  /** Managers see every moderator's orders, with a selector to focus on one. */
+  canViewAll?: boolean;
 }
 
-const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, moderatorName }: Props) => {
+const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, moderatorName, canViewAll = false }: Props) => {
   const [date, setDate] = useState<string>(() => toCairoDateString(new Date()));
   const [fetched, setFetched] = useState<OrderLite[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [moderators, setModerators] = useState<{ id: string; name: string }[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>(canViewAll ? "all" : userId);
   const reportRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setSelectedUserId(canViewAll ? "all" : userId);
+  }, [canViewAll, userId]);
+
+  // Managers: load the list of moderators so every girl's orders are visible.
+  useEffect(() => {
+    if (!open || !canViewAll) return;
+    let cancelled = false;
+    (async () => {
+      const { data: roleRows } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "sales_moderator");
+      const ids = Array.from(new Set((roleRows || []).map((r: any) => r.user_id))).filter(Boolean);
+      if (ids.length === 0) { if (!cancelled) setModerators([]); return; }
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", ids);
+      if (!cancelled) {
+        setModerators(
+          (profs || []).map((p: any) => ({ id: p.id, name: p.full_name || "مسوقة" }))
+            .sort((a, b) => a.name.localeCompare(b.name, "ar"))
+        );
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, canViewAll]);
+
+  const moderatorIds = useMemo(() => moderators.map((m) => m.id), [moderators]);
+  const nameByUserId = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const m of moderators) map[m.id] = m.name;
+    return map;
+  }, [moderators]);
+
+  const viewingAll = canViewAll && selectedUserId === "all";
 
   // Fetch the selected day's orders straight from the database so changing the
   // date isn't limited to whatever the Orders page currently has loaded.
   useEffect(() => {
-    if (!open || !userId || !date) return;
+    if (!open || !date) return;
+    if (viewingAll && moderatorIds.length === 0) return;
+    if (!viewingAll && !selectedUserId) return;
     let cancelled = false;
     const run = async () => {
       setLoading(true);
@@ -50,13 +94,13 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
         const [y, m, d] = date.split("-").map(Number);
         const from = cairoWallClockToUTC(y, m - 1, d, 0, 0, 0).toISOString();
         const to = cairoWallClockToUTC(y, m - 1, d + 1, 0, 0, 0).toISOString();
-        const { data, error } = await supabase
+        let query = supabase
           .from("orders")
           .select("id, order_number, total, created_at, created_by, customers(name, phone, phone2)")
-          .eq("created_by", userId)
           .gte("created_at", from)
-          .lt("created_at", to)
-          .order("created_at", { ascending: true });
+          .lt("created_at", to);
+        query = viewingAll ? query.in("created_by", moderatorIds) : query.eq("created_by", selectedUserId);
+        const { data, error } = await query.order("created_at", { ascending: true });
         if (error) throw error;
         if (!cancelled) setFetched((data || []) as any);
       } catch (e: any) {
@@ -70,22 +114,37 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
     };
     run();
     return () => { cancelled = true; };
-  }, [open, userId, date]);
+  }, [open, selectedUserId, viewingAll, moderatorIds, date]);
 
   const rows = useMemo(() => {
-    // Database results are already restricted to this user and Cairo-day range.
+    // Database results are already restricted to the Cairo-day range.
     // Only filter by date when falling back to the Orders page's local data.
     const source = fetched ?? orders.filter(
-      (o) => o.created_by === userId && toCairoDateString(o.created_at) === date,
+      (o) => (viewingAll ? true : o.created_by === selectedUserId) && toCairoDateString(o.created_at) === date,
     );
     return source
       .map((o) => ({
         order_number: o.order_number,
+        moderator: nameByUserId[o.created_by || ""] || moderatorName,
         customer_name: o.customer_name || o.customers?.name || "-",
         customer_phone: o.customer_phone || o.customers?.phone || o.customer_phone2 || o.customers?.phone2 || "-",
         total: Number(o.total || 0),
       }));
-  }, [fetched, orders, userId, date]);
+  }, [fetched, orders, selectedUserId, viewingAll, nameByUserId, moderatorName, date]);
+
+  const perModerator = useMemo(() => {
+    const map = new Map<string, { count: number; total: number }>();
+    for (const r of rows) {
+      const cur = map.get(r.moderator) || { count: 0, total: 0 };
+      map.set(r.moderator, { count: cur.count + 1, total: cur.total + r.total });
+    }
+    return Array.from(map.entries()).sort((a, b) => b[1].total - a[1].total);
+  }, [rows]);
+
+  const reportTitleName = viewingAll
+    ? "كل المسوقات"
+    : (nameByUserId[selectedUserId] || moderatorName);
+
 
   const totalSum = rows.reduce((s, r) => s + r.total, 0);
   const dateLabel = new Date(date + "T00:00:00").toLocaleDateString("ar-EG-u-nu-latn", {
