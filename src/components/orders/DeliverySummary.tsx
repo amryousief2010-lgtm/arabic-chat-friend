@@ -405,6 +405,7 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
                     <TableHead>الهاتف</TableHead>
                     <TableHead>الإجمالي</TableHead>
                     <TableHead>الحالة</TableHead>
+                    {mode === "all" && <TableHead>المسوقة</TableHead>}
                     <TableHead>شركة الشحن</TableHead>
                     <TableHead>التاريخ</TableHead>
                   </TableRow>
