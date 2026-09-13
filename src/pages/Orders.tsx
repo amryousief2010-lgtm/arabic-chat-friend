@@ -1424,16 +1424,37 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   // and there are duplicate-phone orders to review.
   const [showDupAlert, setShowDupAlert] = useState(false);
   const [dupAlertOrders, setDupAlertOrders] = useState<Order[]>([]);
+  // نحتفظ بأرقام الطلبات التي تمت مراجعتها بشكل دائم (localStorage) حتى لا
+  // يتكرر التنبيه بعد الضغط على "فهمت، سأراجع الطلبات" — ولا حتى بعد إعادة
+  // فتح المتصفح. يظهر التنبيه فقط لو ظهرت طلبات مكررة جديدة لم تُراجَع بعد.
+  const DUP_ACK_KEY = 'dup-alert-ack-ids';
+  const readDupAck = (): Set<string> => {
+    try {
+      const raw = localStorage.getItem(DUP_ACK_KEY);
+      return new Set<string>(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+      return new Set<string>();
+    }
+  };
   useEffect(() => {
     if (!user?.id || user.id !== SALES_MANAGER_ID) return;
     if (orders.length === 0) return;
-    if (sessionStorage.getItem('dup-alert-shown') === '1') return;
-    const dups = orders.filter((o) => duplicatePhoneOrderIds.has(o.id));
+    if (showDupAlert) return;
+    const acked = readDupAck();
+    const dups = orders.filter((o) => duplicatePhoneOrderIds.has(o.id) && !acked.has(o.id));
     if (dups.length === 0) return;
     setDupAlertOrders(dups.slice(0, 10));
     setShowDupAlert(true);
-    sessionStorage.setItem('dup-alert-shown', '1');
-  }, [user?.id, orders, duplicatePhoneOrderIds]);
+  }, [user?.id, orders, duplicatePhoneOrderIds, showDupAlert]);
+
+  const acknowledgeDupAlert = () => {
+    try {
+      const acked = readDupAck();
+      orders.forEach((o) => { if (duplicatePhoneOrderIds.has(o.id)) acked.add(o.id); });
+      localStorage.setItem(DUP_ACK_KEY, JSON.stringify(Array.from(acked).slice(-2000)));
+    } catch { /* ignore storage errors */ }
+    setShowDupAlert(false);
+  };
 
   // قائمة المحافظات الموحدة الموجودة فعليًا في الطلبات (بالمعرّف + الاسم المعتمد)
   const availableGovernorates = useMemo(() => {
@@ -3980,7 +4001,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       )}
 
       {/* Popup alert for م. آلاء حامد عند فتح التطبيق إذا كان هناك طلبات بأرقام مكررة */}
-      <Dialog open={showDupAlert} onOpenChange={setShowDupAlert}>
+      <Dialog open={showDupAlert} onOpenChange={(v) => { if (!v) acknowledgeDupAlert(); }}>
         <DialogContent className="max-w-md" dir="rtl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
@@ -4006,7 +4027,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                 </div>
               ))}
             </div>
-            <Button className="w-full" onClick={() => setShowDupAlert(false)}>
+            <Button className="w-full" onClick={acknowledgeDupAlert}>
               فهمت، سأراجع الطلبات
             </Button>
           </div>
