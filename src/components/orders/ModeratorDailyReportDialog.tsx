@@ -182,7 +182,7 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `طلبات-${moderatorName}-${date}.png`;
+        a.download = `طلبات-${reportTitleName}-${date}.png`;
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       }, "image/png");
@@ -196,22 +196,26 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
     if (!rows.length) return toast.error("لا توجد طلبات في هذا اليوم");
     const data = rows.map((r) => ({
       "رقم الطلب": r.order_number,
+      ...(viewingAll ? { "المسوقة": r.moderator } : {}),
       "العميل": r.customer_name,
       "الهاتف": r.customer_phone,
       "الإجمالي": r.total,
     }));
     const wb = XLSX.utils.book_new();
     const headerRows: any[][] = [
-      ["المسوقة:", moderatorName],
+      ["المسوقة:", reportTitleName],
       ["التاريخ:", dateLabel],
       ["عدد الطلبات:", rows.length],
       ["إجمالي القيمة:", totalSum],
       [],
     ];
+    if (viewingAll && perModerator.length > 0) {
+      headerRows.splice(4, 0, ["تفصيل حسب المسوقة:"], ...perModerator.map(([n, v]) => [n, v.count, v.total]));
+    }
     const ws = XLSX.utils.aoa_to_sheet(headerRows);
     XLSX.utils.sheet_add_json(ws, data, { origin: -1 });
     XLSX.utils.book_append_sheet(wb, ws, "الطلبات");
-    XLSX.writeFile(wb, `طلبات-${moderatorName}-${date}.xlsx`, { bookType: "xlsx" });
+    XLSX.writeFile(wb, `طلبات-${reportTitleName}-${date}.xlsx`, { bookType: "xlsx" });
   };
 
   return (
