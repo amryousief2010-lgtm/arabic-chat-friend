@@ -118,7 +118,12 @@ export function ZodexUnregisteredCard() {
         </CardTitle>
         {lastSync && (
           <p className="text-xs text-muted-foreground">
-            آخر مزامنة: {new Date(lastSync).toLocaleString("ar-EG")}
+            آخر مزامنة ناجحة: {new Date(lastSync).toLocaleString("ar-EG")}
+          </p>
+        )}
+        {incomplete && (
+          <p className="text-xs font-medium text-amber-700">
+            المزامنة غير مكتملة — البيانات المعروضة قد تكون ناقصة.
           </p>
         )}
       </CardHeader>
@@ -128,11 +133,17 @@ export function ZodexUnregisteredCard() {
             <Loader2 className="h-4 w-4 animate-spin" />
             جاري التحميل...
           </div>
+        ) : incomplete ? (
+          <p className="text-sm text-amber-700">
+            آخر مزامنة لم تكتمل — أعِد المزامنة قبل الاعتماد على النتيجة.
+            {items.length > 0 ? ` (${items.length} بوليصة بدون أوردر حتى الآن)` : ""}
+          </p>
         ) : items.length === 0 ? (
           <p className="text-sm text-green-700">
             ممتاز — كل البوالص على زودكس مربوطة بأوردر عندنا.
           </p>
         ) : (
+
           <div className="max-h-80 overflow-y-auto">
             <table className="w-full text-sm">
               <thead className="text-right text-xs text-muted-foreground border-b">
