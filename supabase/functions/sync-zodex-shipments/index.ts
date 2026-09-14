@@ -256,16 +256,27 @@ Deno.serve(async (req) => {
 
   const stats: Record<string, any> = {
     scope: "shippings",
+    sync_mode: win.mode,
+    first_run: win.first_run,
+    window_from: win.from,
+    window_to: win.to,
+    previous_success_at: (syncState as any)?.last_successful_zodex_sync_at || null,
+    pages_fetched: 0,
+    pagination_complete: false,
+    bills_fetched: 0,
+    orders_compared: 0,
     total_rows: 0,
     linked: 0,
     already_linked: 0,
     no_phone_in_row: 0,
     no_matching_order: 0,
     ambiguous_skipped: 0,
+    unresolved: 0,
     linked_examples: [] as any[],
     link_failures: [] as any[],
     retries: 0,
   };
+
   const errors: string[] = [];
 
   // Retry helper with exponential backoff (max 3 attempts)
