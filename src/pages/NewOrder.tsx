@@ -293,6 +293,7 @@ const NewOrder = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'online'>('cash');
   const [deliveryFee, setDeliveryFee] = useState(110);
+  const [deliveryFeeTouched, setDeliveryFeeTouched] = useState(false);
   const [discount, setDiscount] = useState(0);
   const [extraCharge, setExtraCharge] = useState(0);
   const [extraChargeReason, setExtraChargeReason] = useState('');
