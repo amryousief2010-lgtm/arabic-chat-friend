@@ -244,7 +244,7 @@ const OrderDetails = () => {
 
       if (orderError) throw orderError;
       if (!orderData) {
-        toast.error('الطلب غير موجود');
+        toast.error('الطلب غير موجود أو غير متاح لحسابك — راجعي المسؤول');
         navigate('/orders');
         return;
       }

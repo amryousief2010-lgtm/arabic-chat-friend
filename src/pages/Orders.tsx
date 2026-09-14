@@ -2154,6 +2154,14 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                 </Button>
               )}
             </div>
+            {appliedSearch && (
+              <div className="flex items-center gap-2 text-xs bg-muted/60 border rounded-md px-3 py-1.5">
+                <span>نتائج البحث — الفلاتر متجاهلة مؤقتًا</span>
+                <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => { setDraftSearch(""); setAppliedSearch(""); fetchOrders(""); }}>
+                  إلغاء البحث
+                </Button>
+              </div>
+            )}
             <Select value={filterMonth} onValueChange={setFilterMonth}>
               <SelectTrigger className="w-36 input-modern">
                 <SelectValue placeholder="الشهر" />
