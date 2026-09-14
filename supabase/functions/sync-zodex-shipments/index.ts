@@ -6,18 +6,27 @@
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { DOMParser, Element } from "https://deno.land/x/deno_dom@v0.1.45/deno-dom-wasm.ts";
-
-
+import {
+  dedupeByBill,
+  parseZodexDate,
+  resolveWindow,
+  rowInWindow,
+  shouldStopPaging,
+  type SyncMode,
+  type SyncWindow,
+} from "../_shared/zodexSync.ts";
 
 const ZODEX_BASE = "https://zodex-eg.com/admin-area";
 const ITEMS_PER_PAGE = 50;
-const DEFAULT_MAX_PAGES = 2;
+// Hard safety ceiling on pages; the real stop condition is the time window.
+const MAX_PAGES_CEILING = 20;
+const DEFAULT_MAX_PAGES = 8;
 const LOOKBACK_DAYS_FOR_ORDER_MATCH = 14;
 const AMOUNT_TOLERANCE = 5; // EGP
 // Main warehouse system took over on 2026-07-01 (Cairo). Only match orders
 // created on/after this date; earlier orders were handled by the old system.
 const MAIN_WAREHOUSE_START_DATE = "2026-06-30T22:00:00.000Z"; // 2026-07-01 00:00 Cairo
+
 
 function normalizePhone(s: string | null | undefined): string {
   if (!s) return "";
