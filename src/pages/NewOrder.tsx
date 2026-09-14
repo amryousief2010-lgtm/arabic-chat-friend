@@ -884,11 +884,14 @@ const NewOrder = () => {
     }, 0);
   }, [offerInstanceCounts, offerBoxes]);
 
+  // الاقتراح التلقائي لقيمة الشحن يعمل فقط ما دامت الموظفة لم تكتب قيمة بنفسها.
+  // بعد أي تعديل يدوي تبقى القيمة كما هي ولا تُصفَّر عند تغيير مكان الاستلام
+  // أو شركة الشحن أو أي اختيار آخر.
   useEffect(() => {
-    if (hasOfferInCart) {
+    if (hasOfferInCart && !deliveryFeeTouched) {
       setDeliveryFee(offerShippingTotal);
     }
-  }, [hasOfferInCart, offerShippingTotal]);
+  }, [hasOfferInCart, offerShippingTotal, deliveryFeeTouched]);
 
   // For offer orders, the offer's bundled shipping stays inside the total.
   // For regular orders, shipping is tracked separately and not added to the total.
