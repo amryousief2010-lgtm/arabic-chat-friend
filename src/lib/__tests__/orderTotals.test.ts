@@ -111,4 +111,36 @@ describe("computeOrderTotals", () => {
     expect(t.subtotal).toBe(580);
     expect(t.total).toBe(580);
   });
+
+  it("two boxes @1000 with no bundled shipping line: saved shipping 80 stays in the total", () => {
+    const items = [
+      { product_id: "a", product_name: "برجر", offer_name: "عرض 4 كيلو", quantity: 2, unit_price: 250 },
+      { product_id: "b", product_name: "كفتة", offer_name: "عرض 4 كيلو", quantity: 2, unit_price: 250 },
+      { product_id: "c", product_name: "سجق", offer_name: "عرض 4 كيلو", quantity: 2, unit_price: 250 },
+      { product_id: "d", product_name: "مفروم", offer_name: "عرض 4 كيلو", quantity: 2, unit_price: 250 },
+      // gifts priced at zero must not change money
+      { product_id: "g1", product_name: "نخاع", offer_name: "عرض 4 كيلو", quantity: 1, unit_price: 0 },
+    ];
+    const t = computeOrderTotals(items, { extraDeliveryFee: 80 });
+    expect(t.subtotal).toBe(2000);
+    expect(t.includedShippingCost).toBe(0);
+    expect(t.total).toBe(2080);
+  });
+
+  it("explicit zero shipping stays zero", () => {
+    const items = [
+      { product_id: "a", product_name: "برجر", offer_name: "عرض 4 كيلو", quantity: 2, unit_price: 500 },
+    ];
+    const t = computeOrderTotals(items, { extraDeliveryFee: 0 });
+    expect(t.total).toBe(1000);
+  });
+
+  it("bundled shipping line is never double counted with a saved shipping value", () => {
+    const items = [
+      { product_id: "k", product_name: "كفتة", offer_name: "عرض", quantity: 1, unit_price: 500 },
+      shippingLine("عرض", 110),
+    ];
+    const t = computeOrderTotals(items, { extraDeliveryFee: 110 });
+    expect(t.total).toBe(610);
+  });
 });
