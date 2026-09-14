@@ -818,23 +818,32 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       if (activeSearch) {
         // ندعم كتابة الأرقام بالعربية (٠١٢٣) بتحويلها لأرقام إنجليزية قبل البحث
         const term = toAsciiDigits(activeSearch);
-        const termNorm = normalizeArabic(term);
+        const termNorm = normalizeArabic(term); // يوحّد أ/إ/آ→ا و ى→ي و ة→ه ويزيل التشكيل والمسافات الزائدة
         const digits = term.replace(/[^\d]/g, "");
+        // أنماط مرنة للبحث على الخادم:
+        // - plainPattern: يتجاهل المسافات الزائدة بين الكلمات (كلمة%كلمة)
+        // - fuzzyPattern: يستبدل الحروف المتشابهة (ا/ي/ه) بمحرف واحد أي كان،
+        //   فيطابق «هند طارق» حتى لو كانت مكتوبة بـ أ/إ/آ أو ى أو ة في قاعدة البيانات.
+        const tokens = termNorm.split(" ").filter(Boolean);
+        const plainPattern = tokens.length ? `%${tokens.join("%")}%` : "";
+        const fuzzyPattern = tokens.length
+          ? `%${tokens.map((t) => t.replace(/[اأإآيىةه]/g, "_")).join("%")}%`
+          : "";
         // 1) ابحث عن العملاء المطابقين بالاسم أو الهاتف الأساسي أو الهاتف الإضافي أو المحافظة
         let custIds: string[] = [];
         const custFilters: string[] = [];
-        if (term) custFilters.push(`name.ilike.%${term}%`);
-        if (termNorm && termNorm !== term.toLowerCase()) custFilters.push(`name.ilike.%${termNorm}%`);
+        if (plainPattern) custFilters.push(`name.ilike.${plainPattern}`);
+        if (fuzzyPattern && fuzzyPattern !== plainPattern) custFilters.push(`name.ilike.${fuzzyPattern}`);
         if (digits) custFilters.push(`phone.ilike.%${digits}%`);
         if (digits) custFilters.push(`phone2.ilike.%${digits}%`);
-        if (term) custFilters.push(`governorate.ilike.%${term}%`);
-        if (termNorm && termNorm !== term.toLowerCase()) custFilters.push(`governorate.ilike.%${termNorm}%`);
+        if (plainPattern) custFilters.push(`governorate.ilike.${plainPattern}`);
         if (custFilters.length > 0) {
-          const { data: cdata } = await supabase
+          const { data: cdata, error: custLookupErr } = await supabase
             .from('customers')
             .select('id')
             .or(custFilters.join(','))
             .limit(1000);
+          if (custLookupErr) console.error('customer search error', custLookupErr);
           custIds = (cdata || []).map((c: any) => c.id);
         }
         // 2) جلب الطلبات على استعلامين منفصلين بدل رابط واحد ضخم:
@@ -846,10 +855,14 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         const textFilters: string[] = [
           `order_number.ilike.%${term}%`,
           `shipping_bill_no.ilike.%${term}%`,
-          `delivery_address.ilike.%${term}%`,
         ];
-        if (termNorm && termNorm !== term.toLowerCase()) {
-          textFilters.push(`delivery_address.ilike.%${termNorm}%`);
+        if (digits) {
+          textFilters.push(`order_number.ilike.%${digits}%`);
+          textFilters.push(`shipping_bill_no.ilike.%${digits}%`);
+        }
+        if (plainPattern) textFilters.push(`delivery_address.ilike.${plainPattern}`);
+        if (fuzzyPattern && fuzzyPattern !== plainPattern) {
+          textFilters.push(`delivery_address.ilike.${fuzzyPattern}`);
         }
         const { data: textData, error: textErr } = await supabase
           .from('orders')
@@ -894,8 +907,19 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         items.forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
         const formatted = formatBatch(ords, byOrder);
         items.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
-        setOrders(applyStatusOverrides(formatted));
+        // ندمج نتائج الخادم مع الطلبات المحمّلة مسبقًا بدل استبدالها، حتى لا تختفي
+        // نتيجة مطابقة موجودة بالفعل في الصفحة لو لم يلتقطها استعلام الخادم
+        // (اختلاف كتابة الاسم/مسافات زائدة). الفلترة النهائية تتم بالمطابقة المطبّعة.
+        setOrders((prev) => {
+          const map = new Map<string, Order>();
+          prev.forEach((o) => map.set(o.id, o));
+          applyStatusOverrides(formatted).forEach((o) => map.set(o.id, o));
+          return Array.from(map.values()).sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+          );
+        });
         setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
+        setHasMorePages(false);
         setLoading(false);
         return;
       }
@@ -1229,6 +1253,40 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   const isNouraAccount =
     findModeratorByName(profile?.full_name)?.slug === 'noura' ||
     (user?.email || '').toLowerCase().startsWith('noura');
+
+  // الفلاتر النشطة حاليًا — تُعرض للمستخدمة مع زر "مسح الفلاتر" حتى لا تختفي
+  // النتائج بسبب فلتر منسي (حالة / مخزن / مسوقة / شهر ...).
+  const activeFilterLabels: string[] = [];
+  if (filterStatus !== "all") activeFilterLabels.push(
+    filterStatus === "pending" ? "الحالة: قيد الانتظار" : filterStatus === "delivered" ? "الحالة: تم التوصيل" : filterStatus === "cancelled" ? "الحالة: مرتجع" : `الحالة: ${filterStatus}`,
+  );
+  if (filterWarehouseChip !== "all") activeFilterLabels.push(filterWarehouseChip === "main" ? "المخزن الرئيسي" : "مخزن العجوزة");
+  if (filterMonth !== "all") activeFilterLabels.push(`الشهر: ${filterMonth}`);
+  if (filterYear !== "all") activeFilterLabels.push(`السنة: ${filterYear}`);
+  if (yearGroup !== "all") activeFilterLabels.push(yearGroup === "2026" ? "سنة 2026" : "قبل 2026");
+  if (filterProduct !== "all") activeFilterLabels.push(`المنتج: ${filterProduct}`);
+  if (filterModerator !== "all") activeFilterLabels.push(`المسوقة: ${filterModerator}`);
+  if (filterGovernorate !== "all") activeFilterLabels.push("المحافظة");
+  if (filterFulfillment !== "all") activeFilterLabels.push("مصدر التنفيذ");
+  if (filterRoute !== "all") activeFilterLabels.push("خط التوصيل");
+  if (filterCollectionMethod !== "all") activeFilterLabels.push("طريقة التحصيل");
+  if (activePeriod) activeFilterLabels.push("فترة زمنية");
+
+  const clearAllFilters = () => {
+    setFilterStatus("all");
+    setFilterWarehouseChip("all");
+    setFilterMonth("all");
+    setFilterYear("all");
+    setFilterProduct("all");
+    setFilterModerator("all");
+    setFilterGovernorate("all");
+    setFilterFulfillment("all");
+    setFilterRoute("all");
+    setFilterCollectionMethod("all");
+    setYearGroup("all");
+    clearDashboardFilter();
+  };
+
 
   // الأوردرات المرئية لهذا الحساب (قبل الفلاتر) — تُستخدم أيضًا في التحليلات
   const visibleOrders = useMemo(
@@ -2149,7 +2207,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                 <Search className="w-4 h-4" />
               </Button>
               {draftSearch && (
-                <Button size="sm" variant="ghost" onClick={() => { setDraftSearch(""); setAppliedSearch(""); }} title="مسح">
+                <Button size="sm" variant="ghost" onClick={() => { setDraftSearch(""); setAppliedSearch(""); fetchOrders(""); }} title="مسح">
                   <XCircle className="w-4 h-4" />
                 </Button>
               )}
@@ -2159,6 +2217,14 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                 <span>نتائج البحث — الفلاتر متجاهلة مؤقتًا</span>
                 <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => { setDraftSearch(""); setAppliedSearch(""); fetchOrders(""); }}>
                   إلغاء البحث
+                </Button>
+              </div>
+            )}
+            {activeFilterLabels.length > 0 && (
+              <div className="flex items-center gap-2 text-xs bg-amber-500/10 border border-amber-500/30 rounded-md px-3 py-1.5 flex-wrap">
+                <span>فلاتر نشطة: {activeFilterLabels.join(' • ')}</span>
+                <Button size="sm" variant="ghost" className="h-6 px-2" onClick={clearAllFilters}>
+                  مسح الفلاتر
                 </Button>
               </div>
             )}
