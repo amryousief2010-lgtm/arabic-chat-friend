@@ -2437,17 +2437,20 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                 <div className="text-4xl mb-2">📦</div>
                 <div className="font-medium text-foreground mb-1">لا توجد طلبات مطابقة</div>
                 <div className="text-sm">
-                  {(() => {
-                    const wh = filterWarehouseChip === "main" ? "المخزن الرئيسي"
-                      : filterWarehouseChip === "agouza" ? "مخزن العجوزة"
-                      : "كل المخازن";
-                    const st = filterStatus === "pending" ? "قيد الانتظار"
-                      : filterStatus === "delivered" ? "تم التوصيل"
-                      : filterStatus === "cancelled" ? "المرتجعة"
-                      : "بكل الحالات";
-                    return `لا يوجد أوردرات في ${wh} ${st} حالياً.`;
-                  })()}
+                  {appliedSearch
+                    ? `لا يوجد طلب مطابق لـ «${appliedSearch}» ضمن الطلبات المتاحة لحسابك.`
+                    : (() => {
+                        const wh = filterWarehouseChip === "main" ? "المخزن الرئيسي"
+                          : filterWarehouseChip === "agouza" ? "مخزن العجوزة"
+                          : "كل المخازن";
+                        const st = filterStatus === "pending" ? "قيد الانتظار"
+                          : filterStatus === "delivered" ? "تم التوصيل"
+                          : filterStatus === "cancelled" ? "المرتجعة"
+                          : "بكل الحالات";
+                        return `لا يوجد أوردرات في ${wh} ${st} حالياً.`;
+                      })()}
                 </div>
+
                 {(filterWarehouseChip !== "all" || filterStatus !== "all") && (
                   <div className="mt-3 flex gap-2 justify-center">
                     {filterWarehouseChip !== "all" && (
