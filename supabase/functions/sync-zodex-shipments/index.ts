@@ -306,20 +306,34 @@ Deno.serve(async (req) => {
       )
     );
 
-    const allRows: ShipRow[] = [];
+    // ---- INCREMENTAL FETCH ----
+    // shippings.php ignores its from/to parameters (verified), and lists rows
+    // newest-first. So we page through until rows fall before the window start,
+    // tolerating 2 "grace" pages of out-of-order rows before stopping.
+    const fetched: ShipRow[] = [];
     let pagesFetched = 0;
+    let paginationComplete = false;
+    let gracePagesLeft = 2;
     for (let page = 1; page <= maxPages; page++) {
       const html = await withRetry(`page ${page}`, () =>
         client.get("/shippings.php", { items: ITEMS_PER_PAGE, page })
       );
       const rows = parseShippingRows(html);
       pagesFetched++;
-      if (!rows.length) break;
-      allRows.push(...rows);
-      if (rows.length < ITEMS_PER_PAGE / 2) break; // last page reached
+      if (!rows.length) { paginationComplete = true; break; }
+      fetched.push(...rows.filter((r) => rowInWindow(r, win)));
+      if (rows.length < ITEMS_PER_PAGE / 2) { paginationComplete = true; break; } // last page
+      const s = shouldStopPaging(rows, win, gracePagesLeft);
+      gracePagesLeft = s.gracePagesLeft;
+      if (s.stop) { paginationComplete = true; break; }
     }
+    // Idempotency: one row per waybill, freshest wins (48h overlap re-reads rows).
+    const allRows: ShipRow[] = dedupeByBill(fetched);
+
     stats.total_rows = allRows.length;
+    stats.bills_fetched = allRows.length;
     stats.pages_fetched = pagesFetched;
+    stats.pagination_complete = paginationComplete;
     stats.returns_marked = 0;
     stats.returns_skipped_already = 0;
     stats.returns_no_order = 0;
@@ -328,9 +342,14 @@ Deno.serve(async (req) => {
     const AGOUZA_WAREHOUSE_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
 
     const claimedThisRun = new Set<string>();
-    const lookbackMin = new Date(Date.now() - LOOKBACK_DAYS_FOR_ORDER_MATCH * 86400_000).toISOString();
+    // Scope candidate orders to the reviewed period (plus the matching lookback),
+    // instead of scanning every order in the system.
+    const windowMin = new Date(
+      new Date(win.from).getTime() - LOOKBACK_DAYS_FOR_ORDER_MATCH * 86400_000,
+    ).toISOString();
     // Never match orders older than the main-warehouse cutover date.
-    const minCreated = lookbackMin > MAIN_WAREHOUSE_START_DATE ? lookbackMin : MAIN_WAREHOUSE_START_DATE;
+    const minCreated = windowMin > MAIN_WAREHOUSE_START_DATE ? windowMin : MAIN_WAREHOUSE_START_DATE;
+
 
     // ---- BATCH LOOKUPS (avoid per-row queries → CPU limit) ----
     const allBillNos = [...new Set(allRows.map((r) => r.bill_no))];
