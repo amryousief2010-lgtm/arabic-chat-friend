@@ -19717,14 +19717,20 @@ export type Database = {
           id: string
           missing_created: number
           missing_updated: number
+          orders_compared: number | null
+          pages_fetched: number | null
           pipeline_counts: Json | null
           returned_matched: number
           started_at: string
           status: string
           summary: Json | null
+          sync_mode: string | null
           total_rows: number
           trigger_source: string
           triggered_by: string | null
+          unresolved_count: number | null
+          window_from: string | null
+          window_to: string | null
         }
         Insert: {
           created_at?: string
@@ -19734,14 +19740,20 @@ export type Database = {
           id?: string
           missing_created?: number
           missing_updated?: number
+          orders_compared?: number | null
+          pages_fetched?: number | null
           pipeline_counts?: Json | null
           returned_matched?: number
           started_at?: string
           status?: string
           summary?: Json | null
+          sync_mode?: string | null
           total_rows?: number
           trigger_source?: string
           triggered_by?: string | null
+          unresolved_count?: number | null
+          window_from?: string | null
+          window_to?: string | null
         }
         Update: {
           created_at?: string
@@ -19751,14 +19763,47 @@ export type Database = {
           id?: string
           missing_created?: number
           missing_updated?: number
+          orders_compared?: number | null
+          pages_fetched?: number | null
           pipeline_counts?: Json | null
           returned_matched?: number
           started_at?: string
           status?: string
           summary?: Json | null
+          sync_mode?: string | null
           total_rows?: number
           trigger_source?: string
           triggered_by?: string | null
+          unresolved_count?: number | null
+          window_from?: string | null
+          window_to?: string | null
+        }
+        Relationships: []
+      }
+      zodex_sync_state: {
+        Row: {
+          created_at: string
+          id: boolean
+          last_full_review_at: string | null
+          last_successful_zodex_sync_at: string | null
+          last_sync_mode: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: boolean
+          last_full_review_at?: string | null
+          last_successful_zodex_sync_at?: string | null
+          last_sync_mode?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: boolean
+          last_full_review_at?: string | null
+          last_successful_zodex_sync_at?: string | null
+          last_sync_mode?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
