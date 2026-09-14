@@ -341,11 +341,17 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { /* ignore */ }
   const lookbackDays = Math.min(60, Math.max(1, Number(body.lookback_days) || DEFAULT_LOOKBACK_DAYS));
   const maxPages = Math.min(20, Math.max(1, Number(body.max_pages) || 5));
+  // Incremental sync passes the same reviewed period used by sync-zodex-shipments.
+  const syncMode: string = body.mode === "full" ? "full" : body.mode === "quick" ? "quick" : "quick";
+  const windowFrom: string | null = body.window_from ? String(body.window_from) : null;
+  const windowTo: string | null = body.window_to ? String(body.window_to) : null;
 
   // Create run row
   const { data: run } = await supabase.from("zodex_sync_runs").insert({
     trigger_source: triggerSource, triggered_by: triggeredBy, status: "running",
+    sync_mode: syncMode, window_from: windowFrom, window_to: windowTo,
   }).select().single();
+
 
   const stats = {
     total_rows: 0, delivered_matched: 0, returned_matched: 0,
