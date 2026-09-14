@@ -2327,7 +2327,7 @@ const NewOrder = () => {
                               type="number"
                               placeholder="0"
                               value={Number(deliveryFee) === 0 ? "" : deliveryFee}
-                              onChange={(e) => setDeliveryFee(e.target.value === "" ? 0 : Number(e.target.value))}
+                              onChange={(e) => { setDeliveryFeeTouched(true); setDeliveryFee(e.target.value === "" ? 0 : Number(e.target.value)); }}
                             />
 
                             <Button
@@ -2335,7 +2335,7 @@ const NewOrder = () => {
                               variant="outline"
                               size="icon"
                               title="مسح رسوم الشحن"
-                              onClick={() => setDeliveryFee(0)}
+                              onClick={() => { setDeliveryFeeTouched(true); setDeliveryFee(0); }}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
