@@ -259,10 +259,10 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
       // Persist all item changes in one backend call. This avoids several
       // sequential requests/triggers on mobile networks and prevents timeout
       // errors while keeping the UI preview and DB row on the same totals.
-      // Offers keep their bundled shipping (delivery_fee forced to 0). For
-      // normal orders, persist the user-edited delivery fee.
-      const hadOffer = finalTotals.hasOfferItems || initialItems.some((it) => it.offer_name);
-      const deliveryFeeToSave = hadOffer ? 0 : Number(deliveryFee) || 0;
+      // قيمة الشحن تُحفظ كما هي ولا تُصفَّر تلقائيًا، إلا إذا كان البوكس يحمل
+      // سطر شحن داخل البنود (عندها الشحن محسوب داخل البنود).
+      const deliveryFeeToSave =
+        finalTotals.includedShippingCost > 0 ? 0 : Number(deliveryFee) || 0;
       const payload = itemsForWrite.map((it) => ({
         id: it.id ?? null,
         product_id: it.product_id,
