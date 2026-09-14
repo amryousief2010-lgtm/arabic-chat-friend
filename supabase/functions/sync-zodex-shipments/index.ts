@@ -91,7 +91,12 @@ interface ShipRow {
   cod: number;
   status: string;
   receiver: string;
+  /** Column «التاريخ» → bill creation date (ISO). */
+  created_at: string | null;
+  /** Column «اخر تغيير بالحالة» → last modification (ISO), used as updated_at. */
+  updated_at: string | null;
 }
+
 
 function stripTags(s: string): string {
   return s.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
@@ -159,7 +164,29 @@ function parseShippingRows(html: string, dbg?: any): ShipRow[] {
       }
     }
 
-    rows.push({ bill_no: bill, phones: [...phoneSet], cod, status, receiver });
+    // Dates: the first date-looking cell is «التاريخ» (creation); the last one
+    // is the most recent change («اخر تغيير بالحالة» / «موعد التأجيل»).
+    const dates: string[] = [];
+    for (const c of cells) {
+      const iso = parseZodexDate(c);
+      if (iso) dates.push(iso);
+    }
+    const createdAt = dates.length ? dates[0] : null;
+    let updatedAt: string | null = null;
+    for (const d of dates) {
+      if (!updatedAt || new Date(d).getTime() > new Date(updatedAt).getTime()) updatedAt = d;
+    }
+
+    rows.push({
+      bill_no: bill,
+      phones: [...phoneSet],
+      cod,
+      status,
+      receiver,
+      created_at: createdAt,
+      updated_at: updatedAt,
+    });
+
   }
   if (dbg) dbg.candidate_trs = candidateTrs;
 
