@@ -363,8 +363,12 @@ Deno.serve(async (req) => {
     const client = new ZodexClient();
     await client.login(Deno.env.get("ZODEX_USERNAME")!, Deno.env.get("ZODEX_PASSWORD")!);
 
-    const fromDate = new Date(Date.now() - lookbackDays * 86400_000).toISOString().slice(0, 10);
-    const toDate = new Date(Date.now() + 86400_000).toISOString().slice(0, 10);
+    // users.php honours from/to, so the incremental window is applied server-side.
+    const fromDate = (windowFrom || new Date(Date.now() - lookbackDays * 86400_000).toISOString()).slice(0, 10);
+    const toDate = new Date(
+      (windowTo ? new Date(windowTo).getTime() : Date.now()) + 86400_000,
+    ).toISOString().slice(0, 10);
+
 
     // Fetch pages
     const allRows: ZodexRow[] = [];
@@ -794,8 +798,10 @@ Deno.serve(async (req) => {
 
     await supabase.from("zodex_sync_runs").update({
       status: "success", finished_at: new Date().toISOString(),
-      ...stats, pipeline_counts: pipelineCounts, summary: { errors },
+      ...stats, pipeline_counts: pipelineCounts, summary: { errors, sync_mode: syncMode },
+      sync_mode: syncMode, window_from: windowFrom, window_to: windowTo,
     }).eq("id", run!.id);
+
 
     return new Response(JSON.stringify({ ok: true, run_id: run!.id, pipeline_counts: pipelineCounts, ...stats }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
