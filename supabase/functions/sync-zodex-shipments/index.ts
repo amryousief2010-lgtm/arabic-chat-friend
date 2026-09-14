@@ -381,8 +381,14 @@ Deno.serve(async (req) => {
         if (!p) continue;
         if (!candidatesByPhone.has(p)) candidatesByPhone.set(p, []);
         candidatesByPhone.get(p)!.push(o);
-      }
     }
+
+    // How many local orders were actually pulled in for comparison this run.
+    const comparedIds = new Set<string>();
+    for (const o of linkedByBill.values()) comparedIds.add(o.id);
+    for (const list of candidatesByPhone.values()) for (const o of list) comparedIds.add(o.id);
+    stats.orders_compared = comparedIds.size;
+
 
     // 3) Match in memory, then UPDATE only the winners
     const auditInserts: any[] = [];
