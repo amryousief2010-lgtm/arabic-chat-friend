@@ -1367,9 +1367,14 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       filterWarehouseChip === "all" ||
       (filterWarehouseChip === "main" && order.source_warehouse_id === MAIN_WAREHOUSE_ID) ||
       (filterWarehouseChip === "agouza" && order.source_warehouse_id === AGOUZA_WAREHOUSE_ID);
-    const baseMatch = matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesPeriod && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam;
+    // أثناء البحث نتجاهل كل فلاتر الصفحة (الحالة/المخزن/المحافظة/مصدر التنفيذ/خط التوصيل/التحصيل)
+    // حتى لا يختفي الطلب المطابق لمجرد أن فلترًا كان مفعّلًا قبل البحث.
+    // تبقى قيود الصلاحيات (نطاق مشرف المخزن) كما هي.
+    const baseMatch = searchActive
+      ? matchesSearch && matchesWarehouseScope
+      : matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesPeriod && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam;
     (order as any).__matchesBaseNoChip = baseMatch;
-    return baseMatch && matchesWarehouseChip;
+    return baseMatch && (searchActive || matchesWarehouseChip);
   }), [visibleOrders, isNouraAccount, filterStatus, filterWarehouseChip, appliedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, activePeriod, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
 
   // Counts per warehouse chip that honor ALL other filters (including current status).
