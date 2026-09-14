@@ -1,0 +1,1 @@
+UPDATE public.order_offer_instances SET quantity = 2 WHERE id = '0d9a4f48-ed57-4588-a6c4-03083bc4f6c8' AND order_id = '444f8354-f9a7-4bb1-8f44-52b38a8003dd' AND quantity = 3;
