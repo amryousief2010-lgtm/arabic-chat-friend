@@ -220,11 +220,39 @@ Deno.serve(async (req) => {
 
   let body: any = {};
   try { body = await req.json(); } catch { /* ignore */ }
-  const maxPages = Math.min(20, Math.max(1, Number(body.max_pages) || DEFAULT_MAX_PAGES));
+  const maxPages = Math.min(
+    MAX_PAGES_CEILING,
+    Math.max(1, Number(body.max_pages) || DEFAULT_MAX_PAGES),
+  );
+  const requestedMode: SyncMode = body.mode === "full" ? "full" : "quick";
+  const fullDays = Number(body.full_days) || undefined;
+
+  // Timestamp of the cycle START — becomes the new "last successful sync" on
+  // full success, so rows created while the sync runs are never skipped.
+  const cycleStart = new Date().toISOString();
+
+  const { data: syncState } = await supabase
+    .from("zodex_sync_state")
+    .select("last_successful_zodex_sync_at, last_full_review_at")
+    .eq("id", true)
+    .maybeSingle();
+
+  const win: SyncWindow = resolveWindow({
+    mode: requestedMode,
+    lastSuccessAt: (syncState as any)?.last_successful_zodex_sync_at || null,
+    cycleStart,
+    fullDays,
+  });
 
   const { data: run } = await supabase.from("zodex_sync_runs").insert({
-    trigger_source: triggerSource, triggered_by: triggeredBy, status: "running",
+    trigger_source: triggerSource,
+    triggered_by: triggeredBy,
+    status: "running",
+    sync_mode: win.mode,
+    window_from: win.from,
+    window_to: win.to,
   }).select().single();
+
 
   const stats: Record<string, any> = {
     scope: "shippings",
