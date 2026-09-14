@@ -545,14 +545,38 @@ Deno.serve(async (req) => {
 
 
 
+    // ---- SYNC STATE COMMIT ----
+    // Only a fully clean cycle (login OK + every page fetched + comparison
+    // finished + no unhandled error) may advance the last-successful timestamp.
+    stats.unresolved = stats.no_matching_order + stats.no_phone_in_row + stats.ambiguous_skipped;
+    const fullyComplete = errors.length === 0 && paginationComplete;
+    stats.complete = fullyComplete;
+    if (fullyComplete) {
+      const patch: Record<string, any> = {
+        id: true,
+        last_successful_zodex_sync_at: cycleStart,
+        last_sync_mode: win.mode,
+      };
+      if (win.mode === "full") patch.last_full_review_at = cycleStart;
+      const { error: stErr } = await supabase.from("zodex_sync_state").upsert(patch, { onConflict: "id" });
+      if (stErr) console.warn("zodex_sync_state upsert failed:", stErr.message);
+    }
+
     await supabase.from("zodex_sync_runs").update({
-      status: errors.length ? "completed_with_errors" : "success",
+      status: fullyComplete ? "success" : "completed_with_errors",
       summary: stats,
       pipeline_counts: { linked: stats.linked, already_linked: stats.already_linked, total_rows: stats.total_rows, returns_marked: stats.returns_marked },
       total_rows: stats.total_rows,
+      sync_mode: win.mode,
+      window_from: win.from,
+      window_to: win.to,
+      pages_fetched: stats.pages_fetched,
+      orders_compared: stats.orders_compared,
+      unresolved_count: stats.unresolved,
       error_message: errors.length ? errors.join(" | ").slice(0, 2000) : null,
       finished_at: new Date().toISOString(),
     }).eq("id", run!.id);
+
 
     return new Response(JSON.stringify({ success: true, stats, errors }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
