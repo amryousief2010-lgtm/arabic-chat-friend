@@ -6,18 +6,27 @@
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { DOMParser, Element } from "https://deno.land/x/deno_dom@v0.1.45/deno-dom-wasm.ts";
-
-
+import {
+  dedupeByBill,
+  parseZodexDate,
+  resolveWindow,
+  rowInWindow,
+  shouldStopPaging,
+  type SyncMode,
+  type SyncWindow,
+} from "../_shared/zodexSync.ts";
 
 const ZODEX_BASE = "https://zodex-eg.com/admin-area";
 const ITEMS_PER_PAGE = 50;
-const DEFAULT_MAX_PAGES = 2;
+// Hard safety ceiling on pages; the real stop condition is the time window.
+const MAX_PAGES_CEILING = 20;
+const DEFAULT_MAX_PAGES = 8;
 const LOOKBACK_DAYS_FOR_ORDER_MATCH = 14;
 const AMOUNT_TOLERANCE = 5; // EGP
 // Main warehouse system took over on 2026-07-01 (Cairo). Only match orders
 // created on/after this date; earlier orders were handled by the old system.
 const MAIN_WAREHOUSE_START_DATE = "2026-06-30T22:00:00.000Z"; // 2026-07-01 00:00 Cairo
+
 
 function normalizePhone(s: string | null | undefined): string {
   if (!s) return "";
@@ -82,7 +91,12 @@ interface ShipRow {
   cod: number;
   status: string;
   receiver: string;
+  /** Column «التاريخ» → bill creation date (ISO). */
+  created_at: string | null;
+  /** Column «اخر تغيير بالحالة» → last modification (ISO), used as updated_at. */
+  updated_at: string | null;
 }
+
 
 function stripTags(s: string): string {
   return s.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
@@ -150,7 +164,29 @@ function parseShippingRows(html: string, dbg?: any): ShipRow[] {
       }
     }
 
-    rows.push({ bill_no: bill, phones: [...phoneSet], cod, status, receiver });
+    // Dates: the first date-looking cell is «التاريخ» (creation); the last one
+    // is the most recent change («اخر تغيير بالحالة» / «موعد التأجيل»).
+    const dates: string[] = [];
+    for (const c of cells) {
+      const iso = parseZodexDate(c);
+      if (iso) dates.push(iso);
+    }
+    const createdAt = dates.length ? dates[0] : null;
+    let updatedAt: string | null = null;
+    for (const d of dates) {
+      if (!updatedAt || new Date(d).getTime() > new Date(updatedAt).getTime()) updatedAt = d;
+    }
+
+    rows.push({
+      bill_no: bill,
+      phones: [...phoneSet],
+      cod,
+      status,
+      receiver,
+      created_at: createdAt,
+      updated_at: updatedAt,
+    });
+
   }
   if (dbg) dbg.candidate_trs = candidateTrs;
 
@@ -184,24 +220,63 @@ Deno.serve(async (req) => {
 
   let body: any = {};
   try { body = await req.json(); } catch { /* ignore */ }
-  const maxPages = Math.min(20, Math.max(1, Number(body.max_pages) || DEFAULT_MAX_PAGES));
+  const maxPages = Math.min(
+    MAX_PAGES_CEILING,
+    Math.max(1, Number(body.max_pages) || DEFAULT_MAX_PAGES),
+  );
+  const requestedMode: SyncMode = body.mode === "full" ? "full" : "quick";
+  const fullDays = Number(body.full_days) || undefined;
+
+  // Timestamp of the cycle START — becomes the new "last successful sync" on
+  // full success, so rows created while the sync runs are never skipped.
+  const cycleStart = new Date().toISOString();
+
+  const { data: syncState } = await supabase
+    .from("zodex_sync_state")
+    .select("last_successful_zodex_sync_at, last_full_review_at")
+    .eq("id", true)
+    .maybeSingle();
+
+  const win: SyncWindow = resolveWindow({
+    mode: requestedMode,
+    lastSuccessAt: (syncState as any)?.last_successful_zodex_sync_at || null,
+    cycleStart,
+    fullDays,
+  });
 
   const { data: run } = await supabase.from("zodex_sync_runs").insert({
-    trigger_source: triggerSource, triggered_by: triggeredBy, status: "running",
+    trigger_source: triggerSource,
+    triggered_by: triggeredBy,
+    status: "running",
+    sync_mode: win.mode,
+    window_from: win.from,
+    window_to: win.to,
   }).select().single();
+
 
   const stats: Record<string, any> = {
     scope: "shippings",
+    sync_mode: win.mode,
+    first_run: win.first_run,
+    window_from: win.from,
+    window_to: win.to,
+    previous_success_at: (syncState as any)?.last_successful_zodex_sync_at || null,
+    pages_fetched: 0,
+    pagination_complete: false,
+    bills_fetched: 0,
+    orders_compared: 0,
     total_rows: 0,
     linked: 0,
     already_linked: 0,
     no_phone_in_row: 0,
     no_matching_order: 0,
     ambiguous_skipped: 0,
+    unresolved: 0,
     linked_examples: [] as any[],
     link_failures: [] as any[],
     retries: 0,
   };
+
   const errors: string[] = [];
 
   // Retry helper with exponential backoff (max 3 attempts)
@@ -231,20 +306,34 @@ Deno.serve(async (req) => {
       )
     );
 
-    const allRows: ShipRow[] = [];
+    // ---- INCREMENTAL FETCH ----
+    // shippings.php ignores its from/to parameters (verified), and lists rows
+    // newest-first. So we page through until rows fall before the window start,
+    // tolerating 2 "grace" pages of out-of-order rows before stopping.
+    const fetched: ShipRow[] = [];
     let pagesFetched = 0;
+    let paginationComplete = false;
+    let gracePagesLeft = 2;
     for (let page = 1; page <= maxPages; page++) {
       const html = await withRetry(`page ${page}`, () =>
         client.get("/shippings.php", { items: ITEMS_PER_PAGE, page })
       );
       const rows = parseShippingRows(html);
       pagesFetched++;
-      if (!rows.length) break;
-      allRows.push(...rows);
-      if (rows.length < ITEMS_PER_PAGE / 2) break; // last page reached
+      if (!rows.length) { paginationComplete = true; break; }
+      fetched.push(...rows.filter((r) => rowInWindow(r, win)));
+      if (rows.length < ITEMS_PER_PAGE / 2) { paginationComplete = true; break; } // last page
+      const s = shouldStopPaging(rows, win, gracePagesLeft);
+      gracePagesLeft = s.gracePagesLeft;
+      if (s.stop) { paginationComplete = true; break; }
     }
+    // Idempotency: one row per waybill, freshest wins (48h overlap re-reads rows).
+    const allRows: ShipRow[] = dedupeByBill(fetched);
+
     stats.total_rows = allRows.length;
+    stats.bills_fetched = allRows.length;
     stats.pages_fetched = pagesFetched;
+    stats.pagination_complete = paginationComplete;
     stats.returns_marked = 0;
     stats.returns_skipped_already = 0;
     stats.returns_no_order = 0;
@@ -253,9 +342,14 @@ Deno.serve(async (req) => {
     const AGOUZA_WAREHOUSE_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
 
     const claimedThisRun = new Set<string>();
-    const lookbackMin = new Date(Date.now() - LOOKBACK_DAYS_FOR_ORDER_MATCH * 86400_000).toISOString();
+    // Scope candidate orders to the reviewed period (plus the matching lookback),
+    // instead of scanning every order in the system.
+    const windowMin = new Date(
+      new Date(win.from).getTime() - LOOKBACK_DAYS_FOR_ORDER_MATCH * 86400_000,
+    ).toISOString();
     // Never match orders older than the main-warehouse cutover date.
-    const minCreated = lookbackMin > MAIN_WAREHOUSE_START_DATE ? lookbackMin : MAIN_WAREHOUSE_START_DATE;
+    const minCreated = windowMin > MAIN_WAREHOUSE_START_DATE ? windowMin : MAIN_WAREHOUSE_START_DATE;
+
 
     // ---- BATCH LOOKUPS (avoid per-row queries → CPU limit) ----
     const allBillNos = [...new Set(allRows.map((r) => r.bill_no))];
@@ -289,6 +383,14 @@ Deno.serve(async (req) => {
         candidatesByPhone.get(p)!.push(o);
       }
     }
+
+
+    // How many local orders were actually pulled in for comparison this run.
+    const comparedIds = new Set<string>();
+    for (const o of linkedByBill.values()) comparedIds.add(o.id);
+    for (const list of candidatesByPhone.values()) for (const o of list) comparedIds.add(o.id);
+    stats.orders_compared = comparedIds.size;
+
 
     // 3) Match in memory, then UPDATE only the winners
     const auditInserts: any[] = [];
@@ -451,14 +553,38 @@ Deno.serve(async (req) => {
 
 
 
+    // ---- SYNC STATE COMMIT ----
+    // Only a fully clean cycle (login OK + every page fetched + comparison
+    // finished + no unhandled error) may advance the last-successful timestamp.
+    stats.unresolved = stats.no_matching_order + stats.no_phone_in_row + stats.ambiguous_skipped;
+    const fullyComplete = errors.length === 0 && paginationComplete;
+    stats.complete = fullyComplete;
+    if (fullyComplete) {
+      const patch: Record<string, any> = {
+        id: true,
+        last_successful_zodex_sync_at: cycleStart,
+        last_sync_mode: win.mode,
+      };
+      if (win.mode === "full") patch.last_full_review_at = cycleStart;
+      const { error: stErr } = await supabase.from("zodex_sync_state").upsert(patch, { onConflict: "id" });
+      if (stErr) console.warn("zodex_sync_state upsert failed:", stErr.message);
+    }
+
     await supabase.from("zodex_sync_runs").update({
-      status: errors.length ? "completed_with_errors" : "success",
+      status: fullyComplete ? "success" : "completed_with_errors",
       summary: stats,
       pipeline_counts: { linked: stats.linked, already_linked: stats.already_linked, total_rows: stats.total_rows, returns_marked: stats.returns_marked },
       total_rows: stats.total_rows,
+      sync_mode: win.mode,
+      window_from: win.from,
+      window_to: win.to,
+      pages_fetched: stats.pages_fetched,
+      orders_compared: stats.orders_compared,
+      unresolved_count: stats.unresolved,
       error_message: errors.length ? errors.join(" | ").slice(0, 2000) : null,
       finished_at: new Date().toISOString(),
     }).eq("id", run!.id);
+
 
     return new Response(JSON.stringify({ success: true, stats, errors }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -341,11 +341,17 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { /* ignore */ }
   const lookbackDays = Math.min(60, Math.max(1, Number(body.lookback_days) || DEFAULT_LOOKBACK_DAYS));
   const maxPages = Math.min(20, Math.max(1, Number(body.max_pages) || 5));
+  // Incremental sync passes the same reviewed period used by sync-zodex-shipments.
+  const syncMode: string = body.mode === "full" ? "full" : body.mode === "quick" ? "quick" : "quick";
+  const windowFrom: string | null = body.window_from ? String(body.window_from) : null;
+  const windowTo: string | null = body.window_to ? String(body.window_to) : null;
 
   // Create run row
   const { data: run } = await supabase.from("zodex_sync_runs").insert({
     trigger_source: triggerSource, triggered_by: triggeredBy, status: "running",
+    sync_mode: syncMode, window_from: windowFrom, window_to: windowTo,
   }).select().single();
+
 
   const stats = {
     total_rows: 0, delivered_matched: 0, returned_matched: 0,
@@ -357,8 +363,12 @@ Deno.serve(async (req) => {
     const client = new ZodexClient();
     await client.login(Deno.env.get("ZODEX_USERNAME")!, Deno.env.get("ZODEX_PASSWORD")!);
 
-    const fromDate = new Date(Date.now() - lookbackDays * 86400_000).toISOString().slice(0, 10);
-    const toDate = new Date(Date.now() + 86400_000).toISOString().slice(0, 10);
+    // users.php honours from/to, so the incremental window is applied server-side.
+    const fromDate = (windowFrom || new Date(Date.now() - lookbackDays * 86400_000).toISOString()).slice(0, 10);
+    const toDate = new Date(
+      (windowTo ? new Date(windowTo).getTime() : Date.now()) + 86400_000,
+    ).toISOString().slice(0, 10);
+
 
     // Fetch pages
     const allRows: ZodexRow[] = [];
@@ -788,8 +798,10 @@ Deno.serve(async (req) => {
 
     await supabase.from("zodex_sync_runs").update({
       status: "success", finished_at: new Date().toISOString(),
-      ...stats, pipeline_counts: pipelineCounts, summary: { errors },
+      ...stats, pipeline_counts: pipelineCounts, summary: { errors, sync_mode: syncMode },
+      sync_mode: syncMode, window_from: windowFrom, window_to: windowTo,
     }).eq("id", run!.id);
+
 
     return new Response(JSON.stringify({ ok: true, run_id: run!.id, pipeline_counts: pipelineCounts, ...stats }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

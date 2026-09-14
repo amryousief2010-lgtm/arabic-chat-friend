@@ -22,22 +22,35 @@ export function ZodexUnregisteredCard() {
   const [syncing, setSyncing] = useState(false);
   const [items, setItems] = useState<Failure[]>([]);
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const [incomplete, setIncomplete] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("zodex_sync_runs")
-      .select("summary, started_at")
-      .in("status", ["success", "completed_with_errors"])
-      .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const [{ data }, { data: state }] = await Promise.all([
+      supabase
+        .from("zodex_sync_runs")
+        .select("summary, started_at, status")
+        .in("status", ["success", "completed_with_errors"])
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("zodex_sync_state")
+        .select("last_successful_zodex_sync_at")
+        .eq("id", true)
+        .maybeSingle(),
+    ]);
     const failures: Failure[] =
       ((data as any)?.summary?.link_failures || []).filter(
         (f: any) => f.reason === "no_matching_phone",
       );
     setItems(failures);
-    setLastSync((data as any)?.started_at || null);
+    setIncomplete((data as any)?.status === "completed_with_errors");
+    setLastSync(
+      (state as any)?.last_successful_zodex_sync_at ||
+        (data as any)?.started_at ||
+        null,
+    );
     setLoading(false);
   };
 
@@ -49,7 +62,7 @@ export function ZodexUnregisteredCard() {
     setSyncing(true);
     try {
       const { error } = await supabase.functions.invoke("sync-zodex-shipments", {
-        body: { max_pages: 3 },
+        body: { mode: "quick" },
       });
       if (error) throw error;
       toast({ title: "تمت المزامنة", description: "تم تحديث بيانات زودكس." });
@@ -64,6 +77,7 @@ export function ZodexUnregisteredCard() {
       setSyncing(false);
     }
   };
+
 
   return (
     <Card className="border-amber-200">
@@ -104,7 +118,12 @@ export function ZodexUnregisteredCard() {
         </CardTitle>
         {lastSync && (
           <p className="text-xs text-muted-foreground">
-            آخر مزامنة: {new Date(lastSync).toLocaleString("ar-EG")}
+            آخر مزامنة ناجحة: {new Date(lastSync).toLocaleString("ar-EG")}
+          </p>
+        )}
+        {incomplete && (
+          <p className="text-xs font-medium text-amber-700">
+            المزامنة غير مكتملة — البيانات المعروضة قد تكون ناقصة.
           </p>
         )}
       </CardHeader>
@@ -114,11 +133,17 @@ export function ZodexUnregisteredCard() {
             <Loader2 className="h-4 w-4 animate-spin" />
             جاري التحميل...
           </div>
+        ) : incomplete ? (
+          <p className="text-sm text-amber-700">
+            آخر مزامنة لم تكتمل — أعِد المزامنة قبل الاعتماد على النتيجة.
+            {items.length > 0 ? ` (${items.length} بوليصة بدون أوردر حتى الآن)` : ""}
+          </p>
         ) : items.length === 0 ? (
           <p className="text-sm text-green-700">
             ممتاز — كل البوالص على زودكس مربوطة بأوردر عندنا.
           </p>
         ) : (
+
           <div className="max-h-80 overflow-y-auto">
             <table className="w-full text-sm">
               <thead className="text-right text-xs text-muted-foreground border-b">
