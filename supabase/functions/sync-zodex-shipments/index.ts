@@ -381,7 +381,9 @@ Deno.serve(async (req) => {
         if (!p) continue;
         if (!candidatesByPhone.has(p)) candidatesByPhone.set(p, []);
         candidatesByPhone.get(p)!.push(o);
+      }
     }
+
 
     // How many local orders were actually pulled in for comparison this run.
     const comparedIds = new Set<string>();
