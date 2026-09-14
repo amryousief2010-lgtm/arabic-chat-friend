@@ -67,7 +67,9 @@ export function computeOrderTotals(
   if (!hasOfferItems) includedShippingCost = 0;
 
   const discount = Number(opts.discount || 0);
-  const extraDelivery = hasOfferItems ? 0 : Number(opts.extraDeliveryFee || 0);
+  // قيمة الشحن المسجلة على الطلب تُحتسب دائمًا، إلا إذا كان البوكس يحمل سطر شحن
+  // داخلي (عندها تُحتسب مرة واحدة فقط من داخل البنود).
+  const extraDelivery = includedShippingCost > 0 ? 0 : Number(opts.extraDeliveryFee || 0);
   const total = subtotal + includedShippingCost + extraDelivery - discount;
 
   return { subtotal, includedShippingCost, hasOfferItems, total };
