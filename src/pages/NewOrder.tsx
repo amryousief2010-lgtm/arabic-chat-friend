@@ -293,6 +293,7 @@ const NewOrder = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'online'>('cash');
   const [deliveryFee, setDeliveryFee] = useState(110);
+  const [deliveryFeeTouched, setDeliveryFeeTouched] = useState(false);
   const [discount, setDiscount] = useState(0);
   const [extraCharge, setExtraCharge] = useState(0);
   const [extraChargeReason, setExtraChargeReason] = useState('');
@@ -884,11 +885,14 @@ const NewOrder = () => {
     }, 0);
   }, [offerInstanceCounts, offerBoxes]);
 
+  // الاقتراح التلقائي لقيمة الشحن يعمل فقط ما دامت الموظفة لم تكتب قيمة بنفسها.
+  // بعد أي تعديل يدوي تبقى القيمة كما هي ولا تُصفَّر عند تغيير مكان الاستلام
+  // أو شركة الشحن أو أي اختيار آخر.
   useEffect(() => {
-    if (hasOfferInCart) {
+    if (hasOfferInCart && !deliveryFeeTouched) {
       setDeliveryFee(offerShippingTotal);
     }
-  }, [hasOfferInCart, offerShippingTotal]);
+  }, [hasOfferInCart, offerShippingTotal, deliveryFeeTouched]);
 
   // For offer orders, the offer's bundled shipping stays inside the total.
   // For regular orders, shipping is tracked separately and not added to the total.
@@ -1258,34 +1262,14 @@ const NewOrder = () => {
 
       // Persist box identity/count independently from product lines, which may
       // be merged or edited later.
-      // The stored count is DERIVED from the actual cart contents (total box
-      // quantities ÷ one box template), so a mis-click on "إضافة العرض" can
-      // never record 3 boxes for an order that really contains only one.
+      // العدد المحفوظ يؤخذ حصريًا من كمية البوكس التي اختارتها الموظفة، ولا
+      // يُشتق أبدًا من مكونات البوكس أو الهدايا أو كميات المنتجات.
       const boxIdsInCart = Array.from(
         new Set(cart.filter(i => i.isOfferItem && i.offerBoxId).map(i => i.offerBoxId as string))
       );
-      const templateQtyByBox: Record<string, number> = {};
-      if (boxIdsInCart.length > 0) {
-        const { data: tplRows } = await supabase
-          .from('offer_box_items')
-          .select('offer_box_id, quantity')
-          .in('offer_box_id', boxIdsInCart);
-        for (const r of tplRows || []) {
-          const bid = (r as any).offer_box_id as string;
-          templateQtyByBox[bid] = (templateQtyByBox[bid] || 0) + Number((r as any).quantity || 0);
-        }
-      }
-      const cartQtyByBox: Record<string, number> = {};
-      for (const i of cart) {
-        if (!i.isOfferItem || !i.offerBoxId) continue;
-        const q = i.isHalfKg ? i.quantity * 0.5 : i.quantity;
-        cartQtyByBox[i.offerBoxId] = (cartQtyByBox[i.offerBoxId] || 0) + q;
-      }
       const offerInstanceRows = boxIdsInCart
         .map((offerBoxId) => {
-          const tpl = templateQtyByBox[offerBoxId] || 0;
-          const derived = tpl > 0 ? Math.round((cartQtyByBox[offerBoxId] || 0) / tpl) : 0;
-          const quantity = Math.max(1, derived || offerInstanceCounts[offerBoxId] || 1);
+          const quantity = Math.max(1, Number(offerInstanceCounts[offerBoxId] || 1));
           return {
             order_id: order.id,
             offer_box_id: offerBoxId,
@@ -2343,7 +2327,7 @@ const NewOrder = () => {
                               type="number"
                               placeholder="0"
                               value={Number(deliveryFee) === 0 ? "" : deliveryFee}
-                              onChange={(e) => setDeliveryFee(e.target.value === "" ? 0 : Number(e.target.value))}
+                              onChange={(e) => { setDeliveryFeeTouched(true); setDeliveryFee(e.target.value === "" ? 0 : Number(e.target.value)); }}
                             />
 
                             <Button
@@ -2351,7 +2335,7 @@ const NewOrder = () => {
                               variant="outline"
                               size="icon"
                               title="مسح رسوم الشحن"
-                              onClick={() => setDeliveryFee(0)}
+                              onClick={() => { setDeliveryFeeTouched(true); setDeliveryFee(0); }}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
