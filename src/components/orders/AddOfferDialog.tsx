@@ -201,12 +201,29 @@ const AddOfferDialog = ({ open, onOpenChange, orderId, onSaved }: Props) => {
       if (insErr) throw insErr;
 
       // Keep the box identity/count record in sync with the order contents.
-      const { data: existing } = await supabase
+      const { data: remainingItems } = await supabase
+        .from("order_items")
+        .select("offer_name")
+        .eq("order_id", orderId);
+      const remainingOfferNames = new Set(
+        (remainingItems || []).map((r: any) => r.offer_name).filter(Boolean) as string[]
+      );
+      remainingOfferNames.add(selectedOffer.name);
+
+      const { data: currentInstances } = await supabase
         .from("order_offer_instances")
-        .select("id, quantity")
-        .eq("order_id", orderId)
-        .eq("offer_name", selectedOffer.name)
-        .maybeSingle();
+        .select("id, offer_name, quantity, offer_box_id")
+        .eq("order_id", orderId);
+      const staleIds = (currentInstances || [])
+        .filter((r: any) => !remainingOfferNames.has(r.offer_name))
+        .map((r: any) => r.id);
+      if (staleIds.length > 0) {
+        await supabase.from("order_offer_instances").delete().in("id", staleIds);
+      }
+
+      const existing = (currentInstances || []).find(
+        (r: any) => r.offer_name === selectedOffer.name || r.offer_box_id === selectedOfferId
+      );
       if (existing) {
         await supabase
           .from("order_offer_instances")
@@ -220,6 +237,7 @@ const AddOfferDialog = ({ open, onOpenChange, orderId, onSaved }: Props) => {
           quantity: 1,
         });
       }
+
 
       toast.success(`تم إضافة العرض "${selectedOffer.name}" إلى الطلب`);
       onOpenChange(false);
