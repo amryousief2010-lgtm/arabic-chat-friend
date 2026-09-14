@@ -834,38 +834,60 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
             .from('customers')
             .select('id')
             .or(custFilters.join(','))
-            .limit(500);
+            .limit(1000);
           custIds = (cdata || []).map((c: any) => c.id);
         }
-        // 2) جلب الطلبات: رقم طلب أو ينتمي لعميل مطابق أو عنوان تسليم مطابق.
-        const orFilters: string[] = [
+        // 2) جلب الطلبات على استعلامين منفصلين بدل رابط واحد ضخم:
+        //    (أ) مطابقة نصية على أعمدة الطلب  (ب) مطابقة العملاء على دفعات
+        //    السبب: قائمة معرّفات العملاء الطويلة كانت تُنتج رابطًا ضخمًا يفشل أحيانًا برسالة خطأ.
+        const SELECT_COLS = `${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`;
+        const ordersById = new Map<string, any>();
+
+        const textFilters: string[] = [
           `order_number.ilike.%${term}%`,
           `shipping_bill_no.ilike.%${term}%`,
           `delivery_address.ilike.%${term}%`,
         ];
         if (termNorm && termNorm !== term.toLowerCase()) {
-          orFilters.push(`delivery_address.ilike.%${termNorm}%`);
+          textFilters.push(`delivery_address.ilike.%${termNorm}%`);
         }
-        if (custIds.length > 0) {
-          orFilters.push(`customer_id.in.(${custIds.join(',')})`);
-        }
-        const { data, error } = await supabase
+        const { data: textData, error: textErr } = await supabase
           .from('orders')
-          .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`)
-          .or(orFilters.join(','))
+          .select(SELECT_COLS)
+          .or(textFilters.join(','))
           .order('created_at', { ascending: false })
           .limit(300);
-        if (error) throw error;
-        const ords = (data || []) as any[];
+        if (textErr) throw textErr;
+        (textData || []).forEach((o: any) => ordersById.set(o.id, o));
+
+        const CUST_CHUNK = 100;
+        for (let i = 0; i < custIds.length; i += CUST_CHUNK) {
+          const chunk = custIds.slice(i, i + CUST_CHUNK);
+          const { data: custOrders, error: custErr } = await supabase
+            .from('orders')
+            .select(SELECT_COLS)
+            .in('customer_id', chunk)
+            .order('created_at', { ascending: false })
+            .limit(300);
+          if (custErr) throw custErr;
+          (custOrders || []).forEach((o: any) => ordersById.set(o.id, o));
+        }
+
+        const ords = Array.from(ordersById.values()).sort(
+          (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        );
         let items: any[] = [];
         if (ords.length > 0) {
           const ids = ords.map((o) => o.id);
-          const { data: itemsData, error: itemsErr } = await supabase
-            .from('order_items')
-            .select(ITEM_COLS)
-            .in('order_id', ids);
-          if (itemsErr) throw itemsErr;
-          items = itemsData || [];
+          items = [];
+          for (let i = 0; i < ids.length; i += 200) {
+            const { data: itemsData, error: itemsErr } = await supabase
+              .from('order_items')
+              .select(ITEM_COLS)
+              .in('order_id', ids.slice(i, i + 200));
+            if (itemsErr) throw itemsErr;
+            items = items.concat(itemsData || []);
+          }
         }
         await loadLookups(ords, items);
         const byOrder: Record<string, any[]> = {};
@@ -1367,9 +1389,14 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       filterWarehouseChip === "all" ||
       (filterWarehouseChip === "main" && order.source_warehouse_id === MAIN_WAREHOUSE_ID) ||
       (filterWarehouseChip === "agouza" && order.source_warehouse_id === AGOUZA_WAREHOUSE_ID);
-    const baseMatch = matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesPeriod && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam;
+    // أثناء البحث نتجاهل كل فلاتر الصفحة (الحالة/المخزن/المحافظة/مصدر التنفيذ/خط التوصيل/التحصيل)
+    // حتى لا يختفي الطلب المطابق لمجرد أن فلترًا كان مفعّلًا قبل البحث.
+    // تبقى قيود الصلاحيات (نطاق مشرف المخزن) كما هي.
+    const baseMatch = searchActive
+      ? matchesSearch && matchesWarehouseScope
+      : matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesPeriod && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam;
     (order as any).__matchesBaseNoChip = baseMatch;
-    return baseMatch && matchesWarehouseChip;
+    return baseMatch && (searchActive || matchesWarehouseChip);
   }), [visibleOrders, isNouraAccount, filterStatus, filterWarehouseChip, appliedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, activePeriod, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
 
   // Counts per warehouse chip that honor ALL other filters (including current status).
@@ -2127,6 +2154,14 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                 </Button>
               )}
             </div>
+            {appliedSearch && (
+              <div className="flex items-center gap-2 text-xs bg-muted/60 border rounded-md px-3 py-1.5">
+                <span>نتائج البحث — الفلاتر متجاهلة مؤقتًا</span>
+                <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => { setDraftSearch(""); setAppliedSearch(""); fetchOrders(""); }}>
+                  إلغاء البحث
+                </Button>
+              </div>
+            )}
             <Select value={filterMonth} onValueChange={setFilterMonth}>
               <SelectTrigger className="w-36 input-modern">
                 <SelectValue placeholder="الشهر" />
@@ -2410,17 +2445,20 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                 <div className="text-4xl mb-2">📦</div>
                 <div className="font-medium text-foreground mb-1">لا توجد طلبات مطابقة</div>
                 <div className="text-sm">
-                  {(() => {
-                    const wh = filterWarehouseChip === "main" ? "المخزن الرئيسي"
-                      : filterWarehouseChip === "agouza" ? "مخزن العجوزة"
-                      : "كل المخازن";
-                    const st = filterStatus === "pending" ? "قيد الانتظار"
-                      : filterStatus === "delivered" ? "تم التوصيل"
-                      : filterStatus === "cancelled" ? "المرتجعة"
-                      : "بكل الحالات";
-                    return `لا يوجد أوردرات في ${wh} ${st} حالياً.`;
-                  })()}
+                  {appliedSearch
+                    ? `لا يوجد طلب مطابق لـ «${appliedSearch}» ضمن الطلبات المتاحة لحسابك.`
+                    : (() => {
+                        const wh = filterWarehouseChip === "main" ? "المخزن الرئيسي"
+                          : filterWarehouseChip === "agouza" ? "مخزن العجوزة"
+                          : "كل المخازن";
+                        const st = filterStatus === "pending" ? "قيد الانتظار"
+                          : filterStatus === "delivered" ? "تم التوصيل"
+                          : filterStatus === "cancelled" ? "المرتجعة"
+                          : "بكل الحالات";
+                        return `لا يوجد أوردرات في ${wh} ${st} حالياً.`;
+                      })()}
                 </div>
+
                 {(filterWarehouseChip !== "all" || filterStatus !== "all") && (
                   <div className="mt-3 flex gap-2 justify-center">
                     {filterWarehouseChip !== "all" && (

@@ -22165,6 +22165,7 @@ export type Database = {
       }
       is_agouza_keeper: { Args: { _uid: string }; Returns: boolean }
       is_feed_team: { Args: { _user_id: string }; Returns: boolean }
+      is_hagar_account: { Args: { _user_id: string }; Returns: boolean }
       is_main_treasury_accountant: {
         Args: { _user_id: string }
         Returns: boolean
