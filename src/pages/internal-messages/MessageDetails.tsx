@@ -1,3 +1,4 @@
+import UserAvatar from "@/components/UserAvatar";
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
