@@ -51,11 +51,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import UserAvatar from '@/components/UserAvatar';
+import AvatarUploadButton from '@/components/AvatarUploadButton';
 
 interface Employee {
   id: string;
   full_name: string;
   email: string;
+  avatar_url?: string | null;
   role: AppRole; // primary role (first) for back-compat in actions
   roles: AppRole[]; // all roles assigned to the user
   created_at: string;
