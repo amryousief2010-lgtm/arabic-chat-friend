@@ -17,6 +17,7 @@ import PrintEmployeesAdvancesDialog from "@/components/hr/PrintEmployeesAdvances
 import EmployeeDocumentsDialog from "@/components/hr/EmployeeDocumentsDialog";
 import EmployeeDeductionsDialog from "@/components/hr/EmployeeDeductionsDialog";
 import EmployeeSuspensionDialog from "@/components/hr/EmployeeSuspensionDialog";
+import EmployeePhotoCell from "@/components/hr/EmployeePhotoCell";
 
 interface Location { id: string; name: string; department: string | null }
 interface Employee {
@@ -29,6 +30,7 @@ interface Employee {
   status: "active" | "inactive";
   notes: string | null;
   pay_day: number;
+  photo_url?: string | null;
   is_suspended?: boolean;
   suspension_date?: string | null;
   suspension_reason?: string | null;
@@ -117,6 +119,22 @@ const HREmployees = () => {
   >({});
   const [deductionsMap, setDeductionsMap] = useState<Record<string, DeductionSummary>>({});
   const [advancesMap, setAdvancesMap] = useState<Record<string, number>>({});
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+
+  /** روابط موقّعة لصور الموظفين (المساحة محمية) */
+  const loadPhotos = async (list: { id: string; photo_url?: string | null }[]) => {
+    const paths = list.map((e) => e.photo_url).filter(Boolean) as string[];
+    if (!paths.length) { setPhotoUrls({}); return; }
+    const { data } = await supabase.storage.from("avatars").createSignedUrls(paths, 60 * 60);
+    const byPath = new Map<string, string>();
+    (data || []).forEach((s: any) => { if (s?.path && s?.signedUrl) byPath.set(s.path, s.signedUrl); });
+    const map: Record<string, string> = {};
+    list.forEach((e) => {
+      const u = e.photo_url ? byPath.get(e.photo_url) : null;
+      if (u) map[e.id] = u;
+    });
+    setPhotoUrls(map);
+  };
 
   const loadDeductions = async () => {
     const { data } = await supabase
