@@ -248,9 +248,12 @@ const MessageDetails = () => {
               <PriorityBadge priority={message.priority} />
             </div>
           </div>
-          <div className="text-sm text-muted-foreground">
-            من: <span className="font-medium">{message.sender_name}</span> ·{" "}
-            {format(new Date(message.created_at), "PPpp", { locale: ar })}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <UserAvatar userId={message.sender_id} name={message.sender_name} className="w-8 h-8" />
+            <span>
+              من: <span className="font-medium">{message.sender_name}</span> ·{" "}
+              {format(new Date(message.created_at), "PPpp", { locale: ar })}
+            </span>
           </div>
           {message.reply_due_at && (
             <div className="text-xs text-muted-foreground">
@@ -331,7 +334,10 @@ const MessageDetails = () => {
           {replies.map((r) => (
             <div key={r.id} className={`rounded-lg p-3 ${r.sender_id === user?.id ? "bg-primary/10 mr-8" : "bg-muted ml-8"}`}>
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                <span className="font-semibold text-foreground">{r.sender_name}</span>
+                <span className="flex items-center gap-2 font-semibold text-foreground">
+                  <UserAvatar userId={r.sender_id} name={r.sender_name} className="w-7 h-7" />
+                  {r.sender_name}
+                </span>
                 <span>{format(new Date(r.created_at), "PPp", { locale: ar })}</span>
               </div>
               <p className="text-sm whitespace-pre-wrap">{r.body}</p>
