@@ -7732,6 +7732,7 @@ export type Database = {
           notes: string | null
           pay_day: number
           phone: string | null
+          photo_url: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["hr_employee_status"]
           suspended_at: string | null
@@ -7760,6 +7761,7 @@ export type Database = {
           notes?: string | null
           pay_day?: number
           phone?: string | null
+          photo_url?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["hr_employee_status"]
           suspended_at?: string | null
@@ -7788,6 +7790,7 @@ export type Database = {
           notes?: string | null
           pay_day?: number
           phone?: string | null
+          photo_url?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["hr_employee_status"]
           suspended_at?: string | null
