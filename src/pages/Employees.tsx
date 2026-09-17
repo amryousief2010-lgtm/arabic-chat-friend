@@ -51,11 +51,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import UserAvatar from '@/components/UserAvatar';
+import AvatarUploadButton from '@/components/AvatarUploadButton';
 
 interface Employee {
   id: string;
   full_name: string;
   email: string;
+  avatar_url?: string | null;
   role: AppRole; // primary role (first) for back-compat in actions
   roles: AppRole[]; // all roles assigned to the user
   created_at: string;
@@ -236,7 +239,7 @@ const Employees = () => {
       // Fetch profiles with their roles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, full_name, email, created_at')
+        .select('id, full_name, email, created_at, avatar_url')
         .order('created_at', { ascending: false });
 
       if (profilesError) throw profilesError;
@@ -253,6 +256,7 @@ const Employees = () => {
           id: profile.id,
           full_name: profile.full_name,
           email: profile.email,
+          avatar_url: (profile as any).avatar_url ?? null,
           role: userRoles[0] || 'sales_moderator',
           roles: userRoles.length ? userRoles : ['sales_moderator'],
           created_at: profile.created_at,
@@ -824,10 +828,13 @@ const Employees = () => {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <GripVertical className="w-4 h-4 text-muted-foreground/60" />
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
-                        {employee.full_name.charAt(0)}
-                      </div>
+                      <UserAvatar userId={employee.id} name={employee.full_name} className="w-10 h-10" />
                       <span className="font-medium">{employee.full_name}</span>
+                      <AvatarUploadButton
+                        userId={employee.id}
+                        userName={employee.full_name}
+                        hasAvatar={!!employee.avatar_url}
+                      />
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{employee.email}</TableCell>

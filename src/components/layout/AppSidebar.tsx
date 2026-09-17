@@ -1,10 +1,12 @@
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarMenuSections } from "./SidebarMenuSections";
+import UserAvatar from "@/components/UserAvatar";
 import companyLogo from "@/assets/company-logo.jpg";
 
 const AppSidebar = () => {
-  const { signOut } = useAuth();
+  const { signOut, user, profile } = useAuth();
+  const displayName = profile?.full_name || user?.email?.split("@")[0] || "مستخدم";
 
   return (
     <aside className="fixed right-0 top-0 h-screen w-64 bg-sidebar text-sidebar-foreground flex flex-col shadow-2xl z-50">
@@ -19,6 +21,12 @@ const AppSidebar = () => {
             <p className="text-xs text-sidebar-foreground/60">إدارة العمليات</p>
           </div>
         </div>
+      </div>
+
+      {/* Current user */}
+      <div className="px-4 py-3 border-b border-sidebar-border flex items-center gap-3">
+        <UserAvatar userId={user?.id} name={displayName} className="w-9 h-9" />
+        <span className="text-sm font-medium truncate">{displayName}</span>
       </div>
 
       {/* Navigation */}

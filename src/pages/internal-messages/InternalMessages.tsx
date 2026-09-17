@@ -1,3 +1,4 @@
+import UserAvatar from "@/components/UserAvatar";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -254,6 +255,7 @@ const MessageListInbox = ({ rows, onOpen, loading }: { rows: InboxRow[]; onOpen:
           >
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
+                <UserAvatar userId={r.sender_id} name={r.sender_name} className="w-9 h-9 mt-0.5" />
                 <div className="mt-1">
                   {isUnread ? <Mail className="w-5 h-5 text-primary" /> : <MailOpen className="w-5 h-5 text-muted-foreground" />}
                 </div>
