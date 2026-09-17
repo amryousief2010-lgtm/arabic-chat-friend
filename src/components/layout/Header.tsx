@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import UserAvatar from "@/components/UserAvatar";
 
 interface HeaderProps {
   title: string;
@@ -114,9 +115,7 @@ const Header = ({ title, subtitle }: HeaderProps) => {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
-                {getUserInitial()}
-              </div>
+              <UserAvatar userId={user?.id} name={getUserName()} className="w-10 h-10" />
               <div className="text-sm text-right">
                 <p className="font-semibold">{getUserName()}</p>
                 {role && (
