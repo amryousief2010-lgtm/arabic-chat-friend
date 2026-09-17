@@ -149,7 +149,10 @@ const TopCard = ({
   icon: LucideIcon;
   gradient: string;
   large?: boolean;
-}) => (
+}) => {
+  const { getPhoto } = useOrgPhotos();
+  const photo = getPhoto(name);
+  return (
   <Card
     className={`relative overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1 ${
       large ? "p-6 min-w-[280px]" : "p-5 min-w-[240px]"
@@ -157,16 +160,24 @@ const TopCard = ({
   >
     <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-95`} />
     <div className="relative flex flex-col items-center text-center text-white gap-2">
-      <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur flex items-center justify-center mb-1">
-        <Icon className={large ? "w-8 h-8" : "w-7 h-7"} />
+      <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur flex items-center justify-center mb-1 overflow-hidden ring-2 ring-white/40">
+        {photo ? (
+          <img src={photo} alt={name} className="w-full h-full object-cover" />
+        ) : (
+          <Icon className={large ? "w-8 h-8" : "w-7 h-7"} />
+        )}
       </div>
       <p className={`font-bold ${large ? "text-xl" : "text-lg"}`}>{name}</p>
       <p className="text-sm opacity-95 font-medium">{title}</p>
     </div>
   </Card>
-);
+  );
+};
 
-const MemberRow = ({ member }: { member: Member }) => (
+const MemberRow = ({ member }: { member: Member }) => {
+  const { getPhoto } = useOrgPhotos();
+  const photo = member.vacant ? null : getPhoto(member.name);
+  return (
   <div
     className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${
       member.vacant
@@ -175,11 +186,17 @@ const MemberRow = ({ member }: { member: Member }) => (
     }`}
   >
     <div
-      className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+      className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 overflow-hidden ${
         member.vacant ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
       }`}
     >
-      {member.vacant ? <UserX className="w-4 h-4" /> : <User className="w-4 h-4" />}
+      {photo ? (
+        <img src={photo} alt={member.name} className="w-full h-full object-cover" />
+      ) : member.vacant ? (
+        <UserX className="w-4 h-4" />
+      ) : (
+        <User className="w-4 h-4" />
+      )}
     </div>
     <div className="flex-1 min-w-0">
       <p
