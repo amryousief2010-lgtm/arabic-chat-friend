@@ -166,6 +166,7 @@ const HREmployees = () => {
     ]);
     const empList = (emp.data || []) as Employee[];
     setEmployees(empList);
+    loadPhotos(empList);
     setLocations((loc.data || []) as Location[]);
 
     if (canSeeDocStatus) {
@@ -593,7 +594,19 @@ const HREmployees = () => {
                       return (
                         <TableRow key={e.id}>
                           <TableCell className="font-mono text-xs">{e.code}</TableCell>
-                          <TableCell className="font-medium">{e.full_name}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <EmployeePhotoCell
+                                employeeId={e.id}
+                                name={e.full_name}
+                                photoPath={e.photo_url || null}
+                                url={photoUrls[e.id] || null}
+                                canManage={isGeneralManager}
+                                onChanged={load}
+                              />
+                              <span>{e.full_name}</span>
+                            </div>
+                          </TableCell>
                           <TableCell>{e.job_title || "—"}</TableCell>
                           <TableCell>{e.current_location_id ? locById.get(e.current_location_id)?.name || "—" : "—"}</TableCell>
                           <TableCell>
