@@ -256,6 +256,7 @@ const Employees = () => {
           id: profile.id,
           full_name: profile.full_name,
           email: profile.email,
+          avatar_url: (profile as any).avatar_url ?? null,
           role: userRoles[0] || 'sales_moderator',
           roles: userRoles.length ? userRoles : ['sales_moderator'],
           created_at: profile.created_at,
