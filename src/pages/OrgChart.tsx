@@ -214,7 +214,8 @@ const MemberRow = ({ member }: { member: Member }) => {
       </Badge>
     )}
   </div>
-);
+  );
+};
 
 const UnitCard = ({ unit }: { unit: Unit }) => {
   const Icon = unit.icon;
