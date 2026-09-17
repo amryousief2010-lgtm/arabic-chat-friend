@@ -17,6 +17,7 @@ import PrintEmployeesAdvancesDialog from "@/components/hr/PrintEmployeesAdvances
 import EmployeeDocumentsDialog from "@/components/hr/EmployeeDocumentsDialog";
 import EmployeeDeductionsDialog from "@/components/hr/EmployeeDeductionsDialog";
 import EmployeeSuspensionDialog from "@/components/hr/EmployeeSuspensionDialog";
+import EmployeePhotoCell from "@/components/hr/EmployeePhotoCell";
 
 interface Location { id: string; name: string; department: string | null }
 interface Employee {
@@ -29,6 +30,7 @@ interface Employee {
   status: "active" | "inactive";
   notes: string | null;
   pay_day: number;
+  photo_url?: string | null;
   is_suspended?: boolean;
   suspension_date?: string | null;
   suspension_reason?: string | null;
@@ -117,6 +119,22 @@ const HREmployees = () => {
   >({});
   const [deductionsMap, setDeductionsMap] = useState<Record<string, DeductionSummary>>({});
   const [advancesMap, setAdvancesMap] = useState<Record<string, number>>({});
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+
+  /** روابط موقّعة لصور الموظفين (المساحة محمية) */
+  const loadPhotos = async (list: { id: string; photo_url?: string | null }[]) => {
+    const paths = list.map((e) => e.photo_url).filter(Boolean) as string[];
+    if (!paths.length) { setPhotoUrls({}); return; }
+    const { data } = await supabase.storage.from("avatars").createSignedUrls(paths, 60 * 60);
+    const byPath = new Map<string, string>();
+    (data || []).forEach((s: any) => { if (s?.path && s?.signedUrl) byPath.set(s.path, s.signedUrl); });
+    const map: Record<string, string> = {};
+    list.forEach((e) => {
+      const u = e.photo_url ? byPath.get(e.photo_url) : null;
+      if (u) map[e.id] = u;
+    });
+    setPhotoUrls(map);
+  };
 
   const loadDeductions = async () => {
     const { data } = await supabase
@@ -148,6 +166,7 @@ const HREmployees = () => {
     ]);
     const empList = (emp.data || []) as Employee[];
     setEmployees(empList);
+    loadPhotos(empList);
     setLocations((loc.data || []) as Location[]);
 
     if (canSeeDocStatus) {
@@ -575,7 +594,19 @@ const HREmployees = () => {
                       return (
                         <TableRow key={e.id}>
                           <TableCell className="font-mono text-xs">{e.code}</TableCell>
-                          <TableCell className="font-medium">{e.full_name}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <EmployeePhotoCell
+                                employeeId={e.id}
+                                name={e.full_name}
+                                photoPath={e.photo_url || null}
+                                url={photoUrls[e.id] || null}
+                                canManage={isGeneralManager}
+                                onChanged={load}
+                              />
+                              <span>{e.full_name}</span>
+                            </div>
+                          </TableCell>
                           <TableCell>{e.job_title || "—"}</TableCell>
                           <TableCell>{e.current_location_id ? locById.get(e.current_location_id)?.name || "—" : "—"}</TableCell>
                           <TableCell>
