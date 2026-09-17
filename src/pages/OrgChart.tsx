@@ -19,6 +19,7 @@ import {
   Users,
 } from "lucide-react";
 import { LucideIcon } from "lucide-react";
+import { useOrgPhotos } from "@/hooks/useOrgPhotos";
 
 interface Member {
   name: string;
