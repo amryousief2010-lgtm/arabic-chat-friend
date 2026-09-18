@@ -23,19 +23,27 @@ const migration = readFileSync(
   "utf8",
 );
 
+const sql = migration
+  .split("\n")
+  .filter((line) => !/^\s*--/.test(line))
+  .join("\n");
+
+const viewSql =
+  sql.match(/CREATE VIEW public\.product_cost_prices[\s\S]*?;/)?.[0] ?? "";
+
 describe("product_cost_prices lint 0010 remediation", () => {
   it("recreates the view as security_invoker=on (not a definer view)", () => {
-    expect(migration).toMatch(/CREATE VIEW public\.product_cost_prices\s+WITH \(security_invoker = on\)/s);
-    expect(migration).not.toMatch(/security_invoker\s*=\s*false/);
-    expect(migration).toMatch(/DROP VIEW IF EXISTS public\.product_cost_prices/);
+    expect(viewSql).toMatch(/CREATE VIEW public\.product_cost_prices\s+WITH \(security_invoker = on\)/);
+    expect(viewSql).not.toMatch(/security_invoker\s*=\s*false/);
+    expect(sql).toMatch(/DROP VIEW IF EXISTS public\.product_cost_prices/);
   });
 
   it("does not select products.cost_price and does not re-grant that column", () => {
-    expect(migration).toMatch(/REVOKE SELECT \(cost_price\) ON public\.products FROM PUBLIC, anon, authenticated/);
-    expect(migration).not.toMatch(/GRANT SELECT \(cost_price\)/);
-    expect(migration).not.toMatch(/p\.cost_price/);
-    expect(migration).toMatch(/cd\.cost_price/);
-    expect(migration).toMatch(/LEFT JOIN public\.product_cost_data cd ON cd\.product_id = p\.id/);
+    expect(sql).toMatch(/REVOKE SELECT \(cost_price\) ON public\.products FROM PUBLIC, anon, authenticated/);
+    expect(sql).not.toMatch(/GRANT SELECT \(cost_price\)/);
+    expect(viewSql).not.toMatch(/p\.cost_price/);
+    expect(viewSql).toMatch(/cd\.cost_price/);
+    expect(viewSql).toMatch(/LEFT JOIN public\.product_cost_data cd ON cd\.product_id = p\.id/);
   });
 
   it("gates product_cost_data reads (and writes) with inv_can_view_cost RLS", () => {
