@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cairoMonthStartUTC, currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
 import * as XLSX from "xlsx";
 import { displayModeratorName } from "@/constants/moderators";
+import { applySalesNetFilter, SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
 
 const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 
@@ -20,19 +21,20 @@ const DailyRegistrationsTable = () => {
   const from = useMemo(() => cairoMonthStartUTC(year, monthIndex0).toISOString(), [year, monthIndex0]);
 
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ["daily-registrations", from],
+    queryKey: ["daily-registrations", "sales-net", from],
     queryFn: async () => {
       let all: Row[] = [];
       let page = 0;
       const size = 1000;
       // eslint-disable-next-line no-constant-condition
       while (true) {
-        const { data, error } = await supabase
-          .from("orders")
-          .select("created_at, total, moderator")
-          .gte("created_at", from)
-          .order("created_at", { ascending: false })
-          .range(page * size, (page + 1) * size - 1);
+        const { data, error } = await applySalesNetFilter(
+          supabase
+            .from("orders")
+            .select("created_at, total, moderator")
+            .gte("created_at", from)
+            .order("created_at", { ascending: false }),
+        ).range(page * size, (page + 1) * size - 1);
         if (error) throw error;
         all = all.concat((data || []) as Row[]);
         if ((data?.length || 0) < size) break;
@@ -107,7 +109,7 @@ const DailyRegistrationsTable = () => {
       <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <CalendarDays className="w-5 h-5 text-primary" />
-          التسجيلات اليومية — {MONTH_AR[monthIndex0]} {year}
+          التسجيلات اليومية — {MONTH_AR[monthIndex0]} {year} ({SALES_NET_LABEL_AR})
         </CardTitle>
         <div className="flex items-center gap-2">
           <Button size="sm" variant="ghost" onClick={() => refetch()} disabled={isFetching}>

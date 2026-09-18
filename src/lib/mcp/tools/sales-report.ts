@@ -1,6 +1,7 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { supabaseForUser } from "../supabase";
+import { isCancelledOrderStatus, SALES_NET_LABEL_AR, sumSalesNet } from "../../orderSalesFilters";
 
 const num = (v: unknown) => {
   const x = Number(v);
@@ -44,8 +45,9 @@ export default defineTool({
 
     const sum = (list: any[], f: (r: any) => number) => Number(list.reduce((s, r) => s + f(r), 0).toFixed(2));
     const delivered = rows.filter((r) => r.status === "delivered");
-    const cancelled = rows.filter((r) => r.status === "cancelled");
+    const cancelled = rows.filter((r) => isCancelledOrderStatus(r.status));
     const returned = rows.filter((r) => r.status === "returned");
+    const salesNet = sumSalesNet(rows);
     const open = rows.filter(
       (r) => !["delivered", "cancelled", "returned"].includes(String(r.status)),
     );
@@ -84,6 +86,11 @@ export default defineTool({
       currency: "EGP",
       generated_at: new Date().toISOString(),
       orders_registered: { count: count ?? rows.length, value: sum(rows, (r) => num(r.total)) },
+      sales_net: {
+        count: salesNet.orderCount,
+        value: Number(salesNet.sales.toFixed(2)),
+        label: SALES_NET_LABEL_AR,
+      },
       delivered_sales: {
         count: delivered.length,
         value: sum(delivered, (r) => num(r.total)),
@@ -101,10 +108,11 @@ export default defineTool({
       by_status: group(rows, "status"),
       by_fulfillment: group(rows, "fulfillment_type"),
       by_source: group(rows, "source"),
-      by_moderator: group(rows.filter((r) => r.status !== "cancelled"), "moderator").slice(0, 25),
+      by_moderator: group(rows.filter((r) => !isCancelledOrderStatus(r.status)), "moderator").slice(0, 25),
       by_payment_method: group(delivered, "payment_method"),
       definitions: {
-        orders_registered: "قيمة كل الطلبات المسجّلة في الفترة بغض النظر عن الحالة.",
+        orders_registered: "قيمة كل الطلبات المسجّلة في الفترة بغض النظر عن الحالة (شامل الملغي).",
+        sales_net: `${SALES_NET_LABEL_AR} = كل الطلبات ما عدا status=cancelled.`,
         delivered_sales: "المبيعات المعتمدة = الطلبات بحالة delivered فقط.",
         collections: "المبالغ المودعة فعليًا من المناديب في الفترة، وقد تخص طلبات من فترات سابقة.",
         formula: "total = subtotal - discount + delivery_fee. الهدايا بسعر صفر ولا تدخل الإجماليات.",

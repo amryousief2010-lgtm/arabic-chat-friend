@@ -34,6 +34,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useModeratorPerformance, type YearFilter } from "@/hooks/useModeratorPerformance";
+import { SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
 import { exportModeratorPDF } from "@/utils/exportModeratorReport";
 import ModeratorComparison from "@/components/moderator/ModeratorComparison";
 import { MODERATORS } from "@/constants/moderators";
@@ -73,7 +74,7 @@ const ModeratorPerformance = () => {
       <DashboardLayout>
         <Header
           title={`أداء الموديراتور: ${selectedModerator}`}
-          subtitle="تفاصيل الأداء والمبيعات الشهرية"
+          subtitle={`تفاصيل الأداء والمبيعات الشهرية — ${SALES_NET_LABEL_AR}`}
         />
 
         <button
@@ -92,7 +93,7 @@ const ModeratorPerformance = () => {
                 <DollarSign className="w-5 h-5 text-success-foreground" />
               </div>
               <div>
-                <p className="text-muted-foreground text-xs">إجمالي المبيعات</p>
+                <p className="text-muted-foreground text-xs">إجمالي المبيعات ({SALES_NET_LABEL_AR})</p>
                 <p className="text-xl font-bold">
                   {mod ? `${(mod.sales / 1000000).toFixed(1)}M` : "0"} ج.م
                 </p>
@@ -232,7 +233,7 @@ const ModeratorPerformance = () => {
       <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
         <Header
           title="أداء الموديراتور"
-          subtitle={`فريق المبيعات: ${MODERATORS.map((m) => m.displayName).join("، ")}`}
+          subtitle={`فريق المبيعات: ${MODERATORS.map((m) => m.displayName).join("، ")} — ${SALES_NET_LABEL_AR}`}
         />
         <div className="flex items-center gap-2 flex-wrap">
           <Tabs value={yearFilter} onValueChange={(v) => setYearFilter(v as YearFilter)}>
@@ -296,7 +297,7 @@ const ModeratorPerformance = () => {
               <DollarSign className="w-5 h-5 text-success-foreground" />
             </div>
             <div>
-              <p className="text-muted-foreground text-xs">إجمالي المبيعات</p>
+              <p className="text-muted-foreground text-xs">إجمالي المبيعات ({SALES_NET_LABEL_AR})</p>
               {isLoading ? <Skeleton className="h-7 w-20" /> : <p className="text-2xl font-bold">{(totalSales / 1000000).toFixed(1)}M ج.م</p>}
             </div>
           </div>
@@ -307,7 +308,7 @@ const ModeratorPerformance = () => {
               <ShoppingCart className="w-5 h-5 text-secondary-foreground" />
             </div>
             <div>
-              <p className="text-muted-foreground text-xs">إجمالي الطلبات</p>
+              <p className="text-muted-foreground text-xs">إجمالي الطلبات ({SALES_NET_LABEL_AR})</p>
               {isLoading ? <Skeleton className="h-7 w-16" /> : <p className="text-2xl font-bold">{totalOrders.toLocaleString()}</p>}
             </div>
           </div>

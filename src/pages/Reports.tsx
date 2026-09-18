@@ -41,6 +41,7 @@ import {
   FileDown,
 } from "lucide-react";
 import { useReportsData, type ReportPeriod } from "@/hooks/useReportsData";
+import { SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
 
 const COLORS = [
   "hsl(var(--primary))",
@@ -91,7 +92,7 @@ const Reports = () => {
 
   return (
     <DashboardLayout>
-      <Header title="التقارير والتحليلات" subtitle="تحليل شامل للمبيعات من قاعدة البيانات" />
+      <Header title="التقارير والتحليلات" subtitle={`تحليل شامل للمبيعات من قاعدة البيانات — ${SALES_NET_LABEL_AR}`} />
 
       {/* Period Filter & Export */}
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
@@ -145,8 +146,8 @@ const Reports = () => {
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
         {[
-          { label: "إجمالي الإيرادات", value: `${formatSales(totalSales)} ج.م`, icon: DollarSign, color: "bg-success", fgColor: "text-success-foreground" },
-          { label: "إجمالي الطلبات", value: totalOrders.toLocaleString(), icon: ShoppingCart, color: "bg-primary", fgColor: "text-primary-foreground" },
+          { label: `إجمالي الإيرادات (${SALES_NET_LABEL_AR})`, value: `${formatSales(totalSales)} ج.م`, icon: DollarSign, color: "bg-success", fgColor: "text-success-foreground" },
+          { label: `إجمالي الطلبات (${SALES_NET_LABEL_AR})`, value: totalOrders.toLocaleString(), icon: ShoppingCart, color: "bg-primary", fgColor: "text-primary-foreground" },
           { label: "متوسط قيمة الطلب", value: `${avgOrderValue} ج.م`, icon: TrendingUp, color: "bg-secondary", fgColor: "text-secondary-foreground" },
           { label: "العملاء", value: totalCustomers.toLocaleString(), icon: Users, color: "bg-chart-4", fgColor: "text-primary-foreground" },
         ].map((stat) => (

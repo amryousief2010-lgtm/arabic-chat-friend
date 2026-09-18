@@ -60,10 +60,8 @@ import {
   useTodayOrdersBreakdown,
   useTodayWarehouseOrders,
 } from "@/hooks/useSalesAnalytics";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { cairoMonthStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
 import { useReportsData } from "@/hooks/useReportsData";
+import { SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
 import { useProductionStats } from "@/hooks/useProductionStats";
 import { Egg, Bird } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -141,39 +139,6 @@ const Index = () => {
 const DashboardContent = () => {
   const navigate = useNavigate();
   const { data: stats, isLoading } = useDashboardStats();
-
-  // Month totals INCLUDING cancelled orders — matches the popup dialog exactly.
-  const { data: monthAll } = useQuery({
-    queryKey: ["dashboard-month-including-cancelled"],
-    queryFn: async () => {
-      const { year, monthIndex0 } = currentCairoYearMonth();
-      const start = cairoMonthStartUTC(year, monthIndex0).toISOString();
-      const end = cairoMonthStartUTC(year, monthIndex0 + 1).toISOString();
-      let sales = 0;
-      let orders = 0;
-      let page = 0;
-      const size = 1000;
-      // Paginate to avoid the 1000-row cap
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { data, error } = await supabase
-          .from("orders")
-          .select("total")
-          .gte("created_at", start)
-          .lt("created_at", end)
-          .range(page * size, (page + 1) * size - 1);
-        if (error) throw error;
-        const rows = (data || []) as { total: number | null }[];
-        orders += rows.length;
-        sales += rows.reduce((s, r) => s + Number(r.total || 0), 0);
-        if (rows.length < size) break;
-        page++;
-      }
-      return { sales, orders };
-    },
-    staleTime: 60 * 1000,
-    refetchInterval: 2 * 60 * 1000,
-  });
 
   const { data: todayBreakdown } = useTodayOrdersBreakdown();
   const [selectedTodayChannel, setSelectedTodayChannel] = useState<TodayOrdersChannel | null>(null);
@@ -261,7 +226,7 @@ const DashboardContent = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-4">
         <StatCard
-          title="إجمالي المبيعات"
+          title={`إجمالي المبيعات (${SALES_NET_LABEL_AR})`}
           value={isLoading ? "..." : `${formatSales(stats?.totalSales || 0)} ج.م`}
           change={isLoading ? "" : `اليوم: ${formatSales(stats?.salesToday || 0)} | الشهر: ${formatSales(stats?.salesMonth || 0)}`}
           changeType="positive"
@@ -311,7 +276,7 @@ const DashboardContent = () => {
         <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => navigate('/reports')} role="button" tabIndex={0}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-sm text-muted-foreground">مبيعات اليوم</p>
+              <p className="text-sm text-muted-foreground">مبيعات اليوم ({SALES_NET_LABEL_AR})</p>
               <Badge variant="outline" className="text-xs">{formatDate(new Date())}</Badge>
             </div>
             <p className="text-2xl font-bold text-success">{isLoading ? "..." : `${(stats?.salesToday || 0).toLocaleString()} ج.م`}</p>
@@ -392,22 +357,22 @@ const DashboardContent = () => {
         <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => setMonthOrdersOpen(true)} role="button" tabIndex={0}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-sm text-muted-foreground">مبيعات الشهر</p>
+              <p className="text-sm text-muted-foreground">مبيعات الشهر ({SALES_NET_LABEL_AR})</p>
               <Badge variant="outline" className="text-xs">{new Date().toLocaleDateString("en-GB", { month: "long" })}</Badge>
             </div>
-            <p className="text-2xl font-bold text-primary">{monthAll ? `${monthAll.sales.toLocaleString()} ج.م` : (isLoading ? "..." : `${(stats?.salesMonth || 0).toLocaleString()} ج.م`)}</p>
-            <p className="text-xs text-muted-foreground mt-1 underline decoration-dotted">{(monthAll?.orders ?? stats?.ordersMonth ?? 0)} طلب هذا الشهر (شامل الملغي) — اضغط للعرض والتصدير</p>
+            <p className="text-2xl font-bold text-primary">{isLoading ? "..." : `${(stats?.salesMonth || 0).toLocaleString()} ج.م`}</p>
+            <p className="text-xs text-muted-foreground mt-1 underline decoration-dotted">{stats?.ordersMonth || 0} طلب هذا الشهر ({SALES_NET_LABEL_AR}) — اضغط للعرض والتصدير</p>
           </CardContent>
         </Card>
         <MonthOrdersDialog open={monthOrdersOpen} onOpenChange={setMonthOrdersOpen} />
         <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => navigate('/reports')} role="button" tabIndex={0}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-sm text-muted-foreground">مبيعات السنة</p>
+              <p className="text-sm text-muted-foreground">مبيعات السنة ({SALES_NET_LABEL_AR})</p>
               <Badge variant="outline" className="text-xs">{new Date().getFullYear()}</Badge>
             </div>
             <p className="text-2xl font-bold text-secondary">{isLoading ? "..." : `${(stats?.salesYear || 0).toLocaleString()} ج.م`}</p>
-            <p className="text-xs text-muted-foreground mt-1">{stats?.ordersYear || 0} طلب هذه السنة</p>
+            <p className="text-xs text-muted-foreground mt-1">{stats?.ordersYear || 0} طلب هذه السنة ({SALES_NET_LABEL_AR})</p>
           </CardContent>
         </Card>
       </div>

@@ -10,6 +10,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { cairoWallClockToUTC, toCairoDateString } from "@/lib/cairoDate";
+import { isCancelledOrderStatus, sumSalesNet } from "@/lib/orderSalesFilters";
 
 export type DayBucket = {
   /** YYYY-MM-DD in Cairo */
@@ -134,13 +135,13 @@ export async function fetchDayOrders(cairoDate: string): Promise<OrderRow[]> {
 }
 
 export function computeKpis(date: string, label: string, orders: OrderRow[]): DayKpis {
-  const sales = orders.reduce((s, o) => s + Number(o.total || 0), 0);
-  const cancelled = orders.filter((o) => o.status === "cancelled").length;
+  const net = sumSalesNet(orders);
+  const cancelled = net.cancelledCount;
   const pending = orders.filter((o) =>
     ["pending", "processing"].includes(o.status),
   ).length;
-  const valid = orders.filter((o) => o.status !== "cancelled");
-  const validSales = valid.reduce((s, o) => s + Number(o.total || 0), 0);
+  const valid = orders.filter((o) => !isCancelledOrderStatus(o.status));
+  const validSales = net.sales;
   const customerIds = new Set(orders.map((o) => o.customer_id).filter(Boolean));
   const dayStart = startOfCairoDayUTC(date).getTime();
   const newCust = new Set(
@@ -185,7 +186,7 @@ export function computeKpis(date: string, label: string, orders: OrderRow[]): Da
 export function topProducts(orders: OrderRow[], limit = 10): ProductAgg[] {
   const map = new Map<string, ProductAgg>();
   for (const o of orders) {
-    if (o.status === "cancelled") continue;
+    if (isCancelledOrderStatus(o.status)) continue;
     for (const it of o.items || []) {
       const k = it.product_name || "—";
       const cur = map.get(k) || { name: k, qty: 0, revenue: 0 };
@@ -205,7 +206,7 @@ export function bottomProducts(orders: OrderRow[], limit = 5): ProductAgg[] {
 export function byGovernorate(orders: OrderRow[]): GovAgg[] {
   const map = new Map<string, GovAgg>();
   for (const o of orders) {
-    if (o.status === "cancelled") continue;
+    if (isCancelledOrderStatus(o.status)) continue;
     const g = o.customer?.governorate || "غير محدد";
     const cur = map.get(g) || { name: g, sales: 0, orders: 0, avg: 0 };
     cur.sales += Number(o.total || 0);
@@ -222,7 +223,7 @@ export function byField(
 ): NamedAgg[] {
   const map = new Map<string, NamedAgg>();
   for (const o of orders) {
-    if (o.status === "cancelled") continue;
+    if (isCancelledOrderStatus(o.status)) continue;
     const k = (o[field] as string) || "غير محدد";
     const cur = map.get(k) || { name: k, sales: 0, orders: 0 };
     cur.sales += Number(o.total || 0);

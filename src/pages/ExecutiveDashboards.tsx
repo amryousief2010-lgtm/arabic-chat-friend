@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { isCancelledOrderStatus, SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
 import {
   TrendingUp, DollarSign, Wallet, Truck, AlertTriangle, ShoppingCart,
   Target, Users, Package, Crown, Boxes, CheckCircle, XCircle, Clock,
@@ -130,7 +131,7 @@ const ExecutiveDashboards = () => {
   const productMap = useMemo(() => Object.fromEntries(products.map(p => [p.id, p])), [products]);
 
   // ===== KPIs =====
-  const valid = useMemo(() => orders.filter(o => o.status !== "cancelled"), [orders]);
+  const valid = useMemo(() => orders.filter(o => !isCancelledOrderStatus(o.status)), [orders]);
   const totalSales = useMemo(() => valid.reduce((s, o) => s + Number(o.total || 0), 0), [valid]);
   const totalOrders = valid.length;
   const cancelled = orders.length - valid.length;
@@ -199,9 +200,9 @@ const ExecutiveDashboards = () => {
       const m = o.moderator || "غير محدد";
       const r = map.get(m) || { name: m, orders: 0, sales: 0, delivered: 0, cancelled: 0 };
       r.orders += 1;
-      if (o.status !== "cancelled") r.sales += Number(o.total || 0);
+      if (!isCancelledOrderStatus(o.status)) r.sales += Number(o.total || 0);
       if (o.status === "delivered") r.delivered += 1;
-      if (o.status === "cancelled") r.cancelled += 1;
+      if (isCancelledOrderStatus(o.status)) r.cancelled += 1;
       map.set(m, r);
     }
     return Array.from(map.values()).sort((a, b) => b.sales - a.sales).slice(0, 10);
@@ -308,10 +309,10 @@ const ExecutiveDashboards = () => {
         {/* ============ CEO ============ */}
         <TabsContent value="ceo" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard title="إجمالي المبيعات" value={fmtMoney(totalSales)} icon={DollarSign} iconColor="bg-primary" />
+            <StatCard title={`إجمالي المبيعات (${SALES_NET_LABEL_AR})`} value={fmtMoney(totalSales)} icon={DollarSign} iconColor="bg-primary" />
             <StatCard title="إجمالي الربح" value={fmtMoney(profit)} icon={TrendingUp} iconColor="bg-success" />
             <StatCard title="نسبة التحصيل" value={pct(collectedAmount, collectedAmount + uncollectedAmount)} icon={Wallet} iconColor="bg-secondary" />
-            <StatCard title="عدد الأوردرات" value={fmt(totalOrders)} icon={ShoppingCart} iconColor="bg-chart-4" />
+            <StatCard title={`عدد الأوردرات (${SALES_NET_LABEL_AR})`} value={fmt(totalOrders)} icon={ShoppingCart} iconColor="bg-chart-4" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatCard title="تم الشحن/التسليم" value={fmt(delivered.length + orders.filter(o => o.status === "shipped").length)} icon={Truck} iconColor="bg-chart-3" />

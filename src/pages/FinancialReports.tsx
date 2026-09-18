@@ -17,6 +17,7 @@ import {
   currentCairoYearMonth,
   toCairoDateString,
 } from "@/lib/cairoDate";
+import { applySalesNetFilter, SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
 
 interface OrderRow {
   id: string;
@@ -73,15 +74,16 @@ const FinancialReports = () => {
   const [period, setPeriod] = useState("month");
 
   const { data: orders = [], isLoading } = useQuery({
-    queryKey: ["financial-orders", period],
+    queryKey: ["financial-orders", "sales-net", period],
     queryFn: async () => {
       const start = getPeriodStart(period);
-      let q = supabase
-        .from("orders")
-        .select("id,total,payment_status,collection_status,status,created_at,delivered_at,payment_method")
-        .neq("status", "cancelled")
-        .order("created_at", { ascending: false })
-        .limit(5000);
+      let q = applySalesNetFilter(
+        supabase
+          .from("orders")
+          .select("id,total,payment_status,collection_status,status,created_at,delivered_at,payment_method")
+          .order("created_at", { ascending: false })
+          .limit(5000),
+      );
       if (start) q = q.gte("created_at", start.toISOString());
       const { data, error } = await q;
       if (error) throw error;
@@ -168,7 +170,7 @@ const FinancialReports = () => {
     <DashboardLayout>
       <Header
         title="التقارير المالية"
-        subtitle="إجمالي التحصيل حسب الفترة وحالة الدفع"
+        subtitle={`إجمالي التحصيل حسب الفترة وحالة الدفع — ${SALES_NET_LABEL_AR}`}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
@@ -195,7 +197,7 @@ const FinancialReports = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <Card className="glass-card">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-xs"><Wallet className="w-4 h-4" /> إجمالي قيمة الطلبات</div>
+            <div className="flex items-center gap-2 text-muted-foreground text-xs"><Wallet className="w-4 h-4" /> إجمالي قيمة الطلبات ({SALES_NET_LABEL_AR})</div>
             <div className="text-2xl font-bold mt-1">{stats.totalRevenue.toLocaleString()} ج</div>
             <div className="text-xs text-muted-foreground mt-1">{stats.ordersCount} طلب</div>
           </CardContent>

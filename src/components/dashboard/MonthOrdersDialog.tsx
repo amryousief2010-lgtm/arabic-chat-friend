@@ -13,6 +13,12 @@ import { cairoMonthStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { updateOrderStatusShared } from "@/lib/orderStatusUpdate";
+import {
+  isCancelledOrderStatus,
+  SALES_GROSS_INCLUDING_CANCELLED_LABEL_AR,
+  SALES_NET_LABEL_AR,
+  sumSalesNet,
+} from "@/lib/orderSalesFilters";
 
 interface Row {
   id: string;
@@ -60,13 +66,23 @@ function classifyWh(id: string | null): Exclude<WhKey, "all"> {
 }
 
 function computeStats(rs: Row[]) {
-  const s = { count: 0, total: 0, delivered: 0, deliveredSum: 0, cancelled: 0, cancelledSum: 0, remaining: 0, remainingSum: 0 };
+  const net = sumSalesNet(rs);
+  const s = {
+    count: net.grossOrderCount,
+    total: net.grossSales,
+    netCount: net.orderCount,
+    netSum: net.sales,
+    delivered: 0,
+    deliveredSum: 0,
+    cancelled: net.cancelledCount,
+    cancelledSum: net.cancelledSales,
+    remaining: 0,
+    remainingSum: 0,
+  };
   for (const r of rs) {
     const t = Number(r.total || 0);
-    s.count++; s.total += t;
     if (r.status === "delivered") { s.delivered++; s.deliveredSum += t; }
-    else if (r.status === "cancelled") { s.cancelled++; s.cancelledSum += t; }
-    else { s.remaining++; s.remainingSum += t; }
+    else if (!isCancelledOrderStatus(r.status)) { s.remaining++; s.remainingSum += t; }
   }
   return s;
 }
@@ -76,7 +92,8 @@ function StatBlock({ title, stats, tone, onRemainingClick }: { title: string; st
     <div className={`rounded-lg border p-3 ${tone}`}>
       <div className="font-bold mb-2">{title} — {stats.count} طلب</div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-        <div>إجمالي المبيعات: <b className="text-primary">{stats.total.toLocaleString()} ج.م</b></div>
+        <div>الصافي ({SALES_NET_LABEL_AR}): <b className="text-primary">{stats.netSum.toLocaleString()} ج.م</b> — {stats.netCount} طلب</div>
+        <div>الإجمالي ({SALES_GROSS_INCLUDING_CANCELLED_LABEL_AR}): <b>{stats.total.toLocaleString()} ج.م</b> — {stats.count} طلب</div>
         <div>المُسلَّم: <b className="text-emerald-700">{stats.delivered} / {stats.deliveredSum.toLocaleString()} ج.م</b></div>
         <div>المرتجع / ملغي: <b className="text-rose-700">{stats.cancelled} / {stats.cancelledSum.toLocaleString()} ج.م</b></div>
         <div>
@@ -259,7 +276,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto flex flex-col" dir="rtl">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between gap-4 flex-wrap">
-            <span>طلبات {monthLabel} — {rows.length} طلب</span>
+            <span>طلبات {monthLabel} — {rows.length} طلب ({SALES_GROSS_INCLUDING_CANCELLED_LABEL_AR})</span>
             <Button size="sm" onClick={exportExcel} disabled={loading || visibleRows.length === 0} className="gap-2">
               <FileSpreadsheet className="w-4 h-4" /> تصدير Excel
             </Button>

@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { PieChart, Package } from "lucide-react";
 import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
+import { applySalesNetFilter, SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
 
 type RangeKey = "month" | "year" | "all";
 
@@ -27,7 +28,7 @@ const OrdersBySourceCard = () => {
   const [range, setRange] = useState<RangeKey>("month");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["orders-by-source", range],
+    queryKey: ["orders-by-source", "sales-net", range],
     staleTime: 60 * 1000,
     refetchInterval: 2 * 60 * 1000,
     queryFn: async (): Promise<{ total: number; rows: SourceRow[] }> => {
@@ -39,7 +40,7 @@ const OrdersBySourceCard = () => {
       let all: any[] = [];
       let page = 0;
       while (true) {
-        let q = supabase.from("orders").select("source").range(page * PAGE, (page + 1) * PAGE - 1);
+        let q = applySalesNetFilter(supabase.from("orders").select("source")).range(page * PAGE, (page + 1) * PAGE - 1);
         if (from) q = q.gte("created_at", from);
         const { data: chunk, error } = await q;
         if (error) throw error;
@@ -82,7 +83,7 @@ const OrdersBySourceCard = () => {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <PieChart className="w-5 h-5 text-primary" />
-            الطلبات حسب مصدر العميل
+            الطلبات حسب مصدر العميل ({SALES_NET_LABEL_AR})
           </CardTitle>
           <Select value={range} onValueChange={(v) => setRange(v as RangeKey)}>
             <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>

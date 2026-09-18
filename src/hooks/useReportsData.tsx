@@ -7,6 +7,7 @@ import {
   currentCairoYearMonth,
   toCairoDateString,
 } from "@/lib/cairoDate";
+import { applySalesNetFilter } from "@/lib/orderSalesFilters";
 
 export type ReportPeriod = "month" | "quarter" | "half" | "year" | "all";
 
@@ -46,9 +47,9 @@ const MONTH_NAMES = [
 export const useReportsData = (period: ReportPeriod) => {
   const { from, to } = useMemo(() => getDateRange(period), [period]);
 
-  // Fetch orders with customer city
+  // Fetch orders with customer city — sales net (excludes cancelled)
   const ordersQuery = useQuery({
-    queryKey: ["reports-orders", from, to],
+    queryKey: ["reports-orders", "sales-net", from, to],
     queryFn: async () => {
       // Supabase has 1000 row limit, paginate
       let allOrders: any[] = [];
@@ -57,12 +58,13 @@ export const useReportsData = (period: ReportPeriod) => {
       let hasMore = true;
 
       while (hasMore) {
-        const { data, error } = await supabase
-          .from("orders")
-          .select("total, created_at, source, shipping_company, moderator, customer_id, customers(city)")
-          .gte("created_at", from)
-          .lte("created_at", to)
-          .range(page * pageSize, (page + 1) * pageSize - 1);
+        const { data, error } = await applySalesNetFilter(
+          supabase
+            .from("orders")
+            .select("total, created_at, source, shipping_company, moderator, customer_id, customers(city)")
+            .gte("created_at", from)
+            .lte("created_at", to),
+        ).range(page * pageSize, (page + 1) * pageSize - 1);
 
         if (error) throw error;
         if (data) allOrders = allOrders.concat(data);
@@ -77,7 +79,7 @@ export const useReportsData = (period: ReportPeriod) => {
 
   // Fetch order items for product analytics
   const itemsQuery = useQuery({
-    queryKey: ["reports-items", from, to],
+    queryKey: ["reports-items", "sales-net", from, to],
     queryFn: async () => {
       let allItems: any[] = [];
       let page = 0;
@@ -85,12 +87,14 @@ export const useReportsData = (period: ReportPeriod) => {
       let hasMore = true;
 
       while (hasMore) {
-        const { data, error } = await supabase
-          .from("order_items")
-          .select("product_name, quantity, order_id, orders!inner(created_at)")
-          .gte("orders.created_at", from)
-          .lte("orders.created_at", to)
-          .range(page * pageSize, (page + 1) * pageSize - 1);
+        const { data, error } = await applySalesNetFilter(
+          supabase
+            .from("order_items")
+            .select("product_name, quantity, order_id, orders!inner(created_at)")
+            .gte("orders.created_at", from)
+            .lte("orders.created_at", to),
+          "orders.status",
+        ).range(page * pageSize, (page + 1) * pageSize - 1);
 
         if (error) throw error;
         if (data) allItems = allItems.concat(data);
