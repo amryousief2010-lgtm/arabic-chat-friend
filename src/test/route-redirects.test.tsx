@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import {
+  LEGACY_WAREHOUSE_STOCK_HUB_REDIRECTS,
+  LEGACY_WAREHOUSE_STOCK_KEEP,
+  warehouseHubTabPath,
+} from "@/lib/warehouseHubPaths";
 
 const RedirectWithQuery = ({ to }: { to: string }) => {
   const location = useLocation();
@@ -18,6 +23,14 @@ const TestRoutes = () => (
     <Route path="/hatchery" element={<RedirectWithQuery to="/modules/hatchery" />} />
     <Route path="/modules/farm" element={<LocationProbe />} />
     <Route path="/modules/hatchery" element={<LocationProbe />} />
+    <Route path="/modules/warehouses" element={<LocationProbe />} />
+    {LEGACY_WAREHOUSE_STOCK_HUB_REDIRECTS.map(({ from, tab }) => (
+      <Route key={from} path={from} element={<Navigate to={warehouseHubTabPath(tab)} replace />} />
+    ))}
+    <Route path={LEGACY_WAREHOUSE_STOCK_KEEP.moderatorAvailable} element={<LocationProbe />} />
+    <Route path={LEGACY_WAREHOUSE_STOCK_KEEP.agouzaKeeperLanding} element={<LocationProbe />} />
+    <Route path={LEGACY_WAREHOUSE_STOCK_KEEP.moderatorSlug} element={<LocationProbe />} />
+    <Route path={LEGACY_WAREHOUSE_STOCK_KEEP.mainGuide} element={<LocationProbe />} />
     <Route path="*" element={<div data-testid="loc">404</div>} />
   </Routes>
 );
@@ -67,5 +80,30 @@ describe("Short route redirects (share links)", () => {
     unmount();
     const { getByTestId: getByTestId2 } = renderAt("/hatchery");
     expect(getByTestId2("loc").textContent).not.toBe("404");
+  });
+});
+
+describe("Legacy /warehouse-stock hub redirects (Phase 3)", () => {
+  it.each(LEGACY_WAREHOUSE_STOCK_HUB_REDIRECTS)(
+    "redirects $from to the matching hub tab",
+    ({ from, tab }) => {
+      const { unmount } = renderAt(from);
+      expect(screen.getByTestId("loc").textContent).toBe(warehouseHubTabPath(tab));
+      unmount();
+    },
+  );
+
+  it("keeps moderator available, agouza landing, slug routes, and the any-auth guide", () => {
+    const kept = [
+      "/warehouse-stock",
+      "/warehouse-stock/agouza",
+      "/warehouse-stock/moderator/aya",
+      "/warehouse-stock/main/guide",
+    ];
+    for (const path of kept) {
+      const { unmount } = renderAt(path);
+      expect(screen.getByTestId("loc").textContent).toBe(path);
+      unmount();
+    }
   });
 });
