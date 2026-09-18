@@ -10,19 +10,8 @@ import {
   isAuthResponse,
   requireVerifiedUser,
   userHasAnyRole,
+  ZODEX_REVIEW_ALLOWED_ROLES,
 } from "../_shared/require-user.ts";
-
-const ZODEX_DETAILS_ALLOWED_ROLES = [
-  "general_manager",
-  "executive_manager",
-  "warehouse_supervisor",
-  "agouza_warehouse_keeper",
-  "sales_manager",
-  "marketing_sales_manager",
-  "marketing_sales_viewer",
-  "financial_manager",
-  "accountant",
-] as const;
 
 const ZODEX_BASE = "https://zodex-eg.com/admin-area";
 
@@ -240,7 +229,7 @@ Deno.serve(async (req) => {
     const verified = await requireVerifiedUser(req, corsHeaders, admin);
     if (isAuthResponse(verified)) return verified;
 
-    const allowed = await userHasAnyRole(admin, verified.user.id, ZODEX_DETAILS_ALLOWED_ROLES);
+    const allowed = await userHasAnyRole(admin, verified.user.id, ZODEX_REVIEW_ALLOWED_ROLES);
     if (!allowed) {
       return new Response(
         JSON.stringify({ success: false, error: "Forbidden" }),

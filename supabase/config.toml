@@ -14,3 +14,12 @@ verify_jwt = true
 
 [functions.zodex-bill-details]
 verify_jwt = true
+
+[functions.zodex-probe]
+verify_jwt = true
+
+[functions.sync-zodex-deliveries]
+verify_jwt = true
+
+[functions.sync-zodex-shipments]
+verify_jwt = true

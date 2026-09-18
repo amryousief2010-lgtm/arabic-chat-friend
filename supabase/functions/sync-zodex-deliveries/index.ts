@@ -13,6 +13,13 @@ import {
   mapBalanceCells,
   phonesMatchLoose,
 } from "../_shared/zodexSync.ts";
+import {
+  isAuthResponse,
+  isServiceRoleBearer,
+  requireVerifiedUser,
+  userHasAnyRole,
+  ZODEX_SYNC_ALLOWED_ROLES,
+} from "../_shared/require-user.ts";
 
 // ----- config -----
 const ZODEX_BASE = "https://zodex-eg.com/admin-area";
@@ -314,23 +321,22 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  // Auth (allow scheduled cron with service key or any authed user)
-  const auth = req.headers.get("Authorization") || "";
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  // In-app callers use supabase.functions.invoke (user JWT). Scheduled jobs
+  // must send the service-role JWT — the public anon key is rejected.
   let triggerSource = "manual";
   let triggeredBy: string | null = null;
-  if (auth === `Bearer ${serviceKey}`) {
+  if (isServiceRoleBearer(req)) {
     triggerSource = "schedule";
-  } else if (auth.startsWith("Bearer ")) {
-    const anon = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
-    const token = auth.replace("Bearer ", "");
-    const { data } = await anon.auth.getClaims(token);
-    if (data?.claims) {
-      triggeredBy = data.claims.sub;
-    } else {
-      // anon key (used by pg_cron) — allow as scheduled trigger
-      triggerSource = "schedule";
+  } else {
+    const verified = await requireVerifiedUser(req, corsHeaders, supabase);
+    if (isAuthResponse(verified)) return verified;
+    const allowed = await userHasAnyRole(supabase, verified.user.id, ZODEX_SYNC_ALLOWED_ROLES);
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+    triggeredBy = verified.user.id;
   }
 
   let body: any = {};

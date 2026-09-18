@@ -33,3 +33,55 @@ describe("Lovable critical auth hardening", () => {
     expect(credIdx).toBeGreaterThan(authIdx);
   });
 });
+
+describe("Lovable Zodex follow-up auth hardening", () => {
+  const helper = () =>
+    readFileSync(resolve(process.cwd(), "supabase/functions/_shared/require-user.ts"), "utf8");
+  const config = () =>
+    readFileSync(resolve(process.cwd(), "supabase/config.toml"), "utf8");
+
+  it("config.toml verifies JWT for probe and both Zodex sync functions", () => {
+    const toml = config();
+    for (const name of ["zodex-probe", "sync-zodex-deliveries", "sync-zodex-shipments"]) {
+      const block = toml.split(`[functions.${name}]`)[1] ?? "";
+      expect(block.split("[")[0]).toMatch(/verify_jwt\s*=\s*true/);
+    }
+  });
+
+  it("zodex-probe verifies JWT and review roles before using courier credentials", () => {
+    const src = fn("zodex-probe");
+    const authIdx = src.indexOf("requireVerifiedUser");
+    const credIdx = src.indexOf("ZODEX_USERNAME");
+    expect(authIdx).toBeGreaterThan(0);
+    expect(credIdx).toBeGreaterThan(authIdx);
+    expect(src).toMatch(/ZODEX_REVIEW_ALLOWED_ROLES/);
+    expect(src).toMatch(/userHasAnyRole/);
+    expect(src).toMatch(/ZODEX_PROBE_ENABLED/);
+  });
+
+  it.each(["sync-zodex-deliveries", "sync-zodex-shipments"])(
+    "%s requires a verified user JWT or service-role bearer before scraping",
+    (name) => {
+      const src = fn(name);
+      expect(src).toMatch(/requireVerifiedUser/);
+      expect(src).toMatch(/ZODEX_SYNC_ALLOWED_ROLES/);
+      expect(src).toMatch(/isServiceRoleBearer/);
+      expect(src).not.toMatch(/getClaims/);
+      expect(src).not.toMatch(/anon key/);
+      const authIdx = src.indexOf("requireVerifiedUser");
+      const loginIdx = src.indexOf("ZODEX_USERNAME");
+      expect(authIdx).toBeGreaterThan(0);
+      expect(loginIdx).toBeGreaterThan(authIdx);
+    },
+  );
+
+  it("shared helper verifies JWTs via Auth getUser and treats only the service-role key as cron", () => {
+    const src = helper();
+    expect(src).toMatch(/admin\.auth\.getUser\(token\)/);
+    expect(src).toMatch(/isServiceRoleBearer/);
+    expect(src).toMatch(/SUPABASE_SERVICE_ROLE_KEY/);
+    expect(src).toMatch(/warehouse_supervisor/);
+    expect(src).toMatch(/agouza_warehouse_keeper/);
+    expect(src).not.toMatch(/atob\s*\(/);
+  });
+});

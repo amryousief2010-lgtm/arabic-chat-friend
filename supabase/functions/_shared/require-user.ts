@@ -57,3 +57,45 @@ export function isAuthResponse(
 ): result is Response {
   return result instanceof Response;
 }
+
+/**
+ * Same family as `ZODEX_REVIEW_ALLOWED_ROLES` / zodex-bill-details.
+ * Used for courier-portal reads (probe, bill details).
+ */
+export const ZODEX_REVIEW_ALLOWED_ROLES = [
+  "general_manager",
+  "executive_manager",
+  "warehouse_supervisor",
+  "agouza_warehouse_keeper",
+  "sales_manager",
+  "marketing_sales_manager",
+  "marketing_sales_viewer",
+  "financial_manager",
+  "accountant",
+] as const;
+
+/**
+ * Ops/warehouse roles that may trigger Zodex scrapes + DB writes.
+ * Includes every role that can click in-app sync today (review, marketing
+ * dashboard, Agouza warehouse hub) so authorized UI callers keep working.
+ */
+export const ZODEX_SYNC_ALLOWED_ROLES = [
+  ...ZODEX_REVIEW_ALLOWED_ROLES,
+  "sales_moderator",
+  "production_manager",
+  "quality_manager",
+  "meat_factory_manager",
+  "feed_factory_manager",
+  "slaughterhouse_manager",
+] as const;
+
+/**
+ * Scheduled-job path: only the project service-role JWT.
+ * The public anon/publishable key must never be treated as a cron trigger.
+ */
+export function isServiceRoleBearer(req: Request): boolean {
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  if (!serviceKey) return false;
+  const auth = req.headers.get("Authorization") || "";
+  return auth === `Bearer ${serviceKey}`;
+}
