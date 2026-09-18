@@ -19916,6 +19916,20 @@ export type Database = {
           },
         ]
       }
+      product_cost_prices: {
+        Row: {
+          category: string | null
+          cost_price: number | null
+          id: string | null
+          is_active: boolean | null
+          low_stock_threshold: number | null
+          name: string | null
+          price: number | null
+          stock: number | null
+          unit: string | null
+        }
+        Relationships: []
+      }
       v_agouza_readiness: {
         Row: {
           agouza_stock: number | null

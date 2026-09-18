@@ -51,7 +51,10 @@ export default defineTool({
     const from = (pg - 1) * size;
 
     const supabase = supabaseForUser(ctx);
-    let q = supabase.from(dataset).select(select?.trim() || "*", { count: "exact" });
+    const requested = select?.trim();
+    const selectCols =
+      !requested || requested === "*" ? meta.columns.join(",") : requested;
+    let q = supabase.from(dataset).select(selectCols, { count: "exact" });
 
     for (const f of filters ?? []) {
       if (badCol(f.column))

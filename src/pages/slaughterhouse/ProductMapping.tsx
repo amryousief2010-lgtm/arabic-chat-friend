@@ -34,7 +34,7 @@ export default function SlaughterProductMapping() {
         supabase.from("slaughter_yield_standards" as any)
           .select("id,cut_name_ar,category,is_active,product_id")
           .order("display_order", { ascending: true }),
-        supabase.from("products").select("id,name,cost_price").eq("is_active", true).order("name"),
+        supabase.from("product_cost_prices").select("id,name,cost_price").eq("is_active", true).order("name"),
         supabase.from("slaughter_batch_outputs" as any)
           .select("id", { count: "exact", head: true }).is("product_id", null),
       ]);

@@ -27,7 +27,7 @@ export default defineTool({
       return { content: [{ type: "text", text: `عمود غير موجود: ${key}` }], isError: true };
 
     const supabase = supabaseForUser(ctx);
-    const { data: record, error } = await supabase.from(dataset).select("*").eq(key, id).maybeSingle();
+    const { data: record, error } = await supabase.from(dataset).select(meta.columns.join(",")).eq(key, id).maybeSingle();
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     if (!record)
       return { content: [{ type: "text", text: `لا يوجد سجل بالقيمة ${id} في ${dataset}` }], isError: true };

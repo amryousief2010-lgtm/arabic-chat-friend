@@ -5,6 +5,24 @@
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { DOMParser, Element } from "https://deno.land/x/deno_dom@v0.1.45/deno-dom-wasm.ts";
+import {
+  createServiceClient,
+  isAuthResponse,
+  requireVerifiedUser,
+  userHasAnyRole,
+} from "../_shared/require-user.ts";
+
+const ZODEX_DETAILS_ALLOWED_ROLES = [
+  "general_manager",
+  "executive_manager",
+  "warehouse_supervisor",
+  "agouza_warehouse_keeper",
+  "sales_manager",
+  "marketing_sales_manager",
+  "marketing_sales_viewer",
+  "financial_manager",
+  "accountant",
+] as const;
 
 const ZODEX_BASE = "https://zodex-eg.com/admin-area";
 
@@ -218,6 +236,18 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
+    const admin = createServiceClient();
+    const verified = await requireVerifiedUser(req, corsHeaders, admin);
+    if (isAuthResponse(verified)) return verified;
+
+    const allowed = await userHasAnyRole(admin, verified.user.id, ZODEX_DETAILS_ALLOWED_ROLES);
+    if (!allowed) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Forbidden" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const body = await req.json().catch(() => ({}));
     const billNo = String(body.bill_no || "").trim().toUpperCase();
     if (!/^ZX\d+$/.test(billNo)) {

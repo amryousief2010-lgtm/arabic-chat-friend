@@ -12,6 +12,20 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import {
+  isAuthResponse,
+  requireVerifiedUser,
+  userHasAnyRole,
+} from "../_shared/require-user.ts";
+
+const BOSTTA_ALLOWED_ROLES = [
+  "general_manager",
+  "executive_manager",
+  "warehouse_supervisor",
+  "agouza_warehouse_keeper",
+  "sales_manager",
+  "marketing_sales_manager",
+] as const;
 
 interface ShipmentItem {
   product_id: string;
@@ -64,30 +78,27 @@ async function getOrCreateAgouzaCustody(admin: any, userId: string): Promise<str
   return created?.id ?? null;
 }
 
-function getUserIdFromJwt(jwt: string): string | null {
-  try {
-    const payload = jwt.split(".")[1];
-    if (!payload) return null;
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(normalized.length + ((4 - normalized.length % 4) % 4), "=");
-    const claims = JSON.parse(atob(padded));
-    return typeof claims?.sub === "string" && claims.sub ? claims.sub : null;
-  } catch {
-    return null;
-  }
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization") || "";
-    const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
+    const verified = await requireVerifiedUser(req, corsHeaders, supabase);
+    if (isAuthResponse(verified)) return verified;
+
+    const allowed = await userHasAnyRole(supabase, verified.user.id, BOSTTA_ALLOWED_ROLES);
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const jwt = verified.token;
+    const userId = verified.user.id;
     const userSupabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -96,22 +107,6 @@ Deno.serve(async (req) => {
         global: { headers: { Authorization: `Bearer ${jwt}` } },
       },
     );
-
-    // The function gateway verifies the JWT before this code runs. Avoid auth.getUser(jwt)
-    // here because stale-but-gateway-accepted sessions can fail with
-    // "Session from session_id claim in JWT does not exist" and block warehouse work.
-    if (!jwt) {
-      return new Response(JSON.stringify({ error: "Unauthorized: missing token" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const userId = getUserIdFromJwt(jwt);
-    if (!userId) {
-      return new Response(JSON.stringify({ error: "Unauthorized: invalid token" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const body = await req.json();
     const shipments: Shipment[] = Array.isArray(body?.shipments) ? body.shipments : [];
