@@ -3,6 +3,8 @@
  *
  * The DB function `get_dashboard_overview` classifies orders into
  * today/month/year buckets using `(created_at AT TIME ZONE 'Africa/Cairo')::date`.
+ * RPC `total` is all-time (no date filter) net excluding cancelled — label it
+ * «منذ البداية», never as if it were the same window as month/year.
  * These helpers mirror that logic in JS so we can unit-test boundary
  * scenarios around Cairo midnight (UTC+2 standard / UTC+3 DST).
  */

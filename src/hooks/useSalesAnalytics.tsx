@@ -4,6 +4,10 @@ import { cairoTodayStartUTC, toCairoDateString } from "@/lib/cairoDate";
 import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
 import { AGOUZA_WAREHOUSE_ID } from "@/lib/agouzaReservations";
 import { applySalesNetFilter } from "@/lib/orderSalesFilters";
+import {
+  type DashboardOverview,
+  mapDashboardOverview,
+} from "@/lib/dashboardSalesKpis";
 
 export interface TodayOrdersBreakdown {
   mainWarehouse: number;
@@ -181,40 +185,15 @@ export const useTopOfferBoxesLast3Days = (limit = 5, days: 1 | 3 | 7 | 30 = 3) =
   });
 };
 
-export interface DashboardOverview {
-  today: { sales: number; orders: number };
-  month: { sales: number; orders: number };
-  year: { sales: number; orders: number };
-  total: { sales: number; orders: number };
-  avg_order_value: number;
-  customers: number;
-  low_stock: number;
-  monthly: Array<{ month: string; sales: number; orders: number }>;
-  daily: Array<{ date: string; sales: number; orders: number }>;
-}
+export type { DashboardOverview } from "@/lib/dashboardSalesKpis";
 
 export const useDashboardStats = () => {
   return useQuery({
-    queryKey: ["dashboard-stats-v3"],
+    queryKey: ["dashboard-stats-v4-lifetime-net"],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_dashboard_overview");
       if (error) throw error;
-      const o = data as unknown as DashboardOverview;
-      return {
-        totalSales: Number(o.total.sales),
-        totalOrders: o.total.orders,
-        totalCustomers: o.customers,
-        avgOrderValue: o.avg_order_value,
-        lowStockProducts: o.low_stock,
-        salesToday: Number(o.today.sales),
-        ordersToday: o.today.orders,
-        salesMonth: Number(o.month.sales),
-        ordersMonth: o.month.orders,
-        salesYear: Number(o.year.sales),
-        ordersYear: o.year.orders,
-        monthlySeries: o.monthly || [],
-        dailySeries: o.daily || [],
-      };
+      return mapDashboardOverview(data as unknown as DashboardOverview);
     },
     staleTime: 60 * 1000,
     refetchInterval: 2 * 60 * 1000,

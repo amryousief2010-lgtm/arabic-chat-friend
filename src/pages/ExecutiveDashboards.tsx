@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { isCancelledOrderStatus, SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
+import { isCancelledOrderStatus, SALES_NET_ALL_TIME_LABEL_AR, SALES_NET_LABEL_AR, salesNetKpiTitleAr } from "@/lib/orderSalesFilters";
 import {
   TrendingUp, DollarSign, Wallet, Truck, AlertTriangle, ShoppingCart,
   Target, Users, Package, Crown, Boxes, CheckCircle, XCircle, Clock,
@@ -309,10 +309,10 @@ const ExecutiveDashboards = () => {
         {/* ============ CEO ============ */}
         <TabsContent value="ceo" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard title={`إجمالي المبيعات (${SALES_NET_LABEL_AR})`} value={fmtMoney(totalSales)} icon={DollarSign} iconColor="bg-primary" />
+            <StatCard title={salesNetKpiTitleAr("all_time")} value={fmtMoney(totalSales)} icon={DollarSign} iconColor="bg-primary" />
             <StatCard title="إجمالي الربح" value={fmtMoney(profit)} icon={TrendingUp} iconColor="bg-success" />
             <StatCard title="نسبة التحصيل" value={pct(collectedAmount, collectedAmount + uncollectedAmount)} icon={Wallet} iconColor="bg-secondary" />
-            <StatCard title={`عدد الأوردرات (${SALES_NET_LABEL_AR})`} value={fmt(totalOrders)} icon={ShoppingCart} iconColor="bg-chart-4" />
+            <StatCard title={`عدد الأوردرات (${SALES_NET_ALL_TIME_LABEL_AR} — ${SALES_NET_LABEL_AR})`} value={fmt(totalOrders)} icon={ShoppingCart} iconColor="bg-chart-4" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatCard title="تم الشحن/التسليم" value={fmt(delivered.length + orders.filter(o => o.status === "shipped").length)} icon={Truck} iconColor="bg-chart-3" />

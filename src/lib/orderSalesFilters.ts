@@ -25,6 +25,30 @@ export const SALES_NET_LABEL_AR = "الصافي بدون الملغي";
 /** Arabic label when a surface intentionally includes cancelled orders. */
 export const SALES_GROSS_INCLUDING_CANCELLED_LABEL_AR = "شامل الملغي";
 
+/**
+ * Period label for all-time / lifetime totals (get_dashboard_overview.total).
+ * Use this whenever the number is not today/month/year, so it is not
+ * compared with مبيعات الشهر as if they were the same window.
+ */
+export const SALES_NET_ALL_TIME_LABEL_AR = "منذ البداية";
+
+export type SalesNetKpiPeriod = "today" | "month" | "year" | "all_time";
+
+/** Arabic title for a sales-net KPI, including period + net definition. */
+export function salesNetKpiTitleAr(period: SalesNetKpiPeriod): string {
+  const net = SALES_NET_LABEL_AR;
+  switch (period) {
+    case "today":
+      return `مبيعات اليوم (${net})`;
+    case "month":
+      return `مبيعات الشهر (${net})`;
+    case "year":
+      return `مبيعات السنة (${net})`;
+    case "all_time":
+      return `إجمالي المبيعات منذ البداية (${net})`;
+  }
+}
+
 export function isCancelledOrderStatus(status: string | null | undefined): boolean {
   return (status || "").trim().toLowerCase() === CANCELLED_ORDER_STATUS;
 }
