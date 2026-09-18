@@ -5,6 +5,11 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import PageTransition from "@/components/layout/PageTransition";
 import RoleLanding from "@/components/RoleLanding";
 import ViewOnlySection from "@/components/ViewOnlySection";
+import {
+  LEGACY_WAREHOUSE_STOCK_HUB_REDIRECTS,
+  warehouseHubTabPath,
+  ZODEX_REVIEW_ALLOWED_ROLES,
+} from "@/lib/warehouseHubPaths";
 
 // Wrap lazy() so that when a dynamically-imported chunk is missing (e.g. after a
 // new deploy invalidated old chunk hashes), we force a single hard reload instead
@@ -315,7 +320,7 @@ const AnimatedRoutes = () => {
             - sales_moderator is allowlisted on `/warehouse-stock` (not the hub)
             - agouza_warehouse_keeper lands on `/warehouse-stock/agouza`
             - moderator slug pages live under `/warehouse-stock/moderator/:slug`
-            Staff deep-links should prefer `/modules/warehouses?tab=...`.
+            Non-landing scopes (main / hyper healthy / carrefour) redirect to hub tabs.
           */}
           <Route path="/warehouse-stock" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor', 'marketing_sales_viewer']}>
@@ -367,24 +372,13 @@ const AnimatedRoutes = () => {
               <PageTransition><PCCollections /></PageTransition>
             </ProtectedRoute>
           } />
-          <Route path="/warehouse-stock/main" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor', 'marketing_sales_viewer']}>
-              <PageTransition><WarehouseStockView scope="main" /></PageTransition>
-            </ProtectedRoute>
-          } />
+          {LEGACY_WAREHOUSE_STOCK_HUB_REDIRECTS.map(({ from, tab }) => (
+            <Route key={from} path={from} element={<Navigate to={warehouseHubTabPath(tab)} replace />} />
+          ))}
+          {/* Kept: any-auth guide vs role-restricted `/modules/warehouses/main-guide`. */}
           <Route path="/warehouse-stock/main/guide" element={
             <ProtectedRoute>
               <PageTransition><MainWarehouseGuide /></PageTransition>
-            </ProtectedRoute>
-          } />
-          <Route path="/warehouse-stock/hyper-healthy-test" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
-              <PageTransition><WarehouseStockView scope="healthy" /></PageTransition>
-            </ProtectedRoute>
-          } />
-          <Route path="/warehouse-stock/hyper-carrefour" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
-              <PageTransition><WarehouseStockView scope="carrefour" /></PageTransition>
             </ProtectedRoute>
           } />
 
@@ -1121,7 +1115,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/zodex-review" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'sales_manager', 'marketing_sales_manager', 'marketing_sales_viewer', 'financial_manager', 'accountant']}>
+            <ProtectedRoute allowedRoles={[...ZODEX_REVIEW_ALLOWED_ROLES]}>
               <PageTransition><ZodexReview /></PageTransition>
             </ProtectedRoute>
           } />
