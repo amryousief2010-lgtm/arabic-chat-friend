@@ -15353,6 +15353,29 @@ export type Database = {
         }
         Relationships: []
       }
+      product_cost_data: {
+        Row: {
+          cost_price: number | null
+          product_id: string
+        }
+        Insert: {
+          cost_price?: number | null
+          product_id: string
+        }
+        Update: {
+          cost_price?: number | null
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_cost_data_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_cost_history: {
         Row: {
           approved_by: string | null
@@ -19818,6 +19841,20 @@ export type Database = {
       }
     }
     Views: {
+      product_cost_prices: {
+        Row: {
+          category: string | null
+          cost_price: number | null
+          id: string | null
+          is_active: boolean | null
+          low_stock_threshold: number | null
+          name: string | null
+          price: number | null
+          stock: number | null
+          unit: string | null
+        }
+        Relationships: []
+      }
       hr_employees_masked: {
         Row: {
           base_salary: number | null
