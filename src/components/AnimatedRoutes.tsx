@@ -1044,7 +1044,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_moderator']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'production_manager', 'quality_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager', 'accountant', 'financial_manager', 'marketing_sales_viewer']}>
               <PageTransition><Warehouses /></PageTransition>
             </ProtectedRoute>
           } />
@@ -1104,7 +1104,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/dashboard" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager', 'quality_manager', 'sales_moderator']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'production_manager', 'quality_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager', 'accountant', 'financial_manager', 'marketing_sales_viewer']}>
               <PageTransition><WarehouseDashboard /></PageTransition>
             </ProtectedRoute>
           } />
@@ -1114,7 +1114,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/zodex-review" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'sales_manager', 'marketing_sales_manager', 'marketing_sales_viewer', 'agouza_warehouse_keeper']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'sales_manager', 'marketing_sales_manager', 'marketing_sales_viewer', 'financial_manager', 'accountant']}>
               <PageTransition><ZodexReview /></PageTransition>
             </ProtectedRoute>
           } />
