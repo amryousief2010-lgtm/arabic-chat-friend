@@ -294,7 +294,7 @@ const Warehouses = () => {
       if (typeof detail !== "string") return;
       if (MAIN_LEGACY[detail]) { setActiveTab("wh-main"); setMainSubview(MAIN_LEGACY[detail]); return; }
       if (AGOUZA_LEGACY[detail]) { setActiveTab("wh-agouza"); setAgouzaSubview(AGOUZA_LEGACY[detail]); return; }
-      setActiveTab(detail);
+      if (isWarehouseHubTab(detail)) setActiveTab(detail);
     };
     window.addEventListener("warehouses:switch-tab", handler);
     return () => window.removeEventListener("warehouses:switch-tab", handler);
@@ -1101,7 +1101,7 @@ const Warehouses = () => {
         </div>
 
 
-        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setForceAllKpi(false); if (v === "more") setMenuSubview(null); if (v !== "wh-main") setMainSubview(null); if (v !== "wh-agouza") setAgouzaSubview(null); }} defaultValue="items">
+        <Tabs value={activeTab} onValueChange={(v) => { if (isWarehouseHubTab(v)) setActiveTab(v); setForceAllKpi(false); if (v === "more") setMenuSubview(null); if (v !== "wh-main") setMainSubview(null); if (v !== "wh-agouza") setAgouzaSubview(null); }} defaultValue="items">
           <div className="mb-4">
             <TabsList
               className="
