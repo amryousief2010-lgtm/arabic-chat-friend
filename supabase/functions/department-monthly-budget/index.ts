@@ -3,6 +3,19 @@
 // Pulls from manufacturing invoices, slaughter batches, sales lines, finished inventory
 // NEVER creates treasury or stock movements.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  isAuthResponse,
+  requireVerifiedUser,
+  userHasAnyRole,
+} from "../_shared/require-user.ts";
+
+const BUDGET_ALLOWED_ROLES = [
+  "general_manager",
+  "executive_manager",
+  "accountant",
+  "financial_manager",
+  "cost_accountant",
+] as const;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1318,6 +1331,15 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+    const verified = await requireVerifiedUser(req, corsHeaders, supabase);
+    if (isAuthResponse(verified)) return verified;
+
+    const allowed = await userHasAnyRole(supabase, verified.user.id, BUDGET_ALLOWED_ROLES);
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     let year: number, month: number;
     if (req.method === "POST") {

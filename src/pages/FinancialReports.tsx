@@ -95,7 +95,7 @@ const FinancialReports = () => {
     queryKey: ["financial-products"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("products")
+        .from("product_cost_prices")
         .select("id, name, price, cost_price")
         .eq("is_active", true);
       if (error) throw error;

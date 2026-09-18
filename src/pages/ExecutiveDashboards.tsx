@@ -107,7 +107,7 @@ const ExecutiveDashboards = () => {
         // Load lighter datasets first so the UI renders fast; items load in the background.
         const [o, p, c, n] = await Promise.all([
           fetchAll<OrderRow>("orders", "id,customer_id,status,payment_method,payment_status,collection_status,total,total_at_delivery,subtotal,delivery_fee,discount,delivered_at,created_at,source,shipping_company,moderator"),
-          fetchAll<ProductRow>("products", "id,name,price,cost_price,stock,low_stock_threshold,category"),
+          fetchAll<ProductRow>("product_cost_prices", "id,name,price,cost_price,stock,low_stock_threshold,category"),
           fetchAll<CustomerRow>("customers", "id,name,city,total_orders,total_spent"),
           supabase.from("notifications").select("id", { count: "exact", head: true }).eq("type", "collection_mismatch"),
         ]);

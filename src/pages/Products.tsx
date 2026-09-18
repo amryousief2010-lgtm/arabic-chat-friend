@@ -305,7 +305,7 @@ const Products = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select('id, name, category, price, stock, unit, image_url, is_active, barcode, description, old_price, low_stock_threshold, created_at, updated_at')
         .order('name');
       if (error) throw error;
       return data as Product[];

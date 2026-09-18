@@ -41,7 +41,7 @@ const ProductCosts = () => {
     queryKey: ["products-costs"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("products")
+        .from("product_cost_prices")
         .select("id,name,category,unit,price,cost_price")
         .eq("is_active", true)
         .order("name");

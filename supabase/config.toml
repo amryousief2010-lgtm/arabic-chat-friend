@@ -5,3 +5,12 @@ verify_jwt = false
 
 [functions.process-email-queue]
 verify_jwt = true
+
+[functions.process-bostta-delivery]
+verify_jwt = true
+
+[functions.department-monthly-budget]
+verify_jwt = true
+
+[functions.zodex-bill-details]
+verify_jwt = true
