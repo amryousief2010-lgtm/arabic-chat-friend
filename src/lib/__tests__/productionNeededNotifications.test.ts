@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   duplicateProductionNeededIds,
+  isUnreadProductionNeeded,
   quantityExceedsStock,
   shouldInsertProductionNeeded,
   shouldMarkProductionNeededRead,
@@ -64,5 +65,14 @@ describe("duplicateProductionNeededIds", () => {
       { id: "other", order_id: "o2", created_at: "2026-09-03T00:00:00.000Z" },
     ]);
     expect(dupes.sort()).toEqual(["mid", "old"]);
+  });
+});
+
+describe("isUnreadProductionNeeded", () => {
+  it("matches only unread manufacturing alerts", () => {
+    expect(isUnreadProductionNeeded({ type: "production_needed", is_read: false })).toBe(true);
+    expect(isUnreadProductionNeeded({ type: "production_needed", is_read: true })).toBe(false);
+    expect(isUnreadProductionNeeded({ type: "low_stock", is_read: false })).toBe(false);
+    expect(isUnreadProductionNeeded({ type: "manual_note", is_read: false })).toBe(false);
   });
 });

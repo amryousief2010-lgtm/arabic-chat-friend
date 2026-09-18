@@ -36,8 +36,8 @@ export default function FactoryOverview() {
   }, [meat, feed, meatCons, meatPack, feedCons, movs, items]);
 
   const split = [
-    { name: "Meat", value: meat.filter((b: any) => b.status === "closed").reduce((s: number, b: any) => s + Number(b.total_cost || 0), 0) },
-    { name: "Feed", value: feed.filter((b: any) => b.status === "closed").reduce((s: number, b: any) => s + Number(b.total_cost || 0), 0) },
+    { name: "لحوم", value: meat.filter((b: any) => b.status === "closed").reduce((s: number, b: any) => s + Number(b.total_cost || 0), 0) },
+    { name: "أعلاف", value: feed.filter((b: any) => b.status === "closed").reduce((s: number, b: any) => s + Number(b.total_cost || 0), 0) },
   ];
 
   return (
