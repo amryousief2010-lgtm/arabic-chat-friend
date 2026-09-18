@@ -7,6 +7,7 @@ import {
   currentCairoYearMonth,
   toCairoDateString,
 } from "@/lib/cairoDate";
+import { chunkIds, paginateUntilDone } from "@/lib/paginateQuery";
 
 export type ReportPeriod = "month" | "quarter" | "half" | "year" | "all";
 
@@ -43,6 +44,10 @@ const MONTH_NAMES = [
   "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
 ];
 
+const PAGE_SIZE = 1000;
+const MAX_PAGES = 40;
+const ITEM_CHUNK = 200;
+
 export const useReportsData = (period: ReportPeriod) => {
   const { from, to } = useMemo(() => getDateRange(period), [period]);
 
@@ -50,69 +55,64 @@ export const useReportsData = (period: ReportPeriod) => {
   const ordersQuery = useQuery({
     queryKey: ["reports-orders", from, to],
     queryFn: async () => {
-      // Supabase has 1000 row limit, paginate
-      let allOrders: any[] = [];
-      let page = 0;
-      const pageSize = 1000;
-      let hasMore = true;
-
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from("orders")
-          .select("total, created_at, source, shipping_company, moderator, customer_id, customers(city)")
-          .gte("created_at", from)
-          .lte("created_at", to)
-          .range(page * pageSize, (page + 1) * pageSize - 1);
-
-        if (error) throw error;
-        if (data) allOrders = allOrders.concat(data);
-        hasMore = (data?.length || 0) === pageSize;
-        page++;
-      }
-
-      return allOrders;
+      return paginateUntilDone({
+        pageSize: PAGE_SIZE,
+        maxPages: MAX_PAGES,
+        idOf: (row: { id?: string }) => row.id,
+        fetchPage: async (rangeFrom, rangeTo) => {
+          const { data, error } = await supabase
+            .from("orders")
+            .select("id, total, created_at, source, shipping_company, moderator, customer_id, customers(city)")
+            .gte("created_at", from)
+            .lte("created_at", to)
+            .order("created_at", { ascending: true })
+            .order("id", { ascending: true })
+            .range(rangeFrom, rangeTo);
+          if (error) throw error;
+          return data || [];
+        },
+      });
     },
     staleTime: 3 * 60 * 1000,
+    retry: 1,
   });
 
-  // Fetch order items for product analytics
+  // Product analytics: fetch items by the order ids we already have.
+  // The previous query paginated `order_items` with `orders!inner` + `.range()`
+  // and no `.order()`, which can return the same 1000 rows forever so
+  // `isLoading` never clears.
   const itemsQuery = useQuery({
-    queryKey: ["reports-items", from, to],
+    queryKey: ["reports-items", from, to, ordersQuery.dataUpdatedAt],
+    enabled: !!ordersQuery.data,
     queryFn: async () => {
-      let allItems: any[] = [];
-      let page = 0;
-      const pageSize = 1000;
-      let hasMore = true;
-
-      while (hasMore) {
+      const ids = (ordersQuery.data || []).map((o: { id: string }) => o.id).filter(Boolean);
+      const allItems: { product_name: string; quantity: number; order_id: string }[] = [];
+      for (const chunk of chunkIds(ids, ITEM_CHUNK)) {
         const { data, error } = await supabase
           .from("order_items")
-          .select("product_name, quantity, order_id, orders!inner(created_at)")
-          .gte("orders.created_at", from)
-          .lte("orders.created_at", to)
-          .range(page * pageSize, (page + 1) * pageSize - 1);
-
+          .select("product_name, quantity, order_id")
+          .in("order_id", chunk);
         if (error) throw error;
-        if (data) allItems = allItems.concat(data);
-        hasMore = (data?.length || 0) === pageSize;
-        page++;
+        if (data) allItems.push(...data);
       }
-
       return allItems;
     },
     staleTime: 3 * 60 * 1000,
+    retry: 1,
   });
 
   // Customer count
   const customersQuery = useQuery({
     queryKey: ["reports-customers", from, to],
     queryFn: async () => {
-      const { count } = await supabase
+      const { count, error } = await supabase
         .from("customers")
         .select("id", { count: "exact", head: true });
+      if (error) throw error;
       return count || 0;
     },
     staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
 
   // Compute analytics
@@ -124,7 +124,6 @@ export const useReportsData = (period: ReportPeriod) => {
     const totalOrders = orders.length;
     const avgOrderValue = totalOrders > 0 ? Math.round(totalSales / totalOrders) : 0;
 
-    // Monthly breakdown
     // Monthly breakdown — group by Cairo-local month so orders after midnight
     // Cairo count under the new month (not the previous UTC month).
     const monthMap: Record<string, { sales: number; orders: number }> = {};
@@ -235,9 +234,17 @@ export const useReportsData = (period: ReportPeriod) => {
     };
   }, [ordersQuery.data, itemsQuery.data, customersQuery.data]);
 
+  const ordersError = ordersQuery.error as Error | null;
+  const itemsError = itemsQuery.error as Error | null;
+
   return {
     ...analytics,
-    isLoading: ordersQuery.isLoading || itemsQuery.isLoading,
-    isError: ordersQuery.isError || itemsQuery.isError,
+    // KPI cards + sales charts only need orders. Waiting on items used to leave
+    // the whole page on skeletons when the items query hung.
+    isLoading: ordersQuery.isLoading,
+    isItemsLoading: itemsQuery.isLoading || (ordersQuery.isSuccess && itemsQuery.isPending),
+    isError: ordersQuery.isError,
+    isItemsError: itemsQuery.isError,
+    errorMessage: ordersError?.message || itemsError?.message || null,
   };
 };

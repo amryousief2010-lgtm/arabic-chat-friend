@@ -38,6 +38,12 @@ import { printOrderInvoice } from "@/lib/printUtils";
 import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth, cairoTodayStartUTC, toCairoDateString, cairoWallClockToUTC } from "@/lib/cairoDate";
 import { EGYPT_GOVERNORATES, governorateId, governorateLabel } from "@/lib/governorates";
 import { PERIOD_OPTIONS, PeriodPreset, resolvePeriod, formatPeriodLabel } from "@/lib/orderPeriod";
+import {
+  EMPTY_YEAR_COUNTS,
+  resolveYearGroupCounts,
+  withTimeout,
+  yearCountsFromOrders,
+} from "@/lib/orderYearCounts";
 import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
 import { exportOrdersSheetStyle } from "@/utils/exportOrdersSheet";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
@@ -1450,10 +1456,14 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     // أثناء البحث نتجاهل كل فلاتر الصفحة (الحالة/المخزن/المحافظة/مصدر التنفيذ/خط التوصيل/التحصيل)
     // حتى لا يختفي الطلب المطابق لمجرد أن فلترًا كان مفعّلًا قبل البحث.
     // تبقى قيود الصلاحيات (نطاق مشرف المخزن) كما هي.
-    const baseMatch = searchActive
+    const baseMatchNoStatus = searchActive
       ? matchesSearch && matchesWarehouseScope
-      : matchesStatus && matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesPeriod && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam;
+      : matchesSearch && matchesYearGroup && matchesMonth && matchesYear && matchesProduct && matchesModerator && matchesGovernorate && matchesPeriod && matchesFulfillment && matchesRoute && matchesCollectionMethod && matchesWarehouseScope && matchesOperationalStart && matchesDashboardToday && matchesDashboardChannel && matchesRange3d && matchesProductParam;
+    const baseMatch = searchActive
+      ? baseMatchNoStatus
+      : matchesStatus && baseMatchNoStatus;
     (order as any).__matchesBaseNoChip = baseMatch;
+    (order as any).__matchesBaseNoStatus = baseMatchNoStatus && (searchActive || matchesWarehouseChip);
     return baseMatch && (searchActive || matchesWarehouseChip);
   }), [visibleOrders, isNouraAccount, filterStatus, filterWarehouseChip, appliedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, activePeriod, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
 
@@ -1467,6 +1477,19 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       else if (o.source_warehouse_id === AGOUZA_WAREHOUSE_ID) agouza++;
     }
     return { all, main, agouza };
+  }, [orders, filteredOrders]);
+
+  // Status-tab counts from the SAME loaded rows as the heading — not a second RPC.
+  const statusChipCounts = useMemo(() => {
+    let all = 0, pending = 0, delivered = 0, cancelled = 0;
+    for (const o of orders) {
+      if (!(o as any).__matchesBaseNoStatus) continue;
+      all++;
+      if (o.status === "pending" || o.status === "processing") pending++;
+      else if (o.status === "delivered") delivered++;
+      else if (o.status === "cancelled") cancelled++;
+    }
+    return { all, pending, delivered, cancelled };
   }, [orders, filteredOrders]);
 
   // إجمالي المطلوب من المندوب كاش على الأوردرات الظاهرة حالياً بعد الفلاتر.
@@ -1566,27 +1589,67 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
   ];
 
-  const [counts, setCounts] = useState({ all: 0, "2026": 0, pre2026: 0 });
+  const loadedYearCounts = useMemo(
+    () => yearCountsFromOrders(orders, (createdAt) => parseInt(toCairoDateString(createdAt).slice(0, 4), 10)),
+    [orders],
+  );
+  const [remoteYearCounts, setRemoteYearCounts] = useState(EMPTY_YEAR_COUNTS);
+  const [yearCountsRemoteOk, setYearCountsRemoteOk] = useState(false);
+  const [yearCountsLoading, setYearCountsLoading] = useState(true);
   useEffect(() => {
     // Skip the expensive global count queries for sales moderators / shipping rep —
     // their RLS forces per-row evaluation across all ~12k orders and the year-tab
     // UI is not shown to them anyway, which used to time out and leave the page
     // stuck loading (so May orders never appeared for the girls).
-    if (isSalesModerator || isPrivateDeliveryRep || isShippingCompany) return;
+    if (isSalesModerator || isPrivateDeliveryRep || isShippingCompany) {
+      setYearCountsLoading(false);
+      setYearCountsRemoteOk(false);
+      return;
+    }
+    let cancelled = false;
     (async () => {
-      const cutoff = cairoYearStartUTC(2026).toISOString();
-      const [allRes, y2026Res, preRes] = await Promise.all([
-        supabase.from('orders').select('id', { count: 'exact', head: true }),
-        supabase.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', cutoff),
-        supabase.from('orders').select('id', { count: 'exact', head: true }).lt('created_at', cutoff),
-      ]);
-      setCounts({
-        all: allRes.count || 0,
-        "2026": y2026Res.count || 0,
-        pre2026: preRes.count || 0,
-      });
+      try {
+        const cutoff = cairoYearStartUTC(2026).toISOString();
+        const [allRes, y2026Res, preRes] = await withTimeout(
+          Promise.all([
+            supabase.from('orders').select('id', { count: 'exact', head: true }),
+            supabase.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', cutoff),
+            supabase.from('orders').select('id', { count: 'exact', head: true }).lt('created_at', cutoff),
+          ]),
+          12_000,
+          'order-year-counts',
+        );
+        if (cancelled) return;
+        const resolved = resolveYearGroupCounts({
+          remote: {
+            all: { count: allRes.count ?? null, error: allRes.error },
+            y2026: { count: y2026Res.count ?? null, error: y2026Res.error },
+            pre2026: { count: preRes.count ?? null, error: preRes.error },
+          },
+          loaded: loadedYearCounts,
+        });
+        setRemoteYearCounts(resolved.counts);
+        setYearCountsRemoteOk(resolved.usedRemote);
+        if (!resolved.usedRemote) {
+          console.error('order year-tab counts unavailable', allRes.error || y2026Res.error || preRes.error);
+        }
+      } catch (error) {
+        console.error('order year-tab counts failed', error);
+        if (!cancelled) setYearCountsRemoteOk(false);
+      } finally {
+        if (!cancelled) setYearCountsLoading(false);
+      }
     })();
+    return () => { cancelled = true; };
+    // loadedYearCounts is a fallback only — do not re-hit HEAD counts when the list pages in.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSalesModerator, isPrivateDeliveryRep, isShippingCompany]);
+
+  const counts = yearCountsRemoteOk ? remoteYearCounts : loadedYearCounts;
+  const formatYearCount = (n: number) => {
+    if (yearCountsLoading && !yearCountsRemoteOk && orders.length === 0) return "…";
+    return n.toLocaleString();
+  };
 
   // Load this private-delivery-rep's edit-request status (pending / approved)
   useEffect(() => {
@@ -2160,9 +2223,9 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
 
       <Tabs value={yearGroup} onValueChange={(v) => setYearGroup(v as YearGroup)} className="mb-4">
         <TabsList className="grid w-full max-w-xl grid-cols-3">
-          <TabsTrigger value="all">الكل ({counts.all.toLocaleString()})</TabsTrigger>
-          <TabsTrigger value="2026">مبيعات 2026 ({counts["2026"].toLocaleString()})</TabsTrigger>
-          <TabsTrigger value="pre2026">2025 وما قبله ({counts.pre2026.toLocaleString()})</TabsTrigger>
+          <TabsTrigger value="all">الكل ({formatYearCount(counts.all)})</TabsTrigger>
+          <TabsTrigger value="2026">مبيعات 2026 ({formatYearCount(counts["2026"])})</TabsTrigger>
+          <TabsTrigger value="pre2026">2025 وما قبله ({formatYearCount(counts.pre2026)})</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -2479,6 +2542,9 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
               onClick={() => setFilterStatus("all")}
             >
               الكل
+              <span className="mr-2 inline-flex items-center justify-center rounded-full bg-background/20 px-2 text-xs font-semibold min-w-[1.5rem]">
+                {statusChipCounts.all}
+              </span>
             </Button>
             <Button
               variant={filterStatus === "pending" ? "default" : "outline"}
@@ -2486,6 +2552,9 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
               onClick={() => setFilterStatus("pending")}
             >
               قيد الانتظار
+              <span className="mr-2 inline-flex items-center justify-center rounded-full bg-background/20 px-2 text-xs font-semibold min-w-[1.5rem]">
+                {statusChipCounts.pending}
+              </span>
             </Button>
             <Button
               variant={filterStatus === "delivered" ? "default" : "outline"}
@@ -2493,6 +2562,9 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
               onClick={() => setFilterStatus("delivered")}
             >
               تم التوصيل
+              <span className="mr-2 inline-flex items-center justify-center rounded-full bg-background/20 px-2 text-xs font-semibold min-w-[1.5rem]">
+                {statusChipCounts.delivered}
+              </span>
             </Button>
             <Button
               variant={filterStatus === "cancelled" ? "default" : "outline"}
@@ -2500,6 +2572,9 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
               onClick={() => setFilterStatus("cancelled")}
             >
               مرتجع
+              <span className="mr-2 inline-flex items-center justify-center rounded-full bg-background/20 px-2 text-xs font-semibold min-w-[1.5rem]">
+                {statusChipCounts.cancelled}
+              </span>
             </Button>
           </div>
 

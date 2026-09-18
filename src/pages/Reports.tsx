@@ -68,7 +68,9 @@ const tooltipStyle = {
 };
 
 const Reports = () => {
-  const [period, setPeriod] = useState<ReportPeriod>("all");
+  // Default to this month so the page settles on the same window as the dashboard.
+  // "كل الفترات" still works; pagination is capped so it cannot hang forever.
+  const [period, setPeriod] = useState<ReportPeriod>("month");
   const {
     totalSales,
     totalOrders,
@@ -81,6 +83,9 @@ const Reports = () => {
     moderatorData,
     productData,
     isLoading,
+    isItemsLoading,
+    isError,
+    errorMessage,
   } = useReportsData(period);
 
   const formatSales = (v: number) => {
@@ -92,6 +97,12 @@ const Reports = () => {
   return (
     <DashboardLayout>
       <Header title="التقارير والتحليلات" subtitle="تحليل شامل للمبيعات من قاعدة البيانات" />
+
+      {isError && (
+        <p className="mb-4 text-sm text-destructive">
+          تعذر تحميل بيانات التقارير{errorMessage ? `: ${errorMessage}` : ""}
+        </p>
+      )}
 
       {/* Period Filter & Export */}
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
@@ -331,7 +342,9 @@ const Reports = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {productData.length === 0 ? (
+                {isItemsLoading ? (
+                  <Skeleton className="h-[300px] w-full" />
+                ) : productData.length === 0 ? (
                   <p className="text-center text-muted-foreground py-20">لا توجد بيانات</p>
                 ) : (
                   <ResponsiveContainer width="100%" height={300}>
