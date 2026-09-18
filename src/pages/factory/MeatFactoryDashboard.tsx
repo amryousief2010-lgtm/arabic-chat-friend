@@ -257,7 +257,7 @@ export default function MeatFactoryDashboard() {
         <div className="flex items-center gap-3">
           <Factory className="h-7 w-7 text-purple-600" />
           <div>
-            <h1 className="text-2xl font-bold">Dashboard مصنع اللحوم</h1>
+            <h1 className="text-2xl font-bold">لوحة مصنع اللحوم</h1>
             <p className="text-sm text-muted-foreground">مؤشرات المخزون والتصنيع — {b.label}</p>
           </div>
         </div>

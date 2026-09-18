@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
+import { PRODUCTION_NEEDED_TYPE, isUnreadProductionNeeded } from "@/lib/productionNeededNotifications";
 
 interface Notification {
   id: string;
@@ -130,6 +131,24 @@ const Notifications = () => {
     },
   });
 
+  const markProductionNeededReadMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("type", PRODUCTION_NEEDED_TYPE)
+        .eq("is_read", false);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      toast({
+        title: "تم التحديث",
+        description: "تم تعليم إشعارات التصنيع كمقروءة",
+      });
+    },
+  });
+
   const deleteNotificationMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -149,6 +168,7 @@ const Notifications = () => {
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
   const urgentUnreadCount = notifications.filter(n => !n.is_read && requiresImmediateReply(n)).length;
+  const productionNeededUnreadCount = notifications.filter(isUnreadProductionNeeded).length;
 
   const [showUrgentOnly, setShowUrgentOnly] = useState(false);
   const [pendingUrgent, setPendingUrgent] = useState<Notification | null>(null);
@@ -203,6 +223,18 @@ const Notifications = () => {
               <RefreshCw className="w-4 h-4" />
               تحديث
             </Button>
+            {isGeneralManager && productionNeededUnreadCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => markProductionNeededReadMutation.mutate()}
+                className="gap-2"
+                data-testid="mark-production-needed-read"
+              >
+                <CheckCheck className="w-4 h-4" />
+                تعليم كل إشعارات التصنيع كمقروءة
+              </Button>
+            )}
             {unreadCount > 0 && (
               <Button
                 variant="outline"

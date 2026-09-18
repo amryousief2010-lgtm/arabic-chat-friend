@@ -5,6 +5,10 @@
 
 export const PRODUCTION_NEEDED_TYPE = "production_needed";
 
+export function isUnreadProductionNeeded(n: { type: string; is_read: boolean }): boolean {
+  return n.type === PRODUCTION_NEEDED_TYPE && !n.is_read;
+}
+
 /** Order statuses that mean the manufacturing alert is no longer actionable. */
 export const PRODUCTION_ALERT_RESOLVED_STATUSES = new Set([
   "delivered",

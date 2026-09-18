@@ -414,7 +414,7 @@ export default function MeatFactoryReports() {
           <p className="text-sm text-muted-foreground">عرض وتحليل فقط — لا يتم تعديل أي رصيد من هنا.</p>
         </div>
         <Button variant="outline" size="sm" asChild>
-          <Link to="/meat-factory/dashboard"><ArrowLeft className="h-4 w-4 ml-1" /> Dashboard</Link>
+          <Link to="/meat-factory/dashboard"><ArrowLeft className="h-4 w-4 ml-1" /> لوحة مصنع اللحوم</Link>
         </Button>
       </div>
 
