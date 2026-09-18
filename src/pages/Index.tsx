@@ -61,12 +61,18 @@ import {
   useTodayWarehouseOrders,
 } from "@/hooks/useSalesAnalytics";
 import { useReportsData } from "@/hooks/useReportsData";
-import { SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
+import { SALES_NET_ALL_TIME_LABEL_AR, SALES_NET_LABEL_AR, salesNetKpiTitleAr } from "@/lib/orderSalesFilters";
+import {
+  formatSalesCompact,
+  formatSalesExact,
+  lifetimeOrdersCardChange,
+  lifetimeSalesCardChange,
+} from "@/lib/dashboardSalesKpis";
 import { useProductionStats } from "@/hooks/useProductionStats";
 import { Egg, Bird } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDate } from "@/lib/dateFormat";
-import { toCairoDateString } from "@/lib/cairoDate";
+import { currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
 
 const statusColors: Record<string, string> = {
   pending: "bg-warning text-warning-foreground",
@@ -101,11 +107,7 @@ const tooltipStyle = {
   direction: "rtl" as const,
 };
 
-const formatSales = (v: number) => {
-  if (v >= 1000000) return `${(v / 1000000).toFixed(1)}M`;
-  if (v >= 1000) return `${(v / 1000).toFixed(0)}K`;
-  return String(v);
-};
+const formatSales = formatSalesCompact;
 
 const todayChannelLabels: Record<TodayOrdersChannel, string> = {
   main: "المخزن الرئيسي",
@@ -145,7 +147,10 @@ const DashboardContent = () => {
   const [monthOrdersOpen, setMonthOrdersOpen] = useState(false);
   const { data: selectedTodayOrders, isLoading: selectedTodayOrdersLoading } = useTodayWarehouseOrders(selectedTodayChannel);
   const { data: recentOrders, isLoading: ordersLoading } = useRecentOrders(5);
-  const reportData = useReportsData("all");
+  // Charts / PDF on this page follow Cairo YTD — same window as مبيعات السنة.
+  // Lifetime net belongs only on the hero «منذ البداية» card (RPC `total`).
+  const reportData = useReportsData("year");
+  const { year: cairoYear } = currentCairoYearMonth();
   const [prodFrom, setProdFrom] = useState<string>("");
   const [prodTo, setProdTo] = useState<string>("");
   const { data: prod, isLoading: prodLoading } = useProductionStats(prodFrom, prodTo);
@@ -175,7 +180,7 @@ const DashboardContent = () => {
       <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
         <Header
           title="لوحة التحكم"
-          subtitle="شركة نعام العاصمة إدارة العمليات - تحليلات 2025"
+          subtitle={`شركة نعام العاصمة إدارة العمليات - تحليلات ${cairoYear}`}
         />
         <div className="flex items-center gap-2">
           <Button
@@ -193,7 +198,7 @@ const DashboardContent = () => {
               shippingData: reportData.shippingData,
               moderatorData: reportData.moderatorData,
               productData: reportData.productData,
-              periodLabel: "لوحة التحكم 2025",
+              periodLabel: `لوحة التحكم ${cairoYear} (${SALES_NET_LABEL_AR})`,
             })}
           >
             <FileDown className="w-4 h-4 ml-1" />
@@ -214,7 +219,7 @@ const DashboardContent = () => {
               shippingData: reportData.shippingData,
               moderatorData: reportData.moderatorData,
               productData: reportData.productData,
-              periodLabel: "لوحة التحكم 2025",
+              periodLabel: `لوحة التحكم ${cairoYear} (${SALES_NET_LABEL_AR})`,
             })}
           >
             <FileDown className="w-4 h-4 ml-1" />
@@ -226,18 +231,18 @@ const DashboardContent = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-4">
         <StatCard
-          title={`إجمالي المبيعات (${SALES_NET_LABEL_AR})`}
-          value={isLoading ? "..." : `${formatSales(stats?.totalSales || 0)} ج.م`}
-          change={isLoading ? "" : `اليوم: ${formatSales(stats?.salesToday || 0)} | الشهر: ${formatSales(stats?.salesMonth || 0)}`}
+          title={salesNetKpiTitleAr("all_time")}
+          value={isLoading ? "..." : `${formatSalesExact(stats?.totalSales || 0)} ج.م`}
+          change={isLoading || !stats ? "" : lifetimeSalesCardChange(stats)}
           changeType="positive"
           icon={DollarSign}
           iconColor="bg-success"
           to="/reports"
         />
         <StatCard
-          title="الطلبات"
+          title={`الطلبات (${SALES_NET_ALL_TIME_LABEL_AR})`}
           value={isLoading ? "..." : (stats?.totalOrders || 0).toLocaleString()}
-          change={isLoading ? "" : `اليوم: ${stats?.ordersToday || 0} | الشهر: ${stats?.ordersMonth || 0}`}
+          change={isLoading || !stats ? "" : lifetimeOrdersCardChange(stats)}
           changeType="positive"
           icon={ShoppingCart}
           iconColor="bg-primary"
@@ -246,7 +251,7 @@ const DashboardContent = () => {
         <StatCard
           title="العملاء"
           value={isLoading ? "..." : (stats?.totalCustomers || 0).toLocaleString()}
-          change={`متوسط: ${stats?.avgOrderValue || 0} ج.م/طلب`}
+          change={`متوسط منذ البداية: ${stats?.avgOrderValue || 0} ج.م/طلب`}
           changeType="positive"
           icon={Users}
           iconColor="bg-secondary"
@@ -276,10 +281,10 @@ const DashboardContent = () => {
         <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => navigate('/reports')} role="button" tabIndex={0}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-sm text-muted-foreground">مبيعات اليوم ({SALES_NET_LABEL_AR})</p>
+              <p className="text-sm text-muted-foreground">{salesNetKpiTitleAr("today")}</p>
               <Badge variant="outline" className="text-xs">{formatDate(new Date())}</Badge>
             </div>
-            <p className="text-2xl font-bold text-success">{isLoading ? "..." : `${(stats?.salesToday || 0).toLocaleString()} ج.م`}</p>
+            <p className="text-2xl font-bold text-success">{isLoading ? "..." : `${formatSalesExact(stats?.salesToday || 0)} ج.م`}</p>
             <p className="text-xs text-muted-foreground mt-1">{stats?.ordersToday || 0} طلب اليوم</p>
             {todayBreakdown && (stats?.ordersToday || 0) > 0 && (
               <div className="mt-2 pt-2 border-t border-border/40 space-y-0.5 text-[11px]">
@@ -357,10 +362,10 @@ const DashboardContent = () => {
         <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => setMonthOrdersOpen(true)} role="button" tabIndex={0}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-sm text-muted-foreground">مبيعات الشهر ({SALES_NET_LABEL_AR})</p>
+              <p className="text-sm text-muted-foreground">{salesNetKpiTitleAr("month")}</p>
               <Badge variant="outline" className="text-xs">{new Date().toLocaleDateString("en-GB", { month: "long" })}</Badge>
             </div>
-            <p className="text-2xl font-bold text-primary">{isLoading ? "..." : `${(stats?.salesMonth || 0).toLocaleString()} ج.م`}</p>
+            <p className="text-2xl font-bold text-primary">{isLoading ? "..." : `${formatSalesExact(stats?.salesMonth || 0)} ج.م`}</p>
             <p className="text-xs text-muted-foreground mt-1 underline decoration-dotted">{stats?.ordersMonth || 0} طلب هذا الشهر ({SALES_NET_LABEL_AR}) — اضغط للعرض والتصدير</p>
           </CardContent>
         </Card>
@@ -368,10 +373,10 @@ const DashboardContent = () => {
         <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => navigate('/reports')} role="button" tabIndex={0}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-sm text-muted-foreground">مبيعات السنة ({SALES_NET_LABEL_AR})</p>
+              <p className="text-sm text-muted-foreground">{salesNetKpiTitleAr("year")}</p>
               <Badge variant="outline" className="text-xs">{new Date().getFullYear()}</Badge>
             </div>
-            <p className="text-2xl font-bold text-secondary">{isLoading ? "..." : `${(stats?.salesYear || 0).toLocaleString()} ج.م`}</p>
+            <p className="text-2xl font-bold text-secondary">{isLoading ? "..." : `${formatSalesExact(stats?.salesYear || 0)} ج.م`}</p>
             <p className="text-xs text-muted-foreground mt-1">{stats?.ordersYear || 0} طلب هذه السنة ({SALES_NET_LABEL_AR})</p>
           </CardContent>
         </Card>
@@ -391,7 +396,7 @@ const DashboardContent = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <TrendingUp className="w-5 h-5 text-primary" />
-              المبيعات والطلبات الشهرية — {new Date().getFullYear()}
+              المبيعات والطلبات الشهرية — {cairoYear}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -592,7 +597,7 @@ const DashboardContent = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-primary" />
-                  تطور المبيعات الشهرية 2025
+                  تطور المبيعات الشهرية {cairoYear}
                 </CardTitle>
               </CardHeader>
               <CardContent>

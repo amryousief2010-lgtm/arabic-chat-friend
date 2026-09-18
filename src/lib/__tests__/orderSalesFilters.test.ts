@@ -6,6 +6,8 @@ import {
   filterSalesNetOrders,
   isCancelledOrderStatus,
   isSalesNetOrder,
+  SALES_NET_ALL_TIME_LABEL_AR,
+  salesNetKpiTitleAr,
   sumSalesNet,
 } from "../orderSalesFilters";
 
@@ -56,6 +58,14 @@ describe("orderSalesFilters — sales net excludes cancelled", () => {
     expect(totals.cancelledSales).toBeCloseTo(23759.99, 2);
     expect(totals.grossOrderCount).toBe(496);
     expect(totals.grossSales).toBeCloseTo(850000, 2);
+  });
+
+  it("labels all-time KPIs as منذ البداية so they are not confused with month net", () => {
+    expect(salesNetKpiTitleAr("all_time")).toBe("إجمالي المبيعات منذ البداية (الصافي بدون الملغي)");
+    expect(salesNetKpiTitleAr("month")).toBe("مبيعات الشهر (الصافي بدون الملغي)");
+    expect(salesNetKpiTitleAr("year")).toBe("مبيعات السنة (الصافي بدون الملغي)");
+    expect(salesNetKpiTitleAr("today")).toBe("مبيعات اليوم (الصافي بدون الملغي)");
+    expect(SALES_NET_ALL_TIME_LABEL_AR).toBe("منذ البداية");
   });
 
   it("applySalesNetFilter uses neq(status, cancelled)", () => {
