@@ -124,6 +124,39 @@ var get_order_default = defineTool2({
 // src/lib/mcp/tools/sales-summary.ts
 import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@2.0.2";
 import { z as z3 } from "npm:zod@^3.25.76";
+
+// src/lib/orderSalesFilters.ts
+var CANCELLED_ORDER_STATUS = "cancelled";
+var SALES_NET_LABEL_AR = "\u0627\u0644\u0635\u0627\u0641\u064A \u0628\u062F\u0648\u0646 \u0627\u0644\u0645\u0644\u063A\u064A";
+function isCancelledOrderStatus(status) {
+  return (status || "").trim().toLowerCase() === CANCELLED_ORDER_STATUS;
+}
+function sumSalesNet(orders) {
+  let orderCount = 0;
+  let sales = 0;
+  let cancelledCount = 0;
+  let cancelledSales = 0;
+  for (const o of orders) {
+    const total = Number(o.total || 0);
+    if (isCancelledOrderStatus(o.status)) {
+      cancelledCount += 1;
+      cancelledSales += total;
+    } else {
+      orderCount += 1;
+      sales += total;
+    }
+  }
+  return {
+    orderCount,
+    sales,
+    cancelledCount,
+    cancelledSales,
+    grossOrderCount: orderCount + cancelledCount,
+    grossSales: sales + cancelledSales
+  };
+}
+
+// src/lib/mcp/tools/sales-summary.ts
 function num(v) {
   const x = Number(v);
   return Number.isFinite(x) ? x : 0;
@@ -144,8 +177,9 @@ var sales_summary_default = defineTool3({
     const { data, error } = await supabase.from("orders").select("status, total, moderator").gte("created_at", `${date_from}T00:00:00Z`).lte("created_at", `${date_to}T23:59:59Z`).limit(5e3);
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     const rows = data ?? [];
-    const valid = rows.filter((r) => r.status !== "cancelled");
-    const totalSales = valid.reduce((s, r) => s + num(r.total), 0);
+    const valid = rows.filter((r) => !isCancelledOrderStatus(r.status));
+    const totals = sumSalesNet(rows);
+    const totalSales = totals.sales;
     const byStatus = {};
     for (const r of rows) byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
     const byMod = /* @__PURE__ */ new Map();
@@ -718,8 +752,9 @@ var sales_report_default = defineTool11({
     const rows = data ?? [];
     const sum = (list, f) => Number(list.reduce((s, r) => s + f(r), 0).toFixed(2));
     const delivered = rows.filter((r) => r.status === "delivered");
-    const cancelled = rows.filter((r) => r.status === "cancelled");
+    const cancelled = rows.filter((r) => isCancelledOrderStatus(r.status));
     const returned = rows.filter((r) => r.status === "returned");
+    const salesNet = sumSalesNet(rows);
     const open = rows.filter(
       (r) => !["delivered", "cancelled", "returned"].includes(String(r.status))
     );
@@ -749,6 +784,11 @@ var sales_report_default = defineTool11({
       currency: "EGP",
       generated_at: (/* @__PURE__ */ new Date()).toISOString(),
       orders_registered: { count: count ?? rows.length, value: sum(rows, (r) => num3(r.total)) },
+      sales_net: {
+        count: salesNet.orderCount,
+        value: Number(salesNet.sales.toFixed(2)),
+        label: SALES_NET_LABEL_AR
+      },
       delivered_sales: {
         count: delivered.length,
         value: sum(delivered, (r) => num3(r.total)),
@@ -764,10 +804,11 @@ var sales_report_default = defineTool11({
       by_status: group(rows, "status"),
       by_fulfillment: group(rows, "fulfillment_type"),
       by_source: group(rows, "source"),
-      by_moderator: group(rows.filter((r) => r.status !== "cancelled"), "moderator").slice(0, 25),
+      by_moderator: group(rows.filter((r) => !isCancelledOrderStatus(r.status)), "moderator").slice(0, 25),
       by_payment_method: group(delivered, "payment_method"),
       definitions: {
-        orders_registered: "\u0642\u064A\u0645\u0629 \u0643\u0644 \u0627\u0644\u0637\u0644\u0628\u0627\u062A \u0627\u0644\u0645\u0633\u062C\u0651\u0644\u0629 \u0641\u064A \u0627\u0644\u0641\u062A\u0631\u0629 \u0628\u063A\u0636 \u0627\u0644\u0646\u0638\u0631 \u0639\u0646 \u0627\u0644\u062D\u0627\u0644\u0629.",
+        orders_registered: "\u0642\u064A\u0645\u0629 \u0643\u0644 \u0627\u0644\u0637\u0644\u0628\u0627\u062A \u0627\u0644\u0645\u0633\u062C\u0651\u0644\u0629 \u0641\u064A \u0627\u0644\u0641\u062A\u0631\u0629 \u0628\u063A\u0636 \u0627\u0644\u0646\u0638\u0631 \u0639\u0646 \u0627\u0644\u062D\u0627\u0644\u0629 (\u0634\u0627\u0645\u0644 \u0627\u0644\u0645\u0644\u063A\u064A).",
+        sales_net: `${SALES_NET_LABEL_AR} = \u0643\u0644 \u0627\u0644\u0637\u0644\u0628\u0627\u062A \u0645\u0627 \u0639\u062F\u0627 status=cancelled.`,
         delivered_sales: "\u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u0627\u0644\u0645\u0639\u062A\u0645\u062F\u0629 = \u0627\u0644\u0637\u0644\u0628\u0627\u062A \u0628\u062D\u0627\u0644\u0629 delivered \u0641\u0642\u0637.",
         collections: "\u0627\u0644\u0645\u0628\u0627\u0644\u063A \u0627\u0644\u0645\u0648\u062F\u0639\u0629 \u0641\u0639\u0644\u064A\u064B\u0627 \u0645\u0646 \u0627\u0644\u0645\u0646\u0627\u062F\u064A\u0628 \u0641\u064A \u0627\u0644\u0641\u062A\u0631\u0629\u060C \u0648\u0642\u062F \u062A\u062E\u0635 \u0637\u0644\u0628\u0627\u062A \u0645\u0646 \u0641\u062A\u0631\u0627\u062A \u0633\u0627\u0628\u0642\u0629.",
         formula: "total = subtotal - discount + delivery_fee. \u0627\u0644\u0647\u062F\u0627\u064A\u0627 \u0628\u0633\u0639\u0631 \u0635\u0641\u0631 \u0648\u0644\u0627 \u062A\u062F\u062E\u0644 \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A\u0627\u062A."
