@@ -67,7 +67,7 @@ describe("Lovable Zodex follow-up auth hardening", () => {
       expect(src).toMatch(/ZODEX_SYNC_ALLOWED_ROLES/);
       expect(src).toMatch(/isServiceRoleBearer/);
       expect(src).not.toMatch(/getClaims/);
-      expect(src).not.toMatch(/anon key/);
+      expect(src).not.toMatch(/allow as scheduled trigger/);
       const authIdx = src.indexOf("requireVerifiedUser");
       const loginIdx = src.indexOf("ZODEX_USERNAME");
       expect(authIdx).toBeGreaterThan(0);
