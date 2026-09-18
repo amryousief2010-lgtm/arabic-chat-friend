@@ -22,9 +22,11 @@ import { format, formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import {
   ZODEX_INTEGRATION_START, AGOUZA_WAREHOUSE_ID, NO_BILL_MIN_AGE_HOURS,
-  NON_SHIPPABLE_STATUSES,
+  NON_SHIPPABLE_STATUSES, ZODEX_SHIPPING_FEE_EGP,
   scoreCandidate, classifyLinkIssue,
+  last9PhoneKey, explainOrphanBill, explainNoBillOrder, suggestBillForOrder,
   type MissingBill, type OrderCandidate, type ScoredCandidate, type LinkIssue,
+  type MismatchExplain, type BillPhoneSuggestion,
 } from "@/lib/zodexClassify";
 
 interface OrderRow {
@@ -46,28 +48,21 @@ interface BillWithClassification {
   issue: LinkIssue | null;
   // "orphan" = no candidate found at all (score all < 20)
   isOrphan: boolean;
+  orphanReason: MismatchExplain | null;
 }
 
 async function findCandidatesForBill(
   bill: MissingBill,
   rejectedOrderIds: Set<string> = new Set(),
 ): Promise<ScoredCandidate[]> {
-  const phone = (bill.customer_phone || "").replace(/\D+/g, "").slice(-9);
+  const phone = last9PhoneKey(bill.customer_phone);
   const cod = Number(bill.cod_amount || 0);
 
   const orClauses: string[] = [];
-  if (phone) {
-    // Match by last 9, 8, and 7 digits — handles 1-2 digit typos
+  if (phone.length >= 9) {
+    // Last-9 only. 7/8-digit ilike pulled unrelated customers into "suggested match".
     orClauses.push(`phone.ilike.%${phone}`);
     orClauses.push(`phone2.ilike.%${phone}`);
-    if (phone.length >= 8) {
-      orClauses.push(`phone.ilike.%${phone.slice(-8)}`);
-      orClauses.push(`phone2.ilike.%${phone.slice(-8)}`);
-    }
-    if (phone.length >= 7) {
-      orClauses.push(`phone.ilike.%${phone.slice(-7)}`);
-      orClauses.push(`phone2.ilike.%${phone.slice(-7)}`);
-    }
   }
   if (bill.customer_name) {
     const nm = bill.customer_name.trim().slice(0, 20).replace(/[%,]/g, " ");
@@ -103,7 +98,6 @@ async function findCandidatesForBill(
   return (orders || [])
     .filter((o: any) => !rejectedOrderIds.has(o.id))
     .map((o: any) => scoreCandidate(bill, o as OrderCandidate))
-    .filter((c) => c.score >= 20)
     .sort((a, b) => b.score - a.score);
 }
 
@@ -138,7 +132,7 @@ interface ZodexBillDetails {
   notes: string | null;
 }
 
-const SHIPPING_FEE = 110; // Zodex adds 110 EGP on non-box orders
+const SHIPPING_FEE = ZODEX_SHIPPING_FEE_EGP; // Zodex adds 110 EGP on non-box orders
 
 function normPhoneCmp(v?: string | null) {
   return (v || "").replace(/\D+/g, "").replace(/^20/, "").slice(-11);
@@ -175,7 +169,7 @@ export default function ZodexReview() {
     { id: string; order_number: string; shipping_bill_no?: string | null } | null
   >(null);
   const [billSuggestions, setBillSuggestions] = useState<
-    Record<string, { bill: MissingBill; via: string }>
+    Record<string, BillPhoneSuggestion>
   >({});
 
   /** استبعاد بوليصة زودكس من شاشة المراجعة (بعد مراجعتها) */
@@ -326,40 +320,46 @@ export default function ZodexReview() {
       setNoBillOrders(filteredNoBill);
 
       // 2b) Cross-check each no-bill order against pending Zodex bills using
-      // BOTH customer phones (many customers are registered with two numbers,
-      // and Zodex may hold the second one).
-      const pkey = (p?: string | null) => (p || "").replace(/\D+/g, "").slice(-9);
-      const billByPhone = new Map<string, MissingBill>();
+      // last-9 phone as the key, then amount (exact or +110) as the match.
+      // Phone-only hits are labeled — they are NOT treated as a match.
+      const billByPhone = new Map<string, MissingBill[]>();
       for (const b of bills) {
-        const k = pkey(b.customer_phone);
-        if (k.length >= 9 && !billByPhone.has(k)) billByPhone.set(k, b);
+        const k = last9PhoneKey(b.customer_phone);
+        if (k.length >= 9) {
+          const arr = billByPhone.get(k) || [];
+          arr.push(b);
+          billByPhone.set(k, arr);
+        }
       }
-      const sugg: Record<string, { bill: MissingBill; via: string }> = {};
+      const sugg: Record<string, BillPhoneSuggestion> = {};
       for (const o of filteredNoBill) {
         const pairs: Array<[string | null | undefined, string]> = [
           [o.customers?.phone, "الموبايل الأساسي"],
           [o.customers?.phone2, "الموبايل الثاني"],
         ];
         for (const [ph, via] of pairs) {
-          const k = pkey(ph);
+          const k = last9PhoneKey(ph);
           if (k.length < 9) continue;
-          const b = billByPhone.get(k);
-          if (b) { sugg[o.id] = { bill: b, via }; break; }
+          const hit = suggestBillForOrder(o.total, billByPhone.get(k) || [], via);
+          if (hit) { sugg[o.id] = hit; break; }
         }
       }
       setBillSuggestions(sugg);
 
       // 3) Classify each bill (best candidate + link issue), skipping rejected pairings
       const classifiedList = await mapWithLimit(bills, 6, async (b): Promise<BillWithClassification> => {
-        const cands = await findCandidatesForBill(b, rejectedByBill.get(b.bill_no) || new Set());
-        const best = cands[0] || null;
-        const dupCount = billNoCount.get(b.bill_no) || 0;
+        const scored = await findCandidatesForBill(b, rejectedByBill.get(b.bill_no) || new Set());
+        const display = scored.filter((c) => c.score >= 20);
+        const best = display[0] || null;
+        const dupCount = billNoCount.get(b.bill_no) || 1;
         const issue = classifyLinkIssue(b, best, dupCount);
+        const isOrphan = !best;
         return {
           bill: b,
           bestCandidate: best,
           issue,
-          isOrphan: !best,
+          isOrphan,
+          orphanReason: isOrphan ? explainOrphanBill({ bill: b, weakCandidates: scored.filter((c) => c.score < 20) }) : null,
         };
       });
 
@@ -464,9 +464,9 @@ export default function ZodexReview() {
       if (error) throw error;
       toast.success("تم رفض الاقتراح — مش هيظهر تاني");
       // Reclassify this bill by removing suggestion locally
-      setClassified((s) =>
+          setClassified((s) =>
         s.map((c) => c.bill.id === item.bill.id
-          ? { ...c, issue: null, bestCandidate: null, isOrphan: true }
+          ? { ...c, issue: null, bestCandidate: null, isOrphan: true, orphanReason: explainOrphanBill({ bill: c.bill, weakCandidates: [] }) }
           : c
         ),
       );
@@ -513,6 +513,7 @@ export default function ZodexReview() {
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             فرق حقيقية بين نظامنا وزودكس — بوالص مفقودة عندنا، أوردرات مفقودة على زودكس، ومشاكل ربط تحتاج إصلاح.
+            المطابقة المعروضة مفتاحها الموبايل (آخر 9) + المبلغ (أو +{ZODEX_SHIPPING_FEE_EGP} شحن) — بدون ربط تلقائي من الشاشة.
           </p>
         </div>
         <div className="grid grid-cols-2 md:flex md:items-center gap-2 [&_button]:w-full md:[&_button]:w-auto [&_button]:text-xs md:[&_button]:text-sm">
@@ -576,6 +577,7 @@ export default function ZodexReview() {
               <CardTitle className="text-base">بوالص على زودكس بدون أي أوردر مطابق عندنا</CardTitle>
               <p className="text-xs text-muted-foreground mt-1">
                 يعني الأوردر غالبًا اتسجل يدويًا على زودكس ومش موجود في النظام أصلًا — يحتاج إنشاء أوردر مقابل.
+                عمود «سبب عدم المطابقة» يوضح هل المشكلة بيانات (موبايل/مبلغ) ولا فجوة حقيقية.
               </p>
             </CardHeader>
             <CardContent className="p-0">
@@ -596,6 +598,7 @@ export default function ZodexReview() {
                       <TableHead>COD</TableHead>
                       <TableHead>الموديريتور</TableHead>
                       <TableHead>تاريخ الشحن</TableHead>
+                      <TableHead>سبب عدم المطابقة</TableHead>
                       <TableHead>زودكس</TableHead>
                       <TableHead className="text-center">إجراءات</TableHead>
                     </TableRow>
@@ -620,6 +623,16 @@ export default function ZodexReview() {
                         <TableCell className="text-xs">{c.bill.moderator_name || "—"}</TableCell>
                         <TableCell className="text-xs">
                           {c.bill.shipment_date ? format(new Date(c.bill.shipment_date), "yyyy-MM-dd") : "—"}
+                        </TableCell>
+                        <TableCell className="text-xs max-w-[220px]">
+                          {c.orphanReason ? (
+                            <div>
+                              <Badge variant="outline" className="font-normal whitespace-normal text-right">
+                                {c.orphanReason.label}
+                              </Badge>
+                              <div className="text-muted-foreground mt-1">{c.orphanReason.detail}</div>
+                            </div>
+                          ) : "—"}
                         </TableCell>
                         <TableCell>
                           <a
@@ -675,6 +688,7 @@ export default function ZodexReview() {
               </CardTitle>
               <p className="text-xs text-muted-foreground mt-1">
                 أوردرات المفروض تشحن عبر زودكس لكن مفيش بوليصة مقابلة على موقع زودكس — يحتاج تسجيلها يدويًا على زودكس.
+                إذا ظهر «نفس الموبايل — القيمة مختلفة» فهذه ليست مطابقة: لا تُربط تلقائيًا.
               </p>
             </CardHeader>
             <CardContent className="p-0">
@@ -695,11 +709,19 @@ export default function ZodexReview() {
                       <TableHead>الإجمالي</TableHead>
                       <TableHead>الحالة</TableHead>
                       <TableHead>عمر الأوردر</TableHead>
+                      <TableHead>سبب عدم المطابقة</TableHead>
                       <TableHead className="text-center">إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredOrders.map((o) => (
+                    {filteredOrders.map((o) => {
+                      const sugg = billSuggestions[o.id] || null;
+                      const why = explainNoBillOrder({
+                        hasWarehouse: !!o.source_warehouse_id,
+                        shippingCompany: o.shipping_company,
+                        suggestion: sugg,
+                      });
+                      return (
                       <TableRow key={o.id}>
                         <TableCell className="font-mono text-xs">
                           {o.order_number}
@@ -710,10 +732,14 @@ export default function ZodexReview() {
                               </Badge>
                             </div>
                           )}
-                          {billSuggestions[o.id] && (
+                          {sugg && (
                             <div className="mt-1">
-                              <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-normal">
-                                موجود على زودكس ({billSuggestions[o.id].via}): {billSuggestions[o.id].bill.bill_no}
+                              <Badge className={sugg.kind === "amount_ok"
+                                ? "bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-normal"
+                                : "bg-slate-100 text-slate-700 border-slate-300 text-[10px] font-normal"}>
+                                {sugg.kind === "amount_ok"
+                                  ? `بوليصة معلّقة مطابقة (${sugg.via}): ${sugg.bill.bill_no}`
+                                  : `نفس الموبايل فقط: ${sugg.bill.bill_no}`}
                               </Badge>
                             </div>
                           )}
@@ -729,6 +755,12 @@ export default function ZodexReview() {
                         <TableCell><Badge variant="outline">{o.status}</Badge></TableCell>
                         <TableCell className="text-xs">
                           {formatDistanceToNow(new Date(o.created_at), { locale: ar, addSuffix: true })}
+                        </TableCell>
+                        <TableCell className="text-xs max-w-[240px]">
+                          <Badge variant="outline" className="font-normal whitespace-normal text-right">
+                            {why.label}
+                          </Badge>
+                          <div className="text-muted-foreground mt-1">{why.detail}</div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-center gap-1">
@@ -762,7 +794,8 @@ export default function ZodexReview() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
                 </div>

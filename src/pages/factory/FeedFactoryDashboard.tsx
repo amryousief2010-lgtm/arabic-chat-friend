@@ -11,6 +11,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, Res
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { countZeroCostWithStock } from "@/lib/factoryDataQuality";
 
 function FeedPeriodStats() {
   const qc = useQueryClient();
@@ -121,7 +122,7 @@ export default function FeedFactoryDashboard() {
     for (const b of feed) byStatus[b.status] = (byStatus[b.status] || 0) + 1;
     const rawCons = feedCons.reduce((s: number, c: any) => s + Number(c.actual_qty ?? c.quantity ?? 0), 0);
     const finishedRcv = movs.filter((m: any) => m.reference_type === "feed_batch" && m.movement_type === "production_in").reduce((s: number, m: any) => s + Number(m.quantity || 0), 0);
-    const zeroCost = items.filter((i: any) => Number(i.unit_cost) === 0 && Number(i.stock) > 0 && i.module === "feed").length;
+    const zeroCost = countZeroCostWithStock(items, "feed");
     const pendingReview = byStatus.under_review || 0;
     return { todayProd, monthProd, totalCost, avgCost, byStatus, rawCons, finishedRcv, zeroCost, pendingReview };
   }, [feed, feedCons, movs, items]);
@@ -214,7 +215,14 @@ export default function FeedFactoryDashboard() {
         <StatCard title="استهلاك المواد الخام" value={stats.rawCons.toFixed(1)} icon={Boxes} to="/factories/reports?tab=raw" />
         <StatCard title="علف تام مستلم" value={stats.finishedRcv.toFixed(1)} icon={CheckCircle} iconColor="bg-success" />
         <StatCard title="قيد المراجعة" value={stats.pendingReview} icon={Clock} iconColor="bg-warning" to="/feed-factory/batches" />
-        <StatCard title="تكلفة صفرية" value={stats.zeroCost} icon={AlertTriangle} iconColor="bg-destructive" />
+        <StatCard
+          title="تكلفة صفرية"
+          value={stats.zeroCost}
+          change="أصناف أعلاف بتكلفة 0 ومخزون > 0 — لقطة مخزون حالية (ليست حسب الفترة)"
+          icon={AlertTriangle}
+          iconColor="bg-destructive"
+          to="/factories/reports?tab=pending"
+        />
         <StatCard title="إجمالي الدفعات" value={feed.length} icon={Wheat} />
       </div>
 

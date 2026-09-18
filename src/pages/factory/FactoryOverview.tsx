@@ -7,7 +7,7 @@ import FactoryFilters, { defaultFilterState, FactoryFilterState } from "@/compon
 import { useFactoryData } from "@/hooks/useFactoryData";
 import { Factory, Wheat, Banknote, Package, CheckCircle, AlertTriangle, Clock } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import DashboardLayout from "@/components/layout/DashboardLayout";
+import { zeroCostSplit } from "@/lib/factoryDataQuality";
 
 const PURPLE = "#7c3aed"; const ORANGE = "#ea580c";
 
@@ -28,9 +28,10 @@ export default function FactoryOverview() {
     const finishedReceived = movs.filter((m: any) => m.movement_type === "production_in").reduce((s: number, m: any) => s + Number(m.total_cost || 0), 0);
     const batchesClosed = meatClosed.length + feedClosed.length;
     const pendingApproval = meat.filter((b: any) => b.status === "under_review").length + feed.filter((b: any) => b.status === "under_review").length;
-    const reviewIssues = items.filter((i: any) => Number(i.unit_cost) === 0 && Number(i.stock) > 0).length;
+    const split = zeroCostSplit(items);
+    const reviewIssues = split.total;
     const inventoryValuation = items.reduce((s: number, i: any) => s + Number(i.stock || 0) * Number(i.unit_cost || 0), 0);
-    return { productionValue, rawValueConsumed, finishedReceived, batchesClosed, pendingApproval, reviewIssues, inventoryValuation };
+    return { productionValue, rawValueConsumed, finishedReceived, batchesClosed, pendingApproval, reviewIssues, inventoryValuation, zeroCostMeat: split.meat, zeroCostFeed: split.feed };
   }, [meat, feed, meatCons, meatPack, feedCons, movs, items]);
 
   const split = [
@@ -51,7 +52,15 @@ export default function FactoryOverview() {
         <StatCard title="إجمالي تقييم المخزون" value={k.inventoryValuation.toLocaleString("en-US", { maximumFractionDigits: 0 })} icon={Banknote} iconColor="bg-accent" />
         <StatCard title="دفعات مغلقة" value={k.batchesClosed} icon={CheckCircle} to="/factories/reports?tab=batches" />
         <StatCard title="بانتظار الاعتماد" value={k.pendingApproval} icon={Clock} iconColor="bg-warning" />
-        <StatCard title="مشاكل جودة بيانات" value={k.reviewIssues} icon={AlertTriangle} iconColor="bg-destructive" to="/factories/reports?tab=pending" />
+        <StatCard
+          title="مشاكل جودة بيانات"
+          value={k.reviewIssues}
+          change={`تكلفة صفرية + مخزون: لحوم ${k.zeroCostMeat} • أعلاف ${k.zeroCostFeed} — لقطة مخزون حالية (ليست حسب الفترة)`}
+          changeType="neutral"
+          icon={AlertTriangle}
+          iconColor="bg-destructive"
+          to="/factories/reports?tab=pending"
+        />
         <StatCard title="مصانع نشطة" value={2} icon={Factory} />
       </div>
 
@@ -77,7 +86,7 @@ export default function FactoryOverview() {
         <CardContent className="text-xs text-muted-foreground space-y-1">
           <p>• كل تغيير على المخزون يجب أن يمر عبر <code>inventory_movements</code> فقط.</p>
           <p>• التعديلات أو العكس (reversal) تتم بحركة عكسية، وليس بالحذف.</p>
-          <p>• BOM v2 لم يتم تفعيلها تلقائياً. الفاتورة 164 لا تزال needs_review.</p>
+          <p>• «مشاكل جودة بيانات» = أصناف meat/feed بتكلفة صفر ومخزون &gt; 0 (لقطة حالية). الفاتورة 164 صف توضيحي في تبويب المراجعة وليست ضمن الرقم.</p>
           <p>• بيانات الاختبار (TEST-DISPATCH) محفوظة في النظام ومستبعدة افتراضياً من المؤشرات.</p>
         </CardContent>
       </Card>
