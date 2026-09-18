@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { MapPin, Warehouse as WarehouseIcon, Package, Activity, AlertTriangle, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateTime } from "@/lib/dateFormat";
+import { warehouseLocationOpenPath } from "@/lib/warehouseHubPaths";
 
 const typeLabels: Record<string, string> = {
   raw_materials: "مواد خام",
@@ -34,17 +35,7 @@ interface Row {
   lastMovement: string | null;
 }
 
-const slugFor = (w: Row): string => {
-  // map known warehouses to their dedicated routes
-  const n = w.name || "";
-  if (n.includes("الرئيسي")) return "/warehouse-stock/main";
-  if (n.includes("العجوزة")) return "/warehouse-stock/agouza";
-  if (n.includes("هيلثي")) return "/warehouse-stock/hyper-healthy-test";
-  if (n.includes("كارفور")) return "/warehouse-stock/hyper-carrefour";
-  if (n.includes("تغليف") || w.type === "packaging") return "/modules/packaging";
-  if (n.includes("مصنع اللحوم")) return "/meat-factory/factory-warehouses";
-  return `/modules/warehouses/${w.id}`;
-};
+const slugFor = (w: Row): string => warehouseLocationOpenPath(w.name, w.type, w.id);
 
 export default function WarehousesByLocation() {
   const [rows, setRows] = useState<Row[]>([]);

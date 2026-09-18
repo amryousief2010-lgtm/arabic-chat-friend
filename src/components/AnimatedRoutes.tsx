@@ -310,6 +310,13 @@ const AnimatedRoutes = () => {
               <PageTransition><DuplicateOrderApprovals /></PageTransition>
             </ProtectedRoute>
           } />
+          {/*
+            Legacy stock wrappers — keep mounted (do not delete):
+            - sales_moderator is allowlisted on `/warehouse-stock` (not the hub)
+            - agouza_warehouse_keeper lands on `/warehouse-stock/agouza`
+            - moderator slug pages live under `/warehouse-stock/moderator/:slug`
+            Staff deep-links should prefer `/modules/warehouses?tab=...`.
+          */}
           <Route path="/warehouse-stock" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'warehouse_supervisor', 'marketing_sales_viewer']}>
               <PageTransition><WarehouseStockView /></PageTransition>

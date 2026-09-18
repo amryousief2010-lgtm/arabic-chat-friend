@@ -29,6 +29,9 @@ const MobileNavigation = () => {
     ? [
         { icon: ShoppingCart, label: "طلباتي", path: "/orders" },
         { icon: Target, label: "التارجت", path: "/sales-targets" },
+        // sales_moderator is allowlisted for `/warehouse-stock` in ProtectedRoute,
+        // not `/modules/warehouses`. Keep "المتاح" on this path so the shortcut
+        // stays reachable. Moderator slug pages also live under this prefix.
         { icon: Warehouse, label: "المتاح", path: "/warehouse-stock" },
       ]
     : [

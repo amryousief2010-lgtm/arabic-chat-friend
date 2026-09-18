@@ -25,6 +25,8 @@ export const ROLE_LANDING: Record<AppRole, string> = {
   feed_factory_manager: "/modules/feed-factory",
   hr_manager: "/modules/hr",
   private_delivery_rep: "/orders",
+  // Dedicated stock view: this role is also allowed on the hub
+  // `/modules/warehouses`, but landing on the scoped Agouza page is intentional.
   agouza_warehouse_keeper: "/warehouse-stock/agouza",
   brooding_dashboard_viewer: "/modules/brooding",
   lab_treasury_keeper: "/lab-treasury",

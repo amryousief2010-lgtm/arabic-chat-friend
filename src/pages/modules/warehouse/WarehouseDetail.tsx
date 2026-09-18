@@ -25,7 +25,7 @@ import ItemMovementsDialog from "@/components/warehouse/ItemMovementsDialog";
 import StockAuditTab from "@/components/warehouses/StockAuditTab";
 
 import { History } from "lucide-react";
-import { isFeatureEnabled } from "@/config/featureFlags";
+import { isManualStockAdditionUiEnabled, isManualStockOutUiEnabled } from "@/lib/warehouseManualStockUi";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 import { Printer, PackagePlus, PackageMinus } from "lucide-react";
 
@@ -105,7 +105,7 @@ const WarehouseDetail = () => {
   //  • أمين العجوزة (agouza_warehouse_keeper): ممنوع من تعديل الكميات (عرض + رفع شيت بوسطة فقط)
   //  • مسؤول أي مخزن آخر له صلاحية canManageWarehouses: مخزنه
   const canManualAdd = useMemo(() => {
-    if (!isFeatureEnabled("allow_manual_warehouse_stock_addition")) return false;
+    if (!isManualStockAdditionUiEnabled(isMain)) return false;
     if (isGeneralManager || isExecutiveManager || isProductionManager) return true;
     if (isMain && isWarehouseSupervisor) return true;
     if (isAgouza && isWarehouseSupervisor) return true;
@@ -118,8 +118,7 @@ const WarehouseDetail = () => {
   //  • فعّال فقط للمخزن الرئيسي حاليًا
   //  • للأدوار: المدير العام / المدير التنفيذي / مسؤول المخزن الرئيسي
   const canManualOut = useMemo(() => {
-    if (!isFeatureEnabled("allow_manual_warehouse_stock_out")) return false;
-    if (!isMain) return false;
+    if (!isManualStockOutUiEnabled(isMain)) return false;
     return isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   }, [isMain, isGeneralManager, isExecutiveManager, isWarehouseSupervisor]);
 
