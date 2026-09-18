@@ -49,7 +49,7 @@ const Notifications = () => {
   const { user, isSalesManager, isGeneralManager, isExecutiveManager } = useAuth();
   const canDecideEditRequests = isSalesManager || isGeneralManager || isExecutiveManager;
 
-  const decideEditRequest = async (orderId: string, approve: boolean, notificationId: string) => {
+  const decideEditRequest = async (orderId: string, approve: boolean, _notificationId: string) => {
     try {
       const { error } = await supabase
         .from('order_edit_requests')
@@ -61,7 +61,12 @@ const Notifications = () => {
         .eq('order_id', orderId)
         .eq('status', 'pending');
       if (error) throw error;
-      await supabase.from('notifications').update({ is_read: true }).eq('id', notificationId);
+      await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('type', 'edit_request')
+        .eq('order_id', orderId)
+        .eq('is_read', false);
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       toast({ title: approve ? 'تمت الموافقة على تعديل الطلب' : 'تم رفض طلب التعديل' });
     } catch (e: any) {
