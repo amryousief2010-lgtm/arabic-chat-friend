@@ -9,6 +9,7 @@ import { useFactoryData } from "@/hooks/useFactoryData";
 import { exportCSV } from "@/lib/csvExport";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { buildFactoryPendingReviewRows, FACTORY_DATA_QUALITY_LABELS } from "@/lib/factoryDataQuality";
 
 // Accept both short keys ("batches") and full slug keys ("production") in the URL.
 const TAB_ALIASES: Record<string, string> = {
@@ -106,13 +107,7 @@ export default function FactoryReports() {
   }), [batches]);
 
   const pendingRows = useMemo(() => {
-    const list: any[] = [];
-    items.forEach((i: any) => {
-      if (Number(i.unit_cost) === 0 && Number(i.stock) > 0) list.push({ type: "zero_cost", item_code: i.item_code, item_name: i.name, value: `stock=${i.stock}` });
-      if (Number(i.stock) < 0) list.push({ type: "negative_stock", item_code: i.item_code, item_name: i.name, value: i.stock });
-      if (!i.sku && (i.module === "meat" || i.module === "feed")) list.push({ type: "missing_barcode", item_code: i.item_code, item_name: i.name, value: "—" });
-    });
-    list.push({ type: "invoice_review", item_code: "—", item_name: "Invoice 164", value: "needs_review (preserved)" });
+    const list = buildFactoryPendingReviewRows(items);
     return list.filter((r) => !f.search || JSON.stringify(r).toLowerCase().includes(f.search.toLowerCase()));
   }, [items, f.search]);
 
@@ -198,10 +193,26 @@ export default function FactoryReports() {
             ))}</TableBody></Table>
           </CardContent></Card></TabsContent>
 
-        <TabsContent value="pending"><Card><CardHeader><CardTitle className="text-base">عناصر للمراجعة ({pendingRows.length})</CardTitle></CardHeader>
+        <TabsContent value="pending"><Card><CardHeader>
+          <CardTitle className="text-base">عناصر للمراجعة ({pendingRows.filter((r) => r.actionable).length} مشكلة مخزون + {pendingRows.filter((r) => !r.actionable).length} ملاحظة محفوظة)</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            لقطة أصناف meat/feed الحالية — فلتر التاريخ أعلاه لا يقلل هذا العدد. رقم نظرة عامة «مشاكل جودة بيانات» يحسب فقط التكلفة الصفرية + مخزون، وليس باركود/سالب/فاتورة 164.
+          </p>
+        </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
             <Table><TableHeader><TableRow><TableHead>النوع</TableHead><TableHead>الكود</TableHead><TableHead>الاسم</TableHead><TableHead>القيمة</TableHead></TableRow></TableHeader>
-            <TableBody>{pendingRows.slice(0, 300).map((r, i) => (<TableRow key={i}><TableCell><Badge variant={r.type === "invoice_review" ? "outline" : "destructive"}>{r.type}</Badge></TableCell><TableCell className="font-mono text-xs">{r.item_code}</TableCell><TableCell>{r.item_name}</TableCell><TableCell>{r.value}</TableCell></TableRow>))}</TableBody></Table>
+            <TableBody>{pendingRows.slice(0, 300).map((r, i) => (
+              <TableRow key={i}>
+                <TableCell>
+                  <Badge variant={r.actionable ? "destructive" : "outline"}>
+                    {FACTORY_DATA_QUALITY_LABELS[r.type] || r.type}
+                  </Badge>
+                </TableCell>
+                <TableCell className="font-mono text-xs">{r.item_code}</TableCell>
+                <TableCell>{r.item_name}</TableCell>
+                <TableCell>{r.value}</TableCell>
+              </TableRow>
+            ))}</TableBody></Table>
           </CardContent></Card></TabsContent>
       </Tabs>
     </div>

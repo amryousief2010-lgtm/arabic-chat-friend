@@ -124,3 +124,164 @@ export function dedupeByBill<T extends DatedRow & { bill_no: string }>(rows: T[]
   }
   return [...map.values()];
 }
+
+/** Locked rule: Zodex COD is often our order total plus this shipping fee. */
+export const ZODEX_SHIPPING_FEE_EGP = 110;
+
+/** Default COD vs order-total tolerance (EGP) when not using the +110 rule. */
+export const ZODEX_AMOUNT_TOLERANCE_EGP = 5;
+
+/** Normalize to 11-digit 01… form when possible. */
+export function normalizeZodexPhone(s: string | null | undefined): string {
+  if (!s) return "";
+  const digits = String(s).replace(/[^\d]/g, "");
+  return digits.replace(/^0020|^20/, "0").slice(-11);
+}
+
+/** True when the cell looks like an Egyptian mobile, not a random numeric column. */
+export function looksLikeEgyptianMobile(s: string | null | undefined): boolean {
+  const n = normalizeZodexPhone(s);
+  return /^01\d{9}$/.test(n);
+}
+
+/** Pure phone cell (no Arabic name glued on) — used to rescan when layout shifts. */
+export function isPurePhoneCell(s: string | null | undefined): boolean {
+  const t = String(s || "").trim();
+  if (!/^[\d\s+()\-]{10,20}$/.test(t)) return false;
+  return looksLikeEgyptianMobile(t);
+}
+
+/**
+ * Same customer phone even when one side is 01… and the other is 2 / +20.
+ * Last-9 match is deterministic; do not treat 1-digit typos as equal here
+ * (that belongs to review scoring, not unlink / auto-link).
+ */
+export function phonesMatchLoose(a?: string | null, b?: string | null): boolean {
+  const x = normalizeZodexPhone(a);
+  const y = normalizeZodexPhone(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  return x.slice(-9) === y.slice(-9) && x.length >= 9 && y.length >= 9;
+}
+
+export type ZodexAmountMatch = {
+  ok: boolean;
+  via: "exact" | "shipping_fee" | null;
+  diff: number;
+};
+
+/**
+ * Deterministic amount key: totals within ±5 EGP, or Zodex COD == order + 110
+ * (locked shipping-fee rule). Broader 30–160 windows are review-only and must
+ * not auto-link.
+ */
+export function amountMatchesZodex(
+  orderTotal: number,
+  zodexCod: number,
+  tolerance = ZODEX_AMOUNT_TOLERANCE_EGP,
+): ZodexAmountMatch {
+  const total = Number(orderTotal || 0);
+  const cod = Number(zodexCod || 0);
+  if (!(total > 0 && cod > 0)) return { ok: false, via: null, diff: 0 };
+  const raw = Math.abs(cod - total);
+  if (raw <= tolerance) return { ok: true, via: "exact", diff: raw };
+  const ship = Math.abs(cod - total - ZODEX_SHIPPING_FEE_EGP);
+  if (ship < 0.5) return { ok: true, via: "shipping_fee", diff: ship };
+  return { ok: false, via: null, diff: Math.min(raw, ship) };
+}
+
+export type BalanceCellSource = "positional" | "scanned" | "none";
+
+export interface MappedBalanceRow {
+  bill_no: string;
+  customer_phone: string;
+  raw_date_text: string;
+  /** ISO Cairo timestamp, or null when the HTML date column could not be parsed. Never invent `now()`. */
+  shipment_date: string | null;
+  cod_amount: number;
+  shipping_fee: number;
+  operation_type: string;
+  shipment_status: string;
+  moderator_cell: string;
+  region: string;
+  zodex_receiver: string;
+  scrape_warnings: string[];
+  phone_source: BalanceCellSource;
+  date_source: BalanceCellSource;
+}
+
+function parseMoneyCell(s: string): number {
+  const n = parseFloat(String(s || "").replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Map a Zodex balance-page `<td>` row onto fields.
+ *
+ * Positional layout (waybill at index `billIdx`, historically 5):
+ * receiver=3, operation=4, waybill=5, moderator=6, status=7, customer phone=8,
+ * shipping fee=9, region=10, COD=11, date=14.
+ *
+ * If a layout shift makes the positional phone/date invalid, rescan *only*
+ * pure-phone cells and parseable date cells. Do not invent a date or phone.
+ */
+export function mapBalanceCells(cells: string[], billIdx: number): MappedBalanceRow {
+  const warnings: string[] = [];
+  const base = billIdx - 5;
+  const get = (i: number) => cells[base + i] ?? "";
+  const bill_no = String(get(5) || cells[billIdx] || "").trim().toUpperCase().replace(/\s+/g, "");
+
+  let customer_phone = get(8);
+  let phone_source: BalanceCellSource = "positional";
+  if (!looksLikeEgyptianMobile(customer_phone)) {
+    warnings.push("phone_positional_invalid");
+    const scanned = cells.find((c) => isPurePhoneCell(c));
+    if (scanned) {
+      customer_phone = scanned;
+      phone_source = "scanned";
+      warnings.push("phone_rescanned");
+    } else {
+      customer_phone = "";
+      phone_source = "none";
+    }
+  }
+
+  let raw_date_text = get(14);
+  let shipment_date = parseZodexDate(raw_date_text);
+  let date_source: BalanceCellSource = "positional";
+  if (!shipment_date) {
+    warnings.push("date_positional_unparsed");
+    for (const c of cells) {
+      const iso = parseZodexDate(c);
+      if (iso) {
+        raw_date_text = c;
+        shipment_date = iso;
+        date_source = "scanned";
+        warnings.push("date_rescanned");
+        break;
+      }
+    }
+    if (!shipment_date) date_source = "none";
+  }
+
+  const cod_amount = parseMoneyCell(get(11));
+  const shipping_fee = parseMoneyCell(get(9));
+  if (!(cod_amount > 0)) warnings.push("cod_positional_empty");
+
+  return {
+    bill_no,
+    customer_phone: normalizeZodexPhone(customer_phone),
+    raw_date_text,
+    shipment_date,
+    cod_amount,
+    shipping_fee,
+    operation_type: get(4),
+    shipment_status: get(7),
+    moderator_cell: get(6),
+    region: get(10),
+    zodex_receiver: get(3),
+    scrape_warnings: warnings,
+    phone_source,
+    date_source,
+  };
+}
