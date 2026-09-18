@@ -7,6 +7,10 @@ import {
   parseZodexDate,
   shouldRunWeeklyFullReview,
   OVERLAP_HOURS,
+  mapBalanceCells,
+  phonesMatchLoose,
+  looksLikeEgyptianMobile,
+  amountMatchesZodex,
 } from "../../../supabase/functions/_shared/zodexSync";
 
 const CYCLE = "2026-09-15T22:00:00.000Z";
@@ -108,5 +112,52 @@ describe("weekly full review", () => {
     expect(shouldRunWeeklyFullReview(null, CYCLE)).toBe(true);
     expect(shouldRunWeeklyFullReview("2026-09-01T22:00:00.000Z", CYCLE)).toBe(true);
     expect(shouldRunWeeklyFullReview("2026-09-14T22:00:00.000Z", CYCLE)).toBe(false);
+  });
+});
+
+describe("HTML scrape mapping (balance page)", () => {
+  it("uses positional phone/date when they are valid", () => {
+    const cells = [
+      "1", "2", "3", "إلي", "تكلفة التوصيل", "ZX999", "نورا 01011111111", "تسليم ناجح",
+      "01012345678", "40", "الجيزة", "500", "x", "y", "2026-09-10 04:42 PM",
+    ];
+    const m = mapBalanceCells(cells, 5);
+    expect(m.bill_no).toBe("ZX999");
+    expect(m.customer_phone).toBe("01012345678");
+    expect(m.phone_source).toBe("positional");
+    expect(m.date_source).toBe("positional");
+    expect(m.shipment_date).toBe("2026-09-10T16:42:00+02:00");
+    expect(m.cod_amount).toBe(500);
+  });
+
+  it("does not invent now() when the date column is garbage; rescans a real date cell", () => {
+    const cells = [
+      "1", "2", "3", "إلي", "تكلفة التوصيل", "ZX999", "نورا", "تسليم ناجح",
+      "01012345678", "40", "الجيزة", "500", "x", "y", "not-a-date",
+      "2026-08-01 01:00 PM",
+    ];
+    const m = mapBalanceCells(cells, 5);
+    expect(m.date_source).toBe("scanned");
+    expect(m.shipment_date).toBe("2026-08-01T13:00:00+02:00");
+    expect(m.scrape_warnings).toContain("date_rescanned");
+  });
+
+  it("clears the phone instead of using a shifted status/COD column", () => {
+    const cells = [
+      "1", "2", "3", "إلي", "تكلفة التوصيل", "ZX999", "نورا علي", "تسليم ناجح",
+      "الجيزة", "40", "الجيزة", "500", "x", "y", "2026-09-10 04:42 PM",
+    ];
+    const m = mapBalanceCells(cells, 5);
+    expect(m.phone_source).toBe("none");
+    expect(m.customer_phone).toBe("");
+  });
+});
+
+describe("deterministic match keys (sync)", () => {
+  it("accepts last-9 phones and locked +110, rejects a 80 EGP gap", () => {
+    expect(phonesMatchLoose("01012345678", "201012345678")).toBe(true);
+    expect(looksLikeEgyptianMobile("تسليم ناجح")).toBe(false);
+    expect(amountMatchesZodex(400, 510).ok).toBe(true);
+    expect(amountMatchesZodex(400, 480).ok).toBe(false);
   });
 });

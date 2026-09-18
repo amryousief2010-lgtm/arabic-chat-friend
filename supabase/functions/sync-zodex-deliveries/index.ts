@@ -7,6 +7,12 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { DOMParser, Element } from "https://deno.land/x/deno_dom@v0.1.45/deno-dom-wasm.ts";
+import {
+  amountMatchesZodex,
+  looksLikeEgyptianMobile,
+  mapBalanceCells,
+  phonesMatchLoose,
+} from "../_shared/zodexSync.ts";
 
 // ----- config -----
 const ZODEX_BASE = "https://zodex-eg.com/admin-area";
@@ -14,7 +20,6 @@ const SHIPPER_ID = 215; // نعام العاصمة
 const ITEMS_PER_PAGE = 100;
 const DEFAULT_LOOKBACK_DAYS = 14;
 const ALAA_USER_ID = "77b71c5f-cfa8-42bc-85de-ae536a3ec1c1"; // م. آلاء حامد
-const PHONE_MATCH_AMOUNT_TOLERANCE = 5; // EGP
 const DATE_WINDOW_DAYS = 3;
 const NAME_MATCH_THRESHOLD = 0.75;
 
@@ -75,18 +80,6 @@ function tokenSetRatio(a: string, b: string): number {
   let inter = 0;
   for (const t of ta) if (tb.has(t)) inter++;
   return (2 * inter) / (ta.size + tb.size);
-}
-
-function parseZodexDate(s: string): string | null {
-  // e.g. "2026-07-04 04:42 PM"
-  const m = s.match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-  if (!m) return null;
-  let hh = parseInt(m[4], 10);
-  const mm = parseInt(m[5], 10);
-  const ap = (m[6] || "").toUpperCase();
-  if (ap === "PM" && hh < 12) hh += 12;
-  if (ap === "AM" && hh === 12) hh = 0;
-  return `${m[1]}-${m[2]}-${m[3]}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00+02:00`;
 }
 
 // ----- Zodex client -----
@@ -165,12 +158,15 @@ interface ZodexRow {
   shipping_fee: number;
   operation_type: string;
   shipment_status: string;
-  shipment_date: string;
+  shipment_date: string | null;
   raw_date_text: string;
   zodex_receiver: string;   // column 3 "إلي" - the Zodex-side admin (informational)
   invoice_no: string | null; // e.g. "55811" if row is part of a closed payment invoice
   raw_cells: string[];
   searchable_text: string;
+  scrape_warnings: string[];
+  phone_source: string;
+  date_source: string;
 }
 
 function normalizeBillNo(s: string | null | undefined): string {
@@ -240,11 +236,8 @@ function parseBalanceRows(html: string): ZodexRow[] {
     // Find waybill cell containing ZX...
     const billIdx = cells.findIndex((c) => /^ZX\d+$/.test(c));
     if (billIdx < 0) continue;
-    // Given column layout, waybill is index 5 → offset backwards to derive other columns
-    const base = billIdx - 5;
-    const get = (i: number) => cells[base + i] ?? "";
-    const iso = parseZodexDate(get(14)) || new Date().toISOString();
-    const mod = splitNameAndPhone(get(6));
+    const mapped = mapBalanceCells(cells, billIdx);
+    const mod = splitNameAndPhone(mapped.moderator_cell);
 
     // -------- Row color detection (green = closed/invoiced, white = still in pickup) --------
     // Collect all styling hints from <tr> and its <td>s.
@@ -289,21 +282,24 @@ function parseBalanceRows(html: string): ZodexRow[] {
     }
 
     rows.push({
-      bill_no: normalizeBillNo(get(5)),
-      zodex_receiver: get(3),
+      bill_no: mapped.bill_no,
+      zodex_receiver: mapped.zodex_receiver,
       moderator_name: mod.name,
       moderator_phone: mod.phone,
-      customer_phone: normalizePhone(get(8)),
-      region: get(10),
-      cod_amount: parseFloat(get(11).replace(/[^\d.-]/g, "")) || 0,
-      shipping_fee: parseFloat(get(9).replace(/[^\d.-]/g, "")) || 0,
-      operation_type: get(4),
-      shipment_status: get(7),
-      shipment_date: iso,
-      raw_date_text: get(14),
+      customer_phone: mapped.customer_phone,
+      region: mapped.region,
+      cod_amount: mapped.cod_amount,
+      shipping_fee: mapped.shipping_fee,
+      operation_type: mapped.operation_type,
+      shipment_status: mapped.shipment_status,
+      shipment_date: mapped.shipment_date,
+      raw_date_text: mapped.raw_date_text,
       invoice_no: invoiceNo,
       raw_cells: cells,
       searchable_text: cells.join(" | "),
+      scrape_warnings: mapped.scrape_warnings,
+      phone_source: mapped.phone_source,
+      date_source: mapped.date_source,
     });
   }
   return rows;
@@ -400,7 +396,12 @@ Deno.serve(async (req) => {
     // customer has multiple identical orders, the earliest-created order gets paired
     // with the earliest Zodex waybill (FIFO). This handles the frequent case where the
     // same customer places several orders in a month with the same name/phone/amount.
-    allRows.sort((a, b) => new Date(a.shipment_date).getTime() - new Date(b.shipment_date).getTime());
+    // Undated rows (HTML date unparsed) sort last and are never auto-matched below.
+    allRows.sort((a, b) => {
+      const ta = a.shipment_date ? new Date(a.shipment_date).getTime() : Number.POSITIVE_INFINITY;
+      const tb = b.shipment_date ? new Date(b.shipment_date).getTime() : Number.POSITIVE_INFINITY;
+      return ta - tb;
+    });
 
     // Track orders we've already assigned within this run so we don't hand one order
     // to two different Zodex rows.
@@ -421,12 +422,16 @@ Deno.serve(async (req) => {
           .eq("shipping_bill_no", row.bill_no).maybeSingle();
         if (data) {
           // A customer can have two phone numbers and Zodex may use either one.
-          // Unlink only when the Zodex phone matches neither saved number.
+          // Unlink only when the scraped phone looks like a real Egyptian mobile
+          // AND matches neither saved number (including last-9 / 01 vs +20).
+          // Garbage HTML columns must not unlink a valid bill.
           const customerPhones = [
             normalizePhone((data as any).customers?.phone || ""),
             normalizePhone((data as any).customers?.phone2 || ""),
           ].filter(Boolean);
-          if (customerPhones.length && row.customer_phone && !customerPhones.includes(row.customer_phone)) {
+          const scrapedOk = looksLikeEgyptianMobile(row.customer_phone);
+          const phoneAgrees = customerPhones.some((p) => phonesMatchLoose(p, row.customer_phone));
+          if (scrapedOk && customerPhones.length && !phoneAgrees) {
             await supabase.from("orders").update({ shipping_bill_no: null }).eq("id", data.id);
           } else {
             matchedOrder = data;
@@ -438,7 +443,8 @@ Deno.serve(async (req) => {
       //    Same customer can order many times a month with identical name/phone/amount,
       //    so we first prefer the order whose item/offer signature appears in the Mega/Zodex
       //    row, then pick the earliest-created candidate that hasn't been claimed yet.
-      if (!matchedOrder && row.customer_phone) {
+      //    Skip when the scrape has no valid phone or no parsed date — do not invent `now()`.
+      if (!matchedOrder && looksLikeEgyptianMobile(row.customer_phone) && row.shipment_date) {
         const winStart = new Date(new Date(row.shipment_date).getTime() - DATE_WINDOW_DAYS * 86400_000).toISOString();
         const winEnd = new Date(new Date(row.shipment_date).getTime() + DATE_WINDOW_DAYS * 86400_000).toISOString();
         const { data: candidates } = await supabase.from("orders")
@@ -448,7 +454,7 @@ Deno.serve(async (req) => {
           .lte("created_at", winEnd);
         const list = (candidates || []) as any[];
 
-        // Strict filter: phone exact + amount close + moderator name match,
+        // Strict filter: phone exact/last-9 + amount (exact ±5 or locked +110) + moderator,
         // and NOT already claimed by an earlier Zodex row in this run.
         const strictHits = list.filter((c) => {
           if (claimedInThisRun.has(c.id)) return false;
@@ -456,9 +462,9 @@ Deno.serve(async (req) => {
              normalizePhone(c.customers?.phone),
              normalizePhone(c.customers?.phone2),
            ].filter(Boolean);
-          const amountOk = Math.abs(Number(c.total || 0) - row.cod_amount) <= PHONE_MATCH_AMOUNT_TOLERANCE;
+          const amountOk = amountMatchesZodex(Number(c.total || 0), row.cod_amount).ok;
           const modScore = tokenSetRatio(c.moderator || "", row.moderator_name);
-           return customerPhones.includes(row.customer_phone) && amountOk && modScore >= 0.5;
+           return customerPhones.some((p) => phonesMatchLoose(p, row.customer_phone)) && amountOk && modScore >= 0.5;
         });
 
         if (strictHits.length >= 1) {
@@ -506,7 +512,7 @@ Deno.serve(async (req) => {
           patch.status = "delivered";
           patch.collection_status = "collected";
           patch.total_at_delivery = row.cod_amount;
-          if (!matchedOrder.delivered_at) patch.delivered_at = row.shipment_date;
+          if (!matchedOrder.delivered_at) patch.delivered_at = row.shipment_date || new Date().toISOString();
           stats.delivered_matched++;
         } else if (row.operation_type === OP_DELIVERY) {
           // White/open Mega/Zodex pickup rows, or postponed rows on a closed invoice.
@@ -738,9 +744,9 @@ Deno.serve(async (req) => {
               normalizePhone(c.customers?.phone),
               normalizePhone(c.customers?.phone2),
             ].filter(Boolean);
-            const amountOk = Math.abs(Number(c.total || 0) - amount) <= PHONE_MATCH_AMOUNT_TOLERANCE;
+            const amountOk = amountMatchesZodex(Number(c.total || 0), amount).ok;
             const modOk = !modText || tokenSetRatio(c.moderator || "", modText) >= 0.5;
-            return customerPhones.includes(phone) && amountOk && modOk;
+            return customerPhones.some((p) => phonesMatchLoose(p, phone)) && amountOk && modOk;
           });
           if (hits.length >= 1) {
             await supabase.from("orders").update({

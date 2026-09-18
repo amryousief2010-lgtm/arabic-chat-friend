@@ -86,12 +86,16 @@ export function useFactoryData(from: string, to: string) {
     },
   });
   const itemsQ = useQuery({
-    queryKey: ["fac-items"],
+    queryKey: ["fac-items", "meat-feed"],
     queryFn: async () => {
+      // Factory screens must not mix warehouse SKUs into "جودة بيانات".
+      // Previous query was unfiltered `.limit(1000)` so the overview card
+      // (live: 32) could include non-factory rows. Snapshot, not date-scoped.
       const { data, error } = await supabase
         .from("inventory_items")
         .select("id,name,stock,reserved_qty,blocked_qty,unit_cost,low_stock_threshold,sku,item_code,module")
-        .limit(1000);
+        .in("module", ["meat", "feed"])
+        .limit(2000);
       if (error) throw error;
       return data || [];
     },

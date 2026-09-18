@@ -1,9 +1,19 @@
 // Zodex bill/order classification utilities.
 // Used by the unified ZodexReview screen.
 
+import {
+  amountMatchesZodex,
+  looksLikeEgyptianMobile,
+  phonesMatchLoose,
+  ZODEX_SHIPPING_FEE_EGP,
+} from "../../supabase/functions/_shared/zodexSync";
+
+export { amountMatchesZodex, looksLikeEgyptianMobile, phonesMatchLoose, ZODEX_SHIPPING_FEE_EGP };
+
 export const ZODEX_INTEGRATION_START = "2026-07-07T00:00:00+02:00";
 export const AGOUZA_WAREHOUSE_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
 export const NO_BILL_MIN_AGE_HOURS = 24;
+export const LAST9_PHONE_KEY_MIN = 9;
 
 // Statuses that mean the order is NOT expected to have a Zodex bill.
 export const NON_SHIPPABLE_STATUSES = new Set([
@@ -88,13 +98,14 @@ export function scoreCandidate(row: MissingBill, o: OrderCandidate): ScoredCandi
   const total = Number(o.total || 0);
   if (cod > 0 && total > 0) {
     const rawDiff = Math.abs(cod - total);
-    const shipDiff = Math.abs(cod - total - 110);
+    const shipDiff = Math.abs(cod - total - ZODEX_SHIPPING_FEE_EGP);
     const positiveDiff = cod - total;
-    if (rawDiff < 0.5) { score += 25; reasons.push("المبلغ مطابق"); }
-    else if (shipDiff < 0.5) { score += 25; reasons.push("المبلغ مطابق (+110 شحن زودكس)"); }
+    const det = amountMatchesZodex(total, cod);
+    if (det.ok && det.via === "exact" && rawDiff < 0.5) { score += 25; reasons.push("المبلغ مطابق"); }
+    else if (det.ok && det.via === "shipping_fee") { score += 25; reasons.push(`المبلغ مطابق (+${ZODEX_SHIPPING_FEE_EGP} شحن زودكس)`); }
     else if (rawDiff <= Math.max(5, cod * 0.02)) { score += 20; reasons.push(`المبلغ قريب (فرق ${rawDiff.toFixed(0)})`); }
-    else if (shipDiff <= Math.max(5, cod * 0.02)) { score += 20; reasons.push(`المبلغ قريب مع شحن 110 (فرق ${shipDiff.toFixed(0)})`); }
-    // Broader shipping-fee variance window: positive diff 30-160 EGP likely = shipping variant
+    else if (shipDiff <= Math.max(5, cod * 0.02)) { score += 20; reasons.push(`المبلغ قريب مع شحن ${ZODEX_SHIPPING_FEE_EGP} (فرق ${shipDiff.toFixed(0)})`); }
+    // Broader shipping-fee variance window: review ranking only — never auto-link.
     else if (positiveDiff >= 30 && positiveDiff <= 160) { score += 18; reasons.push(`فرق مبلغ ${positiveDiff.toFixed(0)} ج (رسوم شحن محتملة)`); }
     else if (rawDiff <= Math.max(20, cod * 0.05)) { score += 8; reasons.push(`المبلغ متقارب (فرق ${rawDiff.toFixed(0)})`); }
   }
@@ -111,8 +122,9 @@ export function scoreCandidate(row: MissingBill, o: OrderCandidate): ScoredCandi
 }
 
 export type LinkIssueKind =
-  | "bill_not_saved_on_order"     // score >= 90, safe to auto-fix
-  | "suggested_match"             // score 60-89, likely match, needs one-click confirm
+  | "bill_not_saved_on_order"     // score >= 90 AND strong phone, safe to one-click save
+  | "suggested_match"             // score 60-89 AND strong phone, needs one-click confirm
+  | "weak_match"                  // score high enough to show, but phone is not a deterministic key
   | "phone_mismatch"
   | "name_mismatch"
   | "amount_mismatch"
@@ -143,8 +155,15 @@ export function classifyLinkIssue(
     };
   }
 
+  const pc = Math.max(
+    phoneCloseness(bill.customer_phone, best.customer?.phone),
+    phoneCloseness(bill.customer_phone, best.customer?.phone2),
+  );
+  const strongPhone = pc >= 0.85;
+
   // Best candidate is essentially the same order → just save the bill number.
-  if (best.score >= 90 && !best.shipping_bill_no) {
+  // Require a strong phone key so FIFO/name+amount cannot one-click the wrong order.
+  if (best.score >= 90 && !best.shipping_bill_no && strongPhone) {
     return {
       kind: "bill_not_saved_on_order",
       label: "البوليصة موجودة لكن غير محفوظة داخل الأوردر",
@@ -154,8 +173,8 @@ export function classifyLinkIssue(
     };
   }
 
-  // Suggested match: 60-89% score with real signals → one-click confirm
-  if (best.score >= 60 && !best.shipping_bill_no) {
+  // Suggested match: 60-89% with a deterministic phone key → one-click confirm
+  if (best.score >= 60 && !best.shipping_bill_no && strongPhone) {
     return {
       kind: "suggested_match",
       label: `مطابقة مقترحة (${best.score}%) — تحتاج تأكيد`,
@@ -165,16 +184,20 @@ export function classifyLinkIssue(
     };
   }
 
-  // Compute individual mismatches
-  const pc = Math.max(
-    phoneCloseness(bill.customer_phone, best.customer?.phone),
-    phoneCloseness(bill.customer_phone, best.customer?.phone2),
-  );
+  if (best.score >= 60 && !best.shipping_bill_no && !strongPhone) {
+    return {
+      kind: "weak_match",
+      label: `تطابق جزئي (${best.score}%) — الموبايل غير مؤكد`,
+      detail: `الأوردر ${best.order_number}: ${best.reasons.join(" • ")}. الربط اليدوي فقط — لا تأكيد بضغطة لأن رقم الموبايل مش مفتاح قوي.`,
+      fixable: false,
+      confidence: best.score,
+    };
+  }
   const nm = nameCloseness(bill.customer_name, best.customer?.name);
   const cod = Number(bill.cod_amount || 0);
   const total = Number(best.total || 0);
   const rawDiff = cod > 0 && total > 0 ? Math.abs(cod - total) : 0;
-  const shipDiff = cod > 0 && total > 0 ? Math.abs(cod - total - 110) : 0;
+  const shipDiff = cod > 0 && total > 0 ? Math.abs(cod - total - ZODEX_SHIPPING_FEE_EGP) : 0;
   const amountDiff = cod > 0 && total > 0 ? Math.min(rawDiff, shipDiff) : 0;
   const amountMismatch = cod > 0 && total > 0 && amountDiff > Math.max(5, cod * 0.02);
 
@@ -191,7 +214,7 @@ export function classifyLinkIssue(
     return {
       kind: "amount_mismatch",
       label: "القيمة مختلفة",
-      detail: `COD: ${cod.toLocaleString("ar-EG")} ج | إجمالي الأوردر ${best.order_number}: ${total.toLocaleString("ar-EG")} ج (فرق ${amountDiff.toFixed(0)}${shipDiff < rawDiff ? " بعد خصم 110 شحن" : ""})`,
+      detail: `COD: ${cod.toLocaleString("ar-EG")} ج | إجمالي الأوردر ${best.order_number}: ${total.toLocaleString("ar-EG")} ج (فرق ${amountDiff.toFixed(0)}${shipDiff < rawDiff ? ` بعد خصم ${ZODEX_SHIPPING_FEE_EGP} شحن` : ""})`,
       fixable: false,
     };
   }
@@ -219,4 +242,142 @@ export function classifyLinkIssue(
   }
 
   return null;
+}
+
+/** Last 9 digits — the review-screen phone key (handles 01 vs +20). */
+export function last9PhoneKey(v?: string | null): string {
+  return (v || "").replace(/\D+/g, "").slice(-LAST9_PHONE_KEY_MIN);
+}
+
+export type MismatchExplain = {
+  kind: string;
+  label: string;
+  detail: string;
+};
+
+/**
+ * Why a Zodex bill has no local order with score ≥ 20.
+ * Display-only — never used to auto-link.
+ */
+export function explainOrphanBill(opts: {
+  bill: MissingBill;
+  weakCandidates: ScoredCandidate[];
+}): MismatchExplain {
+  const { bill, weakCandidates } = opts;
+  if (!looksLikeEgyptianMobile(bill.customer_phone)) {
+    return {
+      kind: "no_valid_phone",
+      label: "موبايل زودكس غير صالح للمطابقة",
+      detail: bill.customer_phone
+        ? `الرقم «${bill.customer_phone}» مش شكل موبايل مصري (01…) — غالبًا عمود HTML اتزاح. ربط يدوي فقط.`
+        : "البوليصة بدون موبايل — لا يمكن المطابقة التلقائية.",
+    };
+  }
+  if (!bill.shipment_date) {
+    return {
+      kind: "missing_zodex_date",
+      label: "تاريخ الشحن غير مقروء من زودكس",
+      detail: "عمود التاريخ فاضي أو مش بالصيغة المتوقعة. الصف ظاهر للمراجعة اليدوية ولم يُتخطَّ بصمت.",
+    };
+  }
+  const phoneHit = weakCandidates.find((c) =>
+    phonesMatchLoose(bill.customer_phone, c.customer?.phone) ||
+    phonesMatchLoose(bill.customer_phone, c.customer?.phone2),
+  );
+  if (phoneHit) {
+    const det = amountMatchesZodex(Number(phoneHit.total || 0), Number(bill.cod_amount || 0));
+    if (!det.ok) {
+      return {
+        kind: "phone_amount_mismatch",
+        label: "نفس الموبايل — القيمة مختلفة",
+        detail: `أقرب أوردر ${phoneHit.order_number}: ${Number(phoneHit.total || 0).toLocaleString("ar-EG")} ج مقابل COD ${Number(bill.cod_amount || 0).toLocaleString("ar-EG")} ج (فرق ${det.diff.toFixed(0)}). ليس تطابق +${ZODEX_SHIPPING_FEE_EGP}.`,
+      };
+    }
+  }
+  if (weakCandidates.length > 0) {
+    const w = weakCandidates[0];
+    return {
+      kind: "weak_candidate",
+      label: `مرشح ضعيف (${w.score}%)`,
+      detail: `الأوردر ${w.order_number}: ${w.reasons.join(" • ") || "بدون إشارات قوية"}. تحت حد العرض (20%).`,
+    };
+  }
+  return {
+    kind: "no_local_order",
+    label: "لا يوجد أوردر بنفس الموبايل",
+    detail: "آخر 9 أرقام الموبايل غير موجودة على أوردر بدون بوليصة. غالبًا أوردر اتسجل على زودكس فقط — أو رقم مختلف عندنا.",
+  };
+}
+
+export type BillPhoneSuggestion = {
+  bill: MissingBill;
+  via: string;
+  kind: "amount_ok" | "phone_only";
+  detail: string;
+};
+
+/**
+ * Pick a pending bill for a no-bill order: phone last-9 AND (exact or +110 amount)
+ * is a real suggestion. Phone-only is labeled, never treated as a match.
+ */
+export function suggestBillForOrder(
+  orderTotal: number | null | undefined,
+  bills: MissingBill[],
+  via: string,
+): BillPhoneSuggestion | null {
+  if (!bills.length) return null;
+  const amountHit = bills.find((b) => amountMatchesZodex(Number(orderTotal || 0), Number(b.cod_amount || 0)).ok);
+  if (amountHit) {
+    const det = amountMatchesZodex(Number(orderTotal || 0), Number(amountHit.cod_amount || 0));
+    return {
+      bill: amountHit,
+      via,
+      kind: "amount_ok",
+      detail: det.via === "shipping_fee"
+        ? `موبايل + مبلغ مطابق (بعد +${ZODEX_SHIPPING_FEE_EGP} شحن)`
+        : "موبايل + مبلغ مطابق",
+    };
+  }
+  const b = bills[0];
+  const det = amountMatchesZodex(Number(orderTotal || 0), Number(b.cod_amount || 0));
+  return {
+    bill: b,
+    via,
+    kind: "phone_only",
+    detail: `نفس الموبايل (${via}) لكن القيمة مختلفة: أوردر ${Number(orderTotal || 0).toLocaleString("ar-EG")} ج • زودكس ${Number(b.cod_amount || 0).toLocaleString("ar-EG")} ج (فرق ${det.diff.toFixed(0)}).`,
+  };
+}
+
+export function explainNoBillOrder(opts: {
+  hasWarehouse: boolean;
+  shippingCompany: string | null | undefined;
+  suggestion: BillPhoneSuggestion | null;
+}): MismatchExplain {
+  const { hasWarehouse, shippingCompany, suggestion } = opts;
+  if (suggestion?.kind === "amount_ok") {
+    return {
+      kind: "pending_bill_match",
+      label: "بوليصة معلّقة مطابقة",
+      detail: `${suggestion.detail}: ${suggestion.bill.bill_no}. استخدم «إعادة الربط» يدويًا — النظام لا يربط تلقائيًا من الشاشة.`,
+    };
+  }
+  if (suggestion?.kind === "phone_only") {
+    return {
+      kind: "phone_only_bill",
+      label: "بوليصة بنفس الموبايل — القيمة مختلفة",
+      detail: suggestion.detail,
+    };
+  }
+  if (!hasWarehouse && !shippingCompany) {
+    return {
+      kind: "unclassified_fulfillment",
+      label: "بدون منفذ تنفيذ محدد",
+      detail: "الأوردر مش مربوط بمخزن/شركة شحن. ظاهر للاحتياط — قد لا يكون شحنة زودكس.",
+    };
+  }
+  return {
+    kind: "no_pending_bill",
+    label: "لا توجد بوليصة معلّقة بنفس الموبايل",
+    detail: "مفيش صف pending في زودكس بآخر 9 أرقام. سجّل البوليصة على زودكس أو اربط رقم ZX يدويًا إذا كانت موجودة ومتربطتش.",
+  };
 }
