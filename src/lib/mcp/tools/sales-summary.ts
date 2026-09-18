@@ -1,6 +1,7 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { supabaseForUser } from "../supabase";
+import { isCancelledOrderStatus, sumSalesNet } from "../../orderSalesFilters";
 
 function num(v: unknown): number {
   const x = Number(v);
@@ -30,8 +31,9 @@ export default defineTool({
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
 
     const rows = data ?? [];
-    const valid = rows.filter((r) => r.status !== "cancelled");
-    const totalSales = valid.reduce((s, r) => s + num(r.total), 0);
+    const valid = rows.filter((r) => !isCancelledOrderStatus(r.status));
+    const totals = sumSalesNet(rows);
+    const totalSales = totals.sales;
     const byStatus: Record<string, number> = {};
     for (const r of rows) byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
     const byMod = new Map<string, { orders: number; total: number }>();

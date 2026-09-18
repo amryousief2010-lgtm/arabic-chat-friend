@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth, toCairoDateString } from '@/lib/cairoDate';
+import { isSalesNetOrder, SALES_NET_LABEL_AR, sumSalesNet } from '@/lib/orderSalesFilters';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Header from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -177,13 +178,15 @@ const TeamPerformance = () => {
       // Calculate metrics per team member
       const membersWithMetrics: TeamMember[] = (profiles || []).map(profile => {
         const memberOrders = orders?.filter(o => o.created_by === profile.id) || [];
+        const net = sumSalesNet(memberOrders);
+        const netOrders = memberOrders.filter(isSalesNetOrder);
         return {
           id: profile.id,
           full_name: profile.full_name,
-          ordersCount: memberOrders.length,
-          totalSales: memberOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0),
-          deliveredOrders: memberOrders.filter(o => o.status === 'delivered').length,
-          pendingOrders: memberOrders.filter(o => o.status === 'pending' || o.status === 'processing').length,
+          ordersCount: net.orderCount,
+          totalSales: net.sales,
+          deliveredOrders: netOrders.filter(o => o.status === 'delivered').length,
+          pendingOrders: netOrders.filter(o => o.status === 'pending' || o.status === 'processing').length,
         };
       });
 
@@ -469,7 +472,7 @@ const TeamPerformance = () => {
 
   return (
     <DashboardLayout>
-      <Header title="أداء الفريق" subtitle="متابعة أداء فريق المبيعات" />
+      <Header title="أداء الفريق" subtitle={`متابعة أداء فريق المبيعات — ${SALES_NET_LABEL_AR}`} />
 
       {/* Controls */}
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
@@ -584,7 +587,7 @@ const TeamPerformance = () => {
               <ShoppingCart className="w-6 h-6 text-secondary-foreground" />
             </div>
             <div>
-              <p className="text-muted-foreground text-sm">إجمالي الطلبات</p>
+              <p className="text-muted-foreground text-sm">إجمالي الطلبات ({SALES_NET_LABEL_AR})</p>
               <p className="text-2xl font-bold">{totalOrders}</p>
             </div>
           </div>
@@ -595,7 +598,7 @@ const TeamPerformance = () => {
               <DollarSign className="w-6 h-6 text-success-foreground" />
             </div>
             <div>
-              <p className="text-muted-foreground text-sm">إجمالي المبيعات</p>
+              <p className="text-muted-foreground text-sm">إجمالي المبيعات ({SALES_NET_LABEL_AR})</p>
               <p className="text-2xl font-bold">{totalSales.toLocaleString()} ج.م</p>
             </div>
           </div>

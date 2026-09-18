@@ -7,6 +7,7 @@ import {
   currentCairoYearMonth,
   toCairoDateString,
 } from "@/lib/cairoDate";
+import { applySalesNetFilter } from "@/lib/orderSalesFilters";
 import { chunkIds, paginateUntilDone } from "@/lib/paginateQuery";
 
 export type ReportPeriod = "month" | "quarter" | "half" | "year" | "all";
@@ -51,23 +52,24 @@ const ITEM_CHUNK = 200;
 export const useReportsData = (period: ReportPeriod) => {
   const { from, to } = useMemo(() => getDateRange(period), [period]);
 
-  // Fetch orders with customer city
+  // Fetch orders with customer city — sales net (excludes cancelled)
   const ordersQuery = useQuery({
-    queryKey: ["reports-orders", from, to],
+    queryKey: ["reports-orders", "sales-net", from, to],
     queryFn: async () => {
       return paginateUntilDone({
         pageSize: PAGE_SIZE,
         maxPages: MAX_PAGES,
         idOf: (row: { id?: string }) => row.id,
         fetchPage: async (rangeFrom, rangeTo) => {
-          const { data, error } = await supabase
-            .from("orders")
-            .select("id, total, created_at, source, shipping_company, moderator, customer_id, customers(city)")
-            .gte("created_at", from)
-            .lte("created_at", to)
-            .order("created_at", { ascending: true })
-            .order("id", { ascending: true })
-            .range(rangeFrom, rangeTo);
+          const { data, error } = await applySalesNetFilter(
+            supabase
+              .from("orders")
+              .select("id, total, created_at, source, shipping_company, moderator, customer_id, customers(city)")
+              .gte("created_at", from)
+              .lte("created_at", to)
+              .order("created_at", { ascending: true })
+              .order("id", { ascending: true }),
+          ).range(rangeFrom, rangeTo);
           if (error) throw error;
           return data || [];
         },
@@ -82,7 +84,7 @@ export const useReportsData = (period: ReportPeriod) => {
   // and no `.order()`, which can return the same 1000 rows forever so
   // `isLoading` never clears.
   const itemsQuery = useQuery({
-    queryKey: ["reports-items", from, to, ordersQuery.dataUpdatedAt],
+    queryKey: ["reports-items", "sales-net", from, to, ordersQuery.dataUpdatedAt],
     enabled: !!ordersQuery.data,
     queryFn: async () => {
       const ids = (ordersQuery.data || []).map((o: { id: string }) => o.id).filter(Boolean);

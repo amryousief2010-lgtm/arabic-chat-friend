@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useMemo } from "react";
+import { applySalesNetFilter } from "@/lib/orderSalesFilters";
 
 const MONTH_NAMES = [
   "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
@@ -24,7 +25,7 @@ export type YearFilter = "all" | "2026" | "pre2026";
 
 export const useModeratorPerformance = (yearFilter: YearFilter = "all") => {
   const ordersQuery = useQuery({
-    queryKey: ["moderator-orders"],
+    queryKey: ["moderator-orders", "sales-net"],
     queryFn: async () => {
       let allOrders: any[] = [];
       let page = 0;
@@ -32,10 +33,11 @@ export const useModeratorPerformance = (yearFilter: YearFilter = "all") => {
       let hasMore = true;
 
       while (hasMore) {
-        const { data, error } = await supabase
-          .from("orders")
-          .select("total, created_at, moderator")
-          .range(page * pageSize, (page + 1) * pageSize - 1);
+        const { data, error } = await applySalesNetFilter(
+          supabase
+            .from("orders")
+            .select("total, created_at, moderator"),
+        ).range(page * pageSize, (page + 1) * pageSize - 1);
 
         if (error) throw error;
         if (data) allOrders = allOrders.concat(data);

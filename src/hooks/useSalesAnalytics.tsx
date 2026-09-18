@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cairoTodayStartUTC, toCairoDateString } from "@/lib/cairoDate";
 import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
 import { AGOUZA_WAREHOUSE_ID } from "@/lib/agouzaReservations";
+import { applySalesNetFilter } from "@/lib/orderSalesFilters";
 
 export interface TodayOrdersBreakdown {
   mainWarehouse: number;
@@ -53,14 +54,16 @@ const isSameCairoDay = (createdAt: string, cairoDate: string) =>
  */
 export const useTodayOrdersBreakdown = () => {
   return useQuery<TodayOrdersBreakdown>({
-    queryKey: ["today-orders-breakdown-v2"],
+    queryKey: ["today-orders-breakdown-v3-sales-net"],
     queryFn: async () => {
       const { start, end, cairoDate } = getTodayWindow();
-      const { data, error } = await supabase
-        .from("orders")
-        .select("id, shipping_company, source_warehouse_id, created_at")
-        .gte("created_at", start.toISOString())
-        .lt("created_at", end.toISOString());
+      const { data, error } = await applySalesNetFilter(
+        supabase
+          .from("orders")
+          .select("id, shipping_company, source_warehouse_id, created_at")
+          .gte("created_at", start.toISOString())
+          .lt("created_at", end.toISOString()),
+      );
       if (error) throw error;
       const rows = (data || []).filter((o: any) => isSameCairoDay(o.created_at, cairoDate));
       let mainWarehouse = 0, agouza = 0, unclassified = 0;
@@ -79,17 +82,19 @@ export const useTodayOrdersBreakdown = () => {
 
 export const useTodayWarehouseOrders = (channel: TodayOrdersChannel | null) => {
   return useQuery<TodayWarehouseOrder[]>({
-    queryKey: ["today-warehouse-orders", channel],
+    queryKey: ["today-warehouse-orders", "sales-net", channel],
     enabled: !!channel,
     queryFn: async () => {
       if (!channel) return [];
       const { start, end, cairoDate } = getTodayWindow();
-      const { data, error } = await supabase
-        .from("orders")
-        .select("id, order_number, total, status, created_at, source_warehouse_id, customers(name)")
-        .gte("created_at", start.toISOString())
-        .lt("created_at", end.toISOString())
-        .order("created_at", { ascending: false });
+      const { data, error } = await applySalesNetFilter(
+        supabase
+          .from("orders")
+          .select("id, order_number, total, status, created_at, source_warehouse_id, customers(name)")
+          .gte("created_at", start.toISOString())
+          .lt("created_at", end.toISOString())
+          .order("created_at", { ascending: false }),
+      );
       if (error) throw error;
 
       return ((data || []) as any[])
@@ -233,11 +238,13 @@ export const useRecentOrders = (limit = 5) => {
 
 export const useMonthlySalesFromDB = () => {
   return useQuery({
-    queryKey: ["monthly-sales-db"],
+    queryKey: ["monthly-sales-db", "sales-net"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("orders")
-        .select("total, created_at");
+      const { data } = await applySalesNetFilter(
+        supabase
+          .from("orders")
+          .select("total, created_at"),
+      );
 
       if (!data) return [];
 

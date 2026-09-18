@@ -14,6 +14,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { isCancelledOrderStatus } from "@/lib/orderSalesFilters";
 
 export const UNSPECIFIED = "غير محدد";
 
@@ -144,7 +145,7 @@ export function isGiftOrder(o: Pick<OrderLite, "update_status_marker" | "collect
 }
 
 export function isCancelledOrder(o: Pick<OrderLite, "status">): boolean {
-  return o.status === "cancelled";
+  return isCancelledOrderStatus(o.status);
 }
 
 export function isDeliveredOrder(o: Pick<OrderLite, "status">): boolean {

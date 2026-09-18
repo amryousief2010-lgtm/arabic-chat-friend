@@ -10,6 +10,7 @@ import {
   PieChart, Pie, Cell, LineChart, Line, AreaChart, Area,
 } from "recharts";
 import { toCairoDateString } from "@/lib/cairoDate";
+import { isCancelledOrderStatus, SALES_NET_LABEL_AR, sumSalesNet } from "@/lib/orderSalesFilters";
 
 const COLORS = [
   "hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--secondary))",
@@ -45,8 +46,9 @@ interface OrdersAnalyticsProps {
 
 const OrdersAnalytics = ({ orders }: OrdersAnalyticsProps) => {
   const analytics = useMemo(() => {
-    const totalRevenue = orders.reduce((s, o) => s + o.total, 0);
-    const avgOrderValue = orders.length > 0 ? Math.round(totalRevenue / orders.length) : 0;
+    const net = sumSalesNet(orders);
+    const totalRevenue = net.sales;
+    const avgOrderValue = net.orderCount > 0 ? Math.round(totalRevenue / net.orderCount) : 0;
     const totalItems = orders.reduce((s, o) => s + o.items.reduce((si, it) => si + it.quantity, 0), 0);
 
     // Status distribution
@@ -81,6 +83,7 @@ const OrdersAnalytics = ({ orders }: OrdersAnalyticsProps) => {
     const nowMs = Date.now();
     const dailyMap: Record<string, { orders: number; revenue: number }> = {};
     orders.forEach(o => {
+      if (isCancelledOrderStatus(o.status)) return;
       const ts = new Date(o.created_at).getTime();
       if (nowMs - ts <= 30 * 24 * 60 * 60 * 1000) {
         const key = toCairoDateString(o.created_at); // YYYY-MM-DD in Cairo
@@ -101,6 +104,7 @@ const OrdersAnalytics = ({ orders }: OrdersAnalyticsProps) => {
     const MONTH_LONG = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const monthlyMap: Record<string, { orders: number; revenue: number }> = {};
     orders.forEach(o => {
+      if (isCancelledOrderStatus(o.status)) return;
       const key = toCairoDateString(o.created_at).slice(0, 7); // YYYY-MM
       if (!monthlyMap[key]) monthlyMap[key] = { orders: 0, revenue: 0 };
       monthlyMap[key].orders++;
@@ -121,7 +125,7 @@ const OrdersAnalytics = ({ orders }: OrdersAnalyticsProps) => {
     return {
       totalRevenue, avgOrderValue, totalItems, statusData, paymentData,
       payStatusData, dailyTrend, monthlyData, deliveryRate, cancelRate,
-      delivered, cancelled,
+      delivered, cancelled, netOrderCount: net.orderCount,
     };
   }, [orders]);
 
@@ -129,7 +133,7 @@ const OrdersAnalytics = ({ orders }: OrdersAnalyticsProps) => {
     <div className="space-y-6 mb-8">
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="إجمالي الإيرادات" value={`${formatSales(analytics.totalRevenue)} ج.م`} change={`${orders.length} طلب`} changeType="positive" icon={DollarSign} iconColor="bg-success" />
+        <StatCard title={`إجمالي الإيرادات (${SALES_NET_LABEL_AR})`} value={`${formatSales(analytics.totalRevenue)} ج.م`} change={`${analytics.netOrderCount} طلب`} changeType="positive" icon={DollarSign} iconColor="bg-success" />
         <StatCard title="متوسط قيمة الطلب" value={`${analytics.avgOrderValue.toLocaleString()} ج.م`} change={`${analytics.totalItems} منتج`} changeType="positive" icon={TrendingUp} iconColor="bg-primary" />
         <StatCard title="معدل التوصيل" value={`${analytics.deliveryRate}%`} change={`${analytics.delivered} طلب مكتمل`} changeType="positive" icon={CheckCircle} iconColor="bg-success" />
         <StatCard title="معدل الإلغاء" value={`${analytics.cancelRate}%`} change={`${analytics.cancelled} طلب ملغي`} changeType={analytics.cancelRate > 10 ? "negative" : "positive"} icon={XCircle} iconColor="bg-destructive" />
