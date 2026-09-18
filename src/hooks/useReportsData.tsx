@@ -49,6 +49,17 @@ const PAGE_SIZE = 1000;
 const MAX_PAGES = 40;
 const ITEM_CHUNK = 200;
 
+type ReportOrderRow = {
+  id: string;
+  total: number | string | null;
+  created_at: string;
+  source: string | null;
+  shipping_company: string | null;
+  moderator: string | null;
+  customer_id: string | null;
+  customers?: { city?: string | null } | null;
+};
+
 export const useReportsData = (period: ReportPeriod) => {
   const { from, to } = useMemo(() => getDateRange(period), [period]);
 
@@ -56,10 +67,10 @@ export const useReportsData = (period: ReportPeriod) => {
   const ordersQuery = useQuery({
     queryKey: ["reports-orders", "sales-net", from, to],
     queryFn: async () => {
-      return paginateUntilDone({
+      return paginateUntilDone<ReportOrderRow>({
         pageSize: PAGE_SIZE,
         maxPages: MAX_PAGES,
-        idOf: (row: { id?: string }) => row.id,
+        idOf: (row) => row.id,
         fetchPage: async (rangeFrom, rangeTo) => {
           const { data, error } = await applySalesNetFilter(
             supabase
