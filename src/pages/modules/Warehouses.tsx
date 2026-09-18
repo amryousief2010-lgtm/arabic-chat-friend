@@ -20,7 +20,7 @@ import AgouzaDailyClosureTab from "@/components/warehouses/AgouzaDailyClosureTab
 import CourierOrderCustodyTab from "@/components/warehouses/CourierOrderCustodyTab";
 import DailyCustodyReconciliationTab from "@/components/warehouses/DailyCustodyReconciliationTab";
 import RouteDistributionPreparationTab from "@/components/warehouses/RouteDistributionPreparationTab";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +41,7 @@ import WarehouseOperationalDates from "@/pages/modules/WarehouseOperationalDates
 import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
 import WarehousesDashboardPanel from "@/components/warehouses/WarehousesDashboardPanel";
 import { MAIN_WAREHOUSE_ID, AGOUZA_WAREHOUSE_ID, getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow } from "@/lib/warehouseItemFilters";
+import { isWarehouseHubTab } from "@/lib/warehouseHubPaths";
 
 
 const qualityLabelText: Record<string, string> = {
@@ -260,11 +261,20 @@ const Warehouses = () => {
   const [deleteTarget, setDeleteTarget] = useState<{ type: "warehouse" | "item"; id: string; name: string } | null>(null);
 
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState("items");
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = searchParams.get("tab");
+    return isWarehouseHubTab(tab) ? tab : "items";
+  });
   const [menuSubview, setMenuSubview] = useState<string | null>(null);
   // Per-warehouse sub-tool view (main warehouse vs. Agouza)
   const [mainSubview, setMainSubview] = useState<string | null>(null);
   const [agouzaSubview, setAgouzaSubview] = useState<string | null>(null);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (isWarehouseHubTab(tab)) setActiveTab(tab);
+  }, [searchParams]);
 
   useEffect(() => {
     const MAIN_LEGACY: Record<string, string> = {

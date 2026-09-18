@@ -20,6 +20,7 @@ import ManualStockOutDialog from "@/components/warehouse/ManualStockOutDialog";
 import MainCardDialog from "@/components/warehouse/MainCardDialog";
 import SubLocationDistributionDialog from "@/components/warehouse/SubLocationDistributionDialog";
 import { MAIN_WAREHOUSE_OPERATIONAL_START, MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
+import { isManualStockAdditionUiEnabled, isManualStockOutUiEnabled } from "@/lib/warehouseManualStockUi";
 import companyLogo from "@/assets/company-logo.jpg";
 
 interface Product { id: string; name: string; unit: string; category?: string | null; barcode?: string | null; image_url?: string | null; }
@@ -87,15 +88,19 @@ const normalizeSearch = (value: unknown) =>
     .replace(/\s+/g, " ");
 
 const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
-  const { isExecutiveManager, isGeneralManager, canManageAgouzaStock, isAgouzaWarehouseKeeper, isWarehouseSupervisor, canManageStock } = useAuth();
-  // Whether the current user can add/issue stock manually in the visible scope.
-  // Meat-factory-manager (Ahmed) is allowed to VIEW Agouza but must never see
-  // add/issue buttons — matches the locked "read-only" scope in memory.
-  const canEditCurrentScope = scope === "agouza" ? canManageAgouzaStock : canManageStock;
+  const { isExecutiveManager, isGeneralManager, isAgouzaWarehouseKeeper, isWarehouseSupervisor, canManageStock } = useAuth();
   const navigate = useNavigate();
   const canEditAll = isExecutiveManager || isGeneralManager;
   // Agouza keeper can view + upload delivery sheets, but CANNOT edit stock quantities directly
   const canEditAgouza = canEditAll || isWarehouseSupervisor;
+  // Same flag gates as WarehouseDetail. Meat-factory-manager can VIEW Agouza
+  // but never sees add/out (canManageStock / canEditAgouza exclude that role).
+  const isMainScope = scope === "main";
+  const canRoleManualAdd = scope === "agouza" ? canEditAgouza : canManageStock;
+  const canManualAdd = canRoleManualAdd && isManualStockAdditionUiEnabled(isMainScope);
+  const canManualOut =
+    (isGeneralManager || isExecutiveManager || isWarehouseSupervisor) &&
+    isManualStockOutUiEnabled(isMainScope);
   const [products, setProducts] = useState<Product[]>([]);
   const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
   const [mainStock, setMainStock] = useState<Record<string, number>>({});
@@ -722,15 +727,15 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
               </div>
               {currentWhId && (
                 <div className="md:ms-auto flex flex-wrap gap-2">
-                  {canEditCurrentScope && (
-                    <>
-                      <Button size="sm" onClick={() => setManualAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 shadow-sm h-9">
-                        <PackagePlus className="w-4 h-4 ml-1.5" /> إضافة رصيد / توريد
-                      </Button>
-                      <Button size="sm" onClick={() => setManualOutOpen(true)} className="bg-rose-600 hover:bg-rose-700 shadow-sm h-9">
-                        <PackageMinus className="w-4 h-4 ml-1.5" /> صرف / توريد للجهات
-                      </Button>
-                    </>
+                  {canManualAdd && (
+                    <Button size="sm" onClick={() => setManualAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 shadow-sm h-9">
+                      <PackagePlus className="w-4 h-4 ml-1.5" /> إضافة رصيد / توريد
+                    </Button>
+                  )}
+                  {canManualOut && (
+                    <Button size="sm" onClick={() => setManualOutOpen(true)} className="bg-rose-600 hover:bg-rose-700 shadow-sm h-9">
+                      <PackageMinus className="w-4 h-4 ml-1.5" /> صرف / توريد للجهات
+                    </Button>
                   )}
                   <Button size="sm" variant="outline" onClick={fetchAll} disabled={loading} className="h-9">
                     <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
@@ -745,22 +750,26 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
       {isSingleScope(scope) && currentWhId && (
         <>
-          <ManualStockAdditionDialog
-            open={manualAddOpen}
-            onOpenChange={setManualAddOpen}
-            warehouseId={currentWhId}
-            warehouseName={currentWhLabel}
-            items={currentDialogItems}
-            onSaved={fetchAll}
-          />
-          <ManualStockOutDialog
-            open={manualOutOpen}
-            onOpenChange={setManualOutOpen}
-            warehouseId={currentWhId}
-            warehouseName={currentWhLabel}
-            items={currentDialogItems}
-            onSaved={fetchAll}
-          />
+          {canManualAdd && (
+            <ManualStockAdditionDialog
+              open={manualAddOpen}
+              onOpenChange={setManualAddOpen}
+              warehouseId={currentWhId}
+              warehouseName={currentWhLabel}
+              items={currentDialogItems}
+              onSaved={fetchAll}
+            />
+          )}
+          {canManualOut && (
+            <ManualStockOutDialog
+              open={manualOutOpen}
+              onOpenChange={setManualOutOpen}
+              warehouseId={currentWhId}
+              warehouseName={currentWhLabel}
+              items={currentDialogItems}
+              onSaved={fetchAll}
+            />
+          )}
         </>
       )}
 

@@ -21,7 +21,7 @@ const MODERATOR_ALLOWED_PREFIXES = [
   '/permissions',
   '/private-delivery-pricing',
   '/org-chart',
-  '/warehouse-stock',
+  '/warehouse-stock', // keep for moderator المتاح + slug routes; hub is `/modules/warehouses`
   '/auth',
   '/install',
 ];
