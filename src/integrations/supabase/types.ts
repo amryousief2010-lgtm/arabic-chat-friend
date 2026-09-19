@@ -8516,6 +8516,13 @@ export type Database = {
             foreignKeyName: "inventory_items_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "product_cost_prices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -8691,6 +8698,13 @@ export type Database = {
             columns: ["order_item_id"]
             isOneToOne: false
             referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_cost_prices"
             referencedColumns: ["id"]
           },
           {
@@ -8878,6 +8892,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "inventory_sublocation_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_cost_prices"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inventory_sublocation_items_product_id_fkey"
             columns: ["product_id"]
@@ -13878,6 +13899,13 @@ export type Database = {
             foreignKeyName: "offer_box_items_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "product_cost_prices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_box_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -14042,6 +14070,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_cost_prices"
             referencedColumns: ["id"]
           },
           {
@@ -15371,8 +15406,36 @@ export type Database = {
             foreignKeyName: "product_cost_data_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: true
+            referencedRelation: "product_cost_prices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_cost_data_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_cost_data_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "v_agouza_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_cost_data_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "v_product_stock_availability"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_cost_data_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "v_stock_reconciliation"
+            referencedColumns: ["product_id"]
           },
         ]
       }
@@ -15618,6 +15681,13 @@ export type Database = {
           snapped_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "products_stock_snapshot_5d_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_cost_prices"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "products_stock_snapshot_5d_product_id_fkey"
             columns: ["product_id"]
@@ -18207,6 +18277,13 @@ export type Database = {
             foreignKeyName: "stock_reconciliation_proposals_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "product_cost_prices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_reconciliation_proposals_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -18503,6 +18580,13 @@ export type Database = {
             columns: ["inventory_movement_id"]
             isOneToOne: false
             referencedRelation: "inventory_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sublocation_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_cost_prices"
             referencedColumns: ["id"]
           },
           {
@@ -19841,20 +19925,6 @@ export type Database = {
       }
     }
     Views: {
-      product_cost_prices: {
-        Row: {
-          category: string | null
-          cost_price: number | null
-          id: string | null
-          is_active: boolean | null
-          low_stock_threshold: number | null
-          name: string | null
-          price: number | null
-          stock: number | null
-          unit: string | null
-        }
-        Relationships: []
-      }
       hr_employees_masked: {
         Row: {
           base_salary: number | null
@@ -19952,6 +20022,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      product_cost_prices: {
+        Row: {
+          category: string | null
+          cost_price: number | null
+          id: string | null
+          is_active: boolean | null
+          low_stock_threshold: number | null
+          name: string | null
+          price: number | null
+          stock: number | null
+          unit: string | null
+        }
+        Relationships: []
       }
       v_agouza_readiness: {
         Row: {
@@ -20448,6 +20532,13 @@ export type Database = {
           spice_per_unit: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "offer_box_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_cost_prices"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "offer_box_items_product_id_fkey"
             columns: ["product_id"]
