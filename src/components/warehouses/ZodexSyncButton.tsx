@@ -125,7 +125,7 @@ export function ZodexSyncButton() {
           مراجعة شاملة
         </Button>
         <span className="text-[11px] text-muted-foreground">
-          آخر مزامنة ناجحة: {fmt(lastSuccessAt || lastSyncAt)}
+          آخر مزامنة ناجحة: {fmt(lastSuccessAt || lastSyncAt)} — تلقائي كل 15 دقيقة
         </span>
         {missingCount > 0 && (
           <Button asChild size="sm" variant="destructive" className="h-8">

@@ -3,12 +3,16 @@
 // (including newly-registered pickups that aren't delivered yet), and links the
 // bill number (ZX...) to matching local orders by customer phone.
 // Complements sync-zodex-deliveries (which only sees closed/delivered rows).
+//
+// Automatic path: pg_cron job `sync-zodex-awb-auto` (every 15 minutes) POSTs
+// here with the Vault service-role JWT. Manual path: Zodex Review «مزامنة الآن».
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   dedupeByBill,
   parseZodexDate,
+  resolveScheduledMode,
   resolveWindow,
   rowInWindow,
   shouldStopPaging,
@@ -230,12 +234,23 @@ Deno.serve(async (req) => {
     triggeredBy = verified.user.id;
   }
 
+  // Overlapping scrapes waste Zodex logins and can hit WORKER_RESOURCE_LIMIT.
+  if (triggerSource === "schedule") {
+    const { data: running } = await supabase.from("zodex_sync_runs")
+      .select("id")
+      .eq("status", "running")
+      .gte("started_at", new Date(Date.now() - 20 * 60_000).toISOString())
+      .limit(1)
+      .maybeSingle();
+    if (running) {
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: "already_running" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
   let body: any = {};
   try { body = await req.json(); } catch { /* ignore */ }
-  const maxPages = Math.min(
-    MAX_PAGES_CEILING,
-    Math.max(1, Number(body.max_pages) || DEFAULT_MAX_PAGES),
-  );
   const requestedMode: SyncMode = body.mode === "full" ? "full" : "quick";
   const fullDays = Number(body.full_days) || undefined;
 
@@ -249,8 +264,19 @@ Deno.serve(async (req) => {
     .eq("id", true)
     .maybeSingle();
 
+  const effectiveMode = resolveScheduledMode({
+    requestedMode,
+    triggerSource,
+    lastFullReviewAt: (syncState as any)?.last_full_review_at || null,
+    now: cycleStart,
+  });
+  const maxPages = Math.min(
+    MAX_PAGES_CEILING,
+    Math.max(1, Number(body.max_pages) || (effectiveMode === "full" ? MAX_PAGES_CEILING : DEFAULT_MAX_PAGES)),
+  );
+
   const win: SyncWindow = resolveWindow({
-    mode: requestedMode,
+    mode: effectiveMode,
     lastSuccessAt: (syncState as any)?.last_successful_zodex_sync_at || null,
     cycleStart,
     fullDays,

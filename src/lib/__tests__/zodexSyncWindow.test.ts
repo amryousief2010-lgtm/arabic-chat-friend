@@ -6,6 +6,7 @@ import {
   dedupeByBill,
   parseZodexDate,
   shouldRunWeeklyFullReview,
+  resolveScheduledMode,
   OVERLAP_HOURS,
   mapBalanceCells,
   phonesMatchLoose,
@@ -112,6 +113,33 @@ describe("weekly full review", () => {
     expect(shouldRunWeeklyFullReview(null, CYCLE)).toBe(true);
     expect(shouldRunWeeklyFullReview("2026-09-01T22:00:00.000Z", CYCLE)).toBe(true);
     expect(shouldRunWeeklyFullReview("2026-09-14T22:00:00.000Z", CYCLE)).toBe(false);
+  });
+
+  it("scheduled cron upgrades to full after a week; manual quick stays quick", () => {
+    expect(resolveScheduledMode({
+      requestedMode: "quick",
+      triggerSource: "schedule",
+      lastFullReviewAt: "2026-09-01T22:00:00.000Z",
+      now: CYCLE,
+    })).toBe("full");
+    expect(resolveScheduledMode({
+      requestedMode: "quick",
+      triggerSource: "schedule",
+      lastFullReviewAt: "2026-09-14T22:00:00.000Z",
+      now: CYCLE,
+    })).toBe("quick");
+    expect(resolveScheduledMode({
+      requestedMode: "quick",
+      triggerSource: "manual",
+      lastFullReviewAt: null,
+      now: CYCLE,
+    })).toBe("quick");
+    expect(resolveScheduledMode({
+      requestedMode: "full",
+      triggerSource: "manual",
+      lastFullReviewAt: "2026-09-14T22:00:00.000Z",
+      now: CYCLE,
+    })).toBe("full");
   });
 });
 
