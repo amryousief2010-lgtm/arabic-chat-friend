@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { exportToPDF, exportToExcel } from "@/utils/exportReports";
+import { exportToPDF } from "@/utils/exportReports";
 import {
   BarChart,
   Bar,
@@ -121,7 +121,10 @@ const Reports = () => {
             variant="outline"
             size="sm"
             disabled={isLoading}
-            onClick={() => exportToExcel({ totalSales, totalOrders, avgOrderValue, totalCustomers, monthlySales, governorateData, sourceData, shippingData, moderatorData, productData, periodLabel: periodLabels[period] })}
+            onClick={async () => {
+              const { exportToExcel } = await import("@/utils/exportReports");
+              await exportToExcel({ totalSales, totalOrders, avgOrderValue, totalCustomers, monthlySales, governorateData, sourceData, shippingData, moderatorData, productData, periodLabel: periodLabels[period] });
+            }}
           >
             <FileDown className="w-4 h-4 ml-1" />
             Excel

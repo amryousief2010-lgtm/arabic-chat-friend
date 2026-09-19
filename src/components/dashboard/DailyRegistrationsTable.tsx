@@ -7,7 +7,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CalendarDays, ChevronDown, ChevronLeft, FileSpreadsheet, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cairoMonthStartUTC, currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
-import * as XLSX from "xlsx";
 import { displayModeratorName } from "@/constants/moderators";
 import { applySalesNetFilter, SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
 
@@ -86,7 +85,8 @@ const DailyRegistrationsTable = () => {
     return { days, moderators, totalOrders, totalSales };
   }, [data]);
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
+    const XLSX = await import("xlsx");
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(
       wb,

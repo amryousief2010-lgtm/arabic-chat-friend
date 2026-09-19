@@ -120,4 +120,20 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Keep heavy export/chart libs out of the 2MB entry chunk so first
+        // paint and route navigation do not parse exceljs/xlsx/jspdf/recharts.
+        manualChunks(id) {
+          if (id.includes("node_modules/exceljs")) return "exceljs";
+          if (id.includes("node_modules/xlsx")) return "xlsx";
+          if (id.includes("node_modules/jspdf")) return "jspdf";
+          if (id.includes("html2canvas") || id.includes("html2pdf")) return "html2pdf";
+          if (id.includes("node_modules/recharts")) return "recharts";
+          if (id.includes("node_modules/framer-motion")) return "framer-motion";
+        },
+      },
+    },
+  },
 }));

@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useDeferredEnable } from "@/hooks/useDeferredEnable";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -42,10 +43,11 @@ export default function MegaDiscrepancyAlert() {
   const isAudience = !!user && (user.id === ALAA_USER_ID || isGeneralManager || isExecutiveManager);
   const [open, setOpen] = useState(false);
   const lastTotalRef = useRef<number>(-1);
+  const fetchReady = useDeferredEnable(isAudience, 2000);
 
   const { data: rows = [] } = useQuery({
     queryKey: ["mega-discrepancies-open"],
-    enabled: isAudience,
+    enabled: fetchReady,
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
     staleTime: 15_000,
