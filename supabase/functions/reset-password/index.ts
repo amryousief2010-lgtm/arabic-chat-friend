@@ -1,4 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import {
+  isAuthResponse,
+  requireVerifiedUser,
+  userHasAnyRole,
+} from "../_shared/require-user.ts";
+
+const RESET_PASSWORD_ALLOWED_ROLES = ["general_manager"] as const;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,32 +24,11 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Authn: require valid JWT
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
-    if (userErr || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const verified = await requireVerifiedUser(req, corsHeaders, supabaseAdmin);
+    if (isAuthResponse(verified)) return verified;
 
-    // Authz: only general_manager
-    const { data: roleRow } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userData.user.id)
-      .eq("role", "general_manager")
-      .maybeSingle();
-
-    if (!roleRow) {
+    const allowed = await userHasAnyRole(supabaseAdmin, verified.user.id, RESET_PASSWORD_ALLOWED_ROLES);
+    if (!allowed) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -75,7 +61,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Password reset by ${userData.user.id} for target ${userId}`);
+    console.log(`Password reset by ${verified.user.id} for target ${userId}`);
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

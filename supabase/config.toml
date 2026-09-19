@@ -23,3 +23,39 @@ verify_jwt = true
 
 [functions.sync-zodex-shipments]
 verify_jwt = true
+
+[functions.ai-assistant-chat]
+verify_jwt = true
+
+[functions.audit-offer-box-pricing]
+verify_jwt = true
+
+[functions.create-employee]
+verify_jwt = true
+
+[functions.delete-user]
+verify_jwt = true
+
+[functions.hatchery-import-commit]
+verify_jwt = true
+
+[functions.import-sales]
+verify_jwt = true
+
+[functions.mcp]
+verify_jwt = true
+
+[functions.phase2-import-executor]
+verify_jwt = true
+
+[functions.rebuild-may-orders]
+verify_jwt = true
+
+[functions.reset-password]
+verify_jwt = true
+
+[functions.suggest-product-price]
+verify_jwt = true
+
+[functions.update-user-email]
+verify_jwt = true

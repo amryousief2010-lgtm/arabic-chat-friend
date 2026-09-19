@@ -12,6 +12,13 @@
 //   7. Audit-log every action.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  isAuthResponse,
+  requireVerifiedUser,
+  userHasAnyRole,
+} from "../_shared/require-user.ts";
+
+const REBUILD_MAY_ALLOWED_ROLES = ["general_manager"] as const;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -79,29 +86,11 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // ---- Auth ----
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const token = authHeader.slice("Bearer ".length);
-    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-    if (userErr || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const { data: roleRow } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userData.user.id)
-      .eq("role", "general_manager")
-      .maybeSingle();
-    if (!roleRow) {
+    const verified = await requireVerifiedUser(req, corsHeaders, supabase);
+    if (isAuthResponse(verified)) return verified;
+
+    const allowed = await userHasAnyRole(supabase, verified.user.id, REBUILD_MAY_ALLOWED_ROLES);
+    if (!allowed) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -321,7 +310,7 @@ Deno.serve(async (req) => {
         action: dryRun ? "auto_check" : "correction",
         target_period: "2026-05",
         source_file: sourceFile,
-        performed_by: userData.user.id,
+        performed_by: verified.user.id,
         rows_affected: summary.rebuilt,
         details: { summary, dryRun, sample_failed: results.filter((r) => !r.validation.ok).slice(0, 20) },
       });

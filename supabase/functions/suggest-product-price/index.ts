@@ -1,5 +1,18 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  isAuthResponse,
+  requireVerifiedUser,
+  userHasAnyRole,
+} from '../_shared/require-user.ts';
+
+const SUGGEST_PRICE_ALLOWED_ROLES = [
+  'general_manager',
+  'executive_manager',
+  'sales_manager',
+  'accountant',
+  'financial_manager',
+] as const;
 
 const clean = (s: unknown, max = 200) =>
   typeof s === 'string' ? s.replace(/[\r\n`]/g, ' ').slice(0, max) : '';
@@ -14,22 +27,11 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user: requester }, error: authErr } = await admin.auth.getUser(token);
-    if (authErr || !requester) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    const { data: roles } = await admin.from('user_roles').select('role').eq('user_id', requester.id);
-    const allowed = ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'financial_manager'];
-    if (!roles?.some((r: any) => allowed.includes(r.role))) {
+    const verified = await requireVerifiedUser(req, corsHeaders, admin);
+    if (isAuthResponse(verified)) return verified;
+
+    const allowed = await userHasAnyRole(admin, verified.user.id, SUGGEST_PRICE_ALLOWED_ROLES);
+    if (!allowed) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

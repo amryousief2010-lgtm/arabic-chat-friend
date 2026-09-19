@@ -3,6 +3,11 @@
 // Security: Admin-only. JWT validated in code. Service role NEVER exposed.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  isAuthResponse,
+  requireVerifiedUser,
+  userHasAnyRole,
+} from "../_shared/require-user.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -173,32 +178,18 @@ Deno.serve(async (req) => {
   }
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-  const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-  // ---------- AuthN ----------
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return json({ error: "Unauthorized: missing bearer token" }, 401);
-  }
-
-  const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { Authorization: authHeader } },
-  });
-
-  const token = authHeader.replace("Bearer ", "");
-  const { data: claimsData, error: claimsErr } =
-    await userClient.auth.getClaims(token);
-  if (claimsErr || !claimsData?.claims) {
-    return json({ error: "Unauthorized: invalid token" }, 401);
-  }
-  const userId = claimsData.claims.sub;
-  const userEmail = claimsData.claims.email ?? null;
 
   // Service-role client (never exposed; used only for privileged reads/writes)
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+
+  const verified = await requireVerifiedUser(req, corsHeaders, admin);
+  if (isAuthResponse(verified)) return verified;
+
+  const userId = verified.user.id;
+  const userEmail = verified.user.email ?? null;
 
   // ---------- AuthZ ----------
   const { data: roles, error: rolesErr } = await admin
@@ -209,7 +200,7 @@ Deno.serve(async (req) => {
     return json({ error: "Failed to resolve role", details: rolesErr.message }, 500);
   }
   const callerRoles = (roles ?? []).map((r) => r.role as string);
-  const isAdmin = callerRoles.some((r) => ADMIN_ROLES.includes(r));
+  const isAdmin = await userHasAnyRole(admin, userId, ADMIN_ROLES);
 
   // ---------- Parse request ----------
   let body: { mode?: string } = {};

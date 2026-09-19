@@ -12,6 +12,19 @@
 //    and left untouched.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  isAuthResponse,
+  requireVerifiedUser,
+  userHasAnyRole,
+} from "../_shared/require-user.ts";
+
+const AUDIT_ALLOWED_ROLES = [
+  "general_manager",
+  "executive_manager",
+  "sales_manager",
+  "financial_manager",
+  "accountant",
+] as const;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,18 +57,11 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const auth = req.headers.get("Authorization");
-    if (!auth?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
-    const { data: ud } = await supabase.auth.getUser(auth.replace("Bearer ", ""));
-    if (!ud?.user) return json({ error: "Unauthorized" }, 401);
+    const verified = await requireVerifiedUser(req, corsHeaders, supabase);
+    if (isAuthResponse(verified)) return verified;
 
-    const { data: role } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", ud.user.id)
-      .in("role", ["general_manager", "executive_manager", "sales_manager", "financial_manager", "accountant"])
-      .maybeSingle();
-    if (!role) return json({ error: "Forbidden" }, 403);
+    const allowed = await userHasAnyRole(supabase, verified.user.id, AUDIT_ALLOWED_ROLES);
+    if (!allowed) return json({ error: "Forbidden" }, 403);
 
     const body = await req.json().catch(() => ({}));
     const mode: "preview" | "apply" = body.mode === "apply" ? "apply" : "preview";

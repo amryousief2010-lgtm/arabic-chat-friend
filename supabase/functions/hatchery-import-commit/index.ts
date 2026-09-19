@@ -1,4 +1,17 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  isAuthResponse,
+  requireVerifiedUser,
+  userHasAnyRole,
+} from "../_shared/require-user.ts";
+
+const HATCHERY_IMPORT_ALLOWED_ROLES = [
+  "general_manager",
+  "executive_manager",
+  "hatchery_manager",
+  "farm_manager",
+  "production_manager",
+] as const;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,22 +28,11 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return json({ error: "Unauthorized" }, 401);
-    }
-    const token = authHeader.replace("Bearer ", "");
-    const { data: u, error: ue } = await supabase.auth.getUser(token);
-    if (ue || !u.user) return json({ error: "Unauthorized" }, 401);
+    const verified = await requireVerifiedUser(req, corsHeaders, supabase);
+    if (isAuthResponse(verified)) return verified;
 
-    // Authz: GM / executive / hatchery / farm managers may commit
-    const { data: roles } = await supabase
-      .from("user_roles").select("role").eq("user_id", u.user.id);
-    const allowed = new Set([
-      "general_manager", "executive_manager",
-      "hatchery_manager", "farm_manager", "production_manager",
-    ]);
-    if (!(roles || []).some((r: any) => allowed.has(r.role))) {
+    const allowed = await userHasAnyRole(supabase, verified.user.id, HATCHERY_IMPORT_ALLOWED_ROLES);
+    if (!allowed) {
       return json({ error: "Forbidden" }, 403);
     }
 
@@ -181,7 +183,7 @@ Deno.serve(async (req) => {
           family_id: fid,
           egg_count: row.egg_count || 0,
           notes: row.notes,
-          created_by: u.user.id,
+          created_by: verified.user.id,
         });
         if (!error) { posted.production.inserted++; existingProdSet.add(key); }
       }
@@ -215,7 +217,7 @@ Deno.serve(async (req) => {
           status: "received",
           received_egg_count: row.egg_count || 0,
           received_at: new Date(row.production_date).toISOString(),
-          received_by: u.user.id,
+          received_by: verified.user.id,
           receipt_notes: [row.reason, row.notes].filter(Boolean).join(" | ") || null,
         });
         if (!error) { posted.shipments.inserted++; existingSet.add(key); }
@@ -250,7 +252,7 @@ Deno.serve(async (req) => {
     // Update run + audit
     await supabase.from("import_staging_runs").update({
       status: "posted",
-      approved_by: u.user.id,
+      approved_by: verified.user.id,
       approved_at: new Date().toISOString(),
       posted_at: new Date().toISOString(),
       validation_summary: { ...(run.validation_summary || {}), posted },

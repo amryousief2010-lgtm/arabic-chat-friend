@@ -1,4 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import {
+  isAuthResponse,
+  requireVerifiedUser,
+  userHasAnyRole,
+} from '../_shared/require-user.ts'
+
+const UPDATE_EMAIL_ALLOWED_ROLES = ['general_manager', 'executive_manager'] as const
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,17 +21,11 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } },
     )
 
-    // Authenticate caller
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return json({ error: 'Missing authorization' }, 401)
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user: requester }, error: authErr } = await admin.auth.getUser(token)
-    if (authErr || !requester) return json({ error: 'Unauthorized' }, 401)
+    const verified = await requireVerifiedUser(req, corsHeaders, admin)
+    if (isAuthResponse(verified)) return verified
 
-    // Only general_manager / executive_manager may change other users' email
-    const { data: roles } = await admin.from('user_roles').select('role').eq('user_id', requester.id)
-    const allowed = ['general_manager', 'executive_manager']
-    if (!roles?.some((r: any) => allowed.includes(r.role))) {
+    const allowed = await userHasAnyRole(admin, verified.user.id, UPDATE_EMAIL_ALLOWED_ROLES)
+    if (!allowed) {
       return json({ error: 'Forbidden' }, 403)
     }
 

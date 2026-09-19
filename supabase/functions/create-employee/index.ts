@@ -1,4 +1,15 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import {
+  isAuthResponse,
+  requireVerifiedUser,
+  userHasAnyRole,
+} from '../_shared/require-user.ts'
+
+const CREATE_EMPLOYEE_ALLOWED_ROLES = [
+  'general_manager',
+  'executive_manager',
+  'sales_manager',
+] as const
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,18 +23,16 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const admin = createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
 
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return json({ error: 'Missing authorization' }, 401)
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user: requester }, error: authErr } = await admin.auth.getUser(token)
-    if (authErr || !requester) return json({ error: 'Unauthorized' }, 401)
+    const verified = await requireVerifiedUser(req, corsHeaders, admin)
+    if (isAuthResponse(verified)) return verified
 
-    const { data: roles } = await admin.from('user_roles').select('role').eq('user_id', requester.id)
-    const requesterRoles: string[] = (roles ?? []).map((r: any) => r.role)
-    const allowed = ['general_manager', 'executive_manager', 'sales_manager']
-    if (!requesterRoles.some((r) => allowed.includes(r))) {
+    const allowed = await userHasAnyRole(admin, verified.user.id, CREATE_EMPLOYEE_ALLOWED_ROLES)
+    if (!allowed) {
       return json({ error: 'Not authorized to create employees' }, 403)
     }
+
+    const { data: roles } = await admin.from('user_roles').select('role').eq('user_id', verified.user.id)
+    const requesterRoles: string[] = (roles ?? []).map((r: any) => r.role)
 
     const { email, password, full_name, role } = await req.json()
     if (!email || !password || !full_name) return json({ error: 'email, password, full_name required' }, 400)
