@@ -13,8 +13,9 @@ const now2026 = new Date("2026-09-19T12:00:00+03:00");
 
 describe("currentAppCalendarYear", () => {
   it("uses Africa/Cairo so late-evening UTC still belongs to the Cairo year", () => {
+    // Winter Cairo is UTC+2: 22:30Z on 31 Dec is already 1 Jan.
     expect(currentAppCalendarYear(new Date("2026-12-31T22:30:00Z"))).toBe(2027);
-    expect(currentAppCalendarYear(new Date("2026-01-01T00:30:00+03:00"))).toBe(2026);
+    expect(currentAppCalendarYear(new Date("2026-01-01T00:30:00+02:00"))).toBe(2026);
   });
 });
 
@@ -176,5 +177,76 @@ describe("resolveOrderListDateBounds", () => {
     });
     expect(bounds.startDate).toBe(cairoMonthStartUTC(2026, 8).toISOString());
     expect(bounds.endDate).toBe(cairoMonthStartUTC(2026, 9).toISOString());
+  });
+});
+
+describe("Orders list product-owner scenarios", () => {
+  const resolve = (filters: {
+    month?: string;
+    fulfillment?: string;
+    warehouseChip?: string;
+    yearPin?: "implicit" | "explicit";
+    filterYear?: string;
+  }) => {
+    const filterMonth = filters.month ?? ALL_YEARS_VALUE;
+    const operational = hasOrderListOperationalFilters({
+      month: filterMonth,
+      fulfillment: filters.fulfillment ?? ALL_YEARS_VALUE,
+      warehouseChip: filters.warehouseChip ?? ALL_YEARS_VALUE,
+    });
+    const effectiveYear = resolveEffectiveOrderListYear({
+      filterYear: filters.filterYear ?? ALL_YEARS_VALUE,
+      yearPin: filters.yearPin ?? "implicit",
+      operationalFiltersActive: operational,
+      now: now2026,
+    });
+    const bounds = resolveOrderListDateBounds({
+      effectiveYear,
+      filterMonth,
+      yearGroup: ALL_YEARS_VALUE,
+      restrictToCurrentMonth: shouldRestrictOrdersToCurrentMonth({
+        hasSearch: false,
+        hasPeriod: false,
+        filterMonth,
+        effectiveYear,
+        yearPin: filters.yearPin ?? "implicit",
+        yearGroup: ALL_YEARS_VALUE,
+        isShippingCompany: false,
+      }),
+      now: now2026,
+    });
+    return { effectiveYear, bounds };
+  };
+
+  it("Agouza fulfillment without choosing year → current year only", () => {
+    const { effectiveYear, bounds } = resolve({ fulfillment: "pickup_agouza" });
+    expect(effectiveYear).toBe("2026");
+    expect(bounds.startDate).toBe(cairoYearStartUTC(2026).toISOString());
+    expect(bounds.endDate).toBe(cairoYearStartUTC(2027).toISOString());
+  });
+
+  it("November without choosing year → November of the current year only", () => {
+    const { effectiveYear, bounds } = resolve({ month: "11" });
+    expect(effectiveYear).toBe("2026");
+    expect(bounds.startDate).toBe(cairoMonthStartUTC(2026, 10).toISOString());
+    expect(bounds.endDate).toBe(cairoMonthStartUTC(2026, 11).toISOString());
+  });
+
+  it("explicit كل السنوات still spans years even with Agouza or a month", () => {
+    const agouza = resolve({
+      fulfillment: "pickup_agouza",
+      yearPin: "explicit",
+      filterYear: ALL_YEARS_VALUE,
+    });
+    expect(agouza.effectiveYear).toBe(ALL_YEARS_VALUE);
+    expect(agouza.bounds).toEqual({ startDate: null, endDate: null });
+
+    const november = resolve({
+      month: "11",
+      yearPin: "explicit",
+      filterYear: ALL_YEARS_VALUE,
+    });
+    expect(november.effectiveYear).toBe(ALL_YEARS_VALUE);
+    expect(november.bounds).toEqual({ startDate: null, endDate: null });
   });
 });
