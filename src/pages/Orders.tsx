@@ -35,7 +35,15 @@ import {
 } from "@/components/ui/select";
 import { ShoppingCart, Eye, Truck, CheckCircle, XCircle, Plus, Trash2, Pencil, ChevronDown, ChevronUp, PackageOpen, PackagePlus, FileDown, FileText, KeyRound, MapPin, Printer, AlertCircle, AlertTriangle, Wallet, Zap, UserCog, Search } from "lucide-react";
 import { printOrderInvoice } from "@/lib/printUtils";
-import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth, cairoTodayStartUTC, toCairoDateString, cairoWallClockToUTC } from "@/lib/cairoDate";
+import { cairoYearStartUTC, cairoTodayStartUTC, toCairoDateString } from "@/lib/cairoDate";
+import {
+  ALL_YEARS_VALUE,
+  hasOrderListOperationalFilters,
+  resolveEffectiveOrderListYear,
+  resolveOrderListDateBounds,
+  shouldRestrictOrdersToCurrentMonth,
+  type OrderListYearPin,
+} from "@/lib/orderListYearFilter";
 import { EGYPT_GOVERNORATES, governorateId, governorateLabel } from "@/lib/governorates";
 import { PERIOD_OPTIONS, PeriodPreset, resolvePeriod, formatPeriodLabel } from "@/lib/orderPeriod";
 import {
@@ -485,6 +493,12 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   const [filterFulfillment, setFilterFulfillment] = useState<string>("all");
   const [filterRoute, setFilterRoute] = useState<string>("all");
   const [filterCollectionMethod, setFilterCollectionMethod] = useState<string>("all");
+  const initialFy = initialParams.get("fy");
+  const [filterMonth, setFilterMonth] = useState<string>(initialParams.get("fm") || ALL_YEARS_VALUE);
+  const [filterYear, setFilterYear] = useState<string>(
+    initialFy && initialFy !== ALL_YEARS_VALUE ? initialFy : ALL_YEARS_VALUE,
+  );
+  const [yearPin, setYearPin] = useState<OrderListYearPin>(initialFy ? "explicit" : "implicit");
   const [availableRoutes, setAvailableRoutes] = useState<{ id: string; name: string; color: string }[]>([]);
   const [availableProducts, setAvailableProducts] = useState<string[]>([]);
   // كتالوج كامل لكل المنتجات المسجلة (حتى لو مش موجودة في الأوردرات المحمّلة حاليًا)
@@ -512,10 +526,13 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     put("period", periodPreset);
     put("from", periodPreset === "custom" ? periodFrom : "");
     put("to", periodPreset === "custom" ? periodTo : "");
+    put("fm", filterMonth);
+    if (yearPin === "explicit") next.set("fy", filterYear);
+    else next.delete("fy");
     if (next.toString() !== window.location.search.replace(/^\?/, "")) {
       setSearchParams(next, { replace: true });
     }
-  }, [filterGovernorate, filterStatus, periodPreset, periodFrom, periodTo]);
+  }, [filterGovernorate, filterStatus, periodPreset, periodFrom, periodTo, filterMonth, filterYear, yearPin]);
   const yearGroup: YearGroup =
     yearParam === "2026" || yearParam === "pre2026" || yearParam === "all"
       ? (yearParam as YearGroup)
@@ -566,8 +583,29 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     fetchOrders(nextSearch);
   };
   const now = new Date();
-  const [filterMonth, setFilterMonth] = useState<string>("all");
-  const [filterYear, setFilterYear] = useState<string>("all");
+  const operationalFiltersActive = hasOrderListOperationalFilters({
+    status: filterStatus,
+    warehouseChip: filterWarehouseChip,
+    month: filterMonth,
+    fulfillment: filterFulfillment,
+    route: filterRoute,
+    governorate: filterGovernorate,
+    product: filterProduct,
+    collectionMethod: filterCollectionMethod,
+    moderator: filterModerator,
+  });
+  const effectiveYear = resolveEffectiveOrderListYear({
+    filterYear,
+    yearPin,
+    operationalFiltersActive,
+    yearGroup,
+    hasExplicitPeriod: !!activePeriod,
+    now,
+  });
+  const handleYearChange = (value: string) => {
+    setYearPin("explicit");
+    setFilterYear(value);
+  };
   const [collectionMismatch, setCollectionMismatch] = useState<{
     orderId: string;
     orderNumber: string;
@@ -579,13 +617,16 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   // عند البحث أو اختيار شهر/سنة محددة يتم تجاوز هذا التقييد لجلب كل المطابقات.
   // شركات الشحن قد لا يكون لديها طلبات في الشهر الحالي (مثلاً زودكس آخر طلب لها في 2025)
   // لتفادي ظهور صفحة فارغة افتراضياً، نحمّل لهم كل الطلبات المسموح بها بدلاً من تقييد الشهر الحالي.
-  const restrictToCurrentMonth =
-    !appliedSearch &&
-    !activePeriod &&
-    filterMonth === "all" &&
-    filterYear === "all" &&
-    yearGroup === "all" &&
-    !isShippingCompany;
+  // فلتر تشغيلي (عجوزة / شهر / حالة …) يثبّت السنة الحالية ما لم يختر المستخدم «كل السنوات».
+  const restrictToCurrentMonth = shouldRestrictOrdersToCurrentMonth({
+    hasSearch: !!appliedSearch,
+    hasPeriod: !!activePeriod,
+    filterMonth,
+    effectiveYear,
+    yearPin,
+    yearGroup,
+    isShippingCompany,
+  });
 
   useEffect(() => {
     fetchOrders();
@@ -596,7 +637,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       const { data } = await supabase.from('delivery_routes').select('id,name,color').order('name', { ascending: true });
       setAvailableRoutes((data as any[]) || []);
     })();
-  }, [filterMonth, filterYear, yearGroup, activePeriod?.fromYMD, activePeriod?.toYMD, filterProduct, filterModerator]);
+  }, [filterMonth, filterYear, effectiveYear, yearPin, yearGroup, activePeriod?.fromYMD, activePeriod?.toYMD, filterProduct, filterModerator]);
 
   // تحميل كتالوج المنتجات كاملًا لفلتر المنتجات (مرة واحدة)
   useEffect(() => {
@@ -653,49 +694,29 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
 
   const fetchOrders = async (searchOverride?: string) => {
     const activeSearch = (searchOverride ?? appliedSearch).trim();
-    const restrictToCurrentMonthForFetch =
-      !activeSearch &&
-      !activePeriod &&
-      filterMonth === "all" &&
-      filterYear === "all" &&
-      yearGroup === "all" &&
-      !isShippingCompany;
+    const restrictToCurrentMonthForFetch = shouldRestrictOrdersToCurrentMonth({
+      hasSearch: !!activeSearch,
+      hasPeriod: !!activePeriod,
+      filterMonth,
+      effectiveYear,
+      yearPin,
+      yearGroup,
+      isShippingCompany,
+    });
 
     setLoading(true);
     try {
-      // طبّق فلتر التاريخ على الخادم فقط عندما يختاره المستخدم صراحةً.
-      // إبقاء الصفحة على "الكل" افتراضياً يمنع ظهور قائمة فارغة عند بداية شهر جديد
-      // أو عند عدم وجود طلبات في الشهر الحالي رغم وجود طلبات سابقة.
-      // الحدود محسوبة بتوقيت القاهرة (UTC+2/+3 حسب التوقيت الصيفي) حتى أي طلب
-      // يُسجّل بعد منتصف الليل بتوقيت القاهرة يظهر في الشهر الصحيح، حتى لو
-      // كان created_at المخزّن بـ UTC لا يزال في الشهر السابق.
-      let startDate: string | null = null;
-      let endDate: string | null = null;
-      if (activePeriod) {
-        // فلتر الفترة الزمنية له الأولوية — حسب تاريخ تسجيل الأوردر
-        const [fy, fm, fd] = activePeriod.fromYMD.split('-').map(Number);
-        const [ty, tm, td] = activePeriod.toYMD.split('-').map(Number);
-        startDate = cairoWallClockToUTC(fy, fm - 1, fd, 0, 0, 0).toISOString();
-        endDate = new Date(cairoWallClockToUTC(ty, tm - 1, td, 0, 0, 0).getTime() + 26 * 60 * 60 * 1000).toISOString();
-      } else if (filterYear !== 'all') {
-        const y = Number(filterYear);
-        if (filterMonth !== 'all') {
-          const m = Number(filterMonth);
-          startDate = cairoMonthStartUTC(y, m - 1).toISOString();
-          endDate = cairoMonthStartUTC(y, m).toISOString();
-        } else {
-          startDate = cairoYearStartUTC(y).toISOString();
-          endDate = cairoYearStartUTC(y + 1).toISOString();
-        }
-      } else if (yearGroup === '2026') {
-        startDate = cairoYearStartUTC(2026).toISOString();
-      } else if (yearGroup === 'pre2026') {
-        endDate = cairoYearStartUTC(2026).toISOString();
-      } else if (restrictToCurrentMonthForFetch) {
-        const { year, monthIndex0 } = currentCairoYearMonth(now);
-        startDate = cairoMonthStartUTC(year, monthIndex0).toISOString();
-        endDate = cairoMonthStartUTC(year, monthIndex0 + 1).toISOString();
-      }
+      // فلتر السنة الفعّال: السنة الحالية عند أي فلتر تشغيلي، أو اختيار المستخدم
+      // الصريح («كل السنوات» / سنة محددة). الفترة الزمنية وتبويب السنة يبقيان
+      // أولوية النطاق الخاص بهما. الحدود بتوقيت القاهرة.
+      const { startDate, endDate } = resolveOrderListDateBounds({
+        activePeriod,
+        effectiveYear,
+        filterMonth,
+        yearGroup,
+        restrictToCurrentMonth: restrictToCurrentMonthForFetch,
+        now,
+      });
 
 
       // أعمدة محددة بدلاً من * لتقليل الحمولة (نفس البيانات المستعملة في الواجهة فقط)
@@ -1268,7 +1289,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   );
   if (filterWarehouseChip !== "all") activeFilterLabels.push(filterWarehouseChip === "main" ? "المخزن الرئيسي" : "مخزن العجوزة");
   if (filterMonth !== "all") activeFilterLabels.push(`الشهر: ${filterMonth}`);
-  if (filterYear !== "all") activeFilterLabels.push(`السنة: ${filterYear}`);
+  if (effectiveYear !== "all") activeFilterLabels.push(`السنة: ${effectiveYear}`);
   if (yearGroup !== "all") activeFilterLabels.push(yearGroup === "2026" ? "سنة 2026" : "قبل 2026");
   if (filterProduct !== "all") activeFilterLabels.push(`المنتج: ${filterProduct}`);
   if (filterModerator !== "all") activeFilterLabels.push(`المسوقة: ${filterModerator}`);
@@ -1282,7 +1303,8 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     setFilterStatus("all");
     setFilterWarehouseChip("all");
     setFilterMonth("all");
-    setFilterYear("all");
+    setFilterYear(ALL_YEARS_VALUE);
+    setYearPin("implicit");
     setFilterProduct("all");
     setFilterModerator("all");
     setFilterGovernorate("all");
@@ -1352,7 +1374,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       (yearGroup === "2026" && year >= 2026) ||
       (yearGroup === "pre2026" && year < 2026);
     const matchesMonth = searchActive || filterMonth === "all" || String(month) === filterMonth;
-    const matchesYear = searchActive || filterYear === "all" || String(year) === filterYear;
+    const matchesYear = searchActive || effectiveYear === "all" || String(year) === effectiveYear;
     const matchesProduct =
       filterProduct === "all" ||
       order.items.some((it) => it.product_name === filterProduct);
@@ -1403,7 +1425,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     // عن مسؤول/مشرف المخزن والمدير التنفيذي — إلا عند اختيار فلتر زمني صريح
     // (سنة / شهر / فترة أو تبويب سنة) فحينها تظهر كل أوردرات المدى المطلوب.
     const explicitDateFilter =
-      filterYear !== "all" ||
+      effectiveYear !== "all" ||
       filterMonth !== "all" ||
       !!activePeriod ||
       yearGroup !== "all";
@@ -1465,7 +1487,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     (order as any).__matchesBaseNoChip = baseMatch;
     (order as any).__matchesBaseNoStatus = baseMatchNoStatus && (searchActive || matchesWarehouseChip);
     return baseMatch && (searchActive || matchesWarehouseChip);
-  }), [visibleOrders, isNouraAccount, filterStatus, filterWarehouseChip, appliedSearch, yearGroup, filterMonth, filterYear, filterProduct, filterModerator, filterGovernorate, activePeriod, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
+  }), [visibleOrders, isNouraAccount, filterStatus, filterWarehouseChip, appliedSearch, yearGroup, filterMonth, filterYear, effectiveYear, filterProduct, filterModerator, filterGovernorate, activePeriod, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
 
   // Counts per warehouse chip that honor ALL other filters (including current status).
   const warehouseChipCounts = useMemo(() => {
@@ -2302,7 +2324,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={filterYear} onValueChange={setFilterYear}>
+            <Select value={effectiveYear} onValueChange={handleYearChange}>
               <SelectTrigger className="w-32 input-modern">
                 <SelectValue placeholder="السنة" />
               </SelectTrigger>
