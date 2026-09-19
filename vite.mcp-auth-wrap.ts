@@ -51,32 +51,60 @@ export function applyMcpVerifiedUserWrap(filePath = MCP_FUNCTION_ENTRY): boolean
 }
 
 /**
- * Runs after mcpPlugin emit (configResolved / buildStart) so Lovable Publish
- * can regenerate supabase/functions/mcp/index.ts while keeping requireVerifiedUser.
- * The AUTO-GENERATED banner stays, so the SDK does not throw on overwrite.
+ * Wrap the Lovable MCP Vite plugin so requireVerifiedUser is applied in the
+ * same tick as each emit. A sibling plugin is not enough: mcpPlugin writes
+ * again on buildStart and can leave the generated serve() line unwrapped.
  */
-export function mcpAuthWrapPlugin(): Plugin {
-  return {
-    name: "wrap-mcp-require-verified-user",
-    configResolved() {
-      applyMcpVerifiedUserWrap();
-    },
-    buildStart() {
-      applyMcpVerifiedUserWrap();
-    },
-    configureServer(server) {
-      const target = MCP_FUNCTION_ENTRY.replace(/\\/g, "/");
-      const onChange = (file: string) => {
-        if (file.replace(/\\/g, "/") !== target) return;
-        queueMicrotask(() => {
-          try {
-            applyMcpVerifiedUserWrap();
-          } catch {
-            // mcpPlugin may still be writing the file
-          }
-        });
-      };
-      server.watcher.on("change", onChange);
-    },
+export function withMcpAuthWrap(inner: Plugin): Plugin {
+  const afterEmit = async (
+    hook: ((this: unknown, ...args: unknown[]) => unknown) | undefined,
+    ctx: unknown,
+    args: unknown[],
+  ) => {
+    const result = await hook?.apply(ctx, args);
+    applyMcpVerifiedUserWrap();
+    return result;
   };
+
+  return new Proxy(inner, {
+    get(target, prop, receiver) {
+      if (prop === "configResolved") {
+        return async function configResolved(this: unknown, ...args: unknown[]) {
+          return afterEmit(target.configResolved as never, this, args);
+        };
+      }
+      if (prop === "buildStart") {
+        return async function buildStart(this: unknown, ...args: unknown[]) {
+          return afterEmit(target.buildStart as never, this, args);
+        };
+      }
+      if (prop === "closeBundle") {
+        return async function closeBundle(this: unknown, ...args: unknown[]) {
+          return afterEmit(
+            (target as Plugin & { closeBundle?: Plugin["closeBundle"] }).closeBundle as never,
+            this,
+            args,
+          );
+        };
+      }
+      if (prop === "configureServer") {
+        return function configureServer(this: unknown, server: { watcher: { on: (ev: string, cb: (file: string) => void) => void } }) {
+          const result = target.configureServer?.call(this, server as never);
+          const targetPath = MCP_FUNCTION_ENTRY.replace(/\\/g, "/");
+          server.watcher.on("change", (file) => {
+            if (file.replace(/\\/g, "/") !== targetPath) return;
+            queueMicrotask(() => {
+              try {
+                applyMcpVerifiedUserWrap();
+              } catch {
+                // emit may still be writing
+              }
+            });
+          });
+          return result;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  });
 }

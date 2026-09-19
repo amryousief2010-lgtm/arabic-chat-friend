@@ -2,12 +2,11 @@
 // To take ownership, delete this banner line; the plugin then leaves the file alone.
 // supabase function: mcp
 // Bundled from src/lib/mcp/index.ts by @lovable.dev/mcp-js.
-// requireVerifiedUser wrap is re-applied after codegen by vite.mcp-auth-wrap.ts.
 // src/lib/mcp/index.ts
-import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@2.3.0";
 
 // src/lib/mcp/tools/list-orders.ts
-import { defineTool } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z } from "npm:zod@^3.25.76";
 
 // src/lib/mcp/supabase.ts
@@ -93,7 +92,7 @@ var list_orders_default = defineTool({
 });
 
 // src/lib/mcp/tools/get-order.ts
-import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z2 } from "npm:zod@^3.25.76";
 var get_order_default = defineTool2({
   name: "get_order",
@@ -123,7 +122,7 @@ var get_order_default = defineTool2({
 });
 
 // src/lib/mcp/tools/sales-summary.ts
-import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z3 } from "npm:zod@^3.25.76";
 
 // src/lib/orderSalesFilters.ts
@@ -209,7 +208,7 @@ var sales_summary_default = defineTool3({
 });
 
 // src/lib/mcp/tools/list-products.ts
-import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z4 } from "npm:zod@^3.25.76";
 var list_products_default = defineTool4({
   name: "list_products",
@@ -251,7 +250,7 @@ var list_products_default = defineTool4({
 });
 
 // src/lib/mcp/tools/system-map.ts
-import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z5 } from "npm:zod@^3.25.76";
 
 // src/lib/mcp/catalog.generated.ts
@@ -364,7 +363,7 @@ var system_map_default = defineTool5({
 });
 
 // src/lib/mcp/tools/list-datasets.ts
-import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z6 } from "npm:zod@^3.25.76";
 var list_datasets_default = defineTool6({
   name: "list_datasets",
@@ -399,7 +398,7 @@ var list_datasets_default = defineTool6({
 });
 
 // src/lib/mcp/tools/query-dataset.ts
-import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z7 } from "npm:zod@^3.25.76";
 var OPS = ["eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "in", "is_null", "not_null"];
 var query_dataset_default = defineTool7({
@@ -512,7 +511,7 @@ var query_dataset_default = defineTool7({
 });
 
 // src/lib/mcp/tools/get-record.ts
-import { defineTool as defineTool8 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool8 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z8 } from "npm:zod@^3.25.76";
 var get_record_default = defineTool8({
   name: "get_record",
@@ -555,7 +554,7 @@ var get_record_default = defineTool8({
 });
 
 // src/lib/mcp/tools/inventory-balances.ts
-import { defineTool as defineTool9 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool9 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z9 } from "npm:zod@^3.25.76";
 var num2 = (v) => {
   const x = Number(v);
@@ -656,7 +655,7 @@ var inventory_balances_default = defineTool9({
 });
 
 // src/lib/mcp/tools/inventory-movements.ts
-import { defineTool as defineTool10 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool10 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z10 } from "npm:zod@^3.25.76";
 var inventory_movements_default = defineTool10({
   name: "inventory_movements",
@@ -720,7 +719,7 @@ var inventory_movements_default = defineTool10({
 });
 
 // src/lib/mcp/tools/sales-report.ts
-import { defineTool as defineTool11 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool11 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z11 } from "npm:zod@^3.25.76";
 var num3 = (v) => {
   const x = Number(v);
@@ -822,7 +821,7 @@ var sales_report_default = defineTool11({
 });
 
 // src/lib/mcp/tools/manufacturing-report.ts
-import { defineTool as defineTool12 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool12 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z12 } from "npm:zod@^3.25.76";
 var num4 = (v) => {
   const x = Number(v);
@@ -911,7 +910,7 @@ var manufacturing_report_default = defineTool12({
 });
 
 // src/lib/mcp/tools/finance-report.ts
-import { defineTool as defineTool13 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool13 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z13 } from "npm:zod@^3.25.76";
 var num5 = (v) => {
   const x = Number(v);
@@ -989,7 +988,7 @@ var finance_report_default = defineTool13({
 });
 
 // src/lib/mcp/tools/hr-report.ts
-import { defineTool as defineTool14 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool14 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z14 } from "npm:zod@^3.25.76";
 var hr_report_default = defineTool14({
   name: "hr_report",
@@ -1077,7 +1076,7 @@ var hr_report_default = defineTool14({
 });
 
 // src/lib/mcp/tools/customers-report.ts
-import { defineTool as defineTool15 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool15 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z15 } from "npm:zod@^3.25.76";
 var customers_report_default = defineTool15({
   name: "customers_report",
@@ -1146,7 +1145,7 @@ var customers_report_default = defineTool15({
 });
 
 // src/lib/mcp/tools/delivery-report.ts
-import { defineTool as defineTool16 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool16 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z16 } from "npm:zod@^3.25.76";
 var delivery_report_default = defineTool16({
   name: "delivery_report",
@@ -1226,7 +1225,7 @@ var delivery_report_default = defineTool16({
 });
 
 // src/lib/mcp/tools/marketing-report.ts
-import { defineTool as defineTool17 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool17 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z17 } from "npm:zod@^3.25.76";
 var marketing_report_default = defineTool17({
   name: "marketing_report",
@@ -1331,7 +1330,7 @@ var marketing_report_default = defineTool17({
 });
 
 // src/lib/mcp/tools/messages-and-documents.ts
-import { defineTool as defineTool18 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool18 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z18 } from "npm:zod@^3.25.76";
 var messages_and_documents_default = defineTool18({
   name: "messages_and_documents",
@@ -1396,7 +1395,7 @@ var messages_and_documents_default = defineTool18({
 });
 
 // src/lib/mcp/tools/meat-factory-report.ts
-import { defineTool as defineTool19 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool19 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z19 } from "npm:zod@^3.25.76";
 var num6 = (v) => {
   const x = Number(v);
@@ -1730,7 +1729,7 @@ var meat_factory_report_default = defineTool19({
 });
 
 // src/lib/mcp/tools/box-costs-report.ts
-import { defineTool as defineTool20 } from "npm:@lovable.dev/mcp-js@2.0.2";
+import { defineTool as defineTool20 } from "npm:@lovable.dev/mcp-js@2.3.0";
 import { z as z20 } from "npm:zod@^3.25.76";
 var num7 = (v) => {
   const x = Number(v);
@@ -1911,7 +1910,7 @@ var mcp_default = defineMcp({
 });
 
 // lovable-mcp-supabase-entry.ts
-import { createSupabaseHandler } from "npm:@lovable.dev/mcp-js@2.0.2/stacks/supabase";
+import { createSupabaseHandler } from "npm:@lovable.dev/mcp-js@2.3.0/stacks/supabase";
 import {
   createServiceClient,
   isAuthResponse,

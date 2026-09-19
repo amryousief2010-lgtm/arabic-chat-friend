@@ -140,9 +140,10 @@ describe("Lovable remaining edge-function auth hardening", () => {
     expect(mcp).toMatch(/requireVerifiedUser/);
     expect(mcp).toMatch(/isAuthResponse/);
     expect(viteConfig).toMatch(/@lovable\.dev\/mcp-js\/stacks\/supabase\/vite/);
-    expect(viteConfig).toMatch(/mcpAuthWrapPlugin\s*\(/);
+    expect(viteConfig).toMatch(/withMcpAuthWrap\s*\(/);
     expect(wrap).toMatch(/requireVerifiedUser/);
     expect(wrap).toMatch(/applyMcpVerifiedUserWrap/);
+    expect(wrap).toMatch(/withMcpAuthWrap/);
   });
 
   it("process-email-queue allows only the service-role bearer after verifying other JWTs", () => {

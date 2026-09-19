@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
-import { mcpAuthWrapPlugin } from "./vite.mcp-auth-wrap";
+import { withMcpAuthWrap } from "./vite.mcp-auth-wrap";
 
 // Build version (timestamp-based, regenerated each build)
 const APP_VERSION = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 12);
@@ -114,10 +114,9 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     emitVersionJson(),
-    // Keep Lovable MCP codegen. A follow-up plugin re-applies requireVerifiedUser
-    // because the SDK has no skip/wrap option and throws on a banner-less file.
-    mcpPlugin(),
-    mcpAuthWrapPlugin(),
+    // Keep Lovable MCP codegen; wrap emit so requireVerifiedUser survives.
+    // The SDK has no skip/wrap option and throws on a banner-less file.
+    withMcpAuthWrap(mcpPlugin()),
   ].filter(Boolean),
   resolve: {
     alias: {
