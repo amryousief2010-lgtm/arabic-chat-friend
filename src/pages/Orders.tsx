@@ -52,8 +52,7 @@ import {
   withTimeout,
   yearCountsFromOrders,
 } from "@/lib/orderYearCounts";
-import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
-import { exportOrdersSheetStyle } from "@/utils/exportOrdersSheet";
+import { exportOrdersToCSV, exportOrdersToPDF } from "@/utils/exportOrders";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
 import AddOfferDialog from "@/components/orders/AddOfferDialog";
@@ -2484,7 +2483,10 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
               </Select>
             )}
             {canExportExcel && (
-              <Button variant="outline" className="gap-2" onClick={() => exportOrdersSheetStyle(filteredOrders as any)}>
+              <Button variant="outline" className="gap-2" onClick={async () => {
+                const { exportOrdersSheetStyle } = await import("@/utils/exportOrdersSheet");
+                await exportOrdersSheetStyle(filteredOrders as any);
+              }}>
                 <FileDown className="w-4 h-4" /> Excel
               </Button>
             )}

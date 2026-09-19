@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { FileSpreadsheet, Loader2, CheckCircle2, Undo2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import * as XLSX from "xlsx";
 import { cairoMonthStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -191,7 +190,8 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
   const hasUnknown = buckets.unknown.length > 0;
   const hasOverdue = buckets.overdue.length > 0;
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
+    const XLSX = await import("xlsx");
     const src = visibleRows;
     const data = src.map((r) => ({
       "رقم الطلب": r.order_number,
@@ -499,7 +499,8 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
             {waybillsDialog && (() => {
               const list = buckets[waybillsDialog].filter(r => r.status !== "delivered" && r.status !== "cancelled");
               return (
-                <Button size="sm" disabled={list.length === 0} className="gap-2" onClick={() => {
+                <Button size="sm" disabled={list.length === 0} className="gap-2" onClick={async () => {
+                  const XLSX = await import("xlsx");
                   const data = list.map(r => ({
                     "رقم الطلب": r.order_number,
                     "بوليصة الشحن": r.shipping_bill_no || "— لم تُسجّل —",

@@ -25,7 +25,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/dateFormat";
-import * as XLSX from "xlsx";
 import companyLogo from "@/assets/company-logo.jpg";
 import WarehouseKpisBlock from "@/components/warehouses/WarehouseKpisBlock";
 import RestaurantMenuTab from "@/components/warehouses/RestaurantMenuTab";
@@ -131,7 +130,8 @@ function exportPendingBatchPDF(b: any) {
   w.document.open(); w.document.write(html); w.document.close();
 }
 
-function exportPendingBatchExcel(b: any) {
+async function exportPendingBatchExcel(b: any) {
+  const XLSX = await import("xlsx");
   const rows = b.outputs.map((o: any, i: number) => ({
     "م": i + 1,
     "الصنف": o.cut_name_ar || "",

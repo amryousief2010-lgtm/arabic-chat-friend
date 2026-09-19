@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import type { WorkSheet } from "xlsx";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 
 export interface OrderExportRow {
@@ -77,11 +77,12 @@ export function exportOrdersToCSV(rows: OrderExportRow[], filename = "orders.csv
   URL.revokeObjectURL(url);
 }
 
-export function exportOrdersToXLSX(
+export async function exportOrdersToXLSX(
   rows: OrderExportRow[],
   filename = `orders-${Date.now()}.xlsx`,
   meta?: { moderatorName?: string; dateLabel?: string },
 ) {
+  const XLSX = await import("xlsx");
   const data = rows.map((r) => ({
     "رقم الطلب": r.order_number,
     "العميل": r.customer_name,
@@ -99,7 +100,7 @@ export function exportOrdersToXLSX(
   const totalSum = rows.reduce((s, r) => s + Number(r.total || 0), 0);
 
   const wb = XLSX.utils.book_new();
-  let ws: XLSX.WorkSheet;
+  let ws: WorkSheet;
   if (meta) {
     const headerRows: any[][] = [
       ["المسوقة:", meta.moderatorName || "-"],
