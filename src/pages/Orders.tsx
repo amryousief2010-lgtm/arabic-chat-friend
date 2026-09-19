@@ -1,8 +1,6 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { summarizeOrderItems } from "@/lib/orderItemSummary";
-
-import OrdersAnalytics from "@/components/dashboard/OrdersAnalytics";
 import ModeratorQuickAccessCards from "@/components/sales/ModeratorQuickAccessCards";
 import ModeratorsAggregateSummary from "@/components/sales/ModeratorsAggregateSummary";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -62,7 +60,6 @@ import { RelinkBillDialog } from "@/components/warehouses/RelinkBillDialog";
 import PhoneWithCopy from "@/components/orders/PhoneWithCopy";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import QuickDeliveryDialog from "@/components/orders/QuickDeliveryDialog";
-import ModeratorDailyReportDialog from "@/components/orders/ModeratorDailyReportDialog";
 import ReassignOwnerDialog from "@/components/orders/ReassignOwnerDialog";
 import { MODERATORS, findModeratorByName, isOrderForModerator, matchesModeratorGroup } from "@/constants/moderators";
 import {
@@ -97,6 +94,12 @@ import {
 } from "@/lib/agouzaReservations";
 import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
 
+const OrdersAnalytics = lazy(() => import("@/components/dashboard/OrdersAnalytics"));
+const ModeratorDailyReportDialog = lazy(() => import("@/components/orders/ModeratorDailyReportDialog"));
+
+const AnalyticsFallback = () => (
+  <div className="mb-4 py-8 text-center text-sm text-muted-foreground">جارٍ تحميل لوحة التحليلات…</div>
+);
 
 type YearGroup = "all" | "2026" | "pre2026";
 
@@ -2221,10 +2224,18 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           >
             {showAnalytics ? 'إخفاء لوحة التحليلات' : 'عرض لوحة التحليلات'}
           </Button>
-          {showAnalytics && <div className="mt-3"><OrdersAnalytics orders={visibleOrders} /></div>}
+          {showAnalytics && (
+            <div className="mt-3">
+              <Suspense fallback={<AnalyticsFallback />}>
+                <OrdersAnalytics orders={visibleOrders} />
+              </Suspense>
+            </div>
+          )}
         </div>
       ) : (
-        <OrdersAnalytics orders={visibleOrders} />
+        <Suspense fallback={<AnalyticsFallback />}>
+          <OrdersAnalytics orders={visibleOrders} />
+        </Suspense>
       )}
 
       <Tabs value={yearGroup} onValueChange={(v) => setYearGroup(v as YearGroup)} className="mb-4">
@@ -4234,15 +4245,17 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         }}
       />
 
-      {(isSalesModerator || canExportExcel) && user?.id && (
-        <ModeratorDailyReportDialog
-          open={modDailyReportOpen}
-          onOpenChange={setModDailyReportOpen}
-          orders={orders as any}
-          userId={user.id}
-          moderatorName={profile?.full_name || "المسوقة"}
-          canViewAll={!isSalesModerator && canExportExcel}
-        />
+      {(isSalesModerator || canExportExcel) && user?.id && modDailyReportOpen && (
+        <Suspense fallback={null}>
+          <ModeratorDailyReportDialog
+            open={modDailyReportOpen}
+            onOpenChange={setModDailyReportOpen}
+            orders={orders as any}
+            userId={user.id}
+            moderatorName={profile?.full_name || "المسوقة"}
+            canViewAll={!isSalesModerator && canExportExcel}
+          />
+        </Suspense>
       )}
 
 

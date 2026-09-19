@@ -25,7 +25,8 @@
 - شاشة المخازن: تاب الخزنة والأدوات الثقيلة `lazy` — مش بتتحمّل إلا لما المستخدم يفتحها
 - `fetchAll` على مرحلتين: الأصناف أولاً ثم الحركات/الطلبات
 - الطلبات: أول صفحة فقط + «تحميل المزيد» (وقف التحميل الخلفي لكل الشهر)
-- ExcelJS/xlsx عند الضغط على تصدير فقط
+- ExcelJS/xlsx/html2canvas عند الضغط على تصدير فقط
+- لوحة تحليلات الطلبات وتقرير المسوقة اليومي `lazy` — مش على مسار فتح الشاشة
 
 P1 يحتاج صاحب مشروع Supabase: فهارس على `orders(created_at)` و `agouza_stock_reservations(order_id)` و `order_items(order_id)`.
 
@@ -109,17 +110,17 @@ Related recent work (does **not** fix the issues below):
 - Product filter: paginates **all** `order_items` by `product_name` with no date bound (`ITEM_STEP = 1000`) before loading those orders.
 - Moderator filter: `.limit(1000)` for that moderator’s orders + all their items.
 - Comment in the same file: year-count queries evaluate RLS “across all ~12k orders”.
-- `OrdersAnalytics` is **always mounted on desktop** (`showAnalytics` only gates mobile).
-- `ModeratorDailyReportDialog` statically imports `html2canvas` + `xlsx` into the Orders module graph.
+- `OrdersAnalytics` used to be **always mounted on desktop** (`showAnalytics` only gates mobile) and pulled recharts into the Orders chunk.
+- `ModeratorDailyReportDialog` used to statically import `html2canvas` + `xlsx` into the Orders module graph. **Both are now lazy** — analytics loads in its own chunk; the daily-report dialog + export libs load when the user opens that feature.
 
 **Recommended**
 
 | Pri | Fix |
 |---|---|
-| P0 | Stop desktop auto-prefetch. Keep first page (100) + explicit «تحميل المزيد». |
-| P0 | Virtualize the list (`@tanstack/react-virtual` or window the cards). |
+| P0 | Stop desktop auto-prefetch. Keep first page (100) + explicit «تحميل المزيد». **Applied.** |
+| P0 | Lazy-mount `OrdersAnalytics` and `ModeratorDailyReportDialog`; dynamic-import html2canvas/xlsx on export. **Applied.** |
+| P1 | Virtualize the list (`@tanstack/react-virtual` or window the cards). |
 | P1 | Product filter must apply the same date window; never scan all `order_items`. |
-| P1 | Lazy-mount `OrdersAnalytics` and `ModeratorDailyReportDialog`. |
 | P2 | Split the 4k-line page into list / filters / dialogs so a status click does not re-render analytics. |
 
 ---
@@ -193,12 +194,11 @@ Already measured above. Extra source patterns:
 - `Warehouses.tsx` always mounts `WarehousesDashboardPanel` (recharts).
 - No Vite `manualChunks` before this PR.
 
-**Applied here (safe):** lazy-import exceljs/xlsx on export click; split those libs in `vite.config.ts`.
+**Applied here (safe):** lazy-import exceljs/xlsx/html2canvas on export click; split those libs in `vite.config.ts`; lazy-mount `WarehousesDashboardPanel`, `OrdersAnalytics`, and `ModeratorDailyReportDialog` off hub navigation.
 
 **Still P1**
 
-- Lazy-mount `WarehousesDashboardPanel` / `OrdersAnalytics` / `ModeratorDailyReportDialog`.
-- Dynamic-import `xlsx` inside the remaining 40 files the same way (`src/lib/safeExcel.ts` is a good template).
+- Dynamic-import `xlsx` inside the remaining 40 files the same way (`src/lib/safeExcel.ts` is a good template). Those pages are not on warehouse/orders hub navigation.
 
 ---
 
@@ -263,6 +263,7 @@ Not the main “بطيء بالعمل” story, but it adds JS parse + extra soc
 4. **`DiscrepancyBanner`** uses `useAuth` roles (no second `/user_roles` fetch)
 5. **Warehouses hub:** lazy-import treasury / stock / reports / recharts dashboard; `fetchAll` paints after warehouses+items, then loads movements/slaughter/geo orders; narrower `select`; movements 80/warehouse; recent orders cap 200
 6. **Orders:** first page only (desktop no longer background-loads the whole month); product catalog and Agouza reservations start after 1.5–2s
+7. **Orders JS critical path:** `OrdersAnalytics` (recharts) and `ModeratorDailyReportDialog` are `lazy()` + Suspense; html2canvas/xlsx load only on image/Excel download inside that dialog
 
 «تحميل المزيد» still pages the rest of the month. Opening the treasury sub-tool still loads that tab’s data. Approval badges appear ~2s later.
 
@@ -272,6 +273,7 @@ Not the main “بطيء بالعمل” story, but it adds JS parse + extra soc
 
 - Indexes: `orders(created_at)`, `order_items(order_id)`, `agouza_stock_reservations(order_id)`, `order_mega_discrepancies(status, created_at)`
 - Virtualize the Orders card list
+- Dynamic-import `xlsx` on remaining non-hub pages (~40 files)
 - Dashboard year aggregation via RPC (stop downloading the year)
 - Debounce sales-card realtime invalidation
 - RLS cost on `profiles` / `user_roles` (5.8s even for a single-row `eq id`)
