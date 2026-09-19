@@ -6,6 +6,11 @@
 // - Logs usage to ai_assistant_query_log (question + module + range only).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  isAuthResponse,
+  requireVerifiedUser,
+  userHasAnyRole,
+} from "../_shared/require-user.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -320,33 +325,27 @@ Deno.serve(async (req) => {
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     if (!lovableKey) return json({ error: "LOVABLE_API_KEY غير مُعد على الخادم." }, 500);
 
-    // 1) Verify caller using the USER's JWT — service_role is NOT used for data reads.
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Unauthorized" }, 401);
-    const token = authHeader.replace("Bearer ", "");
+    // service_role client is used ONLY for JWT verification, role checks, and
+    // the cross-user global audit count. It NEVER touches operational/financial tables.
+    const auditAdmin = createClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const verified = await requireVerifiedUser(req, corsHeaders, auditAdmin);
+    if (isAuthResponse(verified)) return verified;
+    const user = verified.user;
 
     // User-scoped client — every operational/financial read below runs under the
     // caller's RLS context (orders, customers, products, inventory, hatchery, farm,
     // sales, private_courier, etc.).
     const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
+      global: { headers: { Authorization: `Bearer ${verified.token}` } },
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // service_role client is used ONLY for the cross-user global audit count
-    // (so one user cannot read another user's log rows). It NEVER touches
-    // operational/financial tables.
-    const auditAdmin = createClient(supabaseUrl, serviceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
-    const { data: { user }, error: authErr } = await userClient.auth.getUser();
-    if (authErr || !user) return json({ error: "Unauthorized" }, 401);
-
-    // 2) Role gate — managers only (read via user's RLS)
-    const { data: rolesRows } = await userClient.from("user_roles").select("role").eq("user_id", user.id);
-    const userRoles = (rolesRows || []).map((r: any) => r.role);
-    if (!userRoles.some((r: string) => ALLOWED_ROLES.includes(r))) {
+    // 2) Role gate — managers only
+    const allowed = await userHasAnyRole(auditAdmin, user.id, ALLOWED_ROLES);
+    if (!allowed) {
       return json({ error: "السؤال الحر متاح فقط للمدير العام والمدير التنفيذي." }, 403);
     }
 

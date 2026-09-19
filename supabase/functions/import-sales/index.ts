@@ -1,4 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  isAuthResponse,
+  requireVerifiedUser,
+  userHasAnyRole,
+} from "../_shared/require-user.ts";
+
+const IMPORT_SALES_ALLOWED_ROLES = ["general_manager"] as const;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,31 +24,11 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Authn: require valid JWT
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-    if (userErr || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const verified = await requireVerifiedUser(req, corsHeaders, supabase);
+    if (isAuthResponse(verified)) return verified;
 
-    // Authz: only general_manager can bulk import
-    const { data: roleRow } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userData.user.id)
-      .eq("role", "general_manager")
-      .maybeSingle();
-    if (!roleRow) {
+    const allowed = await userHasAnyRole(supabase, verified.user.id, IMPORT_SALES_ALLOWED_ROLES);
+    if (!allowed) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -1,4 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import {
+  isAuthResponse,
+  requireVerifiedUser,
+  userHasAnyRole,
+} from '../_shared/require-user.ts'
+
+const DELETE_USER_ALLOWED_ROLES = ['general_manager'] as const
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,33 +30,12 @@ Deno.serve(async (req) => {
       }
     })
 
-    // Verify the requesting user is a general_manager
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+    const verified = await requireVerifiedUser(req, corsHeaders, supabaseAdmin)
+    if (isAuthResponse(verified)) return verified
+    const requestingUser = verified.user
 
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user: requestingUser }, error: authError } = await supabaseAdmin.auth.getUser(token)
-    
-    if (authError || !requestingUser) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Check if requesting user is general_manager
-    const { data: roleData, error: roleError } = await supabaseAdmin
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', requestingUser.id)
-      .single()
-
-    if (roleError || roleData?.role !== 'general_manager') {
+    const allowed = await userHasAnyRole(supabaseAdmin, requestingUser.id, DELETE_USER_ALLOWED_ROLES)
+    if (!allowed) {
       return new Response(
         JSON.stringify({ error: 'Only general managers can delete users' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

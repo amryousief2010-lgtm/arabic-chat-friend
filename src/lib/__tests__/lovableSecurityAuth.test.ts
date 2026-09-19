@@ -85,3 +85,76 @@ describe("Lovable Zodex follow-up auth hardening", () => {
     expect(src).not.toMatch(/atob\s*\(/);
   });
 });
+
+const REMAINING_FUNCTIONS = [
+  "ai-assistant-chat",
+  "audit-offer-box-pricing",
+  "create-employee",
+  "delete-user",
+  "hatchery-import-commit",
+  "import-sales",
+  "mcp",
+  "phase2-import-executor",
+  "process-email-queue",
+  "rebuild-may-orders",
+  "reset-password",
+  "suggest-product-price",
+  "update-user-email",
+] as const;
+
+describe("Lovable remaining edge-function auth hardening", () => {
+  const config = () =>
+    readFileSync(resolve(process.cwd(), "supabase/config.toml"), "utf8");
+
+  it("config.toml verifies JWT for every remaining function", () => {
+    const toml = config();
+    for (const name of REMAINING_FUNCTIONS) {
+      const block = toml.split(`[functions.${name}]`)[1] ?? "";
+      expect(block.split("[")[0]).toMatch(/verify_jwt\s*=\s*true/);
+    }
+  });
+
+  it.each(REMAINING_FUNCTIONS)(
+    "%s calls requireVerifiedUser and does not decode JWTs locally",
+    (name) => {
+      const src = fn(name);
+      expect(src).toMatch(/requireVerifiedUser/);
+      expect(src).toMatch(/isAuthResponse/);
+      expect(src).not.toMatch(/atob\s*\(/);
+      expect(src).not.toMatch(/getUserIdFromJwt/);
+      expect(src).not.toMatch(/getClaims/);
+      expect(src).not.toMatch(/parseJwtClaims/);
+    },
+  );
+
+  it("auth-email-hook is unchanged and still does not use requireVerifiedUser", () => {
+    const src = fn("auth-email-hook");
+    expect(src).not.toMatch(/requireVerifiedUser/);
+  });
+
+  it("process-email-queue allows only the service-role bearer after verifying other JWTs", () => {
+    const src = fn("process-email-queue");
+    expect(src).toMatch(/isServiceRoleBearer/);
+    expect(src).toMatch(/requireVerifiedUser/);
+    expect(src).not.toMatch(/atob\s*\(/);
+  });
+
+  it.each([
+    ["delete-user", "DELETE_USER_ALLOWED_ROLES", "general_manager"],
+    ["create-employee", "CREATE_EMPLOYEE_ALLOWED_ROLES", "sales_manager"],
+    ["reset-password", "RESET_PASSWORD_ALLOWED_ROLES", "general_manager"],
+    ["update-user-email", "UPDATE_EMAIL_ALLOWED_ROLES", "executive_manager"],
+    ["rebuild-may-orders", "REBUILD_MAY_ALLOWED_ROLES", "general_manager"],
+    ["phase2-import-executor", "ADMIN_ROLES", "executive_manager"],
+    ["import-sales", "IMPORT_SALES_ALLOWED_ROLES", "general_manager"],
+    ["hatchery-import-commit", "HATCHERY_IMPORT_ALLOWED_ROLES", "hatchery_manager"],
+    ["ai-assistant-chat", "ALLOWED_ROLES", "executive_manager"],
+    ["audit-offer-box-pricing", "AUDIT_ALLOWED_ROLES", "sales_manager"],
+    ["suggest-product-price", "SUGGEST_PRICE_ALLOWED_ROLES", "financial_manager"],
+  ] as const)("%s keeps a role gate (%s includes %s)", (name, constant, role) => {
+    const src = fn(name);
+    expect(src).toMatch(/userHasAnyRole/);
+    expect(src).toMatch(new RegExp(constant));
+    expect(src).toMatch(new RegExp(role));
+  });
+});
