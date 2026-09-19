@@ -638,10 +638,10 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     })();
   }, [filterMonth, filterYear, effectiveYear, yearPin, yearGroup, activePeriod?.fromYMD, activePeriod?.toYMD, filterProduct, filterModerator]);
 
-  // تحميل كتالوج المنتجات كاملًا لفلتر المنتجات (مرة واحدة)
+  // تحميل كتالوج المنتجات لفلتر المنتجات — بعد أول رسم حتى لا ينافس جلب الطلبات
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const t = window.setTimeout(async () => {
       const names = new Set<string>();
       const PAGE = 1000;
       for (let page = 0; page < 20; page++) {
@@ -655,8 +655,11 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         if (data.length < PAGE) break;
       }
       if (!cancelled) setCatalogProducts(Array.from(names));
-    })();
-    return () => { cancelled = true; };
+    }, 2000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
   }, []);
 
 
@@ -668,7 +671,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       .map((o) => o.id);
     if (agouzaIds.length === 0) { setAgouzaResvMap({}); return; }
     let cancelled = false;
-    (async () => {
+    const t = window.setTimeout(async () => {
       const map: Record<string, AgouzaResvStatus> = {};
       for (let i = 0; i < agouzaIds.length; i += 500) {
         const chunk = agouzaIds.slice(i, i + 500);
@@ -685,8 +688,11 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         chunk.forEach((id) => { if (!map[id]) map[id] = 'none'; });
       }
       if (!cancelled) setAgouzaResvMap(map);
-    })();
-    return () => { cancelled = true; };
+    }, 1500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orders.length]);
 
@@ -1103,30 +1109,9 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       };
       const morePossible = firstBatch.length === ORDERS_PAGE;
       setHasMorePages(morePossible);
-
-      // على الديسكتوب فقط: أكمل التحميل تلقائيًا في الخلفية
-      if (!mobileNow && morePossible) {
-        oPage = 1;
-        while (true) {
-          const batch = await fetchPage(oPage);
-          if (batch.length === 0) break;
-          const batchItems = batch.flatMap((o: any) =>
-            ((o.order_items as any[]) || []).map((it) => ({ ...it, order_id: o.id }))
-          );
-          await loadLookups(batch, batchItems);
-          const itemsByOrder: Record<string, any[]> = {};
-          batch.forEach((o: any) => { itemsByOrder[o.id] = (o.order_items as any[]) || []; });
-          const formatted = formatBatch(batch, itemsByOrder);
-          batchItems.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
-          accumulated = accumulated.concat(formatted);
-          setOrders(applyStatusOverrides([...accumulated]));
-          setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
-          if (batch.length < ORDERS_PAGE) break;
-          oPage++;
-        }
-        paginationRef.current.nextPage = oPage + 1;
-        setHasMorePages(false);
-      }
+      // Stop after the first page on every viewport. Background-prefetching
+      // the rest of the month (plus order_items) was saturating REST during
+      // hub navigation. «تحميل المزيد» already pages the remainder.
 
 
     } catch (error) {

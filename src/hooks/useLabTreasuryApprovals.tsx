@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useDeferredEnable } from "@/hooks/useDeferredEnable";
 
 export type PendingMovement = {
   id: string;
@@ -44,7 +45,7 @@ export function useLabTreasuryApprovals() {
 
   const queryClient = useQueryClient();
 
-  const enabled = !!user && isApprover;
+  const enabled = useDeferredEnable(!!user && isApprover, 2000);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["lab-treasury-approvals"],

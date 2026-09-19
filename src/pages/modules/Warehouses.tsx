@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,13 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Warehouse, Trash2, Edit, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Package, AlertTriangle, BarChart3, Upload, Beef, CheckCircle2, Printer, FileSpreadsheet, FileText, MapPin, Menu, BookOpen, Calendar, Scale, UtensilsCrossed, Inbox, ClipboardCheck, Eye, Wallet, Truck } from "lucide-react";
 import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
-import MainWarehouseTreasuryTab from "@/components/warehouses/MainWarehouseTreasuryTab";
-import AgouzaTreasuryTab from "@/components/warehouses/AgouzaTreasuryTab";
-import AgouzaReconciliationTab from "@/components/warehouses/AgouzaReconciliationTab";
-import AgouzaDailyClosureTab from "@/components/warehouses/AgouzaDailyClosureTab";
-import CourierOrderCustodyTab from "@/components/warehouses/CourierOrderCustodyTab";
-import DailyCustodyReconciliationTab from "@/components/warehouses/DailyCustodyReconciliationTab";
-import RouteDistributionPreparationTab from "@/components/warehouses/RouteDistributionPreparationTab";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,17 +21,29 @@ import { formatDateTime } from "@/lib/dateFormat";
 import companyLogo from "@/assets/company-logo.jpg";
 import WarehouseKpisBlock from "@/components/warehouses/WarehouseKpisBlock";
 import RestaurantMenuTab from "@/components/warehouses/RestaurantMenuTab";
-import WarehouseStockView from "@/pages/WarehouseStockView";
-import WarehouseReceiptsTab from "@/components/warehouses/WarehouseReceiptsTab";
 import AddMainWarehouseItemDialog from "@/components/warehouses/AddMainWarehouseItemDialog";
 import { isMainWarehouseExcludedCategory, isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
-import MainWarehouseActivity from "@/pages/MainWarehouseActivity";
-import WarehouseReports from "@/pages/modules/WarehouseReports";
-import MainWarehouseGuide from "@/pages/MainWarehouseGuide";
-import WarehouseOpeningBalance from "@/pages/modules/WarehouseOpeningBalance";
-import WarehouseOperationalDates from "@/pages/modules/WarehouseOperationalDates";
-import WarehouseDashboard from "@/pages/modules/warehouse/WarehouseDashboard";
-import WarehousesDashboardPanel from "@/components/warehouses/WarehousesDashboardPanel";
+
+const MainWarehouseTreasuryTab = lazy(() => import("@/components/warehouses/MainWarehouseTreasuryTab"));
+const AgouzaTreasuryTab = lazy(() => import("@/components/warehouses/AgouzaTreasuryTab"));
+const AgouzaReconciliationTab = lazy(() => import("@/components/warehouses/AgouzaReconciliationTab"));
+const AgouzaDailyClosureTab = lazy(() => import("@/components/warehouses/AgouzaDailyClosureTab"));
+const CourierOrderCustodyTab = lazy(() => import("@/components/warehouses/CourierOrderCustodyTab"));
+const DailyCustodyReconciliationTab = lazy(() => import("@/components/warehouses/DailyCustodyReconciliationTab"));
+const RouteDistributionPreparationTab = lazy(() => import("@/components/warehouses/RouteDistributionPreparationTab"));
+const WarehouseStockView = lazy(() => import("@/pages/WarehouseStockView"));
+const WarehouseReceiptsTab = lazy(() => import("@/components/warehouses/WarehouseReceiptsTab"));
+const MainWarehouseActivity = lazy(() => import("@/pages/MainWarehouseActivity"));
+const WarehouseReports = lazy(() => import("@/pages/modules/WarehouseReports"));
+const MainWarehouseGuide = lazy(() => import("@/pages/MainWarehouseGuide"));
+const WarehouseOpeningBalance = lazy(() => import("@/pages/modules/WarehouseOpeningBalance"));
+const WarehouseOperationalDates = lazy(() => import("@/pages/modules/WarehouseOperationalDates"));
+const WarehouseDashboard = lazy(() => import("@/pages/modules/warehouse/WarehouseDashboard"));
+const WarehousesDashboardPanel = lazy(() => import("@/components/warehouses/WarehousesDashboardPanel"));
+
+const TabFallback = () => (
+  <div className="py-10 text-center text-sm text-muted-foreground">جارٍ تحميل الأداة…</div>
+);
 import { MAIN_WAREHOUSE_ID, AGOUZA_WAREHOUSE_ID, getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow } from "@/lib/warehouseItemFilters";
 import { isWarehouseHubTab } from "@/lib/warehouseHubPaths";
 
@@ -585,42 +590,46 @@ const Warehouses = () => {
 
   const fetchAll = async () => {
     setLoading(true);
+    const MAIN_WH_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
+    const filterWh = (arr: any[]) => mainOnlyScope ? arr.filter((x) => x.id === MAIN_WH_ID) : arr;
+    const filterByWh = (arr: any[]) => mainOnlyScope ? arr.filter((x) => x.warehouse_id === MAIN_WH_ID) : arr;
+
+    // Phase 1 — what the default «الأصناف» tab needs. Paint as soon as this lands.
+    const [w, i] = await Promise.all([
+      supabase.from("warehouses").select("id, name, type, location, description, is_active").order("name"),
+      supabase.from("inventory_items").select("id, warehouse_id, product_id, name, category, sku, unit, stock, low_stock_threshold, unit_cost, expiry_date, warehouse:warehouses(name), product:products(is_active, category, name, barcode)").order("name"),
+    ]);
+    if (w.data) setWarehouses(filterWh(w.data) as WarehouseRow[]);
+    if (i.data) setItems(filterByWh(i.data) as InventoryItem[]);
+    setLoading(false);
+
+    // Phase 2 — movements / slaughter inbox / geo orders. Not required to show the hub.
     const sinceISO = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
-    const [w, i, s, o] = await Promise.all([
-      supabase.from("warehouses").select("*").order("name"),
-      supabase.from("inventory_items").select("*, warehouse:warehouses(name), product:products(is_active, category, name, barcode)").order("name"),
+    const [s, o] = await Promise.all([
       supabase.from("slaughter_batch_outputs")
         .select("id, batch_id, cut_name_ar, actual_weight_kg, unit_cost, quality_status, received_status, received_at, received_warehouse_id, batch:slaughter_batches(batch_number, slaughter_date, status)")
-        .in("destination", ["warehouse", "branch"]) // مسؤول المخزن الرئيسي يرى فقط ما هو موجه إليه — أوارد مصنع اللحوم تظهر داخل صفحة مصنع اللحوم
+        .in("destination", ["warehouse", "branch"])
         .order("created_at", { ascending: false })
         .limit(300),
       supabase.from("orders")
         .select("id, order_number, total, status, created_at, customer:customers(governorate, city, name)")
         .gte("created_at", sinceISO)
         .neq("status", "cancelled")
-        .limit(1000),
+        .limit(200),
     ]);
-    const MAIN_WH_ID = "5ec781b5-685b-4806-b59a-83a79ea5662c";
-    const filterWh = (arr: any[]) => mainOnlyScope ? arr.filter((x) => x.id === MAIN_WH_ID) : arr;
-    const filterByWh = (arr: any[]) => mainOnlyScope ? arr.filter((x) => x.warehouse_id === MAIN_WH_ID) : arr;
-    if (w.data) setWarehouses(filterWh(w.data) as WarehouseRow[]);
-    if (i.data) setItems(filterByWh(i.data) as InventoryItem[]);
     if (s.data) setSlaughterOutputs((mainOnlyScope ? (s.data as any[]).filter((x) => !x.received_warehouse_id || x.received_warehouse_id === MAIN_WH_ID) : s.data) as any[]);
     if (o.data) setRecentOrders(o.data as any[]);
 
-    // Fetch movements PER warehouse (top 200 each) so per-warehouse KPIs never
-    // miss their own "last movement" due to a global limit dominated by another
-    // busier warehouse. Guarantees strict isolation without cross-leak.
     const whIds = (w.data || []).map((x: any) => x.id);
     if (whIds.length > 0) {
       const perWhMoves = await Promise.all(
         whIds.map((id) =>
           supabase
             .from("inventory_movements")
-            .select("*, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)")
+            .select("id, item_id, warehouse_id, movement_type, quantity, destination_warehouse_id, reference, reference_type, party, notes, performed_at, package_count, package_weight_kg, performed_by, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)")
             .or(`warehouse_id.eq.${id},source_warehouse_id.eq.${id},destination_warehouse_id.eq.${id}`)
             .order("performed_at", { ascending: false })
-            .limit(200)
+            .limit(80)
         )
       );
       const seen = new Set<string>();
@@ -637,7 +646,6 @@ const Warehouses = () => {
     } else {
       setMovements([]);
     }
-    setLoading(false);
   };
 
   useEffect(() => { fetchAll(); }, []);
@@ -1137,6 +1145,7 @@ const Warehouses = () => {
             </TabsList>
           </div>
 
+          <Suspense fallback={<TabFallback />}>
           {/* DASHBOARD ALL */}
           <TabsContent value="dashboard-all" className="space-y-4">
             <WarehousesDashboardPanel
@@ -1797,6 +1806,7 @@ const Warehouses = () => {
               </div>
             )}
           </TabsContent>
+          </Suspense>
         </Tabs>
       </div>
 

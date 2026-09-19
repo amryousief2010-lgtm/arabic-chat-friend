@@ -1,8 +1,9 @@
 # لماذا التطبيق بطيء؟ — تشخيص أداء الواجهة
 
 تاريخ القياس: 19 سبتمبر 2026  
-الهدف: تقرير أسباب مرتّب حسب الأثر، وليس إعادة هيكلة كبيرة.  
-الإنتاج المقاس: `https://coceg.net` (deployment `f6c0cc03-…`)
+الهدف: تقرير أسباب مرتّب حسب الأثر + تعديلات P0 على مسار القراءة فقط (بدون مسح بيانات).  
+الإنتاج المقاس: `https://coceg.net` (deployment `f6c0cc03-…`)  
+جلسة عمرو المسجّلة: `preview--naam-alasima.lovable.app` (إعادة تحميل المخازن)
 
 ---
 
@@ -18,8 +19,57 @@
 4. **ملف الجافاسكريبت الأول 2 ميجا** قبل الضغط، ومكتبات التصدير (Excel ~917 كيلو) بتتحمّل مع فتح الشاشة مش عند الضغط على الزر.
 5. **شاشة المخازن بتجيب كل الأصناف وكل الحركات** (استعلام لكل مخزن) حتى لو المستخدم فاتح تاب واحد.
 
-اللي اتعمل في الـ PR ده: تشخيص + تعديلات صغيرة آمنة (تأجيل مكتبات Excel، وتقسيم الحزم، وتهدئة تحديث المخزن).  
-اللي محتاج قرار منتج: وقف التحميل التلقائي لكل طلبات الشهر، وترقيم الجدول، ونقل تجميع السنة لسيرفر.
+اللي اتعمل في الـ PR (مسار القراءة فقط — مفيش DELETE/TRUNCATE):
+
+- تأجيل اعتمادات الخزن / بلاغات الميجا / التنبيهات **ثانيتين** بعد فتح أي شاشة حتى الطلبات والمخازن ياخدوا الشبكة الأول
+- شاشة المخازن: تاب الخزنة والأدوات الثقيلة `lazy` — مش بتتحمّل إلا لما المستخدم يفتحها
+- `fetchAll` على مرحلتين: الأصناف أولاً ثم الحركات/الطلبات
+- الطلبات: أول صفحة فقط + «تحميل المزيد» (وقف التحميل الخلفي لكل الشهر)
+- ExcelJS/xlsx عند الضغط على تصدير فقط
+
+P1 يحتاج صاحب مشروع Supabase: فهارس على `orders(created_at)` و `agouza_stock_reservations(order_id)` و `order_items(order_id)`.
+
+---
+
+## Live Network evidence — Amr warehouse reload (preview)
+
+Logged-in session on `preview--naam-alasima.lovable.app`, warehouse hub reload:
+
+| Metric | Value |
+|---|---|
+| Requests | **111** |
+| Transferred | **2.3 MB** |
+| Resources | **6.9 MB** |
+| Finish | **6.22 s** |
+| Main `index-*.js` | ~598 KB transferred / **~2.08 MB decoded** |
+| exceljs | ~269 KB transferred |
+
+Slow REST, all overlapping ~5–6.5s (connection herd, not 8 independent 6s queries):
+
+| Endpoint | ~time | Who fires it on warehouse/orders mount |
+|---|---:|---|
+| `/rest/v1/agouza_stock_reservations` | 6.5s | `Orders.tsx` after orders land (every Agouza id in the loaded set) |
+| `/profiles` | 5.8s | `useAuth` (own row) — queued behind the herd |
+| `/user_roles` | 5.8s | `useAuth` + was also re-fetched by `DiscrepancyBanner` |
+| `/order_mega_discrepancies` | 5.4s | `MegaDiscrepancyAlert` in **DashboardLayout** (every page) |
+| `/orders` | 5.3s | Warehouses `fetchAll` (30 days, 1000) **and** Orders first page **and** discrepancy join |
+| `/main_treasury_transactions` | 5.0s | `useExecutiveApprovals` — **sidebar + layout alert**, not the warehouse tab |
+| `/lab_treasury_movements` | 4.9s | same hook + `useLabTreasuryApprovals` |
+| `/order_items` | 4.2s | Orders first page (+ used to prefetch the rest of the month on desktop) |
+
+**Why warehouse/orders mount looks like a full-app boot**
+
+`DashboardLayout` (and the sidebar) always mount, for every route:
+
+1. `useExecutiveApprovals` → **11 parallel table queries** including treasury
+2. `useLabTreasuryApprovals` → lab treasury pending
+3. `MegaDiscrepancyAlert` → discrepancies + orders + customers
+4. `DuplicateApprovalsAlert`
+5. notifications / messages / presence
+
+On top of that, `Warehouses.tsx` used to **statically import** treasury, stock, reports, and the recharts dashboard (418 KB chunk → long centered `RouteFallback` spinner), then `fetchAll()` pulled warehouses + all items + 1000 orders + N+1 movements before the items table painted.
+
+That is why Amr sees treasury REST on a warehouse reload even when the treasury **tab is not open**.
 
 ---
 
@@ -205,24 +255,25 @@ Not the main “بطيء بالعمل” story, but it adds JS parse + extra soc
 
 ---
 
-## What this PR changes (small P0 only)
+## What this PR changes (P0 read-path only — no data writes/deletes)
 
-1. **Defer Excel libraries until export click**
-   - `exportOrdersSheet.ts` — `import("exceljs")` inside the function
-   - `exportOrders.ts` / `exportReports.ts` — `import("xlsx")` only in XLSX helpers
-   - Orders / Index / Reports / dashboard dialogs / warehouse Excel buttons follow the same pattern
-2. **`vite.config.ts` `manualChunks`** for exceljs, xlsx, jspdf, html2canvas/html2pdf, recharts, framer-motion
-3. **Debounce `WarehouseDetail` realtime `fetchAll` to 800ms**
+1. **Defer Excel libraries until export click** + Vite `manualChunks` for exceljs/xlsx/jspdf/html2canvas/recharts/framer-motion
+2. **Debounce `WarehouseDetail` realtime `fetchAll` to 800ms**
+3. **`useDeferredEnable` (2s / idle)** on `useExecutiveApprovals`, `useLabTreasuryApprovals`, `MegaDiscrepancyAlert`, `DuplicateApprovalsAlert` — treasury/discrepancy REST no longer starts on warehouse/orders first paint
+4. **`DiscrepancyBanner`** uses `useAuth` roles (no second `/user_roles` fetch)
+5. **Warehouses hub:** lazy-import treasury / stock / reports / recharts dashboard; `fetchAll` paints after warehouses+items, then loads movements/slaughter/geo orders; narrower `select`; movements 80/warehouse; recent orders cap 200
+6. **Orders:** first page only (desktop no longer background-loads the whole month); product catalog and Agouza reservations start after 1.5–2s
 
-No query-window or pagination behavior was changed (that needs a product decision so moderators do not suddenly see “missing” month orders).
+«تحميل المزيد» still pages the rest of the month. Opening the treasury sub-tool still loads that tab’s data. Approval badges appear ~2s later.
 
 ---
 
-## Suggested next PRs (do not mix)
+## Deferred to P1 (needs Supabase owner)
 
-1. `perf: orders list stop desktop prefetch + virtualize`  
-2. `perf: debounce sales realtime invalidation`  
-3. `perf: dashboard year aggregation via RPC`  
-4. `perf: warehouses fetch active tab only`
+- Indexes: `orders(created_at)`, `order_items(order_id)`, `agouza_stock_reservations(order_id)`, `order_mega_discrepancies(status, created_at)`
+- Virtualize the Orders card list
+- Dashboard year aggregation via RPC (stop downloading the year)
+- Debounce sales-card realtime invalidation
+- RLS cost on `profiles` / `user_roles` (5.8s even for a single-row `eq id`)
 
-Keep production build green; do not merge this findings PR until the coordinator picks which P0 to implement next.
+Keep production build green. Do not merge until the coordinator re-measures Network on preview.
