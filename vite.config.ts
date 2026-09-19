@@ -2,12 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
-// The @lovable.dev/mcp-js Vite plugin regenerates supabase/functions/mcp/index.ts
-// from src/lib/mcp. That function is now user-owned (requireVerifiedUser wrap,
-// generated banner removed). Re-enabling the plugin throws
-// "refusing to overwrite user-authored file" and Lovable Publish fails.
-// Do not add it back until the generated banner is restored or the wrap lives
-// in MCP source instead.
+import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
+import { mcpAuthWrapPlugin } from "./vite.mcp-auth-wrap";
 
 // Build version (timestamp-based, regenerated each build)
 const APP_VERSION = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 12);
@@ -118,6 +114,10 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     emitVersionJson(),
+    // Keep Lovable MCP codegen. A follow-up plugin re-applies requireVerifiedUser
+    // because the SDK has no skip/wrap option and throws on a banner-less file.
+    mcpPlugin(),
+    mcpAuthWrapPlugin(),
   ].filter(Boolean),
   resolve: {
     alias: {
