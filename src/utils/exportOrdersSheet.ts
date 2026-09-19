@@ -1,8 +1,9 @@
-import ExcelJS from "exceljs";
-
 /**
  * تصدير الطلبات بنفس تنسيق شيت "تسجيل اوردرات لحم نعام" (Google Form Responses):
  * صف لكل أوردر + عمود لكل صنف بالكمية.
+ *
+ * exceljs is loaded only when the user actually exports — it is ~900KB and
+ * must not sit on the Orders navigation path.
  */
 
 export interface SheetExportItem {
@@ -171,6 +172,7 @@ export async function exportOrdersSheetStyle(
   });
 
   const headers = Object.keys(rows[0] || {});
+  const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("الطلبات", { views: [{ rightToLeft: true }] });
   ws.columns = headers.map((h) => ({ header: h, key: h, width: Math.max(10, Math.min(30, h.length + 4)) }));

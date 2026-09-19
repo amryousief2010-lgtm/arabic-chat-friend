@@ -207,15 +207,25 @@ const WarehouseDetail = () => {
 
   useEffect(() => { fetchAll(); }, [id]);
 
-  // Realtime: refresh when orders/order_items change so new orders by moderators appear instantly
+  // Realtime: refresh when orders/order_items change so new orders by moderators appear instantly.
+  // Debounce: a single new order emits many order_items INSERTs; fetching the full
+  // warehouse payload on every event was stalling the page during peak hours.
   useEffect(() => {
     if (!id) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { void fetchAll(); }, 800);
+    };
     const ch = supabase
       .channel(`warehouse-detail-${id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => fetchAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => fetchAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, scheduleRefresh)
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      if (timer) clearTimeout(timer);
+      supabase.removeChannel(ch);
+    };
   }, [id]);
 
 

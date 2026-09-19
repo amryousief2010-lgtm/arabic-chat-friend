@@ -60,6 +60,26 @@ export function shouldRunWeeklyFullReview(
   return age >= FULL_REVIEW_INTERVAL_DAYS * 86400_000;
 }
 
+/**
+ * Scheduled cron always starts as "quick". Upgrade to a 30-day full review
+ * when none has run for a week. Manual UI clicks keep the requested mode.
+ */
+export function resolveScheduledMode(opts: {
+  requestedMode: SyncMode;
+  triggerSource: string;
+  lastFullReviewAt: string | null | undefined;
+  now: string;
+}): SyncMode {
+  if (opts.requestedMode === "full") return "full";
+  if (
+    opts.triggerSource === "schedule" &&
+    shouldRunWeeklyFullReview(opts.lastFullReviewAt, opts.now)
+  ) {
+    return "full";
+  }
+  return opts.requestedMode;
+}
+
 /** "2026-07-04 04:42 PM" / "2026-07-04" → ISO (Cairo +02:00). */
 export function parseZodexDate(s: string | null | undefined): string | null {
   const t = String(s || "");

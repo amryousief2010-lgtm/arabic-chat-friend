@@ -1,4 +1,3 @@
-import * as XLSX from "xlsx";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 
 interface ExportData {
@@ -92,7 +91,8 @@ export function exportToPDF(data: ExportData) {
   openPrintWindow(`تقرير المبيعات — ${data.periodLabel}`, body);
 }
 
-export function exportToExcel(data: ExportData) {
+export async function exportToExcel(data: ExportData) {
+  const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
 
   const summary = [

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { getLandingForRole } from "@/constants/roleLandings";
 import { Button } from "@/components/ui/button";
-import { exportToPDF, exportToExcel } from "@/utils/exportReports";
+import { exportToPDF } from "@/utils/exportReports";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import OrdersBySourceCard from "@/components/dashboard/OrdersBySourceCard";
 import DailyRegistrationsTable from "@/components/dashboard/DailyRegistrationsTable";
@@ -208,19 +208,22 @@ const DashboardContent = () => {
             variant="outline"
             size="sm"
             disabled={reportData.isLoading}
-            onClick={() => exportToExcel({
-              totalSales: reportData.totalSales,
-              totalOrders: reportData.totalOrders,
-              avgOrderValue: reportData.avgOrderValue,
-              totalCustomers: reportData.totalCustomers,
-              monthlySales: reportData.monthlySales,
-              governorateData: reportData.governorateData,
-              sourceData: reportData.sourceData,
-              shippingData: reportData.shippingData,
-              moderatorData: reportData.moderatorData,
-              productData: reportData.productData,
-              periodLabel: `لوحة التحكم ${cairoYear} (${SALES_NET_LABEL_AR})`,
-            })}
+            onClick={async () => {
+              const { exportToExcel } = await import("@/utils/exportReports");
+              await exportToExcel({
+                totalSales: reportData.totalSales,
+                totalOrders: reportData.totalOrders,
+                avgOrderValue: reportData.avgOrderValue,
+                totalCustomers: reportData.totalCustomers,
+                monthlySales: reportData.monthlySales,
+                governorateData: reportData.governorateData,
+                sourceData: reportData.sourceData,
+                shippingData: reportData.shippingData,
+                moderatorData: reportData.moderatorData,
+                productData: reportData.productData,
+                periodLabel: `لوحة التحكم ${cairoYear} (${SALES_NET_LABEL_AR})`,
+              });
+            }}
           >
             <FileDown className="w-4 h-4 ml-1" />
             Excel

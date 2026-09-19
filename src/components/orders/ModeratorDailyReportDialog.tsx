@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import html2canvas from "html2canvas";
-import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -173,6 +171,7 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
     if (!reportRef.current) return;
     if (!rows.length) return toast.error("لا توجد طلبات في هذا اليوم");
     try {
+      const html2canvas = (await import("html2canvas")).default;
       const canvas = await html2canvas(reportRef.current, {
         backgroundColor: "#ffffff",
         scale: 2,
@@ -193,8 +192,9 @@ const ModeratorDailyReportDialog = ({ open, onOpenChange, orders, userId, modera
     }
   };
 
-  const downloadExcel = () => {
+  const downloadExcel = async () => {
     if (!rows.length) return toast.error("لا توجد طلبات في هذا اليوم");
+    const XLSX = await import("xlsx");
     const data = rows.map((r) => ({
       "رقم الطلب": r.order_number,
       ...(viewingAll ? { "المسوقة": r.moderator } : {}),

@@ -1,8 +1,6 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { summarizeOrderItems } from "@/lib/orderItemSummary";
-
-import OrdersAnalytics from "@/components/dashboard/OrdersAnalytics";
 import ModeratorQuickAccessCards from "@/components/sales/ModeratorQuickAccessCards";
 import ModeratorsAggregateSummary from "@/components/sales/ModeratorsAggregateSummary";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -52,8 +50,7 @@ import {
   withTimeout,
   yearCountsFromOrders,
 } from "@/lib/orderYearCounts";
-import { exportOrdersToCSV, exportOrdersToPDF, exportOrdersToXLSX } from "@/utils/exportOrders";
-import { exportOrdersSheetStyle } from "@/utils/exportOrdersSheet";
+import { exportOrdersToCSV, exportOrdersToPDF } from "@/utils/exportOrders";
 import EditOrderItemsDialog from "@/components/orders/EditOrderItemsDialog";
 import SwapOfferDialog from "@/components/orders/SwapOfferDialog";
 import AddOfferDialog from "@/components/orders/AddOfferDialog";
@@ -63,7 +60,6 @@ import { RelinkBillDialog } from "@/components/warehouses/RelinkBillDialog";
 import PhoneWithCopy from "@/components/orders/PhoneWithCopy";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import QuickDeliveryDialog from "@/components/orders/QuickDeliveryDialog";
-import ModeratorDailyReportDialog from "@/components/orders/ModeratorDailyReportDialog";
 import ReassignOwnerDialog from "@/components/orders/ReassignOwnerDialog";
 import { MODERATORS, findModeratorByName, isOrderForModerator, matchesModeratorGroup } from "@/constants/moderators";
 import {
@@ -98,6 +94,12 @@ import {
 } from "@/lib/agouzaReservations";
 import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
 
+const OrdersAnalytics = lazy(() => import("@/components/dashboard/OrdersAnalytics"));
+const ModeratorDailyReportDialog = lazy(() => import("@/components/orders/ModeratorDailyReportDialog"));
+
+const AnalyticsFallback = () => (
+  <div className="mb-4 py-8 text-center text-sm text-muted-foreground">جارٍ تحميل لوحة التحليلات…</div>
+);
 
 type YearGroup = "all" | "2026" | "pre2026";
 
@@ -639,10 +641,10 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     })();
   }, [filterMonth, filterYear, effectiveYear, yearPin, yearGroup, activePeriod?.fromYMD, activePeriod?.toYMD, filterProduct, filterModerator]);
 
-  // تحميل كتالوج المنتجات كاملًا لفلتر المنتجات (مرة واحدة)
+  // تحميل كتالوج المنتجات لفلتر المنتجات — بعد أول رسم حتى لا ينافس جلب الطلبات
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const t = window.setTimeout(async () => {
       const names = new Set<string>();
       const PAGE = 1000;
       for (let page = 0; page < 20; page++) {
@@ -656,8 +658,11 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         if (data.length < PAGE) break;
       }
       if (!cancelled) setCatalogProducts(Array.from(names));
-    })();
-    return () => { cancelled = true; };
+    }, 2000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
   }, []);
 
 
@@ -669,7 +674,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       .map((o) => o.id);
     if (agouzaIds.length === 0) { setAgouzaResvMap({}); return; }
     let cancelled = false;
-    (async () => {
+    const t = window.setTimeout(async () => {
       const map: Record<string, AgouzaResvStatus> = {};
       for (let i = 0; i < agouzaIds.length; i += 500) {
         const chunk = agouzaIds.slice(i, i + 500);
@@ -686,8 +691,11 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         chunk.forEach((id) => { if (!map[id]) map[id] = 'none'; });
       }
       if (!cancelled) setAgouzaResvMap(map);
-    })();
-    return () => { cancelled = true; };
+    }, 1500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orders.length]);
 
@@ -1104,30 +1112,9 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       };
       const morePossible = firstBatch.length === ORDERS_PAGE;
       setHasMorePages(morePossible);
-
-      // على الديسكتوب فقط: أكمل التحميل تلقائيًا في الخلفية
-      if (!mobileNow && morePossible) {
-        oPage = 1;
-        while (true) {
-          const batch = await fetchPage(oPage);
-          if (batch.length === 0) break;
-          const batchItems = batch.flatMap((o: any) =>
-            ((o.order_items as any[]) || []).map((it) => ({ ...it, order_id: o.id }))
-          );
-          await loadLookups(batch, batchItems);
-          const itemsByOrder: Record<string, any[]> = {};
-          batch.forEach((o: any) => { itemsByOrder[o.id] = (o.order_items as any[]) || []; });
-          const formatted = formatBatch(batch, itemsByOrder);
-          batchItems.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
-          accumulated = accumulated.concat(formatted);
-          setOrders(applyStatusOverrides([...accumulated]));
-          setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
-          if (batch.length < ORDERS_PAGE) break;
-          oPage++;
-        }
-        paginationRef.current.nextPage = oPage + 1;
-        setHasMorePages(false);
-      }
+      // Stop after the first page on every viewport. Background-prefetching
+      // the rest of the month (plus order_items) was saturating REST during
+      // hub navigation. «تحميل المزيد» already pages the remainder.
 
 
     } catch (error) {
@@ -2237,10 +2224,18 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           >
             {showAnalytics ? 'إخفاء لوحة التحليلات' : 'عرض لوحة التحليلات'}
           </Button>
-          {showAnalytics && <div className="mt-3"><OrdersAnalytics orders={visibleOrders} /></div>}
+          {showAnalytics && (
+            <div className="mt-3">
+              <Suspense fallback={<AnalyticsFallback />}>
+                <OrdersAnalytics orders={visibleOrders} />
+              </Suspense>
+            </div>
+          )}
         </div>
       ) : (
-        <OrdersAnalytics orders={visibleOrders} />
+        <Suspense fallback={<AnalyticsFallback />}>
+          <OrdersAnalytics orders={visibleOrders} />
+        </Suspense>
       )}
 
       <Tabs value={yearGroup} onValueChange={(v) => setYearGroup(v as YearGroup)} className="mb-4">
@@ -2484,7 +2479,10 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
               </Select>
             )}
             {canExportExcel && (
-              <Button variant="outline" className="gap-2" onClick={() => exportOrdersSheetStyle(filteredOrders as any)}>
+              <Button variant="outline" className="gap-2" onClick={async () => {
+                const { exportOrdersSheetStyle } = await import("@/utils/exportOrdersSheet");
+                await exportOrdersSheetStyle(filteredOrders as any);
+              }}>
                 <FileDown className="w-4 h-4" /> Excel
               </Button>
             )}
@@ -4247,15 +4245,17 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         }}
       />
 
-      {(isSalesModerator || canExportExcel) && user?.id && (
-        <ModeratorDailyReportDialog
-          open={modDailyReportOpen}
-          onOpenChange={setModDailyReportOpen}
-          orders={orders as any}
-          userId={user.id}
-          moderatorName={profile?.full_name || "المسوقة"}
-          canViewAll={!isSalesModerator && canExportExcel}
-        />
+      {(isSalesModerator || canExportExcel) && user?.id && modDailyReportOpen && (
+        <Suspense fallback={null}>
+          <ModeratorDailyReportDialog
+            open={modDailyReportOpen}
+            onOpenChange={setModDailyReportOpen}
+            orders={orders as any}
+            userId={user.id}
+            moderatorName={profile?.full_name || "المسوقة"}
+            canViewAll={!isSalesModerator && canExportExcel}
+          />
+        </Suspense>
       )}
 
 

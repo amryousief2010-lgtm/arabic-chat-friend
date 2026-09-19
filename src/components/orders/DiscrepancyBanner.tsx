@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, X } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 type Alert = {
   id: string;
@@ -13,18 +14,18 @@ type Alert = {
 };
 
 export default function DiscrepancyBanner() {
+  const { user, roles, isGeneralManager, isExecutiveManager, isSalesManager, isAccountant } = useAuth();
   const [alert, setAlert] = useState<Alert | null>(null);
-  const [allowed, setAllowed] = useState(false);
+  const allowed =
+    isGeneralManager ||
+    isExecutiveManager ||
+    isSalesManager ||
+    isAccountant ||
+    (roles || []).some((x) => ["financial_manager", "marketing_sales_manager"].includes(x));
 
   useEffect(() => {
-    (async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", u.user.id);
-      const r = (roles || []).map((x: any) => x.role);
-      const ok = r.some((x: string) => ["general_manager","executive_manager","sales_manager","accountant","financial_manager","marketing_sales_manager"].includes(x));
-      setAllowed(ok);
-      if (!ok) return;
+    if (!allowed || !user) return;
+    const t = window.setTimeout(async () => {
       const { data } = await supabase
         .from("import_discrepancy_alerts")
         .select("id, period, detected_at, diff_summary")
@@ -33,8 +34,9 @@ export default function DiscrepancyBanner() {
         .limit(1)
         .maybeSingle();
       if (data) setAlert(data as any);
-    })();
-  }, []);
+    }, 2000);
+    return () => window.clearTimeout(t);
+  }, [allowed, user]);
 
   async function resolve() {
     if (!alert) return;

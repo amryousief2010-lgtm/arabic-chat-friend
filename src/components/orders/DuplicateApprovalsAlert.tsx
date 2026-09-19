@@ -48,13 +48,16 @@ export default function DuplicateApprovalsAlert() {
   }, [canApprove]);
 
   useEffect(() => {
-    load();
     if (!canApprove) return;
+    const t = window.setTimeout(() => { void load(); }, 2000);
     const ch = supabase
       .channel("dup-approvals-alert")
       .on("postgres_changes", { event: "*", schema: "public", table: "duplicate_order_approvals" }, () => load())
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      window.clearTimeout(t);
+      supabase.removeChannel(ch);
+    };
   }, [canApprove, load]);
 
   if (!canApprove || rows.length === 0) return null;

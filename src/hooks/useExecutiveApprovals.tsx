@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useDeferredEnable } from "@/hooks/useDeferredEnable";
 
 export type ApprovalCategory = "treasury" | "meat" | "custody" | "slaughter" | "lab" | "hr" | "mf_purchase" | "mf_mfg";
 
@@ -62,7 +63,8 @@ export function useExecutiveApprovals() {
   const isExcluded = !!user?.id && EXCLUDED_APPROVER_IDS.has(user.id);
   const isApprover = (isGeneralManager || isExecutiveManager) && !isExcluded;
   const queryClient = useQueryClient();
-  const enabled = !!user && isApprover;
+  // Do not contend with Orders/Warehouses first paint (11 parallel REST calls).
+  const enabled = useDeferredEnable(!!user && isApprover, 2000);
 
 
   const { data, isLoading, refetch } = useQuery({

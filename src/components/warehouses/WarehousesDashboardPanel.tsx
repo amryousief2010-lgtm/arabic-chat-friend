@@ -14,7 +14,6 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
   PieChart, Pie, Legend,
 } from "recharts";
-import * as XLSX from "xlsx";
 
 type WhRow = { id: string; name: string; type: string; is_active: boolean };
 type ItemRow = {
@@ -169,7 +168,8 @@ export default function WarehousesDashboardPanel({
   }, [inQty, outQty, trMovs.length, adjMovs.length]);
 
   // ====== Actions ======
-  const exportExcel = () => {
+  const exportExcel = async () => {
+    const XLSX = await import("xlsx");
     const wb = XLSX.utils.book_new();
     const sum = [
       { البند: "نطاق", القيمة: scopeWarehouseId ? (scopedWarehouses[0]?.name || "—") : "كل المخازن" },

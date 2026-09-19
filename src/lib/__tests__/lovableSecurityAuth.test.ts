@@ -84,6 +84,29 @@ describe("Lovable Zodex follow-up auth hardening", () => {
     expect(src).toMatch(/agouza_warehouse_keeper/);
     expect(src).not.toMatch(/atob\s*\(/);
   });
+
+  it("sync-zodex-shipments upgrades scheduled cron to the weekly full review", () => {
+    const src = fn("sync-zodex-shipments");
+    expect(src).toMatch(/resolveScheduledMode/);
+    expect(src).toMatch(/already_running/);
+  });
+
+  it("auto AWB cron uses a Vault service-role bearer, not the anon/publishable key", () => {
+    const sql = readFileSync(
+      resolve(process.cwd(), "supabase/migrations/20260919223000_zodex_auto_awb_sync_cron.sql"),
+      "utf8",
+    );
+    expect(sql).toMatch(/invoke_scheduled_zodex_sync/);
+    expect(sql).toMatch(/zodex_sync_service_role_key/);
+    expect(sql).toMatch(/email_queue_service_role_key/);
+    expect(sql).toMatch(/sync-zodex-shipments/);
+    expect(sql).toMatch(/cron\.schedule/);
+    expect(sql).toMatch(/Authorization.*Bearer/);
+    expect(sql).toMatch(/CREATE SCHEMA IF NOT EXISTS private/);
+    expect(sql).not.toMatch(/publishable_key/);
+    expect(sql).not.toMatch(/SUPABASE_ANON/);
+    expect(sql).not.toMatch(/anon key/i);
+  });
 });
 
 const REMAINING_FUNCTIONS = [
