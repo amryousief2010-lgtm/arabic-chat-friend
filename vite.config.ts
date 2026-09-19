@@ -2,11 +2,12 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
-// mcpPlugin() regenerates supabase/functions/mcp/index.ts from src/lib/mcp.
-// That function is now user-owned (requireVerifiedUser wrap, banner removed).
-// The plugin then throws "refusing to overwrite user-authored file" and
-// Lovable Publish / `vite build` fail. Do not re-enable until the generated
-// banner is restored or the security wrap lives in the MCP source instead.
+// The @lovable.dev/mcp-js Vite plugin regenerates supabase/functions/mcp/index.ts
+// from src/lib/mcp. That function is now user-owned (requireVerifiedUser wrap,
+// generated banner removed). Re-enabling the plugin throws
+// "refusing to overwrite user-authored file" and Lovable Publish fails.
+// Do not add it back until the generated banner is restored or the wrap lives
+// in MCP source instead.
 
 // Build version (timestamp-based, regenerated each build)
 const APP_VERSION = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 12);
