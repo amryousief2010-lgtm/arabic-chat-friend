@@ -93,6 +93,7 @@ import {
   releaseAgouzaForOrder,
 } from "@/lib/agouzaReservations";
 import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
+import { shouldOfferManualWaybill } from "@/lib/zodexClassify";
 
 const OrdersAnalytics = lazy(() => import("@/components/dashboard/OrdersAnalytics"));
 const ModeratorDailyReportDialog = lazy(() => import("@/components/orders/ModeratorDailyReportDialog"));
@@ -2696,7 +2697,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                             {order.shipping_bill_no}
                           </span>
                         )}
-                        {canEditShippingBill && (
+                        {canEditShippingBill && shouldOfferManualWaybill(order) && (
                           <button
                             type="button"
                             onClick={() => setBillOrder(order)}

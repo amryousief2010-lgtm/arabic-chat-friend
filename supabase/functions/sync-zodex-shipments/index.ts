@@ -4,14 +4,21 @@
 // bill number (ZX...) to matching local orders by customer phone.
 // Complements sync-zodex-deliveries (which only sees closed/delivered rows).
 //
-// Automatic path: pg_cron job `sync-zodex-awb-auto` (every 15 minutes) POSTs
-// here with the Vault service-role JWT. Manual path: Zodex Review «مزامنة الآن».
+// Automatic path: pg_cron job `sync-zodex-awb-auto` (every 5 minutes, quick)
+// POSTs here with the Vault service-role JWT. Weekly full review is a separate
+// cron (`sync-zodex-awb-weekly-full`). Manual path: Zodex Review «مزامنة الآن».
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
+  AGOUZA_WAREHOUSE_ID,
+  amountMatchesZodex,
+  collectAwbCandidates,
   dedupeByBill,
+  indexAwbCandidate,
+  isExpectedZodexShipment,
   parseZodexDate,
+  pickAwbLinkWinner,
   resolveScheduledMode,
   resolveWindow,
   rowInWindow,
@@ -33,7 +40,6 @@ const ITEMS_PER_PAGE = 50;
 const MAX_PAGES_CEILING = 20;
 const DEFAULT_MAX_PAGES = 8;
 const LOOKBACK_DAYS_FOR_ORDER_MATCH = 14;
-const AMOUNT_TOLERANCE = 5; // EGP
 // Main warehouse system took over on 2026-07-01 (Cairo). Only match orders
 // created on/after this date; earlier orders were handled by the old system.
 const MAIN_WAREHOUSE_START_DATE = "2026-06-30T22:00:00.000Z"; // 2026-07-01 00:00 Cairo
@@ -377,8 +383,6 @@ Deno.serve(async (req) => {
     stats.returns_no_order = 0;
     stats.returns_examples = [] as any[];
 
-    const AGOUZA_WAREHOUSE_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
-
     const claimedThisRun = new Set<string>();
     // Scope candidate orders to the reviewed period (plus the matching lookback),
     // instead of scanning every order in the system.
@@ -391,7 +395,6 @@ Deno.serve(async (req) => {
 
     // ---- BATCH LOOKUPS (avoid per-row queries → CPU limit) ----
     const allBillNos = [...new Set(allRows.map((r) => r.bill_no))];
-    const allPhones = [...new Set(allRows.flatMap((r) => r.phones))];
 
     // 1) Bills already linked → one query (keep order info for returns processing)
     const linkedByBill = new Map<string, { id: string; status: string; source_warehouse_id: string | null; notes: string | null; order_number: string }>();
@@ -405,21 +408,36 @@ Deno.serve(async (req) => {
     const alreadyLinkedSet = new Set<string>(linkedByBill.keys());
 
 
-    // 2) Candidate orders (unlinked, in window, matching any of our phones) → batched query, index in memory
+    // 2) Unlinked delivery-side candidates in the window. Index by 01… and last-9
+    // so Zodex 01XXXXXXXXX matches customers.phone / phone2 stored as 20… / +20.
+    // Pickup (استلام) is never a candidate — it must not steal a ZX via FIFO.
     const candidatesByPhone = new Map<string, any[]>();
-    for (let i = 0; i < allPhones.length; i += 300) {
-      const slice = allPhones.slice(i, i + 300);
-      const { data } = await supabase.from("orders")
-        .select("id, order_number, total, created_at, customer_id, customers!inner(phone)")
+    const CAND_PAGE = 1000;
+    const CAND_CAP = 5000;
+    let candFrom = 0;
+    while (candFrom < CAND_CAP) {
+      const { data: candPage, error: candErr } = await supabase.from("orders")
+        .select("id, order_number, total, created_at, customer_id, fulfillment_type, shipping_company, source_warehouse_id, status, customers!inner(phone, phone2)")
         .is("shipping_bill_no", null)
         .gte("created_at", minCreated)
-        .in("customers.phone", slice);
-      for (const o of (data || []) as any[]) {
-        const p = o.customers?.phone;
-        if (!p) continue;
-        if (!candidatesByPhone.has(p)) candidatesByPhone.set(p, []);
-        candidatesByPhone.get(p)!.push(o);
+        .order("created_at", { ascending: true })
+        .range(candFrom, candFrom + CAND_PAGE - 1);
+      if (candErr) {
+        errors.push(`candidates: ${candErr.message}`);
+        break;
       }
+      const rows = (candPage || []) as any[];
+      for (const o of rows) {
+        if (!isExpectedZodexShipment({
+          status: o.status,
+          shipping_company: o.shipping_company,
+          source_warehouse_id: o.source_warehouse_id,
+          fulfillment_type: o.fulfillment_type,
+        })) continue;
+        indexAwbCandidate(candidatesByPhone, o, o.customers?.phone, o.customers?.phone2);
+      }
+      if (rows.length < CAND_PAGE) break;
+      candFrom += CAND_PAGE;
     }
 
 
@@ -454,15 +472,7 @@ Deno.serve(async (req) => {
       }
 
 
-      const candidates: any[] = [];
-      const seenId = new Set<string>();
-      for (const ph of row.phones) {
-        for (const o of (candidatesByPhone.get(ph) || [])) {
-          if (seenId.has(o.id) || claimedThisRun.has(o.id)) continue;
-          seenId.add(o.id);
-          candidates.push(o);
-        }
-      }
+      const candidates = collectAwbCandidates(row.phones, candidatesByPhone, claimedThisRun);
 
       if (!candidates.length) {
         stats.no_matching_order++;
@@ -470,16 +480,18 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      let list = candidates;
-      let matchReason = "phone_only";
       if (row.cod > 0) {
-        const closeAmount = list.filter((c) => Math.abs(Number(c.total || 0) - row.cod) <= AMOUNT_TOLERANCE);
-        if (closeAmount.length) { list = closeAmount; matchReason = "phone_and_cod"; }
-        else failure("cod_mismatch", { candidate_totals: list.map((c) => c.total) });
+        const amountHit = candidates.some((c) => amountMatchesZodex(Number(c.total || 0), row.cod).ok);
+        if (!amountHit) failure("cod_mismatch", { candidate_totals: candidates.map((c) => c.total) });
       }
-      if (list.length > 1) matchReason += "_fifo";
-      list.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-      const winner = list[0];
+      const picked = pickAwbLinkWinner(candidates, row.cod);
+      if (!picked) {
+        stats.no_matching_order++;
+        failure("no_matching_phone", { candidates_total: candidates.length });
+        continue;
+      }
+      const winner = picked.winner;
+      const matchReason = picked.reason;
 
       const { error: updErr } = await supabase.from("orders")
         .update({ shipping_bill_no: row.bill_no })

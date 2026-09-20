@@ -85,22 +85,32 @@ describe("Lovable Zodex follow-up auth hardening", () => {
     expect(src).not.toMatch(/atob\s*\(/);
   });
 
-  it("sync-zodex-shipments upgrades scheduled cron to the weekly full review", () => {
+  it("sync-zodex-shipments keeps scheduled AWB copy on resolveScheduledMode + overlap guard", () => {
     const src = fn("sync-zodex-shipments");
     expect(src).toMatch(/resolveScheduledMode/);
     expect(src).toMatch(/already_running/);
+    expect(src).toMatch(/isExpectedZodexShipment/);
+    expect(src).toMatch(/phone2/);
   });
 
   it("auto AWB cron uses a Vault service-role bearer, not the anon/publishable key", () => {
-    const sql = readFileSync(
-      resolve(process.cwd(), "supabase/migrations/20260919223000_zodex_auto_awb_sync_cron.sql"),
-      "utf8",
-    );
+    const sql = [
+      readFileSync(
+        resolve(process.cwd(), "supabase/migrations/20260919223000_zodex_auto_awb_sync_cron.sql"),
+        "utf8",
+      ),
+      readFileSync(
+        resolve(process.cwd(), "supabase/migrations/20260920102511_zodex_awb_sync_every_5min.sql"),
+        "utf8",
+      ),
+    ].join("\n");
     expect(sql).toMatch(/invoke_scheduled_zodex_sync/);
     expect(sql).toMatch(/zodex_sync_service_role_key/);
     expect(sql).toMatch(/email_queue_service_role_key/);
     expect(sql).toMatch(/sync-zodex-shipments/);
     expect(sql).toMatch(/cron\.schedule/);
+    expect(sql).toMatch(/\*\/5 \* \* \* \*/);
+    expect(sql).toMatch(/sync-zodex-awb-weekly-full/);
     expect(sql).toMatch(/Authorization.*Bearer/);
     expect(sql).toMatch(/CREATE SCHEMA IF NOT EXISTS private/);
     expect(sql).not.toMatch(/publishable_key/);

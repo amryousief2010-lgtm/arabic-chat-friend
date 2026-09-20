@@ -9,6 +9,7 @@ import {
   isExpectedZodexShipment,
   last9PhoneKey,
   scoreCandidate,
+  shouldOfferManualWaybill,
   suggestBillForOrder,
   type MissingBill,
   type OrderCandidate,
@@ -130,5 +131,23 @@ describe("isExpectedZodexShipment / fulfillmentKeepsZodexWaybill", () => {
     expect(fulfillmentKeepsZodexWaybill("pickup_agouza")).toBe(false);
     expect(fulfillmentKeepsZodexWaybill("pickup_main")).toBe(false);
     expect(fulfillmentKeepsZodexWaybill("delivery_main")).toBe(false);
+  });
+
+  it("does not offer «+ بوليصة» on customer pickup / استلام", () => {
+    expect(shouldOfferManualWaybill({
+      status: "pending",
+      source_warehouse_id: AGOUZA_WAREHOUSE_ID,
+      fulfillment_type: "pickup",
+    })).toBe(false);
+    expect(shouldOfferManualWaybill({
+      status: "pending",
+      source_warehouse_id: AGOUZA_WAREHOUSE_ID,
+      fulfillment_type: "delivery",
+    })).toBe(true);
+    expect(shouldOfferManualWaybill({
+      status: "pending",
+      shipping_company: "مندوب خاص",
+      fulfillment_type: "delivery",
+    })).toBe(false);
   });
 });

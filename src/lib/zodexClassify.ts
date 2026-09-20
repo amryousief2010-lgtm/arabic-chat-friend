@@ -8,19 +8,20 @@ import {
   ZODEX_SHIPPING_FEE_EGP,
 } from "../../supabase/functions/_shared/zodexSync";
 
-export { amountMatchesZodex, looksLikeEgyptianMobile, phonesMatchLoose, ZODEX_SHIPPING_FEE_EGP };
+export {
+  amountMatchesZodex,
+  AGOUZA_WAREHOUSE_ID,
+  isExpectedZodexShipment,
+  looksLikeEgyptianMobile,
+  NON_SHIPPABLE_STATUSES,
+  phonesMatchLoose,
+  shouldOfferManualWaybill,
+  ZODEX_SHIPPING_FEE_EGP,
+} from "../../supabase/functions/_shared/zodexSync";
 
 export const ZODEX_INTEGRATION_START = "2026-07-07T00:00:00+02:00";
-export const AGOUZA_WAREHOUSE_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
 export const NO_BILL_MIN_AGE_HOURS = 24;
 export const LAST9_PHONE_KEY_MIN = 9;
-
-// Statuses that mean the order is NOT expected to have a Zodex bill.
-export const NON_SHIPPABLE_STATUSES = new Set([
-  "cancelled", "ملغى", "ملغي",
-  "draft", "مسودة",
-  "returned", "مرتجع", "مرتجع نهائي",
-]);
 
 /** Fulfillment keys used by the Orders address/warehouse editor. */
 export type FulfillmentEditKey =
@@ -37,28 +38,6 @@ export type FulfillmentEditKey =
  */
 export function fulfillmentKeepsZodexWaybill(fKey: FulfillmentEditKey): boolean {
   return fKey === "shipping_company" || fKey === "delivery_agouza";
-}
-
-/**
- * Orders that *should* have a Zodex waybill on the review "no-bill" tab.
- * Customer pickup (استلام) is warehouse collection — not a Zodex shipment.
- */
-export function isExpectedZodexShipment(o: {
-  status?: string | null;
-  shipping_company?: string | null;
-  source_warehouse_id?: string | null;
-  fulfillment_type?: string | null;
-}): boolean {
-  if (NON_SHIPPABLE_STATUSES.has(o.status || "")) return false;
-  if ((o.fulfillment_type || "").toLowerCase() === "pickup") return false;
-  const sc = (o.shipping_company || "").trim();
-  if (sc === "مندوب خاص") return false;
-  if (sc && !/zodex|زودكس/i.test(sc)) return false;
-  if (/zodex|زودكس/i.test(sc)) return true;
-  if (o.source_warehouse_id === AGOUZA_WAREHOUSE_ID) return true;
-  // Unclassified (no warehouse / company) may still have gone via Zodex.
-  if (!o.source_warehouse_id && !sc) return true;
-  return false;
 }
 
 export const normPhone = (v?: string | null) =>
