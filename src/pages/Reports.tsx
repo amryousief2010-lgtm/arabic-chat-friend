@@ -409,6 +409,12 @@ const Reports = () => {
           )}
         </>
       )}
+        </TabsContent>
+
+        <TabsContent value="zodex" className="mt-0">
+          <ZodexSalesTab data={zodex} />
+        </TabsContent>
+      </Tabs>
     </DashboardLayout>
   );
 };
