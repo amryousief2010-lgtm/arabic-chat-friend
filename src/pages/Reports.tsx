@@ -91,6 +91,9 @@ const Reports = () => {
     isError,
     errorMessage,
   } = useReportsData(period);
+  // Also keeps the whole page live: it invalidates the sales queries on any
+  // change to orders or the Zodex tables.
+  const zodex = useZodexReportData(period);
 
   const formatSales = (v: number) => {
     if (v >= 1000000) return `${(v / 1000000).toFixed(1)}M`;
