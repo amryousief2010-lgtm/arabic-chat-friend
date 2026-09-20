@@ -41,6 +41,9 @@ import {
   FileDown,
 } from "lucide-react";
 import { useReportsData, type ReportPeriod } from "@/hooks/useReportsData";
+import { useZodexReportData } from "@/hooks/useZodexReportData";
+import { ZodexSalesTab } from "@/components/reports/ZodexSalesTab";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
 
 const COLORS = [
@@ -88,6 +91,9 @@ const Reports = () => {
     isError,
     errorMessage,
   } = useReportsData(period);
+  // Also keeps the whole page live: it invalidates the sales queries on any
+  // change to orders or the Zodex tables.
+  const zodex = useZodexReportData(period);
 
   const formatSales = (v: number) => {
     if (v >= 1000000) return `${(v / 1000000).toFixed(1)}M`;
@@ -157,6 +163,16 @@ const Reports = () => {
         </div>
       </div>
 
+      <Tabs defaultValue="analytics" className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="analytics">تحليلات المبيعات</TabsTrigger>
+          <TabsTrigger value="zodex">
+            زودكس — الشحنات والفواتير
+            {zodex.missingCount > 0 ? ` (${zodex.missingCount})` : ""}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="analytics" className="mt-0">
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
         {[
@@ -393,6 +409,12 @@ const Reports = () => {
           )}
         </>
       )}
+        </TabsContent>
+
+        <TabsContent value="zodex" className="mt-0">
+          <ZodexSalesTab data={zodex} />
+        </TabsContent>
+      </Tabs>
     </DashboardLayout>
   );
 };
