@@ -1,0 +1,10 @@
+REVOKE EXECUTE ON FUNCTION public.create_stocktaking_session(uuid, text, date, text) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.upsert_stocktaking_line(uuid, uuid, numeric, text, text) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.delete_stocktaking_line(uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.approve_stocktaking_session(uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.cancel_stocktaking_session(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.create_stocktaking_session(uuid, text, date, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.upsert_stocktaking_line(uuid, uuid, numeric, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.delete_stocktaking_line(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.approve_stocktaking_session(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.cancel_stocktaking_session(uuid) TO authenticated;
