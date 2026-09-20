@@ -61,8 +61,13 @@ export function shouldRunWeeklyFullReview(
 }
 
 /**
- * Scheduled cron always starts as "quick". Upgrade to a 30-day full review
- * when none has run for a week. Manual UI clicks keep the requested mode.
+ * Frequent AWB cron must stay "quick". A 30-day scrape on every scheduled
+ * tick (when last_full_review_at is null / stale) hits WORKER_RESOURCE_LIMIT
+ * and then never advances last_successful_zodex_sync_at — so auto-copy stalls
+ * until someone clicks «مزامنة الآن».
+ *
+ * Weekly full review is a *separate* cron that POSTs `{ mode: "full" }`.
+ * Manual UI clicks keep the requested mode.
  */
 export function resolveScheduledMode(opts: {
   requestedMode: SyncMode;
@@ -71,13 +76,7 @@ export function resolveScheduledMode(opts: {
   now: string;
 }): SyncMode {
   if (opts.requestedMode === "full") return "full";
-  if (
-    opts.triggerSource === "schedule" &&
-    shouldRunWeeklyFullReview(opts.lastFullReviewAt, opts.now)
-  ) {
-    return "full";
-  }
-  return opts.requestedMode;
+  return "quick";
 }
 
 /** "2026-07-04 04:42 PM" / "2026-07-04" → ISO (Cairo +02:00). */
@@ -304,4 +303,111 @@ export function mapBalanceCells(cells: string[], billIdx: number): MappedBalance
     phone_source,
     date_source,
   };
+}
+
+export const AGOUZA_WAREHOUSE_ID = "a970d469-37df-40e1-b99f-a49195a3778e";
+
+/** Statuses that must never receive an auto-copied Zodex waybill. */
+export const NON_SHIPPABLE_STATUSES = new Set([
+  "cancelled", "ملغى", "ملغي",
+  "draft", "مسودة",
+  "returned", "مرتجع", "مرتجع نهائي",
+]);
+
+export type ExpectedZodexShipmentOrder = {
+  status?: string | null;
+  shipping_company?: string | null;
+  source_warehouse_id?: string | null;
+  fulfillment_type?: string | null;
+};
+
+/**
+ * Orders that should get a Zodex ZX (Cairo/Giza Agouza delivery / شركة شحن).
+ * Customer pickup (استلام) is warehouse collection — not a last-mile shipment.
+ */
+export function isExpectedZodexShipment(o: ExpectedZodexShipmentOrder): boolean {
+  if (NON_SHIPPABLE_STATUSES.has(o.status || "")) return false;
+  if ((o.fulfillment_type || "").toLowerCase() === "pickup") return false;
+  const sc = (o.shipping_company || "").trim();
+  if (sc === "مندوب خاص") return false;
+  if (sc && !/zodex|زودكس/i.test(sc)) return false;
+  if (/zodex|زودكس/i.test(sc)) return true;
+  if (o.source_warehouse_id === AGOUZA_WAREHOUSE_ID) return true;
+  // Unclassified (no warehouse / company) may still have gone via Zodex.
+  if (!o.source_warehouse_id && !sc) return true;
+  return false;
+}
+
+/** Orders list: «+ بوليصة» / «تعديل البوليصة» only when Zodex last-mile is expected. */
+export function shouldOfferManualWaybill(o: ExpectedZodexShipmentOrder): boolean {
+  return isExpectedZodexShipment(o);
+}
+
+/** Normalized 01… plus last-9 so 01 / 20 / +20 collide. */
+export function phoneIndexKeys(...phones: Array<string | null | undefined>): string[] {
+  const keys = new Set<string>();
+  for (const raw of phones) {
+    const n = normalizeZodexPhone(raw);
+    if (!n) continue;
+    keys.add(n);
+    if (n.length >= 9) keys.add(n.slice(-9));
+  }
+  return [...keys];
+}
+
+export function indexAwbCandidate<T extends { id: string }>(
+  map: Map<string, T[]>,
+  order: T,
+  phone?: string | null,
+  phone2?: string | null,
+): void {
+  for (const k of phoneIndexKeys(phone, phone2)) {
+    const list = map.get(k) ?? [];
+    if (!list.some((o) => o.id === order.id)) list.push(order);
+    map.set(k, list);
+  }
+}
+
+export function collectAwbCandidates<T extends { id: string }>(
+  zodexPhones: string[],
+  map: Map<string, T[]>,
+  claimedIds: Set<string>,
+): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const k of phoneIndexKeys(...zodexPhones)) {
+    for (const o of map.get(k) || []) {
+      if (seen.has(o.id) || claimedIds.has(o.id)) continue;
+      seen.add(o.id);
+      out.push(o);
+    }
+  }
+  return out;
+}
+
+export type AwbLinkPick<T> = { winner: T; reason: string };
+
+/**
+ * Prefer phone + (exact ±5 or locked +110 shipping fee). If COD is off,
+ * still FIFO-link the oldest same-phone delivery order (previous behaviour).
+ */
+export function pickAwbLinkWinner<T extends { id: string; total?: number | null; created_at: string }>(
+  candidates: T[],
+  cod: number,
+): AwbLinkPick<T> | null {
+  if (!candidates.length) return null;
+  let list = candidates;
+  let reason = "phone_only";
+  if (cod > 0) {
+    const amountOk = list.filter((c) => amountMatchesZodex(Number(c.total || 0), cod).ok);
+    if (amountOk.length) {
+      list = amountOk;
+      reason = "phone_and_cod";
+    }
+  }
+  if (list.length > 1) reason += "_fifo";
+  list = [...list].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+  return { winner: list[0], reason };
 }

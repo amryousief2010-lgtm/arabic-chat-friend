@@ -12,6 +12,12 @@ import {
   phonesMatchLoose,
   looksLikeEgyptianMobile,
   amountMatchesZodex,
+  collectAwbCandidates,
+  indexAwbCandidate,
+  isExpectedZodexShipment,
+  phoneIndexKeys,
+  pickAwbLinkWinner,
+  AGOUZA_WAREHOUSE_ID,
 } from "../../../supabase/functions/_shared/zodexSync";
 
 const CYCLE = "2026-09-15T22:00:00.000Z";
@@ -115,17 +121,17 @@ describe("weekly full review", () => {
     expect(shouldRunWeeklyFullReview("2026-09-14T22:00:00.000Z", CYCLE)).toBe(false);
   });
 
-  it("scheduled cron upgrades to full after a week; manual quick stays quick", () => {
+  it("scheduled quick never upgrades to a 30-day scrape (even with no weekly full yet)", () => {
+    expect(resolveScheduledMode({
+      requestedMode: "quick",
+      triggerSource: "schedule",
+      lastFullReviewAt: null,
+      now: CYCLE,
+    })).toBe("quick");
     expect(resolveScheduledMode({
       requestedMode: "quick",
       triggerSource: "schedule",
       lastFullReviewAt: "2026-09-01T22:00:00.000Z",
-      now: CYCLE,
-    })).toBe("full");
-    expect(resolveScheduledMode({
-      requestedMode: "quick",
-      triggerSource: "schedule",
-      lastFullReviewAt: "2026-09-14T22:00:00.000Z",
       now: CYCLE,
     })).toBe("quick");
     expect(resolveScheduledMode({
@@ -136,10 +142,63 @@ describe("weekly full review", () => {
     })).toBe("quick");
     expect(resolveScheduledMode({
       requestedMode: "full",
+      triggerSource: "schedule",
+      lastFullReviewAt: "2026-09-14T22:00:00.000Z",
+      now: CYCLE,
+    })).toBe("full");
+    expect(resolveScheduledMode({
+      requestedMode: "full",
       triggerSource: "manual",
       lastFullReviewAt: "2026-09-14T22:00:00.000Z",
       now: CYCLE,
     })).toBe("full");
+  });
+});
+
+describe("AWB auto-link: phone2 / last-9 / delivery-only", () => {
+  it("indexes 01 and +20 as the same last-9 key", () => {
+    expect(phoneIndexKeys("01012345678")).toContain("1012345678".slice(-9));
+    expect(phoneIndexKeys("+201012345678")).toEqual(
+      expect.arrayContaining(phoneIndexKeys("01012345678")),
+    );
+  });
+
+  it("matches a Zodex 01 phone to an order whose number lives on phone2 as 20…", () => {
+    const map = new Map<string, { id: string; total: number; created_at: string }[]>();
+    indexAwbCandidate(
+      map,
+      { id: "o1", total: 500, created_at: "2026-09-20T08:00:00.000Z" },
+      "01500000000",
+      "201012345678",
+    );
+    const hits = collectAwbCandidates(["01012345678"], map, new Set());
+    expect(hits.map((h) => h.id)).toEqual(["o1"]);
+  });
+
+  it("prefers locked +110 COD over a same-phone older order with a different total", () => {
+    const picked = pickAwbLinkWinner([
+      { id: "old", total: 200, created_at: "2026-09-19T08:00:00.000Z" },
+      { id: "new", total: 500, created_at: "2026-09-20T08:00:00.000Z" },
+    ], 610);
+    expect(picked?.winner.id).toBe("new");
+    expect(picked?.reason).toBe("phone_and_cod");
+  });
+
+  it("still FIFO-links the oldest same-phone order when COD is off", () => {
+    const picked = pickAwbLinkWinner([
+      { id: "old", total: 200, created_at: "2026-09-19T08:00:00.000Z" },
+      { id: "new", total: 500, created_at: "2026-09-20T08:00:00.000Z" },
+    ], 900);
+    expect(picked?.winner.id).toBe("old");
+    expect(picked?.reason).toBe("phone_only_fifo");
+  });
+
+  it("does not treat pickup as a Zodex shipment for auto-link", () => {
+    expect(isExpectedZodexShipment({
+      status: "pending",
+      source_warehouse_id: AGOUZA_WAREHOUSE_ID,
+      fulfillment_type: "pickup",
+    })).toBe(false);
   });
 });
 
