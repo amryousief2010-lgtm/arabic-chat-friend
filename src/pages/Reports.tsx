@@ -163,6 +163,16 @@ const Reports = () => {
         </div>
       </div>
 
+      <Tabs defaultValue="analytics" className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="analytics">تحليلات المبيعات</TabsTrigger>
+          <TabsTrigger value="zodex">
+            زودكس — الشحنات والفواتير
+            {zodex.missingCount > 0 ? ` (${zodex.missingCount})` : ""}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="analytics" className="mt-0">
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
         {[
