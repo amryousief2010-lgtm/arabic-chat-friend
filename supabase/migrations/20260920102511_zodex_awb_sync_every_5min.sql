@@ -30,6 +30,20 @@ REVOKE ALL ON SCHEMA private FROM PUBLIC;
 REVOKE ALL ON SCHEMA private FROM anon, authenticated;
 GRANT USAGE ON SCHEMA private TO postgres, service_role;
 
+DO $$
+BEGIN
+  PERFORM cron.unschedule('sync-zodex-awb-auto');
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+
+DO $$
+BEGIN
+  PERFORM cron.unschedule('sync-zodex-awb-weekly-full');
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+
 DROP FUNCTION IF EXISTS private.invoke_scheduled_zodex_sync();
 
 CREATE OR REPLACE FUNCTION private.invoke_scheduled_zodex_sync(p_mode text DEFAULT 'quick')
@@ -102,20 +116,6 @@ GRANT EXECUTE ON FUNCTION private.invoke_scheduled_zodex_sync(text) TO postgres;
 
 COMMENT ON FUNCTION private.invoke_scheduled_zodex_sync(text) IS
   'pg_cron entrypoint: POST sync-zodex-shipments with the Vault service-role JWT. Frequent job uses quick; weekly job passes full. Not exposed on the Data API.';
-
-DO $$
-BEGIN
-  PERFORM cron.unschedule('sync-zodex-awb-auto');
-EXCEPTION WHEN OTHERS THEN
-  NULL;
-END $$;
-
-DO $$
-BEGIN
-  PERFORM cron.unschedule('sync-zodex-awb-weekly-full');
-EXCEPTION WHEN OTHERS THEN
-  NULL;
-END $$;
 
 SELECT cron.schedule(
   'sync-zodex-awb-auto',
