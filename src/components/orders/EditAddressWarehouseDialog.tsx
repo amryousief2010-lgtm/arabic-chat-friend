@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { fulfillmentKeepsZodexWaybill, type FulfillmentEditKey } from "@/lib/zodexClassify";
 
 interface Props {
   open: boolean;
@@ -37,13 +38,7 @@ interface Props {
 }
 
 type Wh = { id: string; name: string };
-type FKey =
-  | "pickup_main"
-  | "delivery_main"
-  | "pickup_agouza"
-  | "delivery_agouza"
-  | "shipping_company"
-  | "";
+type FKey = FulfillmentEditKey;
 
 export default function EditAddressWarehouseDialog({
   open,
@@ -136,8 +131,9 @@ export default function EditAddressWarehouseDialog({
         fulfillment_type,
         shipping_company: shipping,
       };
-      // Any non shipping-company method must not keep a Zodex waybill
-      if (fKey !== "shipping_company") patch.shipping_bill_no = null;
+      // Keep ZX on Agouza delivery (Cairo/Giza last-mile) and explicit شركة شحن.
+      // Wipe it when switching to customer pickup or private courier.
+      if (!fulfillmentKeepsZodexWaybill(fKey)) patch.shipping_bill_no = null;
 
       const { error } = await supabase.from("orders").update(patch).eq("id", orderId);
       if (error) throw error;

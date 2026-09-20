@@ -21,9 +21,9 @@ import {
 import { format, formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import {
-  ZODEX_INTEGRATION_START, AGOUZA_WAREHOUSE_ID, NO_BILL_MIN_AGE_HOURS,
-  NON_SHIPPABLE_STATUSES, ZODEX_SHIPPING_FEE_EGP,
-  scoreCandidate, classifyLinkIssue,
+  ZODEX_INTEGRATION_START, NO_BILL_MIN_AGE_HOURS,
+  ZODEX_SHIPPING_FEE_EGP,
+  scoreCandidate, classifyLinkIssue, isExpectedZodexShipment,
   last9PhoneKey, explainOrphanBill, explainNoBillOrder, suggestBillForOrder,
   type MissingBill, type OrderCandidate, type ScoredCandidate, type LinkIssue,
   type MismatchExplain, type BillPhoneSuggestion,
@@ -276,7 +276,8 @@ export default function ZodexReview() {
       }
 
       // 2) Orders that should be on Zodex but have no bill
-      // Criteria: after integration cutover, no bill, delivery fulfillment,
+      // Criteria: after integration cutover, no bill, *delivery* fulfillment
+      // (استلام / customer pickup is warehouse collection — not Zodex),
       // from Agouza warehouse OR shipping_company mentions zodex,
       // status not cancelled/draft/returned, older than 24h.
       const noBillRes = await supabase
@@ -300,21 +301,7 @@ export default function ZodexReview() {
 
       const filteredNoBill = ((noBillRes.data || []) as any[]).filter((o) => {
         if (dismissedOrderIds.has(o.id)) return false;
-        if (NON_SHIPPABLE_STATUSES.has(o.status)) return false;
-        // Exclude private courier and other explicit non-zodex companies
-        const sc = (o.shipping_company || "").trim();
-        if (sc === "مندوب خاص") return false;
-        if (sc && !/zodex|زودكس/i.test(sc)) {
-          // Explicit other shipping company (Bosta, العاصمة...) → not our concern
-          return false;
-        }
-        // At this point sc is either empty or references zodex.
-        if (/zodex|زودكس/i.test(sc)) return true;
-        if (o.source_warehouse_id === AGOUZA_WAREHOUSE_ID) return true;
-        // Unclassified orders (no fulfillment source at all) may still have been
-        // shipped via Zodex — surface them for review instead of hiding them.
-        if (!o.source_warehouse_id && !sc) return true;
-        return false;
+        return isExpectedZodexShipment(o);
       }) as OrderRow[];
 
       setNoBillOrders(filteredNoBill);

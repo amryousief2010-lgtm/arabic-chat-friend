@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  AGOUZA_WAREHOUSE_ID,
   amountMatchesZodex,
   classifyLinkIssue,
   explainNoBillOrder,
   explainOrphanBill,
+  fulfillmentKeepsZodexWaybill,
+  isExpectedZodexShipment,
   last9PhoneKey,
   scoreCandidate,
   suggestBillForOrder,
@@ -91,5 +94,41 @@ describe("explainOrphanBill / no-bill orders", () => {
     expect(sugg?.kind).toBe("amount_ok");
     const why = explainNoBillOrder({ hasWarehouse: true, shippingCompany: "zodex", suggestion: sugg });
     expect(why.detail).toMatch(/إعادة الربط/);
+  });
+});
+
+describe("isExpectedZodexShipment / fulfillmentKeepsZodexWaybill", () => {
+  it("expects a Zodex bill on Agouza delivery, not customer pickup", () => {
+    expect(isExpectedZodexShipment({
+      status: "pending",
+      source_warehouse_id: AGOUZA_WAREHOUSE_ID,
+      fulfillment_type: "delivery",
+    })).toBe(true);
+    expect(isExpectedZodexShipment({
+      status: "pending",
+      source_warehouse_id: AGOUZA_WAREHOUSE_ID,
+      fulfillment_type: "pickup",
+    })).toBe(false);
+  });
+
+  it("does not treat private-courier or cancelled rows as Zodex shipments", () => {
+    expect(isExpectedZodexShipment({
+      status: "pending",
+      shipping_company: "مندوب خاص",
+      fulfillment_type: "delivery",
+    })).toBe(false);
+    expect(isExpectedZodexShipment({
+      status: "cancelled",
+      source_warehouse_id: AGOUZA_WAREHOUSE_ID,
+      fulfillment_type: "delivery",
+    })).toBe(false);
+  });
+
+  it("keeps ZX when editing Agouza delivery or شركة شحن, wipes it for pickup/كيمو", () => {
+    expect(fulfillmentKeepsZodexWaybill("delivery_agouza")).toBe(true);
+    expect(fulfillmentKeepsZodexWaybill("shipping_company")).toBe(true);
+    expect(fulfillmentKeepsZodexWaybill("pickup_agouza")).toBe(false);
+    expect(fulfillmentKeepsZodexWaybill("pickup_main")).toBe(false);
+    expect(fulfillmentKeepsZodexWaybill("delivery_main")).toBe(false);
   });
 });
