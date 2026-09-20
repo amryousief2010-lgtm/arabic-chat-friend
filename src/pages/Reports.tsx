@@ -41,6 +41,9 @@ import {
   FileDown,
 } from "lucide-react";
 import { useReportsData, type ReportPeriod } from "@/hooks/useReportsData";
+import { useZodexReportData } from "@/hooks/useZodexReportData";
+import { ZodexSalesTab } from "@/components/reports/ZodexSalesTab";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
 
 const COLORS = [
