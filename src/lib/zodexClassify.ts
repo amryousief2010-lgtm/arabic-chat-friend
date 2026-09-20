@@ -22,6 +22,45 @@ export const NON_SHIPPABLE_STATUSES = new Set([
   "returned", "مرتجع", "مرتجع نهائي",
 ]);
 
+/** Fulfillment keys used by the Orders address/warehouse editor. */
+export type FulfillmentEditKey =
+  | "pickup_main"
+  | "delivery_main"
+  | "pickup_agouza"
+  | "delivery_agouza"
+  | "shipping_company"
+  | "";
+
+/**
+ * Zodex last-mile is Agouza delivery (Cairo/Giza) and explicit شركة شحن.
+ * Customer pickup and private-courier (كيمو / المخزن الرئيسي) must not keep a ZX bill.
+ */
+export function fulfillmentKeepsZodexWaybill(fKey: FulfillmentEditKey): boolean {
+  return fKey === "shipping_company" || fKey === "delivery_agouza";
+}
+
+/**
+ * Orders that *should* have a Zodex waybill on the review "no-bill" tab.
+ * Customer pickup (استلام) is warehouse collection — not a Zodex shipment.
+ */
+export function isExpectedZodexShipment(o: {
+  status?: string | null;
+  shipping_company?: string | null;
+  source_warehouse_id?: string | null;
+  fulfillment_type?: string | null;
+}): boolean {
+  if (NON_SHIPPABLE_STATUSES.has(o.status || "")) return false;
+  if ((o.fulfillment_type || "").toLowerCase() === "pickup") return false;
+  const sc = (o.shipping_company || "").trim();
+  if (sc === "مندوب خاص") return false;
+  if (sc && !/zodex|زودكس/i.test(sc)) return false;
+  if (/zodex|زودكس/i.test(sc)) return true;
+  if (o.source_warehouse_id === AGOUZA_WAREHOUSE_ID) return true;
+  // Unclassified (no warehouse / company) may still have gone via Zodex.
+  if (!o.source_warehouse_id && !sc) return true;
+  return false;
+}
+
 export const normPhone = (v?: string | null) =>
   (v || "").replace(/\D+/g, "").replace(/^20/, "").slice(-11);
 
