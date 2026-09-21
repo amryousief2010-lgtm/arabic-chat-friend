@@ -21,8 +21,10 @@ verify_jwt = true
 [functions.sync-zodex-deliveries]
 verify_jwt = true
 
+# Gateway JWT check is off so pg_cron can POST without a service_role JWT.
+# Auth is enforced inside the function: valid ops user JWT OR x-zodex-cron-secret.
 [functions.sync-zodex-shipments]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-assistant-chat]
 verify_jwt = true

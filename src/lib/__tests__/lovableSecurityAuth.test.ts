@@ -40,12 +40,14 @@ describe("Lovable Zodex follow-up auth hardening", () => {
   const config = () =>
     readFileSync(resolve(process.cwd(), "supabase/config.toml"), "utf8");
 
-  it("config.toml verifies JWT for probe and both Zodex sync functions", () => {
+  it("config.toml verifies JWT for probe and deliveries; shipments uses in-function auth", () => {
     const toml = config();
-    for (const name of ["zodex-probe", "sync-zodex-deliveries", "sync-zodex-shipments"]) {
+    for (const name of ["zodex-probe", "sync-zodex-deliveries"]) {
       const block = toml.split(`[functions.${name}]`)[1] ?? "";
       expect(block.split("[")[0]).toMatch(/verify_jwt\s*=\s*true/);
     }
+    const ship = (toml.split("[functions.sync-zodex-shipments]")[1] ?? "").split("[")[0];
+    expect(ship).toMatch(/verify_jwt\s*=\s*false/);
   });
 
   it("zodex-probe verifies JWT and review roles before using courier credentials", () => {
@@ -59,30 +61,47 @@ describe("Lovable Zodex follow-up auth hardening", () => {
     expect(src).toMatch(/ZODEX_PROBE_ENABLED/);
   });
 
-  it.each(["sync-zodex-deliveries", "sync-zodex-shipments"])(
-    "%s requires a verified user JWT or service-role bearer before scraping",
-    (name) => {
-      const src = fn(name);
-      expect(src).toMatch(/requireVerifiedUser/);
-      expect(src).toMatch(/ZODEX_SYNC_ALLOWED_ROLES/);
-      expect(src).toMatch(/isServiceRoleBearer/);
-      expect(src).not.toMatch(/getClaims/);
-      expect(src).not.toMatch(/allow as scheduled trigger/);
-      const authIdx = src.indexOf("requireVerifiedUser");
-      const loginIdx = src.indexOf("ZODEX_USERNAME");
-      expect(authIdx).toBeGreaterThan(0);
-      expect(loginIdx).toBeGreaterThan(authIdx);
-    },
-  );
+  it("sync-zodex-deliveries requires a verified user JWT or service-role bearer before scraping", () => {
+    const src = fn("sync-zodex-deliveries");
+    expect(src).toMatch(/requireVerifiedUser/);
+    expect(src).toMatch(/ZODEX_SYNC_ALLOWED_ROLES/);
+    expect(src).toMatch(/isServiceRoleBearer/);
+    expect(src).not.toMatch(/getClaims/);
+    expect(src).not.toMatch(/allow as scheduled trigger/);
+    const authIdx = src.indexOf("requireVerifiedUser");
+    const loginIdx = src.indexOf("ZODEX_USERNAME");
+    expect(authIdx).toBeGreaterThan(0);
+    expect(loginIdx).toBeGreaterThan(authIdx);
+  });
 
-  it("shared helper verifies JWTs via Auth getUser and treats only the service-role key as cron", () => {
+  it("sync-zodex-shipments accepts cron secret or verified ops user JWT before scraping", () => {
+    const src = fn("sync-zodex-shipments");
+    expect(src).toMatch(/requireVerifiedUser/);
+    expect(src).toMatch(/ZODEX_SYNC_ALLOWED_ROLES/);
+    expect(src).toMatch(/isZodexCronSecret/);
+    expect(src).toMatch(/isServiceRoleBearer/);
+    expect(src).not.toMatch(/getClaims/);
+    expect(src).not.toMatch(/allow as scheduled trigger/);
+    const cronIdx = src.indexOf("isZodexCronSecret");
+    const authIdx = src.indexOf("requireVerifiedUser");
+    const loginIdx = src.indexOf("ZODEX_USERNAME");
+    expect(cronIdx).toBeGreaterThan(0);
+    expect(authIdx).toBeGreaterThan(cronIdx);
+    expect(loginIdx).toBeGreaterThan(authIdx);
+  });
+
+  it("shared helper verifies JWTs via Auth getUser and supports cron-secret + service-role schedule paths", () => {
     const src = helper();
     expect(src).toMatch(/admin\.auth\.getUser\(token\)/);
     expect(src).toMatch(/isServiceRoleBearer/);
+    expect(src).toMatch(/isZodexCronSecret/);
+    expect(src).toMatch(/ZODEX_CRON_SECRET/);
+    expect(src).toMatch(/matchesCronSecret/);
     expect(src).toMatch(/SUPABASE_SERVICE_ROLE_KEY/);
     expect(src).toMatch(/warehouse_supervisor/);
     expect(src).toMatch(/agouza_warehouse_keeper/);
     expect(src).not.toMatch(/atob\s*\(/);
+    expect(src).not.toMatch(/console\.(log|info|debug|warn|error)\(.*ZODEX_CRON/);
   });
 
   it("sync-zodex-shipments keeps scheduled AWB copy on resolveScheduledMode + overlap guard", () => {
@@ -93,29 +112,27 @@ describe("Lovable Zodex follow-up auth hardening", () => {
     expect(src).toMatch(/phone2/);
   });
 
-  it("auto AWB cron uses a Vault service-role bearer, not the anon/publishable key", () => {
-    const sql = [
-      readFileSync(
-        resolve(process.cwd(), "supabase/migrations/20260919223000_zodex_auto_awb_sync_cron.sql"),
-        "utf8",
-      ),
-      readFileSync(
-        resolve(process.cwd(), "supabase/migrations/20260920102511_zodex_awb_sync_every_5min.sql"),
-        "utf8",
-      ),
-    ].join("\n");
+  it("auto AWB cron authenticates with vault zodex_cron_secret, not a service_role Bearer", () => {
+    const sql = readFileSync(
+      resolve(process.cwd(), "supabase/migrations/20260921120000_zodex_cron_secret_auth.sql"),
+      "utf8",
+    );
     expect(sql).toMatch(/invoke_scheduled_zodex_sync/);
-    expect(sql).toMatch(/zodex_sync_service_role_key/);
-    expect(sql).toMatch(/email_queue_service_role_key/);
+    expect(sql).toMatch(/zodex_cron_secret/);
+    expect(sql).toMatch(/x-zodex-cron-secret/);
+    expect(sql).toMatch(/vault\.create_secret/);
     expect(sql).toMatch(/sync-zodex-shipments/);
     expect(sql).toMatch(/cron\.schedule/);
     expect(sql).toMatch(/\*\/5 \* \* \* \*/);
     expect(sql).toMatch(/sync-zodex-awb-weekly-full/);
-    expect(sql).toMatch(/Authorization.*Bearer/);
     expect(sql).toMatch(/CREATE SCHEMA IF NOT EXISTS private/);
-    expect(sql).not.toMatch(/publishable_key/);
+    expect(sql).toMatch(/ZODEX_CRON_SECRET/);
+    expect(sql).not.toMatch(/Authorization.*Bearer/);
+    expect(sql).not.toMatch(/zodex_sync_service_role_key/);
+    expect(sql).not.toMatch(/email_queue_service_role_key/);
     expect(sql).not.toMatch(/SUPABASE_ANON/);
-    expect(sql).not.toMatch(/anon key/i);
+    expect(sql).not.toMatch(/RAISE NOTICE.*v_secret/);
+    expect(sql).not.toMatch(/RAISE WARNING.*v_secret/);
   });
 });
 
@@ -150,6 +167,14 @@ describe("Lovable remaining edge-function auth hardening", () => {
       const block = toml.split(`[functions.${name}]`)[1] ?? "";
       expect(block.split("[")[0]).toMatch(/verify_jwt\s*=\s*true/);
     }
+  });
+
+  it("config.toml disables gateway JWT only for auth-email-hook and sync-zodex-shipments", () => {
+    const toml = config();
+    const disabled = [...toml.matchAll(/\[functions\.([^\]]+)\]\s*\nverify_jwt\s*=\s*false/g)]
+      .map((m) => m[1])
+      .sort();
+    expect(disabled).toEqual(["auth-email-hook", "sync-zodex-shipments"]);
   });
 
   it.each(REMAINING_HAND_AUTHORED_FUNCTIONS)(

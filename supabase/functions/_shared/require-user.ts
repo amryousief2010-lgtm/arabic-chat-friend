@@ -1,4 +1,9 @@
 import { createClient, type SupabaseClient, type User } from "npm:@supabase/supabase-js@2";
+import {
+  matchesCronSecret,
+  readCronSecretHeader,
+  ZODEX_CRON_SECRET_ENV,
+} from "./cron-secret.ts";
 
 export function jsonAuthError(
   corsHeaders: Record<string, string>,
@@ -98,4 +103,15 @@ export function isServiceRoleBearer(req: Request): boolean {
   if (!serviceKey) return false;
   const auth = req.headers.get("Authorization") || "";
   return auth === `Bearer ${serviceKey}`;
+}
+
+/**
+ * Scheduled-job path for sync-zodex-shipments: shared secret header.
+ * Compares `x-zodex-cron-secret` to env ZODEX_CRON_SECRET in constant time.
+ * Does not log the header or env value.
+ */
+export async function isZodexCronSecret(req: Request): Promise<boolean> {
+  const expected = (Deno.env.get(ZODEX_CRON_SECRET_ENV) || "").trim();
+  const provided = readCronSecretHeader(req.headers);
+  return matchesCronSecret(provided, expected);
 }
