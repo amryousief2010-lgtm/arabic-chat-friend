@@ -5,8 +5,13 @@
 // Complements sync-zodex-deliveries (which only sees closed/delivered rows).
 //
 // Automatic path: pg_cron job `sync-zodex-awb-auto` (every 5 minutes, quick)
-// POSTs here with the Vault service-role JWT. Weekly full review is a separate
-// cron (`sync-zodex-awb-weekly-full`). Manual path: Zodex Review «مزامنة الآن».
+// POSTs here with header `x-zodex-cron-secret` matching env ZODEX_CRON_SECRET
+// (Vault `zodex_cron_secret`). Weekly full review is a separate cron
+// (`sync-zodex-awb-weekly-full`). Manual path: Zodex Review «مزامنة الآن»
+// still uses the logged-in user JWT + ops role check.
+//
+// Gateway: verify_jwt=false on THIS function only so pg_net can call without
+// a service_role JWT. Auth is enforced in-function (cron secret OR user JWT).
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -29,6 +34,7 @@ import {
 import {
   isAuthResponse,
   isServiceRoleBearer,
+  isZodexCronSecret,
   requireVerifiedUser,
   userHasAnyRole,
   ZODEX_SYNC_ALLOWED_ROLES,
@@ -222,11 +228,12 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  // In-app callers use supabase.functions.invoke (user JWT). Scheduled jobs
-  // must send the service-role JWT — the public anon key is rejected.
+  // In-app callers use supabase.functions.invoke (user JWT + ops role).
+  // Scheduled jobs send x-zodex-cron-secret (preferred) or a service-role JWT.
+  // The public anon/publishable key is never treated as a cron trigger.
   let triggerSource = "manual";
   let triggeredBy: string | null = null;
-  if (isServiceRoleBearer(req)) {
+  if (await isZodexCronSecret(req) || isServiceRoleBearer(req)) {
     triggerSource = "schedule";
   } else {
     const verified = await requireVerifiedUser(req, corsHeaders, supabase);
