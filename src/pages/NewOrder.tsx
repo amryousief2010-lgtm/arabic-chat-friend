@@ -40,6 +40,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
+import { mergeOrderItemRows } from '@/lib/mergeOrderItemRows';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { 
@@ -1188,18 +1189,11 @@ const NewOrder = () => {
       // Build raw rows. For "نصف كيلو" items we store quantity in actual kilograms
       // (e.g. 1 packet of نصف كيلو => quantity = 0.5) and unit_price = full-kg price,
       // so total_price = quantity × unit_price always reflects the real total.
-      type RawRow = {
-        order_id: string;
-        product_id: string;
-        product_name: string;
-        quantity: number;
-        unit_price: number;
-        total_price: number;
-        is_half_kg: boolean;
-        is_gift: boolean;
-        offer_name: string | null;
-      };
-      const rawRows: RawRow[] = cart.map(item => {
+      //
+      // الدمج عند الحفظ لا يجمع منتجًا واحدًا من عرضين مختلفين. كل بوكس يحتفظ
+      // باسمه وسعره. نص + نص من نفس المنتج وبنفس السعر وداخل نفس العرض (أو
+      // بدون عرض) يظل سطرًا واحدًا بالكيلو.
+      const rawRows = cart.map(item => {
         const isGift = !!item.isGift;
         const fullKgPrice = isGift ? 0 : (item.customPrice ?? item.product.price);
         const isHalf = !!item.isHalfKg;
@@ -1216,43 +1210,11 @@ const NewOrder = () => {
           is_half_kg: isHalf,
           is_gift: isGift,
           offer_name: item.isOfferItem ? (item.offerBoxName || 'عرض') : null,
+          offer_box_id: item.isOfferItem ? (item.offerBoxId || null) : null,
         };
       });
 
-      // Merge same-product lines (e.g. نص + نص من نفس المنتج => 1 كجم).
-      // الهدايا تظل سطرًا مستقلًا حتى لا تختلط بالأصناف المدفوعة.
-      const grouped = new Map<string, RawRow[]>();
-      for (const r of rawRows) {
-        const key = `${r.product_id}|${r.is_gift ? 'gift' : 'paid'}`;
-        const arr = grouped.get(key) || [];
-        arr.push(r);
-        grouped.set(key, arr);
-      }
-
-      const orderItems = Array.from(grouped.values()).map(arr => {
-        if (arr.length === 1) return arr[0] as any;
-        let totalQty = 0;
-        let totalPrice = 0;
-        let offerName: string | null = null;
-        let anyHalf = false;
-        for (const r of arr) {
-          totalQty += r.quantity;
-          totalPrice += r.total_price;
-          if (r.is_half_kg) anyHalf = true;
-          if (!offerName && r.offer_name) offerName = r.offer_name;
-        }
-        return {
-          order_id: arr[0].order_id,
-          product_id: arr[0].product_id,
-          product_name: arr[0].product_name,
-          quantity: totalQty,
-          unit_price: totalQty > 0 ? Math.round((totalPrice / totalQty) * 10000) / 10000 : 0,
-          total_price: totalPrice,
-          is_half_kg: anyHalf && arr.every(r => r.is_half_kg),
-          is_gift: arr[0].is_gift,
-          offer_name: offerName,
-        } as any;
-      });
+      const orderItems = mergeOrderItemRows(rawRows);
 
       const { error: itemsError } = await supabase
         .from('order_items')
