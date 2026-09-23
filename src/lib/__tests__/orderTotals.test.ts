@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeOrderTotals } from "@/lib/orderTotals";
+import { computeOrderTotals, isOfferShippingLine, orderHeaderAfterItemChange } from "@/lib/orderTotals";
 
 // Mirrors how AddOfferDialog inserts the synthetic shipping line.
 const shippingLine = (offerName: string, cost = 110) => ({
@@ -81,7 +81,7 @@ describe("computeOrderTotals", () => {
     expect(t.total).toBe(1335 + 50);
   });
 
-  it("remove all offer items → includedShippingCost collapses to 0", () => {
+  it("removing offer products does not drop a legacy shipping line", () => {
     const items = [
       { product_id: "k", product_name: "كفتة", offer_name: "عرض", quantity: 1, unit_price: 290, _deleted: true },
       shippingLine("عرض"),
@@ -89,9 +89,26 @@ describe("computeOrderTotals", () => {
     ];
     const t = computeOrderTotals(items);
     expect(t.hasOfferItems).toBe(false);
-    expect(t.includedShippingCost).toBe(0);
+    expect(t.includedShippingCost).toBe(110);
+    expect(t.shipping).toBe(110);
     expect(t.subtotal).toBe(50);
-    expect(t.total).toBe(50);
+    expect(t.total).toBe(160);
+  });
+
+  it("a real offer product with no product_id is not treated as shipping", () => {
+    const burger = {
+      product_id: null,
+      product_name: "برجر",
+      offer_name: "عرض 4 كيلو",
+      quantity: 1,
+      unit_price: 250,
+    };
+    expect(isOfferShippingLine(burger)).toBe(false);
+    const t = computeOrderTotals([burger], { extraDeliveryFee: 70 });
+    expect(t.subtotal).toBe(250);
+    expect(t.includedShippingCost).toBe(0);
+    expect(t.shipping).toBe(70);
+    expect(t.total).toBe(320);
   });
 
   it("non-offer order ignores extraDeliveryFee=0 default and never auto-adds shipping", () => {
@@ -141,6 +158,115 @@ describe("computeOrderTotals", () => {
       shippingLine("عرض", 110),
     ];
     const t = computeOrderTotals(items, { extraDeliveryFee: 110 });
+    expect(t.shipping).toBe(110);
     expect(t.total).toBe(610);
+  });
+
+  it("header shipping 70 wins over a different legacy shipping line", () => {
+    const items = [
+      { product_id: "a", product_name: "برجر", offer_name: "بوكس 1", quantity: 1, unit_price: 1000 },
+      shippingLine("بوكس 1", 110),
+    ];
+    const t = computeOrderTotals(items, { extraDeliveryFee: 70 });
+    expect(t.subtotal).toBe(1000);
+    expect(t.shipping).toBe(70);
+    expect(t.total).toBe(1070);
+  });
+});
+
+const box = (name: string, price: number) => ({
+  product_id: name,
+  product_name: name,
+  offer_name: name,
+  quantity: 1,
+  unit_price: price,
+});
+
+describe("order shipping stays independent of box edits", () => {
+  const box1 = box("بوكس 1", 1000);
+  const box2 = box("بوكس 2", 800);
+
+  it("add box keeps shipping 70 and total = boxes + shipping", () => {
+    const before = orderHeaderAfterItemChange([box1], { deliveryFee: 70 });
+    expect(before.delivery_fee).toBe(70);
+    expect(before.total).toBe(1070);
+
+    const after = orderHeaderAfterItemChange([box1, box2], { deliveryFee: before.delivery_fee });
+    expect(after.delivery_fee).toBe(70);
+    expect(after.subtotal).toBe(1800);
+    expect(after.shipping).toBe(70);
+    expect(after.total).toBe(1870);
+  });
+
+  it("remove box keeps shipping 70", () => {
+    const after = orderHeaderAfterItemChange(
+      [{ ...box1, _deleted: true }, box2],
+      { deliveryFee: 70 }
+    );
+    expect(after.delivery_fee).toBe(70);
+    expect(after.subtotal).toBe(800);
+    expect(after.total).toBe(870);
+  });
+
+  it("removing the only box still keeps shipping 70", () => {
+    const after = orderHeaderAfterItemChange(
+      [{ ...box1, _deleted: true }],
+      { deliveryFee: 70 }
+    );
+    expect(after.delivery_fee).toBe(70);
+    expect(after.subtotal).toBe(0);
+    expect(after.total).toBe(70);
+  });
+
+  it("swap box keeps shipping 70", () => {
+    const after = orderHeaderAfterItemChange(
+      [{ ...box1, _deleted: true }, box2],
+      { deliveryFee: 70 }
+    );
+    expect(after.delivery_fee).toBe(70);
+    expect(after.subtotal).toBe(800);
+    expect(after.total).toBe(870);
+  });
+
+  it("quantity change keeps shipping 70", () => {
+    const after = orderHeaderAfterItemChange(
+      [{ ...box1, quantity: 3 }],
+      { deliveryFee: 70 }
+    );
+    expect(after.delivery_fee).toBe(70);
+    expect(after.subtotal).toBe(3000);
+    expect(after.total).toBe(3070);
+  });
+
+  it("manual shipping edit updates the fee and the total", () => {
+    const after = orderHeaderAfterItemChange([box1, box2], {
+      deliveryFee: 90,
+      shippingEdited: true,
+    });
+    expect(after.delivery_fee).toBe(90);
+    expect(after.shipping).toBe(90);
+    expect(after.total).toBe(1890);
+  });
+
+  it("manual clear to 0 sticks even if a legacy shipping line remains", () => {
+    const items = [box1, shippingLine("بوكس 1", 110)];
+    const after = orderHeaderAfterItemChange(items, {
+      deliveryFee: 0,
+      shippingEdited: true,
+    });
+    expect(after.delivery_fee).toBe(0);
+    expect(after.shipping).toBe(0);
+    expect(after.subtotal).toBe(1000);
+    expect(after.total).toBe(1000);
+  });
+
+  it("does not re-derive shipping from a new box when the header is already set", () => {
+    const after = orderHeaderAfterItemChange(
+      [box1, box2, shippingLine("بوكس 2", 110)],
+      { deliveryFee: 70 }
+    );
+    expect(after.delivery_fee).toBe(70);
+    expect(after.shipping).toBe(70);
+    expect(after.total).toBe(1870);
   });
 });

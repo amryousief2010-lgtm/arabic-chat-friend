@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Plus, Gift, PackagePlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { writeOrderTotalsPreservingShipping } from "@/lib/preserveOrderShipping";
 
 interface OfferBox {
   id: string;
@@ -179,6 +180,14 @@ const AddOfferDialog = ({ open, onOpenChange, orderId, onSaved }: Props) => {
 
     setSaving(true);
     try {
+      const { data: header, error: headerErr } = await supabase
+        .from("orders")
+        .select("discount, delivery_fee, extra_charge")
+        .eq("id", orderId)
+        .single();
+      if (headerErr) throw headerErr;
+      const savedShipping = Number(header.delivery_fee || 0);
+
       const toInsert: any[] = previewItems
         .filter((it) => it.product_id)
         .map((it) => ({
@@ -191,12 +200,8 @@ const AddOfferDialog = ({ open, onOpenChange, orderId, onSaved }: Props) => {
           offer_name: selectedOffer.name,
         }));
 
-      // ❌ لا نُضيف سطرًا منفصلًا باسم "تكلفة الشحن":
-      // الشحن مُضمَّن أصلاً داخل أسعار منتجات العرض كما هو مخزَّن في
-      // offer_box_items، فإضافته كسطر إضافي تُسبّب ازدواجية في الإجمالي
-      // وتُظهر بنودًا غريبة (مثل "110 كيلو تكلفة شحن"). نكتفي بإدراج
-      // مكونات العرض وأسعارها كما هي بدون أي تعديل.
-
+      // الشحن حقل على رأس الطلب. لا نُدخل سطر «تكلفة الشحن» ولا نُعيد حسابه
+      // من shipping_cost بتاع البوكس. أسعار مكونات العرض تُنسخ كما هي.
       const { error: insErr } = await supabase.from("order_items").insert(toInsert);
       if (insErr) throw insErr;
 
@@ -238,6 +243,11 @@ const AddOfferDialog = ({ open, onOpenChange, orderId, onSaved }: Props) => {
         });
       }
 
+      await writeOrderTotalsPreservingShipping(orderId, {
+        discount: Number(header.discount || 0),
+        deliveryFee: savedShipping,
+        extraCharge: Number(header.extra_charge || 0),
+      });
 
       toast.success(`تم إضافة العرض "${selectedOffer.name}" إلى الطلب`);
       onOpenChange(false);
@@ -360,14 +370,12 @@ const AddOfferDialog = ({ open, onOpenChange, orderId, onSaved }: Props) => {
 
               <div className="pt-2 border-t space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">إجمالي العرض (شامل الشحن)</span>
+                  <span className="text-muted-foreground">إجمالي منتجات العرض</span>
                   <span className="font-bold">{newSubtotal.toLocaleString()} ج.م</span>
                 </div>
-                {Number(selectedOffer?.shipping_cost || 0) > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    تم تضمين شحن العرض ({Number(selectedOffer?.shipping_cost || 0).toLocaleString()} ج.م) داخل أسعار المنتجات.
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  شحن الطلب الحالي لا يتغير عند إضافة البوكس. لتعديله استخدمي خانة الشحن في تعديل الطلب.
+                </p>
               </div>
             </div>
           )}

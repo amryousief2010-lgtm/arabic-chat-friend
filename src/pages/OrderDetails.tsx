@@ -920,6 +920,7 @@ const OrderDetails = () => {
           orderId={order.id}
           currentItems={order.items.map((it) => ({
             id: it.id,
+            product_id: it.product_id,
             product_name: it.product_name,
             quantity: it.quantity,
             unit_price: it.unit_price,
