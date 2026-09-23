@@ -1,6 +1,6 @@
 // Pure helpers for order total calculation.
-// Used by EditOrderItemsDialog so the UI preview and the DB write
-// always agree on the same numbers.
+// Used by the edit / add-box / swap-box flows so the preview and the DB write
+// agree, and so item changes never rewrite the order's shipping.
 
 export interface OrderTotalItem {
   product_id?: string | null;
@@ -14,33 +14,62 @@ export interface OrderTotalItem {
 export const SHIPPING_LINE_NAME = "تكلفة الشحن";
 
 /**
- * A "shipping line" is the synthetic order_item that AddOfferDialog
- * inserts to bundle an offer's shipping cost inside the offer.
- * It is identified by: belongs to an offer AND has no product_id.
+ * A legacy synthetic order_item that bundled an offer's shipping inside the
+ * offer. Real products are never shipping, even when product_id is missing.
  */
 export const isOfferShippingLine = (it: OrderTotalItem): boolean => {
+  const productId = it.product_id;
+  const noProduct = productId === null || productId === undefined || productId === "";
   return (
     !!it.offer_name &&
-    (it.product_id === null || it.product_id === undefined) &&
-    (it.product_name?.trim() === SHIPPING_LINE_NAME || true)
+    noProduct &&
+    it.product_name?.trim() === SHIPPING_LINE_NAME
   );
 };
 
 export interface ComputedTotals {
   /** Sum of real (non-shipping) item lines. */
   subtotal: number;
-  /** Shipping cost bundled inside the offer (sum of shipping lines). */
+  /** Sum of legacy "تكلفة الشحن" lines. Not added on top of a header fee. */
   includedShippingCost: number;
+  /**
+   * Shipping added to the customer total.
+   * Header delivery_fee when it is set (or the employee just edited it).
+   * Otherwise a legacy shipping line, so older orders do not lose الشحن.
+   */
+  shipping: number;
   /** True if any non-shipping offer item remains. */
   hasOfferItems: boolean;
-  /** Final customer total = subtotal + includedShippingCost + extraDeliveryFee - discount. */
+  /** Final customer total = subtotal + shipping - discount. */
   total: number;
 }
 
 export interface ComputeOptions {
   discount?: number;
-  /** Extra delivery fee for non-offer orders (offer orders ignore this — shipping is in items). */
+  /**
+   * Order-header shipping (`orders.delivery_fee`). Independent of boxes.
+   * A non-zero value is kept as-is. Zero falls back to a legacy shipping
+   * line unless `shippingEdited` is set.
+   */
   extraDeliveryFee?: number;
+  /**
+   * The employee changed the shipping input. The typed value, including 0,
+   * replaces any legacy line. Item edits must leave this false.
+   */
+  shippingEdited?: boolean;
+}
+
+export function resolveOrderShipping(
+  headerDeliveryFee: number,
+  lineShipping = 0,
+  shippingEdited = false
+): number {
+  const header = Number(headerDeliveryFee);
+  const safeHeader = Number.isFinite(header) ? header : 0;
+  if (shippingEdited) return safeHeader;
+  if (safeHeader !== 0) return safeHeader;
+  const line = Number(lineShipping);
+  return Number.isFinite(line) ? line : 0;
 }
 
 export function computeOrderTotals(
@@ -63,14 +92,56 @@ export function computeOrderTotals(
     }
   }
 
-  // If no real offer item remains, drop the bundled shipping entirely.
-  if (!hasOfferItems) includedShippingCost = 0;
-
   const discount = Number(opts.discount || 0);
-  // قيمة الشحن المسجلة على الطلب تُحتسب دائمًا، إلا إذا كان البوكس يحمل سطر شحن
-  // داخلي (عندها تُحتسب مرة واحدة فقط من داخل البنود).
-  const extraDelivery = includedShippingCost > 0 ? 0 : Number(opts.extraDeliveryFee || 0);
-  const total = subtotal + includedShippingCost + extraDelivery - discount;
+  const headerProvided = opts.extraDeliveryFee !== undefined && opts.extraDeliveryFee !== null;
+  const shipping = headerProvided || opts.shippingEdited
+    ? resolveOrderShipping(Number(opts.extraDeliveryFee || 0), includedShippingCost, !!opts.shippingEdited)
+    : includedShippingCost;
+  const total = subtotal + shipping - discount;
 
-  return { subtotal, includedShippingCost, hasOfferItems, total };
+  return { subtotal, includedShippingCost, shipping, hasOfferItems, total };
+}
+
+export interface OrderHeaderSnapshot {
+  discount?: number;
+  /** Stored `orders.delivery_fee` before the item edit. */
+  deliveryFee?: number;
+  extraCharge?: number;
+  /** True only when the employee edited the shipping input. */
+  shippingEdited?: boolean;
+}
+
+export interface OrderHeaderAfterItems {
+  subtotal: number;
+  /** Value to write back to `orders.delivery_fee`. */
+  delivery_fee: number;
+  shipping: number;
+  total: number;
+}
+
+/**
+ * Recalculate product totals after add / remove / swap / quantity change.
+ * `delivery_fee` written back is the header value the caller passed
+ * (the stored fee, or the value the employee just typed). It is never
+ * replaced with a box's `shipping_cost`.
+ */
+export function orderHeaderAfterItemChange(
+  items: OrderTotalItem[],
+  header: OrderHeaderSnapshot = {}
+): OrderHeaderAfterItems {
+  const stored = Number(header.deliveryFee || 0);
+  const safeStored = Number.isFinite(stored) ? stored : 0;
+  const totals = computeOrderTotals(items, {
+    discount: header.discount,
+    extraDeliveryFee: safeStored,
+    shippingEdited: !!header.shippingEdited,
+  });
+  const shipping = header.shippingEdited ? safeStored : totals.shipping;
+  const extra = Number(header.extraCharge || 0);
+  return {
+    subtotal: totals.subtotal,
+    delivery_fee: safeStored,
+    shipping,
+    total: totals.subtotal + shipping - Number(header.discount || 0) + extra,
+  };
 }

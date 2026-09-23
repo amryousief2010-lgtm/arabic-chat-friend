@@ -19,6 +19,8 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Plus, Gift, PackageOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { isOfferShippingLine } from "@/lib/orderTotals";
+import { writeOrderTotalsPreservingShipping } from "@/lib/preserveOrderShipping";
 
 interface OfferBox {
   id: string;
@@ -55,6 +57,7 @@ interface Props {
   orderId: string;
   currentItems: Array<{
     id: string;
+    product_id?: string | null;
     product_name: string;
     quantity: number;
     unit_price: number;
@@ -82,6 +85,13 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
     const map = new Map<string, CurrentOfferGroup>();
     currentItems.forEach((it) => {
       if (!it.offer_name) return;
+      if (isOfferShippingLine({
+        product_id: it.product_id,
+        product_name: it.product_name,
+        offer_name: it.offer_name,
+        quantity: it.quantity,
+        unit_price: it.unit_price,
+      })) return;
       const g = map.get(it.offer_name) || { name: it.offer_name, itemIds: [], total: 0 };
       g.itemIds.push(it.id);
       g.total += Number(it.total_price);
@@ -163,8 +173,8 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
         };
       });
 
-      // Keep product prices as stored in offer_box_items (no scaling).
-      // Shipping is added as a SEPARATE line item ("تكلفة الشحن") on save.
+      // Keep product prices as stored in offer_box_items. Do not scale them
+      // and do not add a shipping line — order shipping stays on the header.
       setPreviewItems(items);
     } catch (e: any) {
       toast.error(e.message || "فشل تحميل تفاصيل العرض");
@@ -239,12 +249,34 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
 
     setSaving(true);
     try {
-      // 1) Delete current offer items
-      const { error: delErr } = await supabase
-        .from("order_items")
-        .delete()
-        .in("id", group.itemIds);
-      if (delErr) throw delErr;
+      const { data: header, error: headerErr } = await supabase
+        .from("orders")
+        .select("discount, delivery_fee, extra_charge")
+        .eq("id", orderId)
+        .single();
+      if (headerErr) throw headerErr;
+      const savedShipping = Number(header.delivery_fee || 0);
+
+      // 1) Delete the box being replaced. Leave a legacy «تكلفة الشحن» line
+      // alone — shipping is the order header, not a box ingredient.
+      const idsToDelete = group.itemIds.filter((id) => {
+        const row = currentItems.find((it) => it.id === id);
+        if (!row) return true;
+        return !isOfferShippingLine({
+          product_id: row.product_id,
+          product_name: row.product_name,
+          offer_name: row.offer_name,
+          quantity: row.quantity,
+          unit_price: row.unit_price,
+        });
+      });
+      if (idsToDelete.length > 0) {
+        const { error: delErr } = await supabase
+          .from("order_items")
+          .delete()
+          .in("id", idsToDelete);
+        if (delErr) throw delErr;
+      }
 
       // 2) Insert new offer items (product prices unchanged from offer storage)
       const toInsert: any[] = previewItems
@@ -259,12 +291,8 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
           offer_name: selectedNewOffer.name,
         }));
 
-      // ❌ لا نُضيف سطرًا منفصلًا باسم "تكلفة الشحن":
-      // الشحن مُضمَّن أصلاً داخل أسعار منتجات العرض (كما هو مخزَّن في
-      // offer_box_items). إضافته كسطر إضافي تُسبّب ازدواجية في الإجمالي
-      // وتُظهر بنودًا غريبة مثل "110 كيلو تكلفة شحن" — احذف العرض القديم
-      // كاملًا وأضِف الجديد بمكوناته وأسعاره كما هي بدون أي تعديل.
-
+      // لا نُضيف سطر شحن ولا نُغيّر أسعار مكونات البوكس. شحن الطلب يُعاد
+      // كتابته بنفس القيمة التي كانت محفوظة قبل الاستبدال.
       const { error: insErr } = await supabase.from("order_items").insert(toInsert);
       if (insErr) throw insErr;
 
@@ -312,6 +340,11 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
         });
       }
 
+      await writeOrderTotalsPreservingShipping(orderId, {
+        discount: Number(header.discount || 0),
+        deliveryFee: savedShipping,
+        extraCharge: Number(header.extra_charge || 0),
+      });
 
       toast.success(`تم استبدال "${groupLabel(selectedRemoveOffer)}" بـ "${selectedNewOffer.name}"`);
       onOpenChange(false);
@@ -459,15 +492,13 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
                 ))}
 
                 <div className="pt-2 border-t space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">إجمالي العرض الجديد (شامل الشحن)</span>
-                    <span className="font-bold">{newSubtotal.toLocaleString()} ج.م</span>
-                  </div>
-                  {Number(selectedNewOffer?.shipping_cost || 0) > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      تم تضمين شحن العرض ({Number(selectedNewOffer?.shipping_cost || 0).toLocaleString()} ج.م) داخل أسعار المنتجات.
-                    </p>
-                  )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">إجمالي منتجات العرض الجديد</span>
+                  <span className="font-bold">{newSubtotal.toLocaleString()} ج.م</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  شحن الطلب الحالي يبقى كما هو عند استبدال البوكس. لتعديله استخدمي خانة الشحن في تعديل الطلب.
+                </p>
                 </div>
               </div>
             )}

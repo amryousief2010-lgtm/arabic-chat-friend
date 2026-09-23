@@ -18,7 +18,7 @@ import {
 import { Trash2, Plus, Gift } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { computeOrderTotals, isOfferShippingLine } from "@/lib/orderTotals";
+import { computeOrderTotals, isOfferShippingLine, resolveOrderShipping } from "@/lib/orderTotals";
 import { getOfferUnitPriceForReplacement, getOfferPriceGroup, type OfferPriceGroup } from "@/lib/offerPriceGroups";
 import {
   AGOUZA_WAREHOUSE_ID,
@@ -73,6 +73,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   const [discount, setDiscount] = useState<number>(0);
   const [originalDiscount, setOriginalDiscount] = useState<number>(0);
   const [deliveryFee, setDeliveryFee] = useState<number>(0);
+  const [deliveryFeeTouched, setDeliveryFeeTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   // offer_name -> (group -> unit price) derived from offer_boxes
@@ -101,7 +102,16 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     );
     setDiscount(Number(initialDiscount) || 0);
     setOriginalDiscount(Number(initialDiscount) || 0);
-    setDeliveryFee(Number(initialDeliveryFee) || 0);
+    const headerFee = Number(initialDeliveryFee);
+    const safeHeader = Number.isFinite(headerFee) ? headerFee : 0;
+    const lineShipping = initialItems.reduce((sum, it) => {
+      if (!isOfferShippingLine(it)) return sum;
+      return sum + Number(it.quantity || 0) * Number(it.unit_price || 0);
+    }, 0);
+    // Show the stored header fee. If it was never set, show a legacy shipping
+    // line so the field matches what the customer is already charged.
+    setDeliveryFee(safeHeader !== 0 ? safeHeader : lineShipping);
+    setDeliveryFeeTouched(false);
     fetchProducts();
     fetchOfferGroupPrices(initialItems);
     // Only reset on dialog open transition — don't overwrite user edits
@@ -242,27 +252,34 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     savingRef.current = true;
     setSaving(true);
     try {
-      // Compute final totals from the SAME state the UI shows (preview === save).
-      const finalTotals = computeOrderTotals(items, {
+      const lineShipping = items.reduce((sum, it) => {
+        if (it._deleted || !isOfferShippingLine(it)) return sum;
+        return sum + Number(it.quantity || 0) * Number(it.unit_price || 0);
+      }, 0);
+      // Box add/remove/swap/qty never rewrite shipping. Only the shipping input does.
+      const headerFee = Number(initialDeliveryFee);
+      const safeHeader = Number.isFinite(headerFee) ? headerFee : 0;
+      const deliveryFeeToSave = deliveryFeeTouched
+        ? (Number(deliveryFee) || 0)
+        : resolveOrderShipping(safeHeader, lineShipping, false);
+
+      // Once shipping lives on the header (or the employee cleared it), drop the
+      // legacy line so a later box edit cannot double-count it or put it back.
+      // The amount saved above is the header fee, not this line.
+      const dropLegacyShippingLine = deliveryFeeTouched || deliveryFeeToSave !== 0;
+      const itemsForWrite = dropLegacyShippingLine
+        ? items
+            .filter((it) => !(isOfferShippingLine(it) && !it.id))
+            .map((it) =>
+              isOfferShippingLine(it) && it.id ? { ...it, _deleted: true } : it
+            )
+        : items;
+
+      const finalTotals = computeOrderTotals(itemsForWrite, {
         discount,
-        extraDeliveryFee: deliveryFee,
+        extraDeliveryFee: deliveryFeeToSave,
+        shippingEdited: true,
       });
-
-      // If no real offer item remains, also drop the bundled shipping line.
-      let itemsForWrite = items;
-      if (!finalTotals.hasOfferItems) {
-        itemsForWrite = items.map((it) =>
-          isOfferShippingLine(it) && it.id ? { ...it, _deleted: true } : it
-        );
-      }
-
-      // Persist all item changes in one backend call. This avoids several
-      // sequential requests/triggers on mobile networks and prevents timeout
-      // errors while keeping the UI preview and DB row on the same totals.
-      // قيمة الشحن تُحفظ كما هي ولا تُصفَّر تلقائيًا، إلا إذا كان البوكس يحمل
-      // سطر شحن داخل البنود (عندها الشحن محسوب داخل البنود).
-      const deliveryFeeToSave =
-        finalTotals.includedShippingCost > 0 ? 0 : Number(deliveryFee) || 0;
       const payload = itemsForWrite.map((it) => ({
         id: it.id ?? null,
         product_id: it.product_id,
@@ -351,10 +368,10 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   const previewTotals = computeOrderTotals(items, {
     discount,
     extraDeliveryFee: deliveryFee,
+    shippingEdited: deliveryFeeTouched || Number(deliveryFee) !== 0,
   });
   const newSubtotal = previewTotals.subtotal;
   const hasOfferItems = previewTotals.hasOfferItems;
-  const includedShipping = previewTotals.includedShippingCost;
   const newTotalPreview = previewTotals.total;
 
   return (
@@ -514,7 +531,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
           <div className="pt-2 border-t space-y-3">
             {hasOfferItems && (
               <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 text-xs p-2">
-                هذا الطلب يحتوي على عرض. تكلفة الشحن المضمنة داخل العرض ({includedShipping.toLocaleString()} ج.م) محفوظة تلقائيًا. تعديل أو استبدال أصناف العرض سيُعيد حساب الإجمالي على أساس الأسعار الجديدة.
+                الشحن مستقل عن البوكسات. إضافة أو حذف أو استبدال بوكس أو تغيير الكمية لا يغيّر قيمة الشحن. لتغييرها عدّلي خانة الشحن فقط.
               </div>
             )}
 
@@ -524,13 +541,6 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                 {newSubtotal.toLocaleString()} ج.م
               </span>
             </div>
-
-            {hasOfferItems && includedShipping > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">تكلفة الشحن المضمنة بالعرض</span>
-                <span>{includedShipping.toLocaleString()} ج.م</span>
-              </div>
-            )}
 
             <div className="flex justify-between items-center gap-3">
               <label className="text-muted-foreground whitespace-nowrap">
@@ -546,20 +556,20 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
               />
             </div>
 
-            {!hasOfferItems && (
-              <div className="flex justify-between items-center gap-3">
-                <label className="text-muted-foreground whitespace-nowrap">رسوم التوصيل</label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={Number(deliveryFee) === 0 ? "" : deliveryFee}
-                  onChange={(e) => setDeliveryFee(e.target.value === "" ? 0 : Number(e.target.value) || 0)}
-                  className="max-w-[160px] text-end"
-                  placeholder="0"
-                />
-
-              </div>
-            )}
+            <div className="flex justify-between items-center gap-3">
+              <label className="text-muted-foreground whitespace-nowrap">الشحن</label>
+              <Input
+                type="number"
+                min={0}
+                value={Number(deliveryFee) === 0 ? "" : deliveryFee}
+                onChange={(e) => {
+                  setDeliveryFeeTouched(true);
+                  setDeliveryFee(e.target.value === "" ? 0 : Number(e.target.value) || 0);
+                }}
+                className="max-w-[160px] text-end"
+                placeholder="0"
+              />
+            </div>
 
             {Number(discount) > 0 && (
               <div className="flex justify-between text-sm text-green-600">

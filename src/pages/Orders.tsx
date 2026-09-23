@@ -4099,6 +4099,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
             product_name: it.product_name,
             quantity: it.quantity,
             unit_price: it.unit_price,
+            offer_name: it.offer_name ?? null,
             is_half_kg: !!(it as any).is_half_kg,
             is_gift: !!(it as any).is_gift,
           }))}
@@ -4169,6 +4170,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           orderId={swapOfferOrder.id}
           currentItems={swapOfferOrder.items.map((it) => ({
             id: it.id,
+            product_id: it.product_id,
             product_name: it.product_name,
             quantity: it.quantity,
             unit_price: it.unit_price,
