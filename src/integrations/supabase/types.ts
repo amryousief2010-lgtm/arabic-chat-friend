@@ -17908,6 +17908,237 @@ export type Database = {
           },
         ]
       }
+      social_ads_campaign_snapshots: {
+        Row: {
+          account_id: string
+          campaign_name: string | null
+          cost_per_result: number | null
+          cpc_all: number | null
+          cpm: number | null
+          created_at: string
+          ctr_all_pct: number | null
+          id: string
+          impressions: number | null
+          link_clicks: number | null
+          period_end: string
+          period_start: string
+          purchases: number | null
+          reach: number | null
+          result_type: string | null
+          results: number | null
+          spend_egp: number | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          campaign_name?: string | null
+          cost_per_result?: number | null
+          cpc_all?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr_all_pct?: number | null
+          id?: string
+          impressions?: number | null
+          link_clicks?: number | null
+          period_end: string
+          period_start: string
+          purchases?: number | null
+          reach?: number | null
+          result_type?: string | null
+          results?: number | null
+          spend_egp?: number | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          campaign_name?: string | null
+          cost_per_result?: number | null
+          cpc_all?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr_all_pct?: number | null
+          id?: string
+          impressions?: number | null
+          link_clicks?: number | null
+          period_end?: string
+          period_start?: string
+          purchases?: number | null
+          reach?: number | null
+          result_type?: string | null
+          results?: number | null
+          spend_egp?: number | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      social_ads_daily_snapshots: {
+        Row: {
+          account_id: string
+          account_name: string | null
+          cpc: number | null
+          cpm: number | null
+          created_at: string
+          ctr_pct: number | null
+          currency: string | null
+          day: string
+          exported_at: string | null
+          id: string
+          impressions: number | null
+          link_clicks: number | null
+          messaging_results: number | null
+          meta_purchases: number | null
+          notes: string | null
+          reach_sum_not_deduped: number | null
+          source_system: string | null
+          spend: number | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          account_name?: string | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr_pct?: number | null
+          currency?: string | null
+          day: string
+          exported_at?: string | null
+          id?: string
+          impressions?: number | null
+          link_clicks?: number | null
+          messaging_results?: number | null
+          meta_purchases?: number | null
+          notes?: string | null
+          reach_sum_not_deduped?: number | null
+          source_system?: string | null
+          spend?: number | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          account_name?: string | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr_pct?: number | null
+          currency?: string | null
+          day?: string
+          exported_at?: string | null
+          id?: string
+          impressions?: number | null
+          link_clicks?: number | null
+          messaging_results?: number | null
+          meta_purchases?: number | null
+          notes?: string | null
+          reach_sum_not_deduped?: number | null
+          source_system?: string | null
+          spend?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      social_ads_weekly_snapshots: {
+        Row: {
+          account_id: string
+          account_name: string | null
+          active_campaigns: number | null
+          best_cpr_campaign: string | null
+          best_cpr_value: number | null
+          cost_per_messaging_result: number | null
+          cpc: number | null
+          cpm: number | null
+          created_at: string
+          ctr_pct: number | null
+          currency: string | null
+          exported_at: string | null
+          id: string
+          impressions: number | null
+          link_clicks: number | null
+          messaging_results: number | null
+          meta_purchases: number | null
+          notes: string | null
+          page_messages_started: number | null
+          page_new_contacts: number | null
+          page_new_follows: number | null
+          page_unfollows: number | null
+          page_visits: number | null
+          period_end: string
+          period_start: string
+          reach_sum_not_deduped: number | null
+          source_system: string | null
+          spend: number | null
+          top_spend_campaign: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          account_name?: string | null
+          active_campaigns?: number | null
+          best_cpr_campaign?: string | null
+          best_cpr_value?: number | null
+          cost_per_messaging_result?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr_pct?: number | null
+          currency?: string | null
+          exported_at?: string | null
+          id?: string
+          impressions?: number | null
+          link_clicks?: number | null
+          messaging_results?: number | null
+          meta_purchases?: number | null
+          notes?: string | null
+          page_messages_started?: number | null
+          page_new_contacts?: number | null
+          page_new_follows?: number | null
+          page_unfollows?: number | null
+          page_visits?: number | null
+          period_end: string
+          period_start: string
+          reach_sum_not_deduped?: number | null
+          source_system?: string | null
+          spend?: number | null
+          top_spend_campaign?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          account_name?: string | null
+          active_campaigns?: number | null
+          best_cpr_campaign?: string | null
+          best_cpr_value?: number | null
+          cost_per_messaging_result?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr_pct?: number | null
+          currency?: string | null
+          exported_at?: string | null
+          id?: string
+          impressions?: number | null
+          link_clicks?: number | null
+          messaging_results?: number | null
+          meta_purchases?: number | null
+          notes?: string | null
+          page_messages_started?: number | null
+          page_new_contacts?: number | null
+          page_new_follows?: number | null
+          page_unfollows?: number | null
+          page_visits?: number | null
+          period_end?: string
+          period_start?: string
+          reach_sum_not_deduped?: number | null
+          source_system?: string | null
+          spend?: number | null
+          top_spend_campaign?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       social_media_daily_reports: {
         Row: {
           additional_notes: string | null

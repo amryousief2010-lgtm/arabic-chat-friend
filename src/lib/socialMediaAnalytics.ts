@@ -14,6 +14,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { toCairoDateString } from "@/lib/cairoDate";
 import { isCancelledOrderStatus } from "@/lib/orderSalesFilters";
 
 export const UNSPECIFIED = "غير محدد";
@@ -511,4 +512,546 @@ export function todayRange(): DateRange {
   const now = new Date();
   const from = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   return { from, to: now.toISOString() };
+}
+
+// ---------- Meta ads (read-only snapshots + social-source sales) ----------
+
+/** Only this Meta ad account is in scope for the marketing ads section. */
+export const META_ADS_ACCOUNT_ID = "584894453725328";
+
+/**
+ * orders.source values treated as the social/ads sales pool.
+ * Match is trim + collapsed spaces/underscores, and case-insensitive for Latin.
+ * Underscore forms are the source-dictionary variants of the same Arabic labels.
+ */
+const SOCIAL_ADS_SOURCE_KEYS = new Set([
+  "إعلان",
+  "اعلان",
+  "حملات فيسبوك",
+  "فيسبوك",
+  "حملات واتساب",
+  "واتساب",
+  "facebook ads",
+  "facebook",
+  "whatsapp",
+]);
+
+export function normalizeSocialAdsSource(raw: string | null | undefined): string {
+  return (raw || "")
+    .trim()
+    .replace(/[_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+export function isSocialAdsOrderSource(raw: string | null | undefined): boolean {
+  const key = normalizeSocialAdsSource(raw);
+  return key.length > 0 && SOCIAL_ADS_SOURCE_KEYS.has(key);
+}
+
+/** Exact ilike tokens sent to PostgREST (case-insensitive). Client filter still applies. */
+export const SOCIAL_ADS_SOURCE_QUERY_VALUES = [
+  "إعلان",
+  "اعلان",
+  "حملات فيسبوك",
+  "حملات_فيسبوك",
+  "فيسبوك",
+  "حملات واتساب",
+  "حملات_واتساب",
+  "واتساب",
+  "Facebook Ads",
+  "Facebook",
+  "WhatsApp",
+] as const;
+
+export function socialAdsSourceOrFilter(): string {
+  return SOCIAL_ADS_SOURCE_QUERY_VALUES.map((value) => {
+    const escaped = value.replace(/"/g, '""');
+    return `source.ilike."${escaped}"`;
+  }).join(",");
+}
+
+export type SocialSourceOrder = {
+  id: string;
+  total: number;
+  source: string | null;
+  status: string;
+  created_at: string;
+  update_status_marker: string | null;
+  collection_method: string | null;
+};
+
+export type SocialAdsWeeklySnapshot = {
+  id?: string;
+  period_start: string;
+  period_end: string;
+  account_id: string;
+  account_name?: string | null;
+  currency?: string | null;
+  spend: number | null;
+  impressions: number | null;
+  reach_sum_not_deduped: number | null;
+  link_clicks: number | null;
+  messaging_results: number | null;
+  meta_purchases: number | null;
+  notes?: string | null;
+  exported_at?: string | null;
+};
+
+export type SocialAdsCampaignSnapshot = {
+  id?: string;
+  period_start: string;
+  period_end: string;
+  account_id: string;
+  campaign_name: string | null;
+  status: string | null;
+  spend_egp: number | null;
+  results: number | null;
+  result_type: string | null;
+  cost_per_result: number | null;
+  impressions: number | null;
+  reach: number | null;
+  link_clicks: number | null;
+  ctr_all_pct: number | null;
+  cpc_all: number | null;
+  cpm: number | null;
+  purchases: number | null;
+};
+
+export type SocialAdsDailySnapshot = {
+  day: string;
+  account_id: string;
+  account_name?: string | null;
+  currency?: string | null;
+  spend: number | null;
+  impressions?: number | null;
+  reach_sum_not_deduped?: number | null;
+  link_clicks?: number | null;
+  messaging_results?: number | null;
+  meta_purchases?: number | null;
+  ctr_pct?: number | null;
+  cpc?: number | null;
+  cpm?: number | null;
+  notes?: string | null;
+};
+
+export type AdsSpendRollupMode = "none" | "single" | "covering" | "best_overlap" | "sum";
+
+export type AdsSpendRollup = {
+  mode: AdsSpendRollupMode;
+  spend: number;
+  impressions: number;
+  reachSumNotDeduped: number;
+  linkClicks: number;
+  messagingResults: number | null;
+  metaPurchases: number | null;
+  currency: string;
+  periodLabel: string;
+  periods: Array<{ start: string; end: string }>;
+};
+
+export type SocialSourceSales = {
+  netSales: number;
+  orderCount: number;
+  giftOrdersExcludedFromRevenue: number;
+};
+
+export type AdsDailyPoint = {
+  date: string;
+  ads_spend: number;
+  social_net_sales: number;
+};
+
+export function rangeCalendarBounds(range: DateRange): { fromDate: string; toDate: string } {
+  const fromDate = toCairoDateString(range.from);
+  const toDate = toCairoDateString(range.to);
+  if (fromDate <= toDate) return { fromDate, toDate };
+  return { fromDate: toDate, toDate: fromDate };
+}
+
+function asNumber(value: number | string | null | undefined): number {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function asNullableNumber(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function ymd(value: string): string {
+  return (value || "").slice(0, 10);
+}
+
+function inclusiveDays(start: string, end: string): number {
+  const [ys, ms, ds] = ymd(start).split("-").map(Number);
+  const [ye, me, de] = ymd(end).split("-").map(Number);
+  const msUtc = Date.UTC(ye, (me || 1) - 1, de || 1) - Date.UTC(ys, (ms || 1) - 1, ds || 1);
+  return Math.round(msUtc / 86400000) + 1;
+}
+
+function addCalendarDays(start: string, days: number): string {
+  const [y, m, d] = ymd(start).split("-").map(Number);
+  const dt = new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
+export function eachCalendarDay(fromDate: string, toDate: string): string[] {
+  if (!fromDate || !toDate || fromDate > toDate) return [];
+  const days: string[] = [];
+  // Guard against a runaway range (custom filters).
+  for (let i = 0; i < 400; i++) {
+    const day = addCalendarDays(fromDate, i);
+    days.push(day);
+    if (day >= toDate) break;
+  }
+  return days;
+}
+
+function periodsOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
+  return ymd(aEnd) >= ymd(bStart) && ymd(aStart) <= ymd(bEnd);
+}
+
+function overlapDays(start: string, end: string, fromDate: string, toDate: string): number {
+  const s = ymd(start) > fromDate ? ymd(start) : fromDate;
+  const e = ymd(end) < toDate ? ymd(end) : toDate;
+  if (e < s) return 0;
+  return inclusiveDays(s, e);
+}
+
+function periodLabel(periods: Array<{ start: string; end: string }>): string {
+  if (periods.length === 0) return "—";
+  return periods.map((p) => `${ymd(p.start)} → ${ymd(p.end)}`).join(" + ");
+}
+
+function sumNullable(values: Array<number | null>): number | null {
+  if (values.every((v) => v === null)) return null;
+  return values.reduce((sum, v) => sum + (v ?? 0), 0);
+}
+
+function rollupFromRows(rows: SocialAdsWeeklySnapshot[], mode: AdsSpendRollupMode): AdsSpendRollup {
+  const periods = rows.map((r) => ({ start: ymd(r.period_start), end: ymd(r.period_end) }));
+  return {
+    mode,
+    spend: rows.reduce((sum, r) => sum + asNumber(r.spend), 0),
+    impressions: rows.reduce((sum, r) => sum + asNumber(r.impressions), 0),
+    reachSumNotDeduped: rows.reduce((sum, r) => sum + asNumber(r.reach_sum_not_deduped), 0),
+    linkClicks: rows.reduce((sum, r) => sum + asNumber(r.link_clicks), 0),
+    messagingResults: sumNullable(rows.map((r) => asNullableNumber(r.messaging_results))),
+    metaPurchases: sumNullable(rows.map((r) => asNullableNumber(r.meta_purchases))),
+    currency: rows.find((r) => r.currency)?.currency || "EGP",
+    periodLabel: periodLabel(periods),
+    periods,
+  };
+}
+
+const EMPTY_ROLLUP: AdsSpendRollup = {
+  mode: "none",
+  spend: 0,
+  impressions: 0,
+  reachSumNotDeduped: 0,
+  linkClicks: 0,
+  messagingResults: null,
+  metaPurchases: null,
+  currency: "EGP",
+  periodLabel: "—",
+  periods: [],
+};
+
+/**
+ * Overlapping weekly snapshots for the selected calendar range.
+ * One row is used as-is. A row that fully covers the range wins (tightest cover).
+ * Non-overlapping weeks are summed. Overlapping weeks are not summed — the row
+ * with the largest overlap (then the latest period_end) is kept.
+ */
+export function rollupWeeklyAdSnapshots(
+  rows: SocialAdsWeeklySnapshot[],
+  fromDate: string,
+  toDate: string,
+): AdsSpendRollup {
+  const overlapping = rows.filter((row) => {
+    if ((row.account_id || "") !== META_ADS_ACCOUNT_ID) return false;
+    return periodsOverlap(row.period_start, row.period_end, fromDate, toDate);
+  });
+  if (overlapping.length === 0) return { ...EMPTY_ROLLUP };
+  if (overlapping.length === 1) return rollupFromRows(overlapping, "single");
+
+  const covering = overlapping.filter(
+    (row) => ymd(row.period_start) <= fromDate && ymd(row.period_end) >= toDate,
+  );
+  if (covering.length > 0) {
+    const best = [...covering].sort((a, b) => {
+      const span = inclusiveDays(a.period_start, a.period_end) - inclusiveDays(b.period_start, b.period_end);
+      if (span !== 0) return span;
+      return (b.exported_at || "").localeCompare(a.exported_at || "");
+    })[0];
+    return rollupFromRows([best], "covering");
+  }
+
+  const pairwiseOverlap = overlapping.some((a, i) =>
+    overlapping.slice(i + 1).some((b) => periodsOverlap(a.period_start, a.period_end, b.period_start, b.period_end)),
+  );
+  if (!pairwiseOverlap) return rollupFromRows(overlapping, "sum");
+
+  const best = [...overlapping].sort((a, b) => {
+    const days = overlapDays(b.period_start, b.period_end, fromDate, toDate)
+      - overlapDays(a.period_start, a.period_end, fromDate, toDate);
+    if (days !== 0) return days;
+    return ymd(b.period_end).localeCompare(ymd(a.period_end));
+  })[0];
+  return rollupFromRows([best], "best_overlap");
+}
+
+export function selectCampaignSnapshotsForRollup(
+  campaigns: SocialAdsCampaignSnapshot[],
+  rollup: AdsSpendRollup,
+): SocialAdsCampaignSnapshot[] {
+  const accountRows = campaigns.filter((row) => (row.account_id || "") === META_ADS_ACCOUNT_ID);
+  const keys = new Set(rollup.periods.map((p) => `${ymd(p.start)}|${ymd(p.end)}`));
+  const matched = keys.size
+    ? accountRows.filter((row) => keys.has(`${ymd(row.period_start)}|${ymd(row.period_end)}`))
+    : accountRows;
+  const rows = matched.length > 0 || keys.size === 0 ? matched : accountRows;
+  return [...rows].sort((a, b) => asNumber(b.spend_egp) - asNumber(a.spend_egp));
+}
+
+export function socialSourceSales(orders: SocialSourceOrder[]): SocialSourceSales {
+  let netSales = 0;
+  let orderCount = 0;
+  let giftOrdersExcludedFromRevenue = 0;
+  for (const order of orders) {
+    if (!isSocialAdsOrderSource(order.source)) continue;
+    if (isCancelledOrder(order)) continue;
+    orderCount += 1;
+    if (isGiftOrder(order)) {
+      giftOrdersExcludedFromRevenue += 1;
+      continue;
+    }
+    netSales += asNumber(order.total);
+  }
+  return { netSales, orderCount, giftOrdersExcludedFromRevenue };
+}
+
+export function approximateRoas(netSales: number, spend: number): number | null {
+  if (!(spend > 0)) return null;
+  return netSales / spend;
+}
+
+/**
+ * Daily spend (snapshot day) vs social-source net sales.
+ * Sales days use Africa/Cairo via `toCairoDateString`, same calendar as other
+ * sales KPIs, so they line up with Meta's `day` column. The older `dailySeries`
+ * chart in this file still buckets on the ISO date prefix and is left unchanged.
+ */
+export function buildAdsDailySeries(
+  fromDate: string,
+  toDate: string,
+  snapshots: SocialAdsDailySnapshot[],
+  orders: SocialSourceOrder[],
+): AdsDailyPoint[] {
+  const spendByDay = new Map<string, number>();
+  for (const row of snapshots) {
+    if ((row.account_id || "") !== META_ADS_ACCOUNT_ID) continue;
+    const day = ymd(row.day);
+    spendByDay.set(day, (spendByDay.get(day) || 0) + asNumber(row.spend));
+  }
+  const salesByDay = new Map<string, number>();
+  for (const order of orders) {
+    if (!isSocialAdsOrderSource(order.source)) continue;
+    if (isCancelledOrder(order)) continue;
+    if (isGiftOrder(order)) continue;
+    const day = toCairoDateString(order.created_at);
+    salesByDay.set(day, (salesByDay.get(day) || 0) + asNumber(order.total));
+  }
+  const axis = new Set(eachCalendarDay(fromDate, toDate));
+  for (const day of spendByDay.keys()) axis.add(day);
+  for (const day of salesByDay.keys()) axis.add(day);
+  return Array.from(axis)
+    .filter((day) => (day >= fromDate && day <= toDate) || spendByDay.has(day) || salesByDay.has(day))
+    .sort((a, b) => a.localeCompare(b))
+    .map((date) => ({
+      date,
+      ads_spend: spendByDay.get(date) || 0,
+      social_net_sales: salesByDay.get(date) || 0,
+    }));
+}
+
+function mapWeeklyRow(row: any): SocialAdsWeeklySnapshot {
+  return {
+    id: row.id,
+    period_start: ymd(row.period_start),
+    period_end: ymd(row.period_end),
+    account_id: String(row.account_id || ""),
+    account_name: row.account_name ?? null,
+    currency: row.currency ?? null,
+    spend: asNullableNumber(row.spend),
+    impressions: asNullableNumber(row.impressions),
+    reach_sum_not_deduped: asNullableNumber(row.reach_sum_not_deduped),
+    link_clicks: asNullableNumber(row.link_clicks),
+    messaging_results: asNullableNumber(row.messaging_results),
+    meta_purchases: asNullableNumber(row.meta_purchases),
+    notes: row.notes ?? null,
+    exported_at: row.exported_at ?? null,
+  };
+}
+
+function mapCampaignRow(row: any): SocialAdsCampaignSnapshot {
+  return {
+    id: row.id,
+    period_start: ymd(row.period_start),
+    period_end: ymd(row.period_end),
+    account_id: String(row.account_id || ""),
+    campaign_name: row.campaign_name ?? null,
+    status: row.status ?? null,
+    spend_egp: asNullableNumber(row.spend_egp),
+    results: asNullableNumber(row.results),
+    result_type: row.result_type ?? null,
+    cost_per_result: asNullableNumber(row.cost_per_result),
+    impressions: asNullableNumber(row.impressions),
+    reach: asNullableNumber(row.reach),
+    link_clicks: asNullableNumber(row.link_clicks),
+    ctr_all_pct: asNullableNumber(row.ctr_all_pct),
+    cpc_all: asNullableNumber(row.cpc_all),
+    cpm: asNullableNumber(row.cpm),
+    purchases: asNullableNumber(row.purchases),
+  };
+}
+
+function mapDailyRow(row: any): SocialAdsDailySnapshot {
+  return {
+    day: ymd(row.day),
+    account_id: String(row.account_id || ""),
+    account_name: row.account_name ?? null,
+    currency: row.currency ?? null,
+    spend: asNullableNumber(row.spend),
+    impressions: asNullableNumber(row.impressions),
+    reach_sum_not_deduped: asNullableNumber(row.reach_sum_not_deduped),
+    link_clicks: asNullableNumber(row.link_clicks),
+    messaging_results: asNullableNumber(row.messaging_results),
+    meta_purchases: asNullableNumber(row.meta_purchases),
+    ctr_pct: asNullableNumber(row.ctr_pct),
+    cpc: asNullableNumber(row.cpc),
+    cpm: asNullableNumber(row.cpm),
+    notes: row.notes ?? null,
+  };
+}
+
+function mapSocialOrder(row: any): SocialSourceOrder {
+  return {
+    id: row.id,
+    total: asNumber(row.total),
+    source: row.source ?? null,
+    status: row.status || "",
+    created_at: row.created_at,
+    update_status_marker: row.update_status_marker ?? null,
+    collection_method: row.collection_method ?? null,
+  };
+}
+
+export type MetaAdsSectionData = {
+  fromDate: string;
+  toDate: string;
+  rollup: AdsSpendRollup;
+  campaigns: SocialAdsCampaignSnapshot[];
+  daily: SocialAdsDailySnapshot[];
+  orders: SocialSourceOrder[];
+  sales: SocialSourceSales;
+  roas: number | null;
+  series: AdsDailyPoint[];
+  weeklyError: string | null;
+  campaignError: string | null;
+  dailyError: string | null;
+  ordersError: string | null;
+};
+
+async function fetchWeeklyForRange(fromDate: string, toDate: string): Promise<SocialAdsWeeklySnapshot[]> {
+  const { data, error } = await supabase
+    .from("social_ads_weekly_snapshots")
+    .select("id, period_start, period_end, account_id, account_name, currency, spend, impressions, reach_sum_not_deduped, link_clicks, messaging_results, meta_purchases, notes, exported_at")
+    .eq("account_id", META_ADS_ACCOUNT_ID)
+    .gte("period_end", fromDate)
+    .lte("period_start", toDate);
+  if (error) throw error;
+  return (data || []).map(mapWeeklyRow);
+}
+
+async function fetchCampaignsForRange(fromDate: string, toDate: string): Promise<SocialAdsCampaignSnapshot[]> {
+  const { data, error } = await supabase
+    .from("social_ads_campaign_snapshots")
+    .select("id, period_start, period_end, account_id, campaign_name, status, spend_egp, results, result_type, cost_per_result, impressions, reach, link_clicks, ctr_all_pct, cpc_all, cpm, purchases")
+    .eq("account_id", META_ADS_ACCOUNT_ID)
+    .gte("period_end", fromDate)
+    .lte("period_start", toDate);
+  if (error) throw error;
+  return (data || []).map(mapCampaignRow);
+}
+
+async function fetchDailyForRange(fromDate: string, toDate: string): Promise<SocialAdsDailySnapshot[]> {
+  const { data, error } = await supabase
+    .from("social_ads_daily_snapshots")
+    .select("day, account_id, account_name, currency, spend, impressions, reach_sum_not_deduped, link_clicks, messaging_results, meta_purchases, ctr_pct, cpc, cpm, notes")
+    .eq("account_id", META_ADS_ACCOUNT_ID)
+    .gte("day", fromDate)
+    .lte("day", toDate)
+    .order("day", { ascending: true });
+  if (error) throw error;
+  return (data || []).map(mapDailyRow);
+}
+
+export async function fetchSocialSourceOrdersInRange(range: DateRange): Promise<SocialSourceOrder[]> {
+  const raw = await fetchAllBatched<any>((from, to) =>
+    supabase
+      .from("orders")
+      .select("id, total, source, status, created_at, update_status_marker, collection_method")
+      .gte("created_at", range.from)
+      .lte("created_at", range.to)
+      .or(socialAdsSourceOrFilter())
+      .order("created_at", { ascending: true })
+      .range(from, to),
+  );
+  return raw.map(mapSocialOrder).filter((order) => isSocialAdsOrderSource(order.source));
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (error && typeof error === "object" && "message" in error && typeof (error as { message: unknown }).message === "string") {
+    return (error as { message: string }).message;
+  }
+  return "تعذر تحميل البيانات";
+}
+
+/** Read-only bundle for the ads section. One failed table does not blank the others. */
+export async function fetchMetaAdsSection(range: DateRange): Promise<MetaAdsSectionData> {
+  const { fromDate, toDate } = rangeCalendarBounds(range);
+  const [weeklyResult, campaignResult, dailyResult, ordersResult] = await Promise.allSettled([
+    fetchWeeklyForRange(fromDate, toDate),
+    fetchCampaignsForRange(fromDate, toDate),
+    fetchDailyForRange(fromDate, toDate),
+    fetchSocialSourceOrdersInRange(range),
+  ]);
+
+  const weekly = weeklyResult.status === "fulfilled" ? weeklyResult.value : [];
+  const campaignRows = campaignResult.status === "fulfilled" ? campaignResult.value : [];
+  const daily = dailyResult.status === "fulfilled" ? dailyResult.value : [];
+  const orders = ordersResult.status === "fulfilled" ? ordersResult.value : [];
+  const rollup = rollupWeeklyAdSnapshots(weekly, fromDate, toDate);
+  const campaigns = selectCampaignSnapshotsForRollup(campaignRows, rollup);
+  const sales = socialSourceSales(orders);
+  return {
+    fromDate,
+    toDate,
+    rollup,
+    campaigns,
+    daily,
+    orders,
+    sales,
+    roas: approximateRoas(sales.netSales, rollup.spend),
+    series: buildAdsDailySeries(fromDate, toDate, daily, orders),
+    weeklyError: weeklyResult.status === "rejected" ? errorMessage(weeklyResult.reason) : null,
+    campaignError: campaignResult.status === "rejected" ? errorMessage(campaignResult.reason) : null,
+    dailyError: dailyResult.status === "rejected" ? errorMessage(dailyResult.reason) : null,
+    ordersError: ordersResult.status === "rejected" ? errorMessage(ordersResult.reason) : null,
+  };
 }

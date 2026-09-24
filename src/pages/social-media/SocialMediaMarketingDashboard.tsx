@@ -77,6 +77,7 @@ import {
   type MarketingKPIs,
   fetchMarketingDashboardSummary,
 } from "@/lib/socialMediaAnalytics";
+import { MetaAdsMtdSection } from "@/components/marketing/MetaAdsMtdSection";
 import { ZodexUnregisteredCard } from "@/components/marketing/ZodexUnregisteredCard";
 import { ZodexSyncButton } from "@/components/warehouses/ZodexSyncButton";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -408,6 +409,8 @@ export default function SocialMediaMarketingDashboard() {
             </div>
           </CardContent>
         </Card>
+
+        <MetaAdsMtdSection range={range} />
 
         {loading && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
