@@ -260,8 +260,10 @@ const NewOrder = () => {
           '[NewOrder] moderator profile query',
           () => supabase.from('profile_directory').select('full_name').eq('id', user.id).maybeSingle(),
         );
-        const m = findModeratorByName(profileRes?.data?.full_name);
+        const fullName = (profileRes?.data?.full_name || '').trim();
+        const m = findModeratorByName(fullName);
         if (m) setModeratorName(m.canonicalModerator);
+        else if (isSalesModerator && fullName) setModeratorName(fullName);
       } catch (error) {
         console.error('Moderator profile query failed:', error);
       }
