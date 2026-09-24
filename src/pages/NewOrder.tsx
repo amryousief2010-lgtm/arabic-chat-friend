@@ -268,7 +268,7 @@ const NewOrder = () => {
         console.error('Moderator profile query failed:', error);
       }
     })();
-  }, [user, searchParams]);
+  }, [user, searchParams, isSalesModerator]);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
