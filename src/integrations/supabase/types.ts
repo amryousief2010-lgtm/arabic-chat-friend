@@ -17911,7 +17911,7 @@ export type Database = {
       social_ads_campaign_snapshots: {
         Row: {
           account_id: string
-          campaign_name: string | null
+          campaign_name: string
           cost_per_result: number | null
           cpc_all: number | null
           cpm: number | null
@@ -17932,7 +17932,7 @@ export type Database = {
         }
         Insert: {
           account_id: string
-          campaign_name?: string | null
+          campaign_name: string
           cost_per_result?: number | null
           cpc_all?: number | null
           cpm?: number | null
@@ -17953,7 +17953,7 @@ export type Database = {
         }
         Update: {
           account_id?: string
-          campaign_name?: string | null
+          campaign_name?: string
           cost_per_result?: number | null
           cpc_all?: number | null
           cpm?: number | null
