@@ -108,8 +108,32 @@ export const normalizeAr = (s: string): string =>
     .replace(/\s+/g, " ")
     .trim();
 
+// مسوقات إضافيات للتسجيل والفلاتر فقط — غير مشمولات في القبض/الرواتب/التارجت.
+export interface ExtraMarketerConfig extends ModeratorConfig {
+  userId: string;
+  office?: string;
+}
+
+export const EXTRA_MARKETERS: ExtraMarketerConfig[] = [
+  {
+    slug: "fatma",
+    displayName: "فاطمة",
+    canonicalModerator: "فاطمة",
+    payrollKey: "فاطمة",
+    userId: "8c1c8fb3-6c1b-449d-9ea3-ce691becce5a",
+    office: "مكتب العجوزة",
+    baseSalary: 0,
+    aliases: ["فاطمة", "فاطمه"],
+    gradient: "from-chart-3 to-chart-3/70",
+    iconBg: "bg-chart-3",
+  },
+];
+
+// كل المسوقات لقوائم الفلاتر (الأربعة الأساسيات كما هن + الإضافيات).
+export const FILTER_MARKETERS: ModeratorConfig[] = [...MODERATORS, ...EXTRA_MARKETERS];
+
 export const findModeratorBySlug = (slug?: string): ModeratorConfig | undefined =>
-  MODERATORS.find((m) => m.slug === slug);
+  MODERATORS.find((m) => m.slug === slug) || EXTRA_MARKETERS.find((m) => m.slug === slug);
 
 // Returns the moderator that matches a given name (from order.moderator
 // text or a profile full_name). Used both to attribute existing orders
@@ -117,7 +141,10 @@ export const findModeratorBySlug = (slug?: string): ModeratorConfig | undefined 
 export const findModeratorByName = (name?: string | null): ModeratorConfig | undefined => {
   if (!name) return undefined;
   const n = normalizeAr(name);
-  return MODERATORS.find((m) => m.aliases.some((a) => n.includes(normalizeAr(a))));
+  return (
+    MODERATORS.find((m) => m.aliases.some((a) => n.includes(normalizeAr(a)))) ||
+    EXTRA_MARKETERS.find((m) => m.aliases.some((a) => n.includes(normalizeAr(a))))
+  );
 };
 
 export const isOrderForModerator = (

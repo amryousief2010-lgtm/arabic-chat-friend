@@ -61,7 +61,7 @@ import PhoneWithCopy from "@/components/orders/PhoneWithCopy";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import QuickDeliveryDialog from "@/components/orders/QuickDeliveryDialog";
 import ReassignOwnerDialog from "@/components/orders/ReassignOwnerDialog";
-import { MODERATORS, findModeratorByName, isOrderForModerator, matchesModeratorGroup } from "@/constants/moderators";
+import { MODERATORS, FILTER_MARKETERS, EXTRA_MARKETERS, findModeratorByName, isOrderForModerator, matchesModeratorGroup } from "@/constants/moderators";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -1025,6 +1025,8 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         const creatorIds = (profs || [])
           .filter((p: any) => p.full_name && aliases.some((a) => normalizeArabic(p.full_name).includes(normalizeArabic(a))))
           .map((p: any) => p.id);
+        const extra = EXTRA_MARKETERS.find((e) => e.canonicalModerator === modCfg?.canonicalModerator);
+        if (extra && !creatorIds.includes(extra.userId)) creatorIds.push(extra.userId);
         const orParts = aliases.map((a) => `moderator.ilike.%${a}%`);
         if (creatorIds.length > 0) orParts.push(`created_by.in.(${creatorIds.join(',')})`);
         let q = supabase
@@ -2473,7 +2475,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">جميع المسوقات</SelectItem>
-                  {MODERATORS.map((m) => (
+                  {FILTER_MARKETERS.map((m) => (
                     <SelectItem key={m.slug} value={m.canonicalModerator}>{m.displayName}</SelectItem>
                   ))}
                 </SelectContent>

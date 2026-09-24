@@ -1,3 +1,4 @@
+import { fillModeratorFromCreator } from "@/lib/creatorNameFallback";
 /**
  * Daily Sales Performance Analysis — read-only analytics helpers.
  *
@@ -31,6 +32,7 @@ export interface OrderRow {
   source: string | null;
   shipping_company: string | null;
   moderator: string | null;
+  created_by?: string | null;
   customer_id: string | null;
   created_at: string;
   fulfillment_type: string | null;
@@ -122,7 +124,7 @@ export async function fetchDayOrders(cairoDate: string): Promise<OrderRow[]> {
     .from("orders")
     .select(
       `id, order_number, total, status, payment_method, payment_status,
-       source, shipping_company, moderator, customer_id, created_at,
+       source, shipping_company, moderator, created_by, customer_id, created_at,
        fulfillment_type, collection_status, delivered_at,
        customer:customers ( id, name, governorate, city, created_at ),
        items:order_items ( product_name, quantity, unit_price, total_price )`,
@@ -131,7 +133,7 @@ export async function fetchDayOrders(cairoDate: string): Promise<OrderRow[]> {
     .lt("created_at", nextDay.toISOString())
     .order("created_at", { ascending: true });
   if (error) throw error;
-  return (data as unknown as OrderRow[]) || [];
+  return fillModeratorFromCreator((data as unknown as OrderRow[]) || []);
 }
 
 export function computeKpis(date: string, label: string, orders: OrderRow[]): DayKpis {

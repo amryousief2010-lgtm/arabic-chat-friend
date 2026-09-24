@@ -15,7 +15,7 @@ import { Phone, Filter, RotateCcw, ShoppingCart, TrendingUp, Clock } from "lucid
 import { toast } from "sonner";
 import { formatDate } from "@/lib/dateFormat";
 import { governorateId, governorateLabel } from "@/lib/governorates";
-import { ModeratorConfig, matchesModeratorGroup, normalizeAr, MODERATORS, displayModeratorName } from "@/constants/moderators";
+import { ModeratorConfig, matchesModeratorGroup, normalizeAr, MODERATORS, FILTER_MARKETERS, displayModeratorName } from "@/constants/moderators";
 import { cairoTodayStartUTC, cairoMonthStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
 import CopyPhoneButton from "@/components/orders/CopyPhoneButton";
 
@@ -331,7 +331,7 @@ export default function DeliverySummary({ mode, moderator, userId, badgeLabel, r
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">كل المسوقات</SelectItem>
-                    {MODERATORS.map((m) => (
+                    {FILTER_MARKETERS.map((m) => (
                       <SelectItem key={m.slug} value={m.canonicalModerator}>{m.displayName}</SelectItem>
                     ))}
                     <SelectItem value="none">بدون مسوقة</SelectItem>
