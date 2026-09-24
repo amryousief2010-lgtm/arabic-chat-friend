@@ -1025,6 +1025,8 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         const creatorIds = (profs || [])
           .filter((p: any) => p.full_name && aliases.some((a) => normalizeArabic(p.full_name).includes(normalizeArabic(a))))
           .map((p: any) => p.id);
+        const extra = EXTRA_MARKETERS.find((e) => e.canonicalModerator === modCfg?.canonicalModerator);
+        if (extra && !creatorIds.includes(extra.userId)) creatorIds.push(extra.userId);
         const orParts = aliases.map((a) => `moderator.ilike.%${a}%`);
         if (creatorIds.length > 0) orParts.push(`created_by.in.(${creatorIds.join(',')})`);
         let q = supabase

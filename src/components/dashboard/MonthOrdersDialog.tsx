@@ -1,3 +1,4 @@
+import { fillModeratorFromCreator } from "@/lib/creatorNameFallback";
 import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ interface Row {
   payment_method: string;
   payment_status: string;
   moderator: string | null;
+  created_by?: string | null;
   created_at: string;
   source_warehouse_id: string | null;
   shipping_bill_no: string | null;
@@ -154,7 +156,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
       while (true) {
         const { data, error } = await supabase
           .from("orders")
-          .select("id, order_number, total, status, payment_method, payment_status, moderator, created_at, source_warehouse_id, shipping_bill_no, customers(name, phone)")
+          .select("id, order_number, total, status, payment_method, payment_status, moderator, created_by, created_at, source_warehouse_id, shipping_bill_no, customers(name, phone)")
           .gte("created_at", start)
           .lt("created_at", end)
           .order("created_at", { ascending: false })
@@ -164,7 +166,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
         if (!data || data.length < size) break;
         page++;
       }
-      setRows(all);
+      setRows(await fillModeratorFromCreator(all));
       setLoading(false);
     })();
   }, [open, year, monthIndex0]);

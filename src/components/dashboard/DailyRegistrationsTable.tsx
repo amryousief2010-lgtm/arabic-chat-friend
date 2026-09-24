@@ -6,13 +6,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CalendarDays, ChevronDown, ChevronLeft, FileSpreadsheet, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { fillModeratorFromCreator } from "@/lib/creatorNameFallback";
 import { cairoMonthStartUTC, currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
 import { displayModeratorName } from "@/constants/moderators";
 import { applySalesNetFilter, SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
 
 const MONTH_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 
-interface Row { created_at: string; total: number; moderator: string | null }
+interface Row { created_at: string; total: number; moderator: string | null; created_by?: string | null }
 
 const DailyRegistrationsTable = () => {
   const [openDay, setOpenDay] = useState<string | null>(null);
@@ -30,7 +31,7 @@ const DailyRegistrationsTable = () => {
         const { data, error } = await applySalesNetFilter(
           supabase
             .from("orders")
-            .select("created_at, total, moderator")
+            .select("created_at, total, moderator, created_by")
             .gte("created_at", from)
             .order("created_at", { ascending: false }),
         ).range(page * size, (page + 1) * size - 1);
@@ -39,7 +40,7 @@ const DailyRegistrationsTable = () => {
         if ((data?.length || 0) < size) break;
         page++;
       }
-      return all;
+      return fillModeratorFromCreator(all);
     },
     staleTime: 0,
     refetchOnMount: "always",
