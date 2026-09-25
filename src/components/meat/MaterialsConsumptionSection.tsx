@@ -51,13 +51,18 @@ export default function MaterialsConsumptionSection({ fromISO, toISO, productFil
       });
       const lines: any[] = [];
       const ids = inRange.map((i) => i.id);
-      for (let k = 0; k < ids.length; k += 100) {
-        const { data, error } = await supabase
-          .from("meat_manufacturing_invoice_lines" as any)
-          .select("invoice_id,item_name,kind,unit,quantity,unit_cost,line_total")
-          .in("invoice_id", ids.slice(k, k + 100));
-        if (error) throw error;
-        lines.push(...(data || []));
+      for (let k = 0; k < ids.length; k += 50) {
+        for (let off = 0; ; off += 1000) {
+          const { data, error } = await supabase
+            .from("meat_manufacturing_invoice_lines" as any)
+            .select("id,invoice_id,item_name,kind,unit,quantity,unit_cost,line_total")
+            .in("invoice_id", ids.slice(k, k + 50))
+            .order("id")
+            .range(off, off + 999);
+          if (error) throw error;
+          lines.push(...(data || []));
+          if (!data || data.length < 1000) break;
+        }
       }
       return { invoices: inRange, lines };
     },
