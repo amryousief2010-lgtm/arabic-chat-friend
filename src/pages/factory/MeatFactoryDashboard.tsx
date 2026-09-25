@@ -300,9 +300,9 @@ export default function MeatFactoryDashboard() {
         {/* Main stat cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Stat to="/meat-factory/raw-inventory" icon={Wallet} color="text-purple-700" label="إجمالي قيمة المخزون" value={`${fmt(stockStats.totalVal)} ج`} big />
-          <Stat to="/meat-factory/raw-inventory?f=raw" icon={Beef} color="text-blue-600" label="قيمة الخامات" value={`${fmt(stockStats.rawVal)} ج`} />
-          <Stat to="/meat-factory/raw-inventory?f=spice" icon={Beef} color="text-amber-600" label="قيمة البهارات" value={`${fmt(stockStats.spiceVal)} ج`} />
-          <Stat to="/meat-factory/raw-inventory?f=packaging" icon={Package} color="text-emerald-600" label="قيمة التغليف" value={`${fmt(stockStats.packVal)} ج`} />
+          <Stat to="/meat-factory/raw-inventory?f=raw" icon={Beef} color="text-blue-600" label="قيمة مخزون الخامات" value={`${fmt(stockStats.rawVal)} ج`} />
+          <Stat to="/meat-factory/raw-inventory?f=spice" icon={Beef} color="text-amber-600" label="قيمة مخزون البهارات" value={`${fmt(stockStats.spiceVal)} ج`} />
+          <Stat to="/meat-factory/raw-inventory?f=packaging" icon={Package} color="text-emerald-600" label="قيمة مخزون التغليف" value={`${fmt(stockStats.packVal)} ج`} />
 
           <Stat to="/meat-factory/raw-inventory#moves" icon={Truck} color="text-rose-600" label={`وارد المجزر — ${b.label}`} value={`${fmt(moveStats.slaughterQty)} كجم`} hint={`${fmt(moveStats.slaughterVal)} ج`} />
           <Stat to="/meat-factory/purchase-invoices" icon={ShoppingCart} color="text-blue-600" label={`مشتريات — ${b.label}`} value={`${fmt(moveStats.purchaseQty)} وحدة`} hint={`${fmt(moveStats.purchaseVal)} ج`} />
