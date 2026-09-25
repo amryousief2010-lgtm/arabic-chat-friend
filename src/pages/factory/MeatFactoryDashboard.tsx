@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from "recharts";
 import { Factory, AlertTriangle, Beef, Package, Wallet, Truck, ShoppingCart, Boxes, TrendingDown, CheckCircle2, FileText, Scale } from "lucide-react";
 import { cairoMonthStartUTC, cairoTodayStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
+import MaterialsConsumptionSection from "@/components/meat/MaterialsConsumptionSection";
 
 const PURPLE = "#7c3aed", ORANGE = "#ea580c", BLUE = "#2563eb", AMBER = "#d97706", GREEN = "#059669", RED = "#dc2626";
 const fmt = (n: any) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
@@ -314,6 +315,9 @@ export default function MeatFactoryDashboard() {
           <Stat to="/meat-factory/raw-inventory?f=zero" icon={AlertTriangle} color="text-red-600" label="أصناف نفدت" value={String(stockStats.zeroCount)} />
           <Stat to="/meat-factory/recipes" icon={FileText} color="text-purple-600" label="تركيبات التصنيع" value="9 تركيبات" hint="مرجع جاهز" />
         </div>
+
+        <MaterialsConsumptionSection fromISO={fromISO} toISO={toISO} productFilter={productFilter} />
+
 
         {/* إجمالي تصنيع هذا الشهر — مؤشر بارز ثابت على الشهر الحالي */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
