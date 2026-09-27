@@ -108,10 +108,10 @@ const ProductCosts = () => {
       if (cost_price !== null && (isNaN(cost_price) || cost_price < 0)) {
         throw new Error("التكلفة غير صحيحة");
       }
-      const { error } = await supabase
-        .from("products")
-        .update({ cost_price }) // ⚠️ price intentionally NOT touched
-        .eq("id", id);
+      const { error } = await (supabase as any).rpc("set_product_cost_price", {
+        p_product_id: id,
+        p_cost: cost_price,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -137,10 +137,10 @@ const ProductCosts = () => {
         .map((p) => {
           const raw = edits[p.id];
           const cost_price = raw === "" ? null : parseFloat(raw);
-          return supabase
-            .from("products")
-            .update({ cost_price }) // ⚠️ price intentionally NOT touched
-            .eq("id", p.id);
+          return (supabase as any).rpc("set_product_cost_price", {
+            p_product_id: p.id,
+            p_cost: cost_price,
+          });
         });
       const results = await Promise.all(ops);
       const failed = results.filter((r) => r.error).length;

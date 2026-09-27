@@ -39,7 +39,12 @@ INSERT INTO public.warehouses (id, name) VALUES ('{wh}', 'مخزن تزامن {w
 INSERT INTO public.products (id, name, price, barcode)
 VALUES ('{prod}', 'صنف تزامن {prod[:8]}', 1, 'CN{prod[:8]}');
 INSERT INTO public.inventory_items (id, warehouse_id, product_id, name, unit, stock)
-VALUES ('{item}', '{wh}', '{prod}', 'تزامن', 'كجم', 100);
+VALUES ('{item}', '{wh}', '{prod}', 'تزامن', 'كجم', 0);
+SELECT set_config('request.jwt.claim.sub', '{gm}', false);
+SELECT public.post_manual_inventory_movement(
+  '{item}'::uuid, 'in', 100, 'افتتاح اختبار التزامن',
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+);
 """)
 
     barrier = threading.Barrier(2)

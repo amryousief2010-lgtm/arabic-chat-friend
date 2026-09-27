@@ -95,17 +95,20 @@ export default function MeatPackagingInventory() {
       const addVal = qty * unitCost;
       newAvg = stock_after > 0 ? (prevVal + addVal) / stock_after : unitCost;
     }
-    const user = (await supabase.auth.getUser()).data.user;
-    const { error: e1 } = await supabase.from("meat_factory_inventory_moves" as any).insert({
-      item_kind: "packaging", item_id: item.id, item_name: item.name,
-      direction, quantity: qty, unit_cost: unitCost,
-      reason, ref_table: refTable, ref_id: refId, created_by: user?.id ?? null,
-      stock_before, stock_after,
+    const { error } = await supabase.rpc("post_meat_raw_movement" as any, {
+      p_item_id: item.id,
+      p_direction: direction,
+      p_quantity: qty,
+      p_unit_cost: unitCost,
+      p_reason: reason,
+      p_ref_table: refTable,
+      p_ref_id: refId ?? crypto.randomUUID(),
+      p_item_kind: "packaging",
+      p_effect: "delta",
+      p_avg_cost: newAvg,
+      p_item_name: item.name,
     });
-    if (e1) { toast.error(e1.message); return false; }
-    const { error: e2 } = await supabase.from("meat_factory_raw_items" as any)
-      .update({ current_stock: stock_after, avg_cost: newAvg }).eq("id", item.id);
-    if (e2) { toast.error(e2.message); return false; }
+    if (error) { toast.error(error.message); return false; }
     refresh();
     return true;
   }
@@ -332,18 +335,24 @@ function AddItemDialog({ open, onClose, onDone, existing }: { open: boolean; onC
     if (existing.some(i => i.name.trim() === nm && i.unit === unit)) return toast.error("صنف بنفس الاسم والوحدة موجود بالفعل");
     const qty = Number(stock || 0), c = Number(cost || 0), rl = Number(reorder || 0);
     const { data: ins, error } = await supabase.from("meat_factory_raw_items" as any)
-      .insert({ name: nm, unit, current_stock: qty, avg_cost: c, low_stock_threshold: rl, kind: "packaging", is_active: true, notes: notes || null })
+      .insert({ name: nm, unit, current_stock: 0, avg_cost: c, low_stock_threshold: rl, kind: "packaging", is_active: true, notes: notes || null })
       .select().single();
     if (error) return toast.error(error.message);
     if (qty > 0) {
-      const user = (await supabase.auth.getUser()).data.user;
-      await supabase.from("meat_factory_inventory_moves" as any).insert({
-        item_kind: "packaging", item_id: (ins as any).id, item_name: nm,
-        direction: "IN", quantity: qty, unit_cost: c,
-        reason: "رصيد افتتاحي عند إنشاء الصنف",
-        ref_table: "opening_balance_packaging", created_by: user?.id ?? null,
-        stock_before: 0, stock_after: qty,
+      const { error: postErr } = await supabase.rpc("post_meat_raw_movement" as any, {
+        p_item_id: (ins as any).id,
+        p_direction: "IN",
+        p_quantity: qty,
+        p_unit_cost: c,
+        p_reason: "رصيد افتتاحي عند إنشاء الصنف",
+        p_ref_table: "opening_balance_packaging",
+        p_ref_id: crypto.randomUUID(),
+        p_item_kind: "packaging",
+        p_effect: "set",
+        p_target_stock: qty,
+        p_item_name: nm,
       });
+      if (postErr) return toast.error(postErr.message);
     }
     toast.success("تم إضافة الصنف");
     reset(); onDone(); onClose();

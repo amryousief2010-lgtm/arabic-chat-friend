@@ -39,6 +39,8 @@ jobs:
         run: python3 scripts/inventory_ledger_concurrency.py
       - name: Client write lint
         run: python3 scripts/check_inventory_client_writes.py
+      - name: Ledger function stock writers
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/check_ledger_stock_writers.sql
       - name: Install
         run: npm install --ignore-scripts
       - name: Unit tests

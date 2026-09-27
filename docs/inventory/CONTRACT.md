@@ -13,10 +13,10 @@
 7. One card per `(warehouse_id, product_id)` where `product_id` is not null. The unique index `inventory_items_wh_product_unique` already exists and is valid. Do not drop it. Do not run `merge_duplicate_inventory_cards(true)` until the owner approves `report_duplicate_inventory_cards()`.
 8. Order deduction uses `orders.source_warehouse_id` for every warehouse. A line with no linked card is a failed `order_deduction_lines` row, not a silent skip. Deduction runs on delivery, one movement per order line, and respects the period lock using `delivered_at`.
 9. The period lock is created only when a stocktake is approved at or after `2026-09-30 00:00 Africa/Cairo`. Do not backfill locks. An earlier movement is rejected. Only `general_manager` or `executive_manager` may override, with a written reason that is stored on the movement.
-10. Costs (`unit_cost`, `total_cost`) are visible only to `general_manager`, `executive_manager`, `accountant`, `financial_manager`, and `cost_accountant`. There is no `admin` role.
+10. Costs (`inventory_movements.unit_cost`, `inventory_movements.total_cost`, `inventory_items.unit_cost`, `products.cost_price`) are visible only to `general_manager`, `executive_manager`, `accountant`, `financial_manager`, and `cost_accountant`. There is no `admin` role. Sale `products.price` stays readable. Read product cost through `product_cost_price` or `product_cost_prices`. Write it through `set_product_cost_price`. Do not `GRANT SELECT ON TABLE` for `inventory_movements`, `inventory_items`, or `products`: that re-grants every column, including cost. `scripts/check_ledger_stock_writers.sql` fails CI if anon or authenticated can select those cost columns.
 11. Who may receive a transfer is `warehouse_role_grants` by warehouse id, not by warehouse name. General manager and executive manager may receive any warehouse.
 12. Do not change offer-box shipping, `orders.created_by` (the marketer), or order totals in inventory work.
-13. `scripts/check_inventory_client_writes.py` fails CI if client or edge code writes the ledger tables directly.
+13. `scripts/check_inventory_client_writes.py` fails CI if client or edge code writes the ledger tables directly. `scripts/check_ledger_stock_writers.sql` fails CI if any function other than the ledger assigns `inventory_items.stock`.
 
 ## Source types
 
@@ -30,4 +30,6 @@ Legacy rows with null source keys stay in the table. They are history. The recon
 
 ## Compatibility bridge
 
-Some older SQL functions still `INSERT` a movement. A migration stamps `app.inventory_ledger_posted` at the start of those functions so production does not break, and the apply trigger still updates stock once when the row has no snapshots. New work must not add another inserter. The list is in the apply runbook.
+Some older SQL functions still `INSERT` a movement. A migration stamps `app.inventory_ledger_posted` and `app.inventory_bridge_insert` at the start of those functions. The apply trigger updates stock once when the row has no snapshots, and only while `app.inventory_apply_stock` is on. If that same function also assigns `inventory_items.stock`, the guard raises `DOUBLE_COUNT` and the transaction rolls back. New work must call `post_inventory_movement` and must not insert a movement itself.
+
+`meat_factory_raw_items.current_stock` changes only inside `post_meat_raw_movement`. Finished-goods cards (`meat_factory_finished_items`, `meat_factory_products`) and `meat_factory_raw_materials.stock` are still separate balances.

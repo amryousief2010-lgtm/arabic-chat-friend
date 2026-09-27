@@ -242,6 +242,19 @@ BEGIN
     RAISE EXCEPTION 'merge ran without approval %', v_res;
   END IF;
 
+  PERFORM set_config('app.inventory_bridge_insert', 'on', true);
+  PERFORM set_config('app.inventory_stock_write', 'on', true);
+  BEGIN
+    UPDATE public.inventory_items SET stock = stock + 1 WHERE id = v_item;
+    RAISE EXCEPTION 'bridge stock write was allowed';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%DOUBLE_COUNT%' THEN
+      RAISE;
+    END IF;
+  END;
+  PERFORM set_config('app.inventory_bridge_insert', 'off', true);
+  PERFORM set_config('app.inventory_stock_write', 'off', true);
+
   RAISE NOTICE 'LEDGER_SCENARIOS_OK stock=%', (SELECT stock FROM public.inventory_items WHERE id = v_item);
 END $$;
 
