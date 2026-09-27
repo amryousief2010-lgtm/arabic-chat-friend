@@ -74,6 +74,7 @@ interface Row {
   manualKg: string;
 }
 
+const BLOCKED_MAIN_OUT = new Set(["agouza_branch", "healthy_test", "carrefour"]);
 const DESTINATIONS: { value: string; label: string }[] = [
   { value: "agouza_branch", label: "فرع العجوزة" },
   { value: "private_courier", label: "مندوب خاص" },
@@ -325,7 +326,14 @@ const ManualStockOutDialog = ({
     if (!validDest) { toast({ title: "اختر جهة الصرف", variant: "destructive" }); return; }
     if (!reason.trim()) { toast({ title: "أدخل اسم القائم بالتوريد", variant: "destructive" }); return; }
     if (!isValidAdjustmentReason(category)) { toast({ title: "اختر سبب الصرف من القائمة (إجباري)", variant: "destructive" }); return; }
-    if (!deliveryDate) { toast({ title: "اختر تاريخ التوريد", variant: "destructive" }); return; }
+    if (isMainWarehouse && BLOCKED_MAIN_OUT.has(destKey)) {
+      toast({
+        title: "استخدم التحويل",
+        description: "الصرف من المخزن الرئيسي إلى العجوزة أو كارفور أو هيلثي تيست يتم بتحويل مع استلام فقط.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (mergedRows.size === 0) { toast({ title: "أضف صنف واحد على الأقل", variant: "destructive" }); return; }
     for (const r of rows) {
       if (!r.itemId) { toast({ title: "اختر الصنف في كل صف", variant: "destructive" }); return; }
@@ -600,7 +608,7 @@ const ManualStockOutDialog = ({
               <Select value={destKey} onValueChange={(v) => { setDestKey(v); setCustomerName(""); setDestOther(""); }}>
                 <SelectTrigger className="flex-1"><SelectValue placeholder="اختر جهة الصرف" /></SelectTrigger>
                 <SelectContent>
-                  {DESTINATIONS.map(d => (
+                  {DESTINATIONS.filter((d) => !(isMainWarehouse && BLOCKED_MAIN_OUT.has(d.value))).map(d => (
                     <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
                   ))}
                   {customParties.length > 0 && (

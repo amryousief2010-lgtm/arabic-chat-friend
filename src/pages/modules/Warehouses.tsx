@@ -243,6 +243,7 @@ const Warehouses = () => {
   const [warehouses, setWarehouses] = useState<WarehouseRow[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
+  const [inTransitByItem, setInTransitByItem] = useState<Record<string, number>>({});
   const [slaughterOutputs, setSlaughterOutputs] = useState<any[]>([]);
   const [receiveBatch, setReceiveBatch] = useState<{ batch_id: string; batch_number: string; slaughter_date?: string; status?: string; outputs: any[] } | null>(null);
   const [receiveWarehouseId, setReceiveWarehouseId] = useState<string>("");
@@ -646,6 +647,25 @@ const Warehouses = () => {
       }
       merged.sort((a, b) => (a.performed_at < b.performed_at ? 1 : -1));
       setMovements(merged as Movement[]);
+      const { data: openTransfers } = await supabase
+        .from("warehouse_transfers")
+        .select("id")
+        .in("status", ["pending_receipt", "partially_received", "sent"]);
+      const transferIds = (openTransfers || []).map((t: { id: string }) => t.id);
+      const transit: Record<string, number> = {};
+      if (transferIds.length) {
+        const { data: lines } = await supabase
+          .from("warehouse_transfer_items")
+          .select("source_item_id, sent_qty, received_qty")
+          .in("transfer_id", transferIds);
+        (lines || []).forEach((line: any) => {
+          const qty = Math.max(0, Number(line.sent_qty || 0) - Number(line.received_qty || 0));
+          if (line.source_item_id && qty > 0) {
+            transit[line.source_item_id] = (transit[line.source_item_id] || 0) + qty;
+          }
+        });
+      }
+      setInTransitByItem(transit);
     } else {
       setMovements([]);
     }
@@ -1195,6 +1215,7 @@ const Warehouses = () => {
                     <TableHead>المخزن</TableHead>
                     <TableHead>الفئة</TableHead>
                     <TableHead>الرصيد</TableHead>
+                    <TableHead>بالطريق</TableHead>
                     <TableHead>الوحدة</TableHead>
                     <TableHead>الحد الأدنى</TableHead>
                     <TableHead>التكلفة</TableHead>
@@ -1204,9 +1225,9 @@ const Warehouses = () => {
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
                   ) : filteredItems.length === 0 ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد أصناف</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">لا توجد أصناف</TableCell></TableRow>
                   ) : filteredItems.map(it => (
                     <TableRow key={it.id} className={it.stock <= it.low_stock_threshold ? "bg-destructive/5" : ""}>
                       <TableCell className="font-medium">
@@ -1219,6 +1240,7 @@ const Warehouses = () => {
                       <TableCell>{it.warehouse?.name || "—"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{it.category || "—"}</TableCell>
                       <TableCell className={it.stock <= it.low_stock_threshold ? "text-destructive font-bold" : ""}>{it.stock}</TableCell>
+                      <TableCell className="font-mono">{inTransitByItem[it.id] ? inTransitByItem[it.id] : "—"}</TableCell>
                       <TableCell>{it.unit}</TableCell>
                       <TableCell>{it.low_stock_threshold}</TableCell>
                       <TableCell>{it.unit_cost.toFixed(2)}</TableCell>

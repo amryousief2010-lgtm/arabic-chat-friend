@@ -1929,14 +1929,14 @@ const WarehouseDetail = () => {
           <DialogHeader>
             <DialogTitle>تأكيد استلام التحويل {receiveDialog?.transfer_no}</DialogTitle>
             <DialogDescription>
-              من {receiveDialog?.source?.name}. عند التأكيد، تُضاف الكمية المستلمة لمخزون {warehouse?.name}. الكميات الناقصة أو المرفوضة لا تُضاف. استخدم "رفض" للأصناف غير المطابقة لإرجاعها للمخزن المصدر.
+              من {receiveDialog?.source?.name}. عند التأكيد، تُضاف الكمية المستلمة لمخزون {warehouse?.name}. العجز لا يُضاف، والزيادة تُسجل مع ملاحظة إلزامية. استخدم "رفض" للأصناف غير المطابقة لإرجاعها للمخزن المصدر.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Table>
               <TableHeader><TableRow>
                 <TableHead>الصنف</TableHead><TableHead>مرسل</TableHead>
-                <TableHead>مستلم</TableHead><TableHead>ملاحظات (إلزامية للجزئي)</TableHead>
+                <TableHead>مستلم</TableHead><TableHead>ملاحظات (إلزامية عند العجز أو الزيادة)</TableHead>
                 <TableHead></TableHead>
               </TableRow></TableHeader>
               <TableBody>
@@ -1952,7 +1952,7 @@ const WarehouseDetail = () => {
                       </TableCell>
                       <TableCell>{li.sent_qty} {li.unit}</TableCell>
                       <TableCell>
-                        <Input type="number" min={0} max={Number(li.sent_qty)} className="w-24"
+                        <Input type="number" min={0} className="w-24"
                           disabled={finalized}
                           value={v.qty}
                           onChange={e => setReceiveLines({ ...receiveLines, [li.id]: { ...v, qty: Number(e.target.value) } })} />

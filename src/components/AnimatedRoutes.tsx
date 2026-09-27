@@ -1076,7 +1076,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/pending-transfers" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'meat_factory_manager']}>
               <PageTransition><WarehousePendingTransfers /></PageTransition>
             </ProtectedRoute>
           } />
