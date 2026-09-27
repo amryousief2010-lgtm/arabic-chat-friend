@@ -17,12 +17,13 @@ import AppErrorBoundary from "@/components/AppErrorBoundary";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // ضمان أحدث البيانات لكل المستخدمين (بما فيهم محمد سيد):
-      // إعادة الجلب عند العودة للتبويب أو استعادة الاتصال، وتجديد دوري خفيف.
-      refetchOnWindowFocus: true,
+      // Returning to the app was refetching every query and reloading whole pages.
+      // Realtime hooks still invalidate the queries they own. A screen that
+      // needs a refresh on focus sets refetchOnWindowFocus: true itself.
+      refetchOnWindowFocus: false,
       refetchOnReconnect: true,
       refetchOnMount: true,
-      staleTime: 30_000,
+      staleTime: 2 * 60 * 1000,
     },
   },
 });

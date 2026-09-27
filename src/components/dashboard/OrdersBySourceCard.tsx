@@ -6,7 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { PieChart, Package } from "lucide-react";
 import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
-import { applySalesNetFilter, SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
+import { SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
+
+const SOURCE_REFETCH_MS = 60_000;
 
 type RangeKey = "month" | "year" | "all";
 
@@ -20,8 +22,6 @@ interface SourceRow {
   source: string;
   count: number;
 }
-
-const PAGE = 1000;
 
 const OrdersBySourceCard = () => {
   const queryClient = useQueryClient();
@@ -37,40 +37,39 @@ const OrdersBySourceCard = () => {
       if (range === "month") from = cairoMonthStartUTC(cur.year, cur.monthIndex0).toISOString();
       if (range === "year") from = cairoYearStartUTC(cur.year).toISOString();
 
-      let all: any[] = [];
-      let page = 0;
-      while (true) {
-        let q = applySalesNetFilter(supabase.from("orders").select("source")).range(page * PAGE, (page + 1) * PAGE - 1);
-        if (from) q = q.gte("created_at", from);
-        const { data: chunk, error } = await q;
-        if (error) throw error;
-        all = all.concat(chunk || []);
-        if (!chunk || chunk.length < PAGE) break;
-        page++;
-      }
-
-      const map = new Map<string, number>();
-      for (const o of all) {
-        const key = (o.source || "").trim() || "غير محدد";
-        map.set(key, (map.get(key) || 0) + 1);
-      }
-      const rows = Array.from(map.entries())
-        .map(([source, count]) => ({ source, count }))
-        .sort((a, b) => b.count - a.count);
-
-      return { total: all.length, rows };
+      const { data, error } = await supabase.rpc(
+        "get_orders_by_source",
+        from ? { p_from: from } : {},
+      );
+      if (error) throw error;
+      const rows = (data || []).map((row) => ({
+        source: row.source,
+        count: Number(row.order_count),
+      }));
+      return {
+        total: rows.reduce((sum, row) => sum + row.count, 0),
+        rows,
+      };
     },
   });
 
-  // تحديث مباشر عند تسجيل أوردر جديد أو تعديل مصدره
+  // Order changes used to re-download every source row immediately.
+  // Coalesce them into one refetch at least a minute later.
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (timer != null) return;
+      timer = setTimeout(() => {
+        timer = null;
+        queryClient.invalidateQueries({ queryKey: ["orders-by-source"] });
+      }, SOURCE_REFETCH_MS);
+    };
     const channel = supabase
       .channel("orders-by-source-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["orders-by-source"] });
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, schedule)
       .subscribe();
     return () => {
+      if (timer != null) clearTimeout(timer);
       supabase.removeChannel(channel);
     };
   }, [queryClient]);
