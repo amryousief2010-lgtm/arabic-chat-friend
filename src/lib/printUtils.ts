@@ -61,6 +61,7 @@ export interface PrintOrderData {
   delivery_fee: number;
   total: number;
   created_by_name?: string | null;
+  shipping_bill_no?: string | null;
 }
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-US");
@@ -94,6 +95,7 @@ export const printOrderInvoice = (order: PrintOrderData) => {
       ${order.payment_method ? `<div><b>طريقة الدفع:</b> ${paymentMap[order.payment_method] || order.payment_method}</div>` : ""}
       ${order.payment_status ? `<div><b>حالة الدفع:</b> ${payStatusMap[order.payment_status] || order.payment_status}</div>` : ""}
       ${order.created_by_name ? `<div><b>منشئ الطلب:</b> ${order.created_by_name}</div>` : ""}
+      ${order.shipping_bill_no ? `<div><b>رقم البوليصة:</b> <span dir="ltr">${order.shipping_bill_no}</span></div>` : ""}
     </div>
     <table>
       <thead><tr><th style="width:40px">#</th><th>المنتج</th><th style="width:120px">الكمية</th><th style="width:110px">سعر الوحدة</th><th style="width:120px">الإجمالي</th></tr></thead>
