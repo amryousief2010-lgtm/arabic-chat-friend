@@ -156,7 +156,6 @@ const ManualStockOutDialog = ({
   const [overrideReason, setOverrideReason] = useState("");
   const [deliveryDate, setDeliveryDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
-  const [overrideReason, setOverrideReason] = useState("");
   const [rows, setRows] = useState<Row[]>([newRow()]);
   const [saving, setSaving] = useState(false);
   const [customParties, setCustomParties] = useState<{ id: string; name: string }[]>([]);
