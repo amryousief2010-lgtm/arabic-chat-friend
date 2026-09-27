@@ -668,6 +668,7 @@ const Warehouses = () => {
       setInTransitByItem(transit);
     } else {
       setMovements([]);
+      setInTransitByItem({});
     }
   };
 

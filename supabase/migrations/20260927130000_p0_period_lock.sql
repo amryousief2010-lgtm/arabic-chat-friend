@@ -139,8 +139,11 @@ AS $$
 BEGIN
   IF NEW.status = 'approved' AND OLD.status IS DISTINCT FROM 'approved' AND NEW.approved_at IS NOT NULL THEN
     INSERT INTO public.warehouse_period_locks(warehouse_id, locked_until, source, source_id, created_by)
-    VALUES (NEW.warehouse_id, NEW.approved_at, 'stocktaking', NEW.id, NEW.approved_by)
-    ON CONFLICT DO NOTHING;
+    SELECT NEW.warehouse_id, NEW.approved_at, 'stocktaking', NEW.id, NEW.approved_by
+     WHERE NOT EXISTS (
+       SELECT 1 FROM public.warehouse_period_locks l
+        WHERE l.source = 'stocktaking' AND l.source_id = NEW.id
+     );
   END IF;
   RETURN NEW;
 END;
