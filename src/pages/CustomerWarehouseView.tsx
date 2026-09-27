@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -80,6 +80,7 @@ const ensureMutationSucceeded = (
 };
 
 export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSubtitle }: Props) {
+  const editRequestRef = useRef(crypto.randomUUID());
   const { user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth();
   const canEditMovements = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const [loading, setLoading] = useState(true);
@@ -121,7 +122,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     lines: ReceiptLine[];
   } | null>(null);
 
-  const adjustMainForItem = async (itemName: string, unit: string, productId: string | null, delta: number) => {
+  const adjustMainForItem = async (itemName: string, unit: string, productId: string | null, delta: number, requestId: string) => {
     // delta > 0 -> add to main, delta < 0 -> subtract from main
     if (!mainWhId || delta === 0) return;
     let mainItem = mainItems.find((i) => i.name === itemName);
@@ -142,10 +143,12 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       reason: "تسوية رصيد عميل",
       referenceType: delta > 0 ? "customer_return" : "customer_supply",
       party: warehouseName,
+      requestId,
     });
   };
 
   const openItemEdit = (it: InventoryItem) => {
+    editRequestRef.current = crypto.randomUUID();
     setEditItem(it);
     setEditStock(String(it.stock));
   };
@@ -159,7 +162,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     setItemBusy(true);
     try {
       // diff > 0: stock increased here -> deduct from main; diff < 0: returned to main
-      await adjustMainForItem(editItem.name, editItem.unit, editItem.product_id, -diff);
+      await adjustMainForItem(editItem.name, editItem.unit, editItem.product_id, -diff, editRequestRef.current);
       // The posted movement updates this card. A second stock write would double-count.
       await postInventoryDocument({
         itemId: editItem.id,
@@ -167,6 +170,8 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
         movementType: diff > 0 ? "in" : "out",
         quantity: Math.abs(diff),
         sourceType: diff > 0 ? "manual_in" : "manual_out",
+        sourceId: editRequestRef.current,
+        sourceLineId: editItem.id,
         reason: "تعديل رصيد يدوي",
         notes: "تعديل رصيد يدوي",
         party: warehouseName,
@@ -190,7 +195,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     try {
       const qty = Number(it.stock);
       if (qty > 0) {
-        await adjustMainForItem(it.name, it.unit, it.product_id, qty);
+        await adjustMainForItem(it.name, it.unit, it.product_id, qty, crypto.randomUUID());
         await postInventoryDocument({
           itemId: it.id,
           warehouseId: whId,

@@ -22582,6 +22582,7 @@ export type Database = {
           p_reference_type?: string
           p_unit_cost?: number
           p_warehouse_id: string
+          p_request_id?: string
         }
         Returns: string
       }

@@ -95,8 +95,70 @@ BEGIN
   IF to_regprocedure('public.inventory_reconciliation_check_core(integer)') IS NULL THEN
     RAISE EXCEPTION 'reconciliation core was not renamed';
   END IF;
+  IF to_regprocedure('public.stock_report_totals(uuid)') IS NULL THEN
+    RAISE EXCEPTION 'missing stock_report_totals';
+  END IF;
+  IF to_regprocedure('public.post_manual_inventory_movement(uuid, text, numeric, text, text, text, text, text, timestamptz, text, numeric, numeric, uuid)') IS NULL
+     OR to_regprocedure('public.inv_post_movement(uuid, uuid, text, numeric, numeric, text, text, text, text, boolean, uuid)') IS NULL THEN
+    RAISE EXCEPTION 'manual request key argument is missing';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+     WHERE schemaname = 'public' AND indexname = 'courier_return_line_once'
+  ) THEN
+    RAISE EXCEPTION 'courier return unique key is missing';
+  END IF;
 END
 $post$;
+
+-- Guard trigger on every active store. A missing name fails the apply.
+DO $guards$
+DECLARE
+  v_name text;
+  v_missing text := '';
+BEGIN
+  FOREACH v_name IN ARRAY ARRAY[
+    'trg_00_reject_direct_inventory_stock_write',
+    'trg_00_reject_direct_inventory_stock_insert',
+    'trg_00_reject_direct_inventory_movement_write',
+    'trg_00_reject_direct_meat_raw_stock',
+    'trg_00_named_stock_feed_raw',
+    'trg_00_named_stock_feed_products',
+    'trg_00_named_stock_slaughter_feed',
+    'trg_00_named_stock_brooding_feed',
+    'trg_00_named_stock_mf_products',
+    'trg_00_stale_products_stock',
+    'trg_00_stale_meat_raw',
+    'trg_00_stale_meat_finished',
+    'trg_00_stale_meat_packaging',
+    'trg_00_stale_mf_raw_materials',
+    'trg_00_stale_mf_finished_items',
+    'trg_00_stale_packaging_materials',
+    'trg_00_packaging_history_raw',
+    'trg_00_packaging_history_main',
+    'trg_00_reject_premature_dispatched'
+  ]
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_trigger WHERE tgname = v_name AND NOT tgisinternal
+    ) THEN
+      v_missing := v_missing || ' ' || v_name;
+    END IF;
+  END LOOP;
+  IF v_missing <> '' THEN
+    RAISE EXCEPTION 'guard trigger missing:%', v_missing;
+  END IF;
+END
+$guards$;
+
+SELECT c.relname AS store, t.tgname AS guard
+  FROM pg_trigger t
+  JOIN pg_class c ON c.oid = t.tgrelid
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+ WHERE n.nspname = 'public'
+   AND NOT t.tgisinternal
+   AND t.tgname LIKE 'trg_00_%'
+ ORDER BY c.relname, t.tgname;
 
 SELECT check_code, count(*) AS rows
   FROM public.inventory_reconciliation_check(3)
@@ -109,3 +171,14 @@ SELECT w.name AS warehouse_name, g.warehouse_id, g.role::text, g.capability
   FROM public.warehouse_role_grants g
   JOIN public.warehouses w ON w.id = g.warehouse_id
  ORDER BY w.name, g.role::text, g.capability;
+
+SELECT 'unmapped_packaging' AS report, count(*) AS rows FROM public.list_unmapped_packaging()
+UNION ALL
+SELECT 'unmapped_slaughter', count(*) FROM public.list_unmapped_slaughter_outputs()
+UNION ALL
+SELECT 'untransferred_production', count(*) FROM public.list_untransferred_production()
+UNION ALL
+SELECT 'open_items', count(*) FROM public.closed_loop_open_items();
+
+-- Same stock-writer check CI runs. Fails the script if a non-ledger function writes stock.
+\ir check_ledger_stock_writers.sql

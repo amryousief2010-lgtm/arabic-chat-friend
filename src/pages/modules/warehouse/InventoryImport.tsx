@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +32,7 @@ const InventoryImport = () => {
   const [parsed, setParsed] = useState<ParsedRow[]>([]);
   const [fileName, setFileName] = useState("");
   const [saving, setSaving] = useState(false);
+  const importRequestId = useRef<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -100,6 +101,8 @@ const InventoryImport = () => {
 
   const save = async () => {
     if (validRows.length === 0) return;
+    if (!importRequestId.current) importRequestId.current = crypto.randomUUID();
+    const requestId = importRequestId.current;
     setSaving(true);
     try {
       if (mode === "items") {
@@ -131,6 +134,7 @@ const InventoryImport = () => {
               quantity: qty,
               reason: "رصيد افتتاحي من استيراد الأصناف",
               referenceType: "opening_balance",
+              requestId,
             });
           }
         }
@@ -153,6 +157,7 @@ const InventoryImport = () => {
               party: r.data.party?.trim() || null,
               reference: r.data.reference?.trim() || null,
               referenceType: movementType === "out" ? "manual_out" : movementType === "adjustment" ? "manual_adjustment" : "manual_in",
+              requestId,
             });
           }
         }
@@ -174,6 +179,7 @@ const InventoryImport = () => {
         }
       }
       toast({ title: "تم الحفظ", description: `تم استيراد ${validRows.length} سجلًا` });
+      importRequestId.current = null;
       setParsed([]);
       setFileName("");
     } catch (e: any) {

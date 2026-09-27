@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -143,6 +143,10 @@ const ManualStockOutDialog = ({
   items,
   onSaved,
 }: Props) => {
+  const requestIdRef = useRef(crypto.randomUUID());
+  useEffect(() => {
+    if (open) requestIdRef.current = crypto.randomUUID();
+  }, [open]);
   const { user, profile, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth() as any;
   const canAddParty = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const canManualKg = isGeneralManager || isExecutiveManager;
@@ -499,6 +503,7 @@ const ManualStockOutDialog = ({
           overrideReason: isManager && overrideReason.trim().length >= 3 ? overrideReason.trim() : null,
           packageCount: info.pkgCount,
           packageWeightKg: info.pkgWeight,
+          requestId: requestIdRef.current,
         });
         slipRows.push({
           name: it.name,

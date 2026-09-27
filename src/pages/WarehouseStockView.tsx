@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
@@ -90,6 +90,7 @@ const normalizeSearch = (value: unknown) =>
     .replace(/\s+/g, " ");
 
 const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
+  const stockRequestRef = useRef(crypto.randomUUID());
   const { isExecutiveManager, isGeneralManager, isAgouzaWarehouseKeeper, isWarehouseSupervisor, canManageStock } = useAuth();
   const navigate = useNavigate();
   const canEditAll = isExecutiveManager || isGeneralManager;
@@ -470,7 +471,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
     setSaving(true);
     try {
       if (itemId) {
-        await setInventoryItemStock(itemId, newActualKg, reason.trim());
+        await setInventoryItemStock(itemId, newActualKg, reason.trim(), stockRequestRef.current);
       } else {
         const { data, error } = await supabase
           .from("inventory_items")
@@ -485,6 +486,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             quantity: newActualKg,
             reason: reason.trim(),
             referenceType: "stock_adjustment",
+            requestId: stockRequestRef.current,
           });
         }
         if (wh === "agouza") setAgouzaItemIds((m) => ({ ...m, [productId]: data!.id }));
@@ -554,7 +556,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             <button
               className="text-muted-foreground hover:text-primary opacity-60 hover:opacity-100"
               title="تعديل الجرد الفعلي"
-              onClick={() => { setEditingKey(key); setEditValue(String(pkgs)); }}
+              onClick={() => { stockRequestRef.current = crypto.randomUUID(); setEditingKey(key); setEditValue(String(pkgs)); }}
             >
               <Pencil className="w-3 h-3" />
             </button>

@@ -273,18 +273,7 @@ export default function MeatProductionWarehouses() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base">فواتير التصنيع</CardTitle>
-                <Dialog open={prodOpen} onOpenChange={setProdOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="gap-1"><Plus className="w-4 h-4" />فاتورة تصنيع جديدة</Button>
-                  </DialogTrigger>
-                  <ProductionDialog
-                    open={prodOpen}
-                    onOpenChange={setProdOpen}
-                    rawMaterials={(rawQ.data || []).filter((r) => r.is_active)}
-                    products={finishedQ.data || []}
-                    onSaved={refreshAll}
-                  />
-                </Dialog>
+                <span className="text-xs text-muted-foreground">موقوف — استخدم فواتير تصنيع مصنع اللحوم على دفتر المخزون</span>
               </CardHeader>
               <CardContent>
                 <Table>

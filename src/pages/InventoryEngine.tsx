@@ -156,7 +156,9 @@ const InventoryEngine = () => {
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
+  const [requestId, setRequestId] = useState("");
   const openDlg = (type: "adjust" | "transfer" | "stockin" | "stockout", item: Balance) => {
+    setRequestId(crypto.randomUUID());
     setActiveItem(item);
     setDlg(type);
     setFQty("");
@@ -177,19 +179,20 @@ const InventoryEngine = () => {
         res = await supabase.rpc("inv_post_movement", {
           p_item_id: activeItem.id, p_warehouse_id: activeItem.warehouse_id,
           p_movement_type: "stock_in", p_quantity: Number(fQty), p_unit_cost: Number(fCost),
-          p_module: activeItem.module, p_reason: fReason || null,
+          p_module: activeItem.module, p_reason: fReason || null, p_request_id: requestId,
         });
       } else if (dlg === "stockout") {
         res = await supabase.rpc("inv_post_movement", {
           p_item_id: activeItem.id, p_warehouse_id: activeItem.warehouse_id,
           p_movement_type: "stock_out", p_quantity: Number(fQty),
           p_module: activeItem.module, p_reason: fReason, p_override_negative: fOverride,
+          p_request_id: requestId,
         });
       } else if (dlg === "adjust") {
         res = await supabase.rpc("inv_post_movement", {
           p_item_id: activeItem.id, p_warehouse_id: activeItem.warehouse_id,
           p_movement_type: "adjustment", p_quantity: Number(fQty),
-          p_module: activeItem.module, p_reason: fReason,
+          p_module: activeItem.module, p_reason: fReason, p_request_id: requestId,
         });
       } else if (dlg === "transfer") {
         if (!fDestWh) throw new Error("اختر المستودع الوجهة");

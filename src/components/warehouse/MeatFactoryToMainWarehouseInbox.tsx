@@ -78,10 +78,9 @@ export function MeatFactoryToMainWarehouseInbox({ defaultWarehouseId }: Props) {
     if (!mfReject) return;
     if (!mfReason.trim()) { toast.error("اكتب سبب الرفض"); return; }
     setBusy(true);
-    const { error } = await supabase.rpc("reject_mf_transfer", { p_id: mfReject.id, p_reason: mfReason });
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("تم رفض أمر النقل وإرجاع الكميات للمصنع");
+    toast.error("هذه الدالة موقوفة، استخدم رفض تحويل الإنتاج الحي");
+    return;
     setMfReject(null);
     fetchAll();
   };
@@ -168,9 +167,6 @@ export function MeatFactoryToMainWarehouseInbox({ defaultWarehouseId }: Props) {
                         <div className="flex items-center gap-2 justify-end">
                           <Button size="sm" disabled={busy} onClick={() => confirmMfReceive(t)} className="bg-emerald-600 hover:bg-emerald-700">
                             <CheckCircle2 className="w-4 h-4 ml-1" /> اعتماد الاستلام
-                          </Button>
-                          <Button size="sm" variant="destructive" onClick={() => { setMfReject(t); setMfReason(""); }}>
-                            <XCircle className="w-4 h-4 ml-1" /> رفض
                           </Button>
                         </div>
                       ) : (

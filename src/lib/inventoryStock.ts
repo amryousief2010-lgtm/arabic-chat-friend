@@ -21,6 +21,7 @@ export async function postManualInventoryMovement(args: {
   overrideReason?: string | null;
   packageCount?: number | null;
   packageWeightKg?: number | null;
+  requestId?: string | null;
 }): Promise<ManualMovementResult> {
   const { data, error } = await (supabase as any).rpc("post_manual_inventory_movement", {
     p_item_id: args.itemId,
@@ -35,6 +36,7 @@ export async function postManualInventoryMovement(args: {
     p_override_reason: args.overrideReason ?? null,
     p_package_count: args.packageCount ?? null,
     p_package_weight_kg: args.packageWeightKg ?? null,
+    p_request_id: args.requestId ?? null,
   });
   if (error) throw error;
   return data as ManualMovementResult;
@@ -105,11 +107,12 @@ export async function reversePostedMovement(movementId: string, reason: string):
 }
 
 /** Locked adjustment from an absolute target. The delta is computed inside the row lock. */
-export async function setInventoryItemStock(itemId: string, newQty: number, reason: string): Promise<ManualMovementResult> {
+export async function setInventoryItemStock(itemId: string, newQty: number, reason: string, requestId?: string | null): Promise<ManualMovementResult> {
   const { data, error } = await (supabase as any).rpc("set_inventory_item_stock", {
     p_item_id: itemId,
     p_new_qty: newQty,
     p_reason: reason,
+    p_request_id: requestId ?? null,
   });
   if (error) throw error;
   return data as ManualMovementResult;

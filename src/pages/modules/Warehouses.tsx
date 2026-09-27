@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -265,6 +265,11 @@ const Warehouses = () => {
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
   const [itemForm, setItemForm] = useState({ warehouse_id: "", name: "", category: "", sku: "", unit: "قطعة", stock: 0, low_stock_threshold: 10, unit_cost: 0, expiry_date: "" });
 
+  const formRequestId = useRef<Record<string, string>>({});
+  const mintRequestId = (slot: string) => {
+    formRequestId.current[slot] = crypto.randomUUID();
+    return formRequestId.current[slot];
+  };
   const [moveDialog, setMoveDialog] = useState(false);
   const [moveForm, setMoveForm] = useState({ item_id: "", movement_type: "in", quantity: 0, destination_warehouse_id: "", reference: "", party: "", notes: "" });
 
@@ -478,6 +483,7 @@ const Warehouses = () => {
         _origQty: Number(m.quantity || 0),
       }))
     );
+    mintRequestId("edit-manual");
     setEditManualOpen(true);
   };
 
@@ -532,6 +538,7 @@ const Warehouses = () => {
             referenceType,
             packageCount: L.package_count ?? null,
             packageWeightKg: L.package_weight_kg ?? null,
+            requestId: formRequestId.current["edit-manual"],
           });
         } else if (L._deleted && L.id) {
           await reversePostedMovement(L.id, editManualReason.trim());
@@ -548,6 +555,7 @@ const Warehouses = () => {
             referenceType,
             packageCount: L.package_count ?? null,
             packageWeightKg: L.package_weight_kg ?? null,
+            requestId: formRequestId.current["edit-manual"],
           });
         }
       }
@@ -691,6 +699,7 @@ const Warehouses = () => {
       setEditItem(null);
       setItemForm({ warehouse_id: prefilledWarehouseId || warehouses[0]?.id || "", name: "", category: "", sku: "", unit: "قطعة", stock: 0, low_stock_threshold: 10, unit_cost: 0, expiry_date: "" });
     }
+    mintRequestId("item");
     setItemDialog(true);
   };
 
@@ -715,7 +724,7 @@ const Warehouses = () => {
         const res = await supabase.from("inventory_items").update(updatePayload).eq("id", editItem.id);
         if (res.error) throw res.error;
         if (Number(stock) !== Number(editItem.stock)) {
-          await setInventoryItemStock(editItem.id, Number(stock), "تعديل رصيد من بطاقة الصنف");
+          await setInventoryItemStock(editItem.id, Number(stock), "تعديل رصيد من بطاقة الصنف", formRequestId.current.item);
         }
       } else {
         const res = await supabase.from("inventory_items").insert(payload).select("id").single();
@@ -727,6 +736,7 @@ const Warehouses = () => {
             quantity: Number(stock),
             reason: "رصيد افتتاحي عند إنشاء الصنف",
             referenceType: "opening_balance",
+            requestId: formRequestId.current.item,
           });
         }
       }
@@ -740,6 +750,7 @@ const Warehouses = () => {
 
   // ============ Movement ============
   const openMoveDialog = () => {
+    mintRequestId("move");
     setMoveForm({ item_id: "", movement_type: "in", quantity: 0, destination_warehouse_id: "", reference: "", party: "", notes: "" });
     setMoveDialog(true);
   };
@@ -798,6 +809,7 @@ const Warehouses = () => {
         party: moveForm.party || null,
         reference: moveForm.reference || null,
         referenceType: "manual_" + moveForm.movement_type,
+        requestId: formRequestId.current.move,
       });
     } catch (e: any) {
       toast({ title: "خطأ", description: e?.message || "تعذّر تسجيل الحركة", variant: "destructive" });
