@@ -332,14 +332,18 @@ Deno.serve(async (req) => {
           },
         };
 
-        const { error: updErr } = await supabase.from("orders").update({
+        const orderUpdate: Record<string, unknown> = {
           status: "delivered",
           delivered_at: new Date().toISOString(),
           total: s.cod,
-          stock_status: "dispatched",
           stock_router_log: routerLog,
           updated_at: new Date().toISOString(),
-        }).eq("id", order.id);
+        };
+        // Dispatched only after the ledger commit succeeded. A failed commit
+        // stays not_dispatched so the delivery trigger can retry, and the
+        // reason remains on stock_router_log for the failures screen.
+        if (!commit_skipped) orderUpdate.stock_status = "dispatched";
+        const { error: updErr } = await supabase.from("orders").update(orderUpdate).eq("id", order.id);
         if (updErr) throw new Error(`update order: ${updErr.message}`);
 
         // 6. Move order into "عهدة أوردرات مندوب العجوزة"

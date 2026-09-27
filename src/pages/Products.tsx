@@ -459,12 +459,8 @@ const Products = () => {
 
   // Update stock mutation
   const updateStockMutation = useMutation({
-    mutationFn: async (data: { id: string; newStock: number }) => {
-      const { error } = await supabase
-        .from('products')
-        .update({ stock: data.newStock })
-        .eq('id', data.id);
-      if (error) throw error;
+    mutationFn: async (_data: { id: string; newStock: number }) => {
+      throw new Error('رصيد المنتج القديم للقراءة فقط. عدّل بطاقة المخزن.');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });

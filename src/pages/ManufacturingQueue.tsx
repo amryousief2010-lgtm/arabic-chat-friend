@@ -237,12 +237,7 @@ const ManufacturingQueue = () => {
     setSubmitting(true);
     try {
       const newStock = replenishProduct.current_stock + qty;
-      const { error: upErr } = await supabase
-        .from("products")
-        .update({ stock: newStock })
-        .eq("id", replenishProduct.product_id);
-      if (upErr) throw upErr;
-
+      toast.message("رصيد المنتج القديم لا يتحرك. سجّل الوارد على بطاقة المخزن.");
       const { error: logErr } = await (supabase as any).from("stock_replenishment_log").insert({
         product_id: replenishProduct.product_id,
         product_name: replenishProduct.product_name,

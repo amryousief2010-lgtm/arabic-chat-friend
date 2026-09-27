@@ -145,7 +145,7 @@ function UnregisteredDialog({ open, onClose }: { open: boolean; onClose: () => v
           shipping_company: "bostta",
           source_warehouse_id: AGOUZA_WAREHOUSE_ID,
           fulfillment_type: "delivery",
-          stock_status: "dispatched",
+          stock_status: "not_dispatched",
           created_by: user.id,
           notes: `تم إنشاؤه من شيت شركة الشحن — بوليصة ${r.bill_no}`,
           stock_router_log: {
@@ -178,9 +178,15 @@ function UnregisteredDialog({ open, onClose }: { open: boolean; onClose: () => v
         if (iErr) throw new Error(`إضافة المنتجات: ${iErr.message}`);
       }
 
-      // 4. Deduct Agouza stock (allow negative — same as bulk-upload behavior)
+      // 4. Deduct Agouza stock. stock_status stays not_dispatched until the ledger posts.
       await supabase.rpc("reserve_agouza_stock_for_order", { p_order_id: newOrder.id });
-      await supabase.rpc("commit_agouza_stock_on_delivery", { p_order_id: newOrder.id });
+      const { data: commitData, error: commitErr } = await supabase.rpc("commit_agouza_stock_on_delivery", { p_order_id: newOrder.id });
+      if (commitErr) throw new Error(`خصم المخزون: ${commitErr.message}`);
+      const commitStatus = (commitData as { status?: string; details?: unknown } | null)?.status;
+      if (commitStatus && commitStatus !== "dispatched" && commitStatus !== "already_dispatched") {
+        const reason = JSON.stringify((commitData as { details?: unknown })?.details || commitData);
+        throw new Error(`لم يُعلَّم المصروف لأن الترحيل لم ينجح (${commitStatus}): ${reason}`);
+      }
 
       // 5. Mark shipment as registered
       await supabase

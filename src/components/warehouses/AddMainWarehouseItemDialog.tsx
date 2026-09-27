@@ -164,7 +164,6 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
           unit,
           stock: 0,
           category,
-          cost_price: unitCost,
           low_stock_threshold: Math.round(lowStock) || 10,
           barcode,
           is_active: true,
@@ -173,6 +172,13 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
         .single();
       if (prod.error) throw prod.error;
       createdProductId = prod.data!.id;
+      if (unitCost > 0) {
+        const costSet = await (supabase as any).rpc("set_product_cost_price", {
+          p_product_id: createdProductId,
+          p_cost: unitCost,
+        });
+        if (costSet.error) throw costSet.error;
+      }
 
       // 6) Create or reuse inventory_item in main warehouse linked to product.
       // A DB trigger auto-links newly inserted products to customer/main warehouses;
@@ -197,7 +203,6 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
             sku,
             item_code: sku,
             unit,
-            unit_cost: unitCost,
             low_stock_threshold: lowStock,
             notes: form.notes.trim() || null,
             is_active: true,
@@ -217,7 +222,6 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
             item_code: sku,
             unit,
             stock: 0,
-            unit_cost: unitCost,
             low_stock_threshold: lowStock,
             notes: form.notes.trim() || null,
             is_active: true,

@@ -70,6 +70,30 @@ BEGIN
   IF NOT has_column_privilege('authenticated', 'public.products', 'price', 'SELECT') THEN
     RAISE EXCEPTION 'sale price is hidden';
   END IF;
+  IF to_regprocedure('public.post_named_stock(text, uuid, numeric, text, uuid, text, text, numeric, text, numeric)') IS NULL THEN
+    RAISE EXCEPTION 'missing post_named_stock';
+  END IF;
+  IF to_regprocedure('public.packaging_store_name()') IS NULL
+     OR public.packaging_store_name() IS DISTINCT FROM 'meat_factory_raw_items' THEN
+    RAISE EXCEPTION 'packaging store switch is not the expected default';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+     WHERE tgname = 'trg_00_reject_premature_dispatched'
+       AND NOT tgisinternal
+  ) THEN
+    RAISE EXCEPTION 'premature dispatched guard is missing';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+     WHERE tgname = 'trg_00_stale_products_stock'
+       AND NOT tgisinternal
+  ) THEN
+    RAISE EXCEPTION 'stale stock guard is missing';
+  END IF;
+  IF to_regprocedure('public.inventory_reconciliation_check_core(integer)') IS NULL THEN
+    RAISE EXCEPTION 'reconciliation core was not renamed';
+  END IF;
 END
 $post$;
 

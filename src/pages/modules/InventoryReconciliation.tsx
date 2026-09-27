@@ -34,6 +34,8 @@ const LABELS: Record<string, string> = {
   negative_stock: "رصيد سالب",
   movement_without_snapshot: "حركة بلا لقطة",
   transfer_in_transit: "تحويل لم يُستلم",
+  named_stock_mismatch: "فرق مخزن منفصل",
+  named_negative_stock: "رصيد سالب في مخزن منفصل",
 };
 
 export default function InventoryReconciliation() {
@@ -76,7 +78,10 @@ export default function InventoryReconciliation() {
     <DashboardLayout>
       <div className="space-y-4 p-4" dir="rtl">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-xl font-semibold">مطابقة دفتر المخزون</h1>
+          <div>
+            <h1 className="text-xl font-semibold">مطابقة دفتر المخزون</h1>
+            <p className="text-sm text-muted-foreground">أساس الكروت هو جرد ٣٠ سبتمبر ٢٠٢٦. افتتاح ٢ يونيو و١٨ يونيو لا يُجمع فوق الجرد.</p>
+          </div>
           <Button onClick={load} disabled={loading}>{loading ? "جارٍ التحميل" : "تحديث"}</Button>
         </div>
         <Card>

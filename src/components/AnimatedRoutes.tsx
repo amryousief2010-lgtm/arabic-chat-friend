@@ -132,6 +132,8 @@ const WarehouseReports = lazy(() => import("@/pages/modules/WarehouseReports"));
 const WarehouseDailyReport = lazy(() => import("@/pages/modules/WarehouseDailyReport"));
 const InventoryReconciliation = lazy(() => import("@/pages/modules/InventoryReconciliation"));
 const OutletSalesStatements = lazy(() => import("@/pages/modules/OutletSalesStatements"));
+const UntransferredProduction = lazy(() => import("@/pages/modules/UntransferredProduction"));
+const UnreceivedSlaughterOutputs = lazy(() => import("@/pages/modules/UnreceivedSlaughterOutputs"));
 const WarehouseAdjustmentsLog = lazy(() => import("@/pages/modules/WarehouseAdjustmentsLog"));
 const RecipeDetail = lazy(() => import("@/pages/modules/feed/RecipeDetail"));
 const BatchTracking = lazy(() => import("@/pages/modules/feed/BatchTracking"));
@@ -1105,6 +1107,16 @@ const AnimatedRoutes = () => {
           <Route path="/modules/warehouses/outlet-statements" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager']}>
               <PageTransition><OutletSalesStatements /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/untransferred-production" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant']}>
+              <PageTransition><UntransferredProduction /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/unreceived-slaughter" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'warehouse_supervisor', 'production_manager']}>
+              <PageTransition><UnreceivedSlaughterOutputs /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/daily-report" element={
