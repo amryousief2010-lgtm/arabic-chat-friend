@@ -1,0 +1,21 @@
+name: perf-budget
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  budget:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Install
+        run: npm install --ignore-scripts
+      - name: Build
+        run: npm run build
+      - name: First-load and route-chunk budget
+        run: node scripts/check_perf_budget.mjs
