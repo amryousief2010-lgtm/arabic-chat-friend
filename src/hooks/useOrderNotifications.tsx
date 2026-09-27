@@ -47,7 +47,23 @@ export const useOrderNotifications = () => {
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase
+    const surface = (row: {
+      title: string;
+      description: string;
+      type: string | null;
+    }) => {
+      if (row.type !== 'new_order' && row.type !== 'status_update') return;
+
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+
+      if (settings.soundEnabled) playNotificationSound();
+
+      toast({ title: row.title, description: row.description });
+    };
+
+    const targeted = supabase
       .channel(`order-notifications-inapp-${user.id}`)
       .on(
         'postgres_changes',
@@ -62,24 +78,41 @@ export const useOrderNotifications = () => {
             title: string;
             description: string;
             type: string | null;
-            order_id: string | null;
+            target_user_id?: string | null;
           };
+          if (row.target_user_id !== user.id) return;
+          surface(row);
+        }
+      )
+      .subscribe();
 
-          if (row.type !== 'new_order' && row.type !== 'status_update') return;
-
-          queryClient.invalidateQueries({ queryKey: ['notifications'] });
-          queryClient.invalidateQueries({ queryKey: ['unread-notifications'] });
-          queryClient.invalidateQueries({ queryKey: ['orders'] });
-
-          if (settings.soundEnabled) playNotificationSound();
-
-          toast({ title: row.title, description: row.description });
+    // Broadcast inserts have a null target. Same toast and sound as a targeted row.
+    const broadcast = supabase
+      .channel(`order-notifications-broadcast-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: 'target_user_id=is.null',
+        },
+        (payload) => {
+          const row = payload.new as {
+            title: string;
+            description: string;
+            type: string | null;
+            target_user_id?: string | null;
+          };
+          if (row.target_user_id != null) return;
+          surface(row);
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(targeted);
+      supabase.removeChannel(broadcast);
     };
   }, [user, toast, settings.soundEnabled, queryClient]);
 };
