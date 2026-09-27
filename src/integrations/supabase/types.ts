@@ -8597,6 +8597,7 @@ export type Database = {
           stock_after: number | null
           stock_before: number | null
           effect_mode: string | null
+          period_lock_override_reason: string | null
           total_cost: number | null
           unit_cost: number | null
           warehouse_id: string
@@ -8631,6 +8632,7 @@ export type Database = {
           stock_after?: number | null
           stock_before?: number | null
           effect_mode?: string | null
+          period_lock_override_reason?: string | null
           total_cost?: number | null
           unit_cost?: number | null
           warehouse_id: string
@@ -8665,6 +8667,7 @@ export type Database = {
           stock_after?: number | null
           stock_before?: number | null
           effect_mode?: string | null
+          period_lock_override_reason?: string | null
           total_cost?: number | null
           unit_cost?: number | null
           warehouse_id?: string

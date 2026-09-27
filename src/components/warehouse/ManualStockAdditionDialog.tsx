@@ -154,6 +154,7 @@ const ManualStockAdditionDialog = ({
   const [supplier, setSupplier] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
   const [rows, setRows] = useState<Row[]>([newRow()]);
   const [saving, setSaving] = useState(false);
   const [customParties, setCustomParties] = useState<{ id: string; name: string }[]>([]);
@@ -265,7 +266,7 @@ const ManualStockAdditionDialog = ({
     setSaving(true);
     try {
       const opNo = await generateOpNo("MAN-IN");
-      const performedAt = new Date().toISOString();
+      const performedAt = `${deliveryDate}T12:00:00+03:00`;
       const partyLabel = `توريد مباشر مؤقت من: ${sourceLabel}`;
 
       // Aggregate by item (in case duplicates), but keep package info from first occurrence
@@ -392,6 +393,7 @@ const ManualStockAdditionDialog = ({
           approval_status: "posted",
           performed_by: user?.id ?? null,
           performed_at: performedAt,
+          period_lock_override_reason: isManager && overrideReason.trim().length >= 3 ? overrideReason.trim() : null,
         });
         stockUpdates.push({ id: itemId, newStock: stockAfter });
         slipRows.push({
@@ -586,6 +588,17 @@ const ManualStockAdditionDialog = ({
                 maxLength={500}
               />
             </div>
+            {isManager && (
+              <div className="md:col-span-3">
+                <Label className="text-xs">سبب تجاوز قفل الجرد (للمدير العام أو التنفيذي فقط)</Label>
+                <Input
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="يُطلب فقط إذا كان تاريخ التوريد قبل اعتماد الجرد"
+                  maxLength={300}
+                />
+              </div>
+            )}
           </div>
 
           <div className="rounded border">

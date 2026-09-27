@@ -155,6 +155,7 @@ const ManualStockOutDialog = ({
   const [overrideReason, setOverrideReason] = useState("");
   const [deliveryDate, setDeliveryDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
   const [rows, setRows] = useState<Row[]>([newRow()]);
   const [saving, setSaving] = useState(false);
   const [customParties, setCustomParties] = useState<{ id: string; name: string }[]>([]);
@@ -349,7 +350,7 @@ const ManualStockOutDialog = ({
     setSaving(true);
     try {
       const opNo = await generateOpNo();
-      const performedAt = new Date().toISOString();
+      const performedAt = `${deliveryDate}T12:00:00+03:00`;
       const partyLabel = `صرف مباشر مؤقت إلى: ${destLabel}`;
 
       const byItem = new Map<string, { qty: number; pkgCount: number | null; pkgWeight: number | null; manual: boolean }>();
@@ -496,6 +497,7 @@ const ManualStockOutDialog = ({
           approval_status: "posted",
           performed_by: user?.id ?? null,
           performed_at: performedAt,
+          period_lock_override_reason: isManager && overrideReason.trim().length >= 3 ? overrideReason.trim() : null,
         });
         stockUpdates.push({ id: itemId, newStock: stockAfter });
         slipRows.push({
@@ -703,6 +705,17 @@ const ManualStockOutDialog = ({
                 maxLength={500}
               />
             </div>
+            {isManager && (
+              <div>
+                <Label className="text-xs">سبب تجاوز قفل الجرد (للمدير العام أو التنفيذي فقط)</Label>
+                <Input
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="يُطلب فقط إذا كان تاريخ الصرف قبل اعتماد الجرد"
+                  maxLength={300}
+                />
+              </div>
+            )}
           </div>
 
           {/* Reservation warning panel */}
