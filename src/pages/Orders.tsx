@@ -600,6 +600,9 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     endDate: string | null;
     pageSize: number;
   }>({ nextPage: 1, startDate: null, endDate: null, pageSize: 100 });
+  const requestSeq = useRef(0);
+  const fetchOrdersRef = useRef<(searchOverride?: string) => Promise<void>>(async () => {});
+  const lastSearchFetch = useRef<string | null>(null);
   const triggerSearchNow = () => {
     const nextSearch = draftSearch.trim();
     setAppliedSearch(nextSearch);
@@ -733,7 +736,11 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       isShippingCompany,
     });
 
-    setLoading(true);
+    const seq = ++requestSeq.current;
+    lastSearchFetch.current = activeSearch;
+    // A search keeps the current cards on screen. The full-page spinner stays
+    // for the first load, when there is nothing to keep visible.
+    if (!activeSearch) setLoading(true);
     try {
       // فلتر السنة الفعّال: السنة الحالية عند أي فلتر تشغيلي، أو اختيار المستخدم
       // الصريح («كل السنوات» / سنة محددة). الفترة الزمنية وتبويب السنة يبقيان
@@ -870,108 +877,44 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         ]);
       };
 
-      // ====== فرع البحث: نجلب فقط الطلبات المطابقة بدل تحميل كل الشهر ======
+      // ====== فرع البحث: استدعاء واحد بدل سلسلة الطلبات الخمسة ======
       if (activeSearch) {
-        // ندعم كتابة الأرقام بالعربية (٠١٢٣) بتحويلها لأرقام إنجليزية قبل البحث
-        const term = toAsciiDigits(activeSearch);
-        const termNorm = normalizeArabic(term); // يوحّد أ/إ/آ→ا و ى→ي و ة→ه ويزيل التشكيل والمسافات الزائدة
-        const digits = term.replace(/[^\d]/g, "");
-        // أنماط مرنة للبحث على الخادم:
-        // - plainPattern: يتجاهل المسافات الزائدة بين الكلمات (كلمة%كلمة)
-        // - fuzzyPattern: يستبدل الحروف المتشابهة (ا/ي/ه) بمحرف واحد أي كان،
-        //   فيطابق «هند طارق» حتى لو كانت مكتوبة بـ أ/إ/آ أو ى أو ة في قاعدة البيانات.
-        const tokens = termNorm.split(" ").filter(Boolean);
-        const plainPattern = tokens.length ? `%${tokens.join("%")}%` : "";
-        const fuzzyPattern = tokens.length
-          ? `%${tokens.map((t) => t.replace(/[اأإآيىةه]/g, "_")).join("%")}%`
-          : "";
-        // 1) ابحث عن العملاء المطابقين بالاسم أو الهاتف الأساسي أو الهاتف الإضافي أو المحافظة
-        const SELECT_COLS = `${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`;
-        const ordersById = new Map<string, any>();
-        const custFilters: string[] = [];
-        if (plainPattern) custFilters.push(`name.ilike.${plainPattern}`);
-        if (fuzzyPattern && fuzzyPattern !== plainPattern) custFilters.push(`name.ilike.${fuzzyPattern}`);
-        if (digits) custFilters.push(`phone.ilike.%${digits}%`);
-        if (digits) custFilters.push(`phone2.ilike.%${digits}%`);
-        if (plainPattern) custFilters.push(`governorate.ilike.${plainPattern}`);
-        const textFilters: string[] = [
-          `order_number.ilike.%${term}%`,
-          `shipping_bill_no.ilike.%${term}%`,
-        ];
-        if (digits) {
-          textFilters.push(`order_number.ilike.%${digits}%`);
-          textFilters.push(`shipping_bill_no.ilike.%${digits}%`);
-        }
-        if (plainPattern) textFilters.push(`delivery_address.ilike.${plainPattern}`);
-        if (fuzzyPattern && fuzzyPattern !== plainPattern) {
-          textFilters.push(`delivery_address.ilike.${fuzzyPattern}`);
-        }
-        // Customer lookup and the text match on orders do not depend on each other.
-        const [custRes, textRes] = await Promise.all([
-          custFilters.length > 0
-            ? supabase.from('customers').select('id').or(custFilters.join(',')).limit(1000)
-            : Promise.resolve({ data: [] as { id: string }[], error: null }),
-          supabase
-            .from('orders')
-            .select(SELECT_COLS)
-            .or(textFilters.join(','))
-            .order('created_at', { ascending: false })
-            .limit(300),
-        ]);
-        if (custRes.error) console.error('customer search error', custRes.error);
-        if (textRes.error) throw textRes.error;
-        const custIds = (custRes.data || []).map((c: any) => c.id);
-        (textRes.data || []).forEach((o: any) => ordersById.set(o.id, o));
-
-        const CUST_CHUNK = 100;
-        const custChunks: string[][] = [];
-        for (let i = 0; i < custIds.length; i += CUST_CHUNK) {
-          custChunks.push(custIds.slice(i, i + CUST_CHUNK));
-        }
-        for (let g = 0; g < custChunks.length; g += 4) {
-          const group = custChunks.slice(g, g + 4);
-          const results = await Promise.all(group.map(async (chunk) => {
-            const { data: custOrders, error: custErr } = await supabase
-              .from('orders')
-              .select(SELECT_COLS)
-              .in('customer_id', chunk)
-              .order('created_at', { ascending: false })
-              .limit(300);
-            if (custErr) throw custErr;
-            return custOrders || [];
-          }));
-          results.forEach((rows) => rows.forEach((o: any) => ordersById.set(o.id, o)));
-        }
-
-        const ords = Array.from(ordersById.values()).sort(
-          (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-        );
-        let items: any[] = [];
-        if (ords.length > 0) {
-          const ids = ords.map((o) => o.id);
-          const idChunks: string[][] = [];
-          for (let i = 0; i < ids.length; i += 200) idChunks.push(ids.slice(i, i + 200));
-          for (let g = 0; g < idChunks.length; g += 4) {
-            const group = idChunks.slice(g, g + 4);
-            const results = await Promise.all(group.map(async (chunk) => {
-              const { data: itemsData, error: itemsErr } = await supabase
-                .from('order_items')
-                .select(ITEM_COLS)
-                .in('order_id', chunk);
-              if (itemsErr) throw itemsErr;
-              return itemsData || [];
-            }));
-            results.forEach((rows) => { items = items.concat(rows); });
-          }
-        }
-        await loadLookups(ords, items);
+        // أثناء البحث تتجاهل الصفحة فلاتر الحالة والمخزن والمنتج وغيرها
+        // (تبقى على العميل). لا نمرّرها هنا حتى لا تختفي صفوف كان البحث يُظهرها.
+        const { data: searchRows, error: searchErr } = await supabase.rpc('search_orders', {
+          p_query: activeSearch,
+          p_limit: 10000,
+          p_offset: 0,
+        });
+        if (searchErr) throw searchErr;
+        if (seq !== requestSeq.current) return;
+        const ords = ((searchRows || []) as any[]).map((row) => {
+          if (row.created_by && row.creator_name) profilesMap[row.created_by] = row.creator_name;
+          if (row.source_warehouse_id && row.warehouse_name) warehousesMap[row.source_warehouse_id] = row.warehouse_name;
+          if (row.route_id && row.route_name) routesMap[row.route_id] = row.route_name;
+          const items = Array.isArray(row.items) ? row.items : [];
+          items.forEach((it: any) => {
+            if (it.product_id && it.unit) productsMap[it.product_id] = it.unit;
+            if (it.product_name) productNamesSet.add(it.product_name);
+          });
+          return {
+            ...row,
+            customers: {
+              name: row.customer_name,
+              phone: row.customer_phone,
+              phone2: row.customer_phone2,
+              governorate: row.governorate,
+            },
+            order_offer_instances: Array.isArray(row.offer_instances) ? row.offer_instances : [],
+            order_items: items,
+          };
+        });
         const byOrder: Record<string, any[]> = {};
-        items.forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
+        ords.forEach((o: any) => { byOrder[o.id] = o.order_items || []; });
         const formatted = formatBatch(ords, byOrder);
-        items.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
         // ندمج نتائج الخادم مع الطلبات المحمّلة مسبقًا بدل استبدالها، حتى لا تختفي
-        // نتيجة مطابقة موجودة بالفعل في الصفحة لو لم يلتقطها استعلام الخادم
-        // (اختلاف كتابة الاسم/مسافات زائدة). الفلترة النهائية تتم بالمطابقة المطبّعة.
+        // نتيجة مطابقة موجودة بالفعل في الصفحة لو لم يلتقطها استعلام الخادم.
+        // الفلترة النهائية تتم بالمطابقة المطبّعة على العميل كما كانت.
         setOrders((prev) => {
           const map = new Map<string, Order>();
           prev.forEach((o) => map.set(o.id, o));
@@ -982,7 +925,6 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         });
         setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
         setHasMorePages(false);
-        setLoading(false);
         return;
       }
 
@@ -1158,9 +1100,26 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       console.error('Error fetching orders:', error);
       toast.error('حدث خطأ أثناء جلب الطلبات');
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
   };
+  fetchOrdersRef.current = fetchOrders;
+
+  // بحث أثناء الكتابة. الطلب السابق يُتجاهل لو وصل متأخرًا.
+  const searchDebounceReady = useRef(false);
+  useEffect(() => {
+    if (!searchDebounceReady.current) {
+      searchDebounceReady.current = true;
+      return;
+    }
+    const handle = window.setTimeout(() => {
+      const next = draftSearch.trim();
+      if (next === lastSearchFetch.current) return;
+      setAppliedSearch(next);
+      void fetchOrdersRef.current(next);
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [draftSearch]);
 
   // تحميل صفحة إضافية عند الضغط على "تحميل المزيد" (يستخدم على الموبايل بشكل أساسي)
   // يحمّل كل الطلبات المتبقية ضمن نطاق التاريخ الحالي (مثلاً كل طلبات الشهر) دفعة واحدة عبر التصفح الداخلي.

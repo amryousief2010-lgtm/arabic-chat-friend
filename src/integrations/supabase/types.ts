@@ -22756,6 +22756,64 @@ export type Database = {
         }
         Returns: Json
       }
+      search_orders: {
+        Args: {
+          p_collection_method?: string
+          p_from?: string
+          p_fulfillment?: string
+          p_governorate?: string
+          p_limit?: number
+          p_moderator?: string
+          p_offset?: number
+          p_product_name?: string
+          p_query: string
+          p_route_id?: string
+          p_status?: string
+          p_to?: string
+          p_warehouse_id?: string
+        }
+        Returns: {
+          collection_method: string | null
+          collection_status: string | null
+          collection_updated_at: string | null
+          courier_cash_due: number | null
+          created_at: string
+          created_by: string | null
+          creator_name: string | null
+          customer_id: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          customer_phone2: string | null
+          delivery_address: string | null
+          delivery_fee: number
+          discount: number
+          free_amount: number | null
+          fulfillment_type: string | null
+          governorate: string | null
+          id: string
+          instapay_amount: number | null
+          items: Json
+          moderator: string | null
+          notes: string | null
+          offer_instances: Json
+          order_number: string
+          payment_method: string | null
+          payment_status: string | null
+          route_id: string | null
+          route_name: string | null
+          shipping_bill_no: string | null
+          shipping_company: string | null
+          source: string | null
+          source_warehouse_id: string | null
+          status: string
+          subtotal: number
+          total: number
+          update_status_marker: string | null
+          update_status_updated_at: string | null
+          vodafone_cash_amount: number | null
+          warehouse_name: string | null
+        }[]
+      }
       set_order_waybill_manual: {
         Args: { p_bill_no: string; p_order_id: string }
         Returns: Json
