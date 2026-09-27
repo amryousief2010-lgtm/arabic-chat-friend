@@ -10,7 +10,7 @@ const RouteVersionGuard = () => {
   useEffect(() => {
     if (busy.current) return;
     busy.current = true;
-    void checkAndReloadIfStale("interval").finally(() => {
+    void checkAndReloadIfStale("route").finally(() => {
       busy.current = false;
     });
   }, [location.pathname]);

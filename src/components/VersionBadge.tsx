@@ -88,7 +88,7 @@ const VersionBadge = () => {
           )}
           {stale && state?.remote && (
             <button
-              onClick={() => void triggerReload("manual", state.remote!)}
+              onClick={() => void triggerReload("manual", state.remote!, true)}
               style={{
                 marginTop: 8,
                 width: "100%",

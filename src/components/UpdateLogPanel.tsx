@@ -23,6 +23,7 @@ const reasonLabel: Record<ReloadLogEntry["reason"], string> = {
   focus: "عند التركيز",
   visibility: "عند الظهور",
   pageshow: "عند الرجوع للصفحة",
+  route: "عند تغيير الصفحة",
   "post-login": "بعد تسجيل الدخول",
   manual: "يدوي",
   "sw-activated": "تفعيل SW جديد",
