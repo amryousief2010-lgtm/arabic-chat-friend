@@ -18,6 +18,10 @@ DECLARE
   v_card uuid := gen_random_uuid();
   v_fin uuid := gen_random_uuid();
   v_xfer uuid := gen_random_uuid();
+  v_src uuid := gen_random_uuid();
+  v_src_wh uuid := gen_random_uuid();
+  v_dest_wh uuid := gen_random_uuid();
+  v_xfer_key uuid := gen_random_uuid();
   v_pack uuid := gen_random_uuid();
   v_inv uuid := gen_random_uuid();
   v_move uuid := gen_random_uuid();
@@ -77,6 +81,45 @@ BEGIN
   SELECT stock INTO v_stock FROM public.inventory_items WHERE id = v_item;
   IF v_stock IS DISTINCT FROM 6 THEN
     RAISE EXCEPTION 'engine stock %', v_stock;
+  END IF;
+
+  -- Transfer form key: two calls, one document, one out and one in.
+  INSERT INTO public.warehouses (id, name) VALUES
+    (v_src_wh, 'مصدر تحويل ' || left(v_src_wh::text, 8)),
+    (v_dest_wh, 'وجهة تحويل ' || left(v_dest_wh::text, 8));
+  INSERT INTO public.inventory_items (id, warehouse_id, name, unit, stock)
+  VALUES (v_src, v_src_wh, 'صنف تحويل ' || left(v_src::text, 6), 'كجم', 0);
+  v_res := public.post_manual_inventory_movement(
+    v_src, 'in', 10, 'رصيد قبل التحويل', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, gen_random_uuid()
+  );
+  IF v_res->>'status' IS DISTINCT FROM 'posted' THEN
+    RAISE EXCEPTION 'transfer seed %', v_res;
+  END IF;
+  v_res := public.inv_transfer(v_src, v_dest_wh, 3, 'تحويل بمفتاح', v_xfer_key);
+  IF v_res->>'status' IS DISTINCT FROM 'posted' OR (v_res->>'source_id')::uuid IS DISTINCT FROM v_xfer_key THEN
+    RAISE EXCEPTION 'first transfer %', v_res;
+  END IF;
+  v_res := public.inv_transfer(v_src, v_dest_wh, 3, 'تحويل بمفتاح', v_xfer_key);
+  IF v_res->>'status' IS DISTINCT FROM 'already_posted' OR (v_res->>'source_id')::uuid IS DISTINCT FROM v_xfer_key THEN
+    RAISE EXCEPTION 'second transfer %', v_res;
+  END IF;
+  SELECT stock INTO v_stock FROM public.inventory_items WHERE id = v_src;
+  IF v_stock IS DISTINCT FROM 7 THEN
+    RAISE EXCEPTION 'source stock after transfer %', v_stock;
+  END IF;
+  SELECT stock INTO v_stock FROM public.inventory_items WHERE id = (v_res->>'destination_item_id')::uuid;
+  IF v_stock IS DISTINCT FROM 3 THEN
+    RAISE EXCEPTION 'dest stock after transfer %', v_stock;
+  END IF;
+  SELECT count(*) INTO v_n FROM public.inventory_movements
+   WHERE source_id = v_xfer_key AND COALESCE(approval_status, 'posted') = 'posted';
+  IF v_n <> 2 THEN
+    RAISE EXCEPTION 'transfer movements %', v_n;
+  END IF;
+  SELECT count(*) INTO v_n FROM public.inventory_items
+   WHERE warehouse_id = v_dest_wh AND name = (SELECT name FROM public.inventory_items WHERE id = v_src);
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'destination cards %', v_n;
   END IF;
 
   -- 3. Mirror is not added to the daily report or reconciliation.

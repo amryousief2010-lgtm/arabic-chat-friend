@@ -198,7 +198,7 @@ const InventoryEngine = () => {
         if (!fDestWh) throw new Error("اختر المستودع الوجهة");
         res = await supabase.rpc("inv_transfer", {
           p_source_item_id: activeItem.id, p_destination_warehouse_id: fDestWh,
-          p_quantity: Number(fQty), p_reason: fReason,
+          p_quantity: Number(fQty), p_reason: fReason, p_request_id: requestId,
         });
       }
       if (res?.error) throw res.error;

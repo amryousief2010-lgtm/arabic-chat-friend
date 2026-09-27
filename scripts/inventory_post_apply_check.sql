@@ -99,7 +99,8 @@ BEGIN
     RAISE EXCEPTION 'missing stock_report_totals';
   END IF;
   IF to_regprocedure('public.post_manual_inventory_movement(uuid, text, numeric, text, text, text, text, text, timestamptz, text, numeric, numeric, uuid)') IS NULL
-     OR to_regprocedure('public.inv_post_movement(uuid, uuid, text, numeric, numeric, text, text, text, text, boolean, uuid)') IS NULL THEN
+     OR to_regprocedure('public.inv_post_movement(uuid, uuid, text, numeric, numeric, text, text, text, text, boolean, uuid)') IS NULL
+     OR to_regprocedure('public.inv_transfer(uuid, uuid, numeric, text, uuid)') IS NULL THEN
     RAISE EXCEPTION 'manual request key argument is missing';
   END IF;
   IF NOT EXISTS (

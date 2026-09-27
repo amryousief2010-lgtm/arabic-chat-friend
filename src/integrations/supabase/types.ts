@@ -22591,6 +22591,7 @@ export type Database = {
           p_destination_warehouse_id: string
           p_quantity: number
           p_reason: string
+          p_request_id?: string
           p_source_item_id: string
         }
         Returns: Json
