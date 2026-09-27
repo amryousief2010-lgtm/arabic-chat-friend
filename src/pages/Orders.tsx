@@ -587,6 +587,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   const mixedParam = searchParams.get("mixed");
   const [draftSearch, setDraftSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
+  const [searchTruncated, setSearchTruncated] = useState(false);
   const [quickDeliveryOpen, setQuickDeliveryOpen] = useState(false);
   const [modDailyReportOpen, setModDailyReportOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -881,14 +882,19 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       if (activeSearch) {
         // أثناء البحث تتجاهل الصفحة فلاتر الحالة والمخزن والمنتج وغيرها
         // (تبقى على العميل). لا نمرّرها هنا حتى لا تختفي صفوف كان البحث يُظهرها.
+        // PostgREST returns at most 1000 rows per call. Asking for more is
+        // silently truncated, so request the cap and tell the user when it fills.
+        const SEARCH_RESULT_CAP = 1000;
         const { data: searchRows, error: searchErr } = await supabase.rpc('search_orders', {
           p_query: activeSearch,
-          p_limit: 10000,
+          p_limit: SEARCH_RESULT_CAP,
           p_offset: 0,
         });
         if (searchErr) throw searchErr;
         if (seq !== requestSeq.current) return;
-        const ords = ((searchRows || []) as any[]).map((row) => {
+        const searchList = (searchRows || []) as any[];
+        setSearchTruncated(searchList.length >= SEARCH_RESULT_CAP);
+        const ords = searchList.map((row) => {
           if (row.created_by && row.creator_name) profilesMap[row.created_by] = row.creator_name;
           if (row.source_warehouse_id && row.warehouse_name) warehousesMap[row.source_warehouse_id] = row.warehouse_name;
           if (row.route_id && row.route_name) routesMap[row.route_id] = row.route_name;
@@ -927,6 +933,8 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         setHasMorePages(false);
         return;
       }
+
+      setSearchTruncated(false);
 
       // ====== فرع فلتر المنتج: نجلب من الخادم كل الأوردرات التي تحتوي هذا المنتج ======
       // بدون هذا الفرع كنا نعتمد على التحميل بالصفحات (الأحدث أولاً) فتظهر النتائج
@@ -2271,7 +2279,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                 <Search className="w-4 h-4" />
               </Button>
               {draftSearch && (
-                <Button size="sm" variant="ghost" onClick={() => { setDraftSearch(""); setAppliedSearch(""); fetchOrders(""); }} title="مسح">
+                <Button size="sm" variant="ghost" onClick={() => { setDraftSearch(""); setAppliedSearch(""); setSearchTruncated(false); fetchOrders(""); }} title="مسح">
                   <XCircle className="w-4 h-4" />
                 </Button>
               )}
@@ -2279,7 +2287,10 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
             {appliedSearch && (
               <div className="flex items-center gap-2 text-xs bg-muted/60 border rounded-md px-3 py-1.5">
                 <span>نتائج البحث — الفلاتر متجاهلة مؤقتًا</span>
-                <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => { setDraftSearch(""); setAppliedSearch(""); fetchOrders(""); }}>
+                {searchTruncated && (
+                  <span>تم عرض أول 1000 نتيجة فقط. ضيّق البحث لرؤية الباقي.</span>
+                )}
+                <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => { setDraftSearch(""); setAppliedSearch(""); setSearchTruncated(false); fetchOrders(""); }}>
                   إلغاء البحث
                 </Button>
               </div>
