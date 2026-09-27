@@ -2,6 +2,8 @@
 -- A movement whose performed_at is earlier than the warehouse lock is rejected
 -- in Arabic. general_manager and executive_manager may override with a logged reason.
 -- Deliveries dated before the lock are marked skipped_period_lock and do not deduct.
+-- Locks start only at the 30 Sep 2026 count (Africa/Cairo). Earlier approvals,
+-- including any session already approved, do not create a lock row.
 
 CREATE TABLE IF NOT EXISTS public.warehouse_period_locks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -137,7 +139,10 @@ SECURITY DEFINER
 SET search_path TO 'public'
 AS $$
 BEGIN
-  IF NEW.status = 'approved' AND OLD.status IS DISTINCT FROM 'approved' AND NEW.approved_at IS NOT NULL THEN
+  IF NEW.status = 'approved'
+     AND OLD.status IS DISTINCT FROM 'approved'
+     AND NEW.approved_at IS NOT NULL
+     AND NEW.approved_at >= timestamptz '2026-09-30 00:00:00 Africa/Cairo' THEN
     INSERT INTO public.warehouse_period_locks(warehouse_id, locked_until, source, source_id, created_by)
     SELECT NEW.warehouse_id, NEW.approved_at, 'stocktaking', NEW.id, NEW.approved_by
      WHERE NOT EXISTS (
@@ -154,15 +159,9 @@ CREATE TRIGGER trg_lock_warehouse_after_stocktake
 AFTER UPDATE OF status ON public.stocktaking_sessions
 FOR EACH ROW EXECUTE FUNCTION public.lock_warehouse_after_stocktake();
 
-INSERT INTO public.warehouse_period_locks(warehouse_id, locked_until, source, source_id, created_by)
-SELECT s.warehouse_id, s.approved_at, 'stocktaking', s.id, s.approved_by
-  FROM public.stocktaking_sessions s
- WHERE s.status = 'approved'
-   AND s.approved_at IS NOT NULL
-   AND NOT EXISTS (
-     SELECT 1 FROM public.warehouse_period_locks l
-      WHERE l.source = 'stocktaking' AND l.source_id = s.id
-   );
+-- No backfill. Approvals before 2026-09-30 00:00 Africa/Cairo must not create locks,
+-- and sessions already approved (including a future Sep 30 count applied before this
+-- migration) are not replayed. Only a new approval at or after that cutoff inserts a row.
 
 
 CREATE OR REPLACE FUNCTION public._dispatch_order_stock_core(
