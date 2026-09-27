@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+
+const BADGE_REFETCH_MS = 2000;
 
 // Keep in sync with src/pages/Notifications.tsx requiresImmediateReply().
 const INFORMATIONAL_TYPES = new Set(['low_stock', 'production_needed']);
 const ALWAYS_URGENT_TYPES = new Set(['farm_shipment', 'farm_shipment_receipt']);
-const ALWAYS_URGENT_LIST = Array.from(ALWAYS_URGENT_TYPES);
-const EXCLUDED_ORDER_URGENT_TYPES = Array.from(new Set([...INFORMATIONAL_TYPES, ...ALWAYS_URGENT_TYPES]));
-
-const toPostgrestInList = (values: string[]) => `(${values.map((value) => JSON.stringify(value)).join(',')})`;
 
 const isUrgent = (n: { type?: string | null; order_id?: string | null }) =>
   ALWAYS_URGENT_TYPES.has(n.type ?? '') ||
@@ -23,6 +22,9 @@ let cache: UnreadState = { unreadCount: 0, urgentUnreadCount: 0, lastUrgentAt: 0
 let activeSubscribers = 0;
 let fetchInFlight: Promise<void> | null = null;
 let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+let broadcastChannel: ReturnType<typeof supabase.channel> | null = null;
+let subscribedUid: string | null = null;
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 const listeners = new Set<(s: UnreadState) => void>();
 
@@ -61,43 +63,16 @@ const fetchUnreadCount = async () => {
   if (fetchInFlight) return fetchInFlight;
 
   fetchInFlight = (async () => {
-    const unreadBase = supabase
-      .from('notifications')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_read', false);
-
-    const [totalRes, alwaysUrgentRes, orderUrgentTypedRes, orderUrgentNullTypeRes] = await Promise.all([
-      unreadBase,
-      supabase
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .eq('is_read', false)
-        .in('type', ALWAYS_URGENT_LIST),
-      supabase
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .eq('is_read', false)
-        .not('order_id', 'is', null)
-        .not('type', 'is', null)
-        .filter('type', 'not.in', toPostgrestInList(EXCLUDED_ORDER_URGENT_TYPES)),
-      supabase
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .eq('is_read', false)
-        .not('order_id', 'is', null)
-        .is('type', null),
-    ]);
-
-    const hasError = totalRes.error || alwaysUrgentRes.error || orderUrgentTypedRes.error || orderUrgentNullTypeRes.error;
-
-    if (!hasError) {
+    const { data, error } = await supabase.rpc('get_notification_badge_counts');
+    const row = data?.[0];
+    if (!error && row) {
       const urgent =
-        Number(alwaysUrgentRes.count || 0) +
-        Number(orderUrgentTypedRes.count || 0) +
-        Number(orderUrgentNullTypeRes.count || 0);
+        Number(row.always_urgent_count || 0) +
+        Number(row.order_urgent_typed_count || 0) +
+        Number(row.order_urgent_null_type_count || 0);
 
       notifyListeners({
-        unreadCount: Number(totalRes.count || 0),
+        unreadCount: Number(row.unread_count || 0),
         urgentUnreadCount: urgent,
         lastUrgentAt: cache.lastUrgentAt,
       });
@@ -111,44 +86,93 @@ const fetchUnreadCount = async () => {
   }
 };
 
-const ensureRealtimeSubscription = () => {
-  if (realtimeChannel) return;
+const scheduleUnreadRefresh = () => {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    debounceTimer = null;
+    void fetchUnreadCount();
+  }, BADGE_REFETCH_MS);
+};
+
+const onBadgeInsert = (row: { is_read?: boolean; type?: string | null; order_id?: string | null }) => {
+  if (!row.is_read && isUrgent(row)) {
+    cache = { ...cache, lastUrgentAt: Date.now() };
+    notifyListeners(cache);
+    playUrgentSound();
+  }
+  scheduleUnreadRefresh();
+};
+
+const ensureRealtimeSubscription = (uid: string) => {
+  if (realtimeChannel && broadcastChannel && subscribedUid === uid) return;
+  if (realtimeChannel) {
+    void supabase.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+  if (broadcastChannel) {
+    void supabase.removeChannel(broadcastChannel);
+    broadcastChannel = null;
+  }
+  subscribedUid = uid;
+  const targeted = `target_user_id=eq.${uid}`;
+  // Broadcast rows (target_user_id IS NULL) are the new-order / status fan-out.
+  // realtime-js supports `column=is.null`. The handler also ignores a targeted row
+  // if the server ever delivers one on this channel.
+  const broadcast = 'target_user_id=is.null';
 
   realtimeChannel = supabase
-    .channel('unread-notifications')
+    .channel(`unread-notifications-${uid}`)
     .on(
       'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'notifications' },
+      { event: 'INSERT', schema: 'public', table: 'notifications', filter: targeted },
       (payload) => {
-        const row = payload.new as { is_read?: boolean; type?: string; order_id?: string | null };
-        if (!row.is_read && isUrgent(row)) {
-          cache = { ...cache, lastUrgentAt: Date.now() };
-          notifyListeners(cache);
-          playUrgentSound();
-        }
-        void fetchUnreadCount();
+        const row = payload.new as { is_read?: boolean; type?: string | null; order_id?: string | null; target_user_id?: string | null };
+        if (row.target_user_id !== uid) return;
+        onBadgeInsert(row);
       }
     )
     .on(
       'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'notifications' },
-      () => { void fetchUnreadCount(); }
+      { event: 'UPDATE', schema: 'public', table: 'notifications', filter: targeted },
+      () => { scheduleUnreadRefresh(); }
     )
     .on(
       'postgres_changes',
-      { event: 'DELETE', schema: 'public', table: 'notifications' },
-      () => { void fetchUnreadCount(); }
+      { event: 'DELETE', schema: 'public', table: 'notifications', filter: targeted },
+      () => { scheduleUnreadRefresh(); }
+    )
+    .subscribe();
+
+  broadcastChannel = supabase
+    .channel(`unread-notifications-broadcast-${uid}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'notifications', filter: broadcast },
+      (payload) => {
+        const row = payload.new as { is_read?: boolean; type?: string | null; order_id?: string | null; target_user_id?: string | null };
+        if (row.target_user_id != null) return;
+        onBadgeInsert(row);
+      }
     )
     .subscribe();
 };
 
 const cleanupRealtimeSubscription = () => {
-  if (!realtimeChannel || activeSubscribers > 0) return;
-  void supabase.removeChannel(realtimeChannel);
-  realtimeChannel = null;
+  if (activeSubscribers > 0) return;
+  if (realtimeChannel) {
+    void supabase.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+  if (broadcastChannel) {
+    void supabase.removeChannel(broadcastChannel);
+    broadcastChannel = null;
+  }
+  subscribedUid = null;
 };
 
 export const useUnreadNotifications = () => {
+  const { user } = useAuth();
+  const uid = user?.id ?? null;
   const [state, setState] = useState<UnreadState>(cache);
 
   useEffect(() => {
@@ -157,14 +181,14 @@ export const useUnreadNotifications = () => {
     setState(cache);
 
     void fetchUnreadCount();
-    ensureRealtimeSubscription();
+    if (uid) ensureRealtimeSubscription(uid);
 
     return () => {
       listeners.delete(setState);
       activeSubscribers = Math.max(0, activeSubscribers - 1);
       cleanupRealtimeSubscription();
     };
-  }, []);
+  }, [uid]);
 
   return {
     unreadCount: state.unreadCount,

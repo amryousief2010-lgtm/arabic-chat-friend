@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,6 +43,24 @@ const INFORMATIONAL_TYPES = new Set(["low_stock", "production_needed"]);
 export const requiresImmediateReply = (n: Pick<Notification, "type" | "order_id">) =>
   !!n.order_id && !INFORMATIONAL_TYPES.has(n.type);
 
+const PAGE_SIZE = 30;
+
+type NotificationPage = {
+  rows: Notification[];
+  nextFrom: number | null;
+};
+
+function mapRows(
+  old: InfiniteData<NotificationPage> | undefined,
+  fn: (rows: Notification[]) => Notification[],
+): InfiniteData<NotificationPage> | undefined {
+  if (!old) return old;
+  return {
+    ...old,
+    pages: old.pages.map((page) => ({ ...page, rows: fn(page.rows) })),
+  };
+}
+
 const Notifications = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -76,18 +94,37 @@ const Notifications = () => {
     }
   };
 
-  const { data: notifications = [], isLoading, refetch } = useQuery({
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+  } = useInfiniteQuery({
     queryKey: ['notifications'],
-    queryFn: async () => {
-      const { data, error } = await supabase
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const from = pageParam;
+      const { data: rows, error } = await supabase
         .from('notifications')
-        .select('*')
-        .order('created_at', { ascending: false });
-
+        .select('id, title, description, type, is_read, order_id, created_at')
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
       if (error) throw error;
-      return data as Notification[];
+      const pageRows = (rows || []) as Notification[];
+      return {
+        rows: pageRows,
+        nextFrom: pageRows.length === PAGE_SIZE ? from + PAGE_SIZE : null,
+      } satisfies NotificationPage;
     },
+    getNextPageParam: (last) => last.nextFrom ?? undefined,
   });
+
+  const notifications = useMemo(
+    () => data?.pages.flatMap((page) => page.rows) ?? [],
+    [data],
+  );
 
   const markAsReadMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -100,9 +137,9 @@ const Notifications = () => {
     // Optimistic update so the UI flips instantly without waiting for a refetch.
     onMutate: async (id: string) => {
       await queryClient.cancelQueries({ queryKey: ['notifications'] });
-      const previous = queryClient.getQueryData<Notification[]>(['notifications']);
-      queryClient.setQueryData<Notification[]>(['notifications'], (old) =>
-        (old || []).map((n) => (n.id === id ? { ...n, is_read: true } : n)),
+      const previous = queryClient.getQueryData<InfiniteData<NotificationPage>>(['notifications']);
+      queryClient.setQueryData<InfiniteData<NotificationPage>>(['notifications'], (old) =>
+        mapRows(old, (rows) => rows.map((n) => (n.id === id ? { ...n, is_read: true } : n))),
       );
       return { previous };
     },
@@ -379,6 +416,18 @@ const Notifications = () => {
                   </div>
                   );
                 })}
+                {hasNextPage && (
+                  <div className="flex justify-center pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fetchNextPage()}
+                      disabled={isFetchingNextPage}
+                    >
+                      {isFetchingNextPage ? 'جارٍ التحميل...' : 'تحميل المزيد'}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
