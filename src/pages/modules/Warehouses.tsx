@@ -722,6 +722,10 @@ const Warehouses = () => {
     }
     const item = items.find(i => i.id === moveForm.item_id);
     if (!item) return;
+    if (moveForm.movement_type === "out" && !item.product_id) {
+      toast({ title: "الصنف غير مربوط", description: "لا يمكن الصرف من بطاقة بلا منتج. اربط البطاقة أولاً.", variant: "destructive" });
+      return;
+    }
 
     if (moveForm.movement_type === "out" && item.stock < moveForm.quantity) {
       toast({ title: "مخزون غير كافٍ", description: `متاح ${item.stock} ${item.unit}`, variant: "destructive" });
@@ -1205,7 +1209,13 @@ const Warehouses = () => {
                     <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد أصناف</TableCell></TableRow>
                   ) : filteredItems.map(it => (
                     <TableRow key={it.id} className={it.stock <= it.low_stock_threshold ? "bg-destructive/5" : ""}>
-                      <TableCell className="font-medium flex items-center gap-2"><Package className="w-4 h-4 text-muted-foreground" />{it.name}{it.sku && <span className="text-xs text-muted-foreground">({it.sku})</span>}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Package className="w-4 h-4 text-muted-foreground" />
+                          <span>{it.name}{it.sku && <span className="text-xs text-muted-foreground">({it.sku})</span>}</span>
+                          {!it.product_id && <Badge variant="destructive">يحتاج ربط — لا يُصرف</Badge>}
+                        </div>
+                      </TableCell>
                       <TableCell>{it.warehouse?.name || "—"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{it.category || "—"}</TableCell>
                       <TableCell className={it.stock <= it.low_stock_threshold ? "text-destructive font-bold" : ""}>{it.stock}</TableCell>

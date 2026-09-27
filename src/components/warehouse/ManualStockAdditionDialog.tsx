@@ -32,7 +32,7 @@ import AddAdjustmentReasonDialog from "@/components/warehouse/AddAdjustmentReaso
 import { useStocktakingLock } from "@/hooks/useStocktakingLock";
 import { Lock } from "lucide-react";
 import { MAIN_WAREHOUSE_ID, getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason } from "@/lib/warehouseItemFilters";
-import { isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
+import { resolvePackWeightKg } from "@/lib/packWeight";
 
 interface InventoryItem {
   id: string;
@@ -55,6 +55,7 @@ interface InventoryItem {
   item_type?: string | null;
   source_module?: string | null;
   product?: { is_active?: boolean | null; category?: string | null; name?: string | null; barcode?: string | null } | null;
+  pack_weight_kg?: number | null;
 }
 
 interface Props {
@@ -619,7 +620,13 @@ const ManualStockAdditionDialog = ({
                     return (
                       <tr key={r.uid} className="border-t align-top">
                         <td className="p-1 min-w-[180px]">
-                          <Select value={r.itemId} onValueChange={(v) => updateRow(r.uid, { itemId: v })}>
+                          <Select value={r.itemId} onValueChange={(v) => {
+                            const picked = items.find((i) => i.id === v);
+                            updateRow(r.uid, {
+                              itemId: v,
+                              packageWeightKg: picked ? String(resolvePackWeightKg(picked)) : "0.5",
+                            });
+                          }}>
                             <SelectTrigger className="h-8"><SelectValue placeholder="اختر الصنف" /></SelectTrigger>
                             <SelectContent className="max-h-72">
                               <div className="sticky top-0 z-10 bg-popover p-2 border-b">

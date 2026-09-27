@@ -126,6 +126,7 @@ const WarehouseOperationalDates = lazy(() => import("@/pages/modules/WarehouseOp
 const WarehouseOpeningBalance = lazy(() => import("@/pages/modules/WarehouseOpeningBalance"));
 const WarehouseMovementsLog = lazy(() => import("@/pages/modules/WarehouseMovementsLog"));
 const WarehousePendingTransfers = lazy(() => import("@/pages/modules/WarehousePendingTransfers"));
+const WarehouseMergeCandidates = lazy(() => import("@/pages/modules/WarehouseMergeCandidates"));
 const WarehouseStocktaking = lazy(() => import("@/pages/modules/WarehouseStocktaking"));
 const WarehouseReports = lazy(() => import("@/pages/modules/WarehouseReports"));
 const WarehouseDailyReport = lazy(() => import("@/pages/modules/WarehouseDailyReport"));
@@ -1077,6 +1078,11 @@ const AnimatedRoutes = () => {
           <Route path="/modules/warehouses/pending-transfers" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper']}>
               <PageTransition><WarehousePendingTransfers /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/merge-candidates" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
+              <PageTransition><WarehouseMergeCandidates /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/stocktaking" element={

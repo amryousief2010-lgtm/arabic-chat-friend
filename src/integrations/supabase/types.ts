@@ -8458,6 +8458,7 @@ export type Database = {
           module: string | null
           name: string
           notes: string | null
+          pack_weight_kg: number | null
           product_id: string | null
           reserved_qty: number
           sku: string | null
@@ -8480,6 +8481,7 @@ export type Database = {
           module?: string | null
           name: string
           notes?: string | null
+          pack_weight_kg?: number | null
           product_id?: string | null
           reserved_qty?: number
           sku?: string | null
@@ -8502,6 +8504,7 @@ export type Database = {
           module?: string | null
           name?: string
           notes?: string | null
+          pack_weight_kg?: number | null
           product_id?: string | null
           reserved_qty?: number
           sku?: string | null
@@ -15608,6 +15611,7 @@ export type Database = {
           low_stock_threshold: number
           name: string
           old_price: number | null
+          pack_weight_kg: number | null
           price: number
           stock: number
           unit: string
@@ -15625,6 +15629,7 @@ export type Database = {
           low_stock_threshold?: number
           name: string
           old_price?: number | null
+          pack_weight_kg?: number | null
           price: number
           stock?: number
           unit?: string
@@ -15642,6 +15647,7 @@ export type Database = {
           low_stock_threshold?: number
           name?: string
           old_price?: number | null
+          pack_weight_kg?: number | null
           price?: number
           stock?: number
           unit?: string

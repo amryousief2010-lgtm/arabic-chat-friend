@@ -429,6 +429,10 @@ const ManualStockOutDialog = ({
         if (inactive) {
           throw new Error(`الصنف "${inactive.item_name}" غير مفعّل ولا يمكن صرفه.`);
         }
+        const unlinked = diag.find((d) => !d.product_id);
+        if (unlinked) {
+          throw new Error(`الصنف "${unlinked.item_name}" يحتاج ربطاً بمنتج قبل الصرف أو البيع. البطاقة ظاهرة في تقرير البطاقات غير المربوطة.`);
+        }
         const rejected = diag.find((d) => d.rejection_reason);
         if (rejected) {
           throw new Error(isMainWarehouse
@@ -831,8 +835,9 @@ const ManualStockOutDialog = ({
                               ) : filteredAllowedItems.length === 0 ? (
                                 <div className="px-3 py-2 text-xs text-muted-foreground">لا توجد نتيجة مطابقة</div>
                               ) : filteredAllowedItems.map((i) => (
-                                <SelectItem key={i.id} value={i.id} disabled={Number(i.stock || 0) <= 0}>
+                                <SelectItem key={i.id} value={i.id} disabled={Number(i.stock || 0) <= 0 || !i.product_id}>
                                   {i.name} {i.unit ? `(${i.unit})` : ""} — {Number(i.stock || 0)}
+                                  {!i.product_id ? " — يحتاج ربط" : ""}
                                   {(i.sku || i.item_code || i.barcode || i.product?.barcode) ? ` — ${i.sku || i.item_code || i.barcode || i.product?.barcode}` : ""}
                                 </SelectItem>
                               ))}
