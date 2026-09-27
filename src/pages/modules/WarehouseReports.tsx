@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart3, Download, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { paginateUntilDone } from "@/lib/paginateQuery";
+import { signedDelta } from "@/lib/warehouseMovementSign";
 import * as XLSX from "xlsx";
 
 const IN_TYPES = ["in", "purchase_receipt", "opening_balance", "sales_return", "finished_goods_receipt", "return", "stock_in"];
@@ -36,14 +38,26 @@ export default function WarehouseReports({ embedded = false }: WarehouseReportsP
 
   const loadStocks = async () => {
     setLoading(true);
-    const [{ data: whs }, q] = await Promise.all([
-      supabase.from("warehouses").select("id, name"),
-      whFilter === "all"
-        ? supabase.from("inventory_items").select("id, warehouse_id, name, unit, stock, reserved_qty, blocked_qty, unit_cost, low_stock_threshold").eq("is_active", true).limit(2000)
-        : supabase.from("inventory_items").select("id, warehouse_id, name, unit, stock, reserved_qty, blocked_qty, unit_cost, low_stock_threshold").eq("is_active", true).eq("warehouse_id", whFilter).limit(2000),
-    ]);
+    const { data: whs } = await supabase.from("warehouses").select("id, name");
+    const stockRows = await paginateUntilDone<Stock>({
+      pageSize: 1000,
+      maxPages: 20,
+      idOf: (r) => r.id,
+      fetchPage: async (from, to) => {
+        let q = supabase
+          .from("inventory_items")
+          .select("id, warehouse_id, name, unit, stock, reserved_qty, blocked_qty, unit_cost, low_stock_threshold")
+          .eq("is_active", true)
+          .order("id", { ascending: true })
+          .range(from, to);
+        if (whFilter !== "all") q = q.eq("warehouse_id", whFilter);
+        const { data, error } = await q;
+        if (error) throw error;
+        return (data || []) as Stock[];
+      },
+    });
     setWarehouses((whs || []) as any);
-    setStocks((q.data || []) as Stock[]);
+    setStocks(stockRows);
 
     // pending reservations from open orders
     const { data: orders } = await supabase
@@ -359,24 +373,44 @@ function ItemMovementReport({ whFilter, warehouses }: { whFilter: string; wareho
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    let q = supabase.from("inventory_items").select("id, name, unit, warehouse_id").eq("is_active", true).order("name").limit(2000);
-    if (whFilter !== "all") q = q.eq("warehouse_id", whFilter);
-    q.then(({ data }) => setItems((data || []) as any));
+    paginateUntilDone<{ id: string; name: string; unit: string; warehouse_id: string }>({
+      pageSize: 1000,
+      maxPages: 20,
+      idOf: (r) => r.id,
+      fetchPage: async (from, to) => {
+        let pageQ = supabase.from("inventory_items").select("id, name, unit, warehouse_id").eq("is_active", true).order("name").order("id").range(from, to);
+        if (whFilter !== "all") pageQ = pageQ.eq("warehouse_id", whFilter);
+        const { data, error } = await pageQ;
+        if (error) throw error;
+        return (data || []) as any;
+      },
+    }).then((data) => setItems(data));
   }, [whFilter]);
 
   const load = async () => {
     if (!itemId) return;
     setLoading(true);
-    const { data } = await supabase.from("inventory_movements")
-      .select("id, performed_at, movement_type, quantity, reference_id, reference_type, notes, reason")
-      .eq("item_id", itemId).order("performed_at", { ascending: false }).limit(500);
+    const data = await paginateUntilDone<any>({
+      pageSize: 1000,
+      maxPages: 20,
+      idOf: (r) => r.id,
+      fetchPage: async (from, to) => {
+        const { data: page, error } = await supabase.from("inventory_movements")
+          .select("id, performed_at, movement_type, quantity, reference_id, reference_type, notes, reason, stock_before, stock_after, effect_mode")
+          .eq("item_id", itemId)
+          .order("performed_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, to);
+        if (error) throw error;
+        return page || [];
+      },
+    });
     let running = 0;
-    const sorted = (data || []).slice().reverse();
+    const sorted = data.slice().reverse();
     const enriched: any[] = sorted.map((m: any) => {
-      const before = running;
-      if (["in", "purchase_receipt", "opening_balance", "sales_return", "finished_goods_receipt", "return"].includes(m.movement_type)) running += Number(m.quantity);
-      else if (["out", "sales_dispatch", "transfer", "waste_loss", "production_consumption", "packaging_consumption"].includes(m.movement_type)) running -= Number(m.quantity);
-      else if (["adjustment", "reconciliation"].includes(m.movement_type)) running = Number(m.quantity);
+      const delta = signedDelta(m.movement_type, Number(m.quantity), m);
+      const before = m.stock_before != null ? Number(m.stock_before) : running;
+      running = m.stock_after != null ? Number(m.stock_after) : running + delta;
       return { ...m, before, after: running };
     });
     setRows(enriched.reverse());

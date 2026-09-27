@@ -11,7 +11,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Activity, RefreshCw, Download, Printer, FileText, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
-import { signedDelta, MOVEMENT_TYPE_LABEL, POSITIVE_TYPES, NEGATIVE_TYPES } from "@/lib/warehouseMovementSign";
+import { signedDelta, MOVEMENT_TYPE_LABEL, POSITIVE_TYPES, NEGATIVE_TYPES, type MovementEffectFields } from "@/lib/warehouseMovementSign";
+import { paginateUntilDone } from "@/lib/paginateQuery";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 
@@ -28,7 +29,16 @@ interface Mov {
   reason: string | null;
   notes: string | null;
   party: string | null;
+  stock_before: number | null;
+  stock_after: number | null;
+  effect_mode: string | null;
 }
+
+const MOVEMENT_COLS =
+  "id, movement_no, performed_at, warehouse_id, item_id, movement_type, quantity, reference, performed_by, reason, notes, party, stock_before, stock_after, effect_mode";
+
+const effectOf = (m: MovementEffectFields & { movement_type: string; quantity: number }) =>
+  signedDelta(m.movement_type, m.quantity, m);
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const yesterdayISO = () => new Date(Date.now() - 86400000).toISOString().slice(0, 10);
@@ -66,18 +76,27 @@ export default function WarehouseDailyReport() {
       const effectiveFrom = fromIso < MAIN_WAREHOUSE_OPERATIONAL_START_ISO
         ? MAIN_WAREHOUSE_OPERATIONAL_START_ISO : fromIso;
 
-      let q = supabase
-        .from("inventory_movements")
-        .select("id, movement_no, performed_at, warehouse_id, item_id, movement_type, quantity, reference, performed_by, reason, notes, party")
-        .eq("warehouse_id", main.id)
-        .gte("performed_at", effectiveFrom)
-        .lte("performed_at", toIso)
-        .order("performed_at", { ascending: false })
-        .limit(2000);
-      if (typeFilter !== "all") q = q.eq("movement_type", typeFilter);
-      if (userFilter !== "all") q = q.eq("performed_by", userFilter);
-      const { data: movs } = await q;
-      const list = (movs || []) as Mov[];
+      const list = await paginateUntilDone<Mov>({
+        pageSize: 1000,
+        maxPages: 50,
+        idOf: (r) => r.id,
+        fetchPage: async (from, to) => {
+          let q = supabase
+            .from("inventory_movements")
+            .select(MOVEMENT_COLS)
+            .eq("warehouse_id", main.id)
+            .gte("performed_at", effectiveFrom)
+            .lte("performed_at", toIso)
+            .order("performed_at", { ascending: false })
+            .order("id", { ascending: false })
+            .range(from, to);
+          if (typeFilter !== "all") q = q.eq("movement_type", typeFilter);
+          if (userFilter !== "all") q = q.eq("performed_by", userFilter);
+          const { data, error } = await q;
+          if (error) throw error;
+          return (data || []) as Mov[];
+        },
+      });
       setRows(list);
 
       // load items meta
@@ -96,15 +115,27 @@ export default function WarehouseDailyReport() {
         setItems(m); setItemThresholds(t);
 
         // baseline: sum signed deltas for these items before window starts
-        const { data: prior } = await supabase
-          .from("inventory_movements")
-          .select("item_id, movement_type, quantity")
-          .eq("warehouse_id", main.id)
-          .in("item_id", itemIds)
-          .lt("performed_at", effectiveFrom);
+        const prior = await paginateUntilDone<Pick<Mov, "id" | "item_id" | "movement_type" | "quantity" | "stock_before" | "stock_after" | "effect_mode">>({
+          pageSize: 1000,
+          maxPages: 50,
+          idOf: (r) => r.id,
+          fetchPage: async (from, to) => {
+            const { data, error } = await supabase
+              .from("inventory_movements")
+              .select("id, item_id, movement_type, quantity, stock_before, stock_after, effect_mode")
+              .eq("warehouse_id", main.id)
+              .in("item_id", itemIds)
+              .lt("performed_at", effectiveFrom)
+              .order("performed_at", { ascending: true })
+              .order("id", { ascending: true })
+              .range(from, to);
+            if (error) throw error;
+            return (data || []) as any;
+          },
+        });
         const base: Record<string, number> = {};
-        (prior || []).forEach((p: any) => {
-          base[p.item_id] = (base[p.item_id] || 0) + signedDelta(p.movement_type, p.quantity);
+        prior.forEach((p) => {
+          base[p.item_id] = (base[p.item_id] || 0) + effectOf(p);
         });
         setBaselineByItem(base);
       } else {
@@ -146,7 +177,7 @@ export default function WarehouseDailyReport() {
       let bal = baselineByItem[itemId] || 0;
       list.forEach(m => {
         before[m.id] = bal;
-        bal += signedDelta(m.movement_type, m.quantity);
+        bal += effectOf(m);
         after[m.id] = bal;
       });
     });

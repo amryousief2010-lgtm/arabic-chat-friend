@@ -28,11 +28,40 @@ export const RAW_SIGN_TYPES = new Set([
   "transfer",
 ]);
 
-export function signedDelta(type: string, qty: number): number {
+const ABSOLUTE_ADJUSTMENT_TYPES = new Set(["adjustment", "adjust", "reconciliation"]);
+
+export type MovementEffectFields = {
+  effect_mode?: string | null;
+  stock_before?: number | null;
+  stock_after?: number | null;
+};
+
+/**
+ * Real stock effect of one movement.
+ *
+ * Prefer stock_after − stock_before when both snapshots exist (posted rows).
+ * Delta-mode adjustments use the stored signed quantity.
+ * An absolute adjustment (effect_mode null or 'set') without a snapshot is not
+ * a delta — return 0 instead of treating the target quantity as a movement.
+ */
+export function signedDelta(type: string, qty: number, effect?: MovementEffectFields | null): number {
+  const before = effect?.stock_before;
+  const after = effect?.stock_after;
+  if (before != null && after != null) {
+    const b = Number(before);
+    const a = Number(after);
+    if (Number.isFinite(b) && Number.isFinite(a)) return a - b;
+  }
+
   const q = Number(qty) || 0;
+  const mode = effect?.effect_mode ?? null;
+
+  if (ABSOLUTE_ADJUSTMENT_TYPES.has(type) && mode !== "delta") return 0;
+  if (type === "opening_balance" && mode === "set") return 0;
   if (POSITIVE_TYPES.has(type)) return Math.abs(q);
   if (NEGATIVE_TYPES.has(type)) return -Math.abs(q);
-  return q; // adjustment / reconciliation use stored sign
+  if (ABSOLUTE_ADJUSTMENT_TYPES.has(type) && mode === "delta") return q;
+  return q;
 }
 
 export const MOVEMENT_TYPE_LABEL: Record<string, string> = {

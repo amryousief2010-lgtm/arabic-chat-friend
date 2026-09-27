@@ -209,6 +209,7 @@ interface Movement {
   package_count?: number | null;
   package_weight_kg?: number | null;
   performed_by?: string | null;
+  approval_status?: string | null;
   item?: { name: string; unit: string };
   warehouse?: { name: string };
   destination?: { name: string };
@@ -429,12 +430,14 @@ const Warehouses = () => {
     if (!window.confirm(`سيتم إلغاء التوريدة ${target.reference} وعكس أثرها على المخزون. متابعة؟`)) return;
     setManualBusy(true);
     try {
-      // Reverse stock for each line, then delete the original movements.
+      // Posted rows are reversed by the delete trigger. Pending rows never hit stock, so reverse them here.
       for (const m of target.movs) {
-        const delta = (m.movement_type === "in" ? -1 : 1) * Number(m.quantity || 0);
-        const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", m.item_id).maybeSingle();
-        const newStock = Number((it as any)?.stock || 0) + delta;
-        await supabase.from("inventory_items").update({ stock: newStock }).eq("id", m.item_id);
+        if ((m.approval_status ?? "posted") === "pending") {
+          const delta = (m.movement_type === "in" ? -1 : 1) * Number(m.quantity || 0);
+          const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", m.item_id).maybeSingle();
+          const newStock = Number((it as any)?.stock || 0) + delta;
+          await supabase.from("inventory_items").update({ stock: newStock }).eq("id", m.item_id);
+        }
       }
       const ids = target.movs.map((m) => m.id);
       const { error } = await supabase.from("inventory_movements").delete().in("id", ids);
@@ -522,11 +525,8 @@ const Warehouses = () => {
       // Apply per-line changes
       for (const L of editManualLines) {
         if (L._isNew && !L._deleted) {
-          // new line: add stock & insert movement
           const item = items.find(i => i.id === L.item_id);
           if (!item) continue;
-          const newStock = Number(item.stock || 0) + sign * Number(L.quantity);
-          await supabase.from("inventory_items").update({ stock: newStock }).eq("id", L.item_id);
           await supabase.from("inventory_movements").insert({
             item_id: L.item_id,
             warehouse_id: item.warehouse_id || sampleWh,
@@ -539,19 +539,22 @@ const Warehouses = () => {
             notes: `${L.notes || ""}${L.notes ? " • " : ""}مضاف بالتعديل: ${editManualReason}`,
             unit_cost: item.unit_cost,
             performed_by: user?.id,
+            approval_status: "posted",
             package_count: L.package_count ?? null,
             package_weight_kg: L.package_weight_kg ?? null,
           } as any);
         } else if (L._deleted && L.id) {
-          // delete line: reverse its quantity from stock & delete row
-          const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", L.item_id).maybeSingle();
-          const newStock = Number((it as any)?.stock || 0) - sign * Number(L._origQty || 0);
-          await supabase.from("inventory_items").update({ stock: newStock }).eq("id", L.item_id);
+          const orig = group.movs.find((m) => m.id === L.id);
+          if ((orig?.approval_status ?? "posted") === "pending") {
+            const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", L.item_id).maybeSingle();
+            const newStock = Number((it as any)?.stock || 0) - sign * Number(L._origQty || 0);
+            await supabase.from("inventory_items").update({ stock: newStock }).eq("id", L.item_id);
+          }
           await supabase.from("inventory_movements").delete().eq("id", L.id);
         } else if (L.id) {
-          // updated line: stock delta = sign * (newQty - origQty)
+          const orig = group.movs.find((m) => m.id === L.id);
           const delta = sign * (Number(L.quantity) - Number(L._origQty || 0));
-          if (delta !== 0) {
+          if (delta !== 0 && (orig?.approval_status ?? "posted") === "pending") {
             const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", L.item_id).maybeSingle();
             const newStock = Number((it as any)?.stock || 0) + delta;
             await supabase.from("inventory_items").update({ stock: newStock }).eq("id", L.item_id);
@@ -626,7 +629,7 @@ const Warehouses = () => {
         whIds.map((id) =>
           supabase
             .from("inventory_movements")
-            .select("id, item_id, warehouse_id, movement_type, quantity, destination_warehouse_id, reference, reference_type, party, notes, performed_at, package_count, package_weight_kg, performed_by, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)")
+            .select("id, item_id, warehouse_id, movement_type, quantity, destination_warehouse_id, reference, reference_type, party, notes, performed_at, package_count, package_weight_kg, performed_by, approval_status, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)")
             .or(`warehouse_id.eq.${id},source_warehouse_id.eq.${id},destination_warehouse_id.eq.${id}`)
             .order("performed_at", { ascending: false })
             .limit(80)
@@ -762,6 +765,7 @@ const Warehouses = () => {
       notes: moveForm.notes || null,
       unit_cost: item.unit_cost,
       performed_by: user?.id,
+      approval_status: "posted",
     };
     const { error } = await supabase.from("inventory_movements").insert(payload);
     if (error) { toast({ title: "خطأ", description: error.message, variant: "destructive" }); return; }

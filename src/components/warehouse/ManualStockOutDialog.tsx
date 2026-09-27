@@ -489,6 +489,7 @@ const ManualStockOutDialog = ({
           reason: category,
           notes: combinedNotes,
           module: "warehouse_manual",
+          approval_status: "posted",
           performed_by: user?.id ?? null,
           performed_at: performedAt,
         });
@@ -506,11 +507,7 @@ const ManualStockOutDialog = ({
 
       const { error: mErr } = await supabase.from("inventory_movements").insert(inserts as any);
       if (mErr) throw mErr;
-
-      for (const u of stockUpdates) {
-        const { error } = await supabase.from("inventory_items").update({ stock: u.newStock }).eq("id", u.id);
-        if (error) throw error;
-      }
+      // Stock is applied once by apply_inventory_movement. A second client write double-counts.
 
       setLastSaved({
         opNo,
