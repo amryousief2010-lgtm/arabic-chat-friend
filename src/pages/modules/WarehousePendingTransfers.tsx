@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeftRight, AlertTriangle, RefreshCw, ExternalLink } from "lucide-react";
+import { LegacyCloseCheckbox, LegacyCloseControls } from "@/components/warehouse/LegacyStocktakeClose";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Transfer {
@@ -38,6 +39,7 @@ export default function WarehousePendingTransfers() {
   const [rows, setRows] = useState<Transfer[]>([]);
   const [warehouses, setWarehouses] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<string[]>([]);
 
   const load = async () => {
     setLoading(true);
@@ -61,7 +63,13 @@ export default function WarehousePendingTransfers() {
     const byTr: Record<string, any[]> = {};
     (items || []).forEach((it: any) => { (byTr[it.transfer_id] ||= []).push(it); });
     setRows((trs || []).map((t: any) => ({ ...t, items: byTr[t.id] || [] })));
+    setSelected([]);
     setLoading(false);
+  };
+
+  const pendingIds = rows.filter((r) => r.status === "pending_receipt").map((r) => r.id);
+  const toggle = (id: string, on: boolean) => {
+    setSelected((cur) => on ? Array.from(new Set([...cur, id])) : cur.filter((x) => x !== id));
   };
 
   useEffect(() => { load(); }, []);
@@ -79,6 +87,11 @@ export default function WarehousePendingTransfers() {
             <h1 className="text-2xl font-bold">التحويلات المعلقة بين المخازن</h1>
             <p className="text-sm text-muted-foreground">يعرض التحويلات غير المكتملة. اعتمد أو ارفض من شاشة مركز مراجعة المدير.</p>
           </div>
+          <LegacyCloseControls
+            docType="warehouse_transfer"
+            selectedIds={selected.filter((id) => pendingIds.includes(id))}
+            onDone={load}
+          />
           <Button variant="outline" onClick={load}><RefreshCw className="w-4 h-4 ml-1" /> تحديث</Button>
         </div>
 
@@ -102,6 +115,7 @@ export default function WarehousePendingTransfers() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead></TableHead>
                     <TableHead>رقم التحويل</TableHead>
                     <TableHead>المصدر</TableHead>
                     <TableHead>الوجهة</TableHead>
@@ -118,15 +132,23 @@ export default function WarehousePendingTransfers() {
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">جاري التحميل...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={13} className="text-center py-8 text-muted-foreground">جاري التحميل...</TableCell></TableRow>
                   ) : rows.length === 0 ? (
-                    <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">لا توجد تحويلات معلقة 🎉</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={13} className="text-center py-8 text-muted-foreground">لا توجد تحويلات معلقة 🎉</TableCell></TableRow>
                   ) : rows.map((t) => {
                     const reqTotal = t.items.reduce((s, i) => s + Number(i.requested_qty || 0), 0);
                     const recvTotal = t.items.reduce((s, i) => s + Number(i.received_qty || 0), 0);
                     const shortTotal = t.items.reduce((s, i) => s + Number(i.shortage_qty || 0), 0);
                     return (
                       <TableRow key={t.id}>
+                        <TableCell>
+                          {t.status === "pending_receipt" && (
+                            <LegacyCloseCheckbox
+                              checked={selected.includes(t.id)}
+                              onCheckedChange={(on) => toggle(t.id, on)}
+                            />
+                          )}
+                        </TableCell>
                         <TableCell className="font-mono">{t.transfer_no}</TableCell>
                         <TableCell>{warehouses[t.source_warehouse_id] || "—"}</TableCell>
                         <TableCell>{warehouses[t.destination_warehouse_id] || "—"}</TableCell>

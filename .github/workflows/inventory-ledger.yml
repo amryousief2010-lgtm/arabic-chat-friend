@@ -42,6 +42,8 @@ jobs:
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/inventory_ledger.sql
       - name: Posting flags reset in the same transaction
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/inventory_flag_reset.sql
+      - name: Legacy close by stocktake
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/inventory_legacy_close.sql
       - name: SQL closed loop
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/inventory_closed_loop.sql
       - name: Packaging warehouse scenarios

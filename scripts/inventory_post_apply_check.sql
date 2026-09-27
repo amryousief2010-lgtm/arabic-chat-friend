@@ -24,6 +24,9 @@ BEGIN
   IF to_regprocedure('public.inventory_reconciliation_check(integer)') IS NULL THEN
     RAISE EXCEPTION 'missing inventory_reconciliation_check';
   END IF;
+  IF to_regprocedure('public.close_legacy_doc_by_stocktake(text, uuid, text)') IS NULL THEN
+    RAISE EXCEPTION 'missing close_legacy_doc_by_stocktake';
+  END IF;
   IF to_regprocedure('public.post_meat_raw_movement(uuid, text, numeric, numeric, text, text, uuid, text, text, numeric, numeric, text)') IS NULL THEN
     RAISE EXCEPTION 'missing post_meat_raw_movement';
   END IF;
