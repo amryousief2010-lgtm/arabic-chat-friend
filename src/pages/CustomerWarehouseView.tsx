@@ -242,14 +242,14 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
 
       if (targetId) {
         const [itemsRes, movRes] = await Promise.all([
-          supabase
-            .from("inventory_items")
+          (supabase as any)
+            .from("inventory_items_visible")
             .select("id, name, unit, stock, product_id")
             .eq("warehouse_id", targetId)
             .eq("is_active", true)
             .order("name"),
-          supabase
-            .from("inventory_movements")
+          (supabase as any)
+            .from("inventory_movements_visible")
             .select("id, warehouse_id, performed_at, movement_type, quantity, notes, party, item_id, product_id, source_warehouse_id, destination_warehouse_id, reference_type")
             .eq("warehouse_id", targetId)
             .order("performed_at", { ascending: false })
@@ -263,8 +263,8 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
         // حركات مسجلة على المخزن الرئيسي فقط للعميل (مرتجع بدون خصم)
         let mainSideMovs: Movement[] = [];
         if (mainId) {
-          const { data: mainMovs } = await supabase
-            .from("inventory_movements")
+          const { data: mainMovs } = await (supabase as any)
+            .from("inventory_movements_visible")
             .select("id, warehouse_id, performed_at, movement_type, quantity, notes, party, item_id, product_id, source_warehouse_id, destination_warehouse_id, reference_type")
             .eq("warehouse_id", mainId)
             .eq("party", warehouseName)
@@ -277,8 +277,8 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
         const nameMap = new Map(its.map((i) => [i.id, i.name]));
         const missingIds = Array.from(new Set(mainSideMovs.map((m) => m.item_id).filter((id) => id && !nameMap.has(id))));
         if (missingIds.length > 0) {
-          const { data: mItemRows } = await supabase
-            .from("inventory_items")
+          const { data: mItemRows } = await (supabase as any)
+            .from("inventory_items_visible")
             .select("id, name")
             .in("id", missingIds);
           (mItemRows || []).forEach((r: any) => nameMap.set(r.id, r.name));
@@ -289,8 +289,8 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       }
 
       if (mainId) {
-        const { data: mItems } = await supabase
-          .from("inventory_items")
+        const { data: mItems } = await (supabase as any)
+          .from("inventory_items_visible")
           .select("id, name, unit, stock, product_id")
           .eq("warehouse_id", mainId)
           .eq("is_active", true)
@@ -301,8 +301,8 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
 
       const customerNames = new Set(customerInventory.map((i) => (i.name || "").trim()).filter(Boolean));
       const historyNames = new Set<string>();
-      const { data: historyRows } = await supabase
-        .from("inventory_movements")
+      const { data: historyRows } = await (supabase as any)
+        .from("inventory_movements_visible")
         .select("item_id")
         .eq("party", warehouseName)
         .in("reference_type", ["customer_supply", "customer_return"])
@@ -311,8 +311,8 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       const historicItemIds = Array.from(new Set((historyRows || []).map((row: any) => row.item_id).filter(Boolean)));
       for (let i = 0; i < historicItemIds.length; i += 500) {
         const slice = historicItemIds.slice(i, i + 500);
-        const { data: historicItems } = await supabase
-          .from("inventory_items")
+        const { data: historicItems } = await (supabase as any)
+          .from("inventory_items_visible")
           .select("name")
           .in("id", slice);
         (historicItems || []).forEach((item: any) => {
@@ -598,8 +598,8 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   // Find the paired movement (other side of supply/return) for a given movement
   const findPair = async (m: Movement) => {
     if (!m.source_warehouse_id || !m.destination_warehouse_id) return null;
-    let q = supabase
-      .from("inventory_movements")
+    let q = (supabase as any)
+      .from("inventory_movements_visible")
       .select("id, item_id, product_id, warehouse_id, movement_type, quantity, source_warehouse_id, destination_warehouse_id, reference_type, performed_at")
       .eq("source_warehouse_id", m.source_warehouse_id)
       .eq("destination_warehouse_id", m.destination_warehouse_id)
@@ -616,8 +616,8 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     const seed = inv.movements[0];
     if (!seed?.source_warehouse_id || !seed?.destination_warehouse_id) return inv.movements;
 
-    let q = supabase
-      .from("inventory_movements")
+    let q = (supabase as any)
+      .from("inventory_movements_visible")
       .select("id, warehouse_id, performed_at, movement_type, quantity, notes, party, item_id, product_id, source_warehouse_id, destination_warehouse_id, reference_type")
       .eq("performed_at", inv.at)
       .eq("reference_type", inv.kind === "supply" ? "customer_supply" : "customer_return")

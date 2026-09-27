@@ -232,13 +232,13 @@ async function collectMeatFactory(range: DateRange): Promise<DeptSnapshot> {
 
 async function collectWarehouses(_range: DateRange): Promise<DeptSnapshot> {
   const [items, movements] = await Promise.all([
-    safeQuery(supabase.from("inventory_items")
-      .select("id, stock, warehouse_id, warehouse:warehouses(name)")
+    safeQuery((supabase as any).from("inventory_items_visible")
+      .select("id, stock, warehouse_id")
       .eq("is_active", true)),
-    safeQuery(supabase.from("inventory_movements")
+    safeQuery((supabase as any).from("inventory_movements_visible")
       .select("performed_at, movement_type").order("performed_at", { ascending: false }).limit(1)),
   ]);
-  const priced = await withItemUnitCost(items as any);
+  const priced = await withItemUnitCost(items as { id: string; stock: number }[]);
   const inventoryValue = priced.reduce((s, it) => s + Number(it.stock || 0) * Number(it.unit_cost || 0), 0);
   const negativeStock = items.filter(it => Number(it.stock) < 0).length;
   const alerts: string[] = [];

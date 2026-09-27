@@ -32,7 +32,7 @@ export default function WarehouseMergeCandidates() {
     setError(null);
     const [{ data: cand, error: cErr }, { data: items }, { data: whs }] = await Promise.all([
       supabase.rpc("list_inventory_merge_candidates" as any),
-      supabase.from("inventory_items").select("id, name, warehouse_id, stock, product_id").is("product_id", null).eq("is_active", true).order("name").limit(1000),
+      (supabase as any).from("inventory_items_visible").select("id, name, warehouse_id, stock, product_id").is("product_id", null).eq("is_active", true).order("name").limit(1000),
       supabase.from("warehouses").select("id, name"),
     ]);
     if (cErr) setError(cErr.message);

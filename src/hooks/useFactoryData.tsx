@@ -74,8 +74,8 @@ export function useFactoryData(from: string, to: string) {
   const movsQ = useQuery({
     queryKey: ["fac-movs", from, to],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("inventory_movements")
+      const { data, error } = await (supabase as any)
+        .from("inventory_movements_visible")
         .select("id,movement_no,movement_type,quantity,reference_type,reference_id,reference,performed_at,created_at,item_id")
         .in("reference_type", ["meat_batch", "feed_batch"])
         .gte("created_at", from + "T00:00:00Z")
@@ -92,8 +92,8 @@ export function useFactoryData(from: string, to: string) {
       // Factory screens must not mix warehouse SKUs into "جودة بيانات".
       // Previous query was unfiltered `.limit(1000)` so the overview card
       // (live: 32) could include non-factory rows. Snapshot, not date-scoped.
-      const { data, error } = await supabase
-        .from("inventory_items")
+      const { data, error } = await (supabase as any)
+        .from("inventory_items_visible")
         .select("id,name,stock,reserved_qty,blocked_qty,low_stock_threshold,sku,item_code,module")
         .in("module", ["meat", "feed"])
         .limit(2000);

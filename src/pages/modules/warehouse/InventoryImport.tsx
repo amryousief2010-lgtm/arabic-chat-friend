@@ -38,7 +38,7 @@ const InventoryImport = () => {
     (async () => {
       const [w, i] = await Promise.all([
         supabase.from("warehouses").select("id, name"),
-        supabase.from("inventory_items_visible" as any).select("id, name, sku, warehouse_id, stock, unit_cost"),
+        (supabase as any).from("inventory_items_visible").select("id, name, sku, warehouse_id, stock, unit_cost"),
       ]);
       setWarehouses(w.data || []);
       setItems(i.data || []);

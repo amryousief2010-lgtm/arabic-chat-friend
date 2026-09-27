@@ -56,3 +56,31 @@ export async function withMovementCosts<T extends { id: string }>(
     total_cost: costs.get(row.id)?.total_cost ?? null,
   }));
 }
+
+/**
+ * PostgREST embeds follow foreign keys. The cost-masking views have none,
+ * so callers select the view and attach related rows here.
+ */
+export async function attachRelated<T extends Record<string, any>>(
+  rows: T[],
+  relations: Array<{ as: string; idField: string; table: string; columns: string }>,
+): Promise<T[]> {
+  for (const rel of relations) {
+    const ids = Array.from(new Set(rows.map((row) => row[rel.idField]).filter(Boolean).map(String)));
+    const byId = new Map<string, Record<string, unknown>>();
+    for (let i = 0; i < ids.length; i += 200) {
+      const slice = ids.slice(i, i + 200);
+      const { data, error } = await (supabase as any).from(rel.table).select(rel.columns).in("id", slice);
+      if (error) throw error;
+      for (const row of data || []) {
+        if (row?.id) byId.set(String(row.id), row);
+      }
+    }
+    for (const row of rows) {
+      const record = row as Record<string, any>;
+      const id = record[rel.idField];
+      record[rel.as] = id ? byId.get(String(id)) ?? null : null;
+    }
+  }
+  return rows;
+}

@@ -113,8 +113,8 @@ export default function WarehouseStocktaking() {
   const loadItems = useCallback(async (whId: string) => {
     if (!whId) return;
     setLoadingItems(true);
-    const { data } = await sb
-      .from("inventory_items_visible" as any).select("id, name, unit, stock, unit_cost, warehouse_id")
+    const { data } = await (sb as any)
+      .from("inventory_items_visible").select("id, name, unit, stock, unit_cost, warehouse_id")
       .eq("warehouse_id", whId).eq("is_active", true).order("name");
     setItems((data || []) as Item[]);
     setLoadingItems(false);

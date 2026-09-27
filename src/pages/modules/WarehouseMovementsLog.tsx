@@ -90,8 +90,8 @@ export default function WarehouseMovementsLog() {
         ? from + "T00:00:00"
         : (from < MAIN_WAREHOUSE_OPERATIONAL_START ? MAIN_WAREHOUSE_OPERATIONAL_START_ISO : from + "T00:00:00");
 
-      let q = supabase
-        .from("inventory_movements")
+      let q = (supabase as any)
+        .from("inventory_movements_visible")
         .select("id, movement_no, performed_at, warehouse_id, destination_warehouse_id, source_warehouse_id, item_id, movement_type, quantity, reference, reference_id, reference_type, performed_by, reason, notes, party, package_count, package_weight_kg, approval_status, module")
         .gte("performed_at", effectiveFrom)
         .lte("performed_at", to + "T23:59:59")
@@ -109,7 +109,7 @@ export default function WarehouseMovementsLog() {
       const userIds = Array.from(new Set(list.map((m) => m.performed_by).filter(Boolean))) as string[];
       const [{ data: its }, { data: prof }] = await Promise.all([
         itemIds.length
-          ? supabase.from("inventory_items").select("id, name, unit").in("id", itemIds)
+          ? (supabase as any).from("inventory_items_visible").select("id, name, unit").in("id", itemIds)
           : Promise.resolve({ data: [] }),
         userIds.length
           ? supabase.from("profiles").select("id, full_name").in("id", userIds)
@@ -165,8 +165,8 @@ export default function WarehouseMovementsLog() {
     const ref = mov.reference || mov.reference_id;
     if (!ref) return;
     const refCol = mov.reference ? "reference" : "reference_id";
-    const { data } = await supabase
-      .from("inventory_movements")
+    const { data } = await (supabase as any)
+      .from("inventory_movements_visible")
       .select("item_id, quantity, package_count, package_weight_kg, notes, party, reason, performed_at, warehouse_id, performed_by, reference_type")
       .eq(refCol, ref)
       .order("id");
@@ -175,7 +175,7 @@ export default function WarehouseMovementsLog() {
     // Ensure item names + user name
     const missingItems = list.map(r => r.item_id).filter(id => !items[id]);
     if (missingItems.length) {
-      const { data: its } = await supabase.from("inventory_items").select("id, name, unit").in("id", missingItems);
+      const { data: its } = await (supabase as any).from("inventory_items_visible").select("id, name, unit").in("id", missingItems);
       const im = { ...items };
       (its || []).forEach((it: any) => { im[it.id] = { name: it.name, unit: it.unit }; });
       setItems(im);

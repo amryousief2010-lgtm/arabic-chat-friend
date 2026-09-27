@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { attachRelated } from "@/lib/inventoryCostAccess";
 import { useAuth } from "@/hooks/useAuth";
 import { matchOutletLines, parseOutletStatementRows, type MatchedOutletLine, type OutletQtyUnit } from "@/lib/outletSalesStatement";
 import { toast } from "sonner";
@@ -96,17 +97,20 @@ export default function OutletSalesStatements() {
       setLockText(null);
       return;
     }
-    (supabase as any).from("inventory_items")
-      .select("id, name, sku, item_code, pack_weight_kg, product:products(barcode)")
+    (supabase as any).from("inventory_items_visible")
+      .select("id, name, sku, item_code, pack_weight_kg, product_id")
       .eq("warehouse_id", warehouseId)
       .eq("is_active", true)
       .order("name")
-      .then(({ data, error }: { data: any[] | null; error: { message: string } | null }) => {
+      .then(async ({ data, error }: { data: any[] | null; error: { message: string } | null }) => {
         if (error) {
           toast.error(error.message);
           return;
         }
-        setCatalog((data || []).map((row) => ({
+        const rows = await attachRelated(data || [], [
+          { as: "product", idField: "product_id", table: "products", columns: "id, barcode" },
+        ]);
+        setCatalog(rows.map((row) => ({
           id: row.id,
           name: row.name,
           sku: row.sku,

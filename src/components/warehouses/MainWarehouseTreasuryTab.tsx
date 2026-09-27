@@ -364,8 +364,8 @@ export default function MainWarehouseTreasuryTab() {
     setMainWarehouse(wh || null);
     if (!wh) { setMainWarehouseItems([]); return; }
     const { data } = await (supabase as any)
-      .from("inventory_items")
-      .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, archived, archived_at, module, item_type, source_module")
+      .from("inventory_items_visible")
+      .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, module")
       .eq("warehouse_id", wh.id)
       .order("name");
     setMainWarehouseItems(await withItemUnitCost((data || []) as any) as WarehouseStockItem[]);
@@ -912,8 +912,8 @@ export default function MainWarehouseTreasuryTab() {
       if (lineType === "issue" || lineType === "bonus" || lineType === "sale") {
         if (!mainWarehouse?.id) throw new Error("تعذّر تحديد المخزن الرئيسي");
         const { data: dbItem, error: dbItemErr } = await (supabase as any)
-          .from("inventory_items")
-          .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, archived, archived_at, module, item_type, source_module")
+          .from("inventory_items_visible")
+          .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, module")
           .eq("id", lineInventoryItemId)
           .maybeSingle();
         if (dbItemErr) throw dbItemErr;

@@ -47,12 +47,12 @@ export default function MeatBatchDetail() {
     });
     const itemIds = Array.from(new Set([...(c.data || []), ...(p.data || [])].map((r: any) => r.inventory_item_id).filter(Boolean)));
     if (itemIds.length) {
-      const { data: ii } = await supabase.from("inventory_items_visible" as any).select("id,name,stock,reserved_qty,blocked_qty,unit_cost").in("id", itemIds);
+      const { data: ii } = await (supabase as any).from("inventory_items_visible").select("id,name,stock,reserved_qty,blocked_qty,unit_cost").in("id", itemIds);
       const map: Record<string, any> = {};
       (ii || []).forEach((x: any) => map[x.id] = x);
       setItems(map);
     }
-    const { data: mv } = await supabase.from("inventory_movements_visible" as any).select("*").eq("reference_type", "meat_batch").eq("reference_id", id).order("created_at");
+    const { data: mv } = await (supabase as any).from("inventory_movements_visible").select("*").eq("reference_type", "meat_batch").eq("reference_id", id).order("created_at");
     setMovs(mv || []);
   };
   useEffect(() => { load(); }, [id]);

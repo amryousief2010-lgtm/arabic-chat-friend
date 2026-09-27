@@ -115,8 +115,8 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
 
       // 2) Duplicate check: same name+unit+category inside main warehouse.
       // Ignore inactive ghost rows so old zero-balance duplicates don't block new items.
-      const dup = await supabase
-        .from("inventory_items")
+      const dup = await (supabase as any)
+        .from("inventory_items_visible")
         .select("id,category")
         .eq("warehouse_id", mainWarehouseId)
         .eq("name", name)
@@ -135,7 +135,7 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
       }
 
       // 3) SKU unique in inventory_items.item_code (per identity index uses warehouse+module+category+item_code; we enforce global uniqueness for clarity)
-      const skuCheck = await supabase.from("inventory_items").select("id").eq("item_code", sku).limit(1);
+      const skuCheck = await (supabase as any).from("inventory_items_visible").select("id").eq("item_code", sku).limit(1);
       if (skuCheck.error) throw skuCheck.error;
       if ((skuCheck.data || []).length > 0) {
         toast({ title: "SKU مكرر", description: "كود الصنف مستخدم بالفعل", variant: "destructive" });
@@ -183,8 +183,8 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
       // 6) Create or reuse inventory_item in main warehouse linked to product.
       // A DB trigger auto-links newly inserted products to customer/main warehouses;
       // therefore we reuse that row if it already exists to avoid duplicate/ghost rows.
-      const existingItem = await supabase
-        .from("inventory_items")
+      const existingItem = await (supabase as any)
+        .from("inventory_items_visible")
         .select("id")
         .eq("warehouse_id", mainWarehouseId)
         .eq("product_id", createdProductId)

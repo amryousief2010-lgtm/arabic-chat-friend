@@ -33,6 +33,7 @@ import { useStocktakingLock } from "@/hooks/useStocktakingLock";
 import { useReservedQuantities } from "@/hooks/useReservedQuantities";
 import { MAIN_WAREHOUSE_ID, getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason } from "@/lib/warehouseItemFilters";
 import { isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
+import { attachRelated } from "@/lib/inventoryCostAccess";
 
 interface InventoryItem {
   id: string;
@@ -123,8 +124,8 @@ const todayStamp = () => {
 const generateOpNo = async () => {
   const stamp = todayStamp();
   const like = `MAN-OUT-${stamp}-%`;
-  const { data } = await supabase
-    .from("inventory_movements")
+  const { data } = await (supabase as any)
+    .from("inventory_movements_visible")
     .select("reference")
     .like("reference", like);
   const max = (data || []).reduce((acc: number, r: any) => {
@@ -404,12 +405,15 @@ const ManualStockOutDialog = ({
         }
       }
       if (itemIdsToCheck.length > 0) {
-        const { data: checkRows, error: checkErr } = await supabase
-          .from("inventory_items")
-          .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, module, product:products(is_active, category, name, barcode)")
+        const { data: checkRows, error: checkErr } = await (supabase as any)
+          .from("inventory_items_visible")
+          .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, module")
           .in("id", itemIdsToCheck);
         if (checkErr) throw checkErr;
-        const diag = (checkRows || []).map((r: any) => {
+        const checked = await attachRelated((checkRows || []) as any[], [
+          { as: "product", idField: "product_id", table: "products", columns: "id, is_active, category, name, barcode" },
+        ]);
+        const diag = checked.map((r: any) => {
           const requestedQty = byItem.get(r.id)?.qty ?? 0;
           const sameWarehouse = r.warehouse_id === warehouseId;
           const isActive = r.is_active !== false;

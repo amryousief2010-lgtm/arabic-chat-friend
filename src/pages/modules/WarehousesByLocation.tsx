@@ -52,8 +52,8 @@ export default function WarehousesByLocation() {
       setLoading(true);
       const [w, i, m] = await Promise.all([
         supabase.from("warehouses").select("id,name,type,location,is_active").order("location", { nullsFirst: false }),
-        supabase.from("inventory_items_visible" as any).select("warehouse_id, stock, low_stock_threshold, unit_cost, is_active"),
-        supabase.from("inventory_movements").select("warehouse_id, performed_at").order("performed_at", { ascending: false }).limit(2000),
+        (supabase as any).from("inventory_items_visible").select("warehouse_id, stock, low_stock_threshold, unit_cost, is_active"),
+        (supabase as any).from("inventory_movements_visible").select("warehouse_id, performed_at").order("performed_at", { ascending: false }).limit(2000),
       ]);
       const items = (i.data || []) as any[];
       const moves = (m.data || []) as any[];
