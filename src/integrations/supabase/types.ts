@@ -8458,6 +8458,7 @@ export type Database = {
           module: string | null
           name: string
           notes: string | null
+          pack_weight_kg: number | null
           product_id: string | null
           reserved_qty: number
           sku: string | null
@@ -8480,6 +8481,7 @@ export type Database = {
           module?: string | null
           name: string
           notes?: string | null
+          pack_weight_kg?: number | null
           product_id?: string | null
           reserved_qty?: number
           sku?: string | null
@@ -8502,6 +8504,7 @@ export type Database = {
           module?: string | null
           name?: string
           notes?: string | null
+          pack_weight_kg?: number | null
           product_id?: string | null
           reserved_qty?: number
           sku?: string | null
@@ -8591,6 +8594,10 @@ export type Database = {
           reference_id: string | null
           reference_type: string | null
           source_warehouse_id: string | null
+          stock_after: number | null
+          stock_before: number | null
+          effect_mode: string | null
+          period_lock_override_reason: string | null
           total_cost: number | null
           unit_cost: number | null
           warehouse_id: string
@@ -8622,6 +8629,10 @@ export type Database = {
           reference_id?: string | null
           reference_type?: string | null
           source_warehouse_id?: string | null
+          stock_after?: number | null
+          stock_before?: number | null
+          effect_mode?: string | null
+          period_lock_override_reason?: string | null
           total_cost?: number | null
           unit_cost?: number | null
           warehouse_id: string
@@ -8653,6 +8664,10 @@ export type Database = {
           reference_id?: string | null
           reference_type?: string | null
           source_warehouse_id?: string | null
+          stock_after?: number | null
+          stock_before?: number | null
+          effect_mode?: string | null
+          period_lock_override_reason?: string | null
           total_cost?: number | null
           unit_cost?: number | null
           warehouse_id?: string
@@ -15599,6 +15614,7 @@ export type Database = {
           low_stock_threshold: number
           name: string
           old_price: number | null
+          pack_weight_kg: number | null
           price: number
           stock: number
           unit: string
@@ -15616,6 +15632,7 @@ export type Database = {
           low_stock_threshold?: number
           name: string
           old_price?: number | null
+          pack_weight_kg?: number | null
           price: number
           stock?: number
           unit?: string
@@ -15633,6 +15650,7 @@ export type Database = {
           low_stock_threshold?: number
           name?: string
           old_price?: number | null
+          pack_weight_kg?: number | null
           price?: number
           stock?: number
           unit?: string
@@ -22564,6 +22582,7 @@ export type Database = {
           p_reference_type?: string
           p_unit_cost?: number
           p_warehouse_id: string
+          p_request_id?: string
         }
         Returns: string
       }
@@ -22572,6 +22591,7 @@ export type Database = {
           p_destination_warehouse_id: string
           p_quantity: number
           p_reason: string
+          p_request_id?: string
           p_source_item_id: string
         }
         Returns: Json

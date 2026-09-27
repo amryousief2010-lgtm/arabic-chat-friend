@@ -152,18 +152,71 @@ export default function MeatFactoryInventory() {
       code: editDlg.code.trim() || null,
       name: editDlg.name.trim(),
       unit: editDlg.unit.trim() || "كجم",
-      current_stock: qty,
       avg_cost: cost,
       notes: editDlg.notes.trim() || null,
       is_active: editDlg.is_active,
     };
     let error: any = null;
+    let itemId = editDlg.id;
     if (editDlg.mode === "create") {
-      const res = await (supabase as any).from("meat_factory_raw_items").insert(payload);
+      const res = await (supabase as any).from("meat_factory_raw_items").insert({ ...payload, current_stock: 0 }).select("id").single();
       error = res.error;
+      itemId = res.data?.id;
     } else {
       const res = await (supabase as any).from("meat_factory_raw_items").update(payload).eq("id", editDlg.id);
       error = res.error;
+    }
+    if (!error && itemId && editDlg.mode === "create" && qty > 0 && editDlg.kind === "packaging") {
+      const posted = await (supabase as any).rpc("post_packaging_warehouse_move", {
+        p_raw_item_id: itemId,
+        p_quantity: qty,
+        p_direction: "IN",
+        p_unit_cost: cost,
+        p_reason: "رصيد افتتاحي عند إنشاء الصنف",
+        p_source_type: "manual_in",
+        p_source_id: crypto.randomUUID(),
+        p_source_line: "opening",
+        p_create_card: true,
+      });
+      error = posted.error;
+    } else if (!error && itemId && editDlg.mode === "create" && qty > 0) {
+      const posted = await (supabase as any).rpc("post_meat_raw_movement", {
+        p_item_id: itemId,
+        p_direction: "IN",
+        p_quantity: qty,
+        p_unit_cost: cost,
+        p_reason: "رصيد افتتاحي عند إنشاء الصنف",
+        p_ref_table: "opening_balance_card",
+        p_ref_id: crypto.randomUUID(),
+        p_item_kind: editDlg.kind,
+        p_effect: "set",
+        p_target_stock: qty,
+        p_item_name: editDlg.name.trim(),
+      });
+      error = posted.error;
+    } else if (!error && editDlg.mode !== "create" && editDlg.id && editDlg.kind === "packaging") {
+      const current = items.find((i) => i.id === editDlg.id);
+      if (current && Number(current.current_stock) !== qty) {
+        return toast.error("رصيد تغليف المصنع للقراءة فقط. الشراء والصرف على مخزن التغليف.");
+      }
+    } else if (!error && editDlg.mode !== "create" && editDlg.id && editDlg.kind !== "finished") {
+      const current = items.find((i) => i.id === editDlg.id);
+      if (current && Number(current.current_stock) !== qty) {
+        const posted = await (supabase as any).rpc("post_meat_raw_movement", {
+          p_item_id: editDlg.id,
+          p_direction: qty >= Number(current.current_stock) ? "IN" : "OUT",
+          p_quantity: Math.abs(qty - Number(current.current_stock)),
+          p_unit_cost: cost,
+          p_reason: "تعديل رصيد من بطاقة الصنف",
+          p_ref_table: "card_edit",
+          p_ref_id: crypto.randomUUID(),
+          p_item_kind: editDlg.kind,
+          p_effect: "set",
+          p_target_stock: qty,
+          p_item_name: editDlg.name.trim(),
+        });
+        error = posted.error;
+      }
     }
     if (error) return toast.error("فشل الحفظ: " + error.message);
     toast.success(editDlg.mode === "create" ? "تم إضافة الصنف" : "تم تحديث الصنف");

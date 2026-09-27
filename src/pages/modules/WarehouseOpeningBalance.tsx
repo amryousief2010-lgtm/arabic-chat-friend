@@ -62,7 +62,7 @@ export default function WarehouseOpeningBalance({ embedded = false }: WarehouseO
     setLoading(true);
     const [{ data: itemRows }, { data: obRows }] = await Promise.all([
       supabase
-        .from("inventory_items")
+        .from("inventory_items_visible" as any)
         .select("id, name, unit, stock, unit_cost")
         .eq("warehouse_id", whId)
         .eq("is_active", true)

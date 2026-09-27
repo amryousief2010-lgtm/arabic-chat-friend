@@ -1263,11 +1263,26 @@ function ProductDialog({ item, onClose, onSaved }: { item: any | null; onClose: 
     if (!name.trim() || !feedCode.trim()) return toast.error("اكتب اسم وكود المنتج");
     setSaving(true);
     try {
-      const payload: any = { name, stage, feed_code: feedCode, default_bag_kg: bagKg, current_stock: stock, latest_unit_cost: cost, selling_price: price };
-      const { error } = isEdit
-        ? await supabase.from("feed_products").update(payload).eq("id", item.id)
-        : await supabase.from("feed_products").insert(payload);
+      const payload: any = { name, stage, feed_code: feedCode, default_bag_kg: bagKg, latest_unit_cost: cost, selling_price: price };
+      const { data: saved, error } = isEdit
+        ? await supabase.from("feed_products").update(payload).eq("id", item.id).select("id").single()
+        : await supabase.from("feed_products").insert(payload).select("id").single();
       if (error) throw error;
+      const savedId = saved?.id || item?.id;
+      if (savedId && Number(stock) !== Number(item?.current_stock || 0)) {
+        const { error: stockErr } = await (supabase as any).rpc("post_named_stock", {
+          p_store: "feed_products",
+          p_item_id: savedId,
+          p_delta: 0,
+          p_source_type: "card_save",
+          p_source_id: savedId,
+          p_source_line: `set:${stock}`,
+          p_reason: "تعديل رصيد بطاقة منتج العلف",
+          p_effect: "set",
+          p_target: stock,
+        });
+        if (stockErr) throw stockErr;
+      }
       toast.success(isEdit ? "تم تحديث المنتج" : "تم إضافة المنتج");
       onClose(); onSaved();
     } catch (e: any) { toast.error(e.message || "فشل الحفظ"); }

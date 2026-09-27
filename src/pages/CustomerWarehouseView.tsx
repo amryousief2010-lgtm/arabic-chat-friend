@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Search, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, Plus, Trash2, Pencil, Printer, FileSpreadsheet, FileText, Eye, Package, CheckCircle2, AlertTriangle, ChevronsUpDown, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { postInventoryDocument, postManualInventoryMovement, reversePostedMovement } from "@/lib/inventoryStock";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -79,6 +80,7 @@ const ensureMutationSucceeded = (
 };
 
 export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSubtitle }: Props) {
+  const editRequestRef = useRef(crypto.randomUUID());
   const { user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth();
   const canEditMovements = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const [loading, setLoading] = useState(true);
@@ -120,7 +122,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     lines: ReceiptLine[];
   } | null>(null);
 
-  const adjustMainForItem = async (itemName: string, unit: string, productId: string | null, delta: number) => {
+  const adjustMainForItem = async (itemName: string, unit: string, productId: string | null, delta: number, requestId: string) => {
     // delta > 0 -> add to main, delta < 0 -> subtract from main
     if (!mainWhId || delta === 0) return;
     let mainItem = mainItems.find((i) => i.name === itemName);
@@ -133,12 +135,20 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       if (error || !newRow) throw error || new Error("تعذّر إنشاء صنف في المخزن الرئيسي");
       mainItem = newRow as InventoryItem;
     }
-    const newStock = Number(mainItem.stock) + delta;
-    if (newStock < 0) throw new Error("لا يمكن خصم كمية أكبر من رصيد المخزن الرئيسي");
-    await supabase.from("inventory_items").update({ stock: newStock }).eq("id", mainItem.id);
+    if (Number(mainItem.stock) + delta < 0) throw new Error("لا يمكن خصم كمية أكبر من رصيد المخزن الرئيسي");
+    await postManualInventoryMovement({
+      itemId: mainItem.id,
+      movementType: delta > 0 ? "in" : "out",
+      quantity: Math.abs(delta),
+      reason: "تسوية رصيد عميل",
+      referenceType: delta > 0 ? "customer_return" : "customer_supply",
+      party: warehouseName,
+      requestId,
+    });
   };
 
   const openItemEdit = (it: InventoryItem) => {
+    editRequestRef.current = crypto.randomUUID();
     setEditItem(it);
     setEditStock(String(it.stock));
   };
@@ -152,21 +162,22 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     setItemBusy(true);
     try {
       // diff > 0: stock increased here -> deduct from main; diff < 0: returned to main
-      await adjustMainForItem(editItem.name, editItem.unit, editItem.product_id, -diff);
-      await supabase.from("inventory_items").update({ stock: newStock }).eq("id", editItem.id);
-      // Log a correction movement
-      await supabase.from("inventory_movements").insert({
-        item_id: editItem.id,
-        warehouse_id: whId,
-        source_warehouse_id: diff > 0 ? mainWhId : whId,
-        destination_warehouse_id: diff > 0 ? whId : mainWhId,
-        movement_type: diff > 0 ? "in" : "out",
+      await adjustMainForItem(editItem.name, editItem.unit, editItem.product_id, -diff, editRequestRef.current);
+      // The posted movement updates this card. A second stock write would double-count.
+      await postInventoryDocument({
+        itemId: editItem.id,
+        warehouseId: whId,
+        movementType: diff > 0 ? "in" : "out",
         quantity: Math.abs(diff),
+        sourceType: diff > 0 ? "manual_in" : "manual_out",
+        sourceId: editRequestRef.current,
+        sourceLineId: editItem.id,
+        reason: "تعديل رصيد يدوي",
         notes: "تعديل رصيد يدوي",
         party: warehouseName,
-        reference_type: diff > 0 ? "customer_supply" : "customer_return",
-        performed_by: user?.id ?? null,
-        product_id: editItem.product_id,
+        referenceType: diff > 0 ? "customer_supply" : "customer_return",
+        productId: editItem.product_id,
+        destinationWarehouseId: diff > 0 ? whId : mainWhId,
       });
       toast.success("تم تعديل الرصيد");
       setEditItem(null);
@@ -184,24 +195,24 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     try {
       const qty = Number(it.stock);
       if (qty > 0) {
-        await adjustMainForItem(it.name, it.unit, it.product_id, qty);
-        await supabase.from("inventory_movements").insert({
-          item_id: it.id,
-          warehouse_id: whId,
-          source_warehouse_id: whId,
-          destination_warehouse_id: mainWhId,
-          movement_type: "out",
+        await adjustMainForItem(it.name, it.unit, it.product_id, qty, crypto.randomUUID());
+        await postInventoryDocument({
+          itemId: it.id,
+          warehouseId: whId,
+          movementType: "out",
           quantity: qty,
+          sourceType: "manual_out",
+          reason: "حذف صنف وإرجاع للمخزن الرئيسي",
           notes: "حذف صنف وإرجاع للمخزن الرئيسي",
           party: warehouseName,
-          reference_type: "customer_return",
-          performed_by: user?.id ?? null,
-          product_id: it.product_id,
+          referenceType: "customer_return",
+          productId: it.product_id,
+          destinationWarehouseId: mainWhId,
         });
       }
       const { error: deactivateError, count: deactivatedCount } = await supabase
         .from("inventory_items")
-        .update({ stock: 0, is_active: false }, { count: "exact" })
+        .update({ is_active: false }, { count: "exact" })
         .eq("id", it.id);
       ensureMutationSucceeded(deactivateError, deactivatedCount, "لم يتم حذف الصنف من المخزن");
       toast.success("تم حذف الصنف وإرجاع الرصيد");
@@ -535,8 +546,24 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
         });
       }
 
-      const { error: movErr } = await supabase.from("inventory_movements").insert(movRows);
-      if (movErr) throw movErr;
+      const docId = crypto.randomUUID();
+      for (const [idx, row] of movRows.entries()) {
+        await postInventoryDocument({
+          itemId: row.item_id,
+          warehouseId: row.warehouse_id,
+          movementType: row.movement_type,
+          quantity: row.quantity,
+          sourceType: row.movement_type === "out" ? "manual_out" : "manual_in",
+          sourceId: docId,
+          sourceLineId: String(idx + 1),
+          reason: row.notes || "حركة مخزن عميل",
+          notes: row.notes,
+          party: row.party,
+          referenceType: row.reference_type,
+          productId: row.product_id,
+          destinationWarehouseId: row.destination_warehouse_id,
+        });
+      }
 
       // احفظ إيصال آخر عملية للطباعة/التصدير
       setReceipt({
@@ -610,38 +637,9 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     if (!confirm("هل أنت متأكد من حذف هذه الحركة؟ سيتم عكس تأثيرها على الرصيد.")) return;
     try {
       const pair = await findPair(m);
-      // Reverse stock for this side
-      const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
-      if (thisItem) {
-        const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
-        const { error: thisItemError, count: thisItemCount } = await supabase
-          .from("inventory_items")
-          .update({ stock: Number(thisItem.stock) + delta }, { count: "exact" })
-          .eq("id", m.item_id);
-        ensureMutationSucceeded(thisItemError, thisItemCount, "تعذّر عكس رصيد الحركة الحالية");
-      }
-      if (pair) {
-        const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
-        if (pItem) {
-          const delta = pair.movement_type === "in" ? -Number(pair.quantity) : Number(pair.quantity);
-          const { error: pairItemError, count: pairItemCount } = await supabase
-            .from("inventory_items")
-            .update({ stock: Number(pItem.stock) + delta }, { count: "exact" })
-            .eq("id", pair.item_id);
-          ensureMutationSucceeded(pairItemError, pairItemCount, "تعذّر عكس رصيد الحركة المقابلة");
-        }
-        const { error: pairDeleteError, count: pairDeleteCount } = await supabase
-          .from("inventory_movements")
-          .delete({ count: "exact" })
-          .eq("id", pair.id);
-        ensureMutationSucceeded(pairDeleteError, pairDeleteCount, "لم يتم حذف الحركة المقابلة");
-      }
-      const { error: deleteError, count: deletedCount } = await supabase
-        .from("inventory_movements")
-        .delete({ count: "exact" })
-        .eq("id", m.id);
-      ensureMutationSucceeded(deleteError, deletedCount, "لم يتم حذف الحركة");
-      toast.success("تم حذف الحركة");
+      if (pair) await reversePostedMovement(pair.id, "عكس حركة مخزن عميل");
+      await reversePostedMovement(m.id, "عكس حركة مخزن عميل");
+      toast.success("تم عكس الحركة");
       await fetchAll();
     } catch (e: any) {
       toast.error("فشل الحذف: " + (e?.message || ""));
@@ -669,24 +667,36 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     setEditBusy(true);
     try {
       const pair = await findPair(editMov);
-      // Adjust stock for this side
-      const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", editMov.item_id).single()).data as any;
-      if (thisItem) {
-        const delta = editMov.movement_type === "in" ? diff : -diff;
-        if (Number(thisItem.stock) + delta < 0) throw new Error("الكمية الجديدة تُخفّض الرصيد لأقل من صفر");
-        await supabase.from("inventory_items").update({ stock: Number(thisItem.stock) + delta }).eq("id", editMov.item_id);
-      }
+      const reason = "تعديل كمية حركة مخزن عميل";
       if (pair) {
-        const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
-        if (pItem) {
-          const delta = pair.movement_type === "in" ? diff : -diff;
-          if (Number(pItem.stock) + delta < 0) throw new Error("الكمية الجديدة تُخفّض رصيد المخزن الآخر لأقل من صفر");
-          await supabase.from("inventory_items").update({ stock: Number(pItem.stock) + delta }).eq("id", pair.item_id);
-        }
-        await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", pair.id);
+        await reversePostedMovement(pair.id, reason);
+        await postInventoryDocument({
+          itemId: pair.item_id,
+          warehouseId: pair.warehouse_id,
+          movementType: pair.movement_type,
+          quantity: newQty,
+          sourceType: pair.movement_type === "out" ? "manual_out" : "manual_in",
+          reason,
+          notes: pair.notes,
+          party: pair.party,
+          referenceType: pair.reference_type,
+          productId: pair.product_id,
+        });
       }
-      await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", editMov.id);
-      toast.success("تم تعديل الحركة");
+      await reversePostedMovement(editMov.id, reason);
+      await postInventoryDocument({
+        itemId: editMov.item_id,
+        warehouseId: editMov.warehouse_id,
+        movementType: editMov.movement_type,
+        quantity: newQty,
+        sourceType: editMov.movement_type === "out" ? "manual_out" : "manual_in",
+        reason,
+        notes: editMov.notes,
+        party: editMov.party,
+        referenceType: editMov.reference_type,
+        productId: editMov.product_id,
+      });
+      toast.success("تم عكس الحركة وتسجيل الكمية الجديدة");
       setEditMov(null);
       await fetchAll();
     } catch (e: any) {
@@ -750,28 +760,11 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
         throw new Error("الفاتورة غير موجودة حالياً أو تم حذفها بالفعل");
       }
 
-      for (const m of relatedRows) {
-        const itemRow = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
-        if (!itemRow) continue;
-
-        const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
-        const { error: itemError, count: itemCount } = await supabase
-          .from("inventory_items")
-          .update({ stock: Number(itemRow.stock) + delta }, { count: "exact" })
-          .eq("id", m.item_id);
-        ensureMutationSucceeded(itemError, itemCount, `تعذّر عكس رصيد الصنف المرتبط بالفاتورة`);
+      for (const row of relatedRows) {
+        await reversePostedMovement(row.id, "عكس فاتورة مخزن عميل");
       }
 
-      const { error: deleteError, count: deletedCount } = await supabase
-        .from("inventory_movements")
-        .delete({ count: "exact" })
-        .in("id", relatedRows.map((m) => m.id));
-      if (deleteError) throw deleteError;
-      if ((deletedCount || 0) < relatedRows.length) {
-        throw new Error("لم يتم حذف كل حركات الفاتورة");
-      }
-
-      toast.success("تم حذف الفاتورة وعكس حركاتها");
+      toast.success("تم عكس حركات الفاتورة");
       await fetchAll();
     } catch (e: any) {
       toast.error("فشل الحذف: " + (e?.message || ""));
@@ -838,38 +831,35 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
   // (apply_inventory_movement / adjust_inventory_movement_on_update / reverse_inventory_movement_on_delete)
   // تتولى تعديل الرصيد تلقائياً عند INSERT/UPDATE/DELETE على inventory_movements.
   // أي تعديل يدوي إضافي يسبب تأثير مضاعف (مثل خصم 4 بدل 2 عند حذف مرتجع).
+  const repostMovement = async (m: Movement, newQty: number, reason: string) => {
+    await reversePostedMovement(m.id, reason);
+    await postInventoryDocument({
+      itemId: m.item_id,
+      warehouseId: m.warehouse_id,
+      movementType: m.movement_type,
+      quantity: newQty,
+      sourceType: m.movement_type === "out" ? "manual_out" : "manual_in",
+      reason,
+      notes: m.notes,
+      party: m.party,
+      referenceType: m.reference_type,
+      productId: m.product_id,
+    });
+  };
+
   const applyMovementQtyChange = async (m: Movement, newQty: number) => {
     const oldQty = Number(m.quantity);
     if (newQty === oldQty) return;
+    const reason = "تعديل كمية فاتورة مخزن عميل";
     const pair = await findPair(m);
-    if (pair) {
-      const { error: pErr } = await supabase
-        .from("inventory_movements")
-        .update({ quantity: newQty })
-        .eq("id", pair.id);
-      if (pErr) throw pErr;
-    }
-    const { error: upErr } = await supabase
-      .from("inventory_movements")
-      .update({ quantity: newQty })
-      .eq("id", m.id);
-    if (upErr) throw upErr;
+    if (pair) await repostMovement(pair, newQty, reason);
+    await repostMovement(m, newQty, reason);
   };
 
   const applyMovementDelete = async (m: Movement) => {
     const pair = await findPair(m);
-    if (pair) {
-      const { error: pairDelErr, count: pairCount } = await supabase
-        .from("inventory_movements")
-        .delete({ count: "exact" })
-        .eq("id", pair.id);
-      ensureMutationSucceeded(pairDelErr, pairCount, "تعذّر حذف الحركة المقابلة (تحقق من الصلاحيات)");
-    }
-    const { error: delErr, count } = await supabase
-      .from("inventory_movements")
-      .delete({ count: "exact" })
-      .eq("id", m.id);
-    ensureMutationSucceeded(delErr, count, "تعذّر حذف السطر (تحقق من الصلاحيات)");
+    if (pair) await reversePostedMovement(pair.id, "عكس سطر فاتورة مخزن عميل");
+    await reversePostedMovement(m.id, "عكس سطر فاتورة مخزن عميل");
   };
 
 
@@ -917,37 +907,39 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     // يقوم بذلك تلقائياً عند إدراج حركات المخزون أدناه.
 
 
-    const { error: movErr } = await supabase.from("inventory_movements").insert([
-      {
-        item_id: sourceItem.id,
-        warehouse_id: sourceWh,
-        source_warehouse_id: sourceWh,
-        destination_warehouse_id: destWh,
-        movement_type: "out",
-        quantity: realQty,
-        notes: baseNote,
-        party: warehouseName,
-        reference_type: refType,
-        performed_by: user?.id ?? null,
-        product_id: sourceItem.product_id,
-        performed_at: editInvoice.at,
-      },
-      {
-        item_id: destItem.id,
-        warehouse_id: destWh,
-        source_warehouse_id: sourceWh,
-        destination_warehouse_id: destWh,
-        movement_type: "in",
-        quantity: realQty,
-        notes: baseNote,
-        party: warehouseName,
-        reference_type: refType,
-        performed_by: user?.id ?? null,
-        product_id: sourceItem.product_id,
-        performed_at: editInvoice.at,
-      },
-    ]);
-    if (movErr) throw movErr;
+    const docId = crypto.randomUUID();
+    await postInventoryDocument({
+      itemId: sourceItem.id,
+      warehouseId: sourceWh,
+      destinationWarehouseId: destWh,
+      movementType: "out",
+      quantity: realQty,
+      sourceType: "manual_out",
+      sourceId: docId,
+      sourceLineId: "out",
+      reason: baseNote || "تعديل فاتورة مخزن عميل",
+      notes: baseNote,
+      party: warehouseName,
+      referenceType: refType,
+      productId: sourceItem.product_id,
+      performedAt: editInvoice.at,
+    });
+    await postInventoryDocument({
+      itemId: destItem.id,
+      warehouseId: destWh,
+      destinationWarehouseId: destWh,
+      movementType: "in",
+      quantity: realQty,
+      sourceType: "manual_in",
+      sourceId: docId,
+      sourceLineId: "in",
+      reason: baseNote || "تعديل فاتورة مخزن عميل",
+      notes: baseNote,
+      party: warehouseName,
+      referenceType: refType,
+      productId: sourceItem.product_id,
+      performedAt: editInvoice.at,
+    });
   };
 
   const submitInvoiceEdit = async () => {

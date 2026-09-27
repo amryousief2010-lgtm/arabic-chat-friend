@@ -109,7 +109,7 @@ const InventoryEngine = () => {
       setLoading(true);
       const [b, m, w] = await Promise.all([
         supabase.from("v_inventory_balances").select("*").limit(2000),
-        supabase.from("inventory_movements").select("*").order("performed_at", { ascending: false }).limit(500),
+        supabase.from("inventory_movements_visible" as any).select("*").order("performed_at", { ascending: false }).limit(500),
         supabase.from("warehouses").select("id,name,type").eq("is_active", true),
       ]);
       if (b.error) toast.error("فشل تحميل الأرصدة: " + b.error.message);
@@ -156,7 +156,9 @@ const InventoryEngine = () => {
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
+  const [requestId, setRequestId] = useState("");
   const openDlg = (type: "adjust" | "transfer" | "stockin" | "stockout", item: Balance) => {
+    setRequestId(crypto.randomUUID());
     setActiveItem(item);
     setDlg(type);
     setFQty("");
@@ -177,25 +179,26 @@ const InventoryEngine = () => {
         res = await supabase.rpc("inv_post_movement", {
           p_item_id: activeItem.id, p_warehouse_id: activeItem.warehouse_id,
           p_movement_type: "stock_in", p_quantity: Number(fQty), p_unit_cost: Number(fCost),
-          p_module: activeItem.module, p_reason: fReason || null,
+          p_module: activeItem.module, p_reason: fReason || null, p_request_id: requestId,
         });
       } else if (dlg === "stockout") {
         res = await supabase.rpc("inv_post_movement", {
           p_item_id: activeItem.id, p_warehouse_id: activeItem.warehouse_id,
           p_movement_type: "stock_out", p_quantity: Number(fQty),
           p_module: activeItem.module, p_reason: fReason, p_override_negative: fOverride,
+          p_request_id: requestId,
         });
       } else if (dlg === "adjust") {
         res = await supabase.rpc("inv_post_movement", {
           p_item_id: activeItem.id, p_warehouse_id: activeItem.warehouse_id,
           p_movement_type: "adjustment", p_quantity: Number(fQty),
-          p_module: activeItem.module, p_reason: fReason,
+          p_module: activeItem.module, p_reason: fReason, p_request_id: requestId,
         });
       } else if (dlg === "transfer") {
         if (!fDestWh) throw new Error("اختر المستودع الوجهة");
         res = await supabase.rpc("inv_transfer", {
           p_source_item_id: activeItem.id, p_destination_warehouse_id: fDestWh,
-          p_quantity: Number(fQty), p_reason: fReason,
+          p_quantity: Number(fQty), p_reason: fReason, p_request_id: requestId,
         });
       }
       if (res?.error) throw res.error;

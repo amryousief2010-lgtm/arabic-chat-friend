@@ -161,15 +161,21 @@ export default function Issues() {
     if (!deleteId) return;
     const issue = issues.find(i => i.id === deleteId);
     if (!issue) { setDeleteId(null); return; }
-    const { error: delErr } = await supabase.from("feed_material_issues").delete().eq("id", deleteId);
-    if (delErr) { toast({ title: "خطأ", description: delErr.message, variant: "destructive" }); setDeleteId(null); return; }
-    // restore stock (trigger only fires on insert)
     const mat = materials.find(m => m.id === issue.raw_material_id);
     if (mat) {
-      await supabase.from("feed_raw_materials")
-        .update({ stock: Number(mat.stock) + Number(issue.qty) })
-        .eq("id", mat.id);
+      const { error: stockErr } = await (supabase as any).rpc("post_named_stock", {
+        p_store: "feed_raw_materials",
+        p_item_id: mat.id,
+        p_delta: Number(issue.qty),
+        p_source_type: "feed_material_issue_delete",
+        p_source_id: issue.id,
+        p_source_line: "restore",
+        p_reason: "إرجاع صرف علف بعد الحذف",
+      });
+      if (stockErr) { toast({ title: "خطأ", description: stockErr.message, variant: "destructive" }); setDeleteId(null); return; }
     }
+    const { error: delErr } = await supabase.from("feed_material_issues").delete().eq("id", deleteId);
+    if (delErr) { toast({ title: "خطأ", description: delErr.message, variant: "destructive" }); setDeleteId(null); return; }
     toast({ title: "تم الحذف وإرجاع الكمية للمخزون" });
     setDeleteId(null);
     fetchAll();

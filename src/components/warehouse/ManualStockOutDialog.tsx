@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { AlertTriangle, Info, Loader2, Lock, PackageMinus, Plus, Printer, ShieldAlert, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { postManualInventoryMovement } from "@/lib/inventoryStock";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import AddManualPartyDialog from "@/components/warehouse/AddManualPartyDialog";
@@ -74,6 +75,7 @@ interface Row {
   manualKg: string;
 }
 
+const BLOCKED_MAIN_OUT = new Set(["agouza_branch", "healthy_test", "carrefour"]);
 const DESTINATIONS: { value: string; label: string }[] = [
   { value: "agouza_branch", label: "فرع العجوزة" },
   { value: "private_courier", label: "مندوب خاص" },
@@ -141,6 +143,10 @@ const ManualStockOutDialog = ({
   items,
   onSaved,
 }: Props) => {
+  const requestIdRef = useRef(crypto.randomUUID());
+  useEffect(() => {
+    if (open) requestIdRef.current = crypto.randomUUID();
+  }, [open]);
   const { user, profile, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth() as any;
   const canAddParty = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const canManualKg = isGeneralManager || isExecutiveManager;
@@ -324,7 +330,14 @@ const ManualStockOutDialog = ({
     if (!validDest) { toast({ title: "اختر جهة الصرف", variant: "destructive" }); return; }
     if (!reason.trim()) { toast({ title: "أدخل اسم القائم بالتوريد", variant: "destructive" }); return; }
     if (!isValidAdjustmentReason(category)) { toast({ title: "اختر سبب الصرف من القائمة (إجباري)", variant: "destructive" }); return; }
-    if (!deliveryDate) { toast({ title: "اختر تاريخ التوريد", variant: "destructive" }); return; }
+    if (isMainWarehouse && BLOCKED_MAIN_OUT.has(destKey)) {
+      toast({
+        title: "استخدم التحويل",
+        description: "الصرف من المخزن الرئيسي إلى العجوزة أو كارفور أو هيلثي تيست يتم بتحويل مع استلام فقط.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (mergedRows.size === 0) { toast({ title: "أضف صنف واحد على الأقل", variant: "destructive" }); return; }
     for (const r of rows) {
       if (!r.itemId) { toast({ title: "اختر الصنف في كل صف", variant: "destructive" }); return; }
@@ -349,7 +362,7 @@ const ManualStockOutDialog = ({
     setSaving(true);
     try {
       const opNo = await generateOpNo();
-      const performedAt = new Date().toISOString();
+      const performedAt = `${deliveryDate}T12:00:00+03:00`;
       const partyLabel = `صرف مباشر مؤقت إلى: ${destLabel}`;
 
       const byItem = new Map<string, { qty: number; pkgCount: number | null; pkgWeight: number | null; manual: boolean }>();
@@ -429,6 +442,10 @@ const ManualStockOutDialog = ({
         if (inactive) {
           throw new Error(`الصنف "${inactive.item_name}" غير مفعّل ولا يمكن صرفه.`);
         }
+        const unlinked = diag.find((d) => !d.product_id);
+        if (unlinked) {
+          throw new Error(`الصنف "${unlinked.item_name}" يحتاج ربطاً بمنتج قبل الصرف أو البيع. البطاقة ظاهرة في تقرير البطاقات غير المربوطة.`);
+        }
         const rejected = diag.find((d) => d.rejection_reason);
         if (rejected) {
           throw new Error(isMainWarehouse
@@ -438,8 +455,6 @@ const ManualStockOutDialog = ({
         }
       }
 
-      const inserts: any[] = [];
-      const stockUpdates: { id: string; newStock: number }[] = [];
       const slipRows: SlipItemRow[] = [];
 
 
@@ -475,41 +490,30 @@ const ManualStockOutDialog = ({
           ? partyLabel
           : `${partyLabel} — ${info.pkgCount} عبوة × ${info.pkgWeight} كجم = ${info.qty} كجم`;
 
-        inserts.push({
-          warehouse_id: warehouseId,
-          item_id: itemId,
-          movement_type: "out",
+        const posted = await postManualInventoryMovement({
+          itemId,
+          movementType: "out",
           quantity: info.qty,
-          package_count: info.pkgCount,
-          package_weight_kg: info.pkgWeight,
-          quantity_kg: info.qty,
-          reference: opNo,
-          reference_type: "manual_out",
-          party: partyWithPkg,
-          reason: category,
+          reason: category.trim().length >= 3 ? category.trim() : "صرف يدوي",
           notes: combinedNotes,
-          module: "warehouse_manual",
-          performed_by: user?.id ?? null,
-          performed_at: performedAt,
+          party: partyWithPkg,
+          reference: opNo,
+          referenceType: "manual_out",
+          performedAt,
+          overrideReason: isManager && overrideReason.trim().length >= 3 ? overrideReason.trim() : null,
+          packageCount: info.pkgCount,
+          packageWeightKg: info.pkgWeight,
+          requestId: requestIdRef.current,
         });
-        stockUpdates.push({ id: itemId, newStock: stockAfter });
         slipRows.push({
           name: it.name,
           unit,
           packageCount: info.pkgCount,
           packageWeightKg: info.pkgWeight,
           quantity: info.qty,
-          stockBefore,
-          stockAfter,
+          stockBefore: Number(posted.stock_before ?? stockBefore),
+          stockAfter: Number(posted.stock_after ?? stockAfter),
         });
-      }
-
-      const { error: mErr } = await supabase.from("inventory_movements").insert(inserts as any);
-      if (mErr) throw mErr;
-
-      for (const u of stockUpdates) {
-        const { error } = await supabase.from("inventory_items").update({ stock: u.newStock }).eq("id", u.id);
-        if (error) throw error;
       }
 
       setLastSaved({
@@ -525,7 +529,7 @@ const ManualStockOutDialog = ({
 
       toast({
         title: "تم حفظ الصرف",
-        description: `${opNo} — ${stockUpdates.length} صنف (${destLabel})`,
+        description: `${opNo} — ${slipRows.length} صنف (${destLabel})`,
       });
       onSaved?.();
     } catch (e: any) {
@@ -597,7 +601,7 @@ const ManualStockOutDialog = ({
               <Select value={destKey} onValueChange={(v) => { setDestKey(v); setCustomerName(""); setDestOther(""); }}>
                 <SelectTrigger className="flex-1"><SelectValue placeholder="اختر جهة الصرف" /></SelectTrigger>
                 <SelectContent>
-                  {DESTINATIONS.map(d => (
+                  {DESTINATIONS.filter((d) => !(isMainWarehouse && BLOCKED_MAIN_OUT.has(d.value))).map(d => (
                     <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
                   ))}
                   {customParties.length > 0 && (
@@ -702,6 +706,17 @@ const ManualStockOutDialog = ({
                 maxLength={500}
               />
             </div>
+            {isManager && (
+              <div>
+                <Label className="text-xs">سبب تجاوز قفل الجرد (للمدير العام أو التنفيذي فقط)</Label>
+                <Input
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="يُطلب فقط إذا كان تاريخ الصرف قبل اعتماد الجرد"
+                  maxLength={300}
+                />
+              </div>
+            )}
           </div>
 
           {/* Reservation warning panel */}
@@ -834,8 +849,9 @@ const ManualStockOutDialog = ({
                               ) : filteredAllowedItems.length === 0 ? (
                                 <div className="px-3 py-2 text-xs text-muted-foreground">لا توجد نتيجة مطابقة</div>
                               ) : filteredAllowedItems.map((i) => (
-                                <SelectItem key={i.id} value={i.id} disabled={Number(i.stock || 0) <= 0}>
+                                <SelectItem key={i.id} value={i.id} disabled={Number(i.stock || 0) <= 0 || !i.product_id}>
                                   {i.name} {i.unit ? `(${i.unit})` : ""} — {Number(i.stock || 0)}
+                                  {!i.product_id ? " — يحتاج ربط" : ""}
                                   {(i.sku || i.item_code || i.barcode || i.product?.barcode) ? ` — ${i.sku || i.item_code || i.barcode || i.product?.barcode}` : ""}
                                 </SelectItem>
                               ))}

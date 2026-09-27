@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +17,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { canViewInventoryCost, withItemUnitCost } from "@/lib/inventoryCostAccess";
+import { postManualInventoryMovement, reversePostedMovement, setInventoryItemStock } from "@/lib/inventoryStock";
 import { formatDateTime } from "@/lib/dateFormat";
 import companyLogo from "@/assets/company-logo.jpg";
 import WarehouseKpisBlock from "@/components/warehouses/WarehouseKpisBlock";
@@ -209,6 +211,7 @@ interface Movement {
   package_count?: number | null;
   package_weight_kg?: number | null;
   performed_by?: string | null;
+  approval_status?: string | null;
   item?: { name: string; unit: string };
   warehouse?: { name: string };
   destination?: { name: string };
@@ -238,10 +241,12 @@ const Warehouses = () => {
   // ولا يجب أن يرى مخزن العجوزة أو باقي المخازن.
   const mainOnlyScope =
     userRoles.includes("warehouse_supervisor") && !isGeneralManager && !isExecutiveManager;
+  const showCost = canViewInventoryCost(userRoles);
   const { toast } = useToast();
   const [warehouses, setWarehouses] = useState<WarehouseRow[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
+  const [inTransitByItem, setInTransitByItem] = useState<Record<string, number>>({});
   const [slaughterOutputs, setSlaughterOutputs] = useState<any[]>([]);
   const [receiveBatch, setReceiveBatch] = useState<{ batch_id: string; batch_number: string; slaughter_date?: string; status?: string; outputs: any[] } | null>(null);
   const [receiveWarehouseId, setReceiveWarehouseId] = useState<string>("");
@@ -260,6 +265,11 @@ const Warehouses = () => {
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
   const [itemForm, setItemForm] = useState({ warehouse_id: "", name: "", category: "", sku: "", unit: "قطعة", stock: 0, low_stock_threshold: 10, unit_cost: 0, expiry_date: "" });
 
+  const formRequestId = useRef<Record<string, string>>({});
+  const mintRequestId = (slot: string) => {
+    formRequestId.current[slot] = crypto.randomUUID();
+    return formRequestId.current[slot];
+  };
   const [moveDialog, setMoveDialog] = useState(false);
   const [moveForm, setMoveForm] = useState({ item_id: "", movement_type: "in", quantity: 0, destination_warehouse_id: "", reference: "", party: "", notes: "" });
 
@@ -429,16 +439,9 @@ const Warehouses = () => {
     if (!window.confirm(`سيتم إلغاء التوريدة ${target.reference} وعكس أثرها على المخزون. متابعة؟`)) return;
     setManualBusy(true);
     try {
-      // Reverse stock for each line, then delete the original movements.
-      for (const m of target.movs) {
-        const delta = (m.movement_type === "in" ? -1 : 1) * Number(m.quantity || 0);
-        const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", m.item_id).maybeSingle();
-        const newStock = Number((it as any)?.stock || 0) + delta;
-        await supabase.from("inventory_items").update({ stock: newStock }).eq("id", m.item_id);
+      for (const mov of target.movs) {
+        await reversePostedMovement(mov.id, reason.trim());
       }
-      const ids = target.movs.map((m) => m.id);
-      const { error } = await supabase.from("inventory_movements").delete().in("id", ids);
-      if (error) throw error;
       // Lightweight audit trail — appended into a notification for managers
       try {
         await supabase.from("notifications").insert({
@@ -480,6 +483,7 @@ const Warehouses = () => {
         _origQty: Number(m.quantity || 0),
       }))
     );
+    mintRequestId("edit-manual");
     setEditManualOpen(true);
   };
 
@@ -493,7 +497,6 @@ const Warehouses = () => {
       Extract<GroupedRow, { kind: "manual" }> | undefined;
     if (!group) return;
     const direction = group.direction; // "in" | "out"
-    const sign = direction === "in" ? 1 : -1;
     const sampleWh = group.movs[0]?.warehouse_id;
     const referenceType = direction === "in" ? "manual_addition" : "manual_out";
 
@@ -522,46 +525,38 @@ const Warehouses = () => {
       // Apply per-line changes
       for (const L of editManualLines) {
         if (L._isNew && !L._deleted) {
-          // new line: add stock & insert movement
           const item = items.find(i => i.id === L.item_id);
           if (!item) continue;
-          const newStock = Number(item.stock || 0) + sign * Number(L.quantity);
-          await supabase.from("inventory_items").update({ stock: newStock }).eq("id", L.item_id);
-          await supabase.from("inventory_movements").insert({
-            item_id: L.item_id,
-            warehouse_id: item.warehouse_id || sampleWh,
-            movement_type: direction === "in" ? "in" : "out",
+          await postManualInventoryMovement({
+            itemId: L.item_id,
+            movementType: direction === "in" ? "in" : "out",
             quantity: Number(L.quantity),
-            destination_warehouse_id: null,
-            reference: editManualRef,
-            reference_type: referenceType,
-            party: group.partyLabel || null,
+            reason: editManualReason.trim(),
             notes: `${L.notes || ""}${L.notes ? " • " : ""}مضاف بالتعديل: ${editManualReason}`,
-            unit_cost: item.unit_cost,
-            performed_by: user?.id,
-            package_count: L.package_count ?? null,
-            package_weight_kg: L.package_weight_kg ?? null,
-          } as any);
+            party: group.partyLabel || null,
+            reference: editManualRef,
+            referenceType,
+            packageCount: L.package_count ?? null,
+            packageWeightKg: L.package_weight_kg ?? null,
+            requestId: formRequestId.current["edit-manual"],
+          });
         } else if (L._deleted && L.id) {
-          // delete line: reverse its quantity from stock & delete row
-          const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", L.item_id).maybeSingle();
-          const newStock = Number((it as any)?.stock || 0) - sign * Number(L._origQty || 0);
-          await supabase.from("inventory_items").update({ stock: newStock }).eq("id", L.item_id);
-          await supabase.from("inventory_movements").delete().eq("id", L.id);
-        } else if (L.id) {
-          // updated line: stock delta = sign * (newQty - origQty)
-          const delta = sign * (Number(L.quantity) - Number(L._origQty || 0));
-          if (delta !== 0) {
-            const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", L.item_id).maybeSingle();
-            const newStock = Number((it as any)?.stock || 0) + delta;
-            await supabase.from("inventory_items").update({ stock: newStock }).eq("id", L.item_id);
-          }
-          await supabase.from("inventory_movements").update({
+          await reversePostedMovement(L.id, editManualReason.trim());
+        } else if (L.id && Number(L.quantity) !== Number(L._origQty)) {
+          await reversePostedMovement(L.id, editManualReason.trim());
+          await postManualInventoryMovement({
+            itemId: L.item_id,
+            movementType: direction === "in" ? "in" : "out",
             quantity: Number(L.quantity),
-            package_count: L.package_count ?? null,
-            package_weight_kg: L.package_weight_kg ?? null,
-            notes: `${L.notes || ""}${L.notes ? " • " : ""}عُدّل بسبب: ${editManualReason}`,
-          } as any).eq("id", L.id);
+            reason: editManualReason.trim(),
+            notes: `${L.notes || ""}${L.notes ? " • " : ""}بعد التعديل: ${editManualReason}`,
+            party: group.partyLabel || null,
+            reference: editManualRef,
+            referenceType,
+            packageCount: L.package_count ?? null,
+            packageWeightKg: L.package_weight_kg ?? null,
+            requestId: formRequestId.current["edit-manual"],
+          });
         }
       }
       try {
@@ -597,10 +592,10 @@ const Warehouses = () => {
     // Phase 1 — what the default «الأصناف» tab needs. Paint as soon as this lands.
     const [w, i] = await Promise.all([
       supabase.from("warehouses").select("id, name, type, location, description, is_active").order("name"),
-      supabase.from("inventory_items").select("id, warehouse_id, product_id, name, category, sku, unit, stock, low_stock_threshold, unit_cost, expiry_date, warehouse:warehouses(name), product:products(is_active, category, name, barcode)").order("name"),
+      supabase.from("inventory_items").select("id, warehouse_id, product_id, name, category, sku, unit, stock, low_stock_threshold, expiry_date, warehouse:warehouses(name), product:products(is_active, category, name, barcode)").order("name"),
     ]);
     if (w.data) setWarehouses(filterWh(w.data) as WarehouseRow[]);
-    if (i.data) setItems(filterByWh(i.data) as InventoryItem[]);
+    if (i.data) setItems(filterByWh(await withItemUnitCost(i.data as any)) as InventoryItem[]);
     setLoading(false);
 
     // Phase 2 — movements / slaughter inbox / geo orders. Not required to show the hub.
@@ -626,7 +621,7 @@ const Warehouses = () => {
         whIds.map((id) =>
           supabase
             .from("inventory_movements")
-            .select("id, item_id, warehouse_id, movement_type, quantity, destination_warehouse_id, reference, reference_type, party, notes, performed_at, package_count, package_weight_kg, performed_by, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)")
+            .select("id, item_id, warehouse_id, movement_type, quantity, destination_warehouse_id, reference, reference_type, party, notes, performed_at, package_count, package_weight_kg, performed_by, approval_status, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)")
             .or(`warehouse_id.eq.${id},source_warehouse_id.eq.${id},destination_warehouse_id.eq.${id}`)
             .order("performed_at", { ascending: false })
             .limit(80)
@@ -643,8 +638,28 @@ const Warehouses = () => {
       }
       merged.sort((a, b) => (a.performed_at < b.performed_at ? 1 : -1));
       setMovements(merged as Movement[]);
+      const { data: openTransfers } = await supabase
+        .from("warehouse_transfers")
+        .select("id")
+        .in("status", ["pending_receipt", "partially_received", "sent"]);
+      const transferIds = (openTransfers || []).map((t: { id: string }) => t.id);
+      const transit: Record<string, number> = {};
+      if (transferIds.length) {
+        const { data: lines } = await supabase
+          .from("warehouse_transfer_items")
+          .select("source_item_id, sent_qty, received_qty")
+          .in("transfer_id", transferIds);
+        (lines || []).forEach((line: any) => {
+          const qty = Math.max(0, Number(line.sent_qty || 0) - Number(line.received_qty || 0));
+          if (line.source_item_id && qty > 0) {
+            transit[line.source_item_id] = (transit[line.source_item_id] || 0) + qty;
+          }
+        });
+      }
+      setInTransitByItem(transit);
     } else {
       setMovements([]);
+      setInTransitByItem({});
     }
   };
 
@@ -684,6 +699,7 @@ const Warehouses = () => {
       setEditItem(null);
       setItemForm({ warehouse_id: prefilledWarehouseId || warehouses[0]?.id || "", name: "", category: "", sku: "", unit: "قطعة", stock: 0, low_stock_threshold: 10, unit_cost: 0, expiry_date: "" });
     }
+    mintRequestId("item");
     setItemDialog(true);
   };
 
@@ -693,21 +709,48 @@ const Warehouses = () => {
       toast({ title: "خطأ", description: "أدخل الاسم واختر المخزن", variant: "destructive" });
       return;
     }
+    const { stock, ...fields } = itemForm;
     const payload = {
-      ...itemForm,
+      ...fields,
       category: itemForm.category || null,
       sku: itemForm.sku || null,
       expiry_date: itemForm.expiry_date || null,
+      stock: 0,
     };
-    const res = editItem
-      ? await supabase.from("inventory_items").update(payload).eq("id", editItem.id)
-      : await supabase.from("inventory_items").insert(payload);
-    if (res.error) toast({ title: "خطأ", description: res.error.message, variant: "destructive" });
-    else { toast({ title: editItem ? "تم التعديل" : "تمت الإضافة" }); setItemDialog(false); fetchAll(); }
+    if (!canViewInventoryCost(roles)) delete (payload as any).unit_cost;
+    try {
+      if (editItem) {
+        const { stock: _ignored, ...updatePayload } = payload;
+        const res = await supabase.from("inventory_items").update(updatePayload).eq("id", editItem.id);
+        if (res.error) throw res.error;
+        if (Number(stock) !== Number(editItem.stock)) {
+          await setInventoryItemStock(editItem.id, Number(stock), "تعديل رصيد من بطاقة الصنف", formRequestId.current.item);
+        }
+      } else {
+        const res = await supabase.from("inventory_items").insert(payload).select("id").single();
+        if (res.error) throw res.error;
+        if (Number(stock) > 0 && res.data?.id) {
+          await postManualInventoryMovement({
+            itemId: res.data.id,
+            movementType: "in",
+            quantity: Number(stock),
+            reason: "رصيد افتتاحي عند إنشاء الصنف",
+            referenceType: "opening_balance",
+            requestId: formRequestId.current.item,
+          });
+        }
+      }
+      toast({ title: editItem ? "تم التعديل" : "تمت الإضافة" });
+      setItemDialog(false);
+      fetchAll();
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e?.message || "تعذّر الحفظ", variant: "destructive" });
+    }
   };
 
   // ============ Movement ============
   const openMoveDialog = () => {
+    mintRequestId("move");
     setMoveForm({ item_id: "", movement_type: "in", quantity: 0, destination_warehouse_id: "", reference: "", party: "", notes: "" });
     setMoveDialog(true);
   };
@@ -719,6 +762,10 @@ const Warehouses = () => {
     }
     const item = items.find(i => i.id === moveForm.item_id);
     if (!item) return;
+    if (moveForm.movement_type === "out" && !item.product_id) {
+      toast({ title: "الصنف غير مربوط", description: "لا يمكن الصرف من بطاقة بلا منتج. اربط البطاقة أولاً.", variant: "destructive" });
+      return;
+    }
 
     if (moveForm.movement_type === "out" && item.stock < moveForm.quantity) {
       toast({ title: "مخزون غير كافٍ", description: `متاح ${item.stock} ${item.unit}`, variant: "destructive" });
@@ -750,21 +797,24 @@ const Warehouses = () => {
       return;
     }
 
-    // Non-transfer movements (in / out / adjustment) — direct insert as before
-    const payload = {
-      item_id: moveForm.item_id,
-      warehouse_id: item.warehouse_id,
-      movement_type: moveForm.movement_type,
-      quantity: moveForm.quantity,
-      destination_warehouse_id: null,
-      reference: moveForm.reference || null,
-      party: moveForm.party || null,
-      notes: moveForm.notes || null,
-      unit_cost: item.unit_cost,
-      performed_by: user?.id,
-    };
-    const { error } = await supabase.from("inventory_movements").insert(payload);
-    if (error) { toast({ title: "خطأ", description: error.message, variant: "destructive" }); return; }
+    try {
+      await postManualInventoryMovement({
+        itemId: moveForm.item_id,
+        movementType: moveForm.movement_type === "out" ? "out" : moveForm.movement_type === "adjustment" ? "adjustment" : "in",
+        quantity: moveForm.quantity,
+        reason: (moveForm.notes || moveForm.reference || "حركة يدوية").trim().length >= 3
+          ? (moveForm.notes || moveForm.reference || "حركة يدوية")
+          : "حركة يدوية من الشاشة",
+        notes: moveForm.notes || null,
+        party: moveForm.party || null,
+        reference: moveForm.reference || null,
+        referenceType: "manual_" + moveForm.movement_type,
+        requestId: formRequestId.current.move,
+      });
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e?.message || "تعذّر تسجيل الحركة", variant: "destructive" });
+      return;
+    }
 
     toast({ title: "تم تسجيل الحركة" });
     setMoveDialog(false);
@@ -837,8 +887,8 @@ const Warehouses = () => {
     [kpiItems]
   );
   const kpiTotalValue = useMemo(
-    () => kpiItems.reduce((s, i) => s + i.stock * i.unit_cost, 0),
-    [kpiItems]
+    () => (showCost ? kpiItems.reduce((s, i) => s + i.stock * Number(i.unit_cost || 0), 0) : null),
+    [kpiItems, showCost]
   );
   const kpiActiveWh = kpiWh ? 1 : warehouses.filter((w) => w.is_active).length;
   const kpiFirstCardLabel = kpiWh ? "حالة المخزن" : "المخازن النشطة";
@@ -920,7 +970,7 @@ const Warehouses = () => {
 
   const exportInventorySummaryPDF = () => {
     const scopedItems = kpiItems;
-    const totalValue = scopedItems.reduce((s, i) => s + i.stock * i.unit_cost, 0);
+    const totalValue = showCost ? scopedItems.reduce((s, i) => s + i.stock * Number(i.unit_cost || 0), 0) : 0;
     const activeWarehouses = kpiWh ? 1 : warehouses.filter(w => w.is_active).length;
     const lowCount = scopedItems.filter(i => i.stock <= i.low_stock_threshold).length;
     const reportTitle = kpiWh ? `تقرير مخزون — ${kpiWh.name}` : "تقرير ملخص المخزون والمنتجات";
@@ -935,8 +985,8 @@ const Warehouses = () => {
         <td>${esc(it.category || '—')}</td>
         <td>${it.stock}</td>
         <td>${esc(it.unit)}</td>
-        <td>${it.unit_cost.toFixed(2)}</td>
-        <td>${(it.stock * it.unit_cost).toFixed(2)}</td>
+        <td>${showCost ? Number(it.unit_cost || 0).toFixed(2) : "—"}</td>
+        <td>${showCost ? (it.stock * Number(it.unit_cost || 0)).toFixed(2) : "—"}</td>
         <td style="color:${it.stock <= it.low_stock_threshold ? '#c0392b' : '#27ae60'};font-weight:bold">${it.stock <= it.low_stock_threshold ? 'منخفض' : 'جيد'}</td>
       </tr>`).join('');
     const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
@@ -976,7 +1026,7 @@ const Warehouses = () => {
       <div class="summary">
         <div><strong>${scopedItems.length}</strong><span>إجمالي الأصناف</span></div>
         <div><strong>${esc(firstSummaryValue)}</strong><span>${esc(firstSummaryLabel)}</span></div>
-        <div><strong>${totalValue.toLocaleString()}</strong><span>قيمة المخزون (ج.م)</span></div>
+        <div><strong>${showCost ? totalValue.toLocaleString() : "—"}</strong><span>قيمة المخزون (ج.م)</span></div>
         <div><strong style="color:#c0392b">${lowCount}</strong><span>أصناف منخفضة</span></div>
       </div>
 
@@ -987,7 +1037,7 @@ const Warehouses = () => {
         <tbody>${rows}</tbody>
         <tfoot><tr>
           <td colspan="7">الإجمالي</td>
-          <td>${totalValue.toFixed(2)}</td>
+          <td>${showCost ? totalValue.toFixed(2) : "—"}</td>
           <td></td>
         </tr></tfoot>
       </table>
@@ -1085,7 +1135,7 @@ const Warehouses = () => {
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
                   <CardDescription className="text-xs font-medium">قيمة المخزون</CardDescription>
-                  <CardTitle className="text-2xl font-bold tabular-nums">{kpiTotalValue.toLocaleString()}</CardTitle>
+                  <CardTitle className="text-2xl font-bold tabular-nums">{kpiTotalValue == null ? "—" : kpiTotalValue.toLocaleString()}</CardTitle>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center ring-1 ring-emerald-500/15 group-hover:bg-emerald-500/15 transition-colors">
                   <BarChart3 className="w-5 h-5 text-emerald-600" />
@@ -1187,27 +1237,35 @@ const Warehouses = () => {
                     <TableHead>المخزن</TableHead>
                     <TableHead>الفئة</TableHead>
                     <TableHead>الرصيد</TableHead>
+                    <TableHead>بالطريق</TableHead>
                     <TableHead>الوحدة</TableHead>
                     <TableHead>الحد الأدنى</TableHead>
-                    <TableHead>التكلفة</TableHead>
+                    {showCost && <TableHead>التكلفة</TableHead>}
                     <TableHead>الصلاحية</TableHead>
                     <TableHead>إجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">جارٍ التحميل...</TableCell></TableRow>
                   ) : filteredItems.length === 0 ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد أصناف</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">لا توجد أصناف</TableCell></TableRow>
                   ) : filteredItems.map(it => (
                     <TableRow key={it.id} className={it.stock <= it.low_stock_threshold ? "bg-destructive/5" : ""}>
-                      <TableCell className="font-medium flex items-center gap-2"><Package className="w-4 h-4 text-muted-foreground" />{it.name}{it.sku && <span className="text-xs text-muted-foreground">({it.sku})</span>}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Package className="w-4 h-4 text-muted-foreground" />
+                          <span>{it.name}{it.sku && <span className="text-xs text-muted-foreground">({it.sku})</span>}</span>
+                          {!it.product_id && <Badge variant="destructive">يحتاج ربط — لا يُصرف</Badge>}
+                        </div>
+                      </TableCell>
                       <TableCell>{it.warehouse?.name || "—"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{it.category || "—"}</TableCell>
                       <TableCell className={it.stock <= it.low_stock_threshold ? "text-destructive font-bold" : ""}>{it.stock}</TableCell>
+                      <TableCell className="font-mono">{inTransitByItem[it.id] ? inTransitByItem[it.id] : "—"}</TableCell>
                       <TableCell>{it.unit}</TableCell>
                       <TableCell>{it.low_stock_threshold}</TableCell>
-                      <TableCell>{it.unit_cost.toFixed(2)}</TableCell>
+                      {showCost && <TableCell>{Number(it.unit_cost || 0).toFixed(2)}</TableCell>}
                       <TableCell className="text-xs">{it.expiry_date || "—"}</TableCell>
                       <TableCell>
                         {canManageWarehouses && (
@@ -1660,7 +1718,7 @@ const Warehouses = () => {
                                     <TableHead>الرصيد</TableHead>
                                     <TableHead>الوحدة</TableHead>
                                     <TableHead>الحد الأدنى</TableHead>
-                                    <TableHead>التكلفة</TableHead>
+                                    {showCost && <TableHead>التكلفة</TableHead>}
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1673,7 +1731,7 @@ const Warehouses = () => {
                                       <TableCell className={it.stock <= it.low_stock_threshold ? "text-destructive font-bold" : ""}>{it.stock}</TableCell>
                                       <TableCell>{it.unit}</TableCell>
                                       <TableCell>{it.low_stock_threshold}</TableCell>
-                                      <TableCell>{Number(it.unit_cost || 0).toFixed(2)}</TableCell>
+                                      {showCost && <TableCell>{Number(it.unit_cost || 0).toFixed(2)}</TableCell>}
                                     </TableRow>
                                   ))}
                                 </TableBody>
@@ -1935,7 +1993,7 @@ const Warehouses = () => {
                   <div><Label>الوحدة</Label><Input value={itemForm.unit} onChange={e => setItemForm({ ...itemForm, unit: e.target.value })} /></div>
                   <div><Label>الرصيد الحالي</Label><Input type="number" value={itemForm.stock} onChange={e => setItemForm({ ...itemForm, stock: Number(e.target.value) })} /></div>
                   <div><Label>الحد الأدنى</Label><Input type="number" value={itemForm.low_stock_threshold} onChange={e => setItemForm({ ...itemForm, low_stock_threshold: Number(e.target.value) })} /></div>
-                  <div><Label>تكلفة الوحدة</Label><Input type="number" step="0.01" value={itemForm.unit_cost} onChange={e => setItemForm({ ...itemForm, unit_cost: Number(e.target.value) })} /></div>
+                  {showCost && <div><Label>تكلفة الوحدة</Label><Input type="number" step="0.01" value={itemForm.unit_cost} onChange={e => setItemForm({ ...itemForm, unit_cost: Number(e.target.value) })} /></div>}
                   <div><Label>تاريخ الصلاحية</Label><Input type="date" value={itemForm.expiry_date} onChange={e => setItemForm({ ...itemForm, expiry_date: e.target.value })} /></div>
                 </div>
               </div>

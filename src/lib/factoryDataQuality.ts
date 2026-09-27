@@ -42,6 +42,8 @@ export function isFactoryInventoryModule(module?: string | null): boolean {
 }
 
 export function isZeroCostWithStock(item: FactoryInventoryItem): boolean {
+  // null means the role cannot read cost, not that the cost is zero.
+  if (item.unit_cost == null) return false;
   return Number(item.unit_cost) === 0 && Number(item.stock) > 0;
 }
 

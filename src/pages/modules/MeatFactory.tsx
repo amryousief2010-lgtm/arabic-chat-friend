@@ -432,30 +432,8 @@ const MeatFactory = () => {
   const confirmApprove = async () => {
     if (!previewBatch) return;
     setApproving(true);
-    const { data, error } = await supabase.rpc("approve_meat_factory_batch" as any, { p_batch_id: previewBatch.id });
+    toast.error("هذه الدالة موقوفة، استخدم فواتير تصنيع مصنع اللحوم واعتمادها عبر دفتر المخزون");
     setApproving(false);
-    if (error) {
-      const msg = error.message || "";
-      // Parse: INSUFFICIENT_STOCK::<count>::<jsonArray>
-      const match = msg.match(/INSUFFICIENT_STOCK::(\d+)::(\[.*\])/s);
-      if (match) {
-        try {
-          const shortages = JSON.parse(match[2]);
-          setFailureDetails({ batch: previewBatch, shortages });
-          setPreviewOpen(false);
-        } catch {
-          toast.error("مخزون غير كافٍ");
-        }
-      } else {
-        toast.error("فشل الاعتماد: " + msg);
-      }
-      fetchAll();
-      return;
-    }
-    toast.success(`تم اعتماد الدفعة. تكلفة المواد: ${fmt((data as any)?.materials_cost, 0)} ج`);
-    setPreviewOpen(false);
-    setPreviewBatch(null);
-    fetchAll();
   };
 
   // ============ QC ============
@@ -977,8 +955,8 @@ const MeatFactory = () => {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setPreviewOpen(false)}>إغلاق</Button>
-            <Button onClick={confirmApprove} disabled={!previewData?.can_approve || approving}>
-              {approving ? "جاري الاعتماد..." : <><PlayCircle className="w-4 h-4 ml-1" />اعتماد وخصم المواد</>}
+            <Button disabled title="هذه الدالة موقوفة، استخدم فواتير تصنيع مصنع اللحوم">
+              موقوف — استخدم فواتير التصنيع
             </Button>
           </DialogFooter>
         </DialogContent>

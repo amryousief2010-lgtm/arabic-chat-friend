@@ -147,12 +147,9 @@ const MeatFactoryOps = () => {
   const filteredTreasury = useMemo(() => treasury.filter(t => matchMode(!!t.is_test)), [treasury, viewMode]);
 
   // ===== Post handlers =====
-  async function post(rpc: string, id: string) {
-    const { error } = await supabase.rpc(rpc as any, { p_id: id });
-    if (error) { toast.error(error.message); return false; }
-    toast.success("تم الاعتماد");
-    await loadAll();
-    return true;
+  async function post(_rpc: string, _id: string) {
+    toast.error("هذه الدالة موقوفة، استخدم فواتير التصنيع ومشتريات المصنع الحية على دفتر المخزون");
+    return false;
   }
 
   // ===== Excel export =====
@@ -523,7 +520,7 @@ const RawPurchaseTab = ({ raws, list, onReload, onPost, onPrint, onExcel, canApp
                 <TableCell className="font-bold">{fmt(p.total_amount)}</TableCell>
                 <TableCell>{STATUS_BADGE(p.status)}</TableCell>
                 <TableCell className="flex gap-1">
-                  {p.status === "draft" && canApprove && <Button size="sm" onClick={() => onPost(p.id)}><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد</Button>}
+                  {p.status === "draft" && <span className="text-xs text-muted-foreground">موقوف — استخدم الشاشة الحية</span>}
                   <Button size="icon" variant="outline" onClick={() => onPrint("فاتورة شراء خامات", "فاتورة شراء خامات", p.invoice_no, p.status, ["الصنف", "الكمية", "الوحدة", "السعر", "الإجمالي"], (p.items || []).map((it: any) => [it.raw?.name_ar, fmt(it.qty), it.raw?.unit, fmt(it.unit_price), fmt(it.total)]), [{ label: "الإجمالي", value: fmt(p.total_amount) }, { label: "طريقة الدفع", value: p.payment_method === "cash" ? "نقدي" : "آجل" }], p.notes)}><Printer className="h-4 w-4" /></Button>
                 </TableCell>
               </TableRow>
@@ -618,7 +615,7 @@ const PackPurchaseTab = ({ packs, list, onReload, onPost, onPrint, onExcel, canA
                 <TableCell className="font-bold">{fmt(p.total_amount)}</TableCell>
                 <TableCell>{STATUS_BADGE(p.status)}</TableCell>
                 <TableCell className="flex gap-1">
-                  {p.status === "draft" && canApprove && <Button size="sm" onClick={() => onPost(p.id)}><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد</Button>}
+                  {p.status === "draft" && <span className="text-xs text-muted-foreground">موقوف — استخدم الشاشة الحية</span>}
                   <Button size="icon" variant="outline" onClick={() => onPrint("فاتورة شراء تغليف", "فاتورة شراء تغليف", p.invoice_no, p.status, ["العلبة", "العدد", "السعر", "الإجمالي"], (p.items || []).map((it: any) => [it.pack?.name_ar, fmt(it.qty), fmt(it.unit_price), fmt(it.total)]), [{ label: "الإجمالي", value: fmt(p.total_amount) }], p.notes)}><Printer className="h-4 w-4" /></Button>
                 </TableCell>
               </TableRow>
@@ -739,7 +736,7 @@ const ManufacturingTab = ({ raws, packs, fins, list, onReload, onPost, onPrint, 
                 <TableCell>{fmt(m.unit_cost)}</TableCell>
                 <TableCell>{STATUS_BADGE(m.status)}</TableCell>
                 <TableCell className="flex gap-1">
-                  {m.status === "draft" && canApprove && <Button size="sm" onClick={() => onPost(m.id)}><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد</Button>}
+                  {m.status === "draft" && <span className="text-xs text-muted-foreground">موقوف — استخدم فواتير التصنيع</span>}
                   <Button size="icon" variant="outline" onClick={() => {
                     const rows: string[][] = [];
                     rows.push(["المنتج النهائي", m.fin?.name_ar, fmt(m.produced_qty), "", fmt(m.total_cost)]);
@@ -840,7 +837,7 @@ const SalesTab = ({ fins, list, onReload, onPost, onPrint, onExcel }: any) => {
                 <TableCell className={Number(s.profit) >= 0 ? "text-emerald-600 font-bold" : "text-red-600 font-bold"}>{fmt(s.profit)}</TableCell>
                 <TableCell>{STATUS_BADGE(s.status)}</TableCell>
                 <TableCell className="flex gap-1">
-                  {s.status === "draft" && <Button size="sm" onClick={() => onPost(s.id)}><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد</Button>}
+                  {s.status === "draft" && <span className="text-xs text-muted-foreground">موقوف — استخدم صرف كروت المخزون</span>}
                   <Button size="icon" variant="outline" onClick={() => onPrint("فاتورة بيع", "فاتورة بيع", s.invoice_no, s.status, ["المنتج", "الكمية", "السعر", "الإجمالي"], (s.lines || []).map((l: any) => [l.fin?.name_ar, fmt(l.qty), fmt(l.unit_price), fmt(l.total)]), [{ label: "الإجمالي", value: fmt(s.total_amount) }, { label: "التكلفة", value: fmt(s.total_cost) }, { label: "الربح", value: fmt(s.profit) }], s.notes)}><Printer className="h-4 w-4" /></Button>
                 </TableCell>
               </TableRow>
@@ -931,7 +928,7 @@ const ReturnsTab = ({ fins, sales, list, onReload, onPost, onPrint, onExcel }: a
                 <TableCell className="font-bold">{fmt(r.total_amount)}</TableCell>
                 <TableCell>{STATUS_BADGE(r.status)}</TableCell>
                 <TableCell className="flex gap-1">
-                  {r.status === "draft" && <Button size="sm" onClick={() => onPost(r.id)}><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد</Button>}
+                  {r.status === "draft" && <span className="text-xs text-muted-foreground">موقوف — استخدم مرتجع كروت المخزون</span>}
                   <Button size="icon" variant="outline" onClick={() => onPrint("مرتجع مبيعات", "مرتجع مبيعات", r.return_no, r.status, ["المنتج", "الكمية", "السعر", "الإجمالي"], (r.lines || []).map((l: any) => [l.fin?.name_ar, fmt(l.qty), fmt(l.unit_price), fmt(l.total)]), [{ label: "الإجمالي", value: fmt(r.total_amount) }, { label: "السبب", value: r.reason || "—" }], r.notes)}><Printer className="h-4 w-4" /></Button>
                 </TableCell>
               </TableRow>
@@ -1012,7 +1009,7 @@ const TransfersTab = ({ fins, warehouses, list, onReload, onPost, onPrint, onExc
                 <TableCell className="font-bold">{fmt(t.total_value)}</TableCell>
                 <TableCell>{STATUS_BADGE(t.status)}</TableCell>
                 <TableCell className="flex gap-1">
-                  {t.status === "draft" && <Button size="sm" onClick={() => onPost(t.id)}><CheckCircle2 className="h-4 w-4 ml-1" />إرسال للمخزن</Button>}
+                  {t.status === "draft" && <span className="text-xs text-muted-foreground">موقوف — استخدم تحويل الإنتاج الحي</span>}
                   {t.status === "awaiting_receipt" && <span className="text-xs text-sky-700 self-center">بانتظار اعتماد مسؤول المخزن</span>}
                   <Button size="icon" variant="outline" onClick={() => onPrint("أمر نقل للمخزن الرئيسي", "أمر نقل", t.transfer_no, t.status, ["المنتج", "الكمية", "تكلفة/وحدة", "الإجمالي"], (t.lines || []).map((l: any) => [l.fin?.name_ar, fmt(l.qty), fmt(l.unit_cost), fmt(l.total)]), [{ label: "إجمالي القيمة", value: fmt(t.total_value) }, { label: "المخزن الوجهة", value: t.warehouse?.name || "—" }], t.notes)}><Printer className="h-4 w-4" /></Button>
                 </TableCell>

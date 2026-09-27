@@ -126,9 +126,14 @@ const WarehouseOperationalDates = lazy(() => import("@/pages/modules/WarehouseOp
 const WarehouseOpeningBalance = lazy(() => import("@/pages/modules/WarehouseOpeningBalance"));
 const WarehouseMovementsLog = lazy(() => import("@/pages/modules/WarehouseMovementsLog"));
 const WarehousePendingTransfers = lazy(() => import("@/pages/modules/WarehousePendingTransfers"));
+const WarehouseMergeCandidates = lazy(() => import("@/pages/modules/WarehouseMergeCandidates"));
 const WarehouseStocktaking = lazy(() => import("@/pages/modules/WarehouseStocktaking"));
 const WarehouseReports = lazy(() => import("@/pages/modules/WarehouseReports"));
 const WarehouseDailyReport = lazy(() => import("@/pages/modules/WarehouseDailyReport"));
+const InventoryReconciliation = lazy(() => import("@/pages/modules/InventoryReconciliation"));
+const OutletSalesStatements = lazy(() => import("@/pages/modules/OutletSalesStatements"));
+const UntransferredProduction = lazy(() => import("@/pages/modules/UntransferredProduction"));
+const UnreceivedSlaughterOutputs = lazy(() => import("@/pages/modules/UnreceivedSlaughterOutputs"));
 const WarehouseAdjustmentsLog = lazy(() => import("@/pages/modules/WarehouseAdjustmentsLog"));
 const RecipeDetail = lazy(() => import("@/pages/modules/feed/RecipeDetail"));
 const BatchTracking = lazy(() => import("@/pages/modules/feed/BatchTracking"));
@@ -1075,8 +1080,13 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/pending-transfers" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'meat_factory_manager']}>
               <PageTransition><WarehousePendingTransfers /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/merge-candidates" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor']}>
+              <PageTransition><WarehouseMergeCandidates /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/stocktaking" element={
@@ -1087,6 +1097,26 @@ const AnimatedRoutes = () => {
           <Route path="/modules/warehouses/reports" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager']}>
               <PageTransition><WarehouseReports /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/reconciliation" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager', 'cost_accountant', 'agouza_warehouse_keeper']}>
+              <PageTransition><InventoryReconciliation /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/outlet-statements" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager']}>
+              <PageTransition><OutletSalesStatements /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/untransferred-production" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant']}>
+              <PageTransition><UntransferredProduction /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/unreceived-slaughter" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'warehouse_supervisor', 'production_manager']}>
+              <PageTransition><UnreceivedSlaughterOutputs /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/daily-report" element={

@@ -10,7 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Settings2, RefreshCw, Download, Printer, FileText, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
-import { signedDelta, MOVEMENT_TYPE_LABEL } from "@/lib/warehouseMovementSign";
+import { signedDelta, MOVEMENT_TYPE_LABEL, type MovementEffectFields } from "@/lib/warehouseMovementSign";
+import { paginateUntilDone } from "@/lib/paginateQuery";
 import { STOCK_ADJUSTMENT_REASONS } from "@/lib/warehouseAdjustmentReasons";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
@@ -29,7 +30,13 @@ interface Mov {
   party: string | null;
   reference: string | null;
   reference_type: string | null;
+  stock_before: number | null;
+  stock_after: number | null;
+  effect_mode: string | null;
 }
+
+const effectOf = (m: MovementEffectFields & { movement_type: string; quantity: number }) =>
+  signedDelta(m.movement_type, m.quantity, m);
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -74,15 +81,24 @@ export default function WarehouseAdjustmentsLog() {
       const effectiveFrom = fromIso < MAIN_WAREHOUSE_OPERATIONAL_START_ISO
         ? MAIN_WAREHOUSE_OPERATIONAL_START_ISO : fromIso;
 
-      const { data: movs } = await supabase
-        .from("inventory_movements")
-        .select("id, movement_no, performed_at, warehouse_id, item_id, movement_type, quantity, performed_by, reason, notes, party, reference, reference_type")
-        .eq("warehouse_id", main.id)
-        .gte("performed_at", effectiveFrom)
-        .lte("performed_at", toIso)
-        .order("performed_at", { ascending: false })
-        .limit(2000);
-      const all = (movs || []) as Mov[];
+      const all = await paginateUntilDone<Mov>({
+        pageSize: 1000,
+        maxPages: 50,
+        idOf: (r) => r.id,
+        fetchPage: async (from, to) => {
+          const { data, error } = await supabase
+            .from("inventory_movements")
+            .select("id, movement_no, performed_at, warehouse_id, item_id, movement_type, quantity, performed_by, reason, notes, party, reference, reference_type, stock_before, stock_after, effect_mode")
+            .eq("warehouse_id", main.id)
+            .gte("performed_at", effectiveFrom)
+            .lte("performed_at", toIso)
+            .order("performed_at", { ascending: false })
+            .order("id", { ascending: false })
+            .range(from, to);
+          if (error) throw error;
+          return (data || []) as Mov[];
+        },
+      });
       const adj = all.filter(isAdjustment);
       setRows(adj);
 
@@ -107,15 +123,27 @@ export default function WarehouseAdjustmentsLog() {
         (its || []).forEach((it: any) => { m[it.id] = { name: it.name, unit: it.unit || "" }; });
         setItems(m);
 
-        const { data: prior } = await supabase
-          .from("inventory_movements")
-          .select("item_id, movement_type, quantity")
-          .eq("warehouse_id", main.id)
-          .in("item_id", itemIds)
-          .lt("performed_at", effectiveFrom);
+        const prior = await paginateUntilDone<Pick<Mov, "id" | "item_id" | "movement_type" | "quantity" | "stock_before" | "stock_after" | "effect_mode">>({
+          pageSize: 1000,
+          maxPages: 50,
+          idOf: (r) => r.id,
+          fetchPage: async (from, to) => {
+            const { data, error } = await supabase
+              .from("inventory_movements")
+              .select("id, item_id, movement_type, quantity, stock_before, stock_after, effect_mode")
+              .eq("warehouse_id", main.id)
+              .in("item_id", itemIds)
+              .lt("performed_at", effectiveFrom)
+              .order("performed_at", { ascending: true })
+              .order("id", { ascending: true })
+              .range(from, to);
+            if (error) throw error;
+            return (data || []) as any;
+          },
+        });
         const base: Record<string, number> = {};
-        (prior || []).forEach((p: any) => {
-          base[p.item_id] = (base[p.item_id] || 0) + signedDelta(p.movement_type, p.quantity);
+        prior.forEach((p) => {
+          base[p.item_id] = (base[p.item_id] || 0) + effectOf(p);
         });
         setBaselineByItem(base);
       } else { setItems({}); setBaselineByItem({}); }
@@ -154,7 +182,7 @@ export default function WarehouseAdjustmentsLog() {
       let bal = baselineByItem[itemId] || 0;
       list.forEach(m => {
         before[m.id] = bal;
-        bal += signedDelta(m.movement_type, m.quantity);
+        bal += effectOf(m);
         after[m.id] = bal;
       });
     });
@@ -162,7 +190,7 @@ export default function WarehouseAdjustmentsLog() {
       ...r,
       _before: before[r.id] ?? 0,
       _after: after[r.id] ?? 0,
-      _diff: signedDelta(r.movement_type, r.quantity),
+      _diff: effectOf(r),
       _afterApproval: approvedSessionAt ? r.performed_at > approvedSessionAt : false,
       _managerOverride: isManagerOverride(r),
     }));

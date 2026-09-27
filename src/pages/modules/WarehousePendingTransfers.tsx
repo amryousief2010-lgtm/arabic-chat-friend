@@ -18,6 +18,7 @@ interface Transfer {
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-500/15 text-amber-700",
+  pending_receipt: "bg-amber-500/15 text-amber-700",
   sent: "bg-blue-500/15 text-blue-700",
   partially_received: "bg-orange-500/15 text-orange-700",
   needs_manager_review: "bg-rose-500/15 text-rose-700",
@@ -26,6 +27,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "معلق",
+  pending_receipt: "بانتظار الاستلام",
   sent: "تم الإرسال",
   partially_received: "استلام جزئي",
   needs_manager_review: "بحاجة مراجعة مدير",
@@ -44,7 +46,7 @@ export default function WarehousePendingTransfers() {
       supabase
         .from("warehouse_transfers")
         .select("id, transfer_no, status, source_warehouse_id, destination_warehouse_id, created_at, sent_at, received_at, notes, rejection_reason")
-        .in("status", ["pending", "sent", "partially_received", "needs_manager_review", "awaiting_approval"])
+        .in("status", ["pending", "sent", "pending_receipt", "partially_received", "needs_manager_review", "awaiting_approval"])
         .order("created_at", { ascending: false })
         .limit(500),
     ]);

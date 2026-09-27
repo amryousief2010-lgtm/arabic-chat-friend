@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Info, Loader2, PackagePlus, Plus, Printer, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { postManualInventoryMovement } from "@/lib/inventoryStock";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import AddManualPartyDialog from "@/components/warehouse/AddManualPartyDialog";
@@ -32,7 +33,7 @@ import AddAdjustmentReasonDialog from "@/components/warehouse/AddAdjustmentReaso
 import { useStocktakingLock } from "@/hooks/useStocktakingLock";
 import { Lock } from "lucide-react";
 import { MAIN_WAREHOUSE_ID, getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason } from "@/lib/warehouseItemFilters";
-import { isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
+import { resolvePackWeightKg } from "@/lib/packWeight";
 
 interface InventoryItem {
   id: string;
@@ -55,6 +56,7 @@ interface InventoryItem {
   item_type?: string | null;
   source_module?: string | null;
   product?: { is_active?: boolean | null; category?: string | null; name?: string | null; barcode?: string | null } | null;
+  pack_weight_kg?: number | null;
 }
 
 interface Props {
@@ -142,6 +144,10 @@ const ManualStockAdditionDialog = ({
   items,
   onSaved,
 }: Props) => {
+  const requestIdRef = useRef(crypto.randomUUID());
+  useEffect(() => {
+    if (open) requestIdRef.current = crypto.randomUUID();
+  }, [open]);
   const { user, profile, isGeneralManager, isExecutiveManager, isWarehouseSupervisor } = useAuth() as any;
   const canAddParty = isGeneralManager || isExecutiveManager || isWarehouseSupervisor;
   const canManualKg = isGeneralManager || isExecutiveManager;
@@ -153,6 +159,7 @@ const ManualStockAdditionDialog = ({
   const [supplier, setSupplier] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
   const [rows, setRows] = useState<Row[]>([newRow()]);
   const [saving, setSaving] = useState(false);
   const [customParties, setCustomParties] = useState<{ id: string; name: string }[]>([]);
@@ -264,7 +271,7 @@ const ManualStockAdditionDialog = ({
     setSaving(true);
     try {
       const opNo = await generateOpNo("MAN-IN");
-      const performedAt = new Date().toISOString();
+      const performedAt = `${deliveryDate}T12:00:00+03:00`;
       const partyLabel = `توريد مباشر مؤقت من: ${sourceLabel}`;
 
       // Aggregate by item (in case duplicates), but keep package info from first occurrence
@@ -344,8 +351,6 @@ const ManualStockAdditionDialog = ({
         }
       }
 
-      const inserts: any[] = [];
-      const stockUpdates: { id: string; newStock: number }[] = [];
       const slipRows: SlipItemRow[] = [];
 
 
@@ -374,41 +379,30 @@ const ManualStockAdditionDialog = ({
           ? partyLabel
           : `${partyLabel} — ${info.pkgCount} عبوة × ${info.pkgWeight} كجم = ${info.qty} كجم`;
 
-        inserts.push({
-          warehouse_id: warehouseId,
-          item_id: itemId,
-          movement_type: "in",
+        const posted = await postManualInventoryMovement({
+          itemId,
+          movementType: "in",
           quantity: info.qty,
-          package_count: info.pkgCount,
-          package_weight_kg: info.pkgWeight,
-          quantity_kg: info.qty,
-          reference: opNo,
-          reference_type: "manual_addition",
-          party: partyWithPkg,
           reason: reason.trim(),
           notes: combinedNotes,
-          module: "warehouse_manual",
-          performed_by: user?.id ?? null,
-          performed_at: performedAt,
+          party: partyWithPkg,
+          reference: opNo,
+          referenceType: "manual_addition",
+          performedAt,
+          overrideReason: isManager && overrideReason.trim().length >= 3 ? overrideReason.trim() : null,
+          packageCount: info.pkgCount,
+          packageWeightKg: info.pkgWeight,
+          requestId: requestIdRef.current,
         });
-        stockUpdates.push({ id: itemId, newStock: stockAfter });
         slipRows.push({
           name: it.name,
           unit,
           packageCount: info.pkgCount,
           packageWeightKg: info.pkgWeight,
           quantity: info.qty,
-          stockBefore,
-          stockAfter,
+          stockBefore: Number(posted.stock_before ?? stockBefore),
+          stockAfter: Number(posted.stock_after ?? stockAfter),
         });
-      }
-
-      const { error: mErr } = await supabase.from("inventory_movements").insert(inserts as any);
-      if (mErr) throw mErr;
-
-      for (const u of stockUpdates) {
-        const { error } = await supabase.from("inventory_items").update({ stock: u.newStock }).eq("id", u.id);
-        if (error) throw error;
       }
 
       setLastSaved({
@@ -424,7 +418,7 @@ const ManualStockAdditionDialog = ({
 
       toast({
         title: "تم حفظ التوريد",
-        description: `${opNo} — ${stockUpdates.length} صنف (${sourceLabel})`,
+        description: `${opNo} — ${slipRows.length} صنف (${sourceLabel})`,
       });
       onSaved?.();
     } catch (e: any) {
@@ -588,6 +582,17 @@ const ManualStockAdditionDialog = ({
                 maxLength={500}
               />
             </div>
+            {isManager && (
+              <div className="md:col-span-3">
+                <Label className="text-xs">سبب تجاوز قفل الجرد (للمدير العام أو التنفيذي فقط)</Label>
+                <Input
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="يُطلب فقط إذا كان تاريخ التوريد قبل اعتماد الجرد"
+                  maxLength={300}
+                />
+              </div>
+            )}
           </div>
 
           <div className="rounded border">
@@ -622,7 +627,13 @@ const ManualStockAdditionDialog = ({
                     return (
                       <tr key={r.uid} className="border-t align-top">
                         <td className="p-1 min-w-[180px]">
-                          <Select value={r.itemId} onValueChange={(v) => updateRow(r.uid, { itemId: v })}>
+                          <Select value={r.itemId} onValueChange={(v) => {
+                            const picked = items.find((i) => i.id === v);
+                            updateRow(r.uid, {
+                              itemId: v,
+                              packageWeightKg: picked ? String(resolvePackWeightKg(picked)) : "0.5",
+                            });
+                          }}>
                             <SelectTrigger className="h-8"><SelectValue placeholder="اختر الصنف" /></SelectTrigger>
                             <SelectContent className="max-h-72">
                               <div className="sticky top-0 z-10 bg-popover p-2 border-b">

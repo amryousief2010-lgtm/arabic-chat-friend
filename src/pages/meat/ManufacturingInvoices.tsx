@@ -407,7 +407,8 @@ export default function ManufacturingInvoices() {
     });
     return Array.from(byItem.values()).filter(g => {
       const it = items.find(x => x.id === g.item_id);
-      return it && g.quantity > Number(it.current_stock || 0);
+      if (!it || it.kind === "packaging") return false;
+      return g.quantity > Number(it.current_stock || 0);
     });
   }, [rawLines, packLines, items]);
 
@@ -470,11 +471,14 @@ export default function ManufacturingInvoices() {
   const checkLiveStock = async (
     lines: Line[]
   ): Promise<{ item_id: string; name: string; required: number; available: number; reserved: number }[]> => {
+    const factoryLines = lines.filter(l => l.kind !== "packaging");
+    const packagingLines = lines.filter(l => l.kind === "packaging");
     const need = new Map<string, number>();
-    lines.forEach(l => need.set(l.item_id, (need.get(l.item_id) || 0) + Number(l.quantity || 0)));
+    factoryLines.forEach(l => need.set(l.item_id, (need.get(l.item_id) || 0) + Number(l.quantity || 0)));
     const ids = Array.from(need.keys());
-    if (!ids.length) return [];
+    const out: { item_id: string; name: string; required: number; available: number; reserved: number }[] = [];
 
+    if (ids.length) {
     const [{ data: fresh }, { data: pendingInv }] = await Promise.all([
       supabase.from("meat_factory_raw_items" as any).select("id,name,current_stock").in("id", ids),
       supabase.from("meat_manufacturing_invoices" as any).select("id").in("status", ["draft", "pending"]),
@@ -490,7 +494,6 @@ export default function ManufacturingInvoices() {
       (pl || []).forEach((r: any) => reserved.set(r.item_id, (reserved.get(r.item_id) || 0) + Number(r.quantity || 0)));
     }
 
-    const out: { item_id: string; name: string; required: number; available: number; reserved: number }[] = [];
     ids.forEach(id => {
       const row: any = (fresh || []).find((f: any) => f.id === id);
       const req = Number(need.get(id) || 0);
@@ -501,6 +504,33 @@ export default function ManufacturingInvoices() {
         out.push({ item_id: id, name, required: req, available: Math.max(stock - res, 0), reserved: res });
       }
     });
+    }
+
+    if (packagingLines.length) {
+      const packNeed = new Map<string, number>();
+      packagingLines.forEach(l => packNeed.set(l.item_id, (packNeed.get(l.item_id) || 0) + Number(l.quantity || 0)));
+      const { data: avail, error: availErr } = await supabase.rpc("packaging_line_availability" as any, {
+        p_item_ids: Array.from(packNeed.keys()),
+      });
+      if (availErr) throw new Error(availErr.message);
+      const unmapped: string[] = [];
+      (avail || []).forEach((row: any) => {
+        const req = Number(packNeed.get(row.item_id) || 0);
+        if (!row.mapped) unmapped.push(row.item_name || "صنف تغليف");
+        else if (req > Number(row.stock || 0)) {
+          out.push({
+            item_id: row.item_id,
+            name: row.card_name || row.item_name,
+            required: req,
+            available: Number(row.stock || 0),
+            reserved: 0,
+          });
+        }
+      });
+      if (unmapped.length) {
+        throw new Error("تغليف غير مربوط بمخزن التغليف: " + unmapped.join("، "));
+      }
+    }
     return out;
   };
 
@@ -1161,11 +1191,9 @@ export default function ManufacturingInvoices() {
                           {packCandidatesFiltered.length} / {totalPackInStock} متاح
                         </span>
                       </div>
-                      {totalPackInStock === 0 && (
-                        <div className="text-xs text-amber-700 dark:text-amber-300 border border-amber-300 bg-amber-50 dark:bg-amber-950/20 rounded p-2">
-                          ⚠ لا توجد أي خامة تغليف برصيد متاح. تأكد من اعتماد فاتورة شراء التغليف الخاصة بالأطباق/الأكياس.
-                        </div>
-                      )}
+                      <div className="text-xs text-amber-800 dark:text-amber-200 border border-amber-300 bg-amber-50 dark:bg-amber-950/20 rounded p-2">
+                        خصم التغليف يتم من مخزن التغليف مباشرة عند الاعتماد، بلا تحويل. صنف غير مربوط ببطاقة في مخزن التغليف يمنع الاعتماد وتظهر أسماؤه في رسالة الخطأ.
+                      </div>
                       {renderLineTable(packLines, setPackLines, packCandidatesFiltered, "خامات التغليف المستخدمة")}
                     </div>
                   );

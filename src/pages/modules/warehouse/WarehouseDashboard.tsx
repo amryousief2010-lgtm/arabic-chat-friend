@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowRight, AlertTriangle, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Warehouse, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { canViewInventoryCost, INVENTORY_ITEM_SAFE_COLUMNS, INVENTORY_MOVEMENT_SAFE_COLUMNS, withItemUnitCost, withMovementCosts } from "@/lib/inventoryCostAccess";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDateTime } from "@/lib/dateFormat";
 
@@ -20,7 +21,8 @@ const moveLabels: Record<string, string> = { in: "إضافة", out: "صرف", tr
 interface WarehouseDashboardProps { embedded?: boolean }
 
 const WarehouseDashboard = ({ embedded = false }: WarehouseDashboardProps) => {
-  const { canManageWarehouses, isGeneralManager } = useAuth();
+  const { canManageWarehouses, isGeneralManager, roles } = useAuth();
+  const showCost = canViewInventoryCost(roles);
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [movements, setMovements] = useState<any[]>([]);
@@ -32,12 +34,12 @@ const WarehouseDashboard = ({ embedded = false }: WarehouseDashboardProps) => {
       const sevenAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
       const [w, i, m] = await Promise.all([
         supabase.from("warehouses").select("*"),
-        supabase.from("inventory_items").select("*, warehouse:warehouses(name, type)"),
-        supabase.from("inventory_movements").select("*, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name)").gte("performed_at", sevenAgo).order("performed_at", { ascending: false }),
+        supabase.from("inventory_items").select(`${INVENTORY_ITEM_SAFE_COLUMNS}, warehouse:warehouses(name, type)`),
+        supabase.from("inventory_movements").select(`${INVENTORY_MOVEMENT_SAFE_COLUMNS}, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name)`).gte("performed_at", sevenAgo).order("performed_at", { ascending: false }),
       ]);
       setWarehouses(w.data || []);
-      setItems(i.data || []);
-      setMovements(m.data || []);
+      setItems(await withItemUnitCost((i.data || []) as any));
+      setMovements(await withMovementCosts((m.data || []) as any));
       setLoading(false);
     })();
   }, []);
@@ -65,7 +67,7 @@ const WarehouseDashboard = ({ embedded = false }: WarehouseDashboardProps) => {
     movements.forEach(m => { stats[m.movement_type] = (stats[m.movement_type] || 0) + 1; });
     return stats;
   }, [movements]);
-  const totalValue = items.reduce((s, i) => s + Number(i.stock) * Number(i.unit_cost), 0);
+  const totalValue = showCost ? items.reduce((s, i) => s + Number(i.stock) * Number(i.unit_cost || 0), 0) : null;
 
   const content = (
       <div className="space-y-6">
@@ -88,7 +90,7 @@ const WarehouseDashboard = ({ embedded = false }: WarehouseDashboardProps) => {
         <div className="grid gap-4 md:grid-cols-4">
           <Card><CardHeader className="pb-2"><CardDescription>المخازن</CardDescription><CardTitle className="text-3xl">{warehouses.length}</CardTitle></CardHeader></Card>
           <Card><CardHeader className="pb-2"><CardDescription>الأصناف</CardDescription><CardTitle className="text-3xl">{items.length}</CardTitle></CardHeader></Card>
-          <Card><CardHeader className="pb-2"><CardDescription>قيمة المخزون</CardDescription><CardTitle className="text-2xl">{totalValue.toLocaleString()}</CardTitle></CardHeader></Card>
+          {showCost && <Card><CardHeader className="pb-2"><CardDescription>قيمة المخزون</CardDescription><CardTitle className="text-2xl">{Number(totalValue || 0).toLocaleString()}</CardTitle></CardHeader></Card>}
           <Card className={lowStock.length ? "border-destructive" : ""}>
             <CardHeader className="pb-2"><CardDescription>أصناف منخفضة</CardDescription><CardTitle className={`text-3xl ${lowStock.length ? "text-destructive" : ""}`}>{lowStock.length}</CardTitle></CardHeader>
           </Card>

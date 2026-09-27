@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { postInventoryDocument } from "@/lib/inventoryStock";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus } from "lucide-react";
@@ -163,7 +164,6 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
           unit,
           stock: 0,
           category,
-          cost_price: unitCost,
           low_stock_threshold: Math.round(lowStock) || 10,
           barcode,
           is_active: true,
@@ -172,6 +172,13 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
         .single();
       if (prod.error) throw prod.error;
       createdProductId = prod.data!.id;
+      if (unitCost > 0) {
+        const costSet = await (supabase as any).rpc("set_product_cost_price", {
+          p_product_id: createdProductId,
+          p_cost: unitCost,
+        });
+        if (costSet.error) throw costSet.error;
+      }
 
       // 6) Create or reuse inventory_item in main warehouse linked to product.
       // A DB trigger auto-links newly inserted products to customer/main warehouses;
@@ -196,7 +203,6 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
             sku,
             item_code: sku,
             unit,
-            unit_cost: unitCost,
             low_stock_threshold: lowStock,
             notes: form.notes.trim() || null,
             is_active: true,
@@ -216,7 +222,6 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
             item_code: sku,
             unit,
             stock: 0,
-            unit_cost: unitCost,
             low_stock_threshold: lowStock,
             notes: form.notes.trim() || null,
             is_active: true,
@@ -228,23 +233,24 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
         createdItemId = insertItem.data!.id;
       }
 
-      // 7) Opening balance movement (only if > 0). Trigger will update stock.
       if (openQty > 0) {
-        const mv = await supabase.from("inventory_movements").insert({
-          item_id: createdItemId,
-          warehouse_id: mainWarehouseId,
-          movement_type: "opening_balance",
+        await postInventoryDocument({
+          itemId: createdItemId,
+          warehouseId: mainWarehouseId,
+          movementType: "opening_balance",
           quantity: openQty,
-          unit_cost: unitCost,
-          total_cost: openQty * unitCost,
-          reference: "OPENING-BALANCE",
-          reference_type: "opening_balance",
-          party: "رصيد افتتاحي",
+          sourceType: "opening_balance",
+          sourceId: createdItemId,
+          sourceLineId: "opening",
+          reason: "رصيد افتتاحي",
           notes: `رصيد افتتاحي للصنف ${name} — ${mainWarehouseName}`,
-          performed_by: user?.id ?? null,
-          approval_status: "posted",
+          party: "رصيد افتتاحي",
+          reference: "OPENING-BALANCE",
+          referenceType: "opening_balance",
+          unitCost,
+          effectMode: "set",
+          productId: createdProductId,
         });
-        if (mv.error) throw mv.error;
       }
 
       toast({ title: "تمت الإضافة", description: "تم إضافة الصنف للمخزن الرئيسي بنجاح" });

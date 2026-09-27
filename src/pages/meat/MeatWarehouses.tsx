@@ -185,16 +185,13 @@ export default function MeatWarehouses() {
       if (ep) return toast.error(ep.message);
     }
     if (approve) {
-      const { error: e3 } = await supabase.rpc("approve_meat_manufacturing" as any, { p_id: (m as any).id });
-      if (e3) return toast.error(e3.message);
-      toast.success("تم اعتماد التصنيع — خصم الخامات الغذائية ومواد التغليف وإضافة المنتج");
+      toast.error("هذه الدالة موقوفة، استخدم فواتير تصنيع مصنع اللحوم واعتمادها عبر دفتر المخزون");
+      return;
     } else { toast.success("تم الحفظ كمسودة"); }
     resetMfg(); invalidateAll();
   };
-  const approveMfg = async (id: string) => {
-    const { error } = await supabase.rpc("approve_meat_manufacturing" as any, { p_id: id });
-    if (error) return toast.error(error.message);
-    toast.success("تم الاعتماد"); invalidateAll();
+  const approveMfg = async (_id: string) => {
+    toast.error("هذه الدالة موقوفة، استخدم فواتير تصنيع مصنع اللحوم واعتمادها عبر دفتر المخزون");
   };
 
   // ---------- SALES FORM ----------
@@ -218,16 +215,13 @@ export default function MeatWarehouses() {
     const { error: e2 } = await supabase.from("meat_factory_sales_lines" as any).insert(lineRows);
     if (e2) return toast.error(e2.message);
     if (approve) {
-      const { error: e3 } = await supabase.rpc("approve_meat_sale" as any, { p_id: (s as any).id });
-      if (e3) return toast.error(e3.message);
-      toast.success("تم اعتماد البيع");
+      toast.error("هذه الدالة موقوفة، استخدم صرف كروت المخزون الحية");
+      return;
     } else { toast.success("تم الحفظ كمسودة"); }
     resetSal(); invalidateAll();
   };
-  const approveSale = async (id: string) => {
-    const { error } = await supabase.rpc("approve_meat_sale" as any, { p_id: id });
-    if (error) return toast.error(error.message);
-    toast.success("تم الاعتماد"); invalidateAll();
+  const approveSale = async (_id: string) => {
+    toast.error("هذه الدالة موقوفة، استخدم صرف كروت المخزون الحية");
   };
 
   // ---------- SALES RETURNS FORM ----------
@@ -252,22 +246,16 @@ export default function MeatWarehouses() {
     const { error: e2 } = await supabase.from("meat_factory_sales_return_lines" as any).insert(lineRows);
     if (e2) return toast.error(e2.message);
     if (approve) {
-      const { error: e3 } = await supabase.rpc("approve_meat_sales_return" as any, { p_id: (r as any).id });
-      if (e3) return toast.error(e3.message);
-      toast.success("تم اعتماد المرتجع — رجع المنتج للجاهز وخصمت قيمته من الخزنة");
+      toast.error("هذه الدالة موقوفة، استخدم مرتجع كروت المخزون الحية");
+      return;
     } else { toast.success("تم الحفظ كمسودة"); }
     resetRet(); invalidateAll();
   };
-  const approveReturn = async (id: string) => {
-    const { error } = await supabase.rpc("approve_meat_sales_return" as any, { p_id: id });
-    if (error) return toast.error(error.message);
-    toast.success("تم الاعتماد"); invalidateAll();
+  const approveReturn = async (_id: string) => {
+    toast.error("هذه الدالة موقوفة، استخدم مرتجع كروت المخزون الحية");
   };
-  const cancelReturn = async (id: string) => {
-    if (!confirm("تأكيد إلغاء المرتجع المعتمد؟ سيتم عكس الحركات.")) return;
-    const { error } = await supabase.rpc("cancel_meat_sales_return" as any, { p_id: id });
-    if (error) return toast.error(error.message);
-    toast.success("تم الإلغاء والعكس"); invalidateAll();
+  const cancelReturn = async (_id: string) => {
+    toast.error("هذه الدالة موقوفة، استخدم مرتجع كروت المخزون الحية");
   };
 
   // ---------- STOCKTAKING ----------
@@ -405,7 +393,7 @@ export default function MeatWarehouses() {
             <Card><CardContent className="p-0"><Table><TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>المنتج</TableHead><TableHead>الكمية</TableHead><TableHead>التكلفة الكلية</TableHead><TableHead>تكلفة الوحدة</TableHead><TableHead>الحالة</TableHead><TableHead>إجراءات</TableHead></TableRow></TableHeader>
               <TableBody>{(mfgs as any[]).map((m) => (
                 <TableRow key={m.id}><TableCell className="font-mono text-xs">{m.invoice_number}</TableCell><TableCell>{m.mfg_date}</TableCell><TableCell>{m.finished_item_name}</TableCell><TableCell>{fmt(m.produced_qty)}</TableCell><TableCell>{fmt(m.total_cost)}</TableCell><TableCell>{fmt(m.unit_cost)}</TableCell><TableCell>{statusBadge(m.status)}</TableCell>
-                  <TableCell>{m.status==="draft" && <Button size="sm" onClick={()=>approveMfg(m.id)}><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد</Button>}</TableCell></TableRow>
+                  <TableCell>{m.status==="draft" && <span className="text-xs text-muted-foreground">موقوف — استخدم فواتير التصنيع</span>}</TableCell></TableRow>
               ))}{!mfgs.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">لا توجد فواتير تصنيع</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
           </TabsContent>
 
@@ -428,7 +416,7 @@ export default function MeatWarehouses() {
             <Card><CardContent className="p-0"><Table><TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>العميل</TableHead><TableHead>الإجمالي</TableHead><TableHead>الدفع</TableHead><TableHead>الحالة</TableHead><TableHead>إجراءات</TableHead></TableRow></TableHeader>
               <TableBody>{(sales as any[]).map((s) => (
                 <TableRow key={s.id}><TableCell className="font-mono text-xs">{s.invoice_number}</TableCell><TableCell>{s.sale_date}</TableCell><TableCell>{s.customer||"-"}</TableCell><TableCell>{fmt(s.total_amount)}</TableCell><TableCell>{s.payment_method==="cash"?"نقدي":"آجل"}</TableCell><TableCell>{statusBadge(s.status)}</TableCell>
-                  <TableCell>{s.status==="draft" && <Button size="sm" onClick={()=>approveSale(s.id)}><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد</Button>}</TableCell></TableRow>
+                  <TableCell>{s.status==="draft" && <span className="text-xs text-muted-foreground">موقوف — استخدم صرف كروت المخزون</span>}</TableCell></TableRow>
               ))}{!sales.length && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا توجد فواتير</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
           </TabsContent>
 
@@ -465,8 +453,8 @@ export default function MeatWarehouses() {
             <Card><CardContent className="p-0"><Table><TableHeader><TableRow><TableHead>الرقم</TableHead><TableHead>التاريخ</TableHead><TableHead>العميل</TableHead><TableHead>الإجمالي</TableHead><TableHead>السبب</TableHead><TableHead>الحالة</TableHead><TableHead>إجراءات</TableHead></TableRow></TableHeader>
               <TableBody>{(returns as any[]).map((r) => (
                 <TableRow key={r.id}><TableCell className="font-mono text-xs">{r.return_number}</TableCell><TableCell>{r.return_date}</TableCell><TableCell>{r.customer||"-"}</TableCell><TableCell>{fmt(r.total_amount)}</TableCell><TableCell className="text-xs">{r.reason||"-"}</TableCell><TableCell>{statusBadge(r.status)}</TableCell>
-                  <TableCell className="space-x-1 space-x-reverse">{r.status==="draft" && <Button size="sm" onClick={()=>approveReturn(r.id)}><CheckCircle2 className="h-4 w-4 ml-1" />اعتماد</Button>}
-                    {r.status==="approved" && isManager && <Button size="sm" variant="destructive" onClick={()=>cancelReturn(r.id)}><XCircle className="h-4 w-4 ml-1" />إلغاء</Button>}</TableCell></TableRow>
+                  <TableCell className="space-x-1 space-x-reverse">{r.status==="draft" && <span className="text-xs text-muted-foreground">موقوف — استخدم مرتجع كروت المخزون</span>}
+                    {r.status==="approved" && <span className="text-xs text-muted-foreground">الإلغاء الموقوف — استخدم دفتر المخزون</span>}</TableCell></TableRow>
               ))}{!returns.length && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">لا توجد مرتجعات</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
           </TabsContent>
 
@@ -538,7 +526,7 @@ export default function MeatWarehouses() {
               )}
               <div><Label>ملاحظات</Label><Textarea value={mfgNotes} onChange={(e)=>setMfgNotes(e.target.value)} /></div>
             </div>
-            <DialogFooter><Button variant="outline" onClick={resetMfg}>إلغاء</Button><Button variant="secondary" onClick={()=>saveMfg(false)}>حفظ كمسودة</Button><Button onClick={()=>saveMfg(true)}>حفظ واعتماد</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" onClick={resetMfg}>إلغاء</Button><Button variant="secondary" onClick={()=>saveMfg(false)}>حفظ كمسودة</Button></DialogFooter>
           </DialogContent>
         </Dialog>
 
@@ -555,7 +543,7 @@ export default function MeatWarehouses() {
               <div><Label>ملاحظات</Label><Textarea value={salNotes} onChange={(e)=>setSalNotes(e.target.value)} /></div>
               <div className="text-left font-bold">الإجمالي: {fmt(salTotal)} ج.م</div>
             </div>
-            <DialogFooter><Button variant="outline" onClick={resetSal}>إلغاء</Button><Button variant="secondary" onClick={()=>saveSale(false)}>حفظ كمسودة</Button><Button onClick={()=>saveSale(true)}>حفظ واعتماد</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" onClick={resetSal}>إلغاء</Button><Button variant="secondary" onClick={()=>saveSale(false)}>حفظ كمسودة</Button></DialogFooter>
           </DialogContent>
         </Dialog>
 
@@ -573,7 +561,7 @@ export default function MeatWarehouses() {
               <div><Label>ملاحظات</Label><Textarea value={retNotes} onChange={(e)=>setRetNotes(e.target.value)} /></div>
               <div className="text-left font-bold text-orange-700">إجمالي المرتجع: {fmt(retTotal)} ج.م</div>
             </div>
-            <DialogFooter><Button variant="outline" onClick={resetRet}>إلغاء</Button><Button variant="secondary" onClick={()=>saveReturn(false)}>حفظ كمسودة</Button><Button className="bg-orange-600 hover:bg-orange-700" onClick={()=>saveReturn(true)}>حفظ واعتماد</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" onClick={resetRet}>إلغاء</Button><Button variant="secondary" onClick={()=>saveReturn(false)}>حفظ كمسودة</Button></DialogFooter>
           </DialogContent>
         </Dialog>
 

@@ -69,8 +69,16 @@ const BatchTracking = () => {
     }
     await supabase.from("feed_batch_consumption").insert(cons);
     for (const c of cons) {
-      const { data: mat } = await supabase.from("feed_raw_materials").select("stock").eq("id", c.raw_material_id).single();
-      if (mat) await supabase.from("feed_raw_materials").update({ stock: Number(mat.stock) - c.quantity }).eq("id", c.raw_material_id);
+      const { error: stockErr } = await (supabase as any).rpc("post_named_stock", {
+        p_store: "feed_raw_materials",
+        p_item_id: c.raw_material_id,
+        p_delta: -c.quantity,
+        p_source_type: "feed_batch_consumption",
+        p_source_id: id,
+        p_source_line: c.raw_material_id,
+        p_reason: "بدء إنتاج علف",
+      });
+      if (stockErr) throw stockErr;
     }
     await supabase.from("feed_production_batches").update({ status: "in_progress", started_at: new Date().toISOString(), total_cost: totalCost }).eq("id", id);
     await logEvent("status_change", batch.status, "in_progress", { total_cost: totalCost, items_consumed: cons.length });

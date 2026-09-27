@@ -12,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight, Warehouse, Package, AlertTriangle, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Truck, FileSpreadsheet, Inbox, Send, CheckCircle2, Clock, XCircle, ShieldCheck, ThumbsDown, Beef, Eye, Pencil, Trash2, Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { canViewInventoryCost, INVENTORY_ITEM_SAFE_COLUMNS, INVENTORY_MOVEMENT_SAFE_COLUMNS, withItemUnitCost, withMovementCosts } from "@/lib/inventoryCostAccess";
+import { postInventoryDocument, reversePostedMovement } from "@/lib/inventoryStock";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/dateFormat";
@@ -47,7 +49,8 @@ const isCairoGiza = (g?: string) => !!g && CAIRO_GIZA.some(k => g.includes(k));
 
 const WarehouseDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { canManageWarehouses, user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor, isAgouzaWarehouseKeeper, isProductionManager } = useAuth();
+  const { canManageWarehouses, user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor, isAgouzaWarehouseKeeper, isProductionManager, roles } = useAuth();
+  const showCost = canViewInventoryCost(roles);
   const [manualAddOpen, setManualAddOpen] = useState(false);
   const [manualOutOpen, setManualOutOpen] = useState(false);
   const [itemMovItem, setItemMovItem] = useState<any>(null);
@@ -142,9 +145,9 @@ const WarehouseDetail = () => {
     const mvFilter = scopeIds.flatMap(w => [`warehouse_id.eq.${w}`, `destination_warehouse_id.eq.${w}`]).join(",");
     const trFilter = scopeIds.flatMap(w => [`source_warehouse_id.eq.${w}`, `destination_warehouse_id.eq.${w}`]).join(",");
     const [it, mv, oi, tr] = await Promise.all([
-      supabase.from("inventory_items").select("*, product:products(is_active, category, name, barcode)").eq("warehouse_id", id).order("name"),
+      supabase.from("inventory_items").select(`${INVENTORY_ITEM_SAFE_COLUMNS}, product:products(is_active, category, name, barcode)`).eq("warehouse_id", id).order("name"),
       supabase.from("inventory_movements")
-        .select("*, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)")
+        .select(`${INVENTORY_MOVEMENT_SAFE_COLUMNS}, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)`)
         .or(mvFilter)
         .order("performed_at", { ascending: false })
         .limit(500),
@@ -161,8 +164,8 @@ const WarehouseDetail = () => {
     ]);
     setWarehouse(wRes.data);
     setAllWarehouses(allWh);
-    setItems(it.data || []);
-    setMovements(mv.data || []);
+    setItems(await withItemUnitCost((it.data || []) as any));
+    setMovements(await withMovementCosts((mv.data || []) as any));
     setOrderItems(oi.data || []);
     setTransfers(tr.data || []);
     // طلبات المنفذ (مصدرها هذا المخزن) — للعرض والتصدير لاحمد خاطر فى العجوزة وأى مخزن آخر
@@ -230,7 +233,7 @@ const WarehouseDetail = () => {
 
 
   const lowStock = items.filter(i => Number(i.stock) <= Number(i.low_stock_threshold));
-  const totalValue = items.reduce((s, i) => s + Number(i.stock) * Number(i.unit_cost), 0);
+  const totalValue = showCost ? items.reduce((s, i) => s + Number(i.stock) * Number(i.unit_cost || 0), 0) : null;
 
   // Demand calculation for Agouza based on Cairo/Giza orders (last 30 days)
   const demandByProduct = useMemo(() => {
@@ -479,47 +482,61 @@ const WarehouseDetail = () => {
   };
 
 
-  const adjustStock = async (itemId: string, delta: number) => {
-    if (!itemId || !delta) return;
-    const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", itemId).maybeSingle();
-    const newStock = Number(it?.stock || 0) + delta;
-    await supabase.from("inventory_items").update({ stock: newStock }).eq("id", itemId);
-  };
-
   const handleEditMovement = async (mov: any, newQty: number) => {
     const oldQty = Number(mov.quantity || 0);
     if (newQty === oldQty || newQty < 0) return;
-    const delta = (mov.movement_type === "in" ? 1 : -1) * (newQty - oldQty);
-    const { error } = await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", mov.id);
-    if (error) { toast({ title: "تعذر التعديل", description: error.message, variant: "destructive" }); return; }
-    await adjustStock(mov.item_id, delta);
-    toast({ title: "تم تعديل الكمية" });
-    fetchAll();
+    try {
+      await reversePostedMovement(mov.id, "تعديل كمية من شاشة المخزن");
+      await postInventoryDocument({
+        itemId: mov.item_id,
+        warehouseId: id,
+        movementType: mov.movement_type,
+        quantity: newQty,
+        sourceType: mov.movement_type === "out" ? "manual_out" : mov.movement_type === "adjustment" ? "manual_adjustment" : "manual_in",
+        reason: "تعديل كمية من شاشة المخزن",
+        party: mov.party,
+        reference: mov.reference,
+        notes: mov.notes,
+      });
+      toast({ title: "تم عكس الحركة وتسجيل الكمية الجديدة" });
+      fetchAll();
+    } catch (error: any) {
+      toast({ title: "تعذر التعديل", description: error.message, variant: "destructive" });
+    }
   };
 
   const handleDeleteMovement = async (mov: any) => {
-    if (!confirm(`حذف حركة ${mov.item?.name} (${mov.quantity})؟ سيتم خصمها من المخزون.`)) return;
-    const delta = (mov.movement_type === "in" ? -1 : 1) * Number(mov.quantity || 0);
-    const { error } = await supabase.from("inventory_movements").delete().eq("id", mov.id);
-    if (error) { toast({ title: "تعذر الحذف", description: error.message, variant: "destructive" }); return; }
-    await adjustStock(mov.item_id, delta);
-    toast({ title: "تم حذف الحركة" });
-    fetchAll();
+    if (!confirm(`عكس حركة ${mov.item?.name} (${mov.quantity})؟ تبقى الحركة في الدفتر وتُسجَّل حركة عكسية.`)) return;
+    try {
+      await reversePostedMovement(mov.id, "عكس من شاشة المخزن");
+      toast({ title: "تم عكس الحركة" });
+      fetchAll();
+    } catch (error: any) {
+      toast({ title: "تعذر العكس", description: error.message, variant: "destructive" });
+    }
   };
 
   const handleAddSlaughterItem = async () => {
     if (!slaughterGroup || !addItemId || addItemQty <= 0) return;
     const ref = slaughterGroup.reference;
-    const { error } = await supabase.from("inventory_movements").insert({
-      warehouse_id: id, item_id: addItemId, movement_type: "in",
-      quantity: addItemQty, party: "المجزر", reference: ref,
-      performed_by: user?.id, performed_at: new Date().toISOString(),
-    });
-    if (error) { toast({ title: "تعذر الإضافة", description: error.message, variant: "destructive" }); return; }
-    await adjustStock(addItemId, addItemQty);
-    toast({ title: "تمت إضافة الصنف للدفعة" });
-    setAddItemId(""); setAddItemQty(0);
-    fetchAll();
+    try {
+      await postInventoryDocument({
+        itemId: addItemId,
+        warehouseId: id,
+        movementType: "in",
+        quantity: addItemQty,
+        sourceType: "manual_in",
+        reason: "إضافة صنف لدفعة المجزر",
+        party: "المجزر",
+        reference: ref,
+        referenceType: "slaughter_batch",
+      });
+      toast({ title: "تمت إضافة الصنف للدفعة" });
+      setAddItemId(""); setAddItemQty(0);
+      fetchAll();
+    } catch (error: any) {
+      toast({ title: "تعذر الإضافة", description: error.message, variant: "destructive" });
+    }
   };
 
   const handleCreateMovement = async () => {
@@ -527,25 +544,28 @@ const WarehouseDetail = () => {
       toast({ title: "أكمل البيانات", description: "اختر صنف وكمية صحيحة", variant: "destructive" });
       return;
     }
+    if (newMov.movement_type === "transfer") {
+      toast({ title: "التحويل من شاشة التحويلات", description: "أنشئ تحويلاً حتى يُسجَّل الصادر والوارد معاً", variant: "destructive" });
+      return;
+    }
     setSavingMov(true);
-    const { error } = await supabase.from("inventory_movements").insert({
-      warehouse_id: id,
-      item_id: newMov.item_id,
-      movement_type: newMov.movement_type,
-      quantity: newMov.quantity,
-      party: newMov.party || null,
-      reference: newMov.reference || null,
-      notes: newMov.notes || null,
-      performed_by: user?.id,
-      performed_at: new Date().toISOString(),
-    });
-    if (error) {
+    try {
+      await postInventoryDocument({
+        itemId: newMov.item_id,
+        warehouseId: id,
+        movementType: newMov.movement_type,
+        quantity: newMov.quantity,
+        sourceType: newMov.movement_type === "out" ? "manual_out" : newMov.movement_type === "adjustment" ? "manual_adjustment" : "manual_in",
+        reason: newMov.notes || newMov.reference || "حركة من شاشة المخزن",
+        party: newMov.party || null,
+        reference: newMov.reference || null,
+        notes: newMov.notes || null,
+      });
+    } catch (error: any) {
       setSavingMov(false);
       toast({ title: "تعذرت الإضافة", description: error.message, variant: "destructive" });
       return;
     }
-    const delta = (newMov.movement_type === "in" ? 1 : -1) * newMov.quantity;
-    await adjustStock(newMov.item_id, delta);
     setSavingMov(false);
     setAddMovOpen(false);
     setNewMov({ item_id: "", movement_type: "in", quantity: 0, party: "", reference: "", notes: "" });
@@ -1084,7 +1104,7 @@ const WarehouseDetail = () => {
 
         <div className="grid gap-4 md:grid-cols-4">
           <Card><CardHeader className="pb-2"><CardDescription>عدد الأصناف</CardDescription><CardTitle className="text-3xl">{items.length}</CardTitle></CardHeader></Card>
-          <Card><CardHeader className="pb-2"><CardDescription>قيمة المخزون</CardDescription><CardTitle className="text-2xl">{totalValue.toLocaleString()}</CardTitle></CardHeader></Card>
+          {showCost && <Card><CardHeader className="pb-2"><CardDescription>قيمة المخزون</CardDescription><CardTitle className="text-2xl">{Number(totalValue || 0).toLocaleString()}</CardTitle></CardHeader></Card>}
           <Card className={lowStock.length ? "border-destructive" : ""}>
             <CardHeader className="pb-2"><CardDescription>أصناف منخفضة</CardDescription><CardTitle className={`text-3xl ${lowStock.length ? "text-destructive" : ""}`}>{lowStock.length}</CardTitle></CardHeader>
           </Card>
@@ -1285,7 +1305,7 @@ const WarehouseDetail = () => {
               <Table>
                 <TableHeader><TableRow>
                   <TableHead>الصنف</TableHead><TableHead>الفئة</TableHead><TableHead>الرصيد</TableHead>
-                  <TableHead>الوحدة</TableHead><TableHead>الحد الأدنى</TableHead><TableHead>التكلفة</TableHead>
+                  <TableHead>الوحدة</TableHead><TableHead>الحد الأدنى</TableHead>{showCost && <TableHead>التكلفة</TableHead>}
                   <TableHead className="text-center">سجل الحركة</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
@@ -1298,7 +1318,7 @@ const WarehouseDetail = () => {
                       <TableCell className={Number(it.stock) <= Number(it.low_stock_threshold) ? "text-destructive font-bold" : ""}>{it.stock}</TableCell>
                       <TableCell>{it.unit}</TableCell>
                       <TableCell>{it.low_stock_threshold}</TableCell>
-                      <TableCell>{Number(it.unit_cost).toFixed(2)}</TableCell>
+                      {showCost && <TableCell>{Number(it.unit_cost || 0).toFixed(2)}</TableCell>}
                       <TableCell className="text-center">
                         <Button size="sm" variant="outline" onClick={() => setItemMovItem(it)} className="gap-1">
                           <History className="w-4 h-4" /> سجل الحركة
@@ -1929,14 +1949,14 @@ const WarehouseDetail = () => {
           <DialogHeader>
             <DialogTitle>تأكيد استلام التحويل {receiveDialog?.transfer_no}</DialogTitle>
             <DialogDescription>
-              من {receiveDialog?.source?.name}. عند التأكيد، تُضاف الكمية المستلمة لمخزون {warehouse?.name}. الكميات الناقصة أو المرفوضة لا تُضاف. استخدم "رفض" للأصناف غير المطابقة لإرجاعها للمخزن المصدر.
+              من {receiveDialog?.source?.name}. عند التأكيد، تُضاف الكمية المستلمة لمخزون {warehouse?.name}. العجز لا يُضاف، والزيادة تُسجل مع ملاحظة إلزامية. استخدم "رفض" للأصناف غير المطابقة لإرجاعها للمخزن المصدر.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Table>
               <TableHeader><TableRow>
                 <TableHead>الصنف</TableHead><TableHead>مرسل</TableHead>
-                <TableHead>مستلم</TableHead><TableHead>ملاحظات (إلزامية للجزئي)</TableHead>
+                <TableHead>مستلم</TableHead><TableHead>ملاحظات (إلزامية عند العجز أو الزيادة)</TableHead>
                 <TableHead></TableHead>
               </TableRow></TableHeader>
               <TableBody>
@@ -1952,7 +1972,7 @@ const WarehouseDetail = () => {
                       </TableCell>
                       <TableCell>{li.sent_qty} {li.unit}</TableCell>
                       <TableCell>
-                        <Input type="number" min={0} max={Number(li.sent_qty)} className="w-24"
+                        <Input type="number" min={0} className="w-24"
                           disabled={finalized}
                           value={v.qty}
                           onChange={e => setReceiveLines({ ...receiveLines, [li.id]: { ...v, qty: Number(e.target.value) } })} />

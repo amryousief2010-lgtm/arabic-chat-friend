@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowRight, Upload, CheckCircle2, AlertTriangle, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
+import { postManualInventoryMovement } from "@/lib/inventoryStock";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { safeParseExcel, SafeExcelError } from "@/lib/safeExcel";
@@ -31,12 +32,13 @@ const InventoryImport = () => {
   const [parsed, setParsed] = useState<ParsedRow[]>([]);
   const [fileName, setFileName] = useState("");
   const [saving, setSaving] = useState(false);
+  const importRequestId = useRef<string | null>(null);
 
   useEffect(() => {
     (async () => {
       const [w, i] = await Promise.all([
         supabase.from("warehouses").select("id, name"),
-        supabase.from("inventory_items").select("id, name, sku, warehouse_id, stock, unit_cost"),
+        supabase.from("inventory_items_visible" as any).select("id, name, sku, warehouse_id, stock, unit_cost"),
       ]);
       setWarehouses(w.data || []);
       setItems(i.data || []);
@@ -99,6 +101,8 @@ const InventoryImport = () => {
 
   const save = async () => {
     if (validRows.length === 0) return;
+    if (!importRequestId.current) importRequestId.current = crypto.randomUUID();
+    const requestId = importRequestId.current;
     setSaving(true);
     try {
       if (mode === "items") {
@@ -110,38 +114,52 @@ const InventoryImport = () => {
             sku: r.data.sku?.trim() || null,
             category: r.data.category?.trim() || null,
             unit: r.data.unit?.trim() || "قطعة",
-            stock: Number(r.data.stock) || 0,
+            stock: 0,
             low_stock_threshold: Number(r.data.low_stock_threshold) || 10,
             unit_cost: Number(r.data.unit_cost) || 0,
           };
         });
-        const { error } = await supabase.from("inventory_items").insert(payload);
+        const { data: created, error } = await supabase.from("inventory_items").insert(payload).select("id, name, warehouse_id");
         if (error) throw error;
+        for (const row of created || []) {
+          const src = validRows.find((r) => {
+            const wh = warehouses.find((w) => w.name === r.data.warehouse_name.trim());
+            return wh?.id === row.warehouse_id && r.data.name.trim() === row.name;
+          });
+          const qty = Number(src?.data.stock) || 0;
+          if (qty > 0) {
+            await postManualInventoryMovement({
+              itemId: row.id,
+              movementType: "in",
+              quantity: qty,
+              reason: "رصيد افتتاحي من استيراد الأصناف",
+              referenceType: "opening_balance",
+              requestId,
+            });
+          }
+        }
       } else {
         const transferRows = validRows.filter(r => r.data.movement_type === "transfer");
         const directRows = validRows.filter(r => r.data.movement_type !== "transfer");
 
         if (directRows.length > 0) {
-          const payload = directRows.map(r => {
+          for (const r of directRows) {
             const wh = warehouses.find(w => w.name === r.data.warehouse_name.trim())!;
             const key = r.data.item_name_or_sku.trim();
             const item = items.find(i => (i.sku === key || i.name === key) && i.warehouse_id === wh.id)!;
-            return {
-              item_id: item.id,
-              warehouse_id: wh.id,
-              movement_type: r.data.movement_type,
+            const movementType = r.data.movement_type === "out" ? "out" : r.data.movement_type === "adjustment" ? "adjustment" : "in";
+            await postManualInventoryMovement({
+              itemId: item.id,
+              movementType,
               quantity: Number(r.data.quantity),
-              destination_warehouse_id: null,
-              reference: r.data.reference?.trim() || null,
-              party: r.data.party?.trim() || null,
+              reason: r.data.notes?.trim() || r.data.reference?.trim() || "استيراد حركة",
               notes: r.data.notes?.trim() || null,
-              unit_cost: item.unit_cost,
-              performed_by: user?.id,
-            };
-          });
-
-          const { error } = await supabase.from("inventory_movements").insert(payload);
-          if (error) throw error;
+              party: r.data.party?.trim() || null,
+              reference: r.data.reference?.trim() || null,
+              referenceType: movementType === "out" ? "manual_out" : movementType === "adjustment" ? "manual_adjustment" : "manual_in",
+              requestId,
+            });
+          }
         }
 
         for (const r of transferRows) {
@@ -161,6 +179,7 @@ const InventoryImport = () => {
         }
       }
       toast({ title: "تم الحفظ", description: `تم استيراد ${validRows.length} سجلًا` });
+      importRequestId.current = null;
       setParsed([]);
       setFileName("");
     } catch (e: any) {

@@ -571,13 +571,10 @@ export function useExecutiveApprovals() {
           const { error } = await (supabase as any).rpc("approve_meat_purchase", { p_purchase_id: item.id });
           if (error) throw error;
         } else {
-          const rpcName = item.raw?._kind === "pack_purchase" ? "post_mf_pack_purchase" : "post_mf_raw_purchase";
-          const { error } = await (supabase as any).rpc(rpcName, { p_id: item.id });
-          if (error) throw error;
+          throw new Error("هذه الدالة موقوفة، استخدم اعتماد مشتريات المصنع أو شراء التغليف في مخزن أدوات التغليف");
         }
       } else if (item.category === "mf_mfg") {
-        const { error } = await (supabase as any).rpc("post_mf_manufacturing", { p_id: item.id });
-        if (error) throw error;
+        throw new Error("هذه الدالة موقوفة، استخدم فواتير تصنيع مصنع اللحوم واعتمادها عبر دفتر المخزون");
       }
       await refetch();
     },

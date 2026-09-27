@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ArrowDownLeft, ArrowUpRight, RefreshCw, Search, Activity, PackageCheck, Eye, Printer, Edit, Trash2, ArrowDown, ArrowUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { reversePostedMovement } from "@/lib/inventoryStock";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
@@ -125,7 +126,7 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
       setOpeningAt(openAt ?? null);
 
       let q = supabase
-        .from("inventory_movements")
+        .from("inventory_movements_visible" as any)
         .select("id, performed_at, movement_type, quantity, notes, reason, party, item_id, warehouse_id, source_warehouse_id, destination_warehouse_id, performed_by, reference_type, reference, package_count, package_weight_kg, unit_cost, total_cost")
         .or(`warehouse_id.eq.${wh.id},source_warehouse_id.eq.${wh.id},destination_warehouse_id.eq.${wh.id}`)
         .order("performed_at", { ascending: false })
@@ -324,16 +325,9 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
     if (!window.confirm(`سيتم إلغاء التوريدة ${g.reference} وعكس أثرها على المخزون. متابعة؟`)) return;
     setCancelBusy(true);
     try {
-      for (const m of g.rows) {
-        if (!m.item_id) continue;
-        const delta = (g.direction === "in" ? -1 : 1) * Number(m.quantity || 0);
-        const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", m.item_id).maybeSingle();
-        const newStock = Number((it as any)?.stock || 0) + delta;
-        await supabase.from("inventory_items").update({ stock: newStock }).eq("id", m.item_id);
+      for (const rowId of g.rows.map((r) => r.id)) {
+        await reversePostedMovement(rowId, reason.trim());
       }
-      const ids = g.rows.map((r) => r.id);
-      const { error } = await supabase.from("inventory_movements").delete().in("id", ids);
-      if (error) throw error;
       try {
         await supabase.from("notifications").insert({
           user_id: user?.id,

@@ -11,6 +11,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Plus, Trash2, Truck, ChevronsUpDown, Check, FileSpreadsheet, Printer, Eye, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { withMovementCosts } from "@/lib/inventoryCostAccess";
+import { postInventoryDocument, reversePostedMovement } from "@/lib/inventoryStock";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/dateFormat";
@@ -106,16 +108,21 @@ export default function InboundSupplyTab({ warehouseId, warehouseName }: Props) 
     const uc = Number(editUnitCost) || 0;
     setSavingEdit(true);
     try {
-      const { error } = await supabase.from("inventory_movements").update({
+      await reversePostedMovement(detail.id, "تصحيح توريد");
+      await postInventoryDocument({
+        itemId: detail.item_id,
+        movementType: "in",
         quantity: realQty,
-        unit_cost: uc > 0 ? uc : null,
-        total_cost: uc > 0 ? uc * realQty : null,
+        sourceType: "purchase",
+        reason: "تصحيح توريد",
         notes: editNotes || null,
         party: editParty || null,
         reference: editRef || null,
-      }).eq("id", detail.id);
-      if (error) throw error;
-      toast.success("تم تحديث التوريد");
+        referenceType: "external_supply",
+        unitCost: uc > 0 ? uc : null,
+        warehouseId,
+      });
+      toast.success("تم عكس التوريد وتسجيل الكمية الجديدة");
       setDetail(null);
       await fetchAll();
     } catch (e: any) {
@@ -127,12 +134,11 @@ export default function InboundSupplyTab({ warehouseId, warehouseName }: Props) 
 
   const deleteMovement = async () => {
     if (!detail) return;
-    if (!confirm("حذف هذه الحركة سيخصم الكمية من رصيد المخزن. متأكد؟")) return;
+    if (!confirm("لن تُحذف الحركة من الدفتر. سيُسجَّل عكسها ويعود أثرها على الرصيد. متأكد؟")) return;
     setDeleting(true);
     try {
-      const { error } = await supabase.from("inventory_movements").delete().eq("id", detail.id);
-      if (error) throw error;
-      toast.success("تم حذف الحركة");
+      await reversePostedMovement(detail.id, "عكس توريد");
+      toast.success("تم عكس الحركة");
       setDetail(null);
       await fetchAll();
     } catch (e: any) {
@@ -192,14 +198,14 @@ export default function InboundSupplyTab({ warehouseId, warehouseName }: Props) 
     const [itRes, mvRes] = await Promise.all([
       supabase.from("inventory_items").select("id, name, unit, stock").eq("warehouse_id", warehouseId).order("name"),
       supabase.from("inventory_movements")
-        .select("id, performed_at, quantity, unit_cost, total_cost, party, notes, reference, item:inventory_items(name, unit)")
+        .select("id, item_id, performed_at, quantity, party, notes, reference, item:inventory_items(name, unit)")
         .eq("warehouse_id", warehouseId)
         .eq("reference_type", "external_supply")
         .order("performed_at", { ascending: false })
         .limit(500),
     ]);
     setItems((itRes.data || []) as Item[]);
-    setHistory(mvRes.data || []);
+    setHistory(await withMovementCosts((mvRes.data || []) as any));
     setLoading(false);
   };
 
@@ -241,23 +247,24 @@ export default function InboundSupplyTab({ warehouseId, warehouseName }: Props) 
 
     setSubmitting(true);
     try {
-      const rows = valid.map(v => ({
-        item_id: v.it.id,
-        product_id: null,
-        warehouse_id: warehouseId,
-        movement_type: "in",
-        quantity: v.realQty,
-        unit_cost: v.unitCost > 0 ? v.unitCost : null,
-        total_cost: v.unitCost > 0 ? v.unitCost * v.realQty : null,
-        reference_type: "external_supply",
-        reference: invoiceNo.trim() || null,
-        party,
-        notes: [noteParts.join(" • "), v.notes].filter(Boolean).join(" | ") || null,
-        performed_by: user?.id ?? null,
-        module: "warehouse",
-      }));
-      const { error } = await supabase.from("inventory_movements").insert(rows);
-      if (error) throw error;
+      const docId = crypto.randomUUID();
+      for (const [idx, v] of valid.entries()) {
+        await postInventoryDocument({
+          itemId: v.it.id,
+          movementType: "purchase_receipt",
+          quantity: v.realQty,
+          sourceType: "purchase",
+          sourceId: docId,
+          sourceLineId: String(idx + 1),
+          reason: invoiceNo.trim() || "توريد خارجي",
+          notes: [noteParts.join(" • "), v.notes].filter(Boolean).join(" | ") || null,
+          party,
+          reference: invoiceNo.trim() || null,
+          referenceType: "external_supply",
+          unitCost: v.unitCost > 0 ? v.unitCost : null,
+          warehouseId,
+        });
+      }
       toast.success(`تم تسجيل التوريد (${valid.length} صنف) بنجاح`);
       setOpen(false);
       resetForm();

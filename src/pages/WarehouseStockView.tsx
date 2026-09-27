@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
@@ -11,6 +11,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Search, RefreshCw, Warehouse, Printer, Pencil, Check, X, ArrowLeftRight, AlertTriangle, PackageCheck, Lock, PackagePlus, PackageMinus, Package, History, Wallet, Clock, Boxes } from "lucide-react";
 import ItemMovementsDialog from "@/components/warehouse/ItemMovementsDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { setInventoryItemStock, postManualInventoryMovement } from "@/lib/inventoryStock";
+import { withItemUnitCost } from "@/lib/inventoryCostAccess";
 import { printWarehouseStock } from "@/lib/printUtils";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -88,6 +90,7 @@ const normalizeSearch = (value: unknown) =>
     .replace(/\s+/g, " ");
 
 const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
+  const stockRequestRef = useRef(crypto.randomUUID());
   const { isExecutiveManager, isGeneralManager, isAgouzaWarehouseKeeper, isWarehouseSupervisor, canManageStock } = useAuth();
   const navigate = useNavigate();
   const canEditAll = isExecutiveManager || isGeneralManager;
@@ -178,7 +181,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
       if (whIds.length > 0) {
         const { data: invRows } = await supabase
           .from("inventory_items")
-          .select("id, warehouse_id, product_id, name, category, unit, stock, reserved_qty, blocked_qty, unit_cost, sku, item_code, low_stock_threshold, is_active, module")
+          .select("id, warehouse_id, product_id, name, category, unit, stock, reserved_qty, blocked_qty, sku, item_code, low_stock_threshold, is_active, module")
           .in("warehouse_id", whIds);
 
         const productById = new Map<string, Product>((pRes.data || []).map((p: any) => [p.id, p as Product]));
@@ -221,14 +224,14 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
           });
         };
 
-        (invRows || []).forEach((r: any) => {
+        (await withItemUnitCost((invRows || []) as any[])).forEach((r: any) => {
           const actual = Number(r.stock || 0) - Number(r.blocked_qty || 0);
           if (r.warehouse_id === agouza?.id) {
             pushDialogItem("agouza", r);
             if (r.product_id) {
               ag[r.product_id] = (ag[r.product_id] || 0) + actual;
               agIds[r.product_id] = r.id;
-              agCost[r.product_id] = Number(r.unit_cost || 0);
+              if (r.unit_cost != null) agCost[r.product_id] = Number(r.unit_cost);
               if (r.sku) agSku[r.product_id] = r.sku;
               agLow[r.product_id] = Number(r.low_stock_threshold || 0);
             }
@@ -238,7 +241,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             if (r.product_id) {
               mn[r.product_id] = (mn[r.product_id] || 0) + actual;
               mnIds[r.product_id] = r.id;
-              mnCost[r.product_id] = Number(r.unit_cost || 0);
+              if (r.unit_cost != null) mnCost[r.product_id] = Number(r.unit_cost);
               if (r.sku) mnSku[r.product_id] = r.sku;
               mnLow[r.product_id] = Number(r.low_stock_threshold || 0);
             }
@@ -248,7 +251,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             if (r.product_id) {
               exStock.carrefour[r.product_id] = (exStock.carrefour[r.product_id] || 0) + actual;
               exIds.carrefour[r.product_id] = r.id;
-              exCost.carrefour[r.product_id] = Number(r.unit_cost || 0);
+              if (r.unit_cost != null) exCost.carrefour[r.product_id] = Number(r.unit_cost);
               if (r.sku) exSku.carrefour[r.product_id] = r.sku;
               exLow.carrefour[r.product_id] = Number(r.low_stock_threshold || 0);
             }
@@ -258,7 +261,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             if (r.product_id) {
               exStock.healthy[r.product_id] = (exStock.healthy[r.product_id] || 0) + actual;
               exIds.healthy[r.product_id] = r.id;
-              exCost.healthy[r.product_id] = Number(r.unit_cost || 0);
+              if (r.unit_cost != null) exCost.healthy[r.product_id] = Number(r.unit_cost);
               if (r.sku) exSku.healthy[r.product_id] = r.sku;
               exLow.healthy[r.product_id] = Number(r.low_stock_threshold || 0);
             }
@@ -463,21 +466,29 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
     }
 
 
+    const reason = window.prompt("سبب تعديل الجرد (إجباري — 3 أحرف على الأقل):", "تعديل جرد يدوي");
+    if (!reason || reason.trim().length < 3) { toast.error("لازم تكتب سبب واضح"); return; }
     setSaving(true);
     try {
       if (itemId) {
-        const { error } = await supabase
-          .from("inventory_items")
-          .update({ stock: newActualKg })
-          .eq("id", itemId);
-        if (error) throw error;
+        await setInventoryItemStock(itemId, newActualKg, reason.trim(), stockRequestRef.current);
       } else {
         const { data, error } = await supabase
           .from("inventory_items")
-          .insert({ warehouse_id: whId, product_id: productId, stock: newActualKg, module: "warehouse" } as any)
+          .insert({ warehouse_id: whId, product_id: productId, stock: 0, module: "warehouse" } as any)
           .select("id")
           .single();
         if (error) throw error;
+        if (newActualKg > 0) {
+          await postManualInventoryMovement({
+            itemId: data!.id,
+            movementType: "in",
+            quantity: newActualKg,
+            reason: reason.trim(),
+            referenceType: "stock_adjustment",
+            requestId: stockRequestRef.current,
+          });
+        }
         if (wh === "agouza") setAgouzaItemIds((m) => ({ ...m, [productId]: data!.id }));
         else setExtraItemIds((m) => ({ ...m, [wh]: { ...(m[wh] || {}), [productId]: data!.id } }));
       }
@@ -545,7 +556,7 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
             <button
               className="text-muted-foreground hover:text-primary opacity-60 hover:opacity-100"
               title="تعديل الجرد الفعلي"
-              onClick={() => { setEditingKey(key); setEditValue(String(pkgs)); }}
+              onClick={() => { stockRequestRef.current = crypto.randomUUID(); setEditingKey(key); setEditValue(String(pkgs)); }}
             >
               <Pencil className="w-3 h-3" />
             </button>

@@ -240,9 +240,17 @@ const FeedFactory = () => {
     await supabase.from("feed_batch_consumption").insert(consumption);
     for (const c of consumption) {
       const mat = materials.find(m => m.id === c.raw_material_id);
-      if (mat) {
-        await supabase.from("feed_raw_materials").update({ stock: mat.stock - c.quantity }).eq("id", mat.id);
-      }
+      if (!mat) continue;
+      const { error: stockErr } = await (supabase as any).rpc("post_named_stock", {
+        p_store: "feed_raw_materials",
+        p_item_id: mat.id,
+        p_delta: -c.quantity,
+        p_source_type: "feed_batch_consumption",
+        p_source_id: batch.id,
+        p_source_line: mat.id,
+        p_reason: "بدء إنتاج علف",
+      });
+      if (stockErr) throw stockErr;
     }
     await supabase.from("feed_production_batches").update({
       status: "in_progress",

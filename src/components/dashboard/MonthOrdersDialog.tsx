@@ -2,6 +2,7 @@ import { fillModeratorFromCreator } from "@/lib/creatorNameFallback";
 import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +14,7 @@ import { cairoMonthStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { updateOrderStatusShared } from "@/lib/orderStatusUpdate";
+import { BULK_DELIVERY_CAP, bulkDeliveryPlan } from "@/lib/bulkDelivery";
 import {
   isCancelledOrderStatus,
   SALES_GROSS_INCLUDING_CANCELLED_LABEL_AR,
@@ -122,6 +124,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [batchDeliveredAt, setBatchDeliveredAt] = useState("");
   const [returnDialog, setReturnDialog] = useState<{ ids: string[] } | null>(null);
   const [returnReason, setReturnReason] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -215,13 +218,16 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
 
   const markDelivered = async (ids: string[]) => {
     if (!canUpdateStatus) { toast.error("ليس لديك صلاحية تحديث الحالة."); return; }
+    const plan = bulkDeliveryPlan(ids.length, batchDeliveredAt);
+    if (!plan.ok) { toast.error(plan.message); return; }
+    const deliveredAt = plan.deliveredAt;
     const msg = ids.length === 1 ? "هل تريد تأكيد تسليم هذا الطلب؟" : `هل تريد تأكيد تسليم ${ids.length} طلب؟`;
     if (!window.confirm(msg)) return;
     let ok = 0, fail = 0;
     for (const id of ids) {
       setBusyId(id);
       try {
-        await updateOrderStatusShared({ orderId: id, newStatus: "delivered", userId: user?.id });
+        await updateOrderStatusShared({ orderId: id, newStatus: "delivered", userId: user?.id, deliveredAt });
         setRows(prev => prev.map(r => r.id === id ? { ...r, status: "delivered" } : r));
         ok++;
       } catch (e: any) { console.error(e); fail++; }
@@ -333,7 +339,16 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
         {canUpdateStatus && selectedIds.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap bg-muted/40 border rounded-lg p-2 mb-2">
             <span className="text-sm font-semibold">تم تحديد {selectedIds.length}:</span>
-            <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => markDelivered(selectedIds)}>
+            {selectedIds.length > 1 && (
+              <Input
+                type="datetime-local"
+                className="h-8 w-56"
+                value={batchDeliveredAt}
+                onChange={(e) => setBatchDeliveredAt(e.target.value)}
+                aria-label="تاريخ ووقت تسليم الدفعة"
+              />
+            )}
+            <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => markDelivered(selectedIds)} disabled={selectedIds.length > BULK_DELIVERY_CAP}>
               <CheckCircle2 className="w-4 h-4" /> تسليم ناجح
             </Button>
             <Button size="sm" variant="destructive" className="gap-1" onClick={() => { setReturnDialog({ ids: selectedIds }); setReturnReason(""); }}>

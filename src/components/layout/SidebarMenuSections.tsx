@@ -25,6 +25,7 @@ import {
   History,
   Wheat,
   Warehouse,
+  Link2,
   Truck,
   ChevronDown,
   Megaphone,
@@ -255,6 +256,11 @@ export const moduleSections: ModuleSection[] = [
       // مركز إدارة المخازن الموحّد — كل التابات والصفحات في شاشة واحدة
       { icon: Warehouse, label: "إدارة المخازن", path: "/modules/warehouses", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'production_manager', 'quality_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager', 'accountant', 'financial_manager','marketing_sales_viewer'] },
       { icon: AlertTriangle, label: "مراجعة زودكس (فروق وربط)", path: "/modules/warehouses/zodex-review", roles: [...ZODEX_REVIEW_ALLOWED_ROLES] },
+      { icon: Link2, label: "بطاقات غير مربوطة ومرشحة للدمج", path: "/modules/warehouses/merge-candidates", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
+      { icon: ShieldCheck, label: "مطابقة دفتر المخزون", path: "/modules/warehouses/reconciliation", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager', 'cost_accountant', 'agouza_warehouse_keeper'] },
+      { icon: Receipt, label: "كشف مبيعات المنفذ", path: "/modules/warehouses/outlet-statements", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
+      { icon: Factory, label: "إنتاج لم يُنقل للمخزن الرئيسي", path: "/modules/warehouses/untransferred-production", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant'] },
+      { icon: Beef, label: "مخرجات مجزر لم تُستلم", path: "/modules/warehouses/unreceived-slaughter", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'warehouse_supervisor', 'production_manager'] },
       // تنبيهات وتشغيل
       // مخفي من السايدبار فقط — المسار والصفحة والصلاحيات تعمل عند الفتح المباشر
       // { icon: AlertTriangle, label: "مخزون منخفض", path: "/low-stock", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager'] },

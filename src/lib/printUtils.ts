@@ -228,7 +228,7 @@ export const printWarehouseStock = (
           + `<td>${cellQty(fr, r.unit)}</td>`
           + `<td>${cellQty(total, r.unit)}</td></tr>`;
       }).join("");
-      footerRow = `<tr><td colspan="3">الإجمالي</td>${totals.map(v => `<td>${footQty(v, anyKilo)}</td>`).join("")}</tr>`;
+      footerRow = `<tr><td colspan="3">الإجمالي (الكارت فقط)</td><td>مرآة — لا تُجمع</td><td>${footQty(totals[1], anyKilo)}</td></tr>`;
 
     } else {
       headerCols = `<th style="width:70px">الوحدة</th>${sample.labels.map(l => `<th style="width:140px">${label} — ${l}</th>`).join("")}`;

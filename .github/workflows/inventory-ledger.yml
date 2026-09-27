@@ -1,0 +1,60 @@
+name: inventory-ledger
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  ledger:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ledger
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/ledger
+      PGDATABASE: ledger
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Postgres client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Apply migrations
+        run: python3 scripts/apply_migrations.py
+      - name: Dirty history then migrations 7-20
+        run: |
+          psql "postgres://postgres:postgres@localhost:5432/postgres" -c "DROP DATABASE IF EXISTS ledger_dirty;"
+          psql "postgres://postgres:postgres@localhost:5432/postgres" -c "CREATE DATABASE ledger_dirty;"
+          DATABASE_URL="postgres://postgres:postgres@localhost:5432/ledger_dirty" python3 scripts/apply_dirty_history.py
+      - name: SQL ledger scenarios
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/inventory_ledger.sql
+      - name: SQL closed loop
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/inventory_closed_loop.sql
+      - name: Packaging warehouse scenarios
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/inventory_packaging_warehouse.sql
+      - name: Remaining open items
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/inventory_remaining_open.sql
+      - name: Concurrency
+        run: python3 scripts/inventory_ledger_concurrency.py
+      - name: Client write lint
+        run: python3 scripts/check_inventory_client_writes.py
+      - name: Ledger function stock writers
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/check_ledger_stock_writers.sql
+      - name: Install
+        run: npm install --ignore-scripts
+      - name: Unit tests
+        run: npx vitest run src/lib/__tests__/dailyMovementLedger.test.ts src/lib/__tests__/inventoryReadApi.test.ts src/lib/__tests__/packWeight.test.ts src/lib/__tests__/warehouseMovementSign.test.ts src/lib/__tests__/bulkDelivery.test.ts src/lib/__tests__/factoryDataQuality.test.ts src/test/return-movement-trigger-math.test.ts src/lib/__tests__/productCostPricesSecurity.test.ts src/lib/__tests__/outletSalesStatement.test.ts
+      - name: Build
+        run: npm run build

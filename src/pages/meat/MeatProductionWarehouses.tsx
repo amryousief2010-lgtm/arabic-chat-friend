@@ -273,18 +273,7 @@ export default function MeatProductionWarehouses() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base">فواتير التصنيع</CardTitle>
-                <Dialog open={prodOpen} onOpenChange={setProdOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="gap-1"><Plus className="w-4 h-4" />فاتورة تصنيع جديدة</Button>
-                  </DialogTrigger>
-                  <ProductionDialog
-                    open={prodOpen}
-                    onOpenChange={setProdOpen}
-                    rawMaterials={(rawQ.data || []).filter((r) => r.is_active)}
-                    products={finishedQ.data || []}
-                    onSaved={refreshAll}
-                  />
-                </Dialog>
+                <span className="text-xs text-muted-foreground">موقوف — استخدم فواتير تصنيع مصنع اللحوم على دفتر المخزون</span>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -819,35 +808,7 @@ function RawAdjustStockDialog({
     if (!reason.trim()) { toast.error("ادخل سبب التعديل"); return; }
     if (diff === 0) { toast.error("لا يوجد فرق في الرصيد"); return; }
 
-    setSaving(true);
-    try {
-      const { error: e1 } = await (supabase as any)
-        .from("meat_factory_raw_materials")
-        .update({ stock: newN, updated_at: new Date().toISOString() })
-        .eq("id", target.id);
-      if (e1) throw e1;
-
-      const direction = diff > 0 ? "IN" : "OUT";
-      const fullReason = `${reasonType} — الكمية قبل: ${oldStock} — الكمية بعد: ${newN} — الفرق: ${diff > 0 ? "+" : ""}${diff.toFixed(3)} — ${reason.trim()}`;
-      const { error: e2 } = await supabase.from("meat_factory_inventory_moves").insert({
-        item_kind: "raw",
-        item_id: target.id,
-        item_name: target.name_ar,
-        direction,
-        quantity: Math.abs(diff),
-        unit_cost: Number(target.avg_unit_cost) || 0,
-        reason: fullReason,
-      });
-      if (e2) throw e2;
-
-      toast.success("تم تعديل الرصيد وتسجيل الحركة");
-      onClose();
-      onSaved();
-    } catch (e: any) {
-      toast.error(e.message || "تعذّر تعديل الرصيد");
-    } finally {
-      setSaving(false);
-    }
+    toast.error("جدول خامات المصنع القديم للقراءة فقط. سوِّ الرصيد من بطاقة خامات المصنع الحية.");
   };
 
   return (

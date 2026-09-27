@@ -148,13 +148,8 @@ const StockReplenishmentLog = () => {
     if (totalBags <= 0) { toast.error("أدخل الكمية"); return; }
     setSubmitting(true);
     try {
-      const newStock = selectedProduct.stock + totalBags;
-      const { error: upErr } = await supabase
-        .from("products")
-        .update({ stock: newStock })
-        .eq("id", selectedProduct.id);
-      if (upErr) throw upErr;
-
+      const newStock = selectedProduct.stock;
+      toast.message("رصيد المنتج القديم للقراءة فقط. الكمية لم تُضف إلى products.stock.");
       let breakdown = "";
       if (isKg) {
         const parts: string[] = [];
