@@ -18,7 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { canViewInventoryCost, withItemUnitCost } from "@/lib/inventoryCostAccess";
-import { postManualInventoryMovement, setInventoryItemStock } from "@/lib/inventoryStock";
+import { postManualInventoryMovement, reversePostedMovement, setInventoryItemStock } from "@/lib/inventoryStock";
 import { formatDateTime } from "@/lib/dateFormat";
 import companyLogo from "@/assets/company-logo.jpg";
 import WarehouseKpisBlock from "@/components/warehouses/WarehouseKpisBlock";
@@ -434,10 +434,9 @@ const Warehouses = () => {
     if (!window.confirm(`سيتم إلغاء التوريدة ${target.reference} وعكس أثرها على المخزون. متابعة؟`)) return;
     setManualBusy(true);
     try {
-      // Posted rows are reversed once by the delete trigger. Pending rows never hit stock.
-      const ids = target.movs.map((m) => m.id);
-      const { error } = await supabase.from("inventory_movements").delete().in("id", ids);
-      if (error) throw error;
+      for (const mov of target.movs) {
+        await reversePostedMovement(mov.id, reason.trim());
+      }
       // Lightweight audit trail — appended into a notification for managers
       try {
         await supabase.from("notifications").insert({
@@ -535,14 +534,21 @@ const Warehouses = () => {
             packageWeightKg: L.package_weight_kg ?? null,
           });
         } else if (L._deleted && L.id) {
-          await supabase.from("inventory_movements").delete().eq("id", L.id);
-        } else if (L.id) {
-          await supabase.from("inventory_movements").update({
+          await reversePostedMovement(L.id, editManualReason.trim());
+        } else if (L.id && Number(L.quantity) !== Number(L._origQty)) {
+          await reversePostedMovement(L.id, editManualReason.trim());
+          await postManualInventoryMovement({
+            itemId: L.item_id,
+            movementType: direction === "in" ? "in" : "out",
             quantity: Number(L.quantity),
-            package_count: L.package_count ?? null,
-            package_weight_kg: L.package_weight_kg ?? null,
-            notes: `${L.notes || ""}${L.notes ? " • " : ""}عُدّل بسبب: ${editManualReason}`,
-          } as any).eq("id", L.id);
+            reason: editManualReason.trim(),
+            notes: `${L.notes || ""}${L.notes ? " • " : ""}بعد التعديل: ${editManualReason}`,
+            party: group.partyLabel || null,
+            reference: editManualRef,
+            referenceType,
+            packageCount: L.package_count ?? null,
+            packageWeightKg: L.package_weight_kg ?? null,
+          });
         }
       }
       try {

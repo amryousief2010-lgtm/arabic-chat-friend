@@ -139,26 +139,22 @@ const InventoryImport = () => {
         const directRows = validRows.filter(r => r.data.movement_type !== "transfer");
 
         if (directRows.length > 0) {
-          const payload = directRows.map(r => {
+          for (const r of directRows) {
             const wh = warehouses.find(w => w.name === r.data.warehouse_name.trim())!;
             const key = r.data.item_name_or_sku.trim();
             const item = items.find(i => (i.sku === key || i.name === key) && i.warehouse_id === wh.id)!;
-            return {
-              item_id: item.id,
-              warehouse_id: wh.id,
-              movement_type: r.data.movement_type,
+            const movementType = r.data.movement_type === "out" ? "out" : r.data.movement_type === "adjustment" ? "adjustment" : "in";
+            await postManualInventoryMovement({
+              itemId: item.id,
+              movementType,
               quantity: Number(r.data.quantity),
-              destination_warehouse_id: null,
-              reference: r.data.reference?.trim() || null,
-              party: r.data.party?.trim() || null,
+              reason: r.data.notes?.trim() || r.data.reference?.trim() || "استيراد حركة",
               notes: r.data.notes?.trim() || null,
-              unit_cost: item.unit_cost,
-              performed_by: user?.id,
-            };
-          });
-
-          const { error } = await supabase.from("inventory_movements").insert(payload);
-          if (error) throw error;
+              party: r.data.party?.trim() || null,
+              reference: r.data.reference?.trim() || null,
+              referenceType: movementType === "out" ? "manual_out" : movementType === "adjustment" ? "manual_adjustment" : "manual_in",
+            });
+          }
         }
 
         for (const r of transferRows) {

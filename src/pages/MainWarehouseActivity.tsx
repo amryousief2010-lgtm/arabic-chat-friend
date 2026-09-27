@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ArrowDownLeft, ArrowUpRight, RefreshCw, Search, Activity, PackageCheck, Eye, Printer, Edit, Trash2, ArrowDown, ArrowUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { reversePostedMovement } from "@/lib/inventoryStock";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { printWarehouseSlip, SlipItemRow } from "@/lib/printWarehouseSlip";
@@ -324,9 +325,9 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
     if (!window.confirm(`سيتم إلغاء التوريدة ${g.reference} وعكس أثرها على المخزون. متابعة؟`)) return;
     setCancelBusy(true);
     try {
-      const ids = g.rows.map((r) => r.id);
-      const { error } = await supabase.from("inventory_movements").delete().in("id", ids);
-      if (error) throw error;
+      for (const rowId of g.rows.map((r) => r.id)) {
+        await reversePostedMovement(rowId, reason.trim());
+      }
       try {
         await supabase.from("notifications").insert({
           user_id: user?.id,

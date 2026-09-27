@@ -257,6 +257,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: Warehouse, label: "إدارة المخازن", path: "/modules/warehouses", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'production_manager', 'quality_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager', 'accountant', 'financial_manager','marketing_sales_viewer'] },
       { icon: AlertTriangle, label: "مراجعة زودكس (فروق وربط)", path: "/modules/warehouses/zodex-review", roles: [...ZODEX_REVIEW_ALLOWED_ROLES] },
       { icon: Link2, label: "بطاقات غير مربوطة ومرشحة للدمج", path: "/modules/warehouses/merge-candidates", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
+      { icon: ShieldCheck, label: "مطابقة دفتر المخزون", path: "/modules/warehouses/reconciliation", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager', 'cost_accountant', 'agouza_warehouse_keeper'] },
       // تنبيهات وتشغيل
       // مخفي من السايدبار فقط — المسار والصفحة والصلاحيات تعمل عند الفتح المباشر
       // { icon: AlertTriangle, label: "مخزون منخفض", path: "/low-stock", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'production_manager'] },

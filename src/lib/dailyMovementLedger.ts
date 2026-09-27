@@ -37,7 +37,15 @@ export interface LedgerRow {
 
 const PURCHASE_TYPES = new Set(["in", "purchase_receipt", "stock_in", "finished_goods_receipt", "opening_balance"]);
 
-export function movementBucket(m: Pick<LedgerMove, "movement_type" | "reference_type">): keyof Pick<LedgerRow, "purchaseIn" | "transferIn" | "returnsIn" | "salesOut" | "transferOut" | "wasteOut" | "manualOut" | "adjustment"> | null {
+export function movementBucket(m: Pick<LedgerMove, "movement_type" | "reference_type"> & { source_type?: string | null }): keyof Pick<LedgerRow, "purchaseIn" | "transferIn" | "returnsIn" | "salesOut" | "transferOut" | "wasteOut" | "manualOut" | "adjustment"> | null {
+  const source = m.source_type;
+  if (source === "order_delivery" || source === "outlet_sale") return "salesOut";
+  if (source === "order_return") return "returnsIn";
+  if (source === "transfer_in") return "transferIn";
+  if (source === "transfer_out") return "transferOut";
+  if (source === "waste") return "wasteOut";
+  if (source === "purchase" || source === "opening_balance") return "purchaseIn";
+  if (source === "stocktake" || source === "reversal" || source === "manual_adjustment") return "adjustment";
   const t = m.movement_type;
   if (t === "adjustment" || t === "adjust" || t === "reconciliation") return "adjustment";
   if (t === "sales_return" || t === "return") return "returnsIn";
