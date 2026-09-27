@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { withItemUnitCost, withMovementCosts } from "@/lib/inventoryCostAccess";
 import { useMemo, useState } from "react";
 import { useTestDataFilter } from "@/hooks/useTestDataFilter";
 
@@ -75,14 +76,14 @@ export function useFactoryData(from: string, to: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inventory_movements")
-        .select("id,movement_no,movement_type,quantity,unit_cost,total_cost,reference_type,reference_id,reference,performed_at,created_at,item_id")
+        .select("id,movement_no,movement_type,quantity,reference_type,reference_id,reference,performed_at,created_at,item_id")
         .in("reference_type", ["meat_batch", "feed_batch"])
         .gte("created_at", from + "T00:00:00Z")
         .lte("created_at", to + "T23:59:59Z")
         .order("created_at", { ascending: false })
         .limit(1000);
       if (error) throw error;
-      return data || [];
+      return withMovementCosts((data || []) as any);
     },
   });
   const itemsQ = useQuery({
@@ -93,11 +94,11 @@ export function useFactoryData(from: string, to: string) {
       // (live: 32) could include non-factory rows. Snapshot, not date-scoped.
       const { data, error } = await supabase
         .from("inventory_items")
-        .select("id,name,stock,reserved_qty,blocked_qty,unit_cost,low_stock_threshold,sku,item_code,module")
+        .select("id,name,stock,reserved_qty,blocked_qty,low_stock_threshold,sku,item_code,module")
         .in("module", ["meat", "feed"])
         .limit(2000);
       if (error) throw error;
-      return data || [];
+      return withItemUnitCost((data || []) as any);
     },
     staleTime: 5 * 60 * 1000,
   });

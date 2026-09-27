@@ -324,13 +324,6 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
     if (!window.confirm(`سيتم إلغاء التوريدة ${g.reference} وعكس أثرها على المخزون. متابعة؟`)) return;
     setCancelBusy(true);
     try {
-      for (const m of g.rows) {
-        if (!m.item_id) continue;
-        const delta = (g.direction === "in" ? -1 : 1) * Number(m.quantity || 0);
-        const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", m.item_id).maybeSingle();
-        const newStock = Number((it as any)?.stock || 0) + delta;
-        await supabase.from("inventory_items").update({ stock: newStock }).eq("id", m.item_id);
-      }
       const ids = g.rows.map((r) => r.id);
       const { error } = await supabase.from("inventory_movements").delete().in("id", ids);
       if (error) throw error;

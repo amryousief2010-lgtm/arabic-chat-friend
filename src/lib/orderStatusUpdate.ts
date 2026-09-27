@@ -1,7 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import {
   AGOUZA_WAREHOUSE_ID,
-  commitAgouzaForOrder,
   releaseAgouzaForOrder,
 } from "@/lib/agouzaReservations";
 
@@ -21,7 +20,7 @@ export async function updateOrderStatusShared(params: {
   newStatus: SharedOrderStatus;
   userId?: string | null;
   cancelReason?: string | null;
-  /** If true, skip Agouza reservation commit even when there is no active hold (shortage override). */
+  /** Shortage was confirmed. Deduction still runs on the server; this only writes the audit row. */
   agouzaShortageOverride?: boolean;
   /** Explicit delivery time. Omit on a single-order update so the database defaults to now(). */
   deliveredAt?: string | null;
@@ -60,13 +59,7 @@ export async function updateOrderStatusShared(params: {
   // Agouza reservation lifecycle — mirrors Orders.tsx.
   if (isAgouza) {
     if (newStatus === "delivered" && prevStatus !== "delivered") {
-      if (!agouzaShortageOverride) {
-        try {
-          await commitAgouzaForOrder(orderId);
-        } catch (e) {
-          console.warn("commitAgouzaForOrder failed", e);
-        }
-      } else {
+      if (agouzaShortageOverride) {
         try {
           await (supabase as any).from("agouza_override_audit_log").insert({
             order_id: orderId,

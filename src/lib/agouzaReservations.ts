@@ -95,25 +95,12 @@ export async function releaseAgouzaForOrder(orderId: string, reason: string): Pr
 }
 
 /**
- * Commit Agouza stock on delivery — this is the ONLY place we decrement stock.
- * Idempotent (RPC guards against double commit).
+ * Disabled. Delivery stock is deducted only by the orders status trigger
+ * (`_dispatch_order_stock_core`), including Agouza. Calling the old RPC from
+ * the client deducted a second time.
  */
-export async function commitAgouzaForOrder(orderId: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase.rpc("commit_agouza_stock_on_delivery", { p_order_id: orderId });
-    if (error) throw error;
-    const res = data as any;
-    const committed = Array.isArray(res?.committed) ? res.committed.length : 0;
-    const skipped = Array.isArray(res?.skipped) ? res.skipped.length : 0;
-    if (committed === 0 && skipped === 0) {
-      toast.warning("لا يوجد حجز نشط لهذا الأوردر، برجاء مراجعة حجز مخزون العجوزة قبل التسليم.");
-    }
-    return true;
-  } catch (e: any) {
-    console.error("commitAgouzaForOrder error", e);
-    toast.error(e?.message || "تعذّر خصم مخزون العجوزة عند التسليم");
-    return false;
-  }
+export async function commitAgouzaForOrder(_orderId: string): Promise<boolean> {
+  return true;
 }
 
 /** Look up an order's source_warehouse_id (used when only the orderId is in hand). */

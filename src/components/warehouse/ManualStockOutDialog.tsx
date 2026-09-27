@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { AlertTriangle, Info, Loader2, Lock, PackageMinus, Plus, Printer, ShieldAlert, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { postManualInventoryMovement } from "@/lib/inventoryStock";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import AddManualPartyDialog from "@/components/warehouse/AddManualPartyDialog";
@@ -450,8 +451,6 @@ const ManualStockOutDialog = ({
         }
       }
 
-      const inserts: any[] = [];
-      const stockUpdates: { id: string; newStock: number }[] = [];
       const slipRows: SlipItemRow[] = [];
 
 
@@ -487,40 +486,30 @@ const ManualStockOutDialog = ({
           ? partyLabel
           : `${partyLabel} — ${info.pkgCount} عبوة × ${info.pkgWeight} كجم = ${info.qty} كجم`;
 
-        inserts.push({
-          warehouse_id: warehouseId,
-          item_id: itemId,
-          movement_type: "out",
+        const posted = await postManualInventoryMovement({
+          itemId,
+          movementType: "out",
           quantity: info.qty,
-          package_count: info.pkgCount,
-          package_weight_kg: info.pkgWeight,
-          quantity_kg: info.qty,
-          reference: opNo,
-          reference_type: "manual_out",
-          party: partyWithPkg,
-          reason: category,
+          reason: category.trim().length >= 3 ? category.trim() : "صرف يدوي",
           notes: combinedNotes,
-          module: "warehouse_manual",
-          approval_status: "posted",
-          performed_by: user?.id ?? null,
-          performed_at: performedAt,
-          period_lock_override_reason: isManager && overrideReason.trim().length >= 3 ? overrideReason.trim() : null,
+          party: partyWithPkg,
+          reference: opNo,
+          referenceType: "manual_out",
+          performedAt,
+          overrideReason: isManager && overrideReason.trim().length >= 3 ? overrideReason.trim() : null,
+          packageCount: info.pkgCount,
+          packageWeightKg: info.pkgWeight,
         });
-        stockUpdates.push({ id: itemId, newStock: stockAfter });
         slipRows.push({
           name: it.name,
           unit,
           packageCount: info.pkgCount,
           packageWeightKg: info.pkgWeight,
           quantity: info.qty,
-          stockBefore,
-          stockAfter,
+          stockBefore: Number(posted.stock_before ?? stockBefore),
+          stockAfter: Number(posted.stock_after ?? stockAfter),
         });
       }
-
-      const { error: mErr } = await supabase.from("inventory_movements").insert(inserts as any);
-      if (mErr) throw mErr;
-      // Stock is applied once by apply_inventory_movement. A second client write double-counts.
 
       setLastSaved({
         opNo,
@@ -535,7 +524,7 @@ const ManualStockOutDialog = ({
 
       toast({
         title: "تم حفظ الصرف",
-        description: `${opNo} — ${stockUpdates.length} صنف (${destLabel})`,
+        description: `${opNo} — ${slipRows.length} صنف (${destLabel})`,
       });
       onSaved?.();
     } catch (e: any) {

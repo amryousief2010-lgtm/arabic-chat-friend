@@ -45,7 +45,7 @@ export default function WarehouseReports({ embedded = false }: WarehouseReportsP
       idOf: (r) => r.id,
       fetchPage: async (from, to) => {
         let q = supabase
-          .from("inventory_items")
+          .from("inventory_items_visible" as any)
           .select("id, warehouse_id, name, unit, stock, reserved_qty, blocked_qty, unit_cost, low_stock_threshold")
           .eq("is_active", true)
           .order("id", { ascending: true })
@@ -181,7 +181,7 @@ export default function WarehouseReports({ embedded = false }: WarehouseReportsP
                         <TableCell className="font-mono">{Number(r.reserved_qty).toLocaleString("ar-EG")}</TableCell>
                         <TableCell className="font-mono">{Number(r.blocked_qty).toLocaleString("ar-EG")}</TableCell>
                         <TableCell className={`font-mono ${r.avail < 0 ? "text-rose-600" : ""}`}>{r.avail.toLocaleString("ar-EG")}</TableCell>
-                        <TableCell className="font-mono">{Number(r.unit_cost).toLocaleString("ar-EG")}</TableCell>
+                        <TableCell className="font-mono">{r.unit_cost == null ? "—" : Number(r.unit_cost).toLocaleString("ar-EG")}</TableCell>
                         <TableCell className="font-mono">{r.value.toLocaleString("ar-EG", { maximumFractionDigits: 2 })}</TableCell>
                         <TableCell>
                           <Badge className={r.state === "صفر" ? "bg-rose-500/15 text-rose-700" : r.state === "منخفض" ? "bg-amber-500/15 text-amber-700" : "bg-emerald-500/15 text-emerald-700"}>{r.state}</Badge>

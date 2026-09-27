@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight, Warehouse, Package, AlertTriangle, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Truck, FileSpreadsheet, Inbox, Send, CheckCircle2, Clock, XCircle, ShieldCheck, ThumbsDown, Beef, Eye, Pencil, Trash2, Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { canViewInventoryCost, INVENTORY_ITEM_SAFE_COLUMNS, INVENTORY_MOVEMENT_SAFE_COLUMNS, withItemUnitCost, withMovementCosts } from "@/lib/inventoryCostAccess";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/dateFormat";
@@ -47,7 +48,8 @@ const isCairoGiza = (g?: string) => !!g && CAIRO_GIZA.some(k => g.includes(k));
 
 const WarehouseDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { canManageWarehouses, user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor, isAgouzaWarehouseKeeper, isProductionManager } = useAuth();
+  const { canManageWarehouses, user, isGeneralManager, isExecutiveManager, isWarehouseSupervisor, isAgouzaWarehouseKeeper, isProductionManager, roles } = useAuth();
+  const showCost = canViewInventoryCost(roles);
   const [manualAddOpen, setManualAddOpen] = useState(false);
   const [manualOutOpen, setManualOutOpen] = useState(false);
   const [itemMovItem, setItemMovItem] = useState<any>(null);
@@ -142,9 +144,9 @@ const WarehouseDetail = () => {
     const mvFilter = scopeIds.flatMap(w => [`warehouse_id.eq.${w}`, `destination_warehouse_id.eq.${w}`]).join(",");
     const trFilter = scopeIds.flatMap(w => [`source_warehouse_id.eq.${w}`, `destination_warehouse_id.eq.${w}`]).join(",");
     const [it, mv, oi, tr] = await Promise.all([
-      supabase.from("inventory_items").select("*, product:products(is_active, category, name, barcode)").eq("warehouse_id", id).order("name"),
+      supabase.from("inventory_items").select(`${INVENTORY_ITEM_SAFE_COLUMNS}, product:products(is_active, category, name, barcode)`).eq("warehouse_id", id).order("name"),
       supabase.from("inventory_movements")
-        .select("*, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)")
+        .select(`${INVENTORY_MOVEMENT_SAFE_COLUMNS}, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)`)
         .or(mvFilter)
         .order("performed_at", { ascending: false })
         .limit(500),
@@ -161,8 +163,8 @@ const WarehouseDetail = () => {
     ]);
     setWarehouse(wRes.data);
     setAllWarehouses(allWh);
-    setItems(it.data || []);
-    setMovements(mv.data || []);
+    setItems(await withItemUnitCost((it.data || []) as any));
+    setMovements(await withMovementCosts((mv.data || []) as any));
     setOrderItems(oi.data || []);
     setTransfers(tr.data || []);
     // طلبات المنفذ (مصدرها هذا المخزن) — للعرض والتصدير لاحمد خاطر فى العجوزة وأى مخزن آخر
@@ -230,7 +232,7 @@ const WarehouseDetail = () => {
 
 
   const lowStock = items.filter(i => Number(i.stock) <= Number(i.low_stock_threshold));
-  const totalValue = items.reduce((s, i) => s + Number(i.stock) * Number(i.unit_cost), 0);
+  const totalValue = showCost ? items.reduce((s, i) => s + Number(i.stock) * Number(i.unit_cost || 0), 0) : null;
 
   // Demand calculation for Agouza based on Cairo/Giza orders (last 30 days)
   const demandByProduct = useMemo(() => {
@@ -479,30 +481,19 @@ const WarehouseDetail = () => {
   };
 
 
-  const adjustStock = async (itemId: string, delta: number) => {
-    if (!itemId || !delta) return;
-    const { data: it } = await supabase.from("inventory_items").select("stock").eq("id", itemId).maybeSingle();
-    const newStock = Number(it?.stock || 0) + delta;
-    await supabase.from("inventory_items").update({ stock: newStock }).eq("id", itemId);
-  };
-
   const handleEditMovement = async (mov: any, newQty: number) => {
     const oldQty = Number(mov.quantity || 0);
     if (newQty === oldQty || newQty < 0) return;
-    const delta = (mov.movement_type === "in" ? 1 : -1) * (newQty - oldQty);
     const { error } = await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", mov.id);
     if (error) { toast({ title: "تعذر التعديل", description: error.message, variant: "destructive" }); return; }
-    await adjustStock(mov.item_id, delta);
     toast({ title: "تم تعديل الكمية" });
     fetchAll();
   };
 
   const handleDeleteMovement = async (mov: any) => {
-    if (!confirm(`حذف حركة ${mov.item?.name} (${mov.quantity})؟ سيتم خصمها من المخزون.`)) return;
-    const delta = (mov.movement_type === "in" ? -1 : 1) * Number(mov.quantity || 0);
+    if (!confirm(`حذف حركة ${mov.item?.name} (${mov.quantity})؟ سيتم عكس أثرها على المخزون.`)) return;
     const { error } = await supabase.from("inventory_movements").delete().eq("id", mov.id);
     if (error) { toast({ title: "تعذر الحذف", description: error.message, variant: "destructive" }); return; }
-    await adjustStock(mov.item_id, delta);
     toast({ title: "تم حذف الحركة" });
     fetchAll();
   };
@@ -516,7 +507,6 @@ const WarehouseDetail = () => {
       performed_by: user?.id, performed_at: new Date().toISOString(),
     });
     if (error) { toast({ title: "تعذر الإضافة", description: error.message, variant: "destructive" }); return; }
-    await adjustStock(addItemId, addItemQty);
     toast({ title: "تمت إضافة الصنف للدفعة" });
     setAddItemId(""); setAddItemQty(0);
     fetchAll();
@@ -544,8 +534,6 @@ const WarehouseDetail = () => {
       toast({ title: "تعذرت الإضافة", description: error.message, variant: "destructive" });
       return;
     }
-    const delta = (newMov.movement_type === "in" ? 1 : -1) * newMov.quantity;
-    await adjustStock(newMov.item_id, delta);
     setSavingMov(false);
     setAddMovOpen(false);
     setNewMov({ item_id: "", movement_type: "in", quantity: 0, party: "", reference: "", notes: "" });
@@ -1084,7 +1072,7 @@ const WarehouseDetail = () => {
 
         <div className="grid gap-4 md:grid-cols-4">
           <Card><CardHeader className="pb-2"><CardDescription>عدد الأصناف</CardDescription><CardTitle className="text-3xl">{items.length}</CardTitle></CardHeader></Card>
-          <Card><CardHeader className="pb-2"><CardDescription>قيمة المخزون</CardDescription><CardTitle className="text-2xl">{totalValue.toLocaleString()}</CardTitle></CardHeader></Card>
+          {showCost && <Card><CardHeader className="pb-2"><CardDescription>قيمة المخزون</CardDescription><CardTitle className="text-2xl">{Number(totalValue || 0).toLocaleString()}</CardTitle></CardHeader></Card>}
           <Card className={lowStock.length ? "border-destructive" : ""}>
             <CardHeader className="pb-2"><CardDescription>أصناف منخفضة</CardDescription><CardTitle className={`text-3xl ${lowStock.length ? "text-destructive" : ""}`}>{lowStock.length}</CardTitle></CardHeader>
           </Card>
@@ -1285,7 +1273,7 @@ const WarehouseDetail = () => {
               <Table>
                 <TableHeader><TableRow>
                   <TableHead>الصنف</TableHead><TableHead>الفئة</TableHead><TableHead>الرصيد</TableHead>
-                  <TableHead>الوحدة</TableHead><TableHead>الحد الأدنى</TableHead><TableHead>التكلفة</TableHead>
+                  <TableHead>الوحدة</TableHead><TableHead>الحد الأدنى</TableHead>{showCost && <TableHead>التكلفة</TableHead>}
                   <TableHead className="text-center">سجل الحركة</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
@@ -1298,7 +1286,7 @@ const WarehouseDetail = () => {
                       <TableCell className={Number(it.stock) <= Number(it.low_stock_threshold) ? "text-destructive font-bold" : ""}>{it.stock}</TableCell>
                       <TableCell>{it.unit}</TableCell>
                       <TableCell>{it.low_stock_threshold}</TableCell>
-                      <TableCell>{Number(it.unit_cost).toFixed(2)}</TableCell>
+                      {showCost && <TableCell>{Number(it.unit_cost || 0).toFixed(2)}</TableCell>}
                       <TableCell className="text-center">
                         <Button size="sm" variant="outline" onClick={() => setItemMovItem(it)} className="gap-1">
                           <History className="w-4 h-4" /> سجل الحركة

@@ -20,6 +20,7 @@ import {
   Loader2, Eye, Egg, TreePine, Beef, Factory, Warehouse, Megaphone, Lock, Building2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { withItemUnitCost } from "@/lib/inventoryCostAccess";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { openPrintWindow, COMPANY_AR } from "@/lib/printPdf";
@@ -232,12 +233,13 @@ async function collectMeatFactory(range: DateRange): Promise<DeptSnapshot> {
 async function collectWarehouses(_range: DateRange): Promise<DeptSnapshot> {
   const [items, movements] = await Promise.all([
     safeQuery(supabase.from("inventory_items")
-      .select("stock, unit_cost, warehouse_id, warehouse:warehouses(name)")
+      .select("id, stock, warehouse_id, warehouse:warehouses(name)")
       .eq("is_active", true)),
     safeQuery(supabase.from("inventory_movements")
       .select("performed_at, movement_type").order("performed_at", { ascending: false }).limit(1)),
   ]);
-  const inventoryValue = items.reduce((s, it) => s + Number(it.stock || 0) * Number(it.unit_cost || 0), 0);
+  const priced = await withItemUnitCost(items as any);
+  const inventoryValue = priced.reduce((s, it) => s + Number(it.stock || 0) * Number(it.unit_cost || 0), 0);
   const negativeStock = items.filter(it => Number(it.stock) < 0).length;
   const alerts: string[] = [];
   if (negativeStock > 0) alerts.push(`عدد ${negativeStock} صنف برصيد سالب — يحتاج جرد`);

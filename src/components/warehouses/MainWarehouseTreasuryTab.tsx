@@ -12,6 +12,7 @@ import {
   CheckCircle2, XCircle, Clock, RefreshCw, Search, ClipboardCheck, AlertTriangle, Package, Truck
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { withItemUnitCost } from "@/lib/inventoryCostAccess";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { openPrintWindow, escapeHtml, fmtNum, COMPANY_AR } from "@/lib/printPdf";
@@ -364,10 +365,10 @@ export default function MainWarehouseTreasuryTab() {
     if (!wh) { setMainWarehouseItems([]); return; }
     const { data } = await (supabase as any)
       .from("inventory_items")
-      .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, archived, archived_at, module, item_type, source_module, unit_cost")
+      .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, archived, archived_at, module, item_type, source_module")
       .eq("warehouse_id", wh.id)
       .order("name");
-    setMainWarehouseItems((data || []) as WarehouseStockItem[]);
+    setMainWarehouseItems(await withItemUnitCost((data || []) as any) as WarehouseStockItem[]);
   };
 
   const allowedMainWarehouseItems = useMemo(
@@ -912,11 +913,12 @@ export default function MainWarehouseTreasuryTab() {
         if (!mainWarehouse?.id) throw new Error("تعذّر تحديد المخزن الرئيسي");
         const { data: dbItem, error: dbItemErr } = await (supabase as any)
           .from("inventory_items")
-          .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, archived, archived_at, module, item_type, source_module, unit_cost")
+          .select("id, warehouse_id, product_id, name, category, unit, stock, is_active, archived, archived_at, module, item_type, source_module")
           .eq("id", lineInventoryItemId)
           .maybeSingle();
         if (dbItemErr) throw dbItemErr;
-        const rejectionReason = getWarehouseItemRejectionReason(dbItem as WarehouseStockItem | null, mainWarehouse.id);
+        const [pricedItem] = dbItem ? await withItemUnitCost([dbItem as any]) : [null];
+        const rejectionReason = getWarehouseItemRejectionReason((pricedItem || dbItem) as WarehouseStockItem | null, mainWarehouse.id);
         const debugRow = dbItem
           ? getWarehouseItemDebugRow(dbItem as WarehouseStockItem, mainWarehouse.id, mainWarehouse.name)
           : getWarehouseMissingItemDebugRow(lineInventoryItemId, mainWarehouse.id, mainWarehouse.name);
@@ -924,7 +926,7 @@ export default function MainWarehouseTreasuryTab() {
         if (rejectionReason) {
           throw new Error(`الصنف "${(dbItem as any)?.name || lineProduct || "—"}" غير تابع/غير مفعّل بالمخزن الرئيسي (${rejectionReason}).`);
         }
-        selectedIssueItem = dbItem as WarehouseStockItem;
+        selectedIssueItem = (pricedItem || dbItem) as WarehouseStockItem;
       }
 
       // Bonus: compute cost value & approval status based on % of sales for this custody

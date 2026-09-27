@@ -114,7 +114,7 @@ export default function WarehouseStocktaking() {
     if (!whId) return;
     setLoadingItems(true);
     const { data } = await sb
-      .from("inventory_items").select("id, name, unit, stock, unit_cost, warehouse_id")
+      .from("inventory_items_visible" as any).select("id, name, unit, stock, unit_cost, warehouse_id")
       .eq("warehouse_id", whId).eq("is_active", true).order("name");
     setItems((data || []) as Item[]);
     setLoadingItems(false);

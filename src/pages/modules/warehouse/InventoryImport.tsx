@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowRight, Upload, CheckCircle2, AlertTriangle, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
+import { postManualInventoryMovement } from "@/lib/inventoryStock";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { safeParseExcel, SafeExcelError } from "@/lib/safeExcel";
@@ -36,7 +37,7 @@ const InventoryImport = () => {
     (async () => {
       const [w, i] = await Promise.all([
         supabase.from("warehouses").select("id, name"),
-        supabase.from("inventory_items").select("id, name, sku, warehouse_id, stock, unit_cost"),
+        supabase.from("inventory_items_visible" as any).select("id, name, sku, warehouse_id, stock, unit_cost"),
       ]);
       setWarehouses(w.data || []);
       setItems(i.data || []);
@@ -110,13 +111,29 @@ const InventoryImport = () => {
             sku: r.data.sku?.trim() || null,
             category: r.data.category?.trim() || null,
             unit: r.data.unit?.trim() || "قطعة",
-            stock: Number(r.data.stock) || 0,
+            stock: 0,
             low_stock_threshold: Number(r.data.low_stock_threshold) || 10,
             unit_cost: Number(r.data.unit_cost) || 0,
           };
         });
-        const { error } = await supabase.from("inventory_items").insert(payload);
+        const { data: created, error } = await supabase.from("inventory_items").insert(payload).select("id, name, warehouse_id");
         if (error) throw error;
+        for (const row of created || []) {
+          const src = validRows.find((r) => {
+            const wh = warehouses.find((w) => w.name === r.data.warehouse_name.trim());
+            return wh?.id === row.warehouse_id && r.data.name.trim() === row.name;
+          });
+          const qty = Number(src?.data.stock) || 0;
+          if (qty > 0) {
+            await postManualInventoryMovement({
+              itemId: row.id,
+              movementType: "in",
+              quantity: qty,
+              reason: "رصيد افتتاحي من استيراد الأصناف",
+              referenceType: "opening_balance",
+            });
+          }
+        }
       } else {
         const transferRows = validRows.filter(r => r.data.movement_type === "transfer");
         const directRows = validRows.filter(r => r.data.movement_type !== "transfer");

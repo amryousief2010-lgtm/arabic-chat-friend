@@ -10,6 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Activity, RefreshCw, Download, Printer, FileText, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { canViewInventoryCost, withItemUnitCost } from "@/lib/inventoryCostAccess";
 import { MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
 import { signedDelta, MOVEMENT_TYPE_LABEL, POSITIVE_TYPES, NEGATIVE_TYPES, type MovementEffectFields } from "@/lib/warehouseMovementSign";
 import { paginateUntilDone } from "@/lib/paginateQuery";
@@ -47,6 +49,8 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const yesterdayISO = () => new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 
 export default function WarehouseDailyReport() {
+  const { roles } = useAuth();
+  const showCost = canViewInventoryCost(roles);
   const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);
   const [whId, setWhId] = useState<string>("all");
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
@@ -110,7 +114,7 @@ export default function WarehouseDailyReport() {
         idOf: (r) => r.id,
         fetchPage: async (from, to) => {
           let q = supabase.from("inventory_items")
-            .select("id, name, unit, warehouse_id, stock, unit_cost")
+            .select("id, name, unit, warehouse_id, stock")
             .eq("is_active", true)
             .order("id")
             .range(from, to);
@@ -137,7 +141,8 @@ export default function WarehouseDailyReport() {
           return (data || []) as Mov[];
         },
       });
-      setLedger(buildDailyLedger(cardItems as any, sinceMoves as any, effectiveFrom, toIso));
+      const pricedCards = await withItemUnitCost(cardItems as any);
+      setLedger(buildDailyLedger(pricedCards as any, sinceMoves as any, effectiveFrom, toIso));
 
       // load items meta
       const itemIds = Array.from(new Set(list.map(r => r.item_id)));
@@ -271,7 +276,7 @@ export default function WarehouseDailyReport() {
       "صرف يدوي": r.manualOut,
       "تسوية": r.adjustment,
       "رصيد آخر": r.closing,
-      "القيمة": r.value,
+      ...(showCost ? { "القيمة": r.value } : {}),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -465,7 +470,7 @@ export default function WarehouseDailyReport() {
                   <TableHead>صرف يدوي</TableHead>
                   <TableHead>تسوية</TableHead>
                   <TableHead>آخر</TableHead>
-                  <TableHead>القيمة</TableHead>
+                  {showCost && <TableHead>القيمة</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -485,7 +490,7 @@ export default function WarehouseDailyReport() {
                     <TableCell className="font-mono">{r.manualOut.toFixed(2)}</TableCell>
                     <TableCell className="font-mono">{r.adjustment.toFixed(2)}</TableCell>
                     <TableCell className="font-mono font-bold">{r.closing.toFixed(2)}</TableCell>
-                    <TableCell className="font-mono">{r.value.toFixed(2)}</TableCell>
+                    {showCost && <TableCell className="font-mono">{r.value.toFixed(2)}</TableCell>}
                   </TableRow>
                 ))}
               </TableBody>

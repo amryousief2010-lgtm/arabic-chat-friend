@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Search, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, Plus, Trash2, Pencil, Printer, FileSpreadsheet, FileText, Eye, Package, CheckCircle2, AlertTriangle, ChevronsUpDown, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { postManualInventoryMovement } from "@/lib/inventoryStock";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -133,9 +134,15 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       if (error || !newRow) throw error || new Error("تعذّر إنشاء صنف في المخزن الرئيسي");
       mainItem = newRow as InventoryItem;
     }
-    const newStock = Number(mainItem.stock) + delta;
-    if (newStock < 0) throw new Error("لا يمكن خصم كمية أكبر من رصيد المخزن الرئيسي");
-    await supabase.from("inventory_items").update({ stock: newStock }).eq("id", mainItem.id);
+    if (Number(mainItem.stock) + delta < 0) throw new Error("لا يمكن خصم كمية أكبر من رصيد المخزن الرئيسي");
+    await postManualInventoryMovement({
+      itemId: mainItem.id,
+      movementType: delta > 0 ? "in" : "out",
+      quantity: Math.abs(delta),
+      reason: "تسوية رصيد عميل",
+      referenceType: delta > 0 ? "customer_return" : "customer_supply",
+      party: warehouseName,
+    });
   };
 
   const openItemEdit = (it: InventoryItem) => {
@@ -153,8 +160,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     try {
       // diff > 0: stock increased here -> deduct from main; diff < 0: returned to main
       await adjustMainForItem(editItem.name, editItem.unit, editItem.product_id, -diff);
-      await supabase.from("inventory_items").update({ stock: newStock }).eq("id", editItem.id);
-      // Log a correction movement
+      // The posted movement updates this card. A second stock write would double-count.
       await supabase.from("inventory_movements").insert({
         item_id: editItem.id,
         warehouse_id: whId,
@@ -201,7 +207,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       }
       const { error: deactivateError, count: deactivatedCount } = await supabase
         .from("inventory_items")
-        .update({ stock: 0, is_active: false }, { count: "exact" })
+        .update({ is_active: false }, { count: "exact" })
         .eq("id", it.id);
       ensureMutationSucceeded(deactivateError, deactivatedCount, "لم يتم حذف الصنف من المخزن");
       toast.success("تم حذف الصنف وإرجاع الرصيد");
@@ -610,26 +616,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     if (!confirm("هل أنت متأكد من حذف هذه الحركة؟ سيتم عكس تأثيرها على الرصيد.")) return;
     try {
       const pair = await findPair(m);
-      // Reverse stock for this side
-      const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
-      if (thisItem) {
-        const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
-        const { error: thisItemError, count: thisItemCount } = await supabase
-          .from("inventory_items")
-          .update({ stock: Number(thisItem.stock) + delta }, { count: "exact" })
-          .eq("id", m.item_id);
-        ensureMutationSucceeded(thisItemError, thisItemCount, "تعذّر عكس رصيد الحركة الحالية");
-      }
       if (pair) {
-        const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
-        if (pItem) {
-          const delta = pair.movement_type === "in" ? -Number(pair.quantity) : Number(pair.quantity);
-          const { error: pairItemError, count: pairItemCount } = await supabase
-            .from("inventory_items")
-            .update({ stock: Number(pItem.stock) + delta }, { count: "exact" })
-            .eq("id", pair.item_id);
-          ensureMutationSucceeded(pairItemError, pairItemCount, "تعذّر عكس رصيد الحركة المقابلة");
-        }
         const { error: pairDeleteError, count: pairDeleteCount } = await supabase
           .from("inventory_movements")
           .delete({ count: "exact" })
@@ -669,20 +656,7 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
     setEditBusy(true);
     try {
       const pair = await findPair(editMov);
-      // Adjust stock for this side
-      const thisItem = (await supabase.from("inventory_items").select("id, stock").eq("id", editMov.item_id).single()).data as any;
-      if (thisItem) {
-        const delta = editMov.movement_type === "in" ? diff : -diff;
-        if (Number(thisItem.stock) + delta < 0) throw new Error("الكمية الجديدة تُخفّض الرصيد لأقل من صفر");
-        await supabase.from("inventory_items").update({ stock: Number(thisItem.stock) + delta }).eq("id", editMov.item_id);
-      }
       if (pair) {
-        const pItem = (await supabase.from("inventory_items").select("id, stock").eq("id", pair.item_id).single()).data as any;
-        if (pItem) {
-          const delta = pair.movement_type === "in" ? diff : -diff;
-          if (Number(pItem.stock) + delta < 0) throw new Error("الكمية الجديدة تُخفّض رصيد المخزن الآخر لأقل من صفر");
-          await supabase.from("inventory_items").update({ stock: Number(pItem.stock) + delta }).eq("id", pair.item_id);
-        }
         await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", pair.id);
       }
       await supabase.from("inventory_movements").update({ quantity: newQty }).eq("id", editMov.id);
@@ -748,18 +722,6 @@ export default function CustomerWarehouseView({ warehouseName, pageTitle, pageSu
       const relatedRows = await getInvoiceMovementRows(inv);
       if (relatedRows.length === 0) {
         throw new Error("الفاتورة غير موجودة حالياً أو تم حذفها بالفعل");
-      }
-
-      for (const m of relatedRows) {
-        const itemRow = (await supabase.from("inventory_items").select("id, stock").eq("id", m.item_id).single()).data as any;
-        if (!itemRow) continue;
-
-        const delta = m.movement_type === "in" ? -Number(m.quantity) : Number(m.quantity);
-        const { error: itemError, count: itemCount } = await supabase
-          .from("inventory_items")
-          .update({ stock: Number(itemRow.stock) + delta }, { count: "exact" })
-          .eq("id", m.item_id);
-        ensureMutationSucceeded(itemError, itemCount, `تعذّر عكس رصيد الصنف المرتبط بالفاتورة`);
       }
 
       const { error: deleteError, count: deletedCount } = await supabase

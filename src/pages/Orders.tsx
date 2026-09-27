@@ -89,7 +89,6 @@ import { toast } from "sonner";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import {
   AGOUZA_WAREHOUSE_ID,
-  commitAgouzaForOrder,
   releaseAgouzaForOrder,
 } from "@/lib/agouzaReservations";
 import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
@@ -2025,16 +2024,16 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       }
 
 
-      // M4-B: Agouza orders without an active/committed reservation (shortage).
-      // Allow override with explicit confirmation; skip commit since there's
-      // no reservation to commit. Stock movement is bypassed in that case.
+      // Shortage does not skip deduction. The delivery trigger posts one
+      // sales_dispatch through _dispatch_order_stock_core.
       let agouzaShortageOverride = false;
       if (isAgouza && newStatus === 'delivered') {
         const resv = agouzaResvMap[orderId] ?? 'none';
         if (resv !== 'active' && resv !== 'committed') {
           const ok = window.confirm(
             'تنبيه: هذا الأوردر لا يوجد له حجز نشط في مخزن العجوزة (عجز مخزون).\n\n' +
-            'هل تريد تأكيد التسليم رغم العجز؟ (لن يتم خصم المخزون تلقائيًا، ويجب تسوية الفرق يدويًا لاحقًا)'
+            'هل تريد تأكيد التسليم رغم العجز؟\n' +
+            'سيتم خصم الكمية مرة واحدة من بطاقة المخزون المربوطة إذا كان الرصيد كافياً. العجز لا يمنع الخصم ولا يخصم الأوردر مرتين. إذا لم توجد بطاقة مربوطة يُسجَّل البند كفشل خصم.'
           );
           if (!ok) return;
           agouzaShortageOverride = true;
@@ -2049,16 +2048,10 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       if (error) throw error;
 
 
-      // M4-B: Agouza reservation lifecycle — runs ONLY for Agouza orders.
-      // commit = real stock deduction (delivered). release = free hold (cancelled).
-      // Skip commit when overriding a shortage (no reservation exists).
+      // Stock deduction is the delivery trigger only. Release still frees a hold.
       if (isAgouza) {
         if (newStatus === 'delivered' && prevStatus !== 'delivered') {
-          if (!agouzaShortageOverride) {
-            await commitAgouzaForOrder(orderId);
-            setAgouzaResvMap((m) => ({ ...m, [orderId]: 'committed' }));
-          } else {
-            // Log the override for audit; non-blocking.
+          if (agouzaShortageOverride) {
             try {
               await (supabase as any).from('agouza_override_audit_log').insert({
                 order_id: orderId,
@@ -2066,7 +2059,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                 reason: 'shortage_override_by_user',
               });
             } catch (e) { /* audit best-effort */ }
-            toast.warning('تم تأكيد التسليم رغم العجز — يلزم تسوية مخزنية يدوية.');
+            toast.warning('تم تأكيد التسليم رغم العجز. الخصم يتم من البطاقة المربوطة إذا كان الرصيد كافياً.');
           }
         } else if (newStatus === 'cancelled' && prevStatus !== 'cancelled') {
           await releaseAgouzaForOrder(orderId, 'order_cancelled');

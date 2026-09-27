@@ -109,7 +109,7 @@ const InventoryEngine = () => {
       setLoading(true);
       const [b, m, w] = await Promise.all([
         supabase.from("v_inventory_balances").select("*").limit(2000),
-        supabase.from("inventory_movements").select("*").order("performed_at", { ascending: false }).limit(500),
+        supabase.from("inventory_movements_visible" as any).select("*").order("performed_at", { ascending: false }).limit(500),
         supabase.from("warehouses").select("id,name,type").eq("is_active", true),
       ]);
       if (b.error) toast.error("فشل تحميل الأرصدة: " + b.error.message);

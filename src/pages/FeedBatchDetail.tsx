@@ -48,12 +48,12 @@ export default function FeedBatchDetail() {
     });
     const itemIds = Array.from(new Set((c.data || []).map((r: any) => r.inventory_item_id).filter(Boolean)));
     if (itemIds.length) {
-      const { data: ii } = await supabase.from("inventory_items").select("id,name,stock,reserved_qty,blocked_qty,unit_cost").in("id", itemIds);
+      const { data: ii } = await supabase.from("inventory_items_visible" as any).select("id,name,stock,reserved_qty,blocked_qty,unit_cost").in("id", itemIds);
       const map: Record<string, any> = {};
       (ii || []).forEach((x: any) => map[x.id] = x);
       setItems(map);
     }
-    const { data: mv } = await supabase.from("inventory_movements").select("*").eq("reference_type", "feed_batch").eq("reference_id", id).order("created_at");
+    const { data: mv } = await supabase.from("inventory_movements_visible" as any).select("*").eq("reference_type", "feed_batch").eq("reference_id", id).order("created_at");
     setMovs(mv || []);
   };
   useEffect(() => { load(); }, [id]);
@@ -162,7 +162,7 @@ export default function FeedBatchDetail() {
     if (!it) return null;
     const avail = Number(it.stock) - Number(it.reserved_qty || 0) - Number(it.blocked_qty || 0);
     const need = Number(r.actual_qty ?? r.quantity);
-    if (Number(it.unit_cost) === 0 && Number(it.stock) > 0) return <Badge variant="destructive">تكلفة صفرية</Badge>;
+    if (it.unit_cost != null && Number(it.unit_cost) === 0 && Number(it.stock) > 0) return <Badge variant="destructive">تكلفة صفرية</Badge>;
     if (avail < need) return <Badge variant="destructive">مخزون غير كافٍ ({avail})</Badge>;
     return <Badge variant="secondary">متاح {avail}</Badge>;
   };
@@ -231,7 +231,7 @@ export default function FeedBatchDetail() {
                         onBlur={e => { const v = Number(e.target.value); if (v !== Number(r.actual_qty)) rpc("fd_feed_edit_consumption_qty", { p_line_id: r.id, p_actual_qty: v }); }} />
                     ) : Number(r.actual_qty ?? 0).toFixed(3)}
                   </TableCell>
-                  <TableCell>{Number(r.unit_cost).toFixed(4)}</TableCell>
+                  <TableCell>{r.unit_cost == null ? "—" : Number(r.unit_cost).toFixed(4)}</TableCell>
                   <TableCell>{Number(r.total_cost || 0).toFixed(2)}</TableCell>
                   <TableCell>{renderBlocker(r)}</TableCell>
                 </TableRow>
@@ -279,7 +279,7 @@ export default function FeedBatchDetail() {
                   <TableCell className="font-mono text-xs">{m.movement_no}</TableCell>
                   <TableCell><Badge variant="outline">{m.movement_type}</Badge></TableCell>
                   <TableCell>{Number(m.quantity).toFixed(3)}</TableCell>
-                  <TableCell>{Number(m.unit_cost).toFixed(4)}</TableCell>
+                  <TableCell>{m.unit_cost == null ? "—" : Number(m.unit_cost).toFixed(4)}</TableCell>
                   <TableCell>{Number(m.total_cost || 0).toFixed(2)}</TableCell>
                 </TableRow>
               ))}

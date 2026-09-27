@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Plus, Trash2, Truck, ChevronsUpDown, Check, FileSpreadsheet, Printer, Eye, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { withMovementCosts } from "@/lib/inventoryCostAccess";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/dateFormat";
@@ -192,14 +193,14 @@ export default function InboundSupplyTab({ warehouseId, warehouseName }: Props) 
     const [itRes, mvRes] = await Promise.all([
       supabase.from("inventory_items").select("id, name, unit, stock").eq("warehouse_id", warehouseId).order("name"),
       supabase.from("inventory_movements")
-        .select("id, performed_at, quantity, unit_cost, total_cost, party, notes, reference, item:inventory_items(name, unit)")
+        .select("id, performed_at, quantity, party, notes, reference, item:inventory_items(name, unit)")
         .eq("warehouse_id", warehouseId)
         .eq("reference_type", "external_supply")
         .order("performed_at", { ascending: false })
         .limit(500),
     ]);
     setItems((itRes.data || []) as Item[]);
-    setHistory(mvRes.data || []);
+    setHistory(await withMovementCosts((mvRes.data || []) as any));
     setLoading(false);
   };
 
