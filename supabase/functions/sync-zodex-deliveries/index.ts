@@ -424,7 +424,7 @@ Deno.serve(async (req) => {
       let matchedOrder: any = null;
       {
         const { data } = await supabase.from("orders")
-          .select("id, total, delivered_at, status, collection_status, created_at, customer_id, customers(phone, phone2)")
+          .select("id, total, delivered_at, status, collection_status, created_at, customer_id, shipping_bill_source, customers(phone, phone2)")
           .eq("shipping_bill_no", row.bill_no).maybeSingle();
         if (data) {
           // A customer can have two phone numbers and Zodex may use either one.
@@ -438,7 +438,21 @@ Deno.serve(async (req) => {
           const scrapedOk = looksLikeEgyptianMobile(row.customer_phone);
           const phoneAgrees = customerPhones.some((p) => phonesMatchLoose(p, row.customer_phone));
           if (scrapedOk && customerPhones.length && !phoneAgrees) {
-            await supabase.from("orders").update({ shipping_bill_no: null }).eq("id", data.id);
+            if ((data as any).shipping_bill_source === "manual") {
+              await supabase.from("waybill_sync_conflicts").insert({
+                order_id: data.id,
+                manual_bill_no: row.bill_no,
+                incoming_bill_no: null,
+                source: "sync-zodex-deliveries",
+                details: {
+                  customer_phone: (data as any).customers?.phone ?? null,
+                  customer_phone2: (data as any).customers?.phone2 ?? null,
+                  zodex_phone: row.customer_phone ?? null,
+                },
+              });
+            } else {
+              await supabase.from("orders").update({ shipping_bill_no: null }).eq("id", data.id);
+            }
           } else {
             matchedOrder = data;
           }

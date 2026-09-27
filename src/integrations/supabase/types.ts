@@ -14498,7 +14498,10 @@ export type Database = {
           payment_method: string
           payment_status: string
           route_id: string | null
+          shipping_bill_manual_at: string | null
+          shipping_bill_manual_by: string | null
           shipping_bill_no: string | null
+          shipping_bill_source: string | null
           shipping_company: string | null
           source: string | null
           source_warehouse_id: string | null
@@ -14557,7 +14560,10 @@ export type Database = {
           payment_method?: string
           payment_status?: string
           route_id?: string | null
+          shipping_bill_manual_at?: string | null
+          shipping_bill_manual_by?: string | null
           shipping_bill_no?: string | null
+          shipping_bill_source?: string | null
           shipping_company?: string | null
           source?: string | null
           source_warehouse_id?: string | null
@@ -14616,7 +14622,10 @@ export type Database = {
           payment_method?: string
           payment_status?: string
           route_id?: string | null
+          shipping_bill_manual_at?: string | null
+          shipping_bill_manual_by?: string | null
           shipping_bill_no?: string | null
+          shipping_bill_source?: string | null
           shipping_company?: string | null
           source?: string | null
           source_warehouse_id?: string | null
@@ -19784,6 +19793,50 @@ export type Database = {
         }
         Relationships: []
       }
+      waybill_sync_conflicts: {
+        Row: {
+          created_at: string
+          details: Json | null
+          id: string
+          incoming_bill_no: string | null
+          manual_bill_no: string | null
+          order_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          source: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          incoming_bill_no?: string | null
+          manual_bill_no?: string | null
+          order_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          incoming_bill_no?: string | null
+          manual_bill_no?: string | null
+          order_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waybill_sync_conflicts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       zodex_bill_link_audit: {
         Row: {
           bill_no: string
@@ -22701,6 +22754,10 @@ export type Database = {
           p_lines: Json
           p_returned_amount?: number
         }
+        Returns: Json
+      }
+      set_order_waybill_manual: {
+        Args: { p_bill_no: string; p_order_id: string }
         Returns: Json
       }
       link_zodex_bill_to_order: {

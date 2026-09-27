@@ -57,6 +57,7 @@ import AddOfferDialog from "@/components/orders/AddOfferDialog";
 import EditAddressWarehouseDialog from "@/components/orders/EditAddressWarehouseDialog";
 import EditCustomerInfoDialog from "@/components/orders/EditCustomerInfoDialog";
 import { RelinkBillDialog } from "@/components/warehouses/RelinkBillDialog";
+import { ManualWaybillDialog } from "@/components/orders/ManualWaybillDialog";
 import PhoneWithCopy from "@/components/orders/PhoneWithCopy";
 import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import QuickDeliveryDialog from "@/components/orders/QuickDeliveryDialog";
@@ -312,6 +313,24 @@ export interface OrdersPageProps {
   reviewModeratorGroup?: string;
 }
 
+const ALAA_USER_ID = "77b71c5f-cfa8-42bc-85de-ae536a3ec1c1";
+
+function normalizeGovernorate(raw?: string | null): string {
+  return String(raw ?? "")
+    .trim()
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .replace(/ـ/g, "")
+    .replace(/[\s\p{P}،؛؟]+/gu, "");
+}
+
+function isCairoOrGiza(governorate?: string | null): boolean {
+  const normalized = normalizeGovernorate(governorate);
+  const bare = normalized.replace(/^ال/, "");
+  return normalized === "القاهره" || normalized === "الجيزه" || bare === "قاهره" || bare === "جيزه";
+}
+
 const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
  const { user, profile, isShippingCompany, isAccountant, isSalesModerator, isPrivateDeliveryRep, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, roles, canUpdateOrderStatusForOrder, canDeleteOrders, canEditOrderItems, canManageOrders } = useAuth();
   const isSocialMediaManager = roles?.includes('social_media_manager') ?? false;
@@ -440,6 +459,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   const [editAddressOrder, setEditAddressOrder] = useState<Order | null>(null);
   const [editCustomerOrder, setEditCustomerOrder] = useState<Order | null>(null);
   const [billOrder, setBillOrder] = useState<Order | null>(null);
+  const [manualBillOrder, setManualBillOrder] = useState<Order | null>(null);
 
   const handlePrintOrder = (order: Order) => {
     printOrderInvoice({
@@ -465,6 +485,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       total: order.total,
       source_warehouse_name: order.source_warehouse_name,
       created_by_name: order.moderator_name,
+      shipping_bill_no: order.shipping_bill_no,
     });
   };
   const initialParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
@@ -2702,6 +2723,16 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                             {order.shipping_bill_no ? "تعديل البوليصة" : "+ بوليصة"}
                           </button>
                         )}
+                        {user?.id === ALAA_USER_ID && isCairoOrGiza(order.governorate) && (
+                          <button
+                            type="button"
+                            onClick={() => setManualBillOrder(order)}
+                            className="text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded border border-primary/40 text-primary hover:bg-primary/10 whitespace-nowrap"
+                            title={order.shipping_bill_no ? "تعديل البوليصة" : "إدخال بوليصة"}
+                          >
+                            {order.shipping_bill_no ? "تعديل البوليصة" : "إدخال بوليصة"}
+                          </button>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {isDuplicatePhone && (
@@ -3647,6 +3678,9 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0">
           <DialogHeader className="px-6 pt-6 pb-3 border-b shrink-0">
             <DialogTitle>تفاصيل الطلب {selectedOrder?.order_number}</DialogTitle>
+            {selectedOrder?.shipping_bill_no ? (
+              <p className="text-sm text-muted-foreground">رقم البوليصة: <span className="font-mono text-foreground" dir="ltr">{selectedOrder.shipping_bill_no}</span></p>
+            ) : null}
           </DialogHeader>
           {selectedOrder && (
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
@@ -4138,6 +4172,23 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
             setOrders((prev) => prev.map((o) => o.id === editCustomerOrder.id ? { ...o, ...patch } : o));
             setSelectedOrder((prev: any) => (prev && prev.id === editCustomerOrder.id ? { ...prev, ...patch } : prev));
             setEditCustomerOrder(null);
+          }}
+        />
+      )}
+
+      {manualBillOrder && (
+        <ManualWaybillDialog
+          open={!!manualBillOrder}
+          onOpenChange={(o) => !o && setManualBillOrder(null)}
+          order={{
+            id: manualBillOrder.id,
+            order_number: manualBillOrder.order_number,
+            shipping_bill_no: manualBillOrder.shipping_bill_no,
+          }}
+          onSaved={(next) => {
+            setOrders((prev) => prev.map((o) => o.id === manualBillOrder.id ? { ...o, shipping_bill_no: next } : o));
+            setSelectedOrder((prev) => prev && prev.id === manualBillOrder.id ? { ...prev, shipping_bill_no: next } : prev);
+            setManualBillOrder((prev) => prev ? { ...prev, shipping_bill_no: next } : prev);
           }}
         />
       )}
