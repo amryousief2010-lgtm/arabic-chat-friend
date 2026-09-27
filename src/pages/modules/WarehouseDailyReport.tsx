@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
 import { signedDelta, MOVEMENT_TYPE_LABEL, POSITIVE_TYPES, NEGATIVE_TYPES, type MovementEffectFields } from "@/lib/warehouseMovementSign";
 import { paginateUntilDone } from "@/lib/paginateQuery";
+import { buildDailyLedger, type LedgerRow } from "@/lib/dailyMovementLedger";
+import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
 
@@ -29,13 +31,14 @@ interface Mov {
   reason: string | null;
   notes: string | null;
   party: string | null;
+  reference_type?: string | null;
   stock_before: number | null;
   stock_after: number | null;
   effect_mode: string | null;
 }
 
 const MOVEMENT_COLS =
-  "id, movement_no, performed_at, warehouse_id, item_id, movement_type, quantity, reference, performed_by, reason, notes, party, stock_before, stock_after, effect_mode";
+  "id, movement_no, performed_at, warehouse_id, item_id, movement_type, quantity, reference, reference_type, performed_by, reason, notes, party, stock_before, stock_after, effect_mode";
 
 const effectOf = (m: MovementEffectFields & { movement_type: string; quantity: number }) =>
   signedDelta(m.movement_type, m.quantity, m);
@@ -44,7 +47,9 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const yesterdayISO = () => new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 
 export default function WarehouseDailyReport() {
-  const [mainWhId, setMainWhId] = useState<string | null>(null);
+  const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);
+  const [whId, setWhId] = useState<string>("all");
+  const [ledger, setLedger] = useState<LedgerRow[]>([]);
   const [items, setItems] = useState<Record<string, { name: string; unit: string }>>({});
   const [itemThresholds, setItemThresholds] = useState<Record<string, { low: number; stock: number }>>({});
   const [users, setUsers] = useState<Record<string, string>>({});
@@ -65,15 +70,15 @@ export default function WarehouseDailyReport() {
   const load = async () => {
     setLoading(true);
     try {
-      const { data: whs } = await supabase.from("warehouses").select("id, name");
-      const main = (whs || []).find((w: any) =>
-        w.name?.includes("الرئيسي") || w.name?.includes("المقر"));
-      if (!main) { setRows([]); setLoading(false); return; }
-      setMainWhId(main.id);
+      const { data: whs } = await supabase.from("warehouses").select("id, name").order("name");
+      const whList = (whs || []) as { id: string; name: string }[];
+      setWarehouses(whList);
+      const selected = whId === "all" ? null : whList.find((w) => w.id === whId);
+      if (whId !== "all" && !selected) { setRows([]); setLedger([]); setLoading(false); return; }
 
       const fromIso = from + "T00:00:00";
       const toIso = to + "T23:59:59";
-      const effectiveFrom = fromIso < MAIN_WAREHOUSE_OPERATIONAL_START_ISO
+      const effectiveFrom = whId === MAIN_WAREHOUSE_ID && fromIso < MAIN_WAREHOUSE_OPERATIONAL_START_ISO
         ? MAIN_WAREHOUSE_OPERATIONAL_START_ISO : fromIso;
 
       const list = await paginateUntilDone<Mov>({
@@ -84,12 +89,12 @@ export default function WarehouseDailyReport() {
           let q = supabase
             .from("inventory_movements")
             .select(MOVEMENT_COLS)
-            .eq("warehouse_id", main.id)
             .gte("performed_at", effectiveFrom)
             .lte("performed_at", toIso)
             .order("performed_at", { ascending: false })
             .order("id", { ascending: false })
             .range(from, to);
+          if (selected) q = q.eq("warehouse_id", selected.id);
           if (typeFilter !== "all") q = q.eq("movement_type", typeFilter);
           if (userFilter !== "all") q = q.eq("performed_by", userFilter);
           const { data, error } = await q;
@@ -98,6 +103,41 @@ export default function WarehouseDailyReport() {
         },
       });
       setRows(list);
+
+      const cardItems = await paginateUntilDone<{ id: string; name: string; unit: string; warehouse_id: string; stock: number; unit_cost: number }>({
+        pageSize: 1000,
+        maxPages: 20,
+        idOf: (r) => r.id,
+        fetchPage: async (from, to) => {
+          let q = supabase.from("inventory_items")
+            .select("id, name, unit, warehouse_id, stock, unit_cost")
+            .eq("is_active", true)
+            .order("id")
+            .range(from, to);
+          if (selected) q = q.eq("warehouse_id", selected.id);
+          const { data, error } = await q;
+          if (error) throw error;
+          return (data || []) as any;
+        },
+      });
+      const sinceMoves = await paginateUntilDone<Mov>({
+        pageSize: 1000,
+        maxPages: 50,
+        idOf: (r) => r.id,
+        fetchPage: async (from, to) => {
+          let q = supabase.from("inventory_movements")
+            .select("id, performed_at, warehouse_id, item_id, movement_type, quantity, reference_type, stock_before, stock_after, effect_mode")
+            .gte("performed_at", effectiveFrom)
+            .order("performed_at", { ascending: true })
+            .order("id", { ascending: true })
+            .range(from, to);
+          if (selected) q = q.eq("warehouse_id", selected.id);
+          const { data, error } = await q;
+          if (error) throw error;
+          return (data || []) as Mov[];
+        },
+      });
+      setLedger(buildDailyLedger(cardItems as any, sinceMoves as any, effectiveFrom, toIso));
 
       // load items meta
       const itemIds = Array.from(new Set(list.map(r => r.item_id)));
@@ -120,15 +160,16 @@ export default function WarehouseDailyReport() {
           maxPages: 50,
           idOf: (r) => r.id,
           fetchPage: async (from, to) => {
-            const { data, error } = await supabase
+            let priorQ = supabase
               .from("inventory_movements")
-              .select("id, item_id, movement_type, quantity, stock_before, stock_after, effect_mode")
-              .eq("warehouse_id", main.id)
+              .select("id, item_id, warehouse_id, movement_type, quantity, stock_before, stock_after, effect_mode")
               .in("item_id", itemIds)
               .lt("performed_at", effectiveFrom)
               .order("performed_at", { ascending: true })
               .order("id", { ascending: true })
               .range(from, to);
+            if (selected) priorQ = priorQ.eq("warehouse_id", selected.id);
+            const { data, error } = await priorQ;
             if (error) throw error;
             return (data || []) as any;
           },
@@ -156,7 +197,7 @@ export default function WarehouseDailyReport() {
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [whId]);
 
   // Apply text filters & compute running balance per row
   const visible = useMemo(() => {
@@ -213,6 +254,30 @@ export default function WarehouseDailyReport() {
       .map(([id, v]) => ({ id, name: items[id]?.name || id, stock: v.stock }))
       .slice(0, 20);
   }, [itemThresholds, items]);
+
+  const exportLedger = () => {
+    const whName = (id: string) => warehouses.find((w) => w.id === id)?.name || id;
+    const data = ledger.map((r) => ({
+      "المخزن": whName(r.warehouse_id),
+      "الصنف": r.name,
+      "الوحدة": r.unit,
+      "رصيد أول": r.opening,
+      "وارد شراء/إدخال": r.purchaseIn,
+      "وارد تحويل": r.transferIn,
+      "مرتجعات": r.returnsIn,
+      "صرف مبيعات": r.salesOut,
+      "صرف تحويل": r.transferOut,
+      "هالك": r.wasteOut,
+      "صرف يدوي": r.manualOut,
+      "تسوية": r.adjustment,
+      "رصيد آخر": r.closing,
+      "القيمة": r.value,
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "حركة");
+    XLSX.writeFile(wb, `stock-movement-${from}_${to}.xlsx`);
+  };
 
   const exportExcel = () => {
     const data = visible.map(r => ({
@@ -284,20 +349,21 @@ export default function WarehouseDailyReport() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
+      <div className="space-y-4" dir="rtl">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Activity className="w-6 h-6 text-primary" />
-              التقرير اليومي للمخزن الرئيسي
+              حركة المخزون اليومية
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">حركات اليوم، الإجماليات، الأصناف المنخفضة، والمستخدمين</p>
+            <p className="text-sm text-muted-foreground mt-1">رصيد أول من البطاقة، وارد وصادر حسب النوع، تسوية بالفرق الحقيقي، ورصيد آخر بالقيمة</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={load} disabled={loading}>
               <RefreshCw className={`w-4 h-4 ml-1 ${loading ? "animate-spin" : ""}`} />تحديث
             </Button>
-            <Button variant="outline" size="sm" onClick={exportExcel}><Download className="w-4 h-4 ml-1" />Excel</Button>
+            <Button variant="outline" size="sm" onClick={exportLedger}><Download className="w-4 h-4 ml-1" />Excel الحركة</Button>
+            <Button variant="outline" size="sm" onClick={exportExcel}><Download className="w-4 h-4 ml-1" />Excel التفصيل</Button>
             <Button variant="outline" size="sm" onClick={printReport}><FileText className="w-4 h-4 ml-1" />PDF</Button>
             <Button size="sm" onClick={printReport}><Printer className="w-4 h-4 ml-1" />طباعة</Button>
           </div>
@@ -344,6 +410,15 @@ export default function WarehouseDailyReport() {
               <Button size="sm" variant="outline" onClick={() => setPreset("yesterday")}>أمس</Button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+              <div className="md:col-span-2"><Label className="text-xs">المخزن</Label>
+                <Select value={whId} onValueChange={setWhId}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">كل المخازن</SelectItem>
+                    {warehouses.map((w) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={from} onChange={e => setFrom(e.target.value)} /></div>
               <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={to} onChange={e => setTo(e.target.value)} /></div>
               <div><Label className="text-xs">نوع الحركة</Label>
@@ -369,6 +444,52 @@ export default function WarehouseDailyReport() {
               </div>
             </div>
             <Button size="sm" onClick={load}>تطبيق الفلاتر</Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">حركة الأصناف ({ledger.length})</CardTitle></CardHeader>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>المخزن</TableHead>
+                  <TableHead>الصنف</TableHead>
+                  <TableHead>أول</TableHead>
+                  <TableHead>شراء/إدخال</TableHead>
+                  <TableHead>تحويل داخل</TableHead>
+                  <TableHead>مرتجع</TableHead>
+                  <TableHead>مبيعات</TableHead>
+                  <TableHead>تحويل خارج</TableHead>
+                  <TableHead>هالك</TableHead>
+                  <TableHead>صرف يدوي</TableHead>
+                  <TableHead>تسوية</TableHead>
+                  <TableHead>آخر</TableHead>
+                  <TableHead>القيمة</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ledger.length === 0 ? (
+                  <TableRow><TableCell colSpan={13} className="text-center py-6 text-muted-foreground">لا توجد أرصدة في هذه الفترة</TableCell></TableRow>
+                ) : ledger.slice(0, 300).map((r) => (
+                  <TableRow key={r.item_id}>
+                    <TableCell className="text-xs">{warehouses.find((w) => w.id === r.warehouse_id)?.name || "—"}</TableCell>
+                    <TableCell>{r.name}</TableCell>
+                    <TableCell className="font-mono">{r.opening.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono">{r.purchaseIn.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono">{r.transferIn.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono">{r.returnsIn.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono">{r.salesOut.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono">{r.transferOut.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono">{r.wasteOut.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono">{r.manualOut.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono">{r.adjustment.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono font-bold">{r.closing.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono">{r.value.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
 
