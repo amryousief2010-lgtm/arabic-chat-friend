@@ -1,7 +1,10 @@
 -- P0 — One order-deduction path for every warehouse.
 -- _dispatch_order_stock_core is the only writer of sales_dispatch.
 -- commit_agouza_stock_on_delivery delegates to it and only marks reservations.
--- Idempotent on (order_id, product_id) and on an existing posted sales_dispatch.
+-- Idempotent per order line (order_items.id), not per (order, card).
+-- Two lines of the same product both post. Historical sales_dispatch rows
+-- stay untouched: the unique index ignores them when order_item_id is null
+-- or created_at is before 2026-09-27.
 -- Several cards for one product in one warehouse: the lowest id is canonical.
 -- No linked card: the line is recorded as failed, not skipped in silence.
 
@@ -9,13 +12,21 @@ CREATE TABLE IF NOT EXISTS public.order_deduction_lines (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id uuid NOT NULL,
   product_id uuid,
+  order_item_id uuid,
   inventory_item_id uuid,
   quantity numeric,
   status text NOT NULL CHECK (status IN ('posted', 'failed')),
   reason text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (order_id, product_id)
+  created_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS order_deduction_lines_order_product_uidx
+  ON public.order_deduction_lines (order_id, product_id)
+  WHERE order_item_id IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS order_deduction_lines_order_line_uidx
+  ON public.order_deduction_lines (order_id, order_item_id)
+  WHERE order_item_id IS NOT NULL;
 
 ALTER TABLE public.order_deduction_lines ENABLE ROW LEVEL SECURITY;
 
@@ -32,11 +43,17 @@ CREATE POLICY order_deduction_lines_read ON public.order_deduction_lines
 
 GRANT SELECT ON public.order_deduction_lines TO authenticated, service_role;
 
-CREATE UNIQUE INDEX IF NOT EXISTS inventory_movements_order_item_dispatch_uidx
-  ON public.inventory_movements (reference_id, item_id)
+-- Per order line, and only rows written from this migration forward.
+-- Live history has several sales_dispatch rows for one (order, card): one per
+-- order line, plus one May pair that nets to -1.5. Those rows are not deleted
+-- and are excluded here (null order_item_id, or created_at before 2026-09-27).
+CREATE UNIQUE INDEX IF NOT EXISTS inventory_movements_order_line_dispatch_uidx
+  ON public.inventory_movements (reference_id, order_item_id)
   WHERE movement_type = 'sales_dispatch'
     AND reference_type = 'order'
-    AND COALESCE(approval_status, 'posted') = 'posted';
+    AND order_item_id IS NOT NULL
+    AND COALESCE(approval_status, 'posted') = 'posted'
+    AND created_at >= timestamptz '2026-09-27 00:00:00+00';
 
 CREATE OR REPLACE FUNCTION public._dispatch_order_stock_core(
   p_order_id uuid, p_actor uuid DEFAULT NULL, p_note text DEFAULT NULL, p_commit_reservations boolean DEFAULT false)
@@ -107,17 +124,17 @@ BEGIN
   END IF;
 
   FOR v_item IN
-    SELECT oi.product_id,
-           min(btrim(COALESCE(p.name, oi.product_name, ''))) AS pname,
-           SUM(oi.quantity)::numeric AS qty,
-           bool_or(p.id IS NULL) AS missing_product,
-           bool_or(p.is_active IS NOT TRUE) AS inactive,
-           bool_or(p.barcode IS NULL OR length(btrim(COALESCE(p.barcode, ''))) = 0) AS no_barcode
+    SELECT oi.id AS order_item_id,
+           oi.product_id,
+           btrim(COALESCE(p.name, oi.product_name, '')) AS pname,
+           oi.quantity::numeric AS qty,
+           (oi.product_id IS NULL OR p.id IS NULL) AS missing_product,
+           (p.id IS NOT NULL AND p.is_active IS NOT TRUE) AS inactive,
+           (p.id IS NOT NULL AND (p.barcode IS NULL OR length(btrim(COALESCE(p.barcode, ''))) = 0)) AS no_barcode
       FROM public.order_items oi
       LEFT JOIN public.products p ON p.id = oi.product_id
      WHERE oi.order_id = p_order_id
        AND COALESCE(oi.quantity, 0) > 0
-     GROUP BY oi.product_id
   LOOP
     v_reason := NULL;
     v_canonical := NULL;
@@ -146,13 +163,13 @@ BEGIN
           SELECT 1 FROM public.inventory_movements m
            WHERE m.reference_type = 'order'
              AND m.reference_id = p_order_id::text
-             AND m.item_id = v_canonical
+             AND m.order_item_id = v_item.order_item_id
              AND m.movement_type = 'sales_dispatch'
              AND COALESCE(m.approval_status, 'posted') = 'posted'
         ) OR EXISTS (
           SELECT 1 FROM public.order_deduction_lines d
            WHERE d.order_id = p_order_id
-             AND d.product_id = v_item.product_id
+             AND d.order_item_id = v_item.order_item_id
              AND d.status = 'posted'
         ) THEN
           v_movements := v_movements + 1;
@@ -171,27 +188,28 @@ BEGIN
       v_details := v_details || jsonb_build_object(
         'product_id', v_item.product_id, 'product_name', v_item.pname, 'reason', v_reason
       );
-      INSERT INTO public.order_deduction_lines(order_id, product_id, inventory_item_id, quantity, status, reason)
-      VALUES (p_order_id, v_item.product_id, v_canonical, v_item.qty, 'failed', v_reason)
-      ON CONFLICT (order_id, product_id) DO UPDATE
+      INSERT INTO public.order_deduction_lines(order_id, product_id, order_item_id, inventory_item_id, quantity, status, reason)
+      VALUES (p_order_id, v_item.product_id, v_item.order_item_id, v_canonical, v_item.qty, 'failed', v_reason)
+      ON CONFLICT (order_id, order_item_id) WHERE order_item_id IS NOT NULL DO UPDATE
         SET status = 'failed',
             reason = EXCLUDED.reason,
             inventory_item_id = EXCLUDED.inventory_item_id,
-            quantity = EXCLUDED.quantity;
+            quantity = EXCLUDED.quantity,
+            product_id = EXCLUDED.product_id;
       CONTINUE;
     END IF;
 
     INSERT INTO public.inventory_movements(
       item_id, warehouse_id, source_warehouse_id,
       movement_type, quantity, unit_cost, total_cost,
-      reference_type, reference_id,
+      reference_type, reference_id, order_item_id,
       reason, party, notes,
       performed_by, performed_at, approval_status, module, product_id, effect_mode
     ) VALUES (
       v_canonical, v_order.source_warehouse_id, v_order.source_warehouse_id,
       'sales_dispatch', v_item.qty, COALESCE(v_cost, 0),
       v_item.qty * COALESCE(v_cost, 0),
-      'order', p_order_id::text,
+      'order', p_order_id::text, v_item.order_item_id,
       'صرف مبيعات', COALESCE(v_order.shipping_company, '—'),
       concat(
         'صرف تلقائي للأوردر ', v_order.order_number,
@@ -201,13 +219,14 @@ BEGIN
       p_actor, COALESCE(v_order.delivered_at, now()), 'posted', 'sales', v_item.product_id, 'delta'
     );
 
-    INSERT INTO public.order_deduction_lines(order_id, product_id, inventory_item_id, quantity, status, reason)
-    VALUES (p_order_id, v_item.product_id, v_canonical, v_item.qty, 'posted', NULL)
-    ON CONFLICT (order_id, product_id) DO UPDATE
+    INSERT INTO public.order_deduction_lines(order_id, product_id, order_item_id, inventory_item_id, quantity, status, reason)
+    VALUES (p_order_id, v_item.product_id, v_item.order_item_id, v_canonical, v_item.qty, 'posted', NULL)
+    ON CONFLICT (order_id, order_item_id) WHERE order_item_id IS NOT NULL DO UPDATE
       SET status = 'posted',
           reason = NULL,
           inventory_item_id = EXCLUDED.inventory_item_id,
-          quantity = EXCLUDED.quantity;
+          quantity = EXCLUDED.quantity,
+          product_id = EXCLUDED.product_id;
 
     v_movements := v_movements + 1;
     v_total_qty := v_total_qty + v_item.qty;

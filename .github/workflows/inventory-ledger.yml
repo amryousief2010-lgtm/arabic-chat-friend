@@ -33,6 +33,11 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Apply migrations
         run: python3 scripts/apply_migrations.py
+      - name: Dirty history then migrations 7-20
+        run: |
+          psql "postgres://postgres:postgres@localhost:5432/postgres" -c "DROP DATABASE IF EXISTS ledger_dirty;"
+          psql "postgres://postgres:postgres@localhost:5432/postgres" -c "CREATE DATABASE ledger_dirty;"
+          DATABASE_URL="postgres://postgres:postgres@localhost:5432/ledger_dirty" python3 scripts/apply_dirty_history.py
       - name: SQL ledger scenarios
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/inventory_ledger.sql
       - name: SQL closed loop

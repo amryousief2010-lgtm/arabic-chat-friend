@@ -87,3 +87,8 @@ BEGIN
   RETURN jsonb_build_object('status','returned','order_id',p_order_id,'movements_created',v_n);
 END;
 $$;
+
+-- Live revoked these between migration 1 and this file. The new bodies post
+-- through the ledger, so authenticated may call them again.
+GRANT EXECUTE ON FUNCTION public.adjust_main_warehouse_stock(uuid, numeric, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.return_order_stock(uuid, text) TO authenticated;

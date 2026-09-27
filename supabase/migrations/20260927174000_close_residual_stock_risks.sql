@@ -735,10 +735,10 @@ BEGIN
 
   INSERT INTO public.meat_factory_inventory_moves(
     item_kind, item_id, item_name, direction, quantity, unit_cost, reason,
-    ref_table, ref_id, created_by, stock_before, stock_after
+    ref_table, ref_id, created_by, stock_before, stock_after, ledger_keyed
   ) VALUES (
     v_kind, p_item_id, v_name, v_dir, v_qty, COALESCE(p_unit_cost, 0), btrim(p_reason),
-    p_ref_table, p_ref_id, auth.uid(), v_before, v_after
+    p_ref_table, p_ref_id, auth.uid(), v_before, v_after, true
   );
 
   RETURN jsonb_build_object(
@@ -816,9 +816,14 @@ BEFORE INSERT ON public.meat_factory_inventory_moves
 FOR EACH ROW
 EXECUTE FUNCTION public.reject_direct_meat_raw_move_insert();
 
+-- Historical mf moves may repeat (ref, item, direction). Only rows this
+-- function marks ledger_keyed are unique. Existing rows stay as they are.
+ALTER TABLE public.meat_factory_inventory_moves
+  ADD COLUMN IF NOT EXISTS ledger_keyed boolean NOT NULL DEFAULT false;
+
 CREATE UNIQUE INDEX IF NOT EXISTS meat_raw_moves_source_uidx
   ON public.meat_factory_inventory_moves (ref_table, ref_id, item_id, direction)
-  WHERE ref_id IS NOT NULL AND item_id IS NOT NULL;
+  WHERE ref_id IS NOT NULL AND item_id IS NOT NULL AND ledger_keyed;
 
 CREATE OR REPLACE FUNCTION public.approve_meat_manufacturing_invoice(p_invoice_id uuid)
  RETURNS jsonb

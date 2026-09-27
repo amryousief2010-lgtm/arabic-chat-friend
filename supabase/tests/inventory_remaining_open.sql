@@ -215,15 +215,15 @@ BEGIN
   INSERT INTO public.courier_goods_custodies (id, courier_name)
   VALUES (v_sub, 'مندوب اختبار');
   INSERT INTO public.courier_goods_custody_lines (
-    custody_id, line_type, order_id, inventory_item_id, product_name, quantity
+    custody_id, line_type, order_id, inventory_item_id, product_name, quantity, ledger_keyed
   ) VALUES (
-    v_sub, 'return', v_order, v_item, 'صنف مفتاح', 1
+    v_sub, 'return', v_order, v_item, 'صنف مفتاح', 1, true
   );
   BEGIN
     INSERT INTO public.courier_goods_custody_lines (
-      custody_id, line_type, order_id, inventory_item_id, product_name, quantity
+      custody_id, line_type, order_id, inventory_item_id, product_name, quantity, ledger_keyed
     ) VALUES (
-      v_sub, 'return', v_order, v_item, 'صنف مفتاح', 1
+      v_sub, 'return', v_order, v_item, 'صنف مفتاح', 1, true
     );
     RAISE EXCEPTION 'second custody return line was inserted';
   EXCEPTION WHEN unique_violation THEN

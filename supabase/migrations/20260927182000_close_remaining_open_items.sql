@@ -681,9 +681,14 @@ $function$;
 -- ---------------------------------------------------------------------------
 -- 7. One custody return line per custody + order + item.
 -- ---------------------------------------------------------------------------
+-- Historical return lines may already repeat. Only lines this function marks
+-- ledger_keyed are unique, so apply does not fail and old rows are not merged.
+ALTER TABLE public.courier_goods_custody_lines
+  ADD COLUMN IF NOT EXISTS ledger_keyed boolean NOT NULL DEFAULT false;
+
 CREATE UNIQUE INDEX IF NOT EXISTS courier_return_line_once
   ON public.courier_goods_custody_lines (custody_id, order_id, inventory_item_id)
-  WHERE line_type = 'return' AND inventory_item_id IS NOT NULL;
+  WHERE line_type = 'return' AND inventory_item_id IS NOT NULL AND ledger_keyed;
 
 CREATE OR REPLACE FUNCTION public.record_courier_return(p_assignment_id uuid, p_reason text DEFAULT NULL::text, p_notes text DEFAULT NULL::text, p_idempotency_key text DEFAULT NULL::text)
  RETURNS jsonb
@@ -759,16 +764,17 @@ BEGIN
       custody_id, line_type, customer_id, customer_name, order_id,
       inventory_item_id, inventory_movement_id, product_name,
       quantity, unit, unit_price, total_value, cash_collected,
-      performed_at, performed_by, notes
+      performed_at, performed_by, notes, ledger_keyed
     ) VALUES (
       v_custody_id, 'return', v_line.customer_id, v_line.customer_name, v_asn.order_id,
       v_line.inventory_item_id, v_mov_id, v_line.product_name,
       v_line.quantity, v_line.unit, v_line.unit_price, v_line.total_value, 0,
       now(), v_user,
-      'مرتجع — ' || v_reference || COALESCE(' | ' || NULLIF(p_reason,''), '') || COALESCE(' | ' || NULLIF(p_notes,''), '')
+      'مرتجع — ' || v_reference || COALESCE(' | ' || NULLIF(p_reason,''), '') || COALESCE(' | ' || NULLIF(p_notes,''), ''),
+      true
     )
     ON CONFLICT (custody_id, order_id, inventory_item_id)
-      WHERE line_type = 'return' AND inventory_item_id IS NOT NULL
+      WHERE line_type = 'return' AND inventory_item_id IS NOT NULL AND ledger_keyed
     DO NOTHING;
     GET DIAGNOSTICS v_inserted = ROW_COUNT;
     IF v_inserted > 0 THEN

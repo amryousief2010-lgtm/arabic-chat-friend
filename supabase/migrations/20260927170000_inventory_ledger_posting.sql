@@ -59,14 +59,31 @@ CREATE UNIQUE INDEX IF NOT EXISTS order_deduction_lines_order_line_uidx
   ON public.order_deduction_lines (order_id, order_item_id)
   WHERE order_item_id IS NOT NULL;
 
--- One card per (warehouse, product) already exists and is VALID:
+-- One card per (warehouse, product) already exists and is VALID on live:
 --   inventory_items_wh_product_unique (20260716123653), partial WHERE product_id IS NOT NULL.
--- Do not add a second index. If a database is missing it, create it only when
--- report_duplicate_inventory_cards() is empty, then VALIDATE. See the runbook.
--- This statement is a no-op when the index is already present.
-CREATE UNIQUE INDEX IF NOT EXISTS inventory_items_wh_product_unique
-  ON public.inventory_items (warehouse_id, product_id)
-  WHERE product_id IS NOT NULL;
+-- Do not add a second index and do not merge cards here. If the index is missing
+-- and duplicates exist, skip it so apply does not fail and balances stay put.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_indexes
+     WHERE schemaname = 'public' AND indexname = 'inventory_items_wh_product_unique'
+  ) THEN
+    RETURN;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.inventory_items
+     WHERE product_id IS NOT NULL
+     GROUP BY warehouse_id, product_id
+    HAVING count(*) > 1
+  ) THEN
+    RAISE NOTICE 'inventory_items_wh_product_unique skipped: duplicate cards exist';
+    RETURN;
+  END IF;
+  CREATE UNIQUE INDEX inventory_items_wh_product_unique
+    ON public.inventory_items (warehouse_id, product_id)
+   WHERE product_id IS NOT NULL;
+END $$;
 
 -- ---------------------------------------------------------------------------
 -- Who may post, by warehouse id (not by warehouse name).
