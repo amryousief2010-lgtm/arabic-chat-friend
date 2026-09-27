@@ -73,9 +73,10 @@ BEGIN
   IF to_regprocedure('public.post_named_stock(text, uuid, numeric, text, uuid, text, text, numeric, text, numeric)') IS NULL THEN
     RAISE EXCEPTION 'missing post_named_stock';
   END IF;
-  IF to_regprocedure('public.packaging_store_name()') IS NULL
-     OR public.packaging_store_name() IS DISTINCT FROM 'meat_factory_raw_items' THEN
-    RAISE EXCEPTION 'packaging store switch is not the expected default';
+  IF to_regprocedure('public.packaging_warehouse_id()') IS NULL
+     OR public.packaging_warehouse_id() IS NULL
+     OR public.packaging_store_name() NOT LIKE '%تغليف%' THEN
+    RAISE EXCEPTION 'packaging warehouse is not the inventory_items store';
   END IF;
   IF NOT EXISTS (
     SELECT 1 FROM pg_trigger

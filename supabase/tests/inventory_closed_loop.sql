@@ -277,9 +277,10 @@ BEGIN
     RAISE EXCEPTION 'item14 baseline date missing from reconciliation';
   END IF;
 
-  -- 15. Packaging switch is one row and is not decided here.
-  IF public.packaging_store_name() IS DISTINCT FROM 'meat_factory_raw_items' THEN
-    RAISE EXCEPTION 'item15 packaging store changed';
+  -- 15. Packaging is the packaging warehouse, not the factory raw rows.
+  IF public.packaging_warehouse_id() IS NULL
+     OR public.packaging_store_name() NOT LIKE '%تغليف%' THEN
+    RAISE EXCEPTION 'item15 packaging warehouse missing';
   END IF;
 
   -- 9. Courier return posts as order_return, not a second bridge insert.

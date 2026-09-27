@@ -166,7 +166,20 @@ export default function MeatFactoryInventory() {
       const res = await (supabase as any).from("meat_factory_raw_items").update(payload).eq("id", editDlg.id);
       error = res.error;
     }
-    if (!error && itemId && editDlg.mode === "create" && qty > 0) {
+    if (!error && itemId && editDlg.mode === "create" && qty > 0 && editDlg.kind === "packaging") {
+      const posted = await (supabase as any).rpc("post_packaging_warehouse_move", {
+        p_raw_item_id: itemId,
+        p_quantity: qty,
+        p_direction: "IN",
+        p_unit_cost: cost,
+        p_reason: "رصيد افتتاحي عند إنشاء الصنف",
+        p_source_type: "manual_in",
+        p_source_id: crypto.randomUUID(),
+        p_source_line: "opening",
+        p_create_card: true,
+      });
+      error = posted.error;
+    } else if (!error && itemId && editDlg.mode === "create" && qty > 0) {
       const posted = await (supabase as any).rpc("post_meat_raw_movement", {
         p_item_id: itemId,
         p_direction: "IN",
@@ -181,6 +194,11 @@ export default function MeatFactoryInventory() {
         p_item_name: editDlg.name.trim(),
       });
       error = posted.error;
+    } else if (!error && editDlg.mode !== "create" && editDlg.id && editDlg.kind === "packaging") {
+      const current = items.find((i) => i.id === editDlg.id);
+      if (current && Number(current.current_stock) !== qty) {
+        return toast.error("رصيد تغليف المصنع للقراءة فقط. الشراء والصرف على مخزن التغليف.");
+      }
     } else if (!error && editDlg.mode !== "create" && editDlg.id && editDlg.kind !== "finished") {
       const current = items.find((i) => i.id === editDlg.id);
       if (current && Number(current.current_stock) !== qty) {

@@ -36,6 +36,8 @@ const LABELS: Record<string, string> = {
   transfer_in_transit: "تحويل لم يُستلم",
   named_stock_mismatch: "فرق مخزن منفصل",
   named_negative_stock: "رصيد سالب في مخزن منفصل",
+  packaging_unmapped: "تغليف غير مربوط",
+  packaging_posted_outside: "استهلاك تغليف خارج مخزنه",
 };
 
 export default function InventoryReconciliation() {

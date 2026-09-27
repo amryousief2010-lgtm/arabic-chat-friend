@@ -81,32 +81,18 @@ export default function MeatPackagingInventory() {
   };
 
   // ---------- Mutations ----------
-  async function postMove(item: Item, direction: "IN"|"OUT", qty: number, unitCost: number, reason: string, refTable = "manual_adjustment", refId: string | null = null) {
-    const stock_before = Number(item.current_stock);
-    const stock_after = direction === "IN" ? stock_before + qty : stock_before - qty;
-    if (direction === "OUT" && qty > stock_before) {
-      toast.error("الرصيد المتاح غير كافٍ لإتمام الصرف");
-      return false;
-    }
-    // moving avg cost only for IN moves with cost
-    let newAvg = Number(item.avg_cost);
-    if (direction === "IN" && unitCost > 0 && qty > 0) {
-      const prevVal = stock_before * Number(item.avg_cost || 0);
-      const addVal = qty * unitCost;
-      newAvg = stock_after > 0 ? (prevVal + addVal) / stock_after : unitCost;
-    }
-    const { error } = await supabase.rpc("post_meat_raw_movement" as any, {
-      p_item_id: item.id,
-      p_direction: direction,
+  async function postMove(item: Item, direction: "IN"|"OUT", qty: number, unitCost: number, reason: string, _refTable = "manual_adjustment", refId: string | null = null) {
+    const sourceId = refId ?? crypto.randomUUID();
+    const { error } = await supabase.rpc("post_packaging_warehouse_move" as any, {
+      p_raw_item_id: item.id,
       p_quantity: qty,
+      p_direction: direction,
       p_unit_cost: unitCost,
       p_reason: reason,
-      p_ref_table: refTable,
-      p_ref_id: refId ?? crypto.randomUUID(),
-      p_item_kind: "packaging",
-      p_effect: "delta",
-      p_avg_cost: newAvg,
-      p_item_name: item.name,
+      p_source_type: direction === "IN" ? "manual_in" : "manual_out",
+      p_source_id: sourceId,
+      p_source_line: "1",
+      p_create_card: direction === "IN",
     });
     if (error) { toast.error(error.message); return false; }
     refresh();
@@ -169,7 +155,7 @@ export default function MeatPackagingInventory() {
             <PackageIcon className="w-7 h-7 text-emerald-600" />
             <div>
               <h1 className="text-2xl font-bold">مخزن مواد التغليف والتعبئة</h1>
-              <p className="text-sm text-muted-foreground">إدارة كاملة لخامات التغليف: إضافة/صرف/عكس حركة/تسوية جرد.</p>
+              <p className="text-sm text-muted-foreground">رصيد المصنع هنا تاريخ للقراءة فقط. الشراء والصرف يُرحَّلان على بطاقة مخزن التغليف.</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -339,18 +325,16 @@ function AddItemDialog({ open, onClose, onDone, existing }: { open: boolean; onC
       .select().single();
     if (error) return toast.error(error.message);
     if (qty > 0) {
-      const { error: postErr } = await supabase.rpc("post_meat_raw_movement" as any, {
-        p_item_id: (ins as any).id,
-        p_direction: "IN",
+      const { error: postErr } = await supabase.rpc("post_packaging_warehouse_move" as any, {
+        p_raw_item_id: (ins as any).id,
         p_quantity: qty,
+        p_direction: "IN",
         p_unit_cost: c,
         p_reason: "رصيد افتتاحي عند إنشاء الصنف",
-        p_ref_table: "opening_balance_packaging",
-        p_ref_id: crypto.randomUUID(),
-        p_item_kind: "packaging",
-        p_effect: "set",
-        p_target_stock: qty,
-        p_item_name: nm,
+        p_source_type: "manual_in",
+        p_source_id: crypto.randomUUID(),
+        p_source_line: "opening",
+        p_create_card: true,
       });
       if (postErr) return toast.error(postErr.message);
     }

@@ -37,6 +37,8 @@ jobs:
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/inventory_ledger.sql
       - name: SQL closed loop
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/inventory_closed_loop.sql
+      - name: Packaging warehouse scenarios
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/inventory_packaging_warehouse.sql
       - name: Concurrency
         run: python3 scripts/inventory_ledger_concurrency.py
       - name: Client write lint
