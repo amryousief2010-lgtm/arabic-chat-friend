@@ -48,10 +48,15 @@ export const useOrderNotifications = () => {
     if (!user) return;
 
     const channel = supabase
-      .channel('order-notifications-inapp')
+      .channel(`order-notifications-inapp-${user.id}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications' },
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `target_user_id=eq.${user.id}`,
+        },
         (payload) => {
           const row = payload.new as {
             title: string;

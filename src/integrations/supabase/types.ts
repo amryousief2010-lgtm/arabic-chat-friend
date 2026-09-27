@@ -22339,6 +22339,15 @@ export type Database = {
           has_id: boolean
         }[]
       }
+      get_notification_badge_counts: {
+        Args: never
+        Returns: {
+          always_urgent_count: number
+          order_urgent_null_type_count: number
+          order_urgent_typed_count: number
+          unread_count: number
+        }[]
+      }
       get_or_create_wh_item: {
         Args: {
           p_category?: string
