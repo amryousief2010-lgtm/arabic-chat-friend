@@ -25,6 +25,10 @@
 
 Legacy rows with null source keys stay in the table. They are history. The reconciliation baseline starts at the 30 September 2026 stocktake per warehouse. Absolute adjustments without `stock_before` / `stock_after` are excluded from that sum.
 
+## Function privileges
+
+Every future migration that creates or replaces a function in `public` must explicitly `REVOKE EXECUTE` on that function `FROM anon, PUBLIC`. Default privileges still grant `EXECUTE` to `anon` when the function is created, and revoking `PUBLIC` alone does not remove that grant. Grant `EXECUTE` again only to the roles that should call it (`authenticated` and/or `service_role`). Do not change `ALTER DEFAULT PRIVILEGES` in an inventory migration.
+
 ## Session flags
 
 `post_inventory_movement` sets `app.inventory_stock_write` and `app.inventory_ledger_posted` for the current transaction only. A client cannot set them through the API. Do not clear `app.inventory_stock_write` inside a trigger: a sibling trigger would turn it off before the guard runs. The guard trigger is named `trg_00_reject_direct_inventory_stock_write` so it runs first.
