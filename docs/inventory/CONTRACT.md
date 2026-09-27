@@ -27,7 +27,11 @@ Legacy rows with null source keys stay in the table. They are history. The recon
 
 ## Function privileges
 
-Every future migration that creates or replaces a function in `public` must explicitly `REVOKE EXECUTE` on that function `FROM anon, PUBLIC`. Default privileges still grant `EXECUTE` to `anon` when the function is created, and revoking `PUBLIC` alone does not remove that grant. Grant `EXECUTE` again only to the roles that should call it (`authenticated` and/or `service_role`). Do not change `ALTER DEFAULT PRIVILEGES` in an inventory migration.
+`postgres` and `supabase_admin` no longer grant `EXECUTE` on new functions in `public` to `anon` or `PUBLIC` (`ALTER DEFAULT PRIVILEGES` in `20260927210000`). That change is not retroactive. Every migration that creates or replaces a function in `public` must still `REVOKE EXECUTE` on that function `FROM anon, PUBLIC`, then `GRANT EXECUTE` only to the roles that should call it (`authenticated` and/or `service_role`). Do not rely on the defaults alone.
+
+`product_sale_price(uuid)` stays executable by `anon` through its explicit grant. `is_manual_stock_warehouse(uuid)` is not called from any public page; `anon` and `PUBLIC` do not have `EXECUTE` on it.
+
+The nine stock RPCs in `20260927210000` require `auth.uid()` and a role from the screen that calls them. A trigger (`pg_trigger_depth() > 0`) and a caller with no `auth.uid()` (service role or the database owner) still run. `transfer_between_sublocations` rejects a source or destination row with `is_card_mirror`.
 
 ## Session flags
 
