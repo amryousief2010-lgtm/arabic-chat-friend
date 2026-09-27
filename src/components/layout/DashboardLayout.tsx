@@ -1,14 +1,15 @@
-import { ReactNode, createContext, useCallback, useContext } from "react";
+import { ReactNode, Suspense, createContext, lazy, useCallback, useContext } from "react";
 import AppSidebar from "./AppSidebar";
 import MobileNavigation from "./MobileNavigation";
 import PullToRefreshIndicator from "./PullToRefresh";
 import SwipeIndicator from "./SwipeIndicator";
 import StartOfDayDialog from "@/components/StartOfDayDialog";
-import ClockCalendarWidget from "@/components/ClockCalendarWidget";
-import PendingApprovalsAlert from "@/components/lab-treasury/PendingApprovalsAlert";
-import ExecutiveApprovalsAlert from "@/components/executive/ExecutiveApprovalsAlert";
-import MegaDiscrepancyAlert from "@/components/orders/MegaDiscrepancyAlert";
-import DuplicateApprovalsAlert from "@/components/orders/DuplicateApprovalsAlert";
+
+const ClockCalendarWidget = lazy(() => import("@/components/ClockCalendarWidget"));
+const PendingApprovalsAlert = lazy(() => import("@/components/lab-treasury/PendingApprovalsAlert"));
+const ExecutiveApprovalsAlert = lazy(() => import("@/components/executive/ExecutiveApprovalsAlert"));
+const MegaDiscrepancyAlert = lazy(() => import("@/components/orders/MegaDiscrepancyAlert"));
+const DuplicateApprovalsAlert = lazy(() => import("@/components/orders/DuplicateApprovalsAlert"));
 
 import UnreadMessagesBanner from "@/components/internal-messages/UnreadMessagesBanner";
 import MandatoryMessagesGate from "@/components/internal-messages/MandatoryMessagesGate";
@@ -87,10 +88,12 @@ const DashboardLayoutInner = ({ children }: DashboardLayoutProps) => {
   return (
     <DashboardLayoutContext.Provider value={true}>
     <div className="min-h-screen bg-background">
-      <PendingApprovalsAlert />
-      <ExecutiveApprovalsAlert />
-      <MegaDiscrepancyAlert />
-      <DuplicateApprovalsAlert />
+      <Suspense fallback={null}>
+        <PendingApprovalsAlert />
+        <ExecutiveApprovalsAlert />
+        <MegaDiscrepancyAlert />
+        <DuplicateApprovalsAlert />
+      </Suspense>
 
 
       {/* Desktop Sidebar (collapsible, state persisted in LocalStorage) */}
@@ -132,7 +135,9 @@ const DashboardLayoutInner = ({ children }: DashboardLayoutProps) => {
       </main>
 
       {/* Floating Clock + Calendar widget (visible to all users on every page) */}
-      <ClockCalendarWidget />
+      <Suspense fallback={null}>
+        <ClockCalendarWidget />
+      </Suspense>
     </div>
     </DashboardLayoutContext.Provider>
   );

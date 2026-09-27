@@ -126,12 +126,21 @@ export default defineConfig(({ mode }) => ({
         // Keep heavy export/chart libs out of the 2MB entry chunk so first
         // paint and route navigation do not parse exceljs/xlsx/jspdf/recharts.
         manualChunks(id) {
-          if (id.includes("node_modules/exceljs")) return "exceljs";
-          if (id.includes("node_modules/xlsx")) return "xlsx";
-          if (id.includes("node_modules/jspdf")) return "jspdf";
-          if (id.includes("html2canvas") || id.includes("html2pdf")) return "html2pdf";
-          if (id.includes("node_modules/recharts")) return "recharts";
-          if (id.includes("node_modules/framer-motion")) return "framer-motion";
+          const norm = id.replace(/\\/g, "/");
+          const pkg = (name: string) => norm.includes(`/node_modules/${name}/`);
+          // Exact package dirs, and React first, so react-dom and the Vite
+          // preload helper are not pulled into the recharts or jspdf chunks.
+          if (norm.includes("preload-helper")) return "preload-helper";
+          // clsx is shared with recharts. Give it its own chunk so the entry
+          // does not have to preload recharts just to load this helper.
+          if (pkg("clsx")) return "clsx";
+          if (pkg("react") || pkg("react-dom") || pkg("scheduler")) return "react-vendor";
+          if (pkg("exceljs")) return "exceljs";
+          if (pkg("xlsx")) return "xlsx";
+          if (pkg("jspdf") || pkg("jspdf-autotable")) return "jspdf";
+          if (pkg("html2canvas") || pkg("html2pdf.js")) return "html2pdf";
+          if (pkg("recharts")) return "recharts";
+          if (pkg("framer-motion")) return "framer-motion";
         },
       },
     },

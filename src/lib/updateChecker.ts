@@ -26,6 +26,7 @@ export type ReloadReason =
   | "visibility"
   | "pageshow"
   | "post-login"
+  | "route"
   | "manual"
   | "sw-activated";
 
@@ -104,11 +105,73 @@ export const fetchRemoteVersion = async (
   }
 };
 
+/** True when a reload would not close a dialog or drop typed input. */
+export const canAutoReload = (): boolean => {
+  if (typeof document === "undefined") return false;
+  if (
+    document.querySelector(
+      '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [role="menu"][data-state="open"]',
+    )
+  ) {
+    return false;
+  }
+  const fields = document.querySelectorAll("input, textarea, select, [contenteditable='true']");
+  for (const node of fields) {
+    if (node instanceof HTMLInputElement) {
+      const type = node.type;
+      if (
+        type === "hidden" ||
+        type === "button" ||
+        type === "submit" ||
+        type === "reset" ||
+        type === "image" ||
+        type === "file"
+      ) {
+        continue;
+      }
+      if (type === "checkbox" || type === "radio") {
+        if (node.checked !== node.defaultChecked) return false;
+        continue;
+      }
+      if (node.value !== node.defaultValue) return false;
+      continue;
+    }
+    if (node instanceof HTMLTextAreaElement) {
+      if (node.value !== node.defaultValue) return false;
+      continue;
+    }
+    if (node instanceof HTMLSelectElement) {
+      const hasDefault = Array.from(node.options).some((option) => option.defaultSelected);
+      if (!hasDefault) continue;
+      const selected = Array.from(node.options).find((option) => option.defaultSelected);
+      if (node.value !== (selected?.value ?? "")) return false;
+      continue;
+    }
+    if (node instanceof HTMLElement && node.isContentEditable && (node.textContent || "").trim() !== "") {
+      return false;
+    }
+  }
+  return true;
+};
+
+/** Same path as the update toast button: drop caches, then replace with a cache-buster. */
+export const reloadToLatest = async () => {
+  try {
+    sessionStorage.setItem(RELOAD_GUARD_KEY, "1");
+  } catch {
+    // ignore
+  }
+  await clearAllCachesAndSW();
+  const url = new URL(window.location.href);
+  url.searchParams.set("_v", String(Date.now()));
+  window.location.replace(url.toString());
+};
+
 export const triggerReload = async (
   reason: ReloadReason,
   remoteVersion: string,
+  force = false,
 ) => {
-  // ⚠️ لم نعد نعيد التحميل تلقائياً — فقط نُعلم المستخدم عبر Toast
   const entry: ReloadLogEntry = {
     at: new Date().toISOString(),
     reason,
@@ -119,6 +182,12 @@ export const triggerReload = async (
   console.info(
     `[update] available (${reason}): ${entry.oldVersion} → ${entry.newVersion} @ ${entry.at}`,
   );
+  // An explicit button always reloads. Automatic checks wait until no dialog
+  // or unsaved input is open, and otherwise keep the toast.
+  if (force || canAutoReload()) {
+    await reloadToLatest();
+    return;
+  }
   notifyUpdateAvailable(remoteVersion);
 };
 
@@ -137,7 +206,7 @@ export const subscribeToChecks = (fn: (s: LastCheckState) => void) => {
   return () => listeners.delete(fn);
 };
 
-/** listeners للتحديثات المتاحة (لا إعادة تحميل تلقائية) */
+/** listeners للتنبيه عندما توجد نسخة أحدث ولا يمكن إعادة التحميل الآن. */
 export interface UpdateAvailableInfo {
   remoteVersion: string;
   currentVersion: string;
@@ -155,7 +224,7 @@ export const notifyUpdateAvailable = (remoteVersion: string) => {
   updateAvailableListeners.forEach((fn) => fn(info));
 };
 
-/** فحص + إعادة تحميل إن لزم. يُرجع true لو سيُعاد التحميل. */
+/** فحص. يُرجع true عند وجود نسخة أحدث (إعادة تحميل إن كان ذلك آمناً، وإلا التنبيه). */
 export const checkAndReloadIfStale = async (
   reason: ReloadReason,
 ): Promise<boolean> => {
