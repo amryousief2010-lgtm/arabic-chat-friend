@@ -30,6 +30,16 @@ BEGIN
   IF to_regprocedure('public.post_meat_raw_movement(uuid, text, numeric, numeric, text, text, uuid, text, text, numeric, numeric, text)') IS NULL THEN
     RAISE EXCEPTION 'missing post_meat_raw_movement';
   END IF;
+  IF has_function_privilege('anon', 'public.post_inventory_movement(uuid, text, numeric, text, uuid, text, text, text, timestamptz, numeric, text, text, text, boolean, uuid, uuid, text, uuid, text, text, text, uuid, numeric, numeric, uuid)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.post_meat_raw_movement(uuid, text, numeric, numeric, text, text, uuid, text, text, numeric, numeric, text)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.post_named_stock(text, uuid, numeric, text, uuid, text, text, numeric, text, numeric)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.close_legacy_doc_by_stocktake(text, uuid, text)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.close_legacy_docs_by_stocktake(text, uuid[], text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'anon can still execute a ledger posting function';
+  END IF;
+  IF position('PACKAGING_HISTORY_READONLY' in pg_get_functiondef('public.post_meat_raw_movement(uuid, text, numeric, numeric, text, text, uuid, text, text, numeric, numeric, text)'::regprocedure)) = 0 THEN
+    RAISE EXCEPTION 'post_meat_raw_movement lost PACKAGING_HISTORY_READONLY';
+  END IF;
   IF to_regprocedure('public.post_outlet_sale(uuid, numeric, text, uuid, text, text, timestamptz, text)') IS NULL
      OR to_regprocedure('public.save_outlet_sales_statement(uuid, uuid, date, text, jsonb)') IS NULL
      OR to_regprocedure('public.post_outlet_sales_statement(uuid, text)') IS NULL
