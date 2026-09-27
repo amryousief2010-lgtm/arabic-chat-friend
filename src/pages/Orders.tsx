@@ -886,28 +886,14 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           ? `%${tokens.map((t) => t.replace(/[اأإآيىةه]/g, "_")).join("%")}%`
           : "";
         // 1) ابحث عن العملاء المطابقين بالاسم أو الهاتف الأساسي أو الهاتف الإضافي أو المحافظة
-        let custIds: string[] = [];
+        const SELECT_COLS = `${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`;
+        const ordersById = new Map<string, any>();
         const custFilters: string[] = [];
         if (plainPattern) custFilters.push(`name.ilike.${plainPattern}`);
         if (fuzzyPattern && fuzzyPattern !== plainPattern) custFilters.push(`name.ilike.${fuzzyPattern}`);
         if (digits) custFilters.push(`phone.ilike.%${digits}%`);
         if (digits) custFilters.push(`phone2.ilike.%${digits}%`);
         if (plainPattern) custFilters.push(`governorate.ilike.${plainPattern}`);
-        if (custFilters.length > 0) {
-          const { data: cdata, error: custLookupErr } = await supabase
-            .from('customers')
-            .select('id')
-            .or(custFilters.join(','))
-            .limit(1000);
-          if (custLookupErr) console.error('customer search error', custLookupErr);
-          custIds = (cdata || []).map((c: any) => c.id);
-        }
-        // 2) جلب الطلبات على استعلامين منفصلين بدل رابط واحد ضخم:
-        //    (أ) مطابقة نصية على أعمدة الطلب  (ب) مطابقة العملاء على دفعات
-        //    السبب: قائمة معرّفات العملاء الطويلة كانت تُنتج رابطًا ضخمًا يفشل أحيانًا برسالة خطأ.
-        const SELECT_COLS = `${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`;
-        const ordersById = new Map<string, any>();
-
         const textFilters: string[] = [
           `order_number.ilike.%${term}%`,
           `shipping_bill_no.ilike.%${term}%`,
@@ -920,26 +906,41 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         if (fuzzyPattern && fuzzyPattern !== plainPattern) {
           textFilters.push(`delivery_address.ilike.${fuzzyPattern}`);
         }
-        const { data: textData, error: textErr } = await supabase
-          .from('orders')
-          .select(SELECT_COLS)
-          .or(textFilters.join(','))
-          .order('created_at', { ascending: false })
-          .limit(300);
-        if (textErr) throw textErr;
-        (textData || []).forEach((o: any) => ordersById.set(o.id, o));
-
-        const CUST_CHUNK = 100;
-        for (let i = 0; i < custIds.length; i += CUST_CHUNK) {
-          const chunk = custIds.slice(i, i + CUST_CHUNK);
-          const { data: custOrders, error: custErr } = await supabase
+        // Customer lookup and the text match on orders do not depend on each other.
+        const [custRes, textRes] = await Promise.all([
+          custFilters.length > 0
+            ? supabase.from('customers').select('id').or(custFilters.join(',')).limit(1000)
+            : Promise.resolve({ data: [] as { id: string }[], error: null }),
+          supabase
             .from('orders')
             .select(SELECT_COLS)
-            .in('customer_id', chunk)
+            .or(textFilters.join(','))
             .order('created_at', { ascending: false })
-            .limit(300);
-          if (custErr) throw custErr;
-          (custOrders || []).forEach((o: any) => ordersById.set(o.id, o));
+            .limit(300),
+        ]);
+        if (custRes.error) console.error('customer search error', custRes.error);
+        if (textRes.error) throw textRes.error;
+        const custIds = (custRes.data || []).map((c: any) => c.id);
+        (textRes.data || []).forEach((o: any) => ordersById.set(o.id, o));
+
+        const CUST_CHUNK = 100;
+        const custChunks: string[][] = [];
+        for (let i = 0; i < custIds.length; i += CUST_CHUNK) {
+          custChunks.push(custIds.slice(i, i + CUST_CHUNK));
+        }
+        for (let g = 0; g < custChunks.length; g += 4) {
+          const group = custChunks.slice(g, g + 4);
+          const results = await Promise.all(group.map(async (chunk) => {
+            const { data: custOrders, error: custErr } = await supabase
+              .from('orders')
+              .select(SELECT_COLS)
+              .in('customer_id', chunk)
+              .order('created_at', { ascending: false })
+              .limit(300);
+            if (custErr) throw custErr;
+            return custOrders || [];
+          }));
+          results.forEach((rows) => rows.forEach((o: any) => ordersById.set(o.id, o)));
         }
 
         const ords = Array.from(ordersById.values()).sort(
@@ -948,14 +949,19 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         let items: any[] = [];
         if (ords.length > 0) {
           const ids = ords.map((o) => o.id);
-          items = [];
-          for (let i = 0; i < ids.length; i += 200) {
-            const { data: itemsData, error: itemsErr } = await supabase
-              .from('order_items')
-              .select(ITEM_COLS)
-              .in('order_id', ids.slice(i, i + 200));
-            if (itemsErr) throw itemsErr;
-            items = items.concat(itemsData || []);
+          const idChunks: string[][] = [];
+          for (let i = 0; i < ids.length; i += 200) idChunks.push(ids.slice(i, i + 200));
+          for (let g = 0; g < idChunks.length; g += 4) {
+            const group = idChunks.slice(g, g + 4);
+            const results = await Promise.all(group.map(async (chunk) => {
+              const { data: itemsData, error: itemsErr } = await supabase
+                .from('order_items')
+                .select(ITEM_COLS)
+                .in('order_id', chunk);
+              if (itemsErr) throw itemsErr;
+              return itemsData || [];
+            }));
+            results.forEach((rows) => { items = items.concat(rows); });
           }
         }
         await loadLookups(ords, items);
@@ -997,36 +1003,43 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           if (!idRows || idRows.length < ITEM_STEP) break;
         }
         const allIds = Array.from(matchedIds);
-        let acc: Order[] = [];
         const CHUNK = 200;
-        setOrders([]);
-        for (let i = 0; i < allIds.length; i += CHUNK) {
-          const chunk = allIds.slice(i, i + CHUNK);
-          let q = supabase
-            .from('orders')
-            .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`)
-            .in('id', chunk)
-            .order('created_at', { ascending: false });
-          if (startDate) q = q.gte('created_at', startDate);
-          if (endDate) q = q.lt('created_at', endDate);
-          const { data: ordsData, error: ordsErr } = await q;
-          if (ordsErr) throw ordsErr;
-          const ords = (ordsData || []) as any[];
-          if (ords.length === 0) continue;
-          const { data: itemsData, error: itemsErr } = await supabase
-            .from('order_items')
-            .select(ITEM_COLS)
-            .in('order_id', ords.map((o) => o.id));
-          if (itemsErr) throw itemsErr;
-          const byOrder: Record<string, any[]> = {};
-          (itemsData || []).forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
-          await loadLookups(ords, itemsData || []);
-          acc = acc.concat(formatBatch(ords, byOrder));
-          acc.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-          (itemsData || []).forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
-          setOrders(applyStatusOverrides([...acc]));
-          setLoading(false);
+        const idChunks: string[][] = [];
+        for (let i = 0; i < allIds.length; i += CHUNK) idChunks.push(allIds.slice(i, i + CHUNK));
+        let acc: Order[] = [];
+        const SELECT_WITH_REL = `${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`;
+        for (let g = 0; g < idChunks.length; g += 4) {
+          const group = idChunks.slice(g, g + 4);
+          const parts = await Promise.all(group.map(async (chunk) => {
+            let q = supabase
+              .from('orders')
+              .select(SELECT_WITH_REL)
+              .in('id', chunk)
+              .order('created_at', { ascending: false });
+            if (startDate) q = q.gte('created_at', startDate);
+            if (endDate) q = q.lt('created_at', endDate);
+            const { data: ordsData, error: ordsErr } = await q;
+            if (ordsErr) throw ordsErr;
+            const ords = (ordsData || []) as any[];
+            if (ords.length === 0) return { formatted: [] as Order[], items: [] as any[] };
+            const [itemsRes] = await Promise.all([
+              supabase.from('order_items').select(ITEM_COLS).in('order_id', ords.map((o) => o.id)),
+              loadLookups(ords, []),
+            ]);
+            if (itemsRes.error) throw itemsRes.error;
+            const itemsData = itemsRes.data || [];
+            await loadLookups([], itemsData);
+            const byOrder: Record<string, any[]> = {};
+            itemsData.forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
+            return { formatted: formatBatch(ords, byOrder), items: itemsData };
+          }));
+          for (const part of parts) {
+            acc = acc.concat(part.formatted);
+            part.items.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
+          }
         }
+        acc.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        setOrders(applyStatusOverrides(acc));
         setHasMorePages(false);
         setLoading(false);
         return;
@@ -1060,16 +1073,15 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         const { data: modData, error: modErr } = await q;
         if (modErr) throw modErr;
         const ords = (modData || []) as any[];
-        let items: any[] = [];
-        if (ords.length > 0) {
-          const { data: itemsData, error: itemsErr } = await supabase
-            .from('order_items')
-            .select(ITEM_COLS)
-            .in('order_id', ords.map((o) => o.id));
-          if (itemsErr) throw itemsErr;
-          items = itemsData || [];
-        }
-        await loadLookups(ords, items);
+        const [itemsRes] = await Promise.all([
+          ords.length > 0
+            ? supabase.from('order_items').select(ITEM_COLS).in('order_id', ords.map((o) => o.id))
+            : Promise.resolve({ data: [] as any[], error: null }),
+          loadLookups(ords, []),
+        ]);
+        if (itemsRes.error) throw itemsRes.error;
+        const items = itemsRes.data || [];
+        await loadLookups([], items);
         const byOrder: Record<string, any[]> = {};
         items.forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
         items.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
@@ -1099,11 +1111,13 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         const ords = (data || []) as any[];
         if (ords.length === 0) return ords;
         const ids = ords.map((o) => o.id);
-        const { data: itemsData, error: itemsErr } = await supabase
-          .from('order_items')
-          .select(ITEM_COLS)
-          .in('order_id', ids);
-        if (itemsErr) throw itemsErr;
+        const [itemsRes] = await Promise.all([
+          supabase.from('order_items').select(ITEM_COLS).in('order_id', ids),
+          loadLookups(ords, []),
+        ]);
+        if (itemsRes.error) throw itemsRes.error;
+        const itemsData = itemsRes.data || [];
+        await loadLookups([], itemsData);
         const byOrder: Record<string, any[]> = {};
         (itemsData || []).forEach((it: any) => {
           (byOrder[it.order_id] ||= []).push(it);
@@ -1183,28 +1197,13 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         break;
       }
       const ids = ords.map((o) => o.id);
-      const { data: itemsData } = await supabase
-        .from('order_items')
-        .select(ITEM_COLS)
-        .in('order_id', ids);
-      const byOrder: Record<string, any[]> = {};
-      (itemsData || []).forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
-      ords.forEach((o: any) => { o.order_items = byOrder[o.id] || []; });
-      // Reuse formatBatch/loadLookups via a lightweight direct format using existing helpers.
-      // For safety we simply refetch via fetchOrders' pathway: append using formatBatch alternative.
-      // Here we do a minimal in-place merge by re-running fetchOrders is overkill; instead,
-      // reload lookups the same way as first page.
-      const flatItems = ords.flatMap((o: any) => (o.order_items as any[]).map((it) => ({ ...it, order_id: o.id })));
-      const newProducts = Array.from(new Set(flatItems.map((it: any) => it.product_id).filter(Boolean)));
       const newWarehouses = Array.from(new Set(ords.map((o: any) => o.source_warehouse_id).filter(Boolean)));
       const newRoutes = Array.from(new Set(ords.map((o: any) => o.route_id).filter(Boolean)));
       const newCreators = Array.from(new Set(ords.map((o: any) => o.created_by).filter(Boolean)));
-      const [profs, prods, whs, rts] = await Promise.all([
+      const [itemsRes, profs, whs, rts] = await Promise.all([
+        supabase.from('order_items').select(ITEM_COLS).in('order_id', ids),
         newCreators.length
           ? supabase.from('profile_directory').select('id, full_name').in('id', newCreators)
-          : Promise.resolve({ data: [] as any[] }),
-        newProducts.length
-          ? supabase.from('products').select('id, unit').in('id', newProducts)
           : Promise.resolve({ data: [] as any[] }),
         newWarehouses.length
           ? supabase.from('warehouses').select('id, name').in('id', newWarehouses)
@@ -1213,6 +1212,15 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           ? supabase.from('delivery_routes').select('id, name').in('id', newRoutes)
           : Promise.resolve({ data: [] as any[] }),
       ]);
+      const itemsData = itemsRes.data;
+      const byOrder: Record<string, any[]> = {};
+      (itemsData || []).forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
+      ords.forEach((o: any) => { o.order_items = byOrder[o.id] || []; });
+      const flatItems = ords.flatMap((o: any) => (o.order_items as any[]).map((it) => ({ ...it, order_id: o.id })));
+      const newProducts = Array.from(new Set(flatItems.map((it: any) => it.product_id).filter(Boolean)));
+      const prods = newProducts.length
+        ? await supabase.from('products').select('id, unit').in('id', newProducts)
+        : { data: [] as any[] };
       const profMap: Record<string,string> = {}; (profs.data || []).forEach((p:any)=>{profMap[p.id]=p.full_name;});
       const prodMap: Record<string,string> = {}; (prods.data || []).forEach((p:any)=>{prodMap[p.id]=p.unit;});
       const whMap: Record<string,string> = {}; (whs.data || []).forEach((w:any)=>{whMap[w.id]=w.name;});
@@ -2218,7 +2226,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     }
   };
 
-  if (loading) {
+  if (loading && orders.length === 0) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
@@ -2614,6 +2622,13 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
               </span>
             </Button>
           </div>
+
+          {loading && orders.length > 0 && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+              <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-primary" />
+              جارٍ التحديث...
+            </div>
+          )}
 
           {/* Card view (unified for all screens) */}
           <div className="space-y-3">
@@ -3172,7 +3187,8 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
 
 
 
-          {/* Desktop table view */}
+          {/* Desktop table stays CSS-hidden. On mobile it is not mounted at all. */}
+          {!isMobile && (
           <div className="hidden">
           <Table>
             <TableHeader>
@@ -3655,6 +3671,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
             </TableBody>
           </Table>
           </div>
+          )}
           {hasMorePages && !appliedSearch && (
             <div className="flex justify-center py-3">
               <Button
