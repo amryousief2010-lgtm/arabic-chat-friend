@@ -23,8 +23,10 @@ export async function updateOrderStatusShared(params: {
   cancelReason?: string | null;
   /** If true, skip Agouza reservation commit even when there is no active hold (shortage override). */
   agouzaShortageOverride?: boolean;
+  /** Explicit delivery time. Omit on a single-order update so the database defaults to now(). */
+  deliveredAt?: string | null;
 }): Promise<void> {
-  const { orderId, newStatus, userId, cancelReason, agouzaShortageOverride } = params;
+  const { orderId, newStatus, userId, cancelReason, agouzaShortageOverride, deliveredAt } = params;
 
   // Fetch current order snapshot for lifecycle decisions.
   const { data: order, error: fetchErr } = await supabase
@@ -40,6 +42,9 @@ export async function updateOrderStatusShared(params: {
 
   // Build update payload
   const updatePayload: Record<string, any> = { status: newStatus };
+  if (newStatus === "delivered" && deliveredAt) {
+    updatePayload.delivered_at = deliveredAt;
+  }
   if (newStatus === "cancelled" && cancelReason && cancelReason.trim()) {
     const stamp = new Date().toLocaleString("ar-EG");
     const prefix = order.notes ? order.notes + "\n" : "";
