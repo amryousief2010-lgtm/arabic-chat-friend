@@ -27,6 +27,7 @@ export interface LedgerRow {
   transferIn: number;
   returnsIn: number;
   salesOut: number;
+  outletSales: number;
   transferOut: number;
   wasteOut: number;
   manualOut: number;
@@ -37,9 +38,10 @@ export interface LedgerRow {
 
 const PURCHASE_TYPES = new Set(["in", "purchase_receipt", "stock_in", "finished_goods_receipt", "opening_balance"]);
 
-export function movementBucket(m: Pick<LedgerMove, "movement_type" | "reference_type"> & { source_type?: string | null }): keyof Pick<LedgerRow, "purchaseIn" | "transferIn" | "returnsIn" | "salesOut" | "transferOut" | "wasteOut" | "manualOut" | "adjustment"> | null {
+export function movementBucket(m: Pick<LedgerMove, "movement_type" | "reference_type"> & { source_type?: string | null }): keyof Pick<LedgerRow, "purchaseIn" | "transferIn" | "returnsIn" | "salesOut" | "outletSales" | "transferOut" | "wasteOut" | "manualOut" | "adjustment"> | null {
   const source = m.source_type;
-  if (source === "order_delivery" || source === "outlet_sale") return "salesOut";
+  if (source === "outlet_sale") return "outletSales";
+  if (source === "order_delivery") return "salesOut";
   if (source === "order_return") return "returnsIn";
   if (source === "transfer_in") return "transferIn";
   if (source === "transfer_out") return "transferOut";
@@ -74,7 +76,7 @@ export function buildDailyLedger(items: LedgerItem[], moves: LedgerMove[], fromI
     let inRange = 0;
     const buckets = {
       purchaseIn: 0, transferIn: 0, returnsIn: 0,
-      salesOut: 0, transferOut: 0, wasteOut: 0, manualOut: 0, adjustment: 0,
+      salesOut: 0, outletSales: 0, transferOut: 0, wasteOut: 0, manualOut: 0, adjustment: 0,
     };
     list.forEach((m) => {
       if (m.performed_at < fromIso) return;
@@ -101,6 +103,6 @@ export function buildDailyLedger(items: LedgerItem[], moves: LedgerMove[], fromI
     };
   }).filter((r) =>
     r.opening !== 0 || r.closing !== 0 || r.purchaseIn || r.transferIn || r.returnsIn
-    || r.salesOut || r.transferOut || r.wasteOut || r.manualOut || r.adjustment
+    || r.salesOut || r.outletSales || r.transferOut || r.wasteOut || r.manualOut || r.adjustment
   );
 }

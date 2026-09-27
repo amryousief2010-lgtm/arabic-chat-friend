@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { canViewInventoryCost, withItemUnitCost } from "@/lib/inventoryCostAccess";
 import { MAIN_WAREHOUSE_OPERATIONAL_START_ISO } from "@/constants/warehouseOperations";
-import { signedDelta, MOVEMENT_TYPE_LABEL, POSITIVE_TYPES, NEGATIVE_TYPES, type MovementEffectFields } from "@/lib/warehouseMovementSign";
+import { signedDelta, MOVEMENT_TYPE_LABEL, movementDisplayLabel, POSITIVE_TYPES, NEGATIVE_TYPES, type MovementEffectFields } from "@/lib/warehouseMovementSign";
 import { paginateUntilDone } from "@/lib/paginateQuery";
 import { buildDailyLedger, type LedgerRow } from "@/lib/dailyMovementLedger";
 import { MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
@@ -34,13 +34,14 @@ interface Mov {
   notes: string | null;
   party: string | null;
   reference_type?: string | null;
+  source_type?: string | null;
   stock_before: number | null;
   stock_after: number | null;
   effect_mode: string | null;
 }
 
 const MOVEMENT_COLS =
-  "id, movement_no, performed_at, warehouse_id, item_id, movement_type, quantity, reference, reference_type, performed_by, reason, notes, party, stock_before, stock_after, effect_mode";
+  "id, movement_no, performed_at, warehouse_id, item_id, movement_type, quantity, reference, reference_type, source_type, performed_by, reason, notes, party, stock_before, stock_after, effect_mode";
 
 const effectOf = (m: MovementEffectFields & { movement_type: string; quantity: number }) =>
   signedDelta(m.movement_type, m.quantity, m);
@@ -66,9 +67,10 @@ export default function WarehouseDailyReport() {
   const [baselineByItem, setBaselineByItem] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
 
-  const setPreset = (p: "today" | "yesterday") => {
+  const setPreset = (p: "today" | "yesterday" | "month") => {
     if (p === "today") { setFrom(todayISO()); setTo(todayISO()); }
-    else { setFrom(yesterdayISO()); setTo(yesterdayISO()); }
+    else if (p === "yesterday") { setFrom(yesterdayISO()); setTo(yesterdayISO()); }
+    else { setFrom(todayISO().slice(0, 8) + "01"); setTo(todayISO()); }
   };
 
   const load = async () => {
@@ -99,7 +101,8 @@ export default function WarehouseDailyReport() {
             .order("id", { ascending: false })
             .range(from, to);
           if (selected) q = q.eq("warehouse_id", selected.id);
-          if (typeFilter !== "all") q = q.eq("movement_type", typeFilter);
+          if (typeFilter === "outlet_sale") q = q.eq("source_type", "outlet_sale");
+          else if (typeFilter !== "all") q = q.eq("movement_type", typeFilter);
           if (userFilter !== "all") q = q.eq("performed_by", userFilter);
           const { data, error } = await q;
           if (error) throw error;
@@ -130,7 +133,7 @@ export default function WarehouseDailyReport() {
         idOf: (r) => r.id,
         fetchPage: async (from, to) => {
           let q = supabase.from("inventory_movements")
-            .select("id, performed_at, warehouse_id, item_id, movement_type, quantity, reference_type, stock_before, stock_after, effect_mode")
+            .select("id, performed_at, warehouse_id, item_id, movement_type, quantity, reference_type, source_type, stock_before, stock_after, effect_mode")
             .gte("performed_at", effectiveFrom)
             .order("performed_at", { ascending: true })
             .order("id", { ascending: true })
@@ -271,6 +274,7 @@ export default function WarehouseDailyReport() {
       "وارد تحويل": r.transferIn,
       "مرتجعات": r.returnsIn,
       "صرف مبيعات": r.salesOut,
+      "مبيعات منفذ": r.outletSales,
       "صرف تحويل": r.transferOut,
       "هالك": r.wasteOut,
       "صرف يدوي": r.manualOut,
@@ -288,7 +292,7 @@ export default function WarehouseDailyReport() {
     const data = visible.map(r => ({
       "التاريخ والوقت": new Date(r.performed_at).toLocaleString("ar-EG"),
       "رقم العملية": r.movement_no || "—",
-      "نوع الحركة": MOVEMENT_TYPE_LABEL[r.movement_type] || r.movement_type,
+      "نوع الحركة": movementDisplayLabel(r.movement_type, r.source_type),
       "الصنف": items[r.item_id]?.name || "—",
       "الوحدة": items[r.item_id]?.unit || "",
       "الكمية": Number(r.quantity),
@@ -318,7 +322,7 @@ export default function WarehouseDailyReport() {
       <tr>
         <td>${escapeHtml(fmtDate(r.performed_at))}</td>
         <td>${escapeHtml(r.movement_no || "—")}</td>
-        <td>${escapeHtml(MOVEMENT_TYPE_LABEL[r.movement_type] || r.movement_type)}</td>
+        <td>${escapeHtml(movementDisplayLabel(r.movement_type, r.source_type))}</td>
         <td>${escapeHtml(items[r.item_id]?.name || "—")}</td>
         <td class="num">${escapeHtml(fmtNum(r.quantity, 2))}</td>
         <td>${escapeHtml(r.party || "—")}</td>
@@ -413,6 +417,7 @@ export default function WarehouseDailyReport() {
             <div className="flex gap-2 flex-wrap">
               <Button size="sm" variant="outline" onClick={() => setPreset("today")}>اليوم</Button>
               <Button size="sm" variant="outline" onClick={() => setPreset("yesterday")}>أمس</Button>
+              <Button size="sm" variant="outline" onClick={() => setPreset("month")}>هذا الشهر</Button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
               <div className="md:col-span-2"><Label className="text-xs">المخزن</Label>
@@ -431,6 +436,7 @@ export default function WarehouseDailyReport() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">الكل</SelectItem>
+                    <SelectItem value="outlet_sale">مبيعات منفذ</SelectItem>
                     {allTypes.map(t => <SelectItem key={t} value={t}>{MOVEMENT_TYPE_LABEL[t] || t}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -465,6 +471,7 @@ export default function WarehouseDailyReport() {
                   <TableHead>تحويل داخل</TableHead>
                   <TableHead>مرتجع</TableHead>
                   <TableHead>مبيعات</TableHead>
+                  <TableHead>مبيعات منفذ</TableHead>
                   <TableHead>تحويل خارج</TableHead>
                   <TableHead>هالك</TableHead>
                   <TableHead>صرف يدوي</TableHead>
@@ -475,7 +482,7 @@ export default function WarehouseDailyReport() {
               </TableHeader>
               <TableBody>
                 {ledger.length === 0 ? (
-                  <TableRow><TableCell colSpan={13} className="text-center py-6 text-muted-foreground">لا توجد أرصدة في هذه الفترة</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={14} className="text-center py-6 text-muted-foreground">لا توجد أرصدة في هذه الفترة</TableCell></TableRow>
                 ) : ledger.slice(0, 300).map((r) => (
                   <TableRow key={r.item_id}>
                     <TableCell className="text-xs">{warehouses.find((w) => w.id === r.warehouse_id)?.name || "—"}</TableCell>
@@ -485,6 +492,7 @@ export default function WarehouseDailyReport() {
                     <TableCell className="font-mono">{r.transferIn.toFixed(2)}</TableCell>
                     <TableCell className="font-mono">{r.returnsIn.toFixed(2)}</TableCell>
                     <TableCell className="font-mono">{r.salesOut.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono">{r.outletSales.toFixed(2)}</TableCell>
                     <TableCell className="font-mono">{r.transferOut.toFixed(2)}</TableCell>
                     <TableCell className="font-mono">{r.wasteOut.toFixed(2)}</TableCell>
                     <TableCell className="font-mono">{r.manualOut.toFixed(2)}</TableCell>
@@ -553,7 +561,7 @@ export default function WarehouseDailyReport() {
                   <TableRow key={r.id}>
                     <TableCell className="text-xs whitespace-nowrap">{new Date(r.performed_at).toLocaleString("ar-EG")}</TableCell>
                     <TableCell className="text-xs font-mono">{r.movement_no || "—"}</TableCell>
-                    <TableCell><Badge variant={POSITIVE_TYPES.has(r.movement_type) ? "default" : NEGATIVE_TYPES.has(r.movement_type) ? "destructive" : "secondary"}>{MOVEMENT_TYPE_LABEL[r.movement_type] || r.movement_type}</Badge></TableCell>
+                    <TableCell><Badge variant={POSITIVE_TYPES.has(r.movement_type) ? "default" : NEGATIVE_TYPES.has(r.movement_type) ? "destructive" : "secondary"}>{movementDisplayLabel(r.movement_type, r.source_type)}</Badge></TableCell>
                     <TableCell className="text-sm">{items[r.item_id]?.name || "—"}</TableCell>
                     <TableCell className="font-mono">{Number(r.quantity).toLocaleString("ar-EG")}</TableCell>
                     <TableCell className="text-xs">{r.party || "—"}</TableCell>

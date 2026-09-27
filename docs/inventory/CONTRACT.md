@@ -17,6 +17,7 @@
 11. Who may receive a transfer is `warehouse_role_grants` by warehouse id, not by warehouse name. General manager and executive manager may receive any warehouse.
 12. Do not change offer-box shipping, `orders.created_by` (the marketer), or order totals in inventory work.
 13. `scripts/check_inventory_client_writes.py` fails CI if client or edge code writes the ledger tables directly. `scripts/check_ledger_stock_writers.sql` fails CI if any function other than the ledger assigns `inventory_items.stock`.
+14. Carrefour and Healthy Taste monthly sales are `outlet_sales_statements`. Save a draft with `save_outlet_sales_statement`, post with `post_outlet_sales_statement` (each line calls `post_outlet_sale` with the statement id and the line id), and correct with `reverse_outlet_sales_statement`. Do not post the same line by hand. If a stocktake lock covers that month, only `general_manager` or `executive_manager` may post, with a written override. The daily movement report shows these rows as مبيعات منفذ.
 
 ## Source types
 

@@ -84,6 +84,11 @@ export const MOVEMENT_TYPE_LABEL: Record<string, string> = {
   stock_out: "إخراج",
 };
 
+export function movementDisplayLabel(movementType: string, sourceType?: string | null): string {
+  if (sourceType === "outlet_sale") return "مبيعات منفذ";
+  return MOVEMENT_TYPE_LABEL[movementType] || movementType;
+}
+
 export const isAdjustmentLike = (m: { movement_type: string; reason?: string | null }) => {
   const t = m.movement_type;
   if (t === "adjustment" || t === "adjust" || t === "reconciliation") return true;

@@ -44,6 +44,6 @@ jobs:
       - name: Install
         run: npm install --ignore-scripts
       - name: Unit tests
-        run: npx vitest run src/lib/__tests__/dailyMovementLedger.test.ts src/lib/__tests__/inventoryReadApi.test.ts src/lib/__tests__/packWeight.test.ts src/lib/__tests__/warehouseMovementSign.test.ts src/lib/__tests__/bulkDelivery.test.ts src/lib/__tests__/factoryDataQuality.test.ts src/test/return-movement-trigger-math.test.ts src/lib/__tests__/productCostPricesSecurity.test.ts
+        run: npx vitest run src/lib/__tests__/dailyMovementLedger.test.ts src/lib/__tests__/inventoryReadApi.test.ts src/lib/__tests__/packWeight.test.ts src/lib/__tests__/warehouseMovementSign.test.ts src/lib/__tests__/bulkDelivery.test.ts src/lib/__tests__/factoryDataQuality.test.ts src/test/return-movement-trigger-math.test.ts src/lib/__tests__/productCostPricesSecurity.test.ts src/lib/__tests__/outletSalesStatement.test.ts
       - name: Build
         run: npm run build

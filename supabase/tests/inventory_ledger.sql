@@ -24,6 +24,10 @@ DECLARE
   v_line2 uuid := gen_random_uuid();
   v_session uuid := gen_random_uuid();
   v_note text;
+  v_out_wh uuid := gen_random_uuid();
+  v_out_prod uuid := gen_random_uuid();
+  v_out_item uuid;
+  v_stmt uuid;
 BEGIN
   INSERT INTO auth.users (id, email, aud, role) VALUES
     (v_gm, 'ledger-gm-' || v_gm::text || '@test.local', 'authenticated', 'authenticated'),
@@ -254,6 +258,92 @@ BEGIN
   END;
   PERFORM set_config('app.inventory_bridge_insert', 'off', true);
   PERFORM set_config('app.inventory_stock_write', 'off', true);
+
+  -- Monthly outlet statement: one source key per line, lock override, reverse.
+  INSERT INTO public.warehouses (id, name) VALUES (v_out_wh, 'هايبر كارفور كشف');
+  INSERT INTO public.products (id, name, price, barcode, is_active, pack_weight_kg)
+  VALUES (v_out_prod, 'فيليه كشف', 10, 'OC' || left(v_out_prod::text, 8), true, 0.5);
+  SELECT id INTO v_out_item
+    FROM public.inventory_items
+   WHERE warehouse_id = v_out_wh AND product_id = v_out_prod;
+  IF v_out_item IS NULL THEN
+    RAISE EXCEPTION 'outlet card was not created';
+  END IF;
+  UPDATE public.inventory_items SET pack_weight_kg = 0.5 WHERE id = v_out_item;
+
+  PERFORM set_config('request.jwt.claim.sub', v_gm::text, true);
+  v_res := public.post_inventory_movement(
+    v_out_item, 'in', 20, 'manual_in', gen_random_uuid(), '1',
+    'افتتاح منفذ', NULL, now(), NULL, NULL, NULL, 'delta', false,
+    v_out_wh, v_out_prod, 'test', NULL, NULL, 'manual_in', NULL, NULL, NULL, NULL, NULL
+  );
+  IF v_res->>'status' IS DISTINCT FROM 'posted' THEN
+    RAISE EXCEPTION 'outlet opening %', v_res;
+  END IF;
+
+  PERFORM set_config('request.jwt.claim.sub', v_acct::text, true);
+  v_res := public.save_outlet_sales_statement(
+    NULL, v_out_wh, DATE '2026-08-01', 'كشف أغسطس',
+    jsonb_build_array(
+      jsonb_build_object('item_id', v_out_item, 'qty', 2, 'unit', 'pack', 'amount', 50),
+      jsonb_build_object('item_id', v_out_item, 'qty', 1, 'unit', 'kg')
+    )
+  );
+  v_stmt := (v_res->>'id')::uuid;
+  IF COALESCE((v_res->>'total_kg')::numeric, 0) <> 2 THEN
+    RAISE EXCEPTION 'outlet kg conversion %', v_res;
+  END IF;
+
+  BEGIN
+    PERFORM public.save_outlet_sales_statement(NULL, v_wh, DATE '2026-08-01', 'ممنوع', '[]'::jsonb);
+    RAISE EXCEPTION 'non-outlet statement was allowed';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%OUTLET_ONLY%' THEN
+      RAISE;
+    END IF;
+  END;
+
+  INSERT INTO public.warehouse_period_locks (warehouse_id, locked_until, source, source_id)
+  VALUES (v_out_wh, timestamptz '2026-09-01 00:00:00 Africa/Cairo', 'stocktaking', gen_random_uuid());
+
+  BEGIN
+    PERFORM public.post_outlet_sales_statement(v_stmt, NULL);
+    RAISE EXCEPTION 'locked outlet post was allowed';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%مقفلة%' THEN
+      RAISE;
+    END IF;
+  END;
+  SELECT stock INTO v_stock FROM public.inventory_items WHERE id = v_out_item;
+  IF v_stock <> 20 THEN RAISE EXCEPTION 'failed post changed outlet stock to %', v_stock; END IF;
+
+  PERFORM set_config('request.jwt.claim.sub', v_gm::text, true);
+  v_res := public.post_outlet_sales_statement(v_stmt, 'تجاوز جرد أغسطس');
+  IF v_res->>'status' IS DISTINCT FROM 'posted' THEN
+    RAISE EXCEPTION 'outlet post %', v_res;
+  END IF;
+  SELECT stock INTO v_stock FROM public.inventory_items WHERE id = v_out_item;
+  IF v_stock <> 18 THEN RAISE EXCEPTION 'outlet statement stock = %', v_stock; END IF;
+
+  v_res := public.post_outlet_sales_statement(v_stmt, 'تجاوز جرد أغسطس');
+  IF v_res->>'status' IS DISTINCT FROM 'already_posted' THEN
+    RAISE EXCEPTION 'outlet repost %', v_res;
+  END IF;
+  UPDATE public.outlet_sales_statements SET status = 'draft' WHERE id = v_stmt;
+  v_res := public.post_outlet_sales_statement(v_stmt, 'تجاوز جرد أغسطس');
+  IF v_res->>'status' IS DISTINCT FROM 'posted' THEN
+    RAISE EXCEPTION 'outlet source-key repost %', v_res;
+  END IF;
+  SELECT stock INTO v_stock FROM public.inventory_items WHERE id = v_out_item;
+  IF v_stock <> 18 THEN RAISE EXCEPTION 'source key posted twice, stock = %', v_stock; END IF;
+
+  PERFORM set_config('request.jwt.claim.sub', v_acct::text, true);
+  v_res := public.reverse_outlet_sales_statement(v_stmt, 'عكس كشف أغسطس');
+  IF v_res->>'status' IS DISTINCT FROM 'reversed' THEN
+    RAISE EXCEPTION 'outlet reverse %', v_res;
+  END IF;
+  SELECT stock INTO v_stock FROM public.inventory_items WHERE id = v_out_item;
+  IF v_stock <> 20 THEN RAISE EXCEPTION 'outlet stock after reverse = %', v_stock; END IF;
 
   RAISE NOTICE 'LEDGER_SCENARIOS_OK stock=%', (SELECT stock FROM public.inventory_items WHERE id = v_item);
 END $$;

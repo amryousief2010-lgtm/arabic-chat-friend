@@ -10,7 +10,8 @@ describe("daily movement ledger", () => {
     expect(movementBucket({ movement_type: "transfer" })).toBe("transferOut");
     expect(movementBucket({ movement_type: "waste_loss" })).toBe("wasteOut");
     expect(movementBucket({ movement_type: "out" })).toBe("manualOut");
-    expect(movementBucket({ movement_type: "out", source_type: "outlet_sale" })).toBe("salesOut");
+    expect(movementBucket({ movement_type: "out", source_type: "outlet_sale" })).toBe("outletSales");
+    expect(movementBucket({ movement_type: "sales_dispatch", source_type: "order_delivery" })).toBe("salesOut");
     expect(movementBucket({ movement_type: "adjustment", source_type: "stocktake" })).toBe("adjustment");
     expect(movementBucket({ movement_type: "in", source_type: "transfer_in" })).toBe("transferIn");
   });

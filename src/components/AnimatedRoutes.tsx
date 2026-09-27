@@ -131,6 +131,7 @@ const WarehouseStocktaking = lazy(() => import("@/pages/modules/WarehouseStockta
 const WarehouseReports = lazy(() => import("@/pages/modules/WarehouseReports"));
 const WarehouseDailyReport = lazy(() => import("@/pages/modules/WarehouseDailyReport"));
 const InventoryReconciliation = lazy(() => import("@/pages/modules/InventoryReconciliation"));
+const OutletSalesStatements = lazy(() => import("@/pages/modules/OutletSalesStatements"));
 const WarehouseAdjustmentsLog = lazy(() => import("@/pages/modules/WarehouseAdjustmentsLog"));
 const RecipeDetail = lazy(() => import("@/pages/modules/feed/RecipeDetail"));
 const BatchTracking = lazy(() => import("@/pages/modules/feed/BatchTracking"));
@@ -1099,6 +1100,11 @@ const AnimatedRoutes = () => {
           <Route path="/modules/warehouses/reconciliation" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager', 'cost_accountant', 'agouza_warehouse_keeper']}>
               <PageTransition><InventoryReconciliation /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/outlet-statements" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager']}>
+              <PageTransition><OutletSalesStatements /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/daily-report" element={

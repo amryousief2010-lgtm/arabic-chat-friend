@@ -27,6 +27,12 @@ BEGIN
   IF to_regprocedure('public.post_meat_raw_movement(uuid, text, numeric, numeric, text, text, uuid, text, text, numeric, numeric, text)') IS NULL THEN
     RAISE EXCEPTION 'missing post_meat_raw_movement';
   END IF;
+  IF to_regprocedure('public.post_outlet_sale(uuid, numeric, text, uuid, text, text, timestamptz, text)') IS NULL
+     OR to_regprocedure('public.save_outlet_sales_statement(uuid, uuid, date, text, jsonb)') IS NULL
+     OR to_regprocedure('public.post_outlet_sales_statement(uuid, text)') IS NULL
+     OR to_regprocedure('public.reverse_outlet_sales_statement(uuid, text)') IS NULL THEN
+    RAISE EXCEPTION 'missing outlet sales statement functions';
+  END IF;
   IF NOT EXISTS (
     SELECT 1 FROM pg_trigger
      WHERE tgname = 'trg_00_reject_direct_inventory_stock_write'
