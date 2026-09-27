@@ -22319,6 +22319,17 @@ export type Database = {
         }[]
       }
       get_dashboard_overview: { Args: never; Returns: Json }
+      get_orders_by_source: {
+        Args: { p_from?: string }
+        Returns: {
+          order_count: number
+          source: string
+        }[]
+      }
+      get_report_aggregates: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
       get_farm_idle_threshold: { Args: never; Returns: number }
       get_hr_documents_status: {
         Args: never

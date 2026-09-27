@@ -52,6 +52,8 @@ jobs:
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/inventory_packaging_warehouse.sql
       - name: Remaining open items
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/inventory_remaining_open.sql
+      - name: Dashboard aggregate equivalence
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/dashboard_aggregates_equivalence.sql
       - name: Concurrency
         run: python3 scripts/inventory_ledger_concurrency.py
       - name: Client write lint

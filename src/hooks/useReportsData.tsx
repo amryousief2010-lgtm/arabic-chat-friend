@@ -5,10 +5,7 @@ import {
   cairoMonthStartUTC,
   cairoYearStartUTC,
   currentCairoYearMonth,
-  toCairoDateString,
 } from "@/lib/cairoDate";
-import { applySalesNetFilter } from "@/lib/orderSalesFilters";
-import { chunkIds, paginateUntilDone } from "@/lib/paginateQuery";
 
 export type ReportPeriod = "month" | "quarter" | "half" | "year" | "all";
 
@@ -40,75 +37,44 @@ function getDateRange(period: ReportPeriod): { from: string; to: string } {
   return { from: from.toISOString(), to };
 }
 
-const MONTH_NAMES = [
-  "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
-  "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
-];
+type ReportAggregates = {
+  totalSales: number;
+  totalOrders: number;
+  avgOrderValue: number;
+  monthlySales: { month: string; sales: number; orders: number; momPercent: number }[];
+  governorateData: { name: string; sales: number; orders: number }[];
+  sourceData: { name: string; value: number; orders: number }[];
+  shippingData: { name: string; value: number; orders: number }[];
+  moderatorData: { name: string; sales: number; orders: number; percent: number }[];
+  productData: { name: string; quantity: number }[];
+};
 
-const PAGE_SIZE = 1000;
-const MAX_PAGES = 40;
-const ITEM_CHUNK = 200;
-
-type ReportOrderRow = {
-  id: string;
-  total: number | string | null;
-  created_at: string;
-  source: string | null;
-  shipping_company: string | null;
-  moderator: string | null;
-  customer_id: string | null;
-  customers?: { city?: string | null } | null;
+const EMPTY_AGGREGATES: ReportAggregates = {
+  totalSales: 0,
+  totalOrders: 0,
+  avgOrderValue: 0,
+  monthlySales: [],
+  governorateData: [],
+  sourceData: [],
+  shippingData: [],
+  moderatorData: [],
+  productData: [],
 };
 
 export const useReportsData = (period: ReportPeriod) => {
   const { from, to } = useMemo(() => getDateRange(period), [period]);
 
-  // Fetch orders with customer city — sales net (excludes cancelled)
-  const ordersQuery = useQuery({
-    queryKey: ["reports-orders", "sales-net", from, to],
+  // Same Cairo bounds as before. The RPC applies the sales-net filter,
+  // the 40,000-row cap, and the groupings the page used to compute in the browser.
+  const aggregatesQuery = useQuery({
+    queryKey: ["reports-aggregates", "sales-net", from, to],
     queryFn: async () => {
-      return paginateUntilDone<ReportOrderRow>({
-        pageSize: PAGE_SIZE,
-        maxPages: MAX_PAGES,
-        idOf: (row) => row.id,
-        fetchPage: async (rangeFrom, rangeTo) => {
-          const { data, error } = await applySalesNetFilter(
-            supabase
-              .from("orders")
-              .select("id, total, created_at, source, shipping_company, moderator, customer_id, customers(city)")
-              .gte("created_at", from)
-              .lte("created_at", to)
-              .order("created_at", { ascending: true })
-              .order("id", { ascending: true }),
-          ).range(rangeFrom, rangeTo);
-          if (error) throw error;
-          return data || [];
-        },
+      const { data, error } = await supabase.rpc("get_report_aggregates", {
+        p_from: from,
+        p_to: to,
       });
-    },
-    staleTime: 3 * 60 * 1000,
-    retry: 1,
-  });
-
-  // Product analytics: fetch items by the order ids we already have.
-  // The previous query paginated `order_items` with `orders!inner` + `.range()`
-  // and no `.order()`, which can return the same 1000 rows forever so
-  // `isLoading` never clears.
-  const itemsQuery = useQuery({
-    queryKey: ["reports-items", "sales-net", from, to, ordersQuery.dataUpdatedAt],
-    enabled: !!ordersQuery.data,
-    queryFn: async () => {
-      const ids = (ordersQuery.data || []).map((o: { id: string }) => o.id).filter(Boolean);
-      const allItems: { product_name: string; quantity: number; order_id: string }[] = [];
-      for (const chunk of chunkIds(ids, ITEM_CHUNK)) {
-        const { data, error } = await supabase
-          .from("order_items")
-          .select("product_name, quantity, order_id")
-          .in("order_id", chunk);
-        if (error) throw error;
-        if (data) allItems.push(...data);
-      }
-      return allItems;
+      if (error) throw error;
+      return (data || EMPTY_AGGREGATES) as ReportAggregates;
     },
     staleTime: 3 * 60 * 1000,
     retry: 1,
@@ -128,136 +94,15 @@ export const useReportsData = (period: ReportPeriod) => {
     retry: 1,
   });
 
-  // Compute analytics
-  const analytics = useMemo(() => {
-    const orders = ordersQuery.data || [];
-    const items = itemsQuery.data || [];
-
-    const totalSales = orders.reduce((s, o) => s + Number(o.total), 0);
-    const totalOrders = orders.length;
-    const avgOrderValue = totalOrders > 0 ? Math.round(totalSales / totalOrders) : 0;
-
-    // Monthly breakdown — group by Cairo-local month so orders after midnight
-    // Cairo count under the new month (not the previous UTC month).
-    const monthMap: Record<string, { sales: number; orders: number }> = {};
-    for (const o of orders) {
-      const key = toCairoDateString(o.created_at).slice(0, 7); // YYYY-MM
-      if (!monthMap[key]) monthMap[key] = { sales: 0, orders: 0 };
-      monthMap[key].sales += Number(o.total);
-      monthMap[key].orders++;
-    }
-
-    const monthlySales = Object.entries(monthMap)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, val], i, arr) => {
-        const monthIdx = parseInt(key.split("-")[1]) - 1;
-        const prevSales = i > 0 ? arr[i - 1][1].sales : val.sales;
-        const mom = i > 0 ? Math.round(((val.sales - prevSales) / prevSales) * 1000) / 10 : 0;
-        return {
-          month: MONTH_NAMES[monthIdx],
-          sales: Math.round(val.sales),
-          orders: val.orders,
-          momPercent: mom,
-        };
-      });
-
-    // Governorate (from customer city)
-    const govMap: Record<string, { sales: number; orders: number }> = {};
-    for (const o of orders) {
-      const city = (o.customers as any)?.city || "غير محدد";
-      if (!govMap[city]) govMap[city] = { sales: 0, orders: 0 };
-      govMap[city].sales += Number(o.total);
-      govMap[city].orders++;
-    }
-    const governorateData = Object.entries(govMap)
-      .map(([name, val]) => ({ name, sales: Math.round(val.sales), orders: val.orders }))
-      .sort((a, b) => b.sales - a.sales)
-      .slice(0, 10);
-
-    // Sources
-    const srcMap: Record<string, number> = {};
-    for (const o of orders) {
-      const src = o.source || "غير محدد";
-      srcMap[src] = (srcMap[src] || 0) + 1;
-    }
-    const sourceData = Object.entries(srcMap)
-      .map(([name, count]) => ({
-        name,
-        value: totalOrders > 0 ? Math.round((count / totalOrders) * 1000) / 10 : 0,
-        orders: count,
-      }))
-      .sort((a, b) => b.orders - a.orders)
-      .slice(0, 15);
-
-    // Shipping companies
-    const shipMap: Record<string, number> = {};
-    for (const o of orders) {
-      const ship = o.shipping_company || "غير محدد";
-      shipMap[ship] = (shipMap[ship] || 0) + 1;
-    }
-    const shippingData = Object.entries(shipMap)
-      .map(([name, count]) => ({
-        name,
-        value: totalOrders > 0 ? Math.round((count / totalOrders) * 1000) / 10 : 0,
-        orders: count,
-      }))
-      .sort((a, b) => b.orders - a.orders)
-      .slice(0, 5);
-
-    // Moderators
-    const modMap: Record<string, { sales: number; orders: number }> = {};
-    for (const o of orders) {
-      const mod = o.moderator || "غير محدد";
-      if (!modMap[mod]) modMap[mod] = { sales: 0, orders: 0 };
-      modMap[mod].sales += Number(o.total);
-      modMap[mod].orders++;
-    }
-    const moderatorData = Object.entries(modMap)
-      .map(([name, val]) => ({
-        name,
-        sales: Math.round(val.sales),
-        orders: val.orders,
-        percent: totalSales > 0 ? Math.round((val.sales / totalSales) * 1000) / 10 : 0,
-      }))
-      .sort((a, b) => b.sales - a.sales)
-      .slice(0, 7);
-
-    // Top products
-    const prodMap: Record<string, number> = {};
-    for (const item of items) {
-      const name = item.product_name || "غير محدد";
-      prodMap[name] = (prodMap[name] || 0) + Number(item.quantity);
-    }
-    const productData = Object.entries(prodMap)
-      .map(([name, quantity]) => ({ name, quantity: Math.round(quantity) }))
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 10);
-
-    return {
-      totalSales,
-      totalOrders,
-      avgOrderValue,
-      totalCustomers: customersQuery.data || 0,
-      monthlySales,
-      governorateData,
-      sourceData,
-      shippingData,
-      moderatorData,
-      productData,
-    };
-  }, [ordersQuery.data, itemsQuery.data, customersQuery.data]);
-
-  const ordersError = ordersQuery.error as Error | null;
-  const itemsError = itemsQuery.error as Error | null;
+  const aggregates = aggregatesQuery.data || EMPTY_AGGREGATES;
 
   return {
-    ...analytics,
-    // KPI cards + sales charts only need orders. Waiting on items used to leave
-    // the whole page on skeletons when the items query hung.
-    isLoading: ordersQuery.isLoading,
-    isItemsLoading: itemsQuery.isLoading || (ordersQuery.isSuccess && itemsQuery.isPending),
-    isError: ordersQuery.isError,
-    isItemsError: itemsQuery.isError,
-    errorMessage: ordersError?.message || itemsError?.message || null,
+    ...aggregates,
+    totalCustomers: customersQuery.data || 0,
+    isLoading: aggregatesQuery.isLoading,
+    isItemsLoading: aggregatesQuery.isLoading,
+    isError: aggregatesQuery.isError,
+    isItemsError: aggregatesQuery.isError,
+    errorMessage: (aggregatesQuery.error as Error | null)?.message || null,
   };
 };

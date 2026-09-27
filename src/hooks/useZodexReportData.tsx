@@ -144,15 +144,20 @@ export const useZodexReportData = (period: ReportPeriod) => {
     retry: 1,
   });
 
-  // Live refresh: any change on orders or the Zodex tables re-runs the report.
+  // Live refresh: Zodex tables still refresh immediately. The sales aggregates
+  // used to re-download every order row on each change; wait 60s and refetch once.
   useEffect(() => {
+    let reportsTimer: ReturnType<typeof setTimeout> | null = null;
     const invalidate = () => {
       queryClient.invalidateQueries({ queryKey: ["zodex-report-shipments"] });
       queryClient.invalidateQueries({ queryKey: ["zodex-report-invoices"] });
       queryClient.invalidateQueries({ queryKey: ["zodex-report-missing"] });
       queryClient.invalidateQueries({ queryKey: ["zodex-report-last-run"] });
-      queryClient.invalidateQueries({ queryKey: ["reports-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["reports-items"] });
+      if (reportsTimer != null) return;
+      reportsTimer = setTimeout(() => {
+        reportsTimer = null;
+        queryClient.invalidateQueries({ queryKey: ["reports-aggregates"] });
+      }, 60_000);
     };
 
     const channel = supabase.channel("zodex-reports-live");
@@ -167,6 +172,7 @@ export const useZodexReportData = (period: ReportPeriod) => {
     }
     channel.subscribe();
     return () => {
+      if (reportsTimer != null) clearTimeout(reportsTimer);
       supabase.removeChannel(channel);
     };
   }, [queryClient]);
