@@ -179,8 +179,8 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
 
       const whIds = [agouza?.id, main?.id, carrefour?.id, healthy?.id].filter(Boolean) as string[];
       if (whIds.length > 0) {
-        const { data: invRows } = await supabase
-          .from("inventory_items")
+        const { data: invRows } = await (supabase as any)
+          .from("inventory_items_visible")
           .select("id, warehouse_id, product_id, name, category, unit, stock, reserved_qty, blocked_qty, sku, item_code, low_stock_threshold, is_active, module")
           .in("warehouse_id", whIds);
 
@@ -292,8 +292,8 @@ const WarehouseStockView = ({ scope = "both", embedded = false }: Props) => {
         Object.entries(exIds.healthy).forEach(([pid, iid]) => allItemIds.push({ pid, iid, whKey: "healthy" }));
         if (allItemIds.length > 0) {
           const itemIdList = allItemIds.map(x => x.iid);
-          const { data: lastMoves } = await supabase
-            .from("inventory_movements")
+          const { data: lastMoves } = await (supabase as any)
+            .from("inventory_movements_visible")
             .select("item_id, performed_at")
             .in("item_id", itemIdList)
             .order("performed_at", { ascending: false })

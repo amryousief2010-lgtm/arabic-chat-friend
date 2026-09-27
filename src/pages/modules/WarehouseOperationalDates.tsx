@@ -45,8 +45,8 @@ export default function WarehouseOperationalDates({ embedded = false }: Warehous
       const [{ count: opCount }, { count: preCount }] = await Promise.all([
         supabase.from("warehouse_opening_balances").select("id", { count: "exact", head: true }).eq("warehouse_id", w.id),
         w.operational_start_date
-          ? supabase
-              .from("inventory_movements")
+          ? (supabase as any)
+              .from("inventory_movements_visible")
               .select("id", { count: "exact", head: true })
               .eq("warehouse_id", w.id)
               .lt("performed_at", w.operational_start_date)

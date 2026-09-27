@@ -765,7 +765,7 @@ export default function ManufacturingInvoices() {
       const [{ data: ls }, { data: fi }] = await Promise.all([
         supabase.from("meat_manufacturing_invoice_lines" as any).select("*").eq("invoice_id", inv.id).order("kind"),
         inv.finished_item_id
-          ? supabase.from("inventory_items").select("name, stock").eq("id", inv.finished_item_id).maybeSingle()
+          ? (supabase as any).from("inventory_items_visible").select("name, stock").eq("id", inv.finished_item_id).maybeSingle()
           : Promise.resolve({ data: null } as any),
       ]);
       setCancelImpact({

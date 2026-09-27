@@ -125,8 +125,8 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
       const openAt = (ob as any)?.opened_at as string | undefined;
       setOpeningAt(openAt ?? null);
 
-      let q = supabase
-        .from("inventory_movements_visible" as any)
+      let q = (supabase as any)
+        .from("inventory_movements_visible")
         .select("id, performed_at, movement_type, quantity, notes, reason, party, item_id, warehouse_id, source_warehouse_id, destination_warehouse_id, performed_by, reference_type, reference, package_count, package_weight_kg, unit_cost, total_cost")
         .or(`warehouse_id.eq.${wh.id},source_warehouse_id.eq.${wh.id},destination_warehouse_id.eq.${wh.id}`)
         .order("performed_at", { ascending: false })
@@ -151,11 +151,11 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
       const itemIds = Array.from(new Set((mvs || []).map((m: any) => m.item_id).filter(Boolean)));
       const whIds = Array.from(new Set(
         (mvs || []).flatMap((m: any) => [m.warehouse_id, m.source_warehouse_id, m.destination_warehouse_id]).filter(Boolean)
-      ));
+      )) as string[];
       const userIds = Array.from(new Set((mvs || []).map((m: any) => m.performed_by).filter(Boolean)));
 
       const items = itemIds.length
-        ? (await supabase.from("inventory_items").select("id, name, unit").in("id", itemIds)).data || []
+        ? (await (supabase as any).from("inventory_items_visible").select("id, name, unit").in("id", itemIds)).data || []
         : [];
       const whs = whIds.length
         ? (await supabase.from("warehouses").select("id, name").in("id", whIds)).data || []
@@ -167,7 +167,7 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
 
 
 
-      const itemMap = new Map((items || []).map((i: any) => [i.id, i]));
+      const itemMap = new Map<string, { name?: string; unit?: string }>((items || []).map((i: any) => [i.id, i]));
       const whMap = new Map((whs || []).map((w: any) => [w.id, w.name]));
       const userMap = new Map((profs || []).map((p: any) => [p.id, p.full_name]));
 

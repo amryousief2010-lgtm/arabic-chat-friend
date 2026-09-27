@@ -15,6 +15,7 @@ import { formatDateTime } from "@/lib/dateFormat";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { attachRelated } from "@/lib/inventoryCostAccess";
 
 // Legacy cutoff — pending transfers dated before this can be closed as
 // "previously received" without any stock movement. New cycle begins here.
@@ -505,15 +506,24 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
       // ---------------- 4) Other receipts: manual supply + sales returns ----------------
       // Pulls from inventory_movements (movement_type IN ('in','sales_return')) and groups
       // lines that share the same warehouse + party + timestamp into one operation row.
-      const { data: invIn } = await supabase
-        .from("inventory_movements")
-        .select("id, movement_no, movement_type, party, reference_type, quantity, performed_at, notes, warehouse_id, item_id, warehouse:warehouses(name), item:inventory_items(product:products(name, unit))")
+      const { data: invIn } = await (supabase as any)
+        .from("inventory_movements_visible")
+        .select("id, movement_no, movement_type, party, reference_type, quantity, performed_at, notes, warehouse_id, item_id")
         .in("movement_type", ["in", "sales_return"])
         .order("performed_at", { ascending: false })
         .limit(3000);
 
+      const receiptMoves = await attachRelated((invIn as any[]) || [], [
+        { as: "warehouse", idField: "warehouse_id", table: "warehouses", columns: "id, name" },
+        { as: "item", idField: "item_id", table: "inventory_items_visible", columns: "id, name, unit, product_id" },
+      ]);
+      const receiptItems = receiptMoves.map((m) => m.item).filter(Boolean);
+      await attachRelated(receiptItems, [
+        { as: "product", idField: "product_id", table: "products", columns: "id, name, unit" },
+      ]);
+
       const otherGroups = new Map<string, ReceiptRow>();
-      for (const m of (invIn as any[]) || []) {
+      for (const m of receiptMoves) {
         const refType = m.reference_type || "";
         // Exclude system corrections, opening balances, and rows already represented
         // by the slaughter/meat-factory/internal-transfer tabs above.
@@ -527,8 +537,8 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
         const ts = m.performed_at || new Date().toISOString();
         const tsBucket = String(ts).slice(0, 19); // group within same second
         const key = `${m.warehouse_id || "-"}|${tsBucket}|${sourceLabel}|${m.movement_type}`;
-        const productName = m?.item?.product?.name || "—";
-        const unit = m?.item?.product?.unit || "وحدة";
+        const productName = m?.item?.product?.name || m?.item?.name || "—";
+        const unit = m?.item?.product?.unit || m?.item?.unit || "وحدة";
         if (!otherGroups.has(key)) {
           otherGroups.set(key, {
             id: String(m.id),

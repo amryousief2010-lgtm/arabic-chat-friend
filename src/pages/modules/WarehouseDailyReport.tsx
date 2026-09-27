@@ -92,8 +92,8 @@ export default function WarehouseDailyReport() {
         maxPages: 50,
         idOf: (r) => r.id,
         fetchPage: async (from, to) => {
-          let q = supabase
-            .from("inventory_movements")
+          let q = (supabase as any)
+            .from("inventory_movements_visible")
             .select(MOVEMENT_COLS)
             .gte("performed_at", effectiveFrom)
             .lte("performed_at", toIso)
@@ -116,7 +116,7 @@ export default function WarehouseDailyReport() {
         maxPages: 20,
         idOf: (r) => r.id,
         fetchPage: async (from, to) => {
-          let q = supabase.from("inventory_items")
+          let q = (supabase as any).from("inventory_items_visible")
             .select("id, name, unit, warehouse_id, stock")
             .eq("is_active", true)
             .order("id")
@@ -132,7 +132,7 @@ export default function WarehouseDailyReport() {
         maxPages: 50,
         idOf: (r) => r.id,
         fetchPage: async (from, to) => {
-          let q = supabase.from("inventory_movements")
+          let q = (supabase as any).from("inventory_movements_visible")
             .select("id, performed_at, warehouse_id, item_id, movement_type, quantity, reference_type, source_type, stock_before, stock_after, effect_mode")
             .gte("performed_at", effectiveFrom)
             .order("performed_at", { ascending: true })
@@ -150,8 +150,8 @@ export default function WarehouseDailyReport() {
       // load items meta
       const itemIds = Array.from(new Set(list.map(r => r.item_id)));
       if (itemIds.length) {
-        const { data: its } = await supabase
-          .from("inventory_items")
+        const { data: its } = await (supabase as any)
+          .from("inventory_items_visible")
           .select("id, name, unit, low_stock_threshold, stock")
           .in("id", itemIds);
         const m: Record<string, { name: string; unit: string }> = {};
@@ -168,8 +168,8 @@ export default function WarehouseDailyReport() {
           maxPages: 50,
           idOf: (r) => r.id,
           fetchPage: async (from, to) => {
-            let priorQ = supabase
-              .from("inventory_movements")
+            let priorQ = (supabase as any)
+              .from("inventory_movements_visible")
               .select("id, item_id, warehouse_id, movement_type, quantity, stock_before, stock_after, effect_mode")
               .in("item_id", itemIds)
               .lt("performed_at", effectiveFrom)

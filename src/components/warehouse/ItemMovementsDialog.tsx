@@ -69,7 +69,7 @@ const ItemMovementsDialog = ({ open, onOpenChange, item, warehouseId, warehouseN
     (async () => {
       setLoading(true);
       const { data, error } = await (supabase as any)
-        .from("inventory_movements")
+        .from("inventory_movements_visible")
         .select("id, performed_at, movement_type, quantity, quantity_kg, party, reference, reference_type, notes, performed_by, movement_no, approval_status, source_warehouse_id, destination_warehouse_id")
         .eq("warehouse_id", warehouseId)
         .eq("item_id", item.id)

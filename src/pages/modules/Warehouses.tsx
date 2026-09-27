@@ -17,7 +17,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { canViewInventoryCost, withItemUnitCost } from "@/lib/inventoryCostAccess";
+import { attachRelated, canViewInventoryCost, withItemUnitCost } from "@/lib/inventoryCostAccess";
 import { postManualInventoryMovement, reversePostedMovement, setInventoryItemStock } from "@/lib/inventoryStock";
 import { formatDateTime } from "@/lib/dateFormat";
 import companyLogo from "@/assets/company-logo.jpg";
@@ -592,10 +592,16 @@ const Warehouses = () => {
     // Phase 1 — what the default «الأصناف» tab needs. Paint as soon as this lands.
     const [w, i] = await Promise.all([
       supabase.from("warehouses").select("id, name, type, location, description, is_active").order("name"),
-      supabase.from("inventory_items").select("id, warehouse_id, product_id, name, category, sku, unit, stock, low_stock_threshold, expiry_date, warehouse:warehouses(name), product:products(is_active, category, name, barcode)").order("name"),
+      (supabase as any).from("inventory_items_visible").select("id, warehouse_id, product_id, name, category, sku, unit, stock, low_stock_threshold, expiry_date").order("name"),
     ]);
     if (w.data) setWarehouses(filterWh(w.data) as WarehouseRow[]);
-    if (i.data) setItems(filterByWh(await withItemUnitCost(i.data as any)) as InventoryItem[]);
+    if (i.data) {
+      const withRels = await attachRelated(i.data as any[], [
+        { as: "warehouse", idField: "warehouse_id", table: "warehouses", columns: "id, name" },
+        { as: "product", idField: "product_id", table: "products", columns: "id, is_active, category, name, barcode" },
+      ]);
+      setItems(filterByWh(await withItemUnitCost(withRels)) as InventoryItem[]);
+    }
     setLoading(false);
 
     // Phase 2 — movements / slaughter inbox / geo orders. Not required to show the hub.
@@ -619,9 +625,9 @@ const Warehouses = () => {
     if (whIds.length > 0) {
       const perWhMoves = await Promise.all(
         whIds.map((id) =>
-          supabase
-            .from("inventory_movements")
-            .select("id, item_id, warehouse_id, movement_type, quantity, destination_warehouse_id, reference, reference_type, party, notes, performed_at, package_count, package_weight_kg, performed_by, approval_status, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)")
+          (supabase as any)
+            .from("inventory_movements_visible")
+            .select("id, item_id, warehouse_id, movement_type, quantity, destination_warehouse_id, reference, reference_type, party, notes, performed_at, package_count, package_weight_kg, performed_by, approval_status")
             .or(`warehouse_id.eq.${id},source_warehouse_id.eq.${id},destination_warehouse_id.eq.${id}`)
             .order("performed_at", { ascending: false })
             .limit(80)
@@ -637,6 +643,11 @@ const Warehouses = () => {
         }
       }
       merged.sort((a, b) => (a.performed_at < b.performed_at ? 1 : -1));
+      await attachRelated(merged, [
+        { as: "item", idField: "item_id", table: "inventory_items_visible", columns: "id, name, unit" },
+        { as: "warehouse", idField: "warehouse_id", table: "warehouses", columns: "id, name" },
+        { as: "destination", idField: "destination_warehouse_id", table: "warehouses", columns: "id, name" },
+      ]);
       setMovements(merged as Movement[]);
       const { data: openTransfers } = await supabase
         .from("warehouse_transfers")

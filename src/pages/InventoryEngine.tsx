@@ -38,8 +38,8 @@ type Balance = {
   reserved_stock: number;
   blocked_stock: number;
   available_stock: number;
-  unit_cost: number;
-  total_value: number;
+  unit_cost: number | null;
+  total_value: number | null;
   low_stock_threshold: number;
   is_low_stock: boolean;
   blocked_from_costing: boolean;
@@ -108,12 +108,43 @@ const InventoryEngine = () => {
     const load = async () => {
       setLoading(true);
       const [b, m, w] = await Promise.all([
-        supabase.from("v_inventory_balances").select("*").limit(2000),
-        supabase.from("inventory_movements_visible" as any).select("*").order("performed_at", { ascending: false }).limit(500),
+        (supabase as any).from("inventory_items_visible").select("id, item_code, name, category, unit, module, warehouse_id, stock, reserved_qty, blocked_qty, unit_cost, low_stock_threshold, last_movement_date, is_active").limit(2000),
+        (supabase as any).from("inventory_movements_visible").select("id, movement_no, movement_type, module, quantity, unit_cost, total_cost, reason, reference, performed_at, item_id, warehouse_id, destination_warehouse_id, approval_status").order("performed_at", { ascending: false }).limit(500),
         supabase.from("warehouses").select("id,name,type").eq("is_active", true),
       ]);
       if (b.error) toast.error("فشل تحميل الأرصدة: " + b.error.message);
-      else setBalances((b.data || []) as Balance[]);
+      else {
+        const whById = new Map(((w.data || []) as Warehouse[]).map((row) => [row.id, row]));
+        setBalances(((b.data || []) as any[]).map((row) => {
+          const stock = Number(row.stock || 0);
+          const reserved = Number(row.reserved_qty || 0);
+          const blocked = Number(row.blocked_qty || 0);
+          const unitCost = row.unit_cost == null ? null : Number(row.unit_cost);
+          const wh = whById.get(row.warehouse_id);
+          return {
+            id: row.id,
+            item_code: row.item_code,
+            name: row.name,
+            category: row.category,
+            unit: row.unit,
+            module: row.module,
+            warehouse_id: row.warehouse_id,
+            warehouse_name: wh?.name || "",
+            warehouse_type: wh?.type || "",
+            current_stock: stock,
+            reserved_stock: reserved,
+            blocked_stock: blocked,
+            available_stock: Math.max(stock - reserved - blocked, 0),
+            unit_cost: unitCost,
+            total_value: unitCost == null ? null : stock * unitCost,
+            low_stock_threshold: Number(row.low_stock_threshold || 0),
+            is_low_stock: stock <= Number(row.low_stock_threshold || 0),
+            blocked_from_costing: unitCost === 0 && stock > 0,
+            last_movement_date: row.last_movement_date,
+            is_active: row.is_active,
+          } satisfies Balance;
+        }));
+      }
       if (m.error) toast.error("فشل تحميل الحركات: " + m.error.message);
       else setMovements((m.data || []) as Movement[]);
       if (!w.error) setWarehouses((w.data || []) as Warehouse[]);
@@ -123,7 +154,8 @@ const InventoryEngine = () => {
   }, [refreshKey]);
 
   const kpi = useMemo(() => {
-    const total_value = balances.reduce((s, b) => s + Number(b.total_value || 0), 0);
+    const costsVisible = balances.some((b) => b.unit_cost != null);
+    const total_value = costsVisible ? balances.reduce((s, b) => s + Number(b.total_value || 0), 0) : null;
     const low = balances.filter((b) => b.is_low_stock).length;
     const blocked = balances.filter((b) => b.blocked_from_costing).length;
     const negative = balances.filter((b) => b.current_stock < 0).length;
@@ -244,7 +276,7 @@ const InventoryEngine = () => {
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <Kpi label="إجمالي الأصناف" value={kpi.items} icon={<Boxes />} />
-          <Kpi label="قيمة المخزون" value={`${kpi.total_value.toFixed(0)} ج.م`} icon={<DollarSign />} />
+          <Kpi label="قيمة المخزون" value={kpi.total_value == null ? "—" : `${kpi.total_value.toFixed(0)} ج.م`} icon={<DollarSign />} />
           <Kpi label="مخزون منخفض" value={kpi.low} icon={<AlertTriangle />} variant={kpi.low ? "warn" : undefined} />
           <Kpi label="محجوب من التكلفة" value={kpi.blocked} icon={<Lock />} variant={kpi.blocked ? "warn" : undefined} />
           <Kpi label="رصيد سالب" value={kpi.negative} icon={<AlertTriangle />} variant={kpi.negative ? "danger" : undefined} />
@@ -293,11 +325,12 @@ const InventoryEngine = () => {
                 <CardContent>
                   {["meat", "feed", "shared", null].map((m) => {
                     const list = balances.filter((b) => (b.module || null) === m);
-                    const val = list.reduce((s, b) => s + Number(b.total_value || 0), 0);
+                    const visible = list.some((b) => b.total_value != null);
+                    const val = visible ? list.reduce((s, b) => s + Number(b.total_value || 0), 0) : null;
                     return (
                       <div key={m || "none"} className="flex justify-between py-1 border-b text-sm">
                         <span>{m === "meat" ? "لحوم" : m === "feed" ? "أعلاف" : m === "shared" ? "مشترك" : "غير مصنف"}</span>
-                        <span className="font-mono">{val.toFixed(2)} ج.م ({list.length})</span>
+                        <span className="font-mono">{val == null ? "—" : `${val.toFixed(2)} ج.م`} ({list.length})</span>
                       </div>
                     );
                   })}
@@ -354,8 +387,8 @@ const InventoryEngine = () => {
                         <TableCell>{b.reserved_stock}</TableCell>
                         <TableCell>{b.blocked_stock}</TableCell>
                         <TableCell className="font-bold">{b.available_stock}</TableCell>
-                        <TableCell className={b.unit_cost === 0 ? "text-destructive" : ""}>{b.unit_cost}</TableCell>
-                        <TableCell className="font-mono text-xs">{Number(b.total_value).toFixed(0)}</TableCell>
+                        <TableCell className={b.unit_cost === 0 ? "text-destructive" : ""}>{b.unit_cost == null ? "—" : b.unit_cost}</TableCell>
+                        <TableCell className="font-mono text-xs">{b.total_value == null ? "—" : Number(b.total_value).toFixed(0)}</TableCell>
                         <TableCell className="space-y-1">
                           {b.is_low_stock && <Badge variant="destructive" className="text-[10px]">منخفض</Badge>}
                           {b.blocked_from_costing && <Badge variant="destructive" className="text-[10px]">صفر تكلفة</Badge>}
@@ -427,8 +460,8 @@ const InventoryEngine = () => {
                         <TableCell className="text-xs">{formatDate(m.performed_at)}</TableCell>
                         <TableCell><Badge variant="outline">{MOVEMENT_LABELS[m.movement_type] || m.movement_type}</Badge></TableCell>
                         <TableCell>{m.quantity}</TableCell>
-                        <TableCell>{m.unit_cost}</TableCell>
-                        <TableCell className="font-mono">{Number(m.total_cost || 0).toFixed(2)}</TableCell>
+                        <TableCell>{m.unit_cost == null ? "—" : m.unit_cost}</TableCell>
+                        <TableCell className="font-mono">{m.total_cost == null ? "—" : Number(m.total_cost).toFixed(2)}</TableCell>
                         <TableCell className="text-xs max-w-[250px]">{m.reason || m.reference}</TableCell>
                         <TableCell><Badge variant={m.approval_status === "posted" ? "default" : "secondary"}>{m.approval_status}</Badge></TableCell>
                       </TableRow>
@@ -468,7 +501,7 @@ const InventoryEngine = () => {
               <div className="bg-muted p-2 rounded text-xs grid grid-cols-3 gap-2">
                 <div>الحالي: <strong>{activeItem?.current_stock}</strong></div>
                 <div>المتاح: <strong>{activeItem?.available_stock}</strong></div>
-                <div>التكلفة: <strong>{activeItem?.unit_cost}</strong></div>
+                <div>التكلفة: <strong>{activeItem?.unit_cost == null ? "—" : activeItem.unit_cost}</strong></div>
               </div>
               <div>
                 <label className="text-sm font-medium">
@@ -540,7 +573,7 @@ const AlertList = ({ title, items, variant }: { title: string; items: Balance[];
             <div className="font-medium">{b.name}</div>
             <div className="text-muted-foreground flex justify-between">
               <span>{b.warehouse_name}</span>
-              <span>{b.current_stock} / {b.unit_cost} ج.م</span>
+              <span>{b.current_stock}{b.unit_cost == null ? "" : ` / ${b.unit_cost} ج.م`}</span>
             </div>
           </div>
         ))}

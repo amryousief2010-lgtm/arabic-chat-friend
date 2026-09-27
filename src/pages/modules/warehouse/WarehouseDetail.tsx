@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight, Warehouse, Package, AlertTriangle, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Truck, FileSpreadsheet, Inbox, Send, CheckCircle2, Clock, XCircle, ShieldCheck, ThumbsDown, Beef, Eye, Pencil, Trash2, Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { canViewInventoryCost, INVENTORY_ITEM_SAFE_COLUMNS, INVENTORY_MOVEMENT_SAFE_COLUMNS, withItemUnitCost, withMovementCosts } from "@/lib/inventoryCostAccess";
+import { attachRelated, canViewInventoryCost, INVENTORY_ITEM_SAFE_COLUMNS, INVENTORY_MOVEMENT_SAFE_COLUMNS, withItemUnitCost, withMovementCosts } from "@/lib/inventoryCostAccess";
 import { postInventoryDocument, reversePostedMovement } from "@/lib/inventoryStock";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -145,9 +145,9 @@ const WarehouseDetail = () => {
     const mvFilter = scopeIds.flatMap(w => [`warehouse_id.eq.${w}`, `destination_warehouse_id.eq.${w}`]).join(",");
     const trFilter = scopeIds.flatMap(w => [`source_warehouse_id.eq.${w}`, `destination_warehouse_id.eq.${w}`]).join(",");
     const [it, mv, oi, tr] = await Promise.all([
-      supabase.from("inventory_items").select(`${INVENTORY_ITEM_SAFE_COLUMNS}, product:products(is_active, category, name, barcode)`).eq("warehouse_id", id).order("name"),
-      supabase.from("inventory_movements")
-        .select(`${INVENTORY_MOVEMENT_SAFE_COLUMNS}, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name), destination:warehouses!inventory_movements_destination_warehouse_id_fkey(name)`)
+      (supabase as any).from("inventory_items_visible").select(INVENTORY_ITEM_SAFE_COLUMNS).eq("warehouse_id", id).order("name"),
+      (supabase as any).from("inventory_movements_visible")
+        .select(INVENTORY_MOVEMENT_SAFE_COLUMNS)
         .or(mvFilter)
         .order("performed_at", { ascending: false })
         .limit(500),
@@ -164,8 +164,16 @@ const WarehouseDetail = () => {
     ]);
     setWarehouse(wRes.data);
     setAllWarehouses(allWh);
-    setItems(await withItemUnitCost((it.data || []) as any));
-    setMovements(await withMovementCosts((mv.data || []) as any));
+    const itemRows = await attachRelated((it.data || []) as any[], [
+      { as: "product", idField: "product_id", table: "products", columns: "id, is_active, category, name, barcode" },
+    ]);
+    const moveRows = await attachRelated((mv.data || []) as any[], [
+      { as: "item", idField: "item_id", table: "inventory_items_visible", columns: "id, name, unit" },
+      { as: "warehouse", idField: "warehouse_id", table: "warehouses", columns: "id, name" },
+      { as: "destination", idField: "destination_warehouse_id", table: "warehouses", columns: "id, name" },
+    ]);
+    setItems(await withItemUnitCost(itemRows));
+    setMovements(await withMovementCosts(moveRows));
     setOrderItems(oi.data || []);
     setTransfers(tr.data || []);
     // طلبات المنفذ (مصدرها هذا المخزن) — للعرض والتصدير لاحمد خاطر فى العجوزة وأى مخزن آخر
@@ -191,8 +199,8 @@ const WarehouseDetail = () => {
 
     // مخزون المخزن الرئيسي (raw stock قبل خصم الطلبات) — للعرض في حوار التوريد
     if (currentIsAgouza && mainWh) {
-      const { data: mainInv } = await supabase
-        .from("inventory_items")
+      const { data: mainInv } = await (supabase as any)
+        .from("inventory_items_visible")
         .select("name, stock")
         .eq("warehouse_id", mainWh.id);
       const map: Record<string, number> = {};
@@ -639,8 +647,8 @@ const WarehouseDetail = () => {
     }
 
     // Resolve source item IDs by name from main warehouse
-    const { data: mainItems, error: mErr } = await supabase
-      .from("inventory_items")
+    const { data: mainItems, error: mErr } = await (supabase as any)
+      .from("inventory_items_visible")
       .select("id, name, stock")
       .eq("warehouse_id", mainWarehouse.id);
     if (mErr) {

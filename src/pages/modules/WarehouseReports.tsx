@@ -44,8 +44,8 @@ export default function WarehouseReports({ embedded = false }: WarehouseReportsP
       maxPages: 20,
       idOf: (r) => r.id,
       fetchPage: async (from, to) => {
-        let q = supabase
-          .from("inventory_items_visible" as any)
+        let q = (supabase as any)
+          .from("inventory_items_visible")
           .select("id, warehouse_id, name, unit, stock, reserved_qty, blocked_qty, unit_cost, low_stock_threshold")
           .eq("is_active", true)
           .order("id", { ascending: true })
@@ -73,7 +73,7 @@ export default function WarehouseReports({ embedded = false }: WarehouseReportsP
     if (oids.length) {
       const { data: oitems } = await supabase.from("order_items").select("order_id, product_id, quantity").in("order_id", oids);
       // map product->item per warehouse:
-      const { data: invByProd } = await supabase.from("inventory_items").select("id, warehouse_id, product_id").not("product_id", "is", null);
+      const { data: invByProd } = await (supabase as any).from("inventory_items_visible").select("id, warehouse_id, product_id").not("product_id", "is", null);
       const lookup: Record<string, string> = {};
       (invByProd || []).forEach((r: any) => { lookup[`${r.warehouse_id}|${r.product_id}`] = r.id; });
       (oitems || []).forEach((oi: any) => {
@@ -299,7 +299,7 @@ function MovementsByTypeReport({ title, types, whFilter, warehouses, showReason 
 
   const load = async () => {
     setLoading(true);
-    let q = supabase.from("inventory_movements")
+    let q = (supabase as any).from("inventory_movements_visible")
       .select("id, movement_no, performed_at, warehouse_id, item_id, movement_type, quantity, reference_id, reason, performed_by")
       .in("movement_type", types)
       .gte("performed_at", from + "T00:00:00").lte("performed_at", to + "T23:59:59")
@@ -309,7 +309,7 @@ function MovementsByTypeReport({ title, types, whFilter, warehouses, showReason 
     const list = (data || []) as any[];
     const ids = Array.from(new Set(list.map((m) => m.item_id)));
     if (ids.length) {
-      const { data: its } = await supabase.from("inventory_items").select("id, name, unit").in("id", ids);
+      const { data: its } = await (supabase as any).from("inventory_items_visible").select("id, name, unit").in("id", ids);
       const im: Record<string, any> = {};
       (its || []).forEach((it: any) => { im[it.id] = it; });
       setItems(im);
@@ -378,7 +378,7 @@ function ItemMovementReport({ whFilter, warehouses }: { whFilter: string; wareho
       maxPages: 20,
       idOf: (r) => r.id,
       fetchPage: async (from, to) => {
-        let pageQ = supabase.from("inventory_items").select("id, name, unit, warehouse_id").eq("is_active", true).order("name").order("id").range(from, to);
+        let pageQ = (supabase as any).from("inventory_items_visible").select("id, name, unit, warehouse_id").eq("is_active", true).order("name").order("id").range(from, to);
         if (whFilter !== "all") pageQ = pageQ.eq("warehouse_id", whFilter);
         const { data, error } = await pageQ;
         if (error) throw error;
@@ -395,7 +395,7 @@ function ItemMovementReport({ whFilter, warehouses }: { whFilter: string; wareho
       maxPages: 20,
       idOf: (r) => r.id,
       fetchPage: async (from, to) => {
-        const { data: page, error } = await supabase.from("inventory_movements")
+        const { data: page, error } = await (supabase as any).from("inventory_movements_visible")
           .select("id, performed_at, movement_type, quantity, reference_id, reference_type, notes, reason, stock_before, stock_after, effect_mode")
           .eq("item_id", itemId)
           .order("performed_at", { ascending: false })

@@ -86,8 +86,8 @@ export default function WarehouseAdjustmentsLog() {
         maxPages: 50,
         idOf: (r) => r.id,
         fetchPage: async (from, to) => {
-          const { data, error } = await supabase
-            .from("inventory_movements")
+          const { data, error } = await (supabase as any)
+            .from("inventory_movements_visible")
             .select("id, movement_no, performed_at, warehouse_id, item_id, movement_type, quantity, performed_by, reason, notes, party, reference, reference_type, stock_before, stock_after, effect_mode")
             .eq("warehouse_id", main.id)
             .gte("performed_at", effectiveFrom)
@@ -115,8 +115,8 @@ export default function WarehouseAdjustmentsLog() {
 
       const itemIds = Array.from(new Set(adj.map(r => r.item_id)));
       if (itemIds.length) {
-        const { data: its } = await supabase
-          .from("inventory_items")
+        const { data: its } = await (supabase as any)
+          .from("inventory_items_visible")
           .select("id, name, unit")
           .in("id", itemIds);
         const m: Record<string, { name: string; unit: string }> = {};
@@ -128,8 +128,8 @@ export default function WarehouseAdjustmentsLog() {
           maxPages: 50,
           idOf: (r) => r.id,
           fetchPage: async (from, to) => {
-            const { data, error } = await supabase
-              .from("inventory_movements")
+            const { data, error } = await (supabase as any)
+              .from("inventory_movements_visible")
               .select("id, item_id, movement_type, quantity, stock_before, stock_after, effect_mode")
               .eq("warehouse_id", main.id)
               .in("item_id", itemIds)

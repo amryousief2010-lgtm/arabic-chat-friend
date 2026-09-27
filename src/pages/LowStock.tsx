@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { formatDate } from "@/lib/dateFormat";
+import { paginateUntilDone } from "@/lib/paginateQuery";
 
 interface LowStockProduct {
   id: string;
@@ -44,18 +45,62 @@ const LowStock = () => {
   const fetchLowStockProducts = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name, category, stock, low_stock_threshold, unit, price')
-        .filter('is_active', 'eq', true)
-        .order('stock', { ascending: true });
+      const [productRows, cardRows, warehouseRes] = await Promise.all([
+        paginateUntilDone<{
+          id: string;
+          name: string;
+          category: string | null;
+          low_stock_threshold: number | null;
+          unit: string;
+          price: number;
+        }>({
+          pageSize: 1000,
+          maxPages: 20,
+          idOf: (row) => row.id,
+          fetchPage: async (from, to) => {
+            const { data, error } = await supabase
+              .from("products")
+              .select("id, name, category, low_stock_threshold, unit, price")
+              .eq("is_active", true)
+              .order("id")
+              .range(from, to);
+            if (error) throw error;
+            return data || [];
+          },
+        }),
+        paginateUntilDone<{ id: string; product_id: string | null; stock: number | null; warehouse_id: string }>({
+          pageSize: 1000,
+          maxPages: 20,
+          idOf: (row) => row.id,
+          fetchPage: async (from, to) => {
+            const { data, error } = await (supabase as any)
+              .from("inventory_items_visible")
+              .select("id, product_id, stock, warehouse_id")
+              .order("id")
+              .range(from, to);
+            if (error) throw error;
+            return (data || []) as { id: string; product_id: string | null; stock: number | null; warehouse_id: string }[];
+          },
+        }),
+        supabase.from("warehouses").select("id").eq("is_active", true),
+      ]);
+      if (warehouseRes.error) throw warehouseRes.error;
 
-      if (error) throw error;
+      const activeWarehouses = new Set((warehouseRes.data || []).map((row) => row.id));
+      const stockByProduct = new Map<string, number>();
+      for (const card of cardRows) {
+        if (!card.product_id || !activeWarehouses.has(card.warehouse_id)) continue;
+        stockByProduct.set(card.product_id, (stockByProduct.get(card.product_id) || 0) + Number(card.stock || 0));
+      }
 
-      // Filter products where stock <= low_stock_threshold
-      const lowStockProducts = (data || []).filter(
-        product => product.stock <= product.low_stock_threshold
-      );
+      const lowStockProducts = productRows
+        .map((product) => ({
+          ...product,
+          stock: stockByProduct.get(product.id) || 0,
+          low_stock_threshold: Number(product.low_stock_threshold || 0),
+        }))
+        .filter((product) => product.stock <= product.low_stock_threshold)
+        .sort((a, b) => a.stock - b.stock);
 
       setProducts(lowStockProducts);
     } catch (error) {

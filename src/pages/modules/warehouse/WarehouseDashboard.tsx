@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowRight, AlertTriangle, ArrowDown, ArrowUp, ArrowLeftRight, Settings2, Warehouse, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { canViewInventoryCost, INVENTORY_ITEM_SAFE_COLUMNS, INVENTORY_MOVEMENT_SAFE_COLUMNS, withItemUnitCost, withMovementCosts } from "@/lib/inventoryCostAccess";
+import { attachRelated, canViewInventoryCost, INVENTORY_ITEM_SAFE_COLUMNS, INVENTORY_MOVEMENT_SAFE_COLUMNS, withItemUnitCost, withMovementCosts } from "@/lib/inventoryCostAccess";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDateTime } from "@/lib/dateFormat";
 
@@ -34,12 +34,19 @@ const WarehouseDashboard = ({ embedded = false }: WarehouseDashboardProps) => {
       const sevenAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
       const [w, i, m] = await Promise.all([
         supabase.from("warehouses").select("*"),
-        supabase.from("inventory_items").select(`${INVENTORY_ITEM_SAFE_COLUMNS}, warehouse:warehouses(name, type)`),
-        supabase.from("inventory_movements").select(`${INVENTORY_MOVEMENT_SAFE_COLUMNS}, item:inventory_items(name, unit), warehouse:warehouses!inventory_movements_warehouse_id_fkey(name)`).gte("performed_at", sevenAgo).order("performed_at", { ascending: false }),
+        (supabase as any).from("inventory_items_visible").select(INVENTORY_ITEM_SAFE_COLUMNS),
+        (supabase as any).from("inventory_movements_visible").select(INVENTORY_MOVEMENT_SAFE_COLUMNS).gte("performed_at", sevenAgo).order("performed_at", { ascending: false }),
+      ]);
+      const itemRows = await attachRelated((i.data || []) as any[], [
+        { as: "warehouse", idField: "warehouse_id", table: "warehouses", columns: "id, name, type" },
+      ]);
+      const moveRows = await attachRelated((m.data || []) as any[], [
+        { as: "item", idField: "item_id", table: "inventory_items_visible", columns: "id, name, unit" },
+        { as: "warehouse", idField: "warehouse_id", table: "warehouses", columns: "id, name" },
       ]);
       setWarehouses(w.data || []);
-      setItems(await withItemUnitCost((i.data || []) as any));
-      setMovements(await withMovementCosts((m.data || []) as any));
+      setItems(await withItemUnitCost(itemRows));
+      setMovements(await withMovementCosts(moveRows));
       setLoading(false);
     })();
   }, []);

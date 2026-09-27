@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Plus, Trash2, Truck, ChevronsUpDown, Check, FileSpreadsheet, Printer, Eye, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { withMovementCosts } from "@/lib/inventoryCostAccess";
+import { attachRelated, withMovementCosts } from "@/lib/inventoryCostAccess";
 import { postInventoryDocument, reversePostedMovement } from "@/lib/inventoryStock";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -196,16 +196,19 @@ export default function InboundSupplyTab({ warehouseId, warehouseName }: Props) 
   const fetchAll = async () => {
     setLoading(true);
     const [itRes, mvRes] = await Promise.all([
-      supabase.from("inventory_items").select("id, name, unit, stock").eq("warehouse_id", warehouseId).order("name"),
-      supabase.from("inventory_movements")
-        .select("id, item_id, performed_at, quantity, party, notes, reference, item:inventory_items(name, unit)")
+      (supabase as any).from("inventory_items_visible").select("id, name, unit, stock").eq("warehouse_id", warehouseId).order("name"),
+      (supabase as any).from("inventory_movements_visible")
+        .select("id, item_id, performed_at, quantity, party, notes, reference")
         .eq("warehouse_id", warehouseId)
         .eq("reference_type", "external_supply")
         .order("performed_at", { ascending: false })
         .limit(500),
     ]);
     setItems((itRes.data || []) as Item[]);
-    setHistory(await withMovementCosts((mvRes.data || []) as any));
+    const historyRows = await attachRelated((mvRes.data || []) as any[], [
+      { as: "item", idField: "item_id", table: "inventory_items_visible", columns: "id, name, unit" },
+    ]);
+    setHistory(await withMovementCosts(historyRows));
     setLoading(false);
   };
 
