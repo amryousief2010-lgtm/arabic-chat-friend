@@ -62,6 +62,8 @@ jobs:
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/waybill_link_manual_guard.sql
       - name: Manual waybill lock with unset GUC
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/waybill_lock_unset_guc.sql
+      - name: Manual waybill delivery status
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/manual_waybill_status_lock.sql
       - name: Concurrency
         run: python3 scripts/inventory_ledger_concurrency.py
       - name: Client write lint
