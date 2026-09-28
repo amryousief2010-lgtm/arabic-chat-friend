@@ -439,12 +439,12 @@ Deno.serve(async (req) => {
           const phoneAgrees = customerPhones.some((p) => phonesMatchLoose(p, row.customer_phone));
           if (scrapedOk && customerPhones.length && !phoneAgrees) {
             if ((data as any).shipping_bill_source === "manual") {
-              await supabase.from("waybill_sync_conflicts").insert({
-                order_id: data.id,
-                manual_bill_no: row.bill_no,
-                incoming_bill_no: null,
-                source: "sync-zodex-deliveries",
-                details: {
+              await supabase.rpc("insert_waybill_sync_conflict", {
+                p_order_id: data.id,
+                p_manual_bill_no: row.bill_no,
+                p_incoming_bill_no: null,
+                p_source: "sync-zodex-deliveries",
+                p_details: {
                   customer_phone: (data as any).customers?.phone ?? null,
                   customer_phone2: (data as any).customers?.phone2 ?? null,
                   zodex_phone: row.customer_phone ?? null,

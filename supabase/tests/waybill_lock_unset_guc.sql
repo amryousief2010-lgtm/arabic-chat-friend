@@ -119,7 +119,7 @@ BEGIN
    WHERE o.order_number = 'WB-FRESH-MANUAL';
   IF v_bill IS DISTINCT FROM 'FRESH-MANUAL'
      OR v_source IS DISTINCT FROM 'manual'
-     OR v_status IS DISTINCT FROM 'confirmed' THEN
+     OR v_status IS DISTINCT FROM 'pending' THEN
     RAISE EXCEPTION 'service_role manual update was not kept (bill=%, source=%, status=%)', v_bill, v_source, v_status;
   END IF;
 
@@ -163,7 +163,7 @@ BEGIN
     INTO v_bill, v_source, v_status
     FROM public.orders
    WHERE order_number = 'WB-FRESH-MANUAL';
-  IF v_bill IS DISTINCT FROM 'FRESH-MANUAL' OR v_source IS DISTINCT FROM 'manual' OR v_status IS DISTINCT FROM 'confirmed' THEN
+  IF v_bill IS DISTINCT FROM 'FRESH-MANUAL' OR v_source IS DISTINCT FROM 'manual' OR v_status IS DISTINCT FROM 'pending' THEN
     RAISE EXCEPTION 'GM update changed the manual order (bill=%, source=%, status=%)', v_bill, v_source, v_status;
   END IF;
 
