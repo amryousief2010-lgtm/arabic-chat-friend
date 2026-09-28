@@ -49,11 +49,24 @@ BEGIN
   ) VALUES (
     'WB-STATUS-PLAIN', v_customer, 'STATUS-PLAIN', 'pending'
   );
+
+  INSERT INTO public.orders (
+    order_number, customer_id, shipping_bill_no, shipping_bill_source, status, total
+  ) VALUES (
+    'WB-STATUS-BOSTTA', v_customer, 'STATUS-BOSTTA', 'manual', 'pending', 10
+  );
+
+  INSERT INTO public.orders (
+    order_number, customer_id, shipping_bill_no, shipping_bill_source, status, notes
+  ) VALUES (
+    'WB-STATUS-SHIP', v_customer, 'STATUS-SHIP', 'manual', 'pending', 'ملاحظة قديمة'
+  );
 END;
 $$;
 
 ALTER ROLE service_role BYPASSRLS;
 GRANT SELECT, UPDATE ON public.orders TO service_role;
+GRANT SELECT ON public.inventory_movements, public.order_items TO service_role;
 SELECT set_config('request.jwt.claim.sub', '', true);
 
 DO $$
@@ -93,6 +106,22 @@ UPDATE public.orders
    SET status = 'delivered'
  WHERE order_number = 'WB-STATUS-PLAIN';
 
+-- Bostta: status, stock, and total, with no Zodex column.
+UPDATE public.orders
+   SET status = 'delivered',
+       stock_status = 'dispatched',
+       total = 50,
+       delivered_at = now()
+ WHERE order_number = 'WB-STATUS-BOSTTA';
+
+-- Shipments cancel: no zodex_synced_at, but the marker columns mark it as Zodex.
+UPDATE public.orders
+   SET status = 'cancelled',
+       notes = E'ملاحظة قديمة\n[مرتجع] من زودكس',
+       update_status_marker = 'cancelled',
+       update_status_updated_at = now()
+ WHERE order_number = 'WB-STATUS-SHIP';
+
 RESET ROLE;
 
 DO $$
@@ -111,6 +140,13 @@ DECLARE
   v_conflicts int;
   v_ignored text;
   v_plain text;
+  v_bostta_status text;
+  v_bostta_stock text;
+  v_bostta_total numeric;
+  v_bostta_conflicts int;
+  v_ship_status text;
+  v_ship_notes text;
+  v_ship_conflicts int;
 BEGIN
   SELECT shipping_bill_no, status, collection_status, delivered_at, total_at_delivery,
          zodex_return_amount, update_status_marker, update_status_updated_at, zodex_synced_at
@@ -144,6 +180,38 @@ BEGIN
   SELECT status INTO v_plain FROM public.orders WHERE order_number = 'WB-STATUS-PLAIN';
   IF v_plain IS DISTINCT FROM 'delivered' THEN
     RAISE EXCEPTION 'service_role could not deliver a non-manual order (status=%)', v_plain;
+  END IF;
+
+  SELECT status, stock_status, total
+    INTO v_bostta_status, v_bostta_stock, v_bostta_total
+    FROM public.orders
+   WHERE order_number = 'WB-STATUS-BOSTTA';
+  SELECT count(*) INTO v_bostta_conflicts
+    FROM public.waybill_sync_conflicts c
+    JOIN public.orders o ON o.id = c.order_id
+   WHERE o.order_number = 'WB-STATUS-BOSTTA';
+  IF v_bostta_status IS DISTINCT FROM 'delivered'
+     OR v_bostta_stock IS DISTINCT FROM 'dispatched'
+     OR v_bostta_total IS DISTINCT FROM 50
+     OR v_bostta_conflicts <> 0 THEN
+    RAISE EXCEPTION 'Bostta update on a manual order was blocked (status=%, stock=%, total=%, conflicts=%)',
+      v_bostta_status, v_bostta_stock, v_bostta_total, v_bostta_conflicts;
+  END IF;
+
+  SELECT status, notes INTO v_ship_status, v_ship_notes
+    FROM public.orders
+   WHERE order_number = 'WB-STATUS-SHIP';
+  SELECT count(*) INTO v_ship_conflicts
+    FROM public.waybill_sync_conflicts c
+    JOIN public.orders o ON o.id = c.order_id
+   WHERE o.order_number = 'WB-STATUS-SHIP'
+     AND c.resolved_at IS NULL
+     AND c.details->>'ignored_status' = 'cancelled';
+  IF v_ship_status IS DISTINCT FROM 'pending'
+     OR v_ship_notes IS DISTINCT FROM E'ملاحظة قديمة\n[مرتجع] من زودكس'
+     OR v_ship_conflicts <> 1 THEN
+    RAISE EXCEPTION 'shipments cancel was not locked (status=%, notes=%, conflicts=%)',
+      v_ship_status, v_ship_notes, v_ship_conflicts;
   END IF;
 
   -- Staff JWTs. The session user stays the table owner, same as the other

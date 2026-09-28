@@ -1,15 +1,21 @@
 -- Zodex sync runs as service_role and must not change delivery status on a
--- manual waybill. Staff with a JWT still update status through the app.
--- Locked columns are exactly the status/delivery fields those writers set
--- on public.orders:
---   sync-zodex-deliveries: status, collection_status, delivered_at,
---     total_at_delivery, zodex_return_amount
---   sync-zodex-shipments:  status, update_status_marker, update_status_updated_at
--- sync_zodex_bill_no_to_order and link_zodex_bill_to_order write shipping_bill_no
--- only; that column stays on the existing bill guard. zodex_synced_at and notes
--- are not status columns and still change.
--- One unresolved waybill_sync_conflicts row per (order, incoming bill). The
--- ignored status is stored on that row's details. No new column.
+-- manual waybill. Other service_role writers (process-bostta-delivery) must
+-- still mark the order delivered. Staff with a JWT still update status
+-- through the app.
+--
+-- The status lock runs only when the same UPDATE touches a Zodex-only column:
+--   zodex_synced_at or zodex_return_amount (sync-zodex-deliveries), or
+--   update_status_marker or update_status_updated_at (sync-zodex-shipments
+--   cancel, which does not set zodex_synced_at).
+-- Bostta sets status, delivered_at, total, stock_status, stock_router_log
+-- and does not touch those columns.
+--
+-- Locked columns, when that discriminator matches:
+--   status, collection_status, delivered_at, total_at_delivery,
+--   zodex_return_amount, update_status_marker, update_status_updated_at.
+-- zodex_synced_at and notes still change. shipping_bill_no stays on the
+-- existing bill guard. One unresolved conflict per (order, incoming bill);
+-- the attempted status is details.ignored_status.
 
 CREATE OR REPLACE FUNCTION public.lock_manual_waybill()
 RETURNS trigger
@@ -26,6 +32,7 @@ DECLARE
   v_bill_changed boolean;
   v_flag_changed boolean;
   v_silent boolean;
+  v_zodex_sync boolean;
   v_log_silent boolean := false;
   v_attempted_status text;
   v_ignored_cols text[] := ARRAY[]::text[];
@@ -101,8 +108,14 @@ BEGIN
     END IF;
   END IF;
 
-  -- Delivery status from Zodex. Authenticated staff are not in v_silent.
-  IF OLD.shipping_bill_source = 'manual' AND v_silent THEN
+  -- Zodex sync only. A service_role delivery that does not touch a Zodex
+  -- column (Bostta) is left alone. Authenticated staff are not v_silent.
+  v_zodex_sync := NEW.zodex_synced_at IS DISTINCT FROM OLD.zodex_synced_at
+    OR NEW.zodex_return_amount IS DISTINCT FROM OLD.zodex_return_amount
+    OR NEW.update_status_marker IS DISTINCT FROM OLD.update_status_marker
+    OR NEW.update_status_updated_at IS DISTINCT FROM OLD.update_status_updated_at;
+
+  IF OLD.shipping_bill_source = 'manual' AND v_silent AND v_zodex_sync THEN
     IF NEW.status IS DISTINCT FROM OLD.status THEN
       v_attempted_status := NEW.status;
       v_ignored_cols := array_append(v_ignored_cols, 'status');
