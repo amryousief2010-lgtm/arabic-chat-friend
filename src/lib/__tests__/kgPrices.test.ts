@@ -46,4 +46,3 @@ describe("resolveKgPricesForMonth", () => {
   });
 });
 
-===== END FILE =====

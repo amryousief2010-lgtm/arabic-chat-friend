@@ -76,4 +76,3 @@ export function resolveKgPricesForMonth(
 /** Current editable version key (managers update this row for Sep 2026+). */
 export const CURRENT_KG_PRICE_EFFECTIVE_FROM = "2026-09-01";
 
-===== END FILE =====
