@@ -1,25 +1,28 @@
 import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  type KgPrices,
+  type KgPriceVersion,
+  defaultKgPrices,
+  BUILTIN_KG_PRICE_VERSIONS,
+  CURRENT_KG_PRICE_EFFECTIVE_FROM,
+  resolveKgPricesForMonth,
+} from "@/lib/kgPrices";
+import { currentCairoYearMonth } from "@/lib/cairoDate";
 
-export interface KgPrices {
-  meat_price: number;
-  bone_meat_price: number;
-  processed_price: number;
-}
+export type { KgPrices, KgPriceVersion };
+export {
+  defaultKgPrices,
+  BUILTIN_KG_PRICE_VERSIONS,
+  CURRENT_KG_PRICE_EFFECTIVE_FROM,
+  resolveKgPricesForMonth,
+} from "@/lib/kgPrices";
 
-export const defaultKgPrices: KgPrices = {
-  meat_price: 390,
-  bone_meat_price: 350,
-  processed_price: 140,
-};
-
-/**
- * أسعار الشهور السابقة مجمّدة: أسعار الكيلو الحالية تسري من سبتمبر 2026 فصاعدًا،
- * وأي شهر قبل ذلك يستخدم الأسعار التاريخية ولا يتأثر بأي تعديل جديد.
- */
+/** @deprecated Prefer resolveKgPricesForMonth — kept for any stray imports. */
 export const KG_PRICES_EFFECTIVE_FROM = { year: 2026, month: 9 };
 
+/** @deprecated Prefer versioned rows — historical processed was 160 before Sep 2026. */
 export const legacyKgPrices: KgPrices = {
   meat_price: 390,
   bone_meat_price: 350,
@@ -28,44 +31,45 @@ export const legacyKgPrices: KgPrices = {
 
 export function isHistoricalKgMonth(year?: number, month?: number) {
   if (!year || !month) return false;
-  return (
-    year < KG_PRICES_EFFECTIVE_FROM.year ||
-    (year === KG_PRICES_EFFECTIVE_FROM.year && month < KG_PRICES_EFFECTIVE_FROM.month)
-  );
+  return resolveKgPricesForMonth(BUILTIN_KG_PRICE_VERSIONS, year, month).isHistorical;
 }
 
-const QK = ["sales-kg-prices"];
+const QK = ["sales-kg-price-versions"];
 
 /**
- * أسعار الكيلو المشتركة (لحوم / لحوم بالعظم / مصنعات).
- * محفوظة في قاعدة البيانات، فأي تعديل ينعكس فورًا على كل جداول صفحة التارجت
- * ولكل المستخدمين، للشهر الحالي والشهور القادمة.
+ * أسعار الكيلو المشتركة لصفحة التارجت فقط (لحوم / لحوم بالعظم / مصنعات).
+ * المصدر الموحّد: جدول sales_kg_price_versions حسب effective_from.
+ * التعديل من واجهة جدول البيان يحدّث إصدار 2026-09-01 ويُزامن الصف الواحد القديم.
  */
 export function useKgPrices(period?: { year?: number; month?: number }) {
-  const isHistorical = isHistoricalKgMonth(period?.year, period?.month);
+  const cur = currentCairoYearMonth();
+  const year = period?.year ?? cur.year;
+  const month = period?.month ?? cur.monthIndex0 + 1;
   const queryClient = useQueryClient();
 
-  const { data: row } = useQuery({
+  const { data: versions = BUILTIN_KG_PRICE_VERSIONS } = useQuery({
     queryKey: QK,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("sales_kg_price_settings")
-        .select("id, meat_price, bone_meat_price, processed_price")
-        .eq("singleton", true)
-        .maybeSingle();
+        .from("sales_kg_price_versions")
+        .select("effective_from, meat_price, bone_meat_price, processed_price")
+        .order("effective_from", { ascending: true });
       if (error) throw error;
-      return data as ({ id: string } & KgPrices) | null;
+      const rows = (data ?? []) as KgPriceVersion[];
+      return rows.length > 0 ? rows : BUILTIN_KG_PRICE_VERSIONS;
     },
     staleTime: 60_000,
   });
 
   useEffect(() => {
-    // This hook is rendered by more than one table, and React development mode
-    // also replays effects. A fresh topic per effect run prevents either case
-    // from reusing an already-subscribed channel.
-    const channelName = `sales-kg-prices-realtime-${crypto.randomUUID()}`;
+    const channelName = `sales-kg-price-versions-realtime-${crypto.randomUUID()}`;
     const channel = supabase
       .channel(channelName)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sales_kg_price_versions" },
+        () => queryClient.invalidateQueries({ queryKey: QK }),
+      )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "sales_kg_price_settings" },
@@ -77,26 +81,45 @@ export function useKgPrices(period?: { year?: number; month?: number }) {
     };
   }, [queryClient]);
 
-  const livePrices: KgPrices = {
-    meat_price: Number(row?.meat_price ?? defaultKgPrices.meat_price),
-    bone_meat_price: Number(row?.bone_meat_price ?? defaultKgPrices.bone_meat_price),
-    processed_price: Number(row?.processed_price ?? defaultKgPrices.processed_price),
-  };
-
-  const prices: KgPrices = isHistorical ? legacyKgPrices : livePrices;
+  const resolved = resolveKgPricesForMonth(versions, year, month);
+  const prices = resolved.prices;
+  const isHistorical = resolved.isHistorical;
 
   const updateMutation = useMutation({
     mutationFn: async (patch: Partial<KgPrices>) => {
-      if (row?.id) {
+      // Managers may only edit the current (Sep 2026+) version.
+      const next: KgPrices = {
+        meat_price: Number(patch.meat_price ?? prices.meat_price),
+        bone_meat_price: Number(patch.bone_meat_price ?? prices.bone_meat_price),
+        processed_price: Number(patch.processed_price ?? prices.processed_price),
+      };
+
+      const { error: verErr } = await supabase.from("sales_kg_price_versions").upsert(
+        {
+          effective_from: CURRENT_KG_PRICE_EFFECTIVE_FROM,
+          ...next,
+        },
+        { onConflict: "effective_from" },
+      );
+      if (verErr) throw verErr;
+
+      // Keep legacy singleton in sync so older readers stay consistent.
+      const { data: singleton } = await supabase
+        .from("sales_kg_price_settings")
+        .select("id")
+        .eq("singleton", true)
+        .maybeSingle();
+
+      if (singleton?.id) {
         const { error } = await supabase
           .from("sales_kg_price_settings")
-          .update(patch)
-          .eq("id", row.id);
+          .update(next)
+          .eq("id", singleton.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("sales_kg_price_settings")
-          .insert({ singleton: true, ...livePrices, ...patch });
+          .insert({ singleton: true, ...next });
         if (error) throw error;
       }
     },
@@ -107,7 +130,9 @@ export function useKgPrices(period?: { year?: number; month?: number }) {
     prices,
     isHistorical,
     canEditPrices: !isHistorical,
+    effectiveFrom: resolved.effective_from,
     updatePrices: updateMutation.mutateAsync,
     isSaving: updateMutation.isPending,
   };
 }
+

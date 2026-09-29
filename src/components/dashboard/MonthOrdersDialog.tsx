@@ -219,7 +219,7 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
   const markDelivered = async (ids: string[]) => {
     if (!canUpdateStatus) { toast.error("ليس لديك صلاحية تحديث الحالة."); return; }
     const plan = bulkDeliveryPlan(ids.length, batchDeliveredAt);
-    if (!plan.ok) { toast.error(plan.message); return; }
+    if (plan.ok === false) { toast.error(plan.message); return; }
     const deliveredAt = plan.deliveredAt;
     const msg = ids.length === 1 ? "هل تريد تأكيد تسليم هذا الطلب؟" : `هل تريد تأكيد تسليم ${ids.length} طلب؟`;
     if (!window.confirm(msg)) return;
