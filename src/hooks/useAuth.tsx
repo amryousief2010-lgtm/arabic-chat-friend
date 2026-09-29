@@ -8,7 +8,6 @@ export type AppRole =
   | 'sales_manager'
   | 'sales_moderator'
   | 'accountant'
-  | 'cost_accountant'
   | 'warehouse_supervisor'
   | 'farm_manager'
   | 'hatchery_manager'

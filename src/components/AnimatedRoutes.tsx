@@ -1100,7 +1100,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/reconciliation" element={
-            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager', 'cost_accountant', 'agouza_warehouse_keeper']}>
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager', 'agouza_warehouse_keeper']}>
               <PageTransition><InventoryReconciliation /></PageTransition>
             </ProtectedRoute>
           } />
