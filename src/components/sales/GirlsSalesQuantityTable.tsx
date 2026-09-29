@@ -62,7 +62,6 @@ interface Prices {
 }
 
 const STORAGE_KEY = 'girls-sales-quantity-table-v4';
-const PRICES_KEY = 'girls-sales-prices-v2';
 
 const emptyData = (): Record<string, GirlData> =>
   ALL_MODERATOR_KEYS.reduce((acc, g) => {
