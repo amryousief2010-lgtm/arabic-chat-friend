@@ -30,12 +30,12 @@ const Auth = () => {
   const [loginPassword, setLoginPassword] = useState('');
 
   useEffect(() => {
-    if (user && !authLoading && role !== null) {
+    if (user && !authLoading) {
       if (nextPath) {
         window.location.replace(nextPath);
         return;
       }
-      navigate(getLandingForRole(role), { replace: true });
+      navigate(role ? getLandingForRole(role) : '/', { replace: true });
     }
   }, [user, role, authLoading, navigate, nextPath]);
 

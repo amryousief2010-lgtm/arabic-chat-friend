@@ -251,7 +251,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setRole(null);
     setRoles([]);
     setProfile(null);
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'local' });
   };
 
 
