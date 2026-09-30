@@ -588,6 +588,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   const [draftSearch, setDraftSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [searchTruncated, setSearchTruncated] = useState(false);
+  const [searchBusy, setSearchBusy] = useState(false);
   const [quickDeliveryOpen, setQuickDeliveryOpen] = useState(false);
   const [modDailyReportOpen, setModDailyReportOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -602,12 +603,19 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     pageSize: number;
   }>({ nextPage: 1, startDate: null, endDate: null, pageSize: 100 });
   const requestSeq = useRef(0);
-  const fetchOrdersRef = useRef<(searchOverride?: string) => Promise<void>>(async () => {});
-  const lastSearchFetch = useRef<string | null>(null);
+  const clearSearch = () => {
+    if (searchBusy) return;
+    setDraftSearch("");
+    setAppliedSearch("");
+    setSearchTruncated(false);
+    void fetchOrders("");
+  };
   const triggerSearchNow = () => {
+    if (searchBusy) return;
     const nextSearch = draftSearch.trim();
     setAppliedSearch(nextSearch);
-    fetchOrders(nextSearch);
+    // Empty query reloads the normal filtered list (no error toast).
+    void fetchOrders(nextSearch);
   };
   const now = new Date();
   const operationalFiltersActive = hasOrderListOperationalFilters({
@@ -738,10 +746,12 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     });
 
     const seq = ++requestSeq.current;
-    lastSearchFetch.current = activeSearch;
+    // searchOverride provided => explicit بحث / Enter / مسح (not mount/refresh).
+    const fromSearchUi = searchOverride !== undefined;
     // A search keeps the current cards on screen. The full-page spinner stays
     // for the first load, when there is nothing to keep visible.
     if (!activeSearch) setLoading(true);
+    if (fromSearchUi) setSearchBusy(true);
     try {
       // فلتر السنة الفعّال: السنة الحالية عند أي فلتر تشغيلي، أو اختيار المستخدم
       // الصريح («كل السنوات» / سنة محددة). الفترة الزمنية وتبويب السنة يبقيان
@@ -1108,26 +1118,14 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       console.error('Error fetching orders:', error);
       toast.error('حدث خطأ أثناء جلب الطلبات');
     } finally {
-      if (seq === requestSeq.current) setLoading(false);
+      if (seq === requestSeq.current) {
+        setLoading(false);
+        // Always release the search UI lock on the latest completed fetch
+        // so a later non-search refresh cannot leave the controls stuck.
+        setSearchBusy(false);
+      }
     }
   };
-  fetchOrdersRef.current = fetchOrders;
-
-  // بحث أثناء الكتابة. الطلب السابق يُتجاهل لو وصل متأخرًا.
-  const searchDebounceReady = useRef(false);
-  useEffect(() => {
-    if (!searchDebounceReady.current) {
-      searchDebounceReady.current = true;
-      return;
-    }
-    const handle = window.setTimeout(() => {
-      const next = draftSearch.trim();
-      if (next === lastSearchFetch.current) return;
-      setAppliedSearch(next);
-      void fetchOrdersRef.current(next);
-    }, 300);
-    return () => window.clearTimeout(handle);
-  }, [draftSearch]);
 
   // تحميل صفحة إضافية عند الضغط على "تحميل المزيد" (يستخدم على الموبايل بشكل أساسي)
   // يحمّل كل الطلبات المتبقية ضمن نطاق التاريخ الحالي (مثلاً كل طلبات الشهر) دفعة واحدة عبر التصفح الداخلي.
@@ -2273,15 +2271,23 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                 value={draftSearch}
                 onChange={(e) => setDraftSearch(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); triggerSearchNow(); } }}
+                disabled={searchBusy}
                 className="w-72 input-modern"
               />
-              <Button size="sm" variant="outline" onClick={triggerSearchNow} title="بحث">
+              <Button size="sm" variant="outline" onClick={triggerSearchNow} title="بحث" disabled={searchBusy}>
                 <Search className="w-4 h-4" />
+                <span className="mr-1">بحث</span>
               </Button>
               {draftSearch && (
-                <Button size="sm" variant="ghost" onClick={() => { setDraftSearch(""); setAppliedSearch(""); setSearchTruncated(false); fetchOrders(""); }} title="مسح">
+                <Button size="sm" variant="ghost" onClick={clearSearch} title="مسح" disabled={searchBusy}>
                   <XCircle className="w-4 h-4" />
                 </Button>
+              )}
+              {searchBusy && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
+                  <span className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-primary" />
+                  جارٍ البحث...
+                </span>
               )}
             </div>
             {appliedSearch && (
@@ -2290,7 +2296,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
                 {searchTruncated && (
                   <span>تم عرض أول 1000 نتيجة فقط. ضيّق البحث لرؤية الباقي.</span>
                 )}
-                <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => { setDraftSearch(""); setAppliedSearch(""); setSearchTruncated(false); fetchOrders(""); }}>
+                <Button size="sm" variant="ghost" className="h-6 px-2" onClick={clearSearch} disabled={searchBusy}>
                   إلغاء البحث
                 </Button>
               </div>
