@@ -14,7 +14,7 @@ const PWAUpdatePrompt = () => {
       if (busy.current) return;
       busy.current = true;
       try {
-        await checkAndReloadIfStale(reason);
+        await checkAndReloadIfStale(reason, { soft: true });
       } finally {
         busy.current = false;
         resumedFromBackground.current = false;

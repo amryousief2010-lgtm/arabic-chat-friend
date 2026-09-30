@@ -224,11 +224,13 @@ export const notifyUpdateAvailable = (remoteVersion: string) => {
   updateAvailableListeners.forEach((fn) => fn(info));
 };
 
+export type CheckReloadOptions = { soft?: boolean };
+
 /** فحص. يُرجع true عند وجود نسخة أحدث (إعادة تحميل إن كان ذلك آمناً، وإلا التنبيه). */
 export const checkAndReloadIfStale = async (
   reason: ReloadReason,
+  options?: CheckReloadOptions,
 ): Promise<boolean> => {
-  // حماية من حلقة إعادة التحميل عند الإقلاع فقط
   if (reason === "boot" && sessionStorage.getItem(RELOAD_GUARD_KEY) === "1") {
     sessionStorage.removeItem(RELOAD_GUARD_KEY);
     return false;
@@ -242,9 +244,17 @@ export const checkAndReloadIfStale = async (
   };
   listeners.forEach((fn) => fn(lastCheck!));
   console.info(
-    `[update] check (${reason}): current=${CURRENT_VERSION} remote=${result.remote ?? "?"} upToDate=${result.upToDate}`,
+    `[update] check (${reason}${options?.soft ? ",soft" : ""}): current=${CURRENT_VERSION} remote=${result.remote ?? "?"} upToDate=${result.upToDate}`,
   );
   if (result.upToDate || !result.remote) return false;
+
+  // Soft path: never clear SW / never location.replace — toast only.
+  // Prevents refresh-token race that logs users out mid-work (Alaa / mobile PWA).
+  if (options?.soft) {
+    notifyUpdateAvailable(result.remote);
+    return true;
+  }
+
   await triggerReload(reason, result.remote);
   return true;
 };
