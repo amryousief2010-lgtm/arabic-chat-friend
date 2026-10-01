@@ -24,6 +24,7 @@ const STATUS_COLORS: Record<string, string> = {
   partially_received: "bg-orange-500/15 text-orange-700",
   needs_manager_review: "bg-rose-500/15 text-rose-700",
   awaiting_approval: "bg-amber-500/15 text-amber-700",
+  pending_approval: "bg-amber-500/15 text-amber-700",
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -33,6 +34,7 @@ const STATUS_LABEL: Record<string, string> = {
   partially_received: "استلام جزئي",
   needs_manager_review: "بحاجة مراجعة مدير",
   awaiting_approval: "بانتظار الاعتماد",
+  pending_approval: "بانتظار الموافقة",
 };
 
 export default function WarehousePendingTransfers() {
@@ -48,7 +50,7 @@ export default function WarehousePendingTransfers() {
       supabase
         .from("warehouse_transfers")
         .select("id, transfer_no, status, source_warehouse_id, destination_warehouse_id, created_at, sent_at, received_at, notes, rejection_reason")
-        .in("status", ["pending", "sent", "pending_receipt", "partially_received", "needs_manager_review", "awaiting_approval"])
+        .in("status", ["pending", "sent", "pending_approval", "pending_receipt", "partially_received", "needs_manager_review", "awaiting_approval"])
         .order("created_at", { ascending: false })
         .limit(500),
     ]);
@@ -85,7 +87,7 @@ export default function WarehousePendingTransfers() {
           </div>
           <div className="flex-1">
             <h1 className="text-2xl font-bold">التحويلات المعلقة بين المخازن</h1>
-            <p className="text-sm text-muted-foreground">يعرض التحويلات غير المكتملة. اعتمد أو ارفض من شاشة مركز مراجعة المدير.</p>
+            <p className="text-sm text-muted-foreground">يعرض التحويلات غير المكتملة بما فيها طلبات بانتظار الموافقة. الاعتماد/الرفض من شاشة المخزن الرئيسي؛ الاستلام من العجوزة.</p>
           </div>
           <LegacyCloseControls
             docType="warehouse_transfer"
