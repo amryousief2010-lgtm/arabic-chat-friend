@@ -13,36 +13,49 @@ describe("resolveKgPricesForMonth", () => {
     expect(aug.prices.bone_meat_price).toBe(350);
     expect(aug.isHistorical).toBe(true);
     expect(aug.effective_from).toBe("2020-01-01");
-
-    const jul = resolveKgPricesForMonth(BUILTIN_KG_PRICE_VERSIONS, 2026, 7);
-    expect(jul.prices.processed_price).toBe(160);
   });
 
-  it("uses processed 140 from September 2026 onward", () => {
+  it("uses processed 140 for September 2026 only", () => {
     const sep = resolveKgPricesForMonth(BUILTIN_KG_PRICE_VERSIONS, 2026, 9);
-    expect(sep.prices).toEqual(defaultKgPrices);
-    expect(sep.isHistorical).toBe(false);
+    expect(sep.prices.processed_price).toBe(140);
+    expect(sep.prices.meat_price).toBe(390);
+    expect(sep.prices.bone_meat_price).toBe(350);
     expect(sep.effective_from).toBe("2026-09-01");
+    expect(sep.isHistorical).toBe(false);
+  });
 
+  it("uses processed 120 from October 2026 onward", () => {
     const oct = resolveKgPricesForMonth(BUILTIN_KG_PRICE_VERSIONS, 2026, 10);
-    expect(oct.prices.processed_price).toBe(140);
-    expect(oct.prices.meat_price).toBe(390);
-    expect(oct.prices.bone_meat_price).toBe(350);
+    expect(oct.prices).toEqual(defaultKgPrices);
+    expect(oct.prices.processed_price).toBe(120);
+    expect(oct.effective_from).toBe("2026-10-01");
+
+    const nov = resolveKgPricesForMonth(BUILTIN_KG_PRICE_VERSIONS, 2026, 11);
+    expect(nov.prices.processed_price).toBe(120);
+    expect(nov.prices.meat_price).toBe(390);
+    expect(nov.prices.bone_meat_price).toBe(350);
+  });
+
+  it("keeps prior months when a later version is added", () => {
+    const withNov = [
+      ...BUILTIN_KG_PRICE_VERSIONS,
+      {
+        effective_from: "2026-11-01",
+        meat_price: 390,
+        bone_meat_price: 350,
+        processed_price: 130,
+      },
+    ];
+    expect(resolveKgPricesForMonth(withNov, 2026, 9).prices.processed_price).toBe(140);
+    expect(resolveKgPricesForMonth(withNov, 2026, 10).prices.processed_price).toBe(120);
+    expect(resolveKgPricesForMonth(withNov, 2026, 11).prices.processed_price).toBe(130);
   });
 
   it("computes the same EGP value for the same qty across sections", () => {
-    const { prices } = resolveKgPricesForMonth(BUILTIN_KG_PRICE_VERSIONS, 2026, 9);
+    const { prices } = resolveKgPricesForMonth(BUILTIN_KG_PRICE_VERSIONS, 2026, 10);
     const qty = { processed: 12.5, meat: 3, bone: 4 };
-    const value = {
-      processed: qty.processed * prices.processed_price,
-      meat: qty.meat * prices.meat_price,
-      bone: qty.bone * prices.bone_meat_price,
-    };
-    // cards / بيان / قبض all multiply the same way
-    expect(value.processed).toBe(12.5 * 140);
-    expect(value.meat).toBe(3 * 390);
-    expect(value.bone).toBe(4 * 350);
-    expect(value.processed).not.toBe(12.5 * 160);
+    expect(qty.processed * prices.processed_price).toBe(12.5 * 120);
+    expect(qty.meat * prices.meat_price).toBe(3 * 390);
+    expect(qty.bone * prices.bone_meat_price).toBe(4 * 350);
   });
 });
-

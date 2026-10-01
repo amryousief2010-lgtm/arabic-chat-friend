@@ -1,21 +1,23 @@
 import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import {
   type KgPrices,
   type KgPriceVersion,
+  type KgPriceKind,
   defaultKgPrices,
   BUILTIN_KG_PRICE_VERSIONS,
-  CURRENT_KG_PRICE_EFFECTIVE_FROM,
+  monthStartIso,
   resolveKgPricesForMonth,
 } from "@/lib/kgPrices";
 import { currentCairoYearMonth } from "@/lib/cairoDate";
 
-export type { KgPrices, KgPriceVersion };
+export type { KgPrices, KgPriceVersion, KgPriceKind };
 export {
   defaultKgPrices,
   BUILTIN_KG_PRICE_VERSIONS,
-  CURRENT_KG_PRICE_EFFECTIVE_FROM,
+  monthStartIso,
   resolveKgPricesForMonth,
 } from "@/lib/kgPrices";
 
@@ -34,31 +36,70 @@ export function isHistoricalKgMonth(year?: number, month?: number) {
   return resolveKgPricesForMonth(BUILTIN_KG_PRICE_VERSIONS, year, month).isHistorical;
 }
 
-const QK = ["sales-kg-price-versions"];
+const MONTH_QK = ["sales-kg-prices-for-month"] as const;
+const VERSIONS_QK = ["sales-kg-price-versions"] as const;
+
+function isPriceManagerRole(role: string | null | undefined) {
+  return (
+    role === "general_manager" ||
+    role === "executive_manager" ||
+    role === "sales_manager" ||
+    role === "marketing_sales_manager"
+  );
+}
 
 /**
  * أسعار الكيلو المشتركة لصفحة التارجت فقط (لحوم / لحوم بالعظم / مصنعات).
- * المصدر الموحّد: جدول sales_kg_price_versions حسب effective_from.
- * التعديل من واجهة جدول البيان يحدّث إصدار 2026-09-01 ويُزامن الصف الواحد القديم.
+ * الحساب عبر RPC get_sales_kg_prices_for_month حسب الشهر المعروض.
+ * التعديل عبر لوحة الإعدادات + upsert_sales_kg_price_version بتاريخ سريان صريح.
  */
 export function useKgPrices(period?: { year?: number; month?: number }) {
   const cur = currentCairoYearMonth();
   const year = period?.year ?? cur.year;
   const month = period?.month ?? cur.monthIndex0 + 1;
   const queryClient = useQueryClient();
+  const { role } = useAuth();
+  const canManagePrices = isPriceManagerRole(role);
 
-  const { data: versions = BUILTIN_KG_PRICE_VERSIONS } = useQuery({
-    queryKey: QK,
+  const { data: monthRow, isLoading: monthLoading } = useQuery({
+    queryKey: [...MONTH_QK, year, month],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_sales_kg_prices_for_month", {
+        p_year: year,
+        p_month: month,
+      });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row) {
+        return resolveKgPricesForMonth(BUILTIN_KG_PRICE_VERSIONS, year, month);
+      }
+      return {
+        prices: {
+          meat_price: Number(row.meat_price),
+          bone_meat_price: Number(row.bone_meat_price),
+          processed_price: Number(row.processed_price),
+        },
+        effective_from: String(row.effective_from),
+        isHistorical: String(row.effective_from) < "2026-09-01",
+      };
+    },
+    staleTime: 30_000,
+  });
+
+  const { data: versions = [] } = useQuery({
+    queryKey: VERSIONS_QK,
+    enabled: canManagePrices,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sales_kg_price_versions")
-        .select("effective_from, meat_price, bone_meat_price, processed_price")
-        .order("effective_from", { ascending: true });
+        .select(
+          "effective_from, meat_price, bone_meat_price, processed_price, effective_to, created_by, updated_by, created_at, updated_at",
+        )
+        .order("effective_from", { ascending: false });
       if (error) throw error;
-      const rows = (data ?? []) as KgPriceVersion[];
-      return rows.length > 0 ? rows : BUILTIN_KG_PRICE_VERSIONS;
+      return (data ?? []) as KgPriceVersion[];
     },
-    staleTime: 60_000,
+    staleTime: 30_000,
   });
 
   useEffect(() => {
@@ -68,12 +109,10 @@ export function useKgPrices(period?: { year?: number; month?: number }) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "sales_kg_price_versions" },
-        () => queryClient.invalidateQueries({ queryKey: QK }),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "sales_kg_price_settings" },
-        () => queryClient.invalidateQueries({ queryKey: QK }),
+        () => {
+          queryClient.invalidateQueries({ queryKey: MONTH_QK });
+          queryClient.invalidateQueries({ queryKey: VERSIONS_QK });
+        },
       )
       .subscribe();
     return () => {
@@ -81,58 +120,53 @@ export function useKgPrices(period?: { year?: number; month?: number }) {
     };
   }, [queryClient]);
 
-  const resolved = resolveKgPricesForMonth(versions, year, month);
+  const resolved =
+    monthRow ?? resolveKgPricesForMonth(BUILTIN_KG_PRICE_VERSIONS, year, month);
   const prices = resolved.prices;
   const isHistorical = resolved.isHistorical;
 
-  const updateMutation = useMutation({
-    mutationFn: async (patch: Partial<KgPrices>) => {
-      // Managers may only edit the current (Sep 2026+) version.
-      const next: KgPrices = {
-        meat_price: Number(patch.meat_price ?? prices.meat_price),
-        bone_meat_price: Number(patch.bone_meat_price ?? prices.bone_meat_price),
-        processed_price: Number(patch.processed_price ?? prices.processed_price),
-      };
-
-      const { error: verErr } = await supabase.from("sales_kg_price_versions").upsert(
-        {
-          effective_from: CURRENT_KG_PRICE_EFFECTIVE_FROM,
-          ...next,
-        },
-        { onConflict: "effective_from" },
-      );
-      if (verErr) throw verErr;
-
-      // Keep legacy singleton in sync so older readers stay consistent.
-      const { data: singleton } = await supabase
-        .from("sales_kg_price_settings")
-        .select("id")
-        .eq("singleton", true)
-        .maybeSingle();
-
-      if (singleton?.id) {
-        const { error } = await supabase
-          .from("sales_kg_price_settings")
-          .update(next)
-          .eq("id", singleton.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("sales_kg_price_settings")
-          .insert({ singleton: true, ...next });
-        if (error) throw error;
-      }
+  const saveMutation = useMutation({
+    mutationFn: async (input: {
+      kind: KgPriceKind;
+      price: number;
+      effectiveFrom: string; // YYYY-MM-DD (month start)
+      replaceSameDate?: boolean;
+    }) => {
+      if (!canManagePrices) throw new Error("غير مصرح بتعديل أسعار التارجت");
+      const { data, error } = await supabase.rpc("upsert_sales_kg_price_version", {
+        p_effective_from: input.effectiveFrom,
+        p_price_kind: input.kind,
+        p_new_price: input.price,
+        p_replace_same_date: !!input.replaceSameDate,
+      });
+      if (error) throw error;
+      return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QK }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: MONTH_QK }),
+        queryClient.invalidateQueries({ queryKey: VERSIONS_QK }),
+      ]);
+    },
+  });
+
+  /** @deprecated Prefer savePriceVersion from the settings panel. */
+  const updateMutation = useMutation({
+    mutationFn: async (_patch: Partial<KgPrices>) => {
+      throw new Error("تعديل الأسعار يتم فقط من لوحة إعدادات أسعار التارجت مع تاريخ سريان");
+    },
   });
 
   return {
     prices,
     isHistorical,
-    canEditPrices: !isHistorical,
+    canEditPrices: false, // edits only via TargetKgPriceSettingsPanel
+    canManagePrices,
     effectiveFrom: resolved.effective_from,
+    versions,
+    isLoading: monthLoading,
+    savePriceVersion: saveMutation.mutateAsync,
+    isSaving: saveMutation.isPending,
     updatePrices: updateMutation.mutateAsync,
-    isSaving: updateMutation.isPending,
   };
 }
-

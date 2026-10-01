@@ -43,6 +43,7 @@ import MonthlyTargetTable from '@/components/sales/MonthlyTargetTable';
 import ModeratorOrdersBreakdown from '@/components/sales/ModeratorOrdersBreakdown';
 import GirlsSalesQuantityTable from '@/components/sales/GirlsSalesQuantityTable';
 import ModeratorPayrollTable from '@/components/sales/ModeratorPayrollTable';
+import TargetKgPriceSettingsPanel from '@/components/sales/TargetKgPriceSettingsPanel';
 import ModeratorQuickAccessCards from '@/components/sales/ModeratorQuickAccessCards';
 import ModeratorsAggregateSummary from '@/components/sales/ModeratorsAggregateSummary';
 
@@ -399,6 +400,7 @@ const SalesTargets = () => {
           </CardContent>
         </Card>
 
+        <TargetKgPriceSettingsPanel />
         <ModeratorQuickAccessCards month={selectedMonth} year={selectedYear} />
         {!isModerator && <ModeratorsAggregateSummary month={selectedMonth} year={selectedYear} />}
         {!isModerator && <MonthlyTargetTable />}

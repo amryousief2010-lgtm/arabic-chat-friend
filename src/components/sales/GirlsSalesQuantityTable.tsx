@@ -105,8 +105,7 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
     return emptyData();
   });
 
-  const { prices, updatePrices, canEditPrices } = useKgPrices({ year: selectedYear, month: selectedMonth });
-  const [priceDraft, setPriceDraft] = useState<Partial<Record<keyof Prices, string>>>({});
+  const { prices } = useKgPrices({ year: selectedYear, month: selectedMonth });
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
@@ -299,19 +298,6 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
     setData(prev => ({ ...prev, [girl]: { ...prev[girl], [field]: valid } }));
   };
 
-  const commitPrice = async (field: keyof Prices, label: string) => {
-    const raw = priceDraft[field];
-    if (raw === undefined) return;
-    const valid = validateNumber(Number(raw), label);
-    setPriceDraft(d => { const n = { ...d }; delete n[field]; return n; });
-    if (valid === null || valid === Number(prices[field])) return;
-    try {
-      await updatePrices({ [field]: valid } as Partial<Prices>);
-      toast.success('تم تحديث السعر لكل جداول التارجت');
-    } catch (e: any) {
-      toast.error(e?.message || 'تعذر حفظ السعر');
-    }
-  };
 
 
   const totals = useMemo(() => {
@@ -381,44 +367,24 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Price controls */}
-        {!canEditPrices && (
-          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2">
-            أسعار هذا الشهر مثبتة تاريخيًا ولا يمكن تعديلها. الأسعار الجديدة تسري من سبتمبر 2026 فصاعدًا.
-          </p>
-        )}
+        {/* Prices are read-only here — edit only via إعدادات أسعار التارجت at page top */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-lg bg-muted/40 border">
           <div className="space-y-2">
             <Label>سعر كيلو اللحوم (ج.م)</Label>
-            <Input
-              type="number" min="0"
-              value={priceDraft.meat_price ?? (prices.meat_price || '')}
-              onChange={(e) => setPriceDraft(d => ({ ...d, meat_price: e.target.value }))}
-              disabled={!canEditPrices}
-              onBlur={() => commitPrice('meat_price', 'سعر كيلو اللحوم')}
-            />
+            <Input type="number" value={prices.meat_price || ''} disabled readOnly />
           </div>
           <div className="space-y-2">
             <Label>سعر كيلو اللحوم بالعظم (ج.م)</Label>
-            <Input
-              type="number" min="0"
-              value={priceDraft.bone_meat_price ?? (prices.bone_meat_price || '')}
-              onChange={(e) => setPriceDraft(d => ({ ...d, bone_meat_price: e.target.value }))}
-              disabled={!canEditPrices}
-              onBlur={() => commitPrice('bone_meat_price', 'سعر كيلو اللحوم بالعظم')}
-            />
+            <Input type="number" value={prices.bone_meat_price || ''} disabled readOnly />
           </div>
           <div className="space-y-2">
             <Label>سعر كيلو المصنعات (ج.م)</Label>
-            <Input
-              type="number" min="0"
-              value={priceDraft.processed_price ?? (prices.processed_price || '')}
-              onChange={(e) => setPriceDraft(d => ({ ...d, processed_price: e.target.value }))}
-              disabled={!canEditPrices}
-              onBlur={() => commitPrice('processed_price', 'سعر كيلو المصنعات')}
-            />
+            <Input type="number" value={prices.processed_price || ''} disabled readOnly />
           </div>
         </div>
+        <p className="text-xs text-muted-foreground">
+          لتعديل الأسعار استخدم لوحة «إعدادات أسعار التارجت» أعلى الصفحة (للمديرين فقط) مع تحديد شهر السريان.
+        </p>
 
         <p className="text-xs text-muted-foreground">
           جميع الكميات تُحسب تلقائياً من الأوردرات المسلَّمة. (اللحوم: قطع، استيك، موزة، فراشة، قطعية الدبوس، تربيانكو، اسكالوب، رول، كباب، طبق — اللحوم بالعظم: دبوس 6 كيلو، فخدة نعام، نعامة صندوق — المصنعات: شاورما، شيش، كفتة، سجق، برجر، طرب، حواشي، مفروم، كفتة أرز، برجر بالجبنة).
