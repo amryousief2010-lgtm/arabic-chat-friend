@@ -62,7 +62,11 @@ const toNum = (v: any) => {
 const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
   const { roles, user, profile } = useAuth();
   const canReopen = roles?.some((r) => r === "general_manager" || r === "executive_manager");
-  const isManager = !!canReopen;
+  const canEnterResults = roles?.some((r) =>
+    r === "hatchery_manager" || r === "general_manager" || r === "executive_manager"
+  );
+  const isManager = !!canReopen; // GM/EM override for locked batches
+  const canSaveOrClose = !!canEnterResults;
   const isLocked = (group.customers || []).every((c: any) => {
     const s = c._raw?.status ?? c.status;
     return s === "completed" || s === "closed";
@@ -98,7 +102,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
   });
 
   // Effective edit lock: locked AND (not manager OR manager hasn't opted into override)
-  const editLocked = isLocked && !(isManager && managerOverride);
+  const editLocked = (isLocked && !(isManager && managerOverride)) || !canSaveOrClose;
 
   // Authoritative load: re-fetch excluded_eggs (+ related result fields) from DB on open
   // to guarantee we never display a stale value from a cached _raw payload.
@@ -203,49 +207,30 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
   );
 
   const persistRows = async (closing: boolean) => {
-    const rows = Object.values(drafts);
-    for (const r of rows) {
-      const eggs = toNum(r.total_eggs);
-      const excl = toNum(r.excluded_eggs);
-      const netAfterExcl = Math.max(0, eggs - excl);
-      const c1 = toNum(r.candle1_infertile);
-      const netC1 = Math.max(0, netAfterExcl - c1);
-      const payload: any = {
-        excluded_eggs: excl,
-        net_eggs: netAfterExcl,
-        candle1_infertile: c1,
-        candle1_fertile: netC1,
-        candle2_dead: toNum(r.candle2_dead),
-        hatcher_dead: toNum(r.hatcher_dead),
-        hatched_chicks: toNum(r.hatched_chicks),
-        notes: r.notes || null,
-        updated_at: new Date().toISOString(),
-      };
-      if (closing) {
-        payload.exit_date = exitDate;
-        payload.status = "completed";
-      }
-      console.log("[HatchResults] UPDATE payload:", { id: r.id, batch: r.batch_number, excluded_eggs: payload.excluded_eggs, net_eggs: payload.net_eggs });
-      const { data: updRow, error } = await supabase
-        .from("hatch_batches")
-        .update(payload)
-        .eq("id", r.id)
-        .select("id, batch_number, excluded_eggs, net_eggs")
-        .single();
-      if (error) throw error;
-      console.log("[HatchResults] UPDATE returned row:", updRow);
-      // Verification SELECT — confirms what's actually in the DB
-      const { data: verifyRow } = await supabase
-        .from("hatch_batches")
-        .select("id, batch_number, excluded_eggs, net_eggs")
-        .eq("id", r.id)
-        .maybeSingle();
-      console.log("[HatchResults] VERIFY SELECT after update:", verifyRow);
-      if (verifyRow && Number(verifyRow.excluded_eggs ?? 0) !== excl) {
-        console.error("[HatchResults] MISMATCH! sent=", excl, "stored=", verifyRow.excluded_eggs);
-        throw new Error(`فشل التحقق من حفظ المستبعد للدفعة ${r.batch_number}: المرسل=${excl}, المخزن=${verifyRow.excluded_eggs}`);
-      }
+    if (!canSaveOrClose) {
+      throw new Error("غير مسموح: إدخال نتائج الفقس أو إقفال الدفعة متاح فقط لمدير المعمل (أو المدير العام/التنفيذي).");
     }
+    const rows = Object.values(drafts);
+    const payload = rows.map((r) => ({
+      id: r.id,
+      excluded_eggs: toNum(r.excluded_eggs),
+      candle1_infertile: toNum(r.candle1_infertile),
+      candle2_dead: toNum(r.candle2_dead),
+      hatcher_dead: toNum(r.hatcher_dead),
+      hatched_chicks: toNum(r.hatched_chicks),
+      notes: r.notes || null,
+    }));
+    const { data: rpcResult, error: rpcError } = await (supabase as any).rpc(
+      "save_or_close_hatching_batch_results",
+      {
+        p_rows: payload,
+        p_closing: closing,
+        p_exit_date: closing ? exitDate : null,
+      },
+    );
+    if (rpcError) throw rpcError;
+    console.log("[HatchResults] RPC result:", rpcResult);
+
     // Best-effort audit log (RLS may restrict; ignore failures)
     try {
       const { data: u } = await supabase.auth.getUser();
@@ -299,6 +284,10 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
   };
 
   const handleSave = async () => {
+    if (!canSaveOrClose) {
+      toast.error("إدخال نتائج الفقس متاح فقط لمدير المعمل، أو المدير العام/التنفيذي.");
+      return;
+    }
     if (isLocked && !isManager) {
       toast.error("لا يمكن تعديل هذه الدفعة لأنها مقفلة. التعديل متاح فقط للمدير العام أو المدير التنفيذي.");
       return;
@@ -332,6 +321,11 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
   };
 
   const handleClose = async () => {
+    if (!canSaveOrClose) {
+      toast.error("إقفال الدفعة متاح فقط لمدير المعمل، أو المدير العام/التنفيذي.");
+      setConfirmClose(false);
+      return;
+    }
     const err = validateAll();
     if (err) { toast.error(err); setConfirmClose(false); return; }
     if (!anyResultsEntered) {
@@ -358,10 +352,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
     setSaving(true);
     try {
       const ids = (group.customers || []).map((c: any) => c.id);
-      const { error } = await supabase
-        .from("hatch_batches")
-        .update({ status: "received", exit_date: null, updated_at: new Date().toISOString() })
-        .in("id", ids);
+      const { error } = await (supabase as any).rpc("reopen_hatching_batch_results", { p_ids: ids });
       if (error) throw error;
       try {
         const { data: u } = await supabase.auth.getUser();
@@ -408,6 +399,16 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
           </DialogTitle>
         </DialogHeader>
 
+        {!canSaveOrClose && (
+          <div className="rounded-md border border-rose-300 bg-rose-50 dark:bg-rose-950/30 p-3 text-sm text-rose-800 dark:text-rose-200 flex items-start gap-2">
+            <Lock className="w-4 h-4 mt-0.5 shrink-0" />
+            <div>
+              <div className="font-bold">صلاحية غير كافية لإدخال النتائج أو إقفال الدفعة.</div>
+              <div className="text-xs">الإجراء متاح لمدير المعمل، مع صلاحية تجاوز للمدير العام أو المدير التنفيذي.</div>
+            </div>
+          </div>
+        )}
+
         {isLocked && !isManager && (
           <div className="rounded-md border border-rose-300 bg-rose-50 dark:bg-rose-950/30 p-3 text-sm text-rose-800 dark:text-rose-200 flex items-start gap-2">
             <Lock className="w-4 h-4 mt-0.5 shrink-0" />
@@ -452,7 +453,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
           <div>• <b>المستبعد</b> = البيض المخروم/المكسور/غير الصالح الذي لم يدخل التشغيل. <b>صافي بعد الاستبعاد</b> = عدد البيض − المستبعد.</div>
           <div>• <b>صافي بعد ك1</b> = صافي بعد الاستبعاد − لايح الكشف الأول. <b>صافي بعد ك2</b> = صافي ك1 − لايح/نافق الكشف الثاني.</div>
           <div>• عدد الكتاكيت + نافق الهاتشر يجب أن لا يتجاوزا صافي بعد ك2. المستبعد لا يدخل في رسوم التشغيل المالية.</div>
-          <div>• لن يتم تعديل خزنة المعمل ولا تسجيل أي حركة مالية ولا تحصيل تلقائي.</div>
+          <div>• حفظ النتائج المرحلي لا يحرّك الخزنة. <b>عند إقفال الدفعة</b> تُسجَّل مستحقات العميل في كشف المعمل (ذمم) تلقائياً — بدون تحصيل نقدي تلقائي.</div>
         </div>
 
 
@@ -620,10 +621,10 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
           <Button variant="outline" onClick={onClose} disabled={saving}>
             إلغاء
           </Button>
-          {!isLocked && (
+          {!isLocked && canSaveOrClose && (
             <Button
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || !!firstError}
               className="min-w-[140px]"
             >
               {saving ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Save className="w-4 h-4 ml-1" />}
@@ -641,7 +642,7 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
               حفظ تعديل بصلاحية إدارية
             </Button>
           )}
-          {!isLocked && (
+          {!isLocked && canSaveOrClose && (
             <Button
               variant="destructive"
               onClick={() => setConfirmClose(true)}
@@ -693,7 +694,8 @@ const HatchResultsEntryDialog = ({ group, onClose, onSaved }: Props) => {
               <AlertDialogTitle>تأكيد إقفال الدفعة</AlertDialogTitle>
               <AlertDialogDescription>
                 هل أنت متأكد من إقفال الدفعة؟ بعد الإقفال لن يمكن تعديل نتائج الفقس إلا بصلاحية إدارية.
-                سيتم حفظ النتائج الحالية وتسجيل تاريخ الخروج: <b>{exitDate}</b>.
+                سيتم حفظ النتائج وتسجيل تاريخ الخروج: <b>{exitDate}</b>، وتسجيل مستحقات العميل في كشف المعمل.
+
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
