@@ -24,7 +24,7 @@ interface Shipment {
   family_number: string | null;
   production_date: string;
   egg_count: number;
-  status: "pending" | "received" | "partial" | "rejected";
+  status: "pending" | "received" | "partial" | "rejected" | "cancelled";
   received_egg_count: number | null;
   damaged_count: number | null;
   received_at: string | null;
@@ -32,7 +32,26 @@ interface Shipment {
   rejection_reason: string | null;
   hatch_batch_id: string | null;
   suggested_batch_id: string | null;
+  farm_transfer_id?: string | null;
+  transfer_batch_id?: string | null;
   created_at: string;
+}
+
+/** Old inbox must not receive orphans/duplicates — official path is HatcheryLab «تحميل وارد المزرعة». */
+function isOldInboxReceiveBlocked(r: Shipment): { blocked: boolean; reason: string } {
+  if (r.status === "rejected" || r.status === "cancelled") {
+    return { blocked: true, reason: "شحنة مرفوضة/ملغاة — لا يمكن استلامها من الصندوق القديم" };
+  }
+  if (r.status !== "pending") {
+    return { blocked: true, reason: "الشحنة ليست بانتظار الاستلام" };
+  }
+  if (!r.farm_transfer_id) {
+    return {
+      blocked: true,
+      reason: "شحنة يتيمة/قديمة بلا ربط نقل رسمي — الاستلام فقط من «تحميل وارد المزرعة» في شاشة المعمل",
+    };
+  }
+  return { blocked: false, reason: "" };
 }
 
 const shipNo = (id: string) => `SH-${id.slice(0, 6).toUpperCase()}`;
@@ -41,7 +60,8 @@ const STATUS_AR: Record<Shipment["status"], string> = {
   pending: "بانتظار الاستلام",
   received: "مستلم بالكامل",
   partial: "مستلم جزئياً",
-  rejected: "مرفوض",
+  rejected: "مرفوض / مكرر ملغى",
+  cancelled: "ملغاة",
 };
 
 const statusBadge = (s: Shipment["status"]) => {
@@ -50,6 +70,7 @@ const statusBadge = (s: Shipment["status"]) => {
     received: "default",
     partial: "secondary",
     rejected: "destructive",
+    cancelled: "destructive",
   };
   return <Badge variant={map[s]}>{STATUS_AR[s]}</Badge>;
 };
@@ -129,6 +150,11 @@ const FarmShipmentsInbox = () => {
   const pendingCount = rows.filter(r => r.status === "pending").length;
 
   const openReceive = async (r: Shipment) => {
+    const gate = isOldInboxReceiveBlocked(r);
+    if (gate.blocked) {
+      toast.error(gate.reason);
+      return;
+    }
     setEditing(r);
     setConfirmMatch(false);
     setForm({
@@ -162,6 +188,11 @@ const FarmShipmentsInbox = () => {
 
   const confirmReceive = async () => {
     if (!editing) return;
+    const gate = isOldInboxReceiveBlocked(editing);
+    if (gate.blocked) {
+      toast.error(gate.reason);
+      return;
+    }
     const received = Number(form.received) || 0;
     const damaged = Number(form.damaged) || 0;
     const dead = Number(form.dead) || 0;
@@ -404,6 +435,11 @@ const FarmShipmentsInbox = () => {
         </div>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/40 p-3 text-sm text-amber-900 dark:text-amber-100 space-y-1">
+          <div className="font-bold">تنبيه مسار الاستلام (إصلاح P0)</div>
+          <div>الاستلام التشغيلي الصحيح يتم فقط من زر <b>«تحميل وارد المزرعة»</b> داخل شاشة <b>معمل التفريخ والحضانات</b>.</div>
+          <div>صندوق الوارد القديم لا يستلم شحنات يتيمة أو مكررة — تم تعطيل الاستلام عليها لمنع دفعات تفريخ وهمية.</div>
+        </div>
         {isLoading ? (
           <p className="text-center text-sm text-muted-foreground py-6">جاري التحميل...</p>
         ) : rows.length === 0 ? (
@@ -462,16 +498,26 @@ const FarmShipmentsInbox = () => {
                         <Button size="sm" variant="outline" onClick={() => setDetail(r)}>
                           <Eye className="w-4 h-4 ml-1" /> تفاصيل
                         </Button>
-                        {r.status === "pending" && (
-                          <>
-                            <Button size="sm" onClick={() => openReceive(r)}>
-                              <CheckCircle2 className="w-4 h-4 ml-1" /> استلام
-                            </Button>
-                            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => { setRejecting(r); setRejectReason(""); }}>
-                              <Ban className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
+                        {r.status === "pending" && (() => {
+                          const gate = isOldInboxReceiveBlocked(r);
+                          if (gate.blocked) {
+                            return (
+                              <Badge variant="outline" className="text-[10px] max-w-[180px] whitespace-normal text-amber-800 border-amber-400">
+                                استلام معطّل — استخدم تحميل وارد المزرعة
+                              </Badge>
+                            );
+                          }
+                          return (
+                            <>
+                              <Button size="sm" onClick={() => openReceive(r)}>
+                                <CheckCircle2 className="w-4 h-4 ml-1" /> استلام
+                              </Button>
+                              <Button size="sm" variant="ghost" className="text-destructive" onClick={() => { setRejecting(r); setRejectReason(""); }}>
+                                <Ban className="w-4 h-4" />
+                              </Button>
+                            </>
+                          );
+                        })()}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -523,9 +569,13 @@ const FarmShipmentsInbox = () => {
               <Printer className="w-4 h-4 ml-1" /> طباعة التفاصيل
             </Button>
             {detail?.status === "pending" && (
+              {detail && !isOldInboxReceiveBlocked(detail).blocked ? (
               <Button onClick={() => { const r = detail; setDetail(null); openReceive(r!); }}>
                 <CheckCircle2 className="w-4 h-4 ml-1" /> تأكيد الاستلام
               </Button>
+              ) : detail?.status === "pending" ? (
+                <Badge variant="outline" className="text-amber-800 border-amber-400">استلام معطّل — تحميل وارد المزرعة فقط</Badge>
+              ) : null}
             )}
           </DialogFooter>
         </DialogContent>
