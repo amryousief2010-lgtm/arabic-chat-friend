@@ -79,7 +79,7 @@ const ALIASES: Record<string, string> = {
   "كفته": "كفته",
   "كفتة": "كفته",
   "مفروم": "مفروم",
-  "فرم": "مفروم",
+  "فرم": "فرم نعام",  // raw grind — NOT finished مفروم
   "سجق": "سجق",
   "كفته ارز": "كفته الرز",
   "كفته أرز": "كفته الرز",
@@ -100,7 +100,15 @@ const ALIASES: Record<string, string> = {
   "برجر جبنة": "برجر جبنه",
   "حواوشي": "حواوشي",
   "شاورما": "شاورما",
+  "شاورما نعام": "شاورما",
+  "شاورما متبل": "شاورما",
+  "شاورما متبله": "شاورما",
+  "شاورما متبلة": "شاورما",
   "شيش": "شيش",
+  "شيش كباب": "شيش",  // MUST beat alias "كباب" (endsWith) — live product is شيش not قطع كباب
+  "شيش متبل": "شيش",
+  "شيش متبله": "شيش",
+  "شيش متبلة": "شيش",
   "طرب": "طرب",
   "قلب": "قلب",
   "ممبار": "ممبار",
@@ -108,10 +116,10 @@ const ALIASES: Record<string, string> = {
   "دبووس": "قطعيه الدبوس",
   "قطعيه الدبوس": "قطعيه الدبوس",
   "قطعية الدبوس": "قطعيه الدبوس",
-  "دبوس بالعظم": "قطعيه الدبوس",
-  "دبوس بالعضم": "قطعيه الدبوس",
-  "دبوس بالعضمه": "قطعيه الدبوس",
-  "دبوس بالعظمه": "قطعيه الدبوس",
+  "دبوس بالعظم": "دبوس بالعظم",
+  "دبوس بالعضم": "دبوس بالعظم",
+  "دبوس بالعضمه": "دبوس بالعظم",
+  "دبوس بالعظمه": "دبوس بالعظم",
   "دهن": "دهن النعام",
   "دهن نعام": "دهن النعام",
   "دهن النعام": "دهن النعام",
@@ -122,7 +130,9 @@ const ALIASES: Record<string, string> = {
   "شغت": "شغت نعام",
   "شغت نعام": "شغت نعام",
   "قطع كباب": "قطع كباب",
+  "قطع كباب نعام": "قطع كباب",
   "كباب": "قطع كباب",
+  "كباب نعام": "قطع كباب",
   "رول": "رول",
   "فراشه": "فراشه",
   "فراشة": "فراشه",
@@ -156,7 +166,7 @@ export function buildProductLookup(products: CatalogProduct[]): Map<string, Cata
 
 /**
  * Parse the free-text product cell into structured items.
- * Algorithm: walk left→right, treat quantity token (نص | ك | Nك) as a new item boundary.
+ * Algorithm: walk left→right, treat quantity token (نص/نصف | ك | Nك) as a new item boundary.
  */
 export function parseProductText(
   text: string,
@@ -171,6 +181,11 @@ export function parseProductText(
   norm = norm.replace(/(\d+)\s*بيض(ه|ة|ات)?(?=\s|$)/g, "$1ك بيض");
   // Bare "بيضه/بيضة" (single egg) -> "ك بيض"
   norm = norm.replace(/(^|\s)بيض(ه|ة)(?=\s|$)/g, "$1ك بيض");
+  // Half-kilo wording: "نصف/نص كيلو" → "نص" (leading); trailing "… نصف كيلو" → "نص …"
+  // so "قطعية الدبوس نصف كيلو" resolves like "نص قطعية الدبوس".
+  norm = norm.replace(/^(نصف|نص)\s*كيلو(?=\s|$)/g, "نص");
+  norm = norm.replace(/^(.+?)\s+(نصف|نص)\s*كيلو$/g, "نص $1");
+  norm = norm.replace(/^(.+?)\s+(نصف|نص)$/g, "نص $1");
   // "دبوس بالعضم/بالعظم" -> collapse to just "دبوس" so alias resolver catches it
   norm = norm.replace(/دبوس\s+بال?ع[ضظ]م(ه)?/g, "دبوس");
   // Expand Arabic dual (تثنية) shortcuts to "2ك <word>" (space-delimited since \b doesn't work on Arabic)
@@ -196,8 +211,8 @@ export function parseProductText(
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i];
 
-    // "نص" alone → 0.5 (but if previous bucket just opened with qty and no words yet, add to it: e.g. "كيلو ونص")
-    if (t === "نص" || t === "ونص") {
+    // "نص" / "نصف" alone → 0.5 (if previous bucket just opened with qty and no words yet, add to it: e.g. "كيلو ونص")
+    if (t === "نص" || t === "ونص" || t === "نصف" || t === "ونصف") {
       if (current && current.words.length === 0) {
         current.qty += 0.5;
       } else {
@@ -209,6 +224,10 @@ export function parseProductText(
     // "كيلو" or "Nكيلو"
     const km = t.match(kiloWordRegex);
     if (km) {
+      // "نص كيلو" / "نصف كيلو" already opened 0.5 with no words — keep 0.5, do not replace with 1
+      if (current && current.words.length === 0 && current.qty === 0.5 && !km[1]) {
+        continue;
+      }
       if (current) buckets.push(current);
       const n = km[1] ? parseInt(km[1], 10) : 1;
       current = { qty: n, words: [], isGiftHint: false };
@@ -293,7 +312,12 @@ export function parseProductText(
   const mentionsBoneIn = /دبوس\s*بال?ع[ضظ]م(ه)?/.test(String(original).replace(/[أإآا]/g, "ا"));
   const codOverThreshold = typeof codAmount === "number" && codAmount > 2000;
   if (!mentionsFillet && (mentionsBoneIn || codOverThreshold)) {
-    const bonePack = productLookup.get(normalizeArabic("6ك دبوس بالعظم"));
+    // Bone pack product is catalogued as "دبوس بالعظم" (id 405ece91…); "6ك…" is inventory card label only.
+    const BONE_PACK_PRODUCT_ID = "405ece91-0ad3-4b51-afb0-da90dc69cbbe";
+    const bonePack =
+      productLookup.get(normalizeArabic("دبوس بالعظم")) ??
+      productLookup.get(normalizeArabic("6ك دبوس بالعظم")) ??
+      [...productLookup.values()].find((p) => p.id === BONE_PACK_PRODUCT_ID);
     if (bonePack) {
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
