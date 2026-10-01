@@ -47,6 +47,69 @@ export type Database = {
         }
         Relationships: []
       }
+      _migration_backup_sales_kg_price_settings_20261001: {
+        Row: {
+          bone_meat_price: number | null
+          created_at: string | null
+          id: string | null
+          meat_price: number | null
+          processed_price: number | null
+          singleton: boolean | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          bone_meat_price?: number | null
+          created_at?: string | null
+          id?: string | null
+          meat_price?: number | null
+          processed_price?: number | null
+          singleton?: boolean | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          bone_meat_price?: number | null
+          created_at?: string | null
+          id?: string | null
+          meat_price?: number | null
+          processed_price?: number | null
+          singleton?: boolean | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      _migration_backup_sales_kg_price_versions_20261001: {
+        Row: {
+          bone_meat_price: number | null
+          created_at: string | null
+          effective_from: string | null
+          id: string | null
+          meat_price: number | null
+          processed_price: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          bone_meat_price?: number | null
+          created_at?: string | null
+          effective_from?: string | null
+          id?: string | null
+          meat_price?: number | null
+          processed_price?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          bone_meat_price?: number | null
+          created_at?: string | null
+          effective_from?: string | null
+          id?: string | null
+          meat_price?: number | null
+          processed_price?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       agouza_daily_closures: {
         Row: {
           closed_at: string | null
@@ -16520,29 +16583,38 @@ export type Database = {
         Row: {
           bone_meat_price: number
           created_at: string
+          created_by: string | null
           effective_from: string
+          effective_to: string | null
           id: string
           meat_price: number
           processed_price: number
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
           bone_meat_price?: number
           created_at?: string
+          created_by?: string | null
           effective_from: string
+          effective_to?: string | null
           id?: string
           meat_price?: number
           processed_price?: number
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           bone_meat_price?: number
           created_at?: string
+          created_by?: string | null
           effective_from?: string
+          effective_to?: string | null
           id?: string
           meat_price?: number
           processed_price?: number
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -24247,6 +24319,7 @@ export type Database = {
         Args: { p_warehouse_id: string }
         Returns: boolean
       }
+      is_sales_kg_price_manager: { Args: { p_uid?: string }; Returns: boolean }
       is_slaughter_custody_manager: { Args: { _uid: string }; Returns: boolean }
       is_social_media_approver: { Args: { _uid: string }; Returns: boolean }
       is_social_media_manager: { Args: { _uid: string }; Returns: boolean }
@@ -25583,6 +25656,32 @@ export type Database = {
       update_transfer_request_quantities: {
         Args: { p_lines: Json; p_transfer_id: string }
         Returns: Json
+      }
+      upsert_sales_kg_price_version: {
+        Args: {
+          p_effective_from: string
+          p_new_price: number
+          p_price_kind: string
+          p_replace_same_date?: boolean
+        }
+        Returns: {
+          bone_meat_price: number
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          effective_to: string | null
+          id: string
+          meat_price: number
+          processed_price: number
+          updated_at: string
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "sales_kg_price_versions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       upsert_stocktaking_line: {
         Args: {
