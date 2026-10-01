@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyAssignedOrders, type MyAssignedOrder } from "@/hooks/usePrivateCourierData";
+import { updateOrderStatusShared } from "@/lib/orderStatusUpdate";
 import { CourierStatusBadge } from "@/components/private-courier/StatusBadge";
 import {
   COURIER_STATUS_LABEL, COLLECTION_STATUS_LABEL, FAILED_REASON_LABEL, NEXT_ACTION_LABEL,
@@ -49,6 +50,24 @@ export default function PCMyDeliveries() {
     if (status === "delivered") patch.delivered_at = new Date().toISOString();
     const { error } = await (supabase as any).from("pc_order_tracking").update(patch).eq("order_id", order.id);
     if (error) { toast.error(error.message); return; }
+
+    // Phase 1 Option A: sync orders.status → delivered so DB trigger fires (stock + treasury)
+    if (status === "delivered") {
+      try {
+        await updateOrderStatusShared({
+          orderId: order.id,
+          newStatus: "delivered",
+          userId: user?.id,
+          deliveredAt: patch.delivered_at,
+        });
+      } catch (e: any) {
+        console.warn("updateOrderStatusShared failed", e);
+        toast.error(e?.message || "تم تحديث تتبع المندوب لكن فشل تحديث حالة الطلب");
+        refetch();
+        return;
+      }
+    }
+
     toast.success("تم تحديث الحالة");
     refetch();
   };
