@@ -32,6 +32,7 @@ import HatcheryGroupedBatches from "@/components/hatchery/HatcheryGroupedBatches
 import QuickAddHatchCustomerDialog from "@/components/hatchery/QuickAddHatchCustomerDialog";
 import {
   addDays,
+  computeLabOpsKpis,
   computeStage,
   daysDiff,
   HATCH_BATCHES_LAB_QUERY_KEY,
@@ -115,13 +116,21 @@ const HatcheryLab = () => {
     },
   });
 
+  // Invoice totals only — operational KPIs come from live hatch_batches (see DashboardTab).
   const { data: kpis } = useQuery<any>({
-    queryKey: ["hatchery_kpis"],
+    queryKey: ["hatchery_kpis_invoices"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("v_hatchery_dashboard_kpis" as any).select("*").maybeSingle();
+        .from("hatchery_client_invoices" as any)
+        .select("total_amount,paid_amount,remaining_amount,discount_amount");
       if (error) throw error;
-      return data;
+      const rows = (data as any[]) || [];
+      return {
+        invoices_total: rows.reduce((s, r) => s + Number(r.total_amount || 0), 0),
+        invoices_paid: rows.reduce((s, r) => s + Number(r.paid_amount || 0), 0),
+        invoices_remaining: rows.reduce((s, r) => s + Number(r.remaining_amount || 0), 0),
+        invoices_discount: rows.reduce((s, r) => s + Number(r.discount_amount || 0), 0),
+      };
     },
   });
 
@@ -139,7 +148,7 @@ const HatcheryLab = () => {
     qc.invalidateQueries({ queryKey: ["hatchery_batches_full"] });
     qc.invalidateQueries({ queryKey: ["hatchery_lots"] });
     qc.invalidateQueries({ queryKey: ["hatchery_client_invoices"] });
-    qc.invalidateQueries({ queryKey: ["hatchery_kpis"] });
+    qc.invalidateQueries({ queryKey: ["hatchery_kpis_invoices"] });
     qc.invalidateQueries({ queryKey: ["hatchery_balances"] });
     qc.invalidateQueries({ queryKey: HATCH_BATCHES_LAB_QUERY_KEY });
     qc.invalidateQueries({ queryKey: ["hatch_batches_dash"] });
@@ -270,7 +279,7 @@ const HatcheryLab = () => {
           </div>
 
           <TabsContent value="dashboard" className="mt-0">
-            <DashboardTab kpis={kpis} batches={batches} settings={settings} setTab={setTab} />
+            <DashboardTab kpis={kpis} settings={settings} setTab={setTab} />
           </TabsContent>
 
           <TabsContent value="batches" className="mt-0">
@@ -321,12 +330,22 @@ const KCard = ({ label, value, sub, color = "from-primary to-accent", icon: Icon
 
 import HatcheryAlerts from "@/components/hatchery/HatcheryAlerts";
 
-const DashboardTab = ({ kpis, batches, settings, setTab }: any) => {
-  const k = kpis || {};
-  const dueCandling = useMemo(() =>
-    batches.filter((b: any) => b.status === "incubating" && new Date(b.candle_due_date) <= new Date()), [batches]);
-  const dueHatcher = useMemo(() =>
-    batches.filter((b: any) => ["incubating", "candled"].includes(b.status) && new Date(b.hatcher_due_date) <= new Date()), [batches]);
+const DashboardTab = ({ kpis, settings, setTab }: any) => {
+  const kInv = kpis || {};
+  const { data: liveBatches = [] } = useQuery<any[]>({
+    queryKey: HATCH_BATCHES_LAB_QUERY_KEY,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hatch_batches")
+        .select(HATCH_BATCHES_LAB_SELECT)
+        .order("receive_date", { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      return (data as any) || [];
+    },
+  });
+
+  const ops = useMemo(() => computeLabOpsKpis(liveBatches, settings), [liveBatches, settings]);
 
   return (
     <div className="space-y-4">
@@ -338,30 +357,22 @@ const DashboardTab = ({ kpis, batches, settings, setTab }: any) => {
         }}
       />
 
-      {(dueCandling.length > 0 || dueHatcher.length > 0) && (
-        <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-300">
-          <AlertTriangle className="w-4 h-4 text-amber-600" />
-          <AlertTitle>تنبيهات الدفعات</AlertTitle>
-          <AlertDescription>
-            {dueCandling.length > 0 && <div>• {dueCandling.length} دفعة وصلت ليوم الكشف ({settings?.candling_day || 15} يوم)</div>}
-            {dueHatcher.length > 0 && <div>• {dueHatcher.length} دفعة وصلت ليوم النقل للهاتشر ({settings?.transfer_to_hatcher_day || 39} يوم)</div>}
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* تنبيهات الدفعات القديمة أُزيلت — المصدر الحي هو «تنبيهات التشغيل» أعلاه */}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KCard label="إجمالي البيض في المعمل" value={fmtNum(k.eggs_in_incubators)} icon={Egg} color="from-orange-500 to-amber-600" />
-        <KCard label="بيض نعام العاصمة" value={fmtNum(k.internal_eggs)} icon={Egg} color="from-purple-600 to-violet-700" />
-        <KCard label="بيض العملاء" value={fmtNum(k.external_eggs)} icon={Egg} color="from-cyan-500 to-blue-600" />
-        <KCard label="نسبة الفقس" value={`${k.hatch_rate_pct || 0}%`} icon={TrendingUp} color="from-emerald-500 to-teal-600" />
-        <KCard label="تنتظر الكشف" value={fmtNum(k.batches_awaiting_candling)} icon={AlertTriangle} color="from-yellow-500 to-orange-500" />
-        <KCard label="تنتظر النقل للهاتشر" value={fmtNum(k.batches_awaiting_hatcher)} icon={AlertTriangle} color="from-pink-500 to-rose-600" />
-        <KCard label="في الهاتشر" value={fmtNum(k.in_hatcher)} icon={Bird} color="from-indigo-500 to-blue-700" />
-        <KCard label="في الحضانات" value={fmtNum(k.in_brooding)} icon={Bird} color="from-fuchsia-500 to-pink-600" />
-        <KCard label="كتاكيت هذا الشهر" value={fmtNum(k.chicks_this_month)} icon={Bird} color="from-emerald-600 to-green-700" />
-        <KCard label="إجمالي الفواتير" value={fmtEGP(k.invoices_total)} icon={FileText} color="from-slate-600 to-slate-800" />
-        <KCard label="المدفوع" value={fmtEGP(k.invoices_paid)} icon={Wallet} color="from-green-600 to-emerald-700" />
-        <KCard label="المتبقي" value={fmtEGP(k.invoices_remaining)} icon={Wallet} color="from-red-500 to-red-700" />
+        <KCard label="إجمالي البيض في المعمل" value={fmtNum(ops.eggsInLab)} icon={Egg} color="from-orange-500 to-amber-600" sub="من دفعات التشغيل الحية" />
+        <KCard label="بيض نعام العاصمة" value={fmtNum(ops.internalEggs)} icon={Egg} color="from-purple-600 to-violet-700" />
+        <KCard label="بيض العملاء" value={fmtNum(ops.externalEggs)} icon={Egg} color="from-cyan-500 to-blue-600" />
+        <KCard label="نسبة الفقس" value={`${ops.hatchRatePct || 0}%`} icon={TrendingUp} color="from-emerald-500 to-teal-600" sub="من الدفعات المكتملة" />
+        <KCard label="تنتظر الكشف" value={fmtNum(ops.awaitingCandle)} icon={AlertTriangle} color="from-yellow-500 to-orange-500" />
+        <KCard label="تنتظر النقل للهاتشر" value={fmtNum(ops.awaitingHatcher)} icon={AlertTriangle} color="from-pink-500 to-rose-600" />
+        <KCard label="في الهاتشر" value={fmtNum(ops.inHatcher)} icon={Bird} color="from-indigo-500 to-blue-700" />
+        <KCard label="دفعات متأخرة" value={fmtNum(ops.overdue)} icon={AlertTriangle} color="from-red-500 to-rose-700" sub="بدل بطاقة الحضانات القديمة" />
+        <KCard label="كتاكيت هذا الشهر" value={fmtNum(ops.chicksThisMonth)} icon={Bird} color="from-emerald-600 to-green-700" />
+        <KCard label="دفعات مفتوحة" value={fmtNum(ops.openBatches)} icon={FlaskConical} color="from-slate-600 to-slate-800" />
+        <KCard label="إجمالي الفواتير" value={fmtEGP(kInv.invoices_total)} icon={FileText} color="from-slate-600 to-slate-800" />
+        <KCard label="المدفوع" value={fmtEGP(kInv.invoices_paid)} icon={Wallet} color="from-green-600 to-emerald-700" />
+        <KCard label="المتبقي" value={fmtEGP(kInv.invoices_remaining)} icon={Wallet} color="from-red-500 to-red-700" />
       </div>
 
       <HatcheryClientMetrics />

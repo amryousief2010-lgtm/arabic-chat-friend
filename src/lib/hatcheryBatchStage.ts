@@ -127,3 +127,104 @@ export function computeStage(
 export function isBatchActuallyOverdue(b: any, settings: any): boolean {
   return isOperationalHatchBatch(b) && computeStage(b, settings).stage === "overdue";
 }
+
+
+export type LabOpsKpis = {
+  eggsInLab: number;
+  internalEggs: number;
+  externalEggs: number;
+  hatchRatePct: number;
+  awaitingCandle: number;
+  awaitingHatcher: number;
+  inHatcher: number;
+  overdue: number;
+  chicksThisMonth: number;
+  openBatches: number;
+};
+
+/** Operational KPIs from live hatch_batches (same model as تنبيهات التشغيل). */
+export function computeLabOpsKpis(batches: any[], settings?: any): LabOpsKpis {
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const monthStartStr = monthStart.toISOString().slice(0, 10);
+
+  let eggsInLab = 0;
+  let internalEggs = 0;
+  let externalEggs = 0;
+  let awaitingCandle = 0;
+  let awaitingHatcher = 0;
+  let inHatcher = 0;
+  let overdue = 0;
+  let chicksThisMonth = 0;
+  let openBatches = 0;
+  let fertileTotal = 0;
+  let chicksClosed = 0;
+
+  const overdueKeys = new Set<string>();
+
+  for (const b of batches || []) {
+    if (!isOperationalHatchBatch(b)) continue;
+    const st = computeStage(b, settings);
+    const eggs = Number(b.received_eggs || b.net_eggs || 0);
+    const custType = (b.hatch_customers?.customer_type || "").toLowerCase();
+    const custName = b.hatch_customers?.name || "";
+    const isInternal =
+      custType === "ostrich" ||
+      custType === "internal" ||
+      custType === "capital_ostrich" ||
+      /نعام|عاصمة/.test(custName);
+
+    if (st.stage === "completed") {
+      const chicks = Number(b.hatched_chicks || 0);
+      const fertile =
+        Number(b.candle1_fertile || 0) ||
+        Math.max(0, Number(b.net_eggs || b.received_eggs || 0) - Number(b.candle1_infertile || 0));
+      fertileTotal += fertile;
+      chicksClosed += chicks;
+      if (b.exit_date && b.exit_date >= monthStartStr) chicksThisMonth += chicks;
+      continue;
+    }
+
+    openBatches++;
+    eggsInLab += eggs;
+    if (isInternal) internalEggs += eggs;
+    else externalEggs += eggs;
+
+    if (st.stage === "overdue") {
+      overdueKeys.add(getHatchOperationalBatchKey(b));
+    } else if (
+      st.stage === "awaiting_candle1" ||
+      st.stage === "awaiting_candle2" ||
+      st.stage === "in_machine"
+    ) {
+      awaitingCandle++;
+    } else if (st.stage === "after_candle1" || st.stage === "after_candle2" || st.stage === "awaiting_entry") {
+      if (st.stage === "after_candle2" || (st.daysIn != null && settings?.transfer_to_hatcher_day && st.daysIn >= (settings.transfer_to_hatcher_day - 3))) {
+        awaitingHatcher++;
+      } else if (st.stage === "after_candle1") {
+        awaitingCandle++;
+      } else {
+        awaitingHatcher++;
+      }
+    } else if (st.stage === "in_hatcher") {
+      inHatcher++;
+    }
+  }
+
+  overdue = overdueKeys.size;
+  const hatchRatePct = fertileTotal > 0 ? Math.round((chicksClosed / fertileTotal) * 1000) / 10 : 0;
+
+  return {
+    eggsInLab,
+    internalEggs,
+    externalEggs,
+    hatchRatePct,
+    awaitingCandle,
+    awaitingHatcher,
+    inHatcher,
+    overdue,
+    chicksThisMonth,
+    openBatches,
+  };
+}
