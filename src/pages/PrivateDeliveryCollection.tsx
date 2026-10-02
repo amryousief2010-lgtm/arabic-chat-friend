@@ -171,6 +171,7 @@ const PrivateDeliveryCollection = () => {
         .from("orders")
         .update({
           payment_status: "paid",
+          collection_status: "collected",
           collected_by: user.id,
           collected_at: batch.collected_at,
           collection_batch_id: batch.id,
