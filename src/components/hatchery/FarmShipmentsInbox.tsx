@@ -568,15 +568,13 @@ const FarmShipmentsInbox = () => {
             <Button variant="outline" onClick={() => detail && exportSinglePdf(detail)}>
               <Printer className="w-4 h-4 ml-1" /> طباعة التفاصيل
             </Button>
-            {detail?.status === "pending" && (
-              {detail && !isOldInboxReceiveBlocked(detail).blocked ? (
-              <Button onClick={() => { const r = detail; setDetail(null); openReceive(r!); }}>
+            {detail?.status === "pending" && detail && !isOldInboxReceiveBlocked(detail).blocked ? (
+              <Button onClick={() => { const r = detail; setDetail(null); openReceive(r); }}>
                 <CheckCircle2 className="w-4 h-4 ml-1" /> تأكيد الاستلام
               </Button>
-              ) : detail?.status === "pending" ? (
-                <Badge variant="outline" className="text-amber-800 border-amber-400">استلام معطّل — تحميل وارد المزرعة فقط</Badge>
-              ) : null}
-            )}
+            ) : detail?.status === "pending" ? (
+              <Badge variant="outline" className="text-amber-800 border-amber-400">استلام معطّل — تحميل وارد المزرعة فقط</Badge>
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>
