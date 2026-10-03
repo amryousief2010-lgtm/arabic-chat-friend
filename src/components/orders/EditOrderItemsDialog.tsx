@@ -208,9 +208,10 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   const defaultOfferName = orderOfferNames.length === 1 ? orderOfferNames[0] : null;
 
   const handleAdd = () => {
+    // منتج فردي جديد خارج أي عرض، حتى لو الطلب فيه بوكس واحد فقط.
     setItems((prev) => [
       ...prev,
-      { product_id: null, product_name: "", quantity: 1, unit_price: 0, offer_name: defaultOfferName },
+      { product_id: null, product_name: "", quantity: 1, unit_price: 0, offer_name: null },
     ]);
   };
 
@@ -490,9 +491,20 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                     <label className="text-xs text-muted-foreground">العرض / البوكس</label>
                     <Select
                       value={it.offer_name || "__none__"}
-                      onValueChange={(v) =>
-                        updateItem(realIdx, { offer_name: v === "__none__" ? null : v })
-                      }
+                      onValueChange={(v) => {
+                        const nextOffer = v === "__none__" ? null : v;
+                        // سطر جديد لم يُحفظ: الرجوع إلى «بدون عرض» يستخدم سعر الكتالوج حسب product_id.
+                        // الأسطر المحفوظة تحتفظ بسعر الوحدة المخزّن.
+                        if (!it.id && nextOffer == null && !it.is_gift && it.product_id) {
+                          const catalog = products.find((x) => x.id === it.product_id);
+                          updateItem(realIdx, {
+                            offer_name: null,
+                            unit_price: catalog ? Number(catalog.price) : it.unit_price,
+                          });
+                          return;
+                        }
+                        updateItem(realIdx, { offer_name: nextOffer });
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue />
