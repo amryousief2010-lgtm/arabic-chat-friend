@@ -25460,6 +25460,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      sync_order_offer_instances: {
+        Args: {
+          p_box_id?: string
+          p_box_name?: string
+          p_order_id: string
+        }
+        Returns: undefined
+      }
       save_outlet_sales_statement: {
         Args: {
           p_id: string
