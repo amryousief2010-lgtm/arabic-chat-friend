@@ -125,14 +125,59 @@ interface CartItem {
   offerBoxName?: string;
 }
 
-interface OfferPreviewItem {
+export interface OfferPreviewItem {
   id: string;
   product_id: string;
   product: Product | null;
   custom_price: number;
   quantity: number;
   is_gift?: boolean;
+  // Set only when the dialog was opened from lines already in the cart.
+  seedProductId?: string;
+  seedQuantity?: number;
+  seedPrice?: number;
+  seedIsGift?: boolean;
 }
+
+// True when she reopened a box and did not change the lines the dialog showed.
+export const offerPreviewMatchesSeed = (items: OfferPreviewItem[], seedItemCount?: number) =>
+  !!seedItemCount &&
+  items.length === seedItemCount &&
+  items.every((it) =>
+    it.seedProductId != null &&
+    it.product_id === it.seedProductId &&
+    Number(it.quantity) === Number(it.seedQuantity) &&
+    Number(it.custom_price) === Number(it.seedPrice) &&
+    !!it.is_gift === !!it.seedIsGift,
+  );
+
+export const summarizeOfferCartLines = (
+  lines: Array<{
+    isOfferItem?: boolean;
+    offerBoxId?: string;
+    quantity: number;
+    product?: { name?: string } | null;
+  }>,
+): Record<string, string[]> => {
+  const acc: Record<string, string[]> = {};
+  for (const item of lines) {
+    if (!item.isOfferItem || !item.offerBoxId) continue;
+    const qty = Number(item.quantity || 0);
+    if (!(qty > 0) || !item.product?.name) continue;
+    const line = `${qty.toLocaleString()} × ${item.product.name}`;
+    acc[item.offerBoxId] = [...(acc[item.offerBoxId] || []), line];
+  }
+  return acc;
+};
+
+// One more box of a selection the cart already merged. With a single box the
+// quantity on screen is the copy. With more than one, the cart total is split
+// back into one box — this is not a weight limit.
+export const quantityForAnotherCopy = (seedQuantity: number, boxesAlready: number) => {
+  const count = Math.max(1, Number(boxesAlready) || 1);
+  const raw = count <= 1 ? Number(seedQuantity) : Number(seedQuantity) / count;
+  return Math.round(raw * 10000) / 10000;
+};
 
 interface DuplicateCandidate {
   matched_order_id: string;
@@ -634,9 +679,40 @@ const NewOrder = () => {
 
 
   // Offer preview dialog state
-  const [offerPreview, setOfferPreview] = useState<{ box: OfferBox; items: OfferPreviewItem[] } | null>(null);
+  const [offerPreview, setOfferPreview] = useState<{
+    box: OfferBox;
+    items: OfferPreviewItem[];
+    fromCart?: boolean;
+    seedItemCount?: number;
+  } | null>(null);
 
   const openOfferPreview = async (offerBox: OfferBox) => {
+    // Defaults load only the first time. The offer card and the cart plus
+    // both land here; a box already in the cart opens her current lines.
+    const existing = cart.filter(
+      (item) => item.isOfferItem && item.offerBoxId === offerBox.id && Number(item.quantity) > 0,
+    );
+    if (existing.length > 0) {
+      const items: OfferPreviewItem[] = existing.map((line) => {
+        const price = line.isGift ? 0 : Number(line.customPrice ?? line.product.price);
+        const quantity = Number(line.quantity);
+        return {
+          id: line.cartItemId,
+          product_id: line.product.id,
+          product: line.product,
+          custom_price: price,
+          quantity,
+          is_gift: !!line.isGift,
+          seedProductId: line.product.id,
+          seedQuantity: quantity,
+          seedPrice: price,
+          seedIsGift: !!line.isGift,
+        };
+      });
+      setOfferPreview({ box: offerBox, items, fromCart: true, seedItemCount: items.length });
+      return;
+    }
+
     try {
       const { data: items, error } = await supabase
         .from('offer_box_items')
@@ -661,7 +737,7 @@ const NewOrder = () => {
         quantity: Number(it.quantity),
         is_gift: !!(it as any).is_gift,
       }));
-      setOfferPreview({ box: offerBox, items: previewItems });
+      setOfferPreview({ box: offerBox, items: previewItems, fromCart: false });
     } catch (e) {
       console.error(e);
       toast.error('حدث خطأ أثناء جلب تفاصيل العرض');
@@ -735,11 +811,68 @@ const NewOrder = () => {
     if (!offerPreview) return;
     const boxId = offerPreview.box.id;
     const boxName = offerPreview.box.name;
+
+    // Already in the cart: an edit replaces this box's lines and keeps its
+    // id, name, and count. Confirming the same lines adds one more copy of
+    // her selection — not another copy of the original definition.
+    if (offerPreview.fromCart && !offerPreviewMatchesSeed(offerPreview.items, offerPreview.seedItemCount)) {
+      const positive = offerPreview.items.filter((it) => it.product && Number(it.quantity) > 0);
+      setCart((prev) => {
+        const others = prev.filter((c) => !(c.isOfferItem && c.offerBoxId === boxId));
+        const kept: CartItem[] = [];
+        for (const it of positive) {
+          const price = it.custom_price;
+          const idx = kept.findIndex(
+            (c) => c.product.id === it.product!.id && (c.customPrice ?? c.product.price) === price,
+          );
+          if (idx >= 0) {
+            kept[idx] = { ...kept[idx], quantity: kept[idx].quantity + Number(it.quantity) };
+            continue;
+          }
+          const previous = prev.find((c) => c.cartItemId === it.id);
+          const cartItemId =
+            previous && !kept.some((c) => c.cartItemId === previous.cartItemId)
+              ? previous.cartItemId
+              : genCartId();
+          kept.push({
+            cartItemId,
+            product: it.product!,
+            quantity: Number(it.quantity),
+            customPrice: price,
+            isOfferItem: true,
+            ...(previous?.isGift ? { isGift: true } : {}),
+            ...(previous?.isHalfKg ? { isHalfKg: true } : {}),
+            offerBoxId: boxId,
+            offerBoxName: boxName,
+          });
+        }
+        return [...others, ...kept];
+      });
+      if (positive.length === 0) {
+        setOfferInstanceCounts((prev) => {
+          if (!(boxId in prev)) return prev;
+          const next = { ...prev };
+          delete next[boxId];
+          return next;
+        });
+      }
+      toast.success(`تم تحديث عرض "${boxName}"`);
+      setOfferPreview(null);
+      return;
+    }
+
+    const boxesAlready = offerPreview.fromCart
+      ? Math.max(1, Number(offerInstanceCounts[boxId] || 1))
+      : 1;
     let added = 0;
     setCart(prev => {
       const next = [...prev];
       for (const it of offerPreview.items) {
         if (!it.product) continue;
+        const quantity = offerPreview.fromCart
+          ? quantityForAnotherCopy(Number(it.seedQuantity), boxesAlready)
+          : Number(it.quantity);
+        if (!(quantity > 0)) continue;
         // Merge with an existing offer line for the SAME offer box + product + price
         // so two of the same offer combine quantities (e.g., نص كيلو + نص كيلو = كيلو).
         const idx = next.findIndex(c =>
@@ -749,12 +882,12 @@ const NewOrder = () => {
           (c.customPrice ?? c.product.price) === it.custom_price
         );
         if (idx >= 0) {
-          next[idx] = { ...next[idx], quantity: next[idx].quantity + it.quantity };
+          next[idx] = { ...next[idx], quantity: next[idx].quantity + quantity };
         } else {
           next.push({
             cartItemId: genCartId(),
             product: it.product!,
-            quantity: it.quantity,
+            quantity,
             customPrice: it.custom_price,
             isOfferItem: true,
             offerBoxId: boxId,
@@ -770,7 +903,6 @@ const NewOrder = () => {
       toast.success(`تم إضافة عرض "${boxName}" للسلة`);
     }
     setOfferPreview(null);
-
   };
 
   const updateQuantityById = (cartItemId: string, delta: number) => {
@@ -878,6 +1010,10 @@ const NewOrder = () => {
     return sum + kg;
   }, 0);
   const hasOfferInCart = cart.some(item => item.isOfferItem);
+
+  // Collapsed box text and the note under expanded lines follow the cart,
+  // not the definition loaded into offerContentsById for the offer cards.
+  const offerCartSummaryById = useMemo(() => summarizeOfferCartLines(cart), [cart]);
 
   // Each added offer instance carries its own bundled shipping (e.g., 110).
   // Selecting the same 1500 offer twice => shipping = 2 × 110, not 110.
@@ -2076,9 +2212,9 @@ const NewOrder = () => {
                                   </Button>
                                 </div>
                               </div>
-                              {!isExpanded && offerContentsById[boxId]?.length ? (
+                              {!isExpanded && offerCartSummaryById[boxId]?.length ? (
                                 <p className="mt-1 text-[11px] text-muted-foreground truncate">
-                                  {offerContentsById[boxId].join(' + ')}
+                                  {offerCartSummaryById[boxId].join(' + ')}
                                 </p>
                               ) : null}
                             </div>
@@ -2144,9 +2280,9 @@ const NewOrder = () => {
                                   </>
                                 )}
                               </p>
-                              {item.isOfferItem && item.offerBoxId && offerContentsById[item.offerBoxId]?.length ? (
+                              {item.isOfferItem && item.offerBoxId && offerCartSummaryById[item.offerBoxId]?.length ? (
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                  {offerContentsById[item.offerBoxId].join(' + ')}
+                                  {offerCartSummaryById[item.offerBoxId].join(' + ')}
                                 </p>
                               ) : null}
                             </div>
