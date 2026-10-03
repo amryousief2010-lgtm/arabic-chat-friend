@@ -205,49 +205,33 @@ const AddOfferDialog = ({ open, onOpenChange, orderId, onSaved }: Props) => {
       const { error: insErr } = await supabase.from("order_items").insert(toInsert);
       if (insErr) throw insErr;
 
-      // Keep the box identity/count record in sync with the order contents.
-      const { data: remainingItems } = await supabase
-        .from("order_items")
-        .select("offer_name")
-        .eq("order_id", orderId);
-      const remainingOfferNames = new Set(
-        (remainingItems || []).map((r: any) => r.offer_name).filter(Boolean) as string[]
-      );
-      remainingOfferNames.add(selectedOffer.name);
-
-      const { data: currentInstances } = await supabase
-        .from("order_offer_instances")
-        .select("id, offer_name, quantity, offer_box_id")
-        .eq("order_id", orderId);
-      const staleIds = (currentInstances || [])
-        .filter((r: any) => !remainingOfferNames.has(r.offer_name))
-        .map((r: any) => r.id);
-      if (staleIds.length > 0) {
-        await supabase.from("order_offer_instances").delete().in("id", staleIds);
-      }
-
-      const existing = (currentInstances || []).find(
-        (r: any) => r.offer_name === selectedOffer.name || r.offer_box_id === selectedOfferId
-      );
-      if (existing) {
-        await supabase
-          .from("order_offer_instances")
-          .update({ quantity: Number(existing.quantity || 0) + 1 })
-          .eq("id", existing.id);
-      } else {
-        await supabase.from("order_offer_instances").insert({
-          order_id: orderId,
-          offer_box_id: selectedOfferId,
-          offer_name: selectedOffer.name,
-          quantity: 1,
-        });
-      }
-
       await writeOrderTotalsPreservingShipping(orderId, {
         discount: Number(header.discount || 0),
         deliveryFee: savedShipping,
         extraCharge: Number(header.extra_charge || 0),
       });
+
+      // عدد نسخ نفس البوكس يزداد قبل المصالحة حتى لا يُعاد ضبطه إلى 1.
+      const { data: currentInstances, error: instErr } = await supabase
+        .from("order_offer_instances")
+        .select("id, offer_name, quantity")
+        .eq("order_id", orderId);
+      if (instErr) throw instErr;
+      const existing = (currentInstances || []).find((r) => r.offer_name === selectedOffer.name);
+      if (existing) {
+        const { error: qtyErr } = await supabase
+          .from("order_offer_instances")
+          .update({ quantity: Number(existing.quantity || 0) + 1 })
+          .eq("id", existing.id);
+        if (qtyErr) throw qtyErr;
+      }
+
+      const { error: syncErr } = await supabase.rpc("sync_order_offer_instances", {
+        p_order_id: orderId,
+        p_box_id: selectedOfferId,
+        p_box_name: selectedOffer.name,
+      });
+      if (syncErr) throw syncErr;
 
       toast.success(`تم إضافة العرض "${selectedOffer.name}" إلى الطلب`);
       onOpenChange(false);

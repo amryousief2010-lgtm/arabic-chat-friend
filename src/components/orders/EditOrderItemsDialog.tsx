@@ -302,42 +302,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
       });
       if (saveError) throw saveError;
 
-      // اسم البوكس يجب أن يعكس البوكس الموجود فعليًا في الطلب بعد التعديل فقط.
-      // أي بوكس لم تعد له بنود يُزال ارتباطه، ولا يُكرَّر اسم البوكس الحالي.
-      try {
-        const offerNamesAfterEdit = Array.from(
-          new Set(
-            itemsForWrite
-              .filter((it) => !it._deleted)
-              .map((it) => it.offer_name)
-              .filter((x): x is string => !!x)
-          )
-        );
-        const { data: existingInstances } = await supabase
-          .from("order_offer_instances")
-          .select("id, offer_name")
-          .eq("order_id", orderId);
-        const stale = (existingInstances || []).filter(
-          (r: any) => !offerNamesAfterEdit.includes(r.offer_name)
-        );
-        if (stale.length > 0) {
-          await supabase
-            .from("order_offer_instances")
-            .delete()
-            .in("id", stale.map((r: any) => r.id));
-        }
-        const known = new Set((existingInstances || []).map((r: any) => r.offer_name));
-        const missing = offerNamesAfterEdit
-          .filter((n) => !known.has(n))
-          .map((n) => ({ order_id: orderId, offer_name: n, quantity: 1 }));
-        if (missing.length > 0) {
-          await supabase.from("order_offer_instances").insert(missing);
-        }
-      } catch (e) {
-        console.error("offer instance sync failed", e);
-      }
-
-
+      // روابط البوكسات تُحدَّث داخل save_order_items_edit في نفس المعاملة.
 
       // M4-B: re-reserve Agouza stock if this order is sourced from Agouza warehouse.
       // No effect on Main warehouse, Kimo, couriers, or any other source.
