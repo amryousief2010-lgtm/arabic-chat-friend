@@ -78,6 +78,7 @@ const ALLOWED_PATHS = [
   // allowlisted for Mohamed Sayed so he can open them without a redirect.
   "/team-performance",
   "/moderator-performance",
+  "/caller-lookup",
 ];
 
 
