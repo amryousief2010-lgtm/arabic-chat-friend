@@ -52,6 +52,7 @@ import {
   Tag,
   FileSpreadsheet,
   Eye,
+  Phone,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { SIDEBAR_ITEM_MOVES, MARKETING_ONLY_EXTRA_PREFIXES } from "@/config/sidebarOverrides";
@@ -62,6 +63,7 @@ import { useExecutiveApprovals } from "@/hooks/useExecutiveApprovals";
 import { useUnreadInternalMessages } from "@/hooks/useUnreadInternalMessages";
 import { useMandatoryMessages } from "@/hooks/useMandatoryMessages";
 import { findModeratorByName } from "@/constants/moderators";
+import { CALLER_LOOKUP_PATH, CALLER_LOOKUP_ROLES } from "@/constants/callerLookup";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -127,6 +129,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: Calculator, label: "فروقات تكلفة الصنف التام", path: "/meat-cost-variance", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager', 'meat_factory_manager'] },
 
       { icon: ShoppingCart, label: "الطلبات", path: "/orders", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'marketing_sales_manager', 'financial_manager', 'quality_manager','marketing_sales_viewer'] },
+      { icon: Phone, label: "استعلام عن متصل", path: CALLER_LOOKUP_PATH, roles: CALLER_LOOKUP_ROLES },
       { icon: Bird, label: "طلبات الكتاكيت", path: "/chick-orders", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'accountant', 'financial_manager','marketing_sales_viewer'] },
       { icon: ShieldAlert, label: "موافقات تكرار الطلبات", path: "/duplicate-order-approvals", roles: ['general_manager','executive_manager','sales_manager'] },
       { icon: Users, label: "العملاء", path: "/customers", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },

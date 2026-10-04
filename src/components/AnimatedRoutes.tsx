@@ -10,6 +10,7 @@ import {
   warehouseHubTabPath,
   ZODEX_REVIEW_ALLOWED_ROLES,
 } from "@/lib/warehouseHubPaths";
+import { CALLER_LOOKUP_ROLES } from "@/constants/callerLookup";
 
 // Wrap lazy() so that when a dynamically-imported chunk is missing (e.g. after a
 // new deploy invalidated old chunk hashes), we force a single hard reload instead
@@ -51,6 +52,7 @@ const DepartmentsStatus = lazy(() => import("@/pages/modules/DepartmentsStatus")
 const InternalPricesSettings = lazy(() => import("@/pages/modules/InternalPricesSettings"));
 const Orders = lazy(() => import("@/pages/Orders"));
 const Customers = lazy(() => import("@/pages/Customers"));
+const CallerLookup = lazy(() => import("@/pages/CallerLookup"));
 const Reports = lazy(() => import("@/pages/Reports"));
 const WhatsAppCampaigns = lazy(() => import("@/pages/WhatsAppCampaigns"));
 const DailyPerformanceAnalysis = lazy(() => import("@/pages/sales/DailyPerformanceAnalysis"));
@@ -400,6 +402,11 @@ const AnimatedRoutes = () => {
           <Route path="/orders/:id" element={
             <ProtectedRoute>
               <PageTransition><OrderDetails /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/caller-lookup" element={
+            <ProtectedRoute allowedRoles={CALLER_LOOKUP_ROLES}>
+              <PageTransition><CallerLookup /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/customers" element={

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import { MARKETING_ONLY_EXTRA_PREFIXES } from '@/config/sidebarOverrides';
+import { CALLER_LOOKUP_PATH } from '@/constants/callerLookup';
 import { toast } from 'sonner';
 
 interface ProtectedRouteProps {
@@ -13,6 +14,7 @@ interface ProtectedRouteProps {
 // hard-redirected to her own orders log with a clear toast.
 const MODERATOR_ALLOWED_PREFIXES = [
   '/orders',
+  CALLER_LOOKUP_PATH,
   '/hagar-orders-review',
   '/my-delivery-summary',
   '/chick-orders',

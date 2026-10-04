@@ -50,6 +50,7 @@ export const MARKETING_ONLY_EXTRA_PREFIXES: string[] = [
   "/sales/daily-performance-analysis",
   "/team-performance",
   "/moderator-performance",
+  "/caller-lookup",
 ];
 
 
