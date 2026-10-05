@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { mergeOrderItemRows } from '@/lib/mergeOrderItemRows';
+import { buildOfferInstanceRows } from '@/lib/offerBoxOrder';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { 
@@ -812,10 +813,9 @@ const NewOrder = () => {
     const boxId = offerPreview.box.id;
     const boxName = offerPreview.box.name;
 
-    // Already in the cart: an edit replaces this box's lines and keeps its
-    // id, name, and count. Confirming the same lines adds one more copy of
-    // her selection — not another copy of the original definition.
-    if (offerPreview.fromCart && !offerPreviewMatchesSeed(offerPreview.items, offerPreview.seedItemCount)) {
+    // Already in the cart: confirming replaces this box's lines and keeps
+    // the count. Another copy is the separate «إضافة نسخة تانية» action.
+    if (offerPreview.fromCart) {
       const positive = offerPreview.items.filter((it) => it.product && Number(it.quantity) > 0);
       setCart((prev) => {
         const others = prev.filter((c) => !(c.isOfferItem && c.offerBoxId === boxId));
@@ -902,6 +902,29 @@ const NewOrder = () => {
       setOfferInstanceCounts(prev => ({ ...prev, [boxId]: (prev[boxId] || 0) + 1 }));
       toast.success(`تم إضافة عرض "${boxName}" للسلة`);
     }
+    setOfferPreview(null);
+  };
+
+  const addAnotherCopyFromCart = (boxId: string) => {
+    const boxesAlready = Math.max(1, Number(offerInstanceCounts[boxId] || 1));
+    const hasLines = cart.some(
+      (line) => line.isOfferItem && line.offerBoxId === boxId && Number(line.quantity) > 0,
+    );
+    if (!hasLines) return;
+    const boxName =
+      offerBoxes.find((box) => box.id === boxId)?.name ||
+      cart.find((line) => line.offerBoxId === boxId)?.offerBoxName ||
+      "عرض";
+    setCart(
+      cart.map((line) => {
+        if (!(line.isOfferItem && line.offerBoxId === boxId)) return line;
+        const extra = quantityForAnotherCopy(Number(line.quantity), boxesAlready);
+        if (!(extra > 0)) return line;
+        return { ...line, quantity: Number(line.quantity) + extra };
+      }),
+    );
+    setOfferInstanceCounts((prev) => ({ ...prev, [boxId]: boxesAlready + 1 }));
+    toast.success(`تم إضافة نسخة تانية من "${boxName}"`);
     setOfferPreview(null);
   };
 
@@ -1015,8 +1038,8 @@ const NewOrder = () => {
   // not the definition loaded into offerContentsById for the offer cards.
   const offerCartSummaryById = useMemo(() => summarizeOfferCartLines(cart), [cart]);
 
-  // Each added offer instance carries its own bundled shipping (e.g., 110).
-  // Selecting the same 1500 offer twice => shipping = 2 × 110, not 110.
+  // Shipping is inside the box price: one box's shipping_cost per copy.
+  // Two بوكس 1500 boxes => fee 240 inside a 3000 total, not 240 on top of 3000.
   const offerShippingTotal = useMemo(() => {
     return Object.entries(offerInstanceCounts).reduce((sum, [boxId, count]) => {
       const box = offerBoxes.find(b => b.id === boxId);
@@ -1367,22 +1390,22 @@ const NewOrder = () => {
       const boxIdsInCart = Array.from(
         new Set(cart.filter(i => i.isOfferItem && i.offerBoxId).map(i => i.offerBoxId as string))
       );
-      const offerInstanceRows = boxIdsInCart
-        .map((offerBoxId) => {
-          const quantity = Math.max(1, Number(offerInstanceCounts[offerBoxId] || 1));
+      const offerInstanceRows = buildOfferInstanceRows(
+        boxIdsInCart.map((offerBoxId) => {
+          const cartName = cart.find((item) => item.isOfferItem && item.offerBoxId === offerBoxId)?.offerBoxName;
           return {
-            order_id: order.id,
-            offer_box_id: offerBoxId,
-            offer_name: offerBoxes.find((box) => box.id === offerBoxId)?.name || 'عرض',
-            quantity,
-            created_by: user?.id || null,
+            offerBoxId,
+            offerName: cartName || offerBoxes.find((box) => box.id === offerBoxId)?.name || 'عرض',
+            quantity: Math.max(1, Number(offerInstanceCounts[offerBoxId] || 1)),
           };
-        });
+        }),
+      );
 
       if (offerInstanceRows.length > 0) {
-        const { error: offersError } = await supabase
-          .from('order_offer_instances')
-          .insert(offerInstanceRows);
+        const { error: offersError } = await supabase.rpc('set_order_offer_instances', {
+          p_order_id: order.id,
+          p_instances: offerInstanceRows,
+        });
         if (offersError) throw offersError;
       }
 
@@ -2187,7 +2210,7 @@ const NewOrder = () => {
                   <>
                     {Object.keys(offerInstanceCounts).length > 0 && (
                       <div className="rounded-lg border border-green-200 bg-green-50/60 dark:bg-green-950/20 p-2 space-y-2">
-                        <p className="text-xs font-medium text-green-800 dark:text-green-300">العروض المختارة (الشحن 110 لكل عرض)</p>
+                        <p className="text-xs font-medium text-green-800 dark:text-green-300">العروض المختارة (الشحن داخل سعر البوكس)</p>
                         {Object.entries(offerInstanceCounts).map(([boxId, count]) => {
                           const box = offerBoxes.find(b => b.id === boxId);
                           const isExpanded = !!expandedOfferBoxes[boxId];
@@ -2207,7 +2230,8 @@ const NewOrder = () => {
                                   </Button>
                                   <span className="w-8 text-center font-medium">×{count}</span>
                                   <Button variant="outline" size="icon" className="h-7 w-7"
-                                    onClick={() => box && openOfferPreview(box as any)}>
+                                    title="إضافة نسخة تانية"
+                                    onClick={() => addAnotherCopyFromCart(boxId)}>
                                     <Plus className="w-3 h-3" />
                                   </Button>
                                 </div>
@@ -2421,7 +2445,7 @@ const NewOrder = () => {
                     <div className={`grid gap-3 ${hasOfferInCart ? "grid-cols-2" : "grid-cols-1"}`}>
                       {hasOfferInCart && (
                         <div className="space-y-2">
-                          <Label>رسوم التوصيل</Label>
+                          <Label>الشحن المضمّن في سعر البوكس</Label>
                           <div className="flex gap-2">
                             <Input
                               type="number"
@@ -2541,7 +2565,7 @@ const NewOrder = () => {
                       </div>
                       {hasOfferInCart && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">رسوم التوصيل</span>
+                          <span className="text-muted-foreground">الشحن المضمّن</span>
                           <span>{deliveryFee.toLocaleString()} ج.م</span>
                         </div>
                       )}
@@ -2771,11 +2795,21 @@ const NewOrder = () => {
               })()}
             </div>
           )}
+          {offerPreview?.fromCart && (
+            <p className="text-xs text-muted-foreground">
+              تعديل الكمية يغيّر محتويات هذا البوكس. «إضافة نسخة تانية» تضيف بوكسًا آخر بنفس المحتويات.
+            </p>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setOfferPreview(null)}>إلغاء</Button>
+            {offerPreview?.fromCart && (
+              <Button variant="secondary" onClick={() => addAnotherCopyFromCart(offerPreview.box.id)}>
+                إضافة نسخة تانية
+              </Button>
+            )}
             <Button onClick={confirmAddOfferToCart}>
               <Plus className="w-4 h-4 ml-1" />
-              إضافة العرض للسلة
+              {offerPreview?.fromCart ? "تحديث العرض" : "إضافة العرض للسلة"}
             </Button>
           </DialogFooter>
         </DialogContent>

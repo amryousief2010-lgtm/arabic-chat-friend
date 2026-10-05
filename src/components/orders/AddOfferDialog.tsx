@@ -20,6 +20,8 @@ import { Trash2, Plus, Gift, PackagePlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { writeOrderTotalsPreservingShipping } from "@/lib/preserveOrderShipping";
+import { isOfferShippingLine } from "@/lib/orderTotals";
+import { includedShippingForInstances, instancesAfterAddingBox } from "@/lib/offerBoxOrder";
 
 interface OfferBox {
   id: string;
@@ -180,13 +182,41 @@ const AddOfferDialog = ({ open, onOpenChange, orderId, onSaved }: Props) => {
 
     setSaving(true);
     try {
-      const { data: header, error: headerErr } = await supabase
-        .from("orders")
-        .select("discount, delivery_fee, extra_charge")
-        .eq("id", orderId)
-        .single();
+      const [
+        { data: header, error: headerErr },
+        { data: currentInstances, error: instErr },
+        { data: existingItems, error: itemsReadErr },
+      ] = await Promise.all([
+        supabase.from("orders").select("discount, delivery_fee, extra_charge").eq("id", orderId).single(),
+        supabase.from("order_offer_instances").select("offer_name, quantity, offer_box_id").eq("order_id", orderId),
+        supabase
+          .from("order_items")
+          .select("offer_name, product_id, product_name, quantity, unit_price")
+          .eq("order_id", orderId),
+      ]);
       if (headerErr) throw headerErr;
-      const savedShipping = Number(header.delivery_fee || 0);
+      if (instErr) throw instErr;
+      if (itemsReadErr) throw itemsReadErr;
+
+      const hadLines = (existingItems || []).some((it) => {
+        if (it.offer_name !== selectedOffer.name) return false;
+        return !isOfferShippingLine({
+          product_id: it.product_id,
+          product_name: it.product_name,
+          offer_name: it.offer_name,
+          quantity: Number(it.quantity || 0),
+          unit_price: Number(it.unit_price || 0),
+        });
+      });
+      const nextInstances = instancesAfterAddingBox(
+        (currentInstances || []).map((row) => ({
+          offer_name: row.offer_name,
+          quantity: Number(row.quantity || 0),
+          offer_box_id: row.offer_box_id,
+        })),
+        { offer_name: selectedOffer.name, offer_box_id: selectedOfferId },
+        { priorProductLines: hadLines },
+      );
 
       const toInsert: any[] = previewItems
         .filter((it) => it.product_id)
@@ -200,38 +230,36 @@ const AddOfferDialog = ({ open, onOpenChange, orderId, onSaved }: Props) => {
           offer_name: selectedOffer.name,
         }));
 
-      // الشحن حقل على رأس الطلب. لا نُدخل سطر «تكلفة الشحن» ولا نُعيد حسابه
-      // من shipping_cost بتاع البوكس. أسعار مكونات العرض تُنسخ كما هي.
       const { error: insErr } = await supabase.from("order_items").insert(toInsert);
       if (insErr) throw insErr;
 
+      const names = [...new Set(nextInstances.map((row) => row.offer_name))];
+      const { data: boxRows, error: boxErr } = await supabase
+        .from("offer_boxes")
+        .select("name, shipping_cost")
+        .in("name", names);
+      if (boxErr) throw boxErr;
+      const shippingByName: Record<string, number | null> = {};
+      for (const box of boxRows || []) shippingByName[box.name] = box.shipping_cost;
+      shippingByName[selectedOffer.name] = selectedOffer.shipping_cost ?? null;
+      const includedFee = includedShippingForInstances(nextInstances, shippingByName);
+
+      const { error: setErr } = await supabase.rpc("set_order_offer_instances", {
+        p_order_id: orderId,
+        p_instances: nextInstances.map((row) => ({
+          offer_name: row.offer_name,
+          quantity: row.quantity,
+          offer_box_id: row.offer_box_id,
+        })),
+      });
+      if (setErr) throw setErr;
+
       await writeOrderTotalsPreservingShipping(orderId, {
         discount: Number(header.discount || 0),
-        deliveryFee: savedShipping,
+        deliveryFee: includedFee,
         extraCharge: Number(header.extra_charge || 0),
+        shippingEdited: true,
       });
-
-      // عدد نسخ نفس البوكس يزداد قبل المصالحة حتى لا يُعاد ضبطه إلى 1.
-      const { data: currentInstances, error: instErr } = await supabase
-        .from("order_offer_instances")
-        .select("id, offer_name, quantity")
-        .eq("order_id", orderId);
-      if (instErr) throw instErr;
-      const existing = (currentInstances || []).find((r) => r.offer_name === selectedOffer.name);
-      if (existing) {
-        const { error: qtyErr } = await supabase
-          .from("order_offer_instances")
-          .update({ quantity: Number(existing.quantity || 0) + 1 })
-          .eq("id", existing.id);
-        if (qtyErr) throw qtyErr;
-      }
-
-      const { error: syncErr } = await supabase.rpc("sync_order_offer_instances", {
-        p_order_id: orderId,
-        p_box_id: selectedOfferId,
-        p_box_name: selectedOffer.name,
-      });
-      if (syncErr) throw syncErr;
 
       toast.success(`تم إضافة العرض "${selectedOffer.name}" إلى الطلب`);
       onOpenChange(false);
@@ -358,7 +386,7 @@ const AddOfferDialog = ({ open, onOpenChange, orderId, onSaved }: Props) => {
                   <span className="font-bold">{newSubtotal.toLocaleString()} ج.م</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  شحن الطلب الحالي لا يتغير عند إضافة البوكس. لتعديله استخدمي خانة الشحن في تعديل الطلب.
+                  شحن البوكس داخل سعره. بعد الإضافة يُعاد حساب الشحن من البوكسات الموجودة ولا يُضاف فوق سعر البوكس.
                 </p>
               </div>
             </div>

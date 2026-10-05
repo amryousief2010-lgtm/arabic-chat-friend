@@ -25468,6 +25468,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      set_order_offer_instances: {
+        Args: { p_instances: Json; p_order_id: string }
+        Returns: undefined
+      }
       save_outlet_sales_statement: {
         Args: {
           p_id: string
