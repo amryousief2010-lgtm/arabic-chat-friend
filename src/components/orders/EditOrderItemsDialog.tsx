@@ -18,7 +18,8 @@ import {
 import { Trash2, Plus, Gift } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { computeOrderTotals, isOfferShippingLine, resolveOrderShipping } from "@/lib/orderTotals";
+import { computeOrderTotals, isOfferShippingLine } from "@/lib/orderTotals";
+import { deliveryFeeForItemEdit, liveOfferNames } from "@/lib/offerBoxOrder";
 import { getOfferUnitPriceForReplacement, getOfferPriceGroup, type OfferPriceGroup } from "@/lib/offerPriceGroups";
 import {
   AGOUZA_WAREHOUSE_ID,
@@ -257,12 +258,45 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         if (it._deleted || !isOfferShippingLine(it)) return sum;
         return sum + Number(it.quantity || 0) * Number(it.unit_price || 0);
       }, 0);
-      // Box add/remove/swap/qty never rewrite shipping. Only the shipping input does.
       const headerFee = Number(initialDeliveryFee);
       const safeHeader = Number.isFinite(headerFee) ? headerFee : 0;
-      const deliveryFeeToSave = deliveryFeeTouched
-        ? (Number(deliveryFee) || 0)
-        : resolveOrderShipping(safeHeader, lineShipping, false);
+      const previousNames = liveOfferNames(initialItems);
+      const nextNames = liveOfferNames(items);
+      const disappeared = previousNames.some((name) => !nextNames.includes(name));
+      let remainingBoxes: Array<{ name: string; quantity: number; shipping_cost: number | null }> = [];
+      if (!deliveryFeeTouched && disappeared) {
+        const { data: inst, error: instErr } = await supabase
+          .from("order_offer_instances")
+          .select("offer_name, quantity")
+          .eq("order_id", orderId);
+        if (instErr) throw instErr;
+        const remaining = (inst || []).filter(
+          (row) => nextNames.includes(String(row.offer_name || "").trim()) && Number(row.quantity) > 0,
+        );
+        const shippingByName: Record<string, number | null> = {};
+        if (remaining.length > 0) {
+          const { data: boxRows, error: boxErr } = await supabase
+            .from("offer_boxes")
+            .select("name, shipping_cost")
+            .in("name", remaining.map((row) => row.offer_name));
+          if (boxErr) throw boxErr;
+          for (const box of boxRows || []) shippingByName[box.name] = box.shipping_cost;
+        }
+        remainingBoxes = remaining.map((row) => ({
+          name: row.offer_name,
+          quantity: Number(row.quantity),
+          shipping_cost: shippingByName[row.offer_name] ?? null,
+        }));
+      }
+      const deliveryFeeToSave = deliveryFeeForItemEdit({
+        shippingTouched: deliveryFeeTouched,
+        typedFee: Number(deliveryFee) || 0,
+        previousFee: safeHeader,
+        legacyLineShipping: lineShipping,
+        previousOfferNames: previousNames,
+        nextOfferNames: nextNames,
+        remainingBoxes,
+      });
 
       // Once shipping lives on the header (or the employee cleared it), drop the
       // legacy line so a later box edit cannot double-count it or put it back.
@@ -508,7 +542,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
           <div className="pt-2 border-t space-y-3">
             {hasOfferItems && (
               <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 text-xs p-2">
-                الشحن مستقل عن البوكسات. إضافة أو حذف أو استبدال بوكس أو تغيير الكمية لا يغيّر قيمة الشحن. لتغييرها عدّلي خانة الشحن فقط.
+                الشحن داخل سعر البوكس ويُحسب من البوكسات الموجودة. حذف بوكس يعيد حساب الشحن. تغيير الكمية داخل البوكس أو إضافة منتج «بدون عرض» لا يضيف شحنًا. خانة الشحن تظل قابلة للتعديل اليدوي.
               </div>
             )}
 

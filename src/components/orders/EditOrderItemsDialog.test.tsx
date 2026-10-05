@@ -285,7 +285,7 @@ describe("EditOrderItemsDialog individual product lines", () => {
         _deleted: false,
       }),
     ]);
-    expect(sideEffects).toEqual(["select-instances"]);
+    expect(sideEffects).toEqual([]);
 
     view.unmount();
     await openDialog([

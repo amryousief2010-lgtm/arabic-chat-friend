@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { isOfferShippingLine } from "@/lib/orderTotals";
 import { writeOrderTotalsPreservingShipping } from "@/lib/preserveOrderShipping";
+import { includedShippingForInstances, instancesAfterSwap } from "@/lib/offerBoxOrder";
 
 interface OfferBox {
   id: string;
@@ -249,13 +250,21 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
 
     setSaving(true);
     try {
-      const { data: header, error: headerErr } = await supabase
-        .from("orders")
-        .select("discount, delivery_fee, extra_charge")
-        .eq("id", orderId)
-        .single();
+      const [{ data: header, error: headerErr }, { data: currentInstances, error: instErr }] = await Promise.all([
+        supabase.from("orders").select("discount, delivery_fee, extra_charge").eq("id", orderId).single(),
+        supabase.from("order_offer_instances").select("offer_name, quantity, offer_box_id").eq("order_id", orderId),
+      ]);
       if (headerErr) throw headerErr;
-      const savedShipping = Number(header.delivery_fee || 0);
+      if (instErr) throw instErr;
+      const nextInstances = instancesAfterSwap(
+        (currentInstances || []).map((row) => ({
+          offer_name: row.offer_name,
+          quantity: Number(row.quantity || 0),
+          offer_box_id: row.offer_box_id,
+        })),
+        selectedRemoveOffer,
+        { offer_name: selectedNewOffer.name, offer_box_id: selectedNewOfferId },
+      );
 
       // 1) Delete the box being replaced. Leave a legacy «تكلفة الشحن» line
       // alone — shipping is the order header, not a box ingredient.
@@ -291,24 +300,35 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
           offer_name: selectedNewOffer.name,
         }));
 
-      // لا نُضيف سطر شحن ولا نُغيّر أسعار مكونات البوكس. شحن الطلب يُعاد
-      // كتابته بنفس القيمة التي كانت محفوظة قبل الاستبدال.
       const { error: insErr } = await supabase.from("order_items").insert(toInsert);
       if (insErr) throw insErr;
 
+      const names = [...new Set(nextInstances.map((row) => row.offer_name))];
+      const { data: boxRows, error: boxErr } = names.length
+        ? await supabase.from("offer_boxes").select("name, shipping_cost").in("name", names)
+        : { data: [], error: null };
+      if (boxErr) throw boxErr;
+      const shippingByName: Record<string, number | null> = {};
+      for (const box of boxRows || []) shippingByName[box.name] = box.shipping_cost;
+      shippingByName[selectedNewOffer.name] = selectedNewOffer.shipping_cost ?? null;
+      const includedFee = includedShippingForInstances(nextInstances, shippingByName);
+
+      const { error: setErr } = await supabase.rpc("set_order_offer_instances", {
+        p_order_id: orderId,
+        p_instances: nextInstances.map((row) => ({
+          offer_name: row.offer_name,
+          quantity: row.quantity,
+          offer_box_id: row.offer_box_id,
+        })),
+      });
+      if (setErr) throw setErr;
+
       await writeOrderTotalsPreservingShipping(orderId, {
         discount: Number(header.discount || 0),
-        deliveryFee: savedShipping,
+        deliveryFee: includedFee,
         extraCharge: Number(header.extra_charge || 0),
+        shippingEdited: true,
       });
-
-      // نفس مصالحة الحفظ: البوكس القديم يُحذف والبوكس الجديد يُربط مرة واحدة.
-      const { error: syncErr } = await supabase.rpc("sync_order_offer_instances", {
-        p_order_id: orderId,
-        p_box_id: selectedNewOfferId,
-        p_box_name: selectedNewOffer.name,
-      });
-      if (syncErr) throw syncErr;
 
       toast.success(`تم استبدال "${groupLabel(selectedRemoveOffer)}" بـ "${selectedNewOffer.name}"`);
       onOpenChange(false);
@@ -461,7 +481,7 @@ const SwapOfferDialog = ({ open, onOpenChange, orderId, currentItems, onSaved }:
                   <span className="font-bold">{newSubtotal.toLocaleString()} ج.م</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  شحن الطلب الحالي يبقى كما هو عند استبدال البوكس. لتعديله استخدمي خانة الشحن في تعديل الطلب.
+                  بعد الاستبدال يُعاد حساب الشحن من البوكسات الموجودة. الشحن داخل سعر البوكس وليس فوقه.
                 </p>
                 </div>
               </div>

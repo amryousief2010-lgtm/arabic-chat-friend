@@ -12,7 +12,13 @@ import {
  */
 export async function writeOrderTotalsPreservingShipping(
   orderId: string,
-  header: { discount?: number; deliveryFee?: number; extraCharge?: number }
+  header: {
+    discount?: number;
+    deliveryFee?: number;
+    extraCharge?: number;
+    /** True when deliveryFee is the fee to store, including 0. */
+    shippingEdited?: boolean;
+  }
 ) {
   const { data: rows, error } = await supabase
     .from("order_items")
@@ -32,6 +38,7 @@ export async function writeOrderTotalsPreservingShipping(
     discount: header.discount,
     deliveryFee: header.deliveryFee,
     extraCharge: header.extraCharge,
+    shippingEdited: header.shippingEdited,
   });
 
   const { error: updateError } = await supabase
