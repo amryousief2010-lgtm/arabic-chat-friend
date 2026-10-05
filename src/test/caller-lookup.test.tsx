@@ -53,6 +53,28 @@ describe("caller lookup screen", () => {
           { created_at: "2026-03-15T14:30:00", status: "delivered", total: 250 },
           { created_at: "2026-01-01T08:00:00", status: "pending", total: 90 },
         ],
+        total_spent: 415,
+        orders_count: 8,
+        last_order: {
+          order_number: "CL-NEW-1",
+          created_at: "2026-03-15T14:30:00",
+          total: 250,
+          status: "delivered",
+        },
+        open_order: {
+          order_number: "CL-MID-1",
+          status: "shipped",
+          created_at: "2026-02-01T08:00:00",
+          total: 10,
+        },
+        address: "15 شارع عباس العقاد",
+        governorate: "القاهرة",
+        moderator: "نورا",
+        top_products: [
+          { name: "فيليه", qty: 6 },
+          { name: "ستيك", qty: 4 },
+          { name: "مفروم", qty: 2 },
+        ],
       },
       error: null,
     });
@@ -64,14 +86,67 @@ describe("caller lookup screen", () => {
       expect(screen.getByText("منى أحمد")).toBeInTheDocument();
     });
     expect(screen.getByText("مدينة نصر")).toBeInTheDocument();
-    expect(screen.getByText("تم التوصيل")).toBeInTheDocument();
+    expect(screen.getByText("القاهرة")).toBeInTheDocument();
+    expect(screen.getByText("15 شارع عباس العقاد")).toBeInTheDocument();
+    expect(screen.getByText("نورا")).toBeInTheDocument();
+    expect(screen.getByText("إجمالي المشتريات:")).toBeInTheDocument();
+    expect(screen.getByText(/415/)).toBeInTheDocument();
+    expect(screen.getByText("عدد الطلبات:")).toBeInTheDocument();
+    expect(screen.getByText("8")).toBeInTheDocument();
+    expect(screen.getByText("آخر طلب")).toBeInTheDocument();
+    expect(screen.getByText("CL-NEW-1")).toBeInTheDocument();
+    expect(screen.getByText("طلب مفتوح")).toBeInTheDocument();
+    expect(screen.getByText("CL-MID-1")).toBeInTheDocument();
+    expect(screen.getByText("تم الشحن")).toBeInTheDocument();
+    expect(screen.getByText("أكثر المنتجات")).toBeInTheDocument();
+    expect(screen.getByText("فيليه")).toBeInTheDocument();
+    expect(screen.getByText("ستيك")).toBeInTheDocument();
+    expect(screen.getByText("مفروم")).toBeInTheDocument();
+    expect(screen.getAllByText("تم التوصيل").length).toBeGreaterThan(0);
     expect(screen.getByText("قيد الانتظار")).toBeInTheDocument();
-    expect(screen.getByText(/250/)).toBeInTheDocument();
+    expect(screen.getAllByText(/250/).length).toBeGreaterThan(0);
     expect(screen.getByText(/90/)).toBeInTheDocument();
     expect(screen.getByText("آخر تواصل:")).toBeInTheDocument();
     expect(rpc).toHaveBeenCalledWith("lookup_caller_by_phone", {
       p_phone: "+20 100-123-4567",
     });
+  });
+
+  it("shows an empty open order and no products when the customer has none", async () => {
+    rpc.mockResolvedValue({
+      data: {
+        match: "customer",
+        customer: {
+          id: "c2",
+          name: "سامي حسن",
+          area: null,
+          governorate: "الجيزة",
+          last_contact: null,
+        },
+        orders: [],
+        total_spent: 0,
+        orders_count: 0,
+        last_order: null,
+        open_order: null,
+        address: null,
+        governorate: "الجيزة",
+        moderator: null,
+        top_products: [],
+      },
+      error: null,
+    });
+
+    renderPage();
+    await searchFor("01223334455");
+
+    await waitFor(() => {
+      expect(screen.getByText("سامي حسن")).toBeInTheDocument();
+    });
+    expect(screen.getByText("لا يوجد طلب")).toBeInTheDocument();
+    expect(screen.getByText("لا يوجد طلب مفتوح")).toBeInTheDocument();
+    expect(screen.getByText("لا توجد منتجات")).toBeInTheDocument();
+    expect(screen.getAllByText("غير محدد").length).toBeGreaterThan(0);
+    expect(screen.queryByText("عميل جديد")).not.toBeInTheDocument();
   });
 
   it("shows عميل جديد for an unknown number and no previous customer", async () => {
