@@ -85,3 +85,5 @@ REVOKE ALL ON FUNCTION public.set_order_offer_instances(uuid, jsonb) FROM PUBLIC
 REVOKE ALL ON FUNCTION public.set_order_offer_instances(uuid, jsonb) FROM anon;
 GRANT EXECUTE ON FUNCTION public.set_order_offer_instances(uuid, jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.set_order_offer_instances(uuid, jsonb) TO service_role;
+
+# lovable sync trigger after PR 56 deploy (no schema change)
