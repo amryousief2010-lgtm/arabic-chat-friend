@@ -195,4 +195,62 @@ describe("caller lookup screen", () => {
     });
     expect(screen.queryByText("عميل جديد")).not.toBeInTheDocument();
   });
+
+  it("finds the customer when the hotline adds 02 before the mobile", async () => {
+    rpc.mockResolvedValue({
+      data: {
+        match: "customer",
+        customer: {
+          id: "c3",
+          name: "عميلة الخط الساخن",
+          area: null,
+          governorate: null,
+          last_contact: null,
+        },
+        orders: [],
+      },
+      error: null,
+    });
+
+    renderPage();
+    await searchFor("0201009875678");
+
+    await waitFor(() => {
+      expect(screen.getByText("عميلة الخط الساخن")).toBeInTheDocument();
+    });
+    expect(rpc).toHaveBeenCalledWith("lookup_caller_by_phone", {
+      p_phone: "0201009875678",
+    });
+    expect(screen.queryByText("أدخل رقم موبايل مصري. المسافات والشرطات مقبولة.")).not.toBeInTheDocument();
+  });
+
+  it.each(["+20 2 01009875678", "02 0100 987 5678"])(
+    "sends the hotline form %s to the lookup",
+    async (value) => {
+      rpc.mockResolvedValue({
+        data: { match: "new", customer: null, orders: [] },
+        error: null,
+      });
+
+      renderPage();
+      await searchFor(value);
+
+      await waitFor(() => {
+        expect(rpc).toHaveBeenCalledWith("lookup_caller_by_phone", { p_phone: value });
+      });
+    },
+  );
+
+  it.each(["0223456789", "02012345678"])(
+    "keeps a landline or short 02 number %s invalid without calling the lookup",
+    async (value) => {
+      renderPage();
+      await searchFor(value);
+
+      expect(rpc).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(screen.getByText(/أدخل رقم موبايل مصري/)).toBeInTheDocument();
+      });
+    },
+  );
 });
