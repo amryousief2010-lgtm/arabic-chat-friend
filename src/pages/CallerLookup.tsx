@@ -105,6 +105,16 @@ const formatAmount = (value: number) =>
 const areaLabel = (customer: LookupCustomer) =>
   customer.area?.trim() || customer.governorate?.trim() || "غير محددة";
 
+// Hotline calls arrive as the Cairo area code 02 in front of the full mobile
+// (0201xxxxxxxxx), and +20 2 01xxxxxxxxx normalizes to 201xxxxxxxxx.
+// Drop that extra prefix for the local check only; lookup_caller_by_phone
+// does the same on the server. A real landline (02 + 8 digits) stays invalid.
+const stripHotlinePrefix = (value: string) => {
+  if (/^0201\d{9}$/.test(value)) return value.slice(2);
+  if (/^201\d{9}$/.test(value)) return value.slice(1);
+  return value;
+};
+
 const CallerLookup = () => {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
@@ -116,7 +126,7 @@ const CallerLookup = () => {
     setError("");
     setResult(null);
 
-    const normalized = normalizePhone(phone);
+    const normalized = stripHotlinePrefix(normalizePhone(phone));
     if (!/^01\d{9}$/.test(normalized)) {
       setResult(emptyResult("invalid"));
       return;
