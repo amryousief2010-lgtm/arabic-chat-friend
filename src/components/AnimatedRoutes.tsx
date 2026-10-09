@@ -135,6 +135,7 @@ const WarehouseDailyReport = lazy(() => import("@/pages/modules/WarehouseDailyRe
 const InventoryReconciliation = lazy(() => import("@/pages/modules/InventoryReconciliation"));
 const OutletSalesStatements = lazy(() => import("@/pages/modules/OutletSalesStatements"));
 const UntransferredProduction = lazy(() => import("@/pages/modules/UntransferredProduction"));
+const SlaughterMeatReceiptsFollowUp = lazy(() => import("@/pages/modules/SlaughterMeatReceiptsFollowUp"));
 const UnreceivedSlaughterOutputs = lazy(() => import("@/pages/modules/UnreceivedSlaughterOutputs"));
 const WarehouseAdjustmentsLog = lazy(() => import("@/pages/modules/WarehouseAdjustmentsLog"));
 const RecipeDetail = lazy(() => import("@/pages/modules/feed/RecipeDetail"));
@@ -1114,6 +1115,11 @@ const AnimatedRoutes = () => {
           <Route path="/modules/warehouses/outlet-statements" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'financial_manager']}>
               <PageTransition><OutletSalesStatements /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/receipts-follow-up" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'warehouse_supervisor', 'production_manager']}>
+              <PageTransition><SlaughterMeatReceiptsFollowUp /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/untransferred-production" element={
