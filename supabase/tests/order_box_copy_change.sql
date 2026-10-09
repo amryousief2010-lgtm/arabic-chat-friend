@@ -105,6 +105,7 @@ DO $$ BEGIN CREATE ROLE authenticated NOLOGIN; EXCEPTION WHEN duplicate_object T
 DO $$ BEGIN CREATE ROLE service_role NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 \ir ../migrations/20261009120000_order_box_copy_change.sql
+\ir ../migrations/20261009180000_keep_recorded_box_copy_prices.sql
 
 CREATE OR REPLACE FUNCTION public.validate_mixed_payment_breakdown()
 RETURNS trigger
@@ -190,6 +191,8 @@ DECLARE
   v_neck uuid := 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa5';
   v_kilo uuid := 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa6';
   v_month_box uuid;
+  v_box1500 uuid;
+  v_frozen uuid;
   v_copy2 uuid;
   v_item uuid;
   v_reg uuid;
@@ -307,6 +310,24 @@ BEGIN
   WHERE order_id = v_month AND product_id = v_p1 AND offer_name = 'بوكس الشهر 1600';
   IF v_qty <> 1 THEN
     RAISE EXCEPTION 'scenario 4: sibling burger qty %', v_qty;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.order_items
+    WHERE order_id = v_month
+      AND offer_name = 'بوكس الشهر 1600'
+      AND (
+        (product_id = v_p1 AND unit_price IS DISTINCT FROM 400)
+        OR (product_id = v_p2 AND unit_price IS DISTINCT FROM 340)
+        OR (product_id = v_p3 AND unit_price IS DISTINCT FROM 740)
+      )
+  ) THEN
+    RAISE EXCEPTION 'scenario 4: sibling unit price changed';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.order_items
+    WHERE order_id = v_month AND offer_name = 'عرض الرقاب' AND unit_price IS DISTINCT FROM 540
+  ) THEN
+    RAISE EXCEPTION 'scenario 4: replacement unit price was not the dialog price';
   END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.order_items
@@ -663,6 +684,89 @@ BEGIN
     WHERE order_id = v_one AND product_id = v_p1 AND offer_copy_id IS NOT NULL
   ) THEN
     RAISE EXCEPTION 'register: older line was linked into the new copy';
+  END IF;
+
+  -- Recorded unit prices stay on their own copy. A catalog offer_price is ignored.
+  ALTER TABLE public.offer_boxes ADD COLUMN IF NOT EXISTS offer_price numeric;
+  UPDATE public.offer_boxes SET offer_price = 9999 WHERE id = v_necks_box;
+  INSERT INTO public.offer_boxes (name, shipping_cost)
+  VALUES ('بوكس 1500', 0) RETURNING id INTO v_box1500;
+  UPDATE public.offer_boxes SET offer_price = 1500 WHERE id = v_box1500;
+  INSERT INTO public.orders (customer_id, delivery_address, subtotal, delivery_fee, total, status)
+  VALUES (v_customer, 'عنوان ثابت', 1660, 0, 1660, 'new')
+  RETURNING id INTO v_frozen;
+  INSERT INTO public.order_offer_instances (order_id, offer_box_id, offer_name, quantity)
+  VALUES (v_frozen, v_box1500, 'بوكس 1500', 2)
+  RETURNING id INTO v_inst;
+  INSERT INTO public.order_items (
+    order_id, product_id, product_name, quantity, unit_price, total_price, offer_name, created_at
+  ) VALUES
+    (v_frozen, v_p1, 'برجر', 2, 400, 800, 'بوكس 1500', '2026-10-01 00:00:00+00'),
+    (v_frozen, v_p2, 'حواوشي', 2, 180, 360, 'بوكس 1500', '2026-10-01 00:00:01+00'),
+    (v_frozen, v_p2, 'حواوشي', 2, 250, 500, 'بوكس 1500', '2026-10-02 00:00:00+00');
+  v_list := public.list_order_box_copies(v_frozen);
+  IF jsonb_array_length(v_list) <> 2 THEN
+    RAISE EXCEPTION 'frozen prices: expected 2 copies, got %', v_list;
+  END IF;
+  IF (v_list->0->>'recorded_price')::numeric <> 760
+     OR (v_list->1->>'recorded_price')::numeric <> 900 THEN
+    RAISE EXCEPTION 'frozen prices: display %', v_list;
+  END IF;
+  IF EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements(v_list) copy
+    CROSS JOIN jsonb_array_elements(copy->'lines') line
+    WHERE line->>'product_name' = 'حواوشي'
+      AND (
+        ((copy->>'copy_index')::int = 1 AND (line->>'unit_price')::numeric <> 180)
+        OR ((copy->>'copy_index')::int = 2 AND (line->>'unit_price')::numeric <> 250)
+        OR (line->>'quantity')::numeric <> 2
+      )
+  ) THEN
+    RAISE EXCEPTION 'frozen prices: hawawshi was blended %', v_list;
+  END IF;
+  v_token := public.order_box_snapshot_token(v_frozen);
+  v_key := 'inst:' || v_inst::text || ':1';
+  PERFORM public.apply_order_box_copy_change(
+    v_frozen, v_key, 'replace_box',
+    jsonb_build_object(
+      'offer_name', 'عرض الرقاب',
+      'offer_box_id', v_necks_box,
+      'items', jsonb_build_array(jsonb_build_object(
+        'product_id', v_neck, 'product_name', 'رقاب', 'quantity', 1, 'unit_price', 111
+      ))
+    ),
+    v_token, 'frozen-prices'
+  );
+  IF EXISTS (
+    SELECT 1 FROM public.order_items
+    WHERE order_id = v_frozen AND product_name = 'حواوشي' AND unit_price = 250
+      AND (quantity IS DISTINCT FROM 2 OR total_price IS DISTINCT FROM 500)
+  ) OR NOT EXISTS (
+    SELECT 1 FROM public.order_items
+    WHERE order_id = v_frozen AND product_name = 'حواوشي' AND unit_price = 250 AND quantity = 2
+  ) THEN
+    RAISE EXCEPTION 'frozen prices: copy 2 hawawshi changed';
+  END IF;
+  IF (SELECT count(*) FROM public.order_items WHERE order_id = v_frozen AND product_name = 'برجر') <> 1
+     OR EXISTS (
+       SELECT 1 FROM public.order_items
+       WHERE order_id = v_frozen AND product_name = 'برجر'
+         AND (quantity IS DISTINCT FROM 1 OR unit_price IS DISTINCT FROM 400)
+     ) THEN
+    RAISE EXCEPTION 'frozen prices: sibling burger price changed';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.order_items
+    WHERE order_id = v_frozen AND product_name = 'رقاب' AND unit_price IS DISTINCT FROM 111
+  ) THEN
+    RAISE EXCEPTION 'frozen prices: replacement used a catalog price';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.order_items
+    WHERE order_id = v_frozen AND product_name = 'حواوشي' AND unit_price = 180
+  ) THEN
+    RAISE EXCEPTION 'frozen prices: replaced copy still has its line';
   END IF;
 
   -- Warehouse supervisor and anonymous callers are rejected.

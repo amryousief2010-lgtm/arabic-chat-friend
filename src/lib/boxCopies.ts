@@ -7,8 +7,11 @@ import { isOfferShippingLine } from "@/lib/orderTotals";
  * copies of the same box were one selectable row.
  *
  * A copy is either:
- * - virtual: inst:{instanceId}:{copyIndex} — orders that were never split;
- *   quantities are divided evenly and any remainder stays on the lower indexes;
+ * - virtual: inst:{instanceId}:{copyIndex} — orders that were never split.
+ *   One merged line is divided evenly and any remainder stays on the lower
+ *   indexes, at that line's own unit price. Lines that were already saved
+ *   separately (one row per copy, including a different unit price) stay
+ *   whole on one copy. Nothing here reads the catalog or offer_price.
  * - materialized: copy:{copyId} — a row in order_box_copies after a change;
  * - plain: every non-offer line, still one group;
  * - orphan: offer lines whose name has no instance row.
@@ -28,6 +31,7 @@ export interface BoxLine {
   offer_name?: string | null;
   offer_copy_id?: string | null;
   is_gift?: boolean;
+  created_at?: string | null;
 }
 
 export interface OfferInstanceRow {
@@ -113,6 +117,55 @@ const isRealLine = (line: BoxLine) =>
     unit_price: line.unit_price,
   });
 
+function lineSortKey(line: BoxLine): string {
+  return `${line.created_at ?? ""}\u0000${line.id}`;
+}
+
+function productGroupKey(line: BoxLine): string {
+  return `${line.product_id ?? line.product_name}|${line.is_gift ? "1" : "0"}`;
+}
+
+/**
+ * A single merged line is shared by every copy, so only its quantity is split.
+ * Its unit price stays. When the order already stored one row per copy,
+ * including two prices for the same product, each row stays on one copy.
+ * Different unit prices are never averaged together.
+ */
+function virtualLinesForIndexes(unlinked: BoxLine[], indexes: number[]): Map<number, ListedLine[]> {
+  const planned = new Map<number, ListedLine[]>();
+  for (const index of indexes) planned.set(index, []);
+  const copyCount = indexes.length;
+  if (copyCount === 0) return planned;
+
+  const groups = new Map<string, BoxLine[]>();
+  for (const line of unlinked) {
+    const key = productGroupKey(line);
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(line);
+    else groups.set(key, [line]);
+  }
+
+  for (const group of groups.values()) {
+    const ordered = [...group].sort((a, b) => (lineSortKey(a) < lineSortKey(b) ? -1 : lineSortKey(a) > lineSortKey(b) ? 1 : 0));
+    const sameUnitPrice = new Set(ordered.map((line) => Number(line.unit_price || 0))).size <= 1;
+    const splitQuantityAcrossCopies = ordered.length === 1 || (sameUnitPrice && ordered.length !== copyCount);
+    if (splitQuantityAcrossCopies) {
+      for (const line of ordered) {
+        indexes.forEach((copyIndex, slot) => {
+          const quantity = splitQuantity(Number(line.quantity || 0), copyCount, slot + 1);
+          if (quantity > 0) planned.get(copyIndex)!.push(toListedLine(line, quantity));
+        });
+      }
+      continue;
+    }
+    ordered.forEach((line, position) => {
+      const slot = ordered.length === copyCount ? position : position % copyCount;
+      planned.get(indexes[slot])!.push(toListedLine(line));
+    });
+  }
+  return planned;
+}
+
 function missingIndexes(used: Set<number>, count: number): number[] {
   const found: number[] = [];
   let cursor = 1;
@@ -170,10 +223,9 @@ export function listBoxCopies(input: {
       indexes.push(...missingIndexes(new Set([...used, ...indexes]), 1));
     }
 
-    indexes.forEach((copyIndex, slot) => {
-      const lines = unlinked
-        .map((line) => toListedLine(line, splitQuantity(Number(line.quantity || 0), indexes.length, slot + 1)))
-        .filter((line) => line.quantity > 0);
+    const planned = virtualLinesForIndexes(unlinked, indexes);
+    indexes.forEach((copyIndex) => {
+      const lines = planned.get(copyIndex) ?? [];
       result.push({
         key: `inst:${instance.id}:${copyIndex}`,
         kind: "virtual",

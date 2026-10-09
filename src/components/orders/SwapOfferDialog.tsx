@@ -142,7 +142,7 @@ const SwapOfferDialog = ({
           .single(),
         supabase
           .from("order_items")
-          .select("id, product_id, product_name, quantity, unit_price, total_price, offer_name, offer_copy_id, is_gift")
+          .select("id, product_id, product_name, quantity, unit_price, total_price, offer_name, offer_copy_id, is_gift, created_at")
           .eq("order_id", orderId),
         supabase
           .from("order_offer_instances")
@@ -250,6 +250,9 @@ const SwapOfferDialog = ({
     deliveryFee,
   ]);
 
+  // Replacement lines start from the offer's saved custom_price. Staff can edit
+  // them in this dialog. offer_boxes.offer_price and products.price are not
+  // written onto existing copies.
   const loadNewOfferPreview = async (offerId: string) => {
     setSelectedNewOfferId(offerId);
     if (!offerId) {
@@ -414,7 +417,7 @@ const SwapOfferDialog = ({
                     <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
                       {copy.lines.map((line) => (
                         <li key={`${copy.key}-${line.id}-${line.product_name}`}>
-                          {line.product_name} × {line.quantity}
+                          {line.product_name} × {line.quantity} — {money(line.unit_price)}
                         </li>
                       ))}
                     </ul>
