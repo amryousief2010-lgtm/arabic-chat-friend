@@ -63,6 +63,8 @@ interface WarehouseReceiptsTabProps {
    * Used to start a fresh receipts log per warehouse from a given date.
    */
   startDate?: string | null;
+  /** Follow-up mode: slaughter + meat factory only, with waiting / received / stuck status cards. */
+  followUp?: boolean;
 }
 
 const STATUS_LABELS: Record<string, { label: string; variant: any }> = {
@@ -73,6 +75,23 @@ const STATUS_LABELS: Record<string, { label: string; variant: any }> = {
   received_previously: { label: "موردة سابقًا", variant: "secondary" },
   cancelled: { label: "ملغاة", variant: "outline" },
 };
+
+/** A pending receipt older than this many days counts as "stuck" (معلق). */
+export const STUCK_AFTER_DAYS = 3;
+export type FollowUpGroup = "waiting" | "received" | "stuck";
+export const FOLLOW_UP_GROUPS: Record<FollowUpGroup, { label: string; hint: string; variant: any }> = {
+  waiting: { label: "مستنياه", hint: `بانتظار الاعتماد (أقل من ${STUCK_AFTER_DAYS} أيام)`, variant: "outline" },
+  received: { label: "مستلم", hint: "تم اعتماده ودخل المخزن", variant: "default" },
+  stuck: { label: "معلق", hint: `منتظر أكثر من ${STUCK_AFTER_DAYS} أيام أو مرفوض`, variant: "destructive" },
+};
+export function receiptAgeDays(r: { date: string }, now = Date.now()): number {
+  return Math.max(0, Math.floor((now - new Date(r.date).getTime()) / 86_400_000));
+}
+export function receiptFollowUpGroup(r: { status: string; date: string }, now = Date.now()): FollowUpGroup {
+  if (r.status === "rejected") return "stuck";
+  if (r.status === "pending") return receiptAgeDays(r, now) >= STUCK_AFTER_DAYS ? "stuck" : "waiting";
+  return "received";
+}
 
 const KIND_LABEL: Record<ReceiptKind, string> = {
   slaughter: "استلام من المجزر",
@@ -157,7 +176,8 @@ function printReceipt(row: ReceiptRow) {
   openPrintWindow(`محضر استلام ${row.batch_no}`, body);
 }
 
-export default function WarehouseReceiptsTab({ warehouseId, warehouseName, startDate }: WarehouseReceiptsTabProps = {}) {
+export default function WarehouseReceiptsTab({ warehouseId, warehouseName, startDate, followUp = false }: WarehouseReceiptsTabProps = {}) {
+  const [groupFilter, setGroupFilter] = useState<"all" | FollowUpGroup>("all");
   const { role, isGeneralManager, isExecutiveManager } = useAuth();
   const canDispose = isGeneralManager || isExecutiveManager || role === "warehouse_supervisor";
 
@@ -581,9 +601,10 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
   }
 
 
-  const filteredAll = useMemo(() => {
+  const baseFiltered = useMemo(() => {
     const startTs = startDate ? new Date(startDate.length <= 10 ? startDate + "T00:00:00" : startDate).getTime() : null;
     return rows.filter((r) => {
+      if (followUp && r.kind !== "slaughter" && r.kind !== "meat_factory") return false;
       if (warehouseId && r.dest_warehouse_id !== warehouseId) return false;
       if (startTs !== null && new Date(r.date).getTime() < startTs) return false;
       if (fromDate && new Date(r.date) < new Date(fromDate)) return false;
@@ -598,7 +619,18 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
       }
       return true;
     });
-  }, [rows, warehouseId, startDate, fromDate, toDate, sourceFilter, destFilter, statusFilter, batchSearch, itemSearch]);
+  }, [rows, followUp, warehouseId, startDate, fromDate, toDate, sourceFilter, destFilter, statusFilter, batchSearch, itemSearch]);
+
+  const groupCounts = useMemo(() => {
+    const c = { all: baseFiltered.length, waiting: 0, received: 0, stuck: 0 };
+    for (const r of baseFiltered) c[receiptFollowUpGroup(r)]++;
+    return c;
+  }, [baseFiltered]);
+
+  const filteredAll = useMemo(
+    () => (followUp && groupFilter !== "all" ? baseFiltered.filter((r) => receiptFollowUpGroup(r) === groupFilter) : baseFiltered),
+    [baseFiltered, followUp, groupFilter],
+  );
 
   const filtered = useMemo(() => filteredAll.filter((r) => r.kind === activeSub), [filteredAll, activeSub]);
 
@@ -628,6 +660,28 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
           </p>
         </div>
       </div>
+
+      {followUp && (
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+          {(["all", "waiting", "received", "stuck"] as const).map((g) => {
+            const active = groupFilter === g;
+            const label = g === "all" ? "الكل" : FOLLOW_UP_GROUPS[g].label;
+            const hint = g === "all" ? "كل دفعات المجزر والمصنع" : FOLLOW_UP_GROUPS[g].hint;
+            return (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setGroupFilter(g)}
+                className={`rounded-xl border p-4 text-right transition-colors ${active ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-muted/50"}`}
+              >
+                <div className="text-sm text-muted-foreground">{label}</div>
+                <div className="text-2xl font-bold">{groupCounts[g]}</div>
+                <div className="text-[11px] text-muted-foreground mt-1">{hint}</div>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Summary */}
       <div className="grid gap-3 md:grid-cols-4">
@@ -686,11 +740,11 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
         <TabsList>
           <TabsTrigger value="slaughter" className="gap-1"><Beef className="w-4 h-4" />استلامات المجزر</TabsTrigger>
           <TabsTrigger value="meat_factory" className="gap-1"><Factory className="w-4 h-4" />استلامات مصنع اللحوم</TabsTrigger>
-          <TabsTrigger value="internal" className="gap-1"><ArrowLeftRight className="w-4 h-4" />استلامات التحويلات الداخلية</TabsTrigger>
-          <TabsTrigger value="other" className="gap-1"><Package className="w-4 h-4" />استلامات أخرى</TabsTrigger>
+          {!followUp && <TabsTrigger value="internal" className="gap-1"><ArrowLeftRight className="w-4 h-4" />استلامات التحويلات الداخلية</TabsTrigger>}
+          {!followUp && <TabsTrigger value="other" className="gap-1"><Package className="w-4 h-4" />استلامات أخرى</TabsTrigger>}
         </TabsList>
 
-        {(["slaughter", "meat_factory", "internal", "other"] as ReceiptKind[]).map((k) => (
+        {((followUp ? ["slaughter", "meat_factory"] : ["slaughter", "meat_factory", "internal", "other"]) as ReceiptKind[]).map((k) => (
           <TabsContent key={k} value={k} className="space-y-3">
             <Card>
               <CardContent className="p-0">
@@ -731,7 +785,18 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
                           <TableCell className="text-center">{r.items_count}</TableCell>
                           <TableCell>{r.total_qty.toFixed(2)}</TableCell>
                           <TableCell><Badge variant="outline">{r.quality}</Badge></TableCell>
-                          <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                          <TableCell>
+                            {followUp ? (() => {
+                              const g = receiptFollowUpGroup(r);
+                              const meta = FOLLOW_UP_GROUPS[g];
+                              return (
+                                <div className="flex flex-col gap-1">
+                                  <Badge variant={meta.variant}>{meta.label}{g === "stuck" && r.status === "pending" ? ` — ${receiptAgeDays(r)} يوم` : ""}</Badge>
+                                  <span className="text-[11px] text-muted-foreground">{st.label}</span>
+                                </div>
+                              );
+                            })() : <Badge variant={st.variant}>{st.label}</Badge>}
+                          </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
                               {r.status === "pending" && (r.kind === "slaughter" || r.kind === "meat_factory" || r.src_kind === "internal") && (
