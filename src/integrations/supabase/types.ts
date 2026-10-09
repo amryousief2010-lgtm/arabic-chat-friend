@@ -14,6 +14,402 @@ export type Database = {
   }
   public: {
     Tables: {
+      _bak_20261006_fn_receive_slaughter_output: {
+        Row: {
+          def: string | null
+          saved_at: string | null
+        }
+        Insert: {
+          def?: string | null
+          saved_at?: string | null
+        }
+        Update: {
+          def?: string | null
+          saved_at?: string | null
+        }
+        Relationships: []
+      }
+      _bak_20261006_inv_items_main: {
+        Row: {
+          blocked_qty: number | null
+          category: string | null
+          created_at: string | null
+          expiry_date: string | null
+          id: string | null
+          is_active: boolean | null
+          item_code: string | null
+          last_movement_date: string | null
+          low_stock_threshold: number | null
+          module: string | null
+          name: string | null
+          notes: string | null
+          pack_weight_kg: number | null
+          product_id: string | null
+          reserved_qty: number | null
+          sku: string | null
+          stock: number | null
+          unit: string | null
+          unit_cost: number | null
+          updated_at: string | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
+      _bak_20261006_inv_movements: {
+        Row: {
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
+          batch_id: string | null
+          created_at: string | null
+          destination_warehouse_id: string | null
+          effect_mode: string | null
+          id: string | null
+          item_id: string | null
+          module: string | null
+          movement_no: string | null
+          movement_type: string | null
+          notes: string | null
+          order_item_id: string | null
+          package_count: number | null
+          package_weight_kg: number | null
+          party: string | null
+          performed_at: string | null
+          performed_by: string | null
+          period_lock_override_reason: string | null
+          product_id: string | null
+          quantity: number | null
+          quantity_kg: number | null
+          reason: string | null
+          reference: string | null
+          reference_id: string | null
+          reference_type: string | null
+          reverses_movement_id: string | null
+          source_id: string | null
+          source_line_id: string | null
+          source_type: string | null
+          source_warehouse_id: string | null
+          stock_after: number | null
+          stock_before: number | null
+          total_cost: number | null
+          unit_cost: number | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          created_at?: string | null
+          destination_warehouse_id?: string | null
+          effect_mode?: string | null
+          id?: string | null
+          item_id?: string | null
+          module?: string | null
+          movement_no?: string | null
+          movement_type?: string | null
+          notes?: string | null
+          order_item_id?: string | null
+          package_count?: number | null
+          package_weight_kg?: number | null
+          party?: string | null
+          performed_at?: string | null
+          performed_by?: string | null
+          period_lock_override_reason?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          quantity_kg?: number | null
+          reason?: string | null
+          reference?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          reverses_movement_id?: string | null
+          source_id?: string | null
+          source_line_id?: string | null
+          source_type?: string | null
+          source_warehouse_id?: string | null
+          stock_after?: number | null
+          stock_before?: number | null
+          total_cost?: number | null
+          unit_cost?: number | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          created_at?: string | null
+          destination_warehouse_id?: string | null
+          effect_mode?: string | null
+          id?: string | null
+          item_id?: string | null
+          module?: string | null
+          movement_no?: string | null
+          movement_type?: string | null
+          notes?: string | null
+          order_item_id?: string | null
+          package_count?: number | null
+          package_weight_kg?: number | null
+          party?: string | null
+          performed_at?: string | null
+          performed_by?: string | null
+          period_lock_override_reason?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          quantity_kg?: number | null
+          reason?: string | null
+          reference?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          reverses_movement_id?: string | null
+          source_id?: string | null
+          source_line_id?: string | null
+          source_type?: string | null
+          source_warehouse_id?: string | null
+          stock_after?: number | null
+          stock_before?: number | null
+          total_cost?: number | null
+          unit_cost?: number | null
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
+      _bak_20261006_slaughter_outputs: {
+        Row: {
+          actual_weight_kg: number | null
+          auto_cost_per_kg: number | null
+          barcode: string | null
+          batch_id: string | null
+          branch_id: string | null
+          created_at: string | null
+          cut_name_ar: string | null
+          damaged_weight_kg: number | null
+          destination: string | null
+          expiry_date: string | null
+          id: string | null
+          manual_cost_per_kg: number | null
+          manual_sale_price_per_kg: number | null
+          notes: string | null
+          package_count: number | null
+          price_edit_reason: string | null
+          price_updated_at: string | null
+          price_updated_by: string | null
+          product_id: string | null
+          quality_status: string | null
+          quarantined_weight_kg: number | null
+          received_at: string | null
+          received_by: string | null
+          received_inventory_item_id: string | null
+          received_status: string | null
+          received_warehouse_id: string | null
+          reverse_movement_id: string | null
+          reversed_at: string | null
+          reversed_by: string | null
+          standard_weight_kg: number | null
+          suggested_sale_price_per_kg: number | null
+          total_cost: number | null
+          unit_cost: number | null
+          unit_price: number | null
+          variance_kg: number | null
+          variance_pct: number | null
+          yield_standard_id: string | null
+        }
+        Insert: {
+          actual_weight_kg?: number | null
+          auto_cost_per_kg?: number | null
+          barcode?: string | null
+          batch_id?: string | null
+          branch_id?: string | null
+          created_at?: string | null
+          cut_name_ar?: string | null
+          damaged_weight_kg?: number | null
+          destination?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          manual_cost_per_kg?: number | null
+          manual_sale_price_per_kg?: number | null
+          notes?: string | null
+          package_count?: number | null
+          price_edit_reason?: string | null
+          price_updated_at?: string | null
+          price_updated_by?: string | null
+          product_id?: string | null
+          quality_status?: string | null
+          quarantined_weight_kg?: number | null
+          received_at?: string | null
+          received_by?: string | null
+          received_inventory_item_id?: string | null
+          received_status?: string | null
+          received_warehouse_id?: string | null
+          reverse_movement_id?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          standard_weight_kg?: number | null
+          suggested_sale_price_per_kg?: number | null
+          total_cost?: number | null
+          unit_cost?: number | null
+          unit_price?: number | null
+          variance_kg?: number | null
+          variance_pct?: number | null
+          yield_standard_id?: string | null
+        }
+        Update: {
+          actual_weight_kg?: number | null
+          auto_cost_per_kg?: number | null
+          barcode?: string | null
+          batch_id?: string | null
+          branch_id?: string | null
+          created_at?: string | null
+          cut_name_ar?: string | null
+          damaged_weight_kg?: number | null
+          destination?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          manual_cost_per_kg?: number | null
+          manual_sale_price_per_kg?: number | null
+          notes?: string | null
+          package_count?: number | null
+          price_edit_reason?: string | null
+          price_updated_at?: string | null
+          price_updated_by?: string | null
+          product_id?: string | null
+          quality_status?: string | null
+          quarantined_weight_kg?: number | null
+          received_at?: string | null
+          received_by?: string | null
+          received_inventory_item_id?: string | null
+          received_status?: string | null
+          received_warehouse_id?: string | null
+          reverse_movement_id?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          standard_weight_kg?: number | null
+          suggested_sale_price_per_kg?: number | null
+          total_cost?: number | null
+          unit_cost?: number | null
+          unit_price?: number | null
+          variance_kg?: number | null
+          variance_pct?: number | null
+          yield_standard_id?: string | null
+        }
+        Relationships: []
+      }
+      _migration_backup_farm_to_hatchery_shipments_20261002: {
+        Row: {
+          created_at: string | null
+          damaged_count: number | null
+          egg_count: number | null
+          family_id: string | null
+          family_number: string | null
+          farm_transfer_id: string | null
+          hatch_batch_id: string | null
+          id: string | null
+          is_test: boolean | null
+          production_date: string | null
+          production_id: string | null
+          receipt_notes: string | null
+          received_at: string | null
+          received_by: string | null
+          received_egg_count: number | null
+          rejection_reason: string | null
+          status: string | null
+          suggested_batch_id: string | null
+          transfer_batch_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          damaged_count?: number | null
+          egg_count?: number | null
+          family_id?: string | null
+          family_number?: string | null
+          farm_transfer_id?: string | null
+          hatch_batch_id?: string | null
+          id?: string | null
+          is_test?: boolean | null
+          production_date?: string | null
+          production_id?: string | null
+          receipt_notes?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          received_egg_count?: number | null
+          rejection_reason?: string | null
+          status?: string | null
+          suggested_batch_id?: string | null
+          transfer_batch_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          damaged_count?: number | null
+          egg_count?: number | null
+          family_id?: string | null
+          family_number?: string | null
+          farm_transfer_id?: string | null
+          hatch_batch_id?: string | null
+          id?: string | null
+          is_test?: boolean | null
+          production_date?: string | null
+          production_id?: string | null
+          receipt_notes?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          received_egg_count?: number | null
+          rejection_reason?: string | null
+          status?: string | null
+          suggested_batch_id?: string | null
+          transfer_batch_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       _migration_backup_sales_kg_price_settings_20260929: {
         Row: {
           bone_meat_price: number | null
@@ -107,6 +503,42 @@ export type Database = {
           meat_price?: number | null
           processed_price?: number | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      _stk_live_post_20261003: {
+        Row: {
+          item_id: string
+          notes: string | null
+          performed_at: string | null
+          product_id: string | null
+          qty: number
+          reason: string | null
+          ref: string
+          unit_cost: number | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          item_id: string
+          notes?: string | null
+          performed_at?: string | null
+          product_id?: string | null
+          qty: number
+          reason?: string | null
+          ref: string
+          unit_cost?: number | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          item_id?: string
+          notes?: string | null
+          performed_at?: string | null
+          product_id?: string | null
+          qty?: number
+          reason?: string | null
+          ref?: string
+          unit_cost?: number | null
+          warehouse_id?: string | null
         }
         Relationships: []
       }
@@ -503,6 +935,1167 @@ export type Database = {
           module?: string | null
           question?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      backup_inv_20261004_deliver_nodecut: {
+        Row: {
+          backup_at: string | null
+          blocked_qty: number | null
+          category: string | null
+          created_at: string | null
+          expiry_date: string | null
+          id: string | null
+          is_active: boolean | null
+          item_code: string | null
+          last_movement_date: string | null
+          low_stock_threshold: number | null
+          module: string | null
+          name: string | null
+          notes: string | null
+          pack_weight_kg: number | null
+          product_id: string | null
+          reserved_qty: number | null
+          sku: string | null
+          stock: number | null
+          unit: string | null
+          unit_cost: number | null
+          updated_at: string | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          backup_at?: string | null
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          backup_at?: string | null
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
+      backup_orders_20261004_deliver_nodecut: {
+        Row: {
+          backup_at: string | null
+          bank_transfer_amount: number | null
+          collected_at: string | null
+          collected_by: string | null
+          collection_batch_id: string | null
+          collection_method: string | null
+          collection_note: string | null
+          collection_status: string | null
+          collection_updated_at: string | null
+          collection_updated_by: string | null
+          courier_cash_due: number | null
+          created_at: string | null
+          created_by: string | null
+          customer_id: string | null
+          delivered_at: string | null
+          delivered_by: string | null
+          delivery_address: string | null
+          delivery_fee: number | null
+          deposit_amount: number | null
+          deposit_receipt_name: string | null
+          deposit_receipt_url: string | null
+          discount: number | null
+          duplicate_approval_id: string | null
+          duplicate_approval_reason: string | null
+          duplicate_approved_at: string | null
+          duplicate_approved_by: string | null
+          extra_charge: number | null
+          extra_charge_reason: string | null
+          free_amount: number | null
+          fulfillment_type: string | null
+          id: string | null
+          instapay_amount: number | null
+          is_duplicate_approved: boolean | null
+          moderator: string | null
+          notes: string | null
+          order_number: string | null
+          other_amount: number | null
+          payment_method: string | null
+          payment_status: string | null
+          route_id: string | null
+          shipping_bill_manual_at: string | null
+          shipping_bill_manual_by: string | null
+          shipping_bill_no: string | null
+          shipping_bill_source: string | null
+          shipping_company: string | null
+          source: string | null
+          source_warehouse_id: string | null
+          status: string | null
+          stock_router_log: Json | null
+          stock_status: string | null
+          subtotal: number | null
+          total: number | null
+          total_at_delivery: number | null
+          transfer_reference: string | null
+          update_status_marker: string | null
+          update_status_updated_at: string | null
+          update_status_updated_by: string | null
+          updated_at: string | null
+          vodafone_cash_amount: number | null
+          zodex_return_amount: number | null
+          zodex_synced_at: string | null
+        }
+        Insert: {
+          backup_at?: string | null
+          bank_transfer_amount?: number | null
+          collected_at?: string | null
+          collected_by?: string | null
+          collection_batch_id?: string | null
+          collection_method?: string | null
+          collection_note?: string | null
+          collection_status?: string | null
+          collection_updated_at?: string | null
+          collection_updated_by?: string | null
+          courier_cash_due?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_id?: string | null
+          delivered_at?: string | null
+          delivered_by?: string | null
+          delivery_address?: string | null
+          delivery_fee?: number | null
+          deposit_amount?: number | null
+          deposit_receipt_name?: string | null
+          deposit_receipt_url?: string | null
+          discount?: number | null
+          duplicate_approval_id?: string | null
+          duplicate_approval_reason?: string | null
+          duplicate_approved_at?: string | null
+          duplicate_approved_by?: string | null
+          extra_charge?: number | null
+          extra_charge_reason?: string | null
+          free_amount?: number | null
+          fulfillment_type?: string | null
+          id?: string | null
+          instapay_amount?: number | null
+          is_duplicate_approved?: boolean | null
+          moderator?: string | null
+          notes?: string | null
+          order_number?: string | null
+          other_amount?: number | null
+          payment_method?: string | null
+          payment_status?: string | null
+          route_id?: string | null
+          shipping_bill_manual_at?: string | null
+          shipping_bill_manual_by?: string | null
+          shipping_bill_no?: string | null
+          shipping_bill_source?: string | null
+          shipping_company?: string | null
+          source?: string | null
+          source_warehouse_id?: string | null
+          status?: string | null
+          stock_router_log?: Json | null
+          stock_status?: string | null
+          subtotal?: number | null
+          total?: number | null
+          total_at_delivery?: number | null
+          transfer_reference?: string | null
+          update_status_marker?: string | null
+          update_status_updated_at?: string | null
+          update_status_updated_by?: string | null
+          updated_at?: string | null
+          vodafone_cash_amount?: number | null
+          zodex_return_amount?: number | null
+          zodex_synced_at?: string | null
+        }
+        Update: {
+          backup_at?: string | null
+          bank_transfer_amount?: number | null
+          collected_at?: string | null
+          collected_by?: string | null
+          collection_batch_id?: string | null
+          collection_method?: string | null
+          collection_note?: string | null
+          collection_status?: string | null
+          collection_updated_at?: string | null
+          collection_updated_by?: string | null
+          courier_cash_due?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_id?: string | null
+          delivered_at?: string | null
+          delivered_by?: string | null
+          delivery_address?: string | null
+          delivery_fee?: number | null
+          deposit_amount?: number | null
+          deposit_receipt_name?: string | null
+          deposit_receipt_url?: string | null
+          discount?: number | null
+          duplicate_approval_id?: string | null
+          duplicate_approval_reason?: string | null
+          duplicate_approved_at?: string | null
+          duplicate_approved_by?: string | null
+          extra_charge?: number | null
+          extra_charge_reason?: string | null
+          free_amount?: number | null
+          fulfillment_type?: string | null
+          id?: string | null
+          instapay_amount?: number | null
+          is_duplicate_approved?: boolean | null
+          moderator?: string | null
+          notes?: string | null
+          order_number?: string | null
+          other_amount?: number | null
+          payment_method?: string | null
+          payment_status?: string | null
+          route_id?: string | null
+          shipping_bill_manual_at?: string | null
+          shipping_bill_manual_by?: string | null
+          shipping_bill_no?: string | null
+          shipping_bill_source?: string | null
+          shipping_company?: string | null
+          source?: string | null
+          source_warehouse_id?: string | null
+          status?: string | null
+          stock_router_log?: Json | null
+          stock_status?: string | null
+          subtotal?: number | null
+          total?: number | null
+          total_at_delivery?: number | null
+          transfer_reference?: string | null
+          update_status_marker?: string | null
+          update_status_updated_at?: string | null
+          update_status_updated_by?: string | null
+          updated_at?: string | null
+          vodafone_cash_amount?: number | null
+          zodex_return_amount?: number | null
+          zodex_synced_at?: string | null
+        }
+        Relationships: []
+      }
+      backup_store_friday_balances_snap_20261002: {
+        Row: {
+          id: string | null
+          name: string | null
+          product_id: string | null
+          snap_at: string | null
+          stock: number | null
+          unit_cost: number | null
+          warehouse_id: string | null
+          warehouse_name: string | null
+        }
+        Insert: {
+          id?: string | null
+          name?: string | null
+          product_id?: string | null
+          snap_at?: string | null
+          stock?: number | null
+          unit_cost?: number | null
+          warehouse_id?: string | null
+          warehouse_name?: string | null
+        }
+        Update: {
+          id?: string | null
+          name?: string | null
+          product_id?: string | null
+          snap_at?: string | null
+          stock?: number | null
+          unit_cost?: number | null
+          warehouse_id?: string | null
+          warehouse_name?: string | null
+        }
+        Relationships: []
+      }
+      backup_store_friday_inventory_items_20261002: {
+        Row: {
+          backup_at: string | null
+          blocked_qty: number | null
+          category: string | null
+          created_at: string | null
+          expiry_date: string | null
+          id: string | null
+          is_active: boolean | null
+          item_code: string | null
+          last_movement_date: string | null
+          low_stock_threshold: number | null
+          module: string | null
+          name: string | null
+          notes: string | null
+          pack_weight_kg: number | null
+          product_id: string | null
+          reserved_qty: number | null
+          sku: string | null
+          stock: number | null
+          unit: string | null
+          unit_cost: number | null
+          updated_at: string | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          backup_at?: string | null
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          backup_at?: string | null
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
+      backup_store_saturday_inventory_items_20261003: {
+        Row: {
+          backed_up_at: string | null
+          blocked_qty: number | null
+          category: string | null
+          created_at: string | null
+          expiry_date: string | null
+          id: string | null
+          is_active: boolean | null
+          item_code: string | null
+          last_movement_date: string | null
+          low_stock_threshold: number | null
+          module: string | null
+          name: string | null
+          notes: string | null
+          pack_weight_kg: number | null
+          product_id: string | null
+          reserved_qty: number | null
+          sku: string | null
+          stock: number | null
+          unit: string | null
+          unit_cost: number | null
+          updated_at: string | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          backed_up_at?: string | null
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          backed_up_at?: string | null
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
+      bak_agouza_xfer_20261007_0001_agouza_stock: {
+        Row: {
+          blocked_qty: number | null
+          category: string | null
+          created_at: string | null
+          expiry_date: string | null
+          id: string | null
+          is_active: boolean | null
+          item_code: string | null
+          last_movement_date: string | null
+          low_stock_threshold: number | null
+          module: string | null
+          name: string | null
+          notes: string | null
+          pack_weight_kg: number | null
+          product_id: string | null
+          reserved_qty: number | null
+          sku: string | null
+          stock: number | null
+          unit: string | null
+          unit_cost: number | null
+          updated_at: string | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
+      bak_agouza_xfer_20261007_0001_main_stock: {
+        Row: {
+          blocked_qty: number | null
+          category: string | null
+          created_at: string | null
+          expiry_date: string | null
+          id: string | null
+          is_active: boolean | null
+          item_code: string | null
+          last_movement_date: string | null
+          low_stock_threshold: number | null
+          module: string | null
+          name: string | null
+          notes: string | null
+          pack_weight_kg: number | null
+          product_id: string | null
+          reserved_qty: number | null
+          sku: string | null
+          stock: number | null
+          unit: string | null
+          unit_cost: number | null
+          updated_at: string | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
+      bak_agouza_xfer_20261007_0001_movements: {
+        Row: {
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
+          batch_id: string | null
+          created_at: string | null
+          destination_warehouse_id: string | null
+          effect_mode: string | null
+          id: string | null
+          item_id: string | null
+          module: string | null
+          movement_no: string | null
+          movement_type: string | null
+          notes: string | null
+          order_item_id: string | null
+          package_count: number | null
+          package_weight_kg: number | null
+          party: string | null
+          performed_at: string | null
+          performed_by: string | null
+          period_lock_override_reason: string | null
+          product_id: string | null
+          quantity: number | null
+          quantity_kg: number | null
+          reason: string | null
+          reference: string | null
+          reference_id: string | null
+          reference_type: string | null
+          reverses_movement_id: string | null
+          source_id: string | null
+          source_line_id: string | null
+          source_type: string | null
+          source_warehouse_id: string | null
+          stock_after: number | null
+          stock_before: number | null
+          total_cost: number | null
+          unit_cost: number | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          created_at?: string | null
+          destination_warehouse_id?: string | null
+          effect_mode?: string | null
+          id?: string | null
+          item_id?: string | null
+          module?: string | null
+          movement_no?: string | null
+          movement_type?: string | null
+          notes?: string | null
+          order_item_id?: string | null
+          package_count?: number | null
+          package_weight_kg?: number | null
+          party?: string | null
+          performed_at?: string | null
+          performed_by?: string | null
+          period_lock_override_reason?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          quantity_kg?: number | null
+          reason?: string | null
+          reference?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          reverses_movement_id?: string | null
+          source_id?: string | null
+          source_line_id?: string | null
+          source_type?: string | null
+          source_warehouse_id?: string | null
+          stock_after?: number | null
+          stock_before?: number | null
+          total_cost?: number | null
+          unit_cost?: number | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          created_at?: string | null
+          destination_warehouse_id?: string | null
+          effect_mode?: string | null
+          id?: string | null
+          item_id?: string | null
+          module?: string | null
+          movement_no?: string | null
+          movement_type?: string | null
+          notes?: string | null
+          order_item_id?: string | null
+          package_count?: number | null
+          package_weight_kg?: number | null
+          party?: string | null
+          performed_at?: string | null
+          performed_by?: string | null
+          period_lock_override_reason?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          quantity_kg?: number | null
+          reason?: string | null
+          reference?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          reverses_movement_id?: string | null
+          source_id?: string | null
+          source_line_id?: string | null
+          source_type?: string | null
+          source_warehouse_id?: string | null
+          stock_after?: number | null
+          stock_before?: number | null
+          total_cost?: number | null
+          unit_cost?: number | null
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
+      bak_mfg_transfer_20261007_0001_factory_stock: {
+        Row: {
+          blocked_qty: number | null
+          category: string | null
+          created_at: string | null
+          expiry_date: string | null
+          id: string | null
+          is_active: boolean | null
+          item_code: string | null
+          last_movement_date: string | null
+          low_stock_threshold: number | null
+          module: string | null
+          name: string | null
+          notes: string | null
+          pack_weight_kg: number | null
+          product_id: string | null
+          reserved_qty: number | null
+          sku: string | null
+          stock: number | null
+          unit: string | null
+          unit_cost: number | null
+          updated_at: string | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
+      bak_mfg_transfer_20261007_0001_inv_items: {
+        Row: {
+          blocked_qty: number | null
+          category: string | null
+          created_at: string | null
+          expiry_date: string | null
+          id: string | null
+          is_active: boolean | null
+          item_code: string | null
+          last_movement_date: string | null
+          low_stock_threshold: number | null
+          module: string | null
+          name: string | null
+          notes: string | null
+          pack_weight_kg: number | null
+          product_id: string | null
+          reserved_qty: number | null
+          sku: string | null
+          stock: number | null
+          unit: string | null
+          unit_cost: number | null
+          updated_at: string | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
+      bak_mfg_transfer_20261007_0001_invoices: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          closed_at: string | null
+          closed_by: string | null
+          closed_reason: string | null
+          created_at: string | null
+          created_by: string | null
+          destination_kind: string | null
+          extra_cost: number | null
+          factory_warehouse_id: string | null
+          finished_item_id: string | null
+          finished_qty: number | null
+          id: string | null
+          invoice_no: string | null
+          legacy_transferred: boolean | null
+          manufacturing_invoice_uuid: string | null
+          materials_total_cost: number | null
+          notes: string | null
+          packaging_cost: number | null
+          product_name: string | null
+          raw_cost: number | null
+          spice_cost: number | null
+          status: string | null
+          total_manufacturing_cost: number | null
+          transfer_id: string | null
+          transfer_no: string | null
+          transferred_at: string | null
+          transferred_by: string | null
+          unit: string | null
+          unit_cost: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_reason?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          destination_kind?: string | null
+          extra_cost?: number | null
+          factory_warehouse_id?: string | null
+          finished_item_id?: string | null
+          finished_qty?: number | null
+          id?: string | null
+          invoice_no?: string | null
+          legacy_transferred?: boolean | null
+          manufacturing_invoice_uuid?: string | null
+          materials_total_cost?: number | null
+          notes?: string | null
+          packaging_cost?: number | null
+          product_name?: string | null
+          raw_cost?: number | null
+          spice_cost?: number | null
+          status?: string | null
+          total_manufacturing_cost?: number | null
+          transfer_id?: string | null
+          transfer_no?: string | null
+          transferred_at?: string | null
+          transferred_by?: string | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_reason?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          destination_kind?: string | null
+          extra_cost?: number | null
+          factory_warehouse_id?: string | null
+          finished_item_id?: string | null
+          finished_qty?: number | null
+          id?: string | null
+          invoice_no?: string | null
+          legacy_transferred?: boolean | null
+          manufacturing_invoice_uuid?: string | null
+          materials_total_cost?: number | null
+          notes?: string | null
+          packaging_cost?: number | null
+          product_name?: string | null
+          raw_cost?: number | null
+          spice_cost?: number | null
+          status?: string | null
+          total_manufacturing_cost?: number | null
+          transfer_id?: string | null
+          transfer_no?: string | null
+          transferred_at?: string | null
+          transferred_by?: string | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      bak_mfg_transfer_20261007_0001_main_stock: {
+        Row: {
+          blocked_qty: number | null
+          category: string | null
+          created_at: string | null
+          expiry_date: string | null
+          id: string | null
+          is_active: boolean | null
+          item_code: string | null
+          last_movement_date: string | null
+          low_stock_threshold: number | null
+          module: string | null
+          name: string | null
+          notes: string | null
+          pack_weight_kg: number | null
+          product_id: string | null
+          reserved_qty: number | null
+          sku: string | null
+          stock: number | null
+          unit: string | null
+          unit_cost: number | null
+          updated_at: string | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          blocked_qty?: number | null
+          category?: string | null
+          created_at?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          item_code?: string | null
+          last_movement_date?: string | null
+          low_stock_threshold?: number | null
+          module?: string | null
+          name?: string | null
+          notes?: string | null
+          pack_weight_kg?: number | null
+          product_id?: string | null
+          reserved_qty?: number | null
+          sku?: string | null
+          stock?: number | null
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
+      bak_mfg_transfer_20261007_0001_movements: {
+        Row: {
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
+          batch_id: string | null
+          created_at: string | null
+          destination_warehouse_id: string | null
+          effect_mode: string | null
+          id: string | null
+          item_id: string | null
+          module: string | null
+          movement_no: string | null
+          movement_type: string | null
+          notes: string | null
+          order_item_id: string | null
+          package_count: number | null
+          package_weight_kg: number | null
+          party: string | null
+          performed_at: string | null
+          performed_by: string | null
+          period_lock_override_reason: string | null
+          product_id: string | null
+          quantity: number | null
+          quantity_kg: number | null
+          reason: string | null
+          reference: string | null
+          reference_id: string | null
+          reference_type: string | null
+          reverses_movement_id: string | null
+          source_id: string | null
+          source_line_id: string | null
+          source_type: string | null
+          source_warehouse_id: string | null
+          stock_after: number | null
+          stock_before: number | null
+          total_cost: number | null
+          unit_cost: number | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          created_at?: string | null
+          destination_warehouse_id?: string | null
+          effect_mode?: string | null
+          id?: string | null
+          item_id?: string | null
+          module?: string | null
+          movement_no?: string | null
+          movement_type?: string | null
+          notes?: string | null
+          order_item_id?: string | null
+          package_count?: number | null
+          package_weight_kg?: number | null
+          party?: string | null
+          performed_at?: string | null
+          performed_by?: string | null
+          period_lock_override_reason?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          quantity_kg?: number | null
+          reason?: string | null
+          reference?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          reverses_movement_id?: string | null
+          source_id?: string | null
+          source_line_id?: string | null
+          source_type?: string | null
+          source_warehouse_id?: string | null
+          stock_after?: number | null
+          stock_before?: number | null
+          total_cost?: number | null
+          unit_cost?: number | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          created_at?: string | null
+          destination_warehouse_id?: string | null
+          effect_mode?: string | null
+          id?: string | null
+          item_id?: string | null
+          module?: string | null
+          movement_no?: string | null
+          movement_type?: string | null
+          notes?: string | null
+          order_item_id?: string | null
+          package_count?: number | null
+          package_weight_kg?: number | null
+          party?: string | null
+          performed_at?: string | null
+          performed_by?: string | null
+          period_lock_override_reason?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          quantity_kg?: number | null
+          reason?: string | null
+          reference?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          reverses_movement_id?: string | null
+          source_id?: string | null
+          source_line_id?: string | null
+          source_type?: string | null
+          source_warehouse_id?: string | null
+          stock_after?: number | null
+          stock_before?: number | null
+          total_cost?: number | null
+          unit_cost?: number | null
+          warehouse_id?: string | null
         }
         Relationships: []
       }
@@ -8757,6 +10350,33 @@ export type Database = {
           },
         ]
       }
+      inventory_items_opening_20261001_backup: {
+        Row: {
+          backed_up_at: string
+          id: string
+          name: string | null
+          product_id: string | null
+          stock: number | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          backed_up_at?: string
+          id: string
+          name?: string | null
+          product_id?: string | null
+          stock?: number | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          backed_up_at?: string
+          id?: string
+          name?: string | null
+          product_id?: string | null
+          stock?: number | null
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
       inventory_movements: {
         Row: {
           approval_status: string
@@ -14039,6 +15659,198 @@ export type Database = {
         }
         Relationships: []
       }
+      mohtaseb_changes: {
+        Row: {
+          batch_id: string | null
+          change_type: string
+          company_id: number
+          detected_at: string
+          diff: Json | null
+          doc_date: string | null
+          fy: number
+          id: number
+          new_hash: string | null
+          old_hash: string | null
+          run_id: string | null
+          source_pk: string
+          table_name: string
+        }
+        Insert: {
+          batch_id?: string | null
+          change_type: string
+          company_id: number
+          detected_at?: string
+          diff?: Json | null
+          doc_date?: string | null
+          fy: number
+          id?: never
+          new_hash?: string | null
+          old_hash?: string | null
+          run_id?: string | null
+          source_pk: string
+          table_name: string
+        }
+        Update: {
+          batch_id?: string | null
+          change_type?: string
+          company_id?: number
+          detected_at?: string
+          diff?: Json | null
+          doc_date?: string | null
+          fy?: number
+          id?: never
+          new_hash?: string | null
+          old_hash?: string | null
+          run_id?: string | null
+          source_pk?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
+      mohtaseb_rows: {
+        Row: {
+          change_count: number
+          company_id: number
+          deleted_at: string | null
+          doc_date: string | null
+          first_seen: string
+          fy: number
+          last_seen: string
+          row: Json
+          row_hash: string
+          source_pk: string
+          table_name: string
+          updated_at: string
+        }
+        Insert: {
+          change_count?: number
+          company_id: number
+          deleted_at?: string | null
+          doc_date?: string | null
+          first_seen?: string
+          fy: number
+          last_seen?: string
+          row: Json
+          row_hash: string
+          source_pk: string
+          table_name: string
+          updated_at?: string
+        }
+        Update: {
+          change_count?: number
+          company_id?: number
+          deleted_at?: string | null
+          doc_date?: string | null
+          first_seen?: string
+          fy?: number
+          last_seen?: string
+          row?: Json
+          row_hash?: string
+          source_pk?: string
+          table_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      mohtaseb_sync_agents: {
+        Row: {
+          agent_id: string
+          first_seen: string
+          host: string | null
+          last_error: string | null
+          last_ok_at: string | null
+          last_run_id: string | null
+          last_seen: string
+          last_status: string | null
+          run_count: number
+          version: string | null
+        }
+        Insert: {
+          agent_id: string
+          first_seen?: string
+          host?: string | null
+          last_error?: string | null
+          last_ok_at?: string | null
+          last_run_id?: string | null
+          last_seen?: string
+          last_status?: string | null
+          run_count?: number
+          version?: string | null
+        }
+        Update: {
+          agent_id?: string
+          first_seen?: string
+          host?: string | null
+          last_error?: string | null
+          last_ok_at?: string | null
+          last_run_id?: string | null
+          last_seen?: string
+          last_status?: string | null
+          run_count?: number
+          version?: string | null
+        }
+        Relationships: []
+      }
+      mohtaseb_sync_runs: {
+        Row: {
+          agent_id: string
+          deep: boolean | null
+          duration_ms: number | null
+          errors: string | null
+          finished_at: string | null
+          host: string | null
+          received_at: string
+          rows_deleted: number | null
+          rows_read: number | null
+          rows_upserted: number | null
+          run_id: string
+          src_dbs: string[] | null
+          started_at: string | null
+          status: string | null
+          table_stats: Json | null
+          updated_at: string
+          version: string | null
+        }
+        Insert: {
+          agent_id: string
+          deep?: boolean | null
+          duration_ms?: number | null
+          errors?: string | null
+          finished_at?: string | null
+          host?: string | null
+          received_at?: string
+          rows_deleted?: number | null
+          rows_read?: number | null
+          rows_upserted?: number | null
+          run_id: string
+          src_dbs?: string[] | null
+          started_at?: string | null
+          status?: string | null
+          table_stats?: Json | null
+          updated_at?: string
+          version?: string | null
+        }
+        Update: {
+          agent_id?: string
+          deep?: boolean | null
+          duration_ms?: number | null
+          errors?: string | null
+          finished_at?: string | null
+          host?: string | null
+          received_at?: string
+          rows_deleted?: number | null
+          rows_read?: number | null
+          rows_upserted?: number | null
+          run_id?: string
+          src_dbs?: string[] | null
+          started_at?: string | null
+          status?: string | null
+          table_stats?: Json | null
+          updated_at?: string
+          version?: string | null
+        }
+        Relationships: []
+      }
       mother_farm_feed_movements: {
         Row: {
           bags: number | null
@@ -14327,7 +16139,43 @@ export type Database = {
           order_id?: string
           recorded_price?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "order_box_copies_legacy_instance_id_fkey"
+            columns: ["legacy_instance_id"]
+            isOneToOne: false
+            referencedRelation: "order_offer_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_box_copies_offer_box_id_fkey"
+            columns: ["offer_box_id"]
+            isOneToOne: false
+            referencedRelation: "offer_boxes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_box_copies_offer_box_id_fkey"
+            columns: ["offer_box_id"]
+            isOneToOne: false
+            referencedRelation: "v_offer_box_cost_lines"
+            referencedColumns: ["box_id"]
+          },
+          {
+            foreignKeyName: "order_box_copies_offer_box_id_fkey"
+            columns: ["offer_box_id"]
+            isOneToOne: false
+            referencedRelation: "v_offer_box_costs"
+            referencedColumns: ["box_id"]
+          },
+          {
+            foreignKeyName: "order_box_copies_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_box_copy_audit: {
         Row: {
@@ -14384,7 +16232,15 @@ export type Database = {
           source_offer_name?: string | null
           source_recorded_price?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "order_box_copy_audit_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_deduction_lines: {
         Row: {
@@ -14516,6 +16372,13 @@ export type Database = {
           unit_price?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "order_items_offer_copy_id_fkey"
+            columns: ["offer_copy_id"]
+            isOneToOne: false
+            referencedRelation: "order_box_copies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "order_items_order_id_fkey"
             columns: ["order_id"]
@@ -21910,6 +23773,103 @@ export type Database = {
           },
         ]
       }
+      mohtaseb_v_bills: {
+        Row: {
+          bill_date: string | null
+          bill_id: number | null
+          bill_no: number | null
+          bill_type: number | null
+          bill_type_name: string | null
+          client_acc_id: number | null
+          client_name: string | null
+          created_date: string | null
+          deleted_at: string | null
+          first_seen: string | null
+          fy: number | null
+          net: number | null
+          notation: string | null
+          pay_method: number | null
+          storage_id: number | null
+          total: number | null
+          updated_at: string | null
+          updated_date: string | null
+        }
+        Relationships: []
+      }
+      mohtaseb_v_count_check: {
+        Row: {
+          deleted_rows: number | null
+          last_ok_run: string | null
+          match: boolean | null
+          src_rows: number | null
+          staged_rows: number | null
+          table_name: string | null
+        }
+        Relationships: []
+      }
+      mohtaseb_v_voucher_lines: {
+        Row: {
+          acc_id: number | null
+          acc_name: string | null
+          credit: number | null
+          debit: number | null
+          deleted_at: string | null
+          fy: number | null
+          line_id: number | null
+          notation: string | null
+          vou_date: string | null
+          voucher_id: number | null
+        }
+        Relationships: []
+      }
+      mohtaseb_v_vouchers: {
+        Row: {
+          bill_id: number | null
+          created_date: string | null
+          daily_id: number | null
+          deleted_at: string | null
+          first_seen: string | null
+          fy: number | null
+          is_manual: boolean | null
+          notation: string | null
+          updated_at: string | null
+          updated_date: string | null
+          vou_date: string | null
+          vou_type: number | null
+          voucher_id: number | null
+        }
+        Insert: {
+          bill_id?: never
+          created_date?: never
+          daily_id?: never
+          deleted_at?: string | null
+          first_seen?: string | null
+          fy?: number | null
+          is_manual?: never
+          notation?: never
+          updated_at?: string | null
+          updated_date?: never
+          vou_date?: string | null
+          vou_type?: never
+          voucher_id?: never
+        }
+        Update: {
+          bill_id?: never
+          created_date?: never
+          daily_id?: never
+          deleted_at?: string | null
+          first_seen?: string | null
+          fy?: number | null
+          is_manual?: never
+          notation?: never
+          updated_at?: string | null
+          updated_date?: never
+          vou_date?: string | null
+          vou_type?: never
+          voucher_id?: never
+        }
+        Relationships: []
+      }
       product_cost_prices: {
         Row: {
           category: string | null
@@ -22147,6 +24107,17 @@ export type Database = {
           invoices_paid: number | null
           invoices_remaining: number | null
           invoices_total: number | null
+        }
+        Relationships: []
+      }
+      v_hatchery_lab_ops_kpis: {
+        Row: {
+          chicks_this_month: number | null
+          eggs_in_lab: number | null
+          external_eggs: number | null
+          hatch_rate_pct: number | null
+          internal_eggs: number | null
+          open_batches: number | null
         }
         Relationships: []
       }
@@ -22609,7 +24580,16 @@ export type Database = {
       }
     }
     Functions: {
+      _assert_box_copy_editor: { Args: never; Returns: string }
       _assert_mf_invoice_approver: { Args: never; Returns: undefined }
+      _box_copy_qty_share: {
+        Args: { p_copies: number; p_index: number; p_total: number }
+        Returns: number
+      }
+      _box_offer_shipping: {
+        Args: { p_box_id: string; p_name: string }
+        Returns: number
+      }
       _commit_order_reservations_after_dispatch: {
         Args: { p_actor: string; p_order_id: string; p_reason: string }
         Returns: number
@@ -22646,6 +24626,10 @@ export type Database = {
         Returns: string
       }
       _main_wh_auto_dispatch_from: { Args: never; Returns: string }
+      _materialize_offer_box_copies: {
+        Args: { p_offer_name: string; p_order_id: string }
+        Returns: undefined
+      }
       _order_auto_dispatch_allowed: {
         Args: { p_at: string; p_wh: string }
         Returns: boolean
@@ -22656,6 +24640,15 @@ export type Database = {
           item_id: string
           net_qty: number
           warehouse_id: string
+        }[]
+      }
+      _plan_unlinked_box_copy_lines: {
+        Args: { p_offer_name: string; p_order_id: string; p_virtual: number[] }
+        Returns: {
+          copy_index: number
+          item_id: string
+          keep_row: boolean
+          quantity: number
         }[]
       }
       _recon_assert_manager: { Args: never; Returns: undefined }
@@ -22712,6 +24705,15 @@ export type Database = {
         Args: { p_order_id: string; p_reason: string }
         Returns: number
       }
+      _sync_offer_instance_count: {
+        Args: {
+          p_actor: string
+          p_offer_box_id: string
+          p_offer_name: string
+          p_order_id: string
+        }
+        Returns: undefined
+      }
       activate_feed_bom: {
         Args: { p_notes?: string; p_recipe_id: string }
         Returns: Json
@@ -22753,6 +24755,14 @@ export type Database = {
         Args: { _count_id: string }
         Returns: undefined
       }
+      apply_meat_stocktake: { Args: { p_id: string }; Returns: string }
+      apply_mother_farm_daily_consumption: {
+        Args: never
+        Returns: {
+          days_added: number
+          total_deducted_kg: number
+        }[]
+      }
       apply_order_box_copy_change: {
         Args: {
           p_idempotency_key: string
@@ -22763,31 +24773,6 @@ export type Database = {
           p_target_key: string
         }
         Returns: Json
-      }
-      list_order_box_copies: {
-        Args: { p_order_id: string }
-        Returns: Json
-      }
-      order_box_snapshot_token: {
-        Args: { p_order_id: string }
-        Returns: string
-      }
-      register_added_order_box_copy: {
-        Args: {
-          p_item_ids: string[]
-          p_offer_box_id: string
-          p_offer_name: string
-          p_order_id: string
-        }
-        Returns: string
-      }
-      apply_meat_stocktake: { Args: { p_id: string }; Returns: string }
-      apply_mother_farm_daily_consumption: {
-        Args: never
-        Returns: {
-          days_added: number
-          total_deducted_kg: number
-        }[]
       }
       apply_slaughter_cost_allocation: {
         Args: { p_slaughter_batch_id: string }
@@ -23004,6 +24989,7 @@ export type Database = {
       can_manage_chick_orders: { Args: { _user_id: string }; Returns: boolean }
       can_manage_feed_batch: { Args: { _uid: string }; Returns: boolean }
       can_manage_feed_recipes: { Args: { _user_id: string }; Returns: boolean }
+      can_manage_hatch_results: { Args: { _uid?: string }; Returns: boolean }
       can_manage_hr_documents: { Args: { _uid: string }; Returns: boolean }
       can_manage_lab_advances: { Args: { _uid: string }; Returns: boolean }
       can_manage_meat_batch: { Args: { _uid: string }; Returns: boolean }
@@ -24561,6 +26547,7 @@ export type Database = {
           warehouse_name: string
         }[]
       }
+      list_order_box_copies: { Args: { p_order_id: string }; Returns: Json }
       list_outlet_sales_warehouses: {
         Args: never
         Returns: {
@@ -24616,6 +26603,7 @@ export type Database = {
           status: string
         }[]
       }
+      lookup_caller_by_phone: { Args: { p_phone: string }; Returns: Json }
       mark_duplicate_order_approval_used: {
         Args: { p_id: string; p_order_id: string }
         Returns: {
@@ -24722,6 +26710,22 @@ export type Database = {
       mf_recalc_finished_cost: {
         Args: { p_product_name: string }
         Returns: number
+      }
+      mohtaseb_heartbeat: {
+        Args: { p_payload: Json; p_token: string }
+        Returns: Json
+      }
+      mohtaseb_ingest: {
+        Args: { p_payload: Json; p_token: string }
+        Returns: Json
+      }
+      mohtaseb_table_counts: {
+        Args: { p_payload: Json; p_token: string }
+        Returns: Json
+      }
+      mohtaseb_table_keys: {
+        Args: { p_payload: Json; p_token: string }
+        Returns: Json
       }
       move_to_dlq: {
         Args: {
@@ -24979,6 +26983,10 @@ export type Database = {
       normalize_governorate: { Args: { p_text: string }; Returns: string }
       normalize_match_text: { Args: { input: string }; Returns: string }
       normalize_phone_eg: { Args: { input: string }; Returns: string }
+      order_box_snapshot_token: {
+        Args: { p_order_id: string }
+        Returns: string
+      }
       order_is_hagar: {
         Args: { _created_by: string; _moderator: string }
         Returns: boolean
@@ -25321,6 +27329,15 @@ export type Database = {
         Args: { _idle_days?: number }
         Returns: number
       }
+      register_added_order_box_copy: {
+        Args: {
+          p_item_ids: string[]
+          p_offer_box_id: string
+          p_offer_name: string
+          p_order_id: string
+        }
+        Returns: string
+      }
       reject_agouza_cash_handover: {
         Args: { p_handover_id: string; p_reason: string }
         Returns: undefined
@@ -25432,6 +27449,10 @@ export type Database = {
       reopen_courier_day: {
         Args: { _closure_id: string; _reason: string }
         Returns: string
+      }
+      reopen_hatching_batch_results: {
+        Args: { p_ids: string[] }
+        Returns: Json
       }
       report_duplicate_inventory_cards: {
         Args: never
@@ -25573,6 +27594,10 @@ export type Database = {
         Args: { p_output_id: string; p_reason?: string }
         Returns: Json
       }
+      save_or_close_hatching_batch_results: {
+        Args: { p_closing?: boolean; p_exit_date?: string; p_rows: Json }
+        Returns: Json
+      }
       save_order_items_edit: {
         Args: {
           p_delivery_fee?: number
@@ -25582,18 +27607,6 @@ export type Database = {
           p_subtotal: number
           p_total: number
         }
-        Returns: undefined
-      }
-      sync_order_offer_instances: {
-        Args: {
-          p_box_id?: string
-          p_box_name?: string
-          p_order_id: string
-        }
-        Returns: undefined
-      }
-      set_order_offer_instances: {
-        Args: { p_instances: Json; p_order_id: string }
         Returns: undefined
       }
       save_outlet_sales_statement: {
@@ -25682,6 +27695,10 @@ export type Database = {
         }
         Returns: Json
       }
+      set_order_offer_instances: {
+        Args: { p_instances: Json; p_order_id: string }
+        Returns: undefined
+      }
       set_order_waybill_manual: {
         Args: { p_bill_no: string; p_order_id: string }
         Returns: Json
@@ -25762,6 +27779,10 @@ export type Database = {
       suggest_hatch_batch_for_shipment: {
         Args: { p_shipment_id: string }
         Returns: string
+      }
+      sync_order_offer_instances: {
+        Args: { p_box_id?: string; p_box_name?: string; p_order_id: string }
+        Returns: undefined
       }
       transfer_between_sublocations: {
         Args: {
