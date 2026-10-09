@@ -230,8 +230,12 @@ const AddOfferDialog = ({ open, onOpenChange, orderId, onSaved }: Props) => {
           offer_name: selectedOffer.name,
         }));
 
-      const { error: insErr } = await supabase.from("order_items").insert(toInsert);
+      const { data: inserted, error: insErr } = await supabase
+        .from("order_items")
+        .insert(toInsert)
+        .select("id");
       if (insErr) throw insErr;
+      const newIds = (inserted || []).map((row) => row.id);
 
       const names = [...new Set(nextInstances.map((row) => row.offer_name))];
       const { data: boxRows, error: boxErr } = await supabase
@@ -253,6 +257,16 @@ const AddOfferDialog = ({ open, onOpenChange, orderId, onSaved }: Props) => {
         })),
       });
       if (setErr) throw setErr;
+
+      if (newIds.length > 0) {
+        const { error: linkErr } = await supabase.rpc("register_added_order_box_copy", {
+          p_order_id: orderId,
+          p_offer_name: selectedOffer.name,
+          p_offer_box_id: selectedOfferId,
+          p_item_ids: newIds,
+        });
+        if (linkErr) throw linkErr;
+      }
 
       await writeOrderTotalsPreservingShipping(orderId, {
         discount: Number(header.discount || 0),
