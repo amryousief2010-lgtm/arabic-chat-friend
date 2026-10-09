@@ -131,13 +131,12 @@ export default function MonthOrdersDialog({ open, onOpenChange }: { open: boolea
   const [tab, setTab] = useState<WhKey>("all");
   const [waybillsDialog, setWaybillsDialog] = useState<null | "main" | "agouza">(null);
 
-  const { user, roles, isGeneralManager, isExecutiveManager, isSalesModerator } = useAuth();
+  const { user, roles, isGeneralManager, isExecutiveManager } = useAuth();
   const rolesList = roles || [];
   const canUpdateStatus =
     isGeneralManager || isExecutiveManager ||
     rolesList.includes("marketing_sales_manager") ||
     rolesList.includes("sales_manager") ||
-    isSalesModerator ||
     rolesList.includes("shipping_company") ||
     rolesList.includes("private_delivery_rep" as any) ||
     rolesList.includes("courier" as any);

@@ -357,17 +357,22 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
      rolesList.includes('treasury_accountant') ||
      rolesList.includes('courier');
    // صلاحية تحديث حالة الأوردر إلى "تم التسليم للعميل".
-   // مسموح: التسويق (م/آلاء) والموديريتور ومدير المبيعات والإدارة العليا وشركات الشحن/المندوبين.
+   // مسموح: التسويق (م/آلاء) ومدير المبيعات والإدارة العليا وشركات الشحن/المندوبين.
    // ممنوع: مسؤول المخزن (عبدالمنعم) والمحاسبون/الخزنة — دورهم بعد التسليم فقط (ضبط التحصيل).
    const canMarkDelivered =
      isGeneralManager ||
      isExecutiveManager ||
      rolesList.includes('marketing_sales_manager') ||
      rolesList.includes('sales_manager') ||
-     isSalesModerator ||
      isShippingCompany ||
      isPrivateDeliveryRep ||
      rolesList.includes('courier');
+   // زر «تسليم سريع» — مقصور على م/آلاء (مديرة التسويق والمبيعات) والمدير التنفيذي والمدير العام فقط.
+   // الموديريتور (البنات) ممنوعات؛ والسيرفر يرفض أي تغيير حالة منهن (trigger على orders).
+   const canQuickDeliver =
+     isGeneralManager ||
+     isExecutiveManager ||
+     rolesList.includes('marketing_sales_manager');
    // صلاحية نقل الأوردر من مسوقة إلى أخرى — مقصورة على مديرة التسويق والإدارة العليا فقط
    const canReassignOwner =
      isGeneralManager ||
@@ -2503,13 +2508,15 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
               </Button>
             )}
 
-            <Button
-              onClick={() => setQuickDeliveryOpen(true)}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
-            >
-              <Zap className="w-4 h-4" />
-              تسليم سريع
-            </Button>
+            {canQuickDeliver && (
+              <Button
+                onClick={() => setQuickDeliveryOpen(true)}
+                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
+              >
+                <Zap className="w-4 h-4" />
+                تسليم سريع
+              </Button>
+            )}
             {!isSocialMediaManager && (
               <Button asChild className="gap-2">
                 <Link to="/orders/new">
@@ -4276,16 +4283,18 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         </DialogContent>
       </Dialog>
 
+      {canQuickDeliver && (
       <QuickDeliveryDialog
         open={quickDeliveryOpen}
         onOpenChange={setQuickDeliveryOpen}
         orders={orders as any}
         statusLabels={statusLabels}
-        canMarkDelivered={canMarkDelivered}
+        canMarkDelivered={canQuickDeliver}
         onUpdateStatus={async (id, status) => {
           await handleStatusChange(id, status);
         }}
       />
+      )}
 
       {(isSalesModerator || canExportExcel) && user?.id && modDailyReportOpen && (
         <Suspense fallback={null}>
