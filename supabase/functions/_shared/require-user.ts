@@ -28,9 +28,8 @@ export function createServiceClient(): SupabaseClient {
 export async function requireVerifiedUser(
   req: Request,
   corsHeaders: Record<string, string>,
-  admin: {
-    auth: { getUser: (jwt: string) => Promise<{ data: { user: User | null }; error: unknown }> };
-  },
+  // deno-lint-ignore no-explicit-any
+  admin: { auth: { getUser: (jwt: string) => Promise<any> } },
 ): Promise<{ user: User; token: string } | Response> {
   const authHeader = req.headers.get("Authorization") || "";
   if (!authHeader.toLowerCase().startsWith("bearer ")) {
