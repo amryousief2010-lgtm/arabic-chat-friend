@@ -54,6 +54,53 @@ describe("listBoxCopies", () => {
     expect(copies.reduce((sum, copy) => sum + copy.recordedPrice, 0)).toBe(4440);
   });
 
+  it("keeps each copy on the unit price recorded for its own lines", () => {
+    const copies = listBoxCopies({
+      instances: [{ id: "inst-1500", offer_name: "بوكس 1500", quantity: 2, offer_box_id: "box-1500" }],
+      items: [
+        { id: "b", product_id: "p1", product_name: "برجر", quantity: 2, unit_price: 250, offer_name: "بوكس 1500", created_at: "2026-10-01T00:00:00Z" },
+        { id: "h-old", product_id: "p2", product_name: "حواوشي", quantity: 2, unit_price: 180, offer_name: "بوكس 1500", created_at: "2026-10-01T00:00:01Z" },
+        { id: "h-new", product_id: "p2", product_name: "حواوشي", quantity: 2, unit_price: 250, offer_name: "بوكس 1500", created_at: "2026-10-02T00:00:00Z" },
+      ],
+    });
+    expect(copies).toHaveLength(2);
+    expect(copies[0].lines.find((line) => line.product_name === "حواوشي")).toMatchObject({ quantity: 2, unit_price: 180 });
+    expect(copies[1].lines.find((line) => line.product_name === "حواوشي")).toMatchObject({ quantity: 2, unit_price: 250 });
+    expect(copies[0].lines.find((line) => line.product_name === "برجر")).toMatchObject({ quantity: 1, unit_price: 250 });
+    expect(copies[1].lines.find((line) => line.product_name === "برجر")).toMatchObject({ quantity: 1, unit_price: 250 });
+    expect(copies[0].recordedPrice).toBe(610);
+    expect(copies[1].recordedPrice).toBe(750);
+    const preview = previewBoxCopyChange({
+      copies,
+      targetKey: copies[0].key,
+      operation: "delete",
+      shippingByName: {},
+      subtotal: 1360,
+      deliveryFee: 0,
+    });
+    expect(preview.removedLines.find((line) => line.product_name === "حواوشي")?.unit_price).toBe(180);
+    expect(copies[1].lines.find((line) => line.product_name === "حواوشي")?.unit_price).toBe(250);
+    expect(preview.priceDelta).toBe(-610);
+  });
+
+  it("leaves already-separate identical rows whole instead of fractioning them", () => {
+    const copies = listBoxCopies({
+      instances: [{ id: "inst-neck", offer_name: "عرض الرقاب", quantity: 3, offer_box_id: "box-neck" }],
+      items: [1, 2, 3].map((n) => ({
+        id: `neck-${n}`,
+        product_id: "neck",
+        product_name: "رقاب",
+        quantity: 2,
+        unit_price: 270,
+        offer_name: "عرض الرقاب",
+        created_at: `2026-10-0${n}T00:00:00Z`,
+      })),
+    });
+    expect(copies).toHaveLength(3);
+    expect(copies.map((copy) => copy.recordedPrice)).toEqual([540, 540, 540]);
+    expect(copies.every((copy) => copy.lines.length === 1 && copy.lines[0].quantity === 2 && copy.lines[0].unit_price === 270)).toBe(true);
+  });
+
   it("puts a quantity remainder on the lower copy indexes", () => {
     expect(splitQuantity(2, 3, 1)).toBe(0.6667);
     expect(splitQuantity(2, 3, 2)).toBe(0.6667);
