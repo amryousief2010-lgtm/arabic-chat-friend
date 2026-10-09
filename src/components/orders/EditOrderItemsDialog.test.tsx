@@ -111,7 +111,7 @@ vi.mock("@/integrations/supabase/client", () => {
     }
     return { select: () => Promise.resolve({ data: [], error: null }) };
   };
-  return { supabase: { from, rpc: (...args: unknown[]) => rpcMock(...args) } };
+  return { supabase: { from, rpc: (...args: unknown[]) => (rpcMock as (...a: unknown[]) => unknown)(...args) } };
 });
 
 const offerLine = {
@@ -264,7 +264,7 @@ describe("EditOrderItemsDialog individual product lines", () => {
         p_total: 1105,
       }),
     );
-    const savedItems = rpcMock.mock.calls[0][1].p_items;
+    const savedItems = (rpcMock.mock.calls[0] as unknown as [string, { p_items: unknown[] }])[1].p_items;
     expect(savedItems).toEqual([
       expect.objectContaining({
         id: "line-offer",
