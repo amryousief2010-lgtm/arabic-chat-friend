@@ -66,6 +66,9 @@ export const normalizeCutName = (s: string): string =>
 const DEFAULT_YIELD_CUTS = ["لحمه","استيك","موزه","فراشه","قطعيه دبوس","دبوس بالعظم","فخده","صندوق","نعامه صندوق","تربيانكو","اسكالوب","رول النعام","فرم نعام"];
 type AuditEntry = { id: string; action: string; target_type: string; target_id: string | null; batch_id: string | null; transfer_id: string | null; performed_by: string | null; performed_at: string; old_value: any; new_value: any; notes: string | null };
 
+// "received_previously" = اعتُبرت موردة/مستلمة سابقًا بدون إدخال كميات للمخزون، فلا تظهر في تنبيه الدفعات غير المنقولة.
+const DONE_RECEIVED_STATUSES = ["received", "received_previously"];
+
 const Slaughterhouse = () => {
   const { role } = useAuth();
   const canEditReceiptDate = role === "slaughterhouse_manager" || role === "general_manager" || role === "executive_manager";
@@ -269,14 +272,14 @@ const Slaughterhouse = () => {
   const isExecManager = role === "general_manager" || role === "executive_manager";
   const pendingApprovalBatches = batches.filter(b => (b as any).transfer_status === "pending_approval");
 
-  // Completed batches whose outputs haven't been marked as transferred yet
+  // Completed batches whose outputs haven't been marked as transferred yet.
   const untransferredBatches = useMemo(() => {
     return batches
       .filter(b => b.status === "completed")
       .map(b => {
         const rows = outputs.filter(o =>
           o.batch_id === b.id &&
-          (o.received_status || "pending") !== "received" &&
+          !DONE_RECEIVED_STATUSES.includes(o.received_status || "pending") &&
           (o.quality_status || "accepted") === "accepted" &&
           Number(o.actual_weight_kg) > 0
         );
@@ -298,7 +301,7 @@ const Slaughterhouse = () => {
   const markBatchTransferred = async (batchId: string, destination: "main" | "meat_factory") => {
     const rows = outputs.filter(o =>
       o.batch_id === batchId &&
-      ((o.received_status || "pending") !== "received") &&
+      !DONE_RECEIVED_STATUSES.includes(o.received_status || "pending") &&
       (o.quality_status || "accepted") === "accepted" &&
       Number(o.actual_weight_kg) > 0
     );
@@ -1378,7 +1381,7 @@ const Slaughterhouse = () => {
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="text-xs text-muted-foreground mb-2">
-              يمكنك اعتبارها كمنقولة إلى المخزن الرئيسي أو مصنع اللحوم بدون إدخال الكميات فعلياً في المخزون.
+              أزرار النقل تستلم الكميات فعلياً في المخزن المختار وتزيد رصيده. الدفعات المعتبرة «موردة سابقًا» (بدون إدخال كميات) لا تظهر هنا.
             </div>
             {ostrichUntransferred.length > 0 && (
               <div className="mb-3 p-3 rounded border-2 border-red-500 bg-red-50 dark:bg-red-950/30">
