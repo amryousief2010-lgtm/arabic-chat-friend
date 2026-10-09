@@ -262,6 +262,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: Link2, label: "بطاقات غير مربوطة ومرشحة للدمج", path: "/modules/warehouses/merge-candidates", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
       { icon: ShieldCheck, label: "مطابقة دفتر المخزون", path: "/modules/warehouses/reconciliation", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager', 'cost_accountant', 'agouza_warehouse_keeper'] },
       { icon: Receipt, label: "كشف مبيعات المنفذ", path: "/modules/warehouses/outlet-statements", roles: ['general_manager', 'executive_manager', 'accountant', 'financial_manager'] },
+      { icon: Beef, label: "متابعة استلامات المجزر والمصنع", path: "/modules/warehouses/receipts-follow-up", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'warehouse_supervisor', 'production_manager'] },
       { icon: Factory, label: "إنتاج لم يُنقل للمخزن الرئيسي", path: "/modules/warehouses/untransferred-production", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant'] },
       { icon: Beef, label: "مخرجات مجزر لم تُستلم", path: "/modules/warehouses/unreceived-slaughter", roles: ['general_manager', 'executive_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'warehouse_supervisor', 'production_manager'] },
       // تنبيهات وتشغيل
