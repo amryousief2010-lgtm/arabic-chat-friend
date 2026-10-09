@@ -14293,6 +14293,99 @@ export type Database = {
         }
         Relationships: []
       }
+      order_box_copies: {
+        Row: {
+          active: boolean
+          copy_index: number
+          created_at: string
+          id: string
+          legacy_instance_id: string | null
+          offer_box_id: string | null
+          offer_name: string
+          order_id: string
+          recorded_price: number
+        }
+        Insert: {
+          active?: boolean
+          copy_index: number
+          created_at?: string
+          id?: string
+          legacy_instance_id?: string | null
+          offer_box_id?: string | null
+          offer_name: string
+          order_id: string
+          recorded_price?: number
+        }
+        Update: {
+          active?: boolean
+          copy_index?: number
+          created_at?: string
+          id?: string
+          legacy_instance_id?: string | null
+          offer_box_id?: string | null
+          offer_name?: string
+          order_id?: string
+          recorded_price?: number
+        }
+        Relationships: []
+      }
+      order_box_copy_audit: {
+        Row: {
+          acted_at: string
+          acted_by: string | null
+          added_items: Json
+          id: string
+          idempotency_key: string
+          new_total: number | null
+          operation: string
+          order_id: string
+          previous_total: number | null
+          price_delta: number | null
+          removed_items: Json
+          result: Json | null
+          source_copy_index: number | null
+          source_key: string | null
+          source_offer_name: string | null
+          source_recorded_price: number | null
+        }
+        Insert: {
+          acted_at?: string
+          acted_by?: string | null
+          added_items?: Json
+          id?: string
+          idempotency_key: string
+          new_total?: number | null
+          operation: string
+          order_id: string
+          previous_total?: number | null
+          price_delta?: number | null
+          removed_items?: Json
+          result?: Json | null
+          source_copy_index?: number | null
+          source_key?: string | null
+          source_offer_name?: string | null
+          source_recorded_price?: number | null
+        }
+        Update: {
+          acted_at?: string
+          acted_by?: string | null
+          added_items?: Json
+          id?: string
+          idempotency_key?: string
+          new_total?: number | null
+          operation?: string
+          order_id?: string
+          previous_total?: number | null
+          price_delta?: number | null
+          removed_items?: Json
+          result?: Json | null
+          source_copy_index?: number | null
+          source_key?: string | null
+          source_offer_name?: string | null
+          source_recorded_price?: number | null
+        }
+        Relationships: []
+      }
       order_deduction_lines: {
         Row: {
           created_at: string
@@ -14379,6 +14472,7 @@ export type Database = {
           id: string
           is_gift: boolean
           is_half_kg: boolean
+          offer_copy_id: string | null
           offer_name: string | null
           order_id: string
           product_id: string | null
@@ -14394,6 +14488,7 @@ export type Database = {
           id?: string
           is_gift?: boolean
           is_half_kg?: boolean
+          offer_copy_id?: string | null
           offer_name?: string | null
           order_id: string
           product_id?: string | null
@@ -14409,6 +14504,7 @@ export type Database = {
           id?: string
           is_gift?: boolean
           is_half_kg?: boolean
+          offer_copy_id?: string | null
           offer_name?: string | null
           order_id?: string
           product_id?: string | null
@@ -22656,6 +22752,34 @@ export type Database = {
       apply_feed_stock_count: {
         Args: { _count_id: string }
         Returns: undefined
+      }
+      apply_order_box_copy_change: {
+        Args: {
+          p_idempotency_key: string
+          p_operation: string
+          p_order_id: string
+          p_payload: Json
+          p_snapshot_token: string
+          p_target_key: string
+        }
+        Returns: Json
+      }
+      list_order_box_copies: {
+        Args: { p_order_id: string }
+        Returns: Json
+      }
+      order_box_snapshot_token: {
+        Args: { p_order_id: string }
+        Returns: string
+      }
+      register_added_order_box_copy: {
+        Args: {
+          p_item_ids: string[]
+          p_offer_box_id: string
+          p_offer_name: string
+          p_order_id: string
+        }
+        Returns: string
       }
       apply_meat_stocktake: { Args: { p_id: string }; Returns: string }
       apply_mother_farm_daily_consumption: {
