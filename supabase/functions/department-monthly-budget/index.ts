@@ -1434,7 +1434,7 @@ Deno.serve(async (req) => {
     for (const d of current) {
       if (d.status === "loss") {
         alerts.push({ level: "danger", message: `${d.name}: خسارة تشغيلية بقيمة ${Math.abs(d.operationalNet).toLocaleString()} ج.م` });
-      } else if (d.cashStatus === "loss" && d.status !== "loss") {
+      } else if (d.cashStatus === "loss" && (d.status as string) !== "loss") {
         alerts.push({ level: "info", message: `${d.name}: لا يحقق تحصيلًا نقديًا مباشرًا لكنه ينتج قيمة تشغيلية داخلية (+${d.operationalNet.toLocaleString()})` });
       }
       if (d.expenseRatio > 100) {
