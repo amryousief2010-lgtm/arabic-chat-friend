@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const fn = (name: string) =>
@@ -202,6 +202,38 @@ describe("Lovable remaining edge-function auth hardening", () => {
     expect(mcp).not.toMatch(/requireVerifiedUser/);
     expect(mcpSrc).toMatch(/auth\.oauth\.issuer/);
     expect(mcpSrc).toMatch(/acceptedAudiences:\s*"authenticated"/);
+  });
+
+  it("vite keeps stock mcpPlugin so Lovable codegen can overwrite the bannered bundle", () => {
+    const vite = readFileSync(resolve(process.cwd(), "vite.config.ts"), "utf8");
+    expect(vite).toMatch(/mcpPlugin\(\)/);
+    expect(vite).not.toMatch(/vite\.mcp-auth-wrap/);
+    expect(vite).not.toMatch(/requireVerifiedUser/);
+  });
+
+  it("profiles self-update policy has WITH CHECK; identity freeze stays on the trigger", () => {
+    const migrationsDir = resolve(process.cwd(), "supabase/migrations");
+    const files = readdirSync(migrationsDir)
+      .filter((f) => f.endsWith(".sql"))
+      .sort();
+    const allSql = files
+      .map((f) => readFileSync(join(migrationsDir, f), "utf8"))
+      .join("\n");
+    expect(allSql).toMatch(/trg_profiles_guard_identity_fields/);
+    expect(allSql).toMatch(/identity_field_change_forbidden: full_name/);
+    expect(allSql).toMatch(/identity_field_change_forbidden: email/);
+    expect(allSql).toMatch(/identity_field_change_forbidden: shipping_company_name/);
+
+    let lastPolicy = "";
+    const re = /CREATE POLICY "Users can update their own profile"[\s\S]*?;/g;
+    for (const f of files) {
+      const sql = readFileSync(join(migrationsDir, f), "utf8");
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(sql))) lastPolicy = m[0];
+      re.lastIndex = 0;
+    }
+    expect(lastPolicy).toMatch(/WITH CHECK\s*\(\s*\(SELECT auth\.uid\(\)\)\s*=\s*id\s*\)/);
+    expect(lastPolicy).not.toMatch(/full_name/);
   });
 
   it("process-email-queue allows only the service-role bearer after verifying other JWTs", () => {
