@@ -63,6 +63,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 import { normalizePhone } from '@/lib/normalizePhone';
+import {
+  classifyDuplicateCheck,
+  OWN_REPEAT_CANCEL_LABEL,
+  OWN_REPEAT_CONFIRM_LABEL,
+  OWN_REPEAT_TITLE,
+  ownRepeatDescription,
+  type OwnRepeatCandidate,
+} from '@/lib/duplicateOrderWarning';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AGOUZA_WAREHOUSE_ID, reserveAgouzaForOrder } from '@/lib/agouzaReservations';
 import { getSalesInventoryAvailability, sumAvailableByProduct } from '@/lib/inventoryReadApi';
@@ -216,6 +224,12 @@ interface DuplicateCheckResponse {
   } | null;
 }
 
+interface OwnRepeatDialogState {
+  open: boolean;
+  attemptId?: string;
+  candidates: OwnRepeatCandidate[];
+}
+
 interface DuplicateApprovalDialogState {
   open: boolean;
   status: 'idle' | 'pending' | 'rejected';
@@ -285,6 +299,10 @@ const NewOrder = () => {
   const [approvalDialog, setApprovalDialog] = useState<DuplicateApprovalDialogState>({
     open: false,
     status: 'idle',
+    candidates: [],
+  });
+  const [ownRepeatDialog, setOwnRepeatDialog] = useState<OwnRepeatDialogState>({
+    open: false,
     candidates: [],
   });
   const [searchParams] = useSearchParams();
@@ -1188,7 +1206,9 @@ const NewOrder = () => {
     });
   }, [cart]);
 
-  const handleSubmitOrder = async () => {
+  const handleSubmitOrder = async (
+    opts: { ownRepeatConfirmed?: boolean; ownRepeatAttemptId?: string } = {},
+  ) => {
     if (cart.length === 0) {
       toast.error('يرجى إضافة منتجات للطلب');
       return;
@@ -1229,9 +1249,26 @@ const NewOrder = () => {
         p_items: duplicateItemsPayload as any,
         p_note: notes.trim() || undefined,
         p_shipping_company: effectiveShippingCompany || undefined,
+        p_own_repeat_confirmed: !!opts.ownRepeatConfirmed,
       });
       if (!dupErr && dupData) {
-        const d = dupData as unknown as (DuplicateCheckResponse & { is_double_submit?: boolean });
+        const d = dupData as unknown as (DuplicateCheckResponse & {
+          is_double_submit?: boolean;
+          is_own_repeat?: boolean;
+          own_candidates?: OwnRepeatCandidate[];
+        });
+        const outcome = classifyDuplicateCheck(d, { ownRepeatConfirmed: opts.ownRepeatConfirmed });
+        if (outcome === 'own_repeat') {
+          // Same moderator already has an order for this phone this month / last 24h.
+          // Confirm-only: she must accept before we save (no approval, no block).
+          setOwnRepeatDialog({
+            open: true,
+            attemptId: d.attempt_id || undefined,
+            candidates: d.own_candidates || [],
+          });
+          setSubmitting(false);
+          return;
+        }
         if (d.is_double_submit) {
           toast.error('لقد سجلتِ نفس الأوردر لهذا العميل خلال آخر دقيقتين. تم منع التسجيل المكرر بالخطأ.');
           setSubmitting(false);
@@ -1416,6 +1453,18 @@ const NewOrder = () => {
       }
 
 
+
+      if (opts.ownRepeatAttemptId) {
+        // Audit: moderator confirmed this is an intentional new order (non-fatal).
+        try {
+          await supabase.rpc('confirm_own_repeat_order_attempt', {
+            p_attempt_id: opts.ownRepeatAttemptId,
+            p_order_id: order.id,
+          });
+        } catch (e) {
+          console.warn('own repeat confirm log failed', e);
+        }
+      }
 
       if (approvedDuplicateRequestId) {
         await supabase.rpc('mark_duplicate_order_approval_used', {
@@ -2602,7 +2651,7 @@ const NewOrder = () => {
                     <Button
                       className="w-full gap-2"
                       size="lg"
-                      onClick={handleSubmitOrder}
+                      onClick={() => handleSubmitOrder()}
                       disabled={submitting || !selectedCustomer}
                     >
                       {submitting ? (
@@ -2651,7 +2700,7 @@ const NewOrder = () => {
             <Button
               size="lg"
               className="gap-2 min-w-[180px]"
-              onClick={handleSubmitOrder}
+              onClick={() => handleSubmitOrder()}
               disabled={submitting || !selectedCustomer}
             >
               {submitting ? (
@@ -2810,6 +2859,57 @@ const NewOrder = () => {
             <Button onClick={confirmAddOfferToCart}>
               <Plus className="w-4 h-4 ml-1" />
               {offerPreview?.fromCart ? "تحديث العرض" : "إضافة العرض للسلة"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Same-moderator repeat order: confirm before saving */}
+      <Dialog
+        open={ownRepeatDialog.open}
+        onOpenChange={(o) => { if (!o) setOwnRepeatDialog({ open: false, candidates: [] }); }}
+      >
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{OWN_REPEAT_TITLE}</DialogTitle>
+            <DialogDescription>{ownRepeatDescription(ownRepeatDialog.candidates.length)}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {ownRepeatDialog.candidates.map((candidate, index) => (
+              <div key={`${candidate.matched_order_id}-${index}`} className="rounded-lg border p-3 space-y-2">
+                <div className="font-semibold">الأوردر السابق #{candidate.order_number}</div>
+                <div className="grid gap-2 sm:grid-cols-2 text-sm text-muted-foreground">
+                  <div>العميل: <span className="text-foreground font-medium">{candidate.customer_name || '—'}</span></div>
+                  <div>الهاتف: <span className="text-foreground font-medium">{candidate.customer_phone || '—'}</span></div>
+                  <div>الوقت: <span className="text-foreground font-medium">{new Date(candidate.created_at).toLocaleString('ar-EG', { timeZone: 'Africa/Cairo', dateStyle: 'short', timeStyle: 'short' })}</span></div>
+                  <div>الحالة: <span className="text-foreground font-medium">{candidate.status || '—'}</span></div>
+                  <div className="sm:col-span-2">المنتجات: <span className="text-foreground font-medium">{candidate.products_summary || '—'}</span></div>
+                </div>
+              </div>
+            ))}
+            <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+              <span className="font-semibold">الأوردر الجديد: </span>
+              {summarizeDuplicateItems(buildDuplicateItemsPayload(cart)) || '—'}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setOwnRepeatDialog({ open: false, candidates: [] })}
+            >
+              {OWN_REPEAT_CANCEL_LABEL}
+            </Button>
+            <Button
+              disabled={submitting}
+              onClick={() => {
+                const attemptId = ownRepeatDialog.attemptId;
+                setOwnRepeatDialog({ open: false, candidates: [] });
+                void handleSubmitOrder({ ownRepeatConfirmed: true, ownRepeatAttemptId: attemptId });
+              }}
+            >
+              {OWN_REPEAT_CONFIRM_LABEL}
             </Button>
           </DialogFooter>
         </DialogContent>

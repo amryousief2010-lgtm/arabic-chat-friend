@@ -25090,6 +25090,7 @@ export type Database = {
           p_fulfillment_type?: string
           p_items?: Json
           p_note?: string
+          p_own_repeat_confirmed?: boolean
           p_shipping_company?: string
         }
         Returns: Json
@@ -25503,6 +25504,10 @@ export type Database = {
         Returns: Json
       }
       compute_hatchery_invoice: { Args: { _lot_id: string }; Returns: string }
+      confirm_own_repeat_order_attempt: {
+        Args: { p_attempt_id: string; p_order_id: string }
+        Returns: boolean
+      }
       confirm_lab_to_custody_transfer: {
         Args: { p_transfer_id: string }
         Returns: undefined
