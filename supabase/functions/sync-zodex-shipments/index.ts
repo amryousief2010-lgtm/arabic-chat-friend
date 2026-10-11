@@ -24,6 +24,7 @@ import {
   isExpectedZodexShipment,
   parseZodexDate,
   pickAwbLinkWinner,
+  filterAwbCandidatesByMonth,
   resolveScheduledMode,
   resolveWindow,
   rowInWindow,
@@ -479,11 +480,25 @@ Deno.serve(async (req) => {
       }
 
 
-      const candidates = collectAwbCandidates(row.phones, candidatesByPhone, claimedThisRun);
+      const phoneCandidates = collectAwbCandidates(row.phones, candidatesByPhone, claimedThisRun);
 
-      if (!candidates.length) {
+      if (!phoneCandidates.length) {
         stats.no_matching_order++;
         failure("no_matching_phone", { candidates_total: 0 });
+        continue;
+      }
+
+      // Same calendar month only: a waybill never links to an older order of a
+      // previous month for the same phone (see filterAwbCandidatesByMonth).
+      const monthPick = filterAwbCandidatesByMonth(phoneCandidates, row.created_at, row.cod, cycleStart);
+      const candidates = monthPick.list;
+      if (!candidates.length) {
+        stats.no_same_month_order = (stats.no_same_month_order || 0) + 1;
+        failure("no_same_month_order", {
+          bill_month: monthPick.bill_month,
+          bill_date: row.created_at,
+          candidate_dates: phoneCandidates.map((c: any) => c.created_at),
+        });
         continue;
       }
 
@@ -498,7 +513,9 @@ Deno.serve(async (req) => {
         continue;
       }
       const winner = picked.winner;
-      const matchReason = picked.reason;
+      const matchReason = monthPick.scope === "prev_month_grace"
+        ? `${picked.reason}_prev_month_grace`
+        : picked.reason;
 
       const { error: updErr } = await supabase.from("orders")
         .update({ shipping_bill_no: row.bill_no })

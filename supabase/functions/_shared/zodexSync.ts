@@ -411,3 +411,99 @@ export function pickAwbLinkWinner<T extends { id: string; total?: number | null;
   );
   return { winner: list[0], reason };
 }
+
+// ---------------------------------------------------------------------------
+// Same-month rule for waybill auto-link.
+// A Zodex waybill must link to the order registered in the SAME Cairo calendar
+// month as the waybill (bill creation date), never to an older order of a
+// previous month for the same phone (ZX804110470 was FIFO-linked to an August
+// order while the customer's September order was waiting for it).
+// ---------------------------------------------------------------------------
+
+/**
+ * Late-night grace: an order created in the final hours of the previous month
+ * may still take a waybill created early in the new month, but ONLY when no
+ * same-month candidate exists for that phone AND the COD amount matches.
+ * Set to 0 to forbid any previous-month link.
+ */
+export const AWB_PREV_MONTH_GRACE_HOURS = 24;
+
+const CAIRO_MONTH_FMT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Africa/Cairo",
+  year: "numeric",
+  month: "2-digit",
+});
+
+/** "YYYY-MM" of an order timestamp in Cairo time. */
+export function cairoMonthKey(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const parts = CAIRO_MONTH_FMT.formatToParts(d);
+  const y = parts.find((p) => p.type === "year")?.value;
+  const m = parts.find((p) => p.type === "month")?.value;
+  return y && m ? `${y}-${m}` : null;
+}
+
+/**
+ * "YYYY-MM" of a Zodex bill date. Zodex dates are Cairo wall-clock text; take the
+ * written date literally (parseZodexDate pins +02:00, which is wrong in summer
+ * time and would push 23:xx on the last day into the next month).
+ */
+export function zodexBillMonthKey(iso: string | null | undefined): string | null {
+  const m = String(iso || "").match(/^(\d{4})-(\d{2})-\d{2}/);
+  if (m) return `${m[1]}-${m[2]}`;
+  return cairoMonthKey(iso);
+}
+
+/** Start of the bill month (Cairo wall clock) as epoch ms — approximate to ±1h, fine for a grace window. */
+function cairoMonthStartMs(monthKey: string): number {
+  // Use +03:00 / +02:00 by probing which one Intl agrees on.
+  for (const off of ["+03:00", "+02:00"]) {
+    const ms = new Date(`${monthKey}-01T00:00:00${off}`).getTime();
+    if (cairoMonthKey(new Date(ms).toISOString()) === monthKey &&
+        cairoMonthKey(new Date(ms - 1).toISOString()) !== monthKey) return ms;
+  }
+  return new Date(`${monthKey}-01T00:00:00+02:00`).getTime();
+}
+
+export type AwbMonthFilter<T> = {
+  list: T[];
+  /** "same_month" | "prev_month_grace" | "none" */
+  scope: "same_month" | "prev_month_grace" | "none";
+  bill_month: string;
+  rejected_other_month: number;
+};
+
+/**
+ * Restrict same-phone candidates to the waybill's calendar month.
+ * - billDate: the waybill's own date (Zodex «التاريخ» / shipment date / date_added).
+ *   When missing, the reference date (sync time) is used — "this month".
+ * - Orders from a later month than the bill are dropped too.
+ * - Previous-month orders are allowed only within the late-night grace window,
+ *   only when no same-month candidate exists, and only on a COD amount match.
+ */
+export function filterAwbCandidatesByMonth<T extends { created_at: string; total?: number | null }>(
+  candidates: T[],
+  billDate: string | null | undefined,
+  cod: number,
+  referenceDate: string = new Date().toISOString(),
+  graceHours: number = AWB_PREV_MONTH_GRACE_HOURS,
+): AwbMonthFilter<T> {
+  const billMonth = zodexBillMonthKey(billDate) || cairoMonthKey(referenceDate) || "";
+  const same = candidates.filter((c) => cairoMonthKey(c.created_at) === billMonth);
+  const rejected = candidates.length - same.length;
+  if (same.length) return { list: same, scope: "same_month", bill_month: billMonth, rejected_other_month: rejected };
+  if (graceHours > 0 && billMonth) {
+    const start = cairoMonthStartMs(billMonth);
+    const grace = candidates.filter((c) => {
+      const t = new Date(c.created_at).getTime();
+      return t < start && t >= start - graceHours * 3600_000 &&
+        amountMatchesZodex(Number(c.total || 0), cod).ok;
+    });
+    if (grace.length) {
+      return { list: grace, scope: "prev_month_grace", bill_month: billMonth, rejected_other_month: candidates.length - grace.length };
+    }
+  }
+  return { list: [], scope: "none", bill_month: billMonth, rejected_other_month: rejected };
+}
