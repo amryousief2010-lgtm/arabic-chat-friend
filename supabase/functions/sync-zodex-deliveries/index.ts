@@ -9,6 +9,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { DOMParser, Element } from "https://deno.land/x/deno_dom@v0.1.45/deno-dom-wasm.ts";
 import {
   amountMatchesZodex,
+  filterAwbCandidatesByMonth,
   looksLikeEgyptianMobile,
   mapBalanceCells,
   phonesMatchLoose,
@@ -487,8 +488,10 @@ Deno.serve(async (req) => {
            return customerPhones.some((p) => phonesMatchLoose(p, row.customer_phone)) && amountOk && modScore >= 0.5;
         });
 
-        if (strictHits.length >= 1) {
-          const candidateIds = strictHits.map((c) => c.id);
+        // Same calendar month as the waybill only (never a previous month's order).
+        const monthHits = filterAwbCandidatesByMonth(strictHits, row.shipment_date, row.cod_amount).list;
+        if (monthHits.length >= 1) {
+          const candidateIds = monthHits.map((c) => c.id);
           const { data: itemRows } = await supabase.from("order_items")
             .select("order_id, product_name, offer_name")
             .in("order_id", candidateIds);
@@ -499,7 +502,7 @@ Deno.serve(async (req) => {
             itemsByOrder.set(item.order_id, arr);
           }
 
-          const scoredHits = strictHits.map((c) => {
+          const scoredHits = monthHits.map((c) => {
             const signature = buildItemsSignature(itemsByOrder.get(c.id) || []);
             return { ...c, _itemsScore: scoreItemsAgainstRow(row.searchable_text, signature) };
           });
@@ -768,11 +771,13 @@ Deno.serve(async (req) => {
             const modOk = !modText || tokenSetRatio(c.moderator || "", modText) >= 0.5;
             return customerPhones.some((p) => phonesMatchLoose(p, phone)) && amountOk && modOk;
           });
-          if (hits.length >= 1) {
+          // Same calendar month as the waybill only (never a previous month's order).
+          const monthHits = filterAwbCandidatesByMonth(hits as any[], s.date_added || null, amount).list;
+          if (monthHits.length >= 1) {
             await supabase.from("orders").update({
               shipping_bill_no: bill,
               zodex_synced_at: new Date().toISOString(),
-            }).eq("id", hits[0].id);
+            }).eq("id", monthHits[0].id).is("shipping_bill_no", null);
             activeLinked++;
           } else {
             activeUnmatched++;

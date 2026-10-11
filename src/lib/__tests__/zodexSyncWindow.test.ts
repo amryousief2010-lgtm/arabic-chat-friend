@@ -17,6 +17,10 @@ import {
   isExpectedZodexShipment,
   phoneIndexKeys,
   pickAwbLinkWinner,
+  filterAwbCandidatesByMonth,
+  cairoMonthKey,
+  zodexBillMonthKey,
+  AWB_PREV_MONTH_GRACE_HOURS,
   AGOUZA_WAREHOUSE_ID,
 } from "../../../supabase/functions/_shared/zodexSync";
 
@@ -246,5 +250,54 @@ describe("deterministic match keys (sync)", () => {
     expect(looksLikeEgyptianMobile("تسليم ناجح")).toBe(false);
     expect(amountMatchesZodex(400, 510).ok).toBe(true);
     expect(amountMatchesZodex(400, 480).ok).toBe(false);
+  });
+});
+
+describe("waybill auto-link — same calendar month only", () => {
+  // Real case: 01207523300 — ZX804110470 (September) went to the August order.
+  const aug = { id: "aug", total: 4082.4, created_at: "2026-08-27T22:40:13.833Z" }; // 28/8 01:40 Cairo
+  const sep = { id: "sep", total: 6216, created_at: "2026-09-25T14:55:58.894Z" };   // 25/9 17:55 Cairo
+
+  it("never links a September waybill to the August order when a September order exists", () => {
+    const f = filterAwbCandidatesByMonth([aug, sep], "2026-09-26T10:00:00+02:00", 9999);
+    expect(f.scope).toBe("same_month");
+    expect(f.list.map((c) => c.id)).toEqual(["sep"]);
+    const picked = pickAwbLinkWinner(f.list, 9999);
+    expect(picked?.winner.id).toBe("sep");
+  });
+
+  it("leaves the waybill unlinked when only a previous-month order exists", () => {
+    const f = filterAwbCandidatesByMonth([aug], "2026-09-26T10:00:00+02:00", 4082.4);
+    expect(f.scope).toBe("none");
+    expect(f.list).toEqual([]);
+  });
+
+  it("drops orders from a later month than the waybill", () => {
+    const f = filterAwbCandidatesByMonth([aug, sep], "2026-08-29T10:00:00+02:00", 0);
+    expect(f.list.map((c) => c.id)).toEqual(["aug"]);
+  });
+
+  it("uses the sync month when the waybill has no date", () => {
+    const f = filterAwbCandidatesByMonth([aug, sep], null, 0, "2026-09-27T00:00:00Z");
+    expect(f.list.map((c) => c.id)).toEqual(["sep"]);
+  });
+
+  it("reads the Zodex bill date literally (23:30 on the 30th stays in that month)", () => {
+    expect(zodexBillMonthKey("2026-09-30T23:30:00+02:00")).toBe("2026-09");
+    expect(cairoMonthKey("2026-09-30T21:30:00.000Z")).toBe("2026-10"); // 00:30 Cairo (UTC+3)
+  });
+
+  it("late-night grace: last-night order may take an early next-month waybill only on COD match and no same-month order", () => {
+    const late = { id: "late", total: 2600, created_at: "2026-09-30T20:34:46.000Z" }; // 30/9 23:34 Cairo
+    expect(filterAwbCandidatesByMonth([late], "2026-10-01T09:00:00+02:00", 2710).list.map((c) => c.id)).toEqual(["late"]);
+    expect(filterAwbCandidatesByMonth([late], "2026-10-01T09:00:00+02:00", 5000).list).toEqual([]);
+    expect(filterAwbCandidatesByMonth([late], "2026-10-01T09:00:00+02:00", 2710, undefined, 0).list).toEqual([]);
+    const oct = { id: "oct", total: 900, created_at: "2026-10-01T07:00:00.000Z" };
+    expect(filterAwbCandidatesByMonth([late, oct], "2026-10-01T12:00:00+02:00", 2710).list.map((c) => c.id)).toEqual(["oct"]);
+  });
+
+  it("grace never reaches an order from weeks earlier", () => {
+    expect(AWB_PREV_MONTH_GRACE_HOURS).toBeLessThanOrEqual(24);
+    expect(filterAwbCandidatesByMonth([aug], "2026-09-01T09:00:00+02:00", 4082.4).list).toEqual([]);
   });
 });
