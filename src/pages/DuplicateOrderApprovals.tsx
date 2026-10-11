@@ -73,7 +73,14 @@ type AuditRow = {
   proposed_order: any;
   proposed_items: any[];
   matched_order_snapshot: any;
-  status: "detected" | "request_created" | "approved" | "rejected" | "saved_with_approval";
+  status:
+    | "detected"
+    | "request_created"
+    | "approved"
+    | "rejected"
+    | "saved_with_approval"
+    | "own_repeat_detected"
+    | "own_repeat_confirmed";
   decision_by: string | null;
   decision_reason: string | null;
   decided_at: string | null;
@@ -122,6 +129,8 @@ const statusLabel = (status: string) => {
   if (status === "saved_with_approval") return "تم حفظ الأوردر بعد الموافقة";
   if (status === "request_created") return "تم إنشاء طلب الموافقة";
   if (status === "detected") return "تم اكتشاف تكرار";
+  if (status === "own_repeat_detected") return "تنبيه أوردر سابق لنفس المودريتور";
+  if (status === "own_repeat_confirmed") return "أكدت المودريتور إنه أوردر جديد";
   return status;
 };
 
