@@ -32,7 +32,10 @@ interface ReceiptLine {
   received_at?: string;
 }
 
+const PRE_STOCKTAKE_CUTOFF = "2026-10-01";
+
 interface ReceiptRow {
+  pre_stocktake?: boolean;
   id: string;
   kind: ReceiptKind;
   /** Underlying source table when the row is displayed under a different tab. */
@@ -206,6 +209,10 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
 
   async function approveReceipt(r: ReceiptRow) {
     if (r.status !== "pending") return;
+    if (r.kind === "slaughter" && r.pre_stocktake) {
+      toast.error("الدفعة دي تاريخها قبل جرد 1 أكتوبر 2026 ومينفعش تتعتمد — تعتبر موردة سابقًا");
+      return;
+    }
     setApprovingId(`${r.kind}-${r.id}`);
     try {
       if (r.kind === "slaughter") {
@@ -389,12 +396,16 @@ export default function WarehouseReceiptsTab({ warehouseId, warehouseName, start
       const slaughterGroups = new Map<string, ReceiptRow>();
       for (const o of outs || []) {
         const batch: any = (o as any).batch;
-        const isPending = (o as any).received_status !== "received";
+        // received_previously = موردة سابقًا (لا تحتاج اعتماد). الدفعات قبل جرد 1 أكتوبر 2026 لا تُعتمد.
+        const rs = (o as any).received_status;
+        const preStocktake = !!batch?.slaughter_date && String(batch.slaughter_date) < PRE_STOCKTAKE_CUTOFF;
+        const isPending = rs !== "received" && rs !== "received_previously" && !preStocktake;
         const key = String(o.batch_id) + (isPending ? ":pending" : ":received");
         if (!slaughterGroups.has(key)) {
           slaughterGroups.set(key, {
             id: key,
             kind: "slaughter",
+            pre_stocktake: preStocktake,
             batch_no: batch?.batch_number || "—",
             date: (o as any).received_at || batch?.slaughter_date || (batch as any)?.created_at || new Date().toISOString(),
             source_label: "المجزر",
