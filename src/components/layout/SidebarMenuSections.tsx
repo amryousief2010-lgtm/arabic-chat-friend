@@ -227,6 +227,7 @@ export const moduleSections: ModuleSection[] = [
       { group: "المشتريات والموردين", icon: ShoppingCart, label: "فواتير مشتريات مصنع اللحوم", path: "/meat-factory/purchase-invoices", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'warehouse_supervisor', 'accountant', 'financial_manager'] },
       // مخازن مصنع اللحوم — صفحة موحدة واحدة تجمع كل الشاشات كـ Tabs
       { group: "مخازن مصنع اللحوم", icon: Boxes, label: "المخزون الموحد", path: "/meat-factory/unified-inventory", roles: ['general_manager', 'executive_manager', 'meat_factory_manager', 'production_manager', 'financial_manager', 'warehouse_supervisor', 'accountant', 'quality_manager'] },
+      { group: "التقارير", icon: TrendingUp, label: "ربحية الإنتاج", path: "/meat-factory/profit", roles: ['general_manager', 'executive_manager', 'financial_manager'] },
     ],
   },
   {
@@ -258,6 +259,7 @@ export const moduleSections: ModuleSection[] = [
 
       // مركز إدارة المخازن الموحّد — كل التابات والصفحات في شاشة واحدة
       { icon: Warehouse, label: "إدارة المخازن", path: "/modules/warehouses", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'production_manager', 'quality_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'meat_factory_manager', 'feed_factory_manager', 'slaughterhouse_manager', 'accountant', 'financial_manager','marketing_sales_viewer'] },
+      { icon: Warehouse, label: "رصيد العجوزة والتوريد", path: "/modules/warehouses/agouza-supply", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'accountant', 'financial_manager', 'production_manager', 'meat_factory_manager'] },
       { icon: AlertTriangle, label: "مراجعة زودكس (فروق وربط)", path: "/modules/warehouses/zodex-review", roles: [...ZODEX_REVIEW_ALLOWED_ROLES] },
       { icon: Link2, label: "بطاقات غير مربوطة ومرشحة للدمج", path: "/modules/warehouses/merge-candidates", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor'] },
       { icon: ShieldCheck, label: "مطابقة دفتر المخزون", path: "/modules/warehouses/reconciliation", roles: ['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager', 'cost_accountant', 'agouza_warehouse_keeper'] },
