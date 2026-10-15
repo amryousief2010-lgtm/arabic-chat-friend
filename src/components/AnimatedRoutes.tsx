@@ -131,6 +131,7 @@ const WarehousePendingTransfers = lazy(() => import("@/pages/modules/WarehousePe
 const WarehouseMergeCandidates = lazy(() => import("@/pages/modules/WarehouseMergeCandidates"));
 const WarehouseStocktaking = lazy(() => import("@/pages/modules/WarehouseStocktaking"));
 const WarehouseReports = lazy(() => import("@/pages/modules/WarehouseReports"));
+const AgouzaStockSupplyReport = lazy(() => import("@/pages/modules/AgouzaStockSupplyReport"));
 const WarehouseDailyReport = lazy(() => import("@/pages/modules/WarehouseDailyReport"));
 const InventoryReconciliation = lazy(() => import("@/pages/modules/InventoryReconciliation"));
 const OutletSalesStatements = lazy(() => import("@/pages/modules/OutletSalesStatements"));
@@ -174,6 +175,7 @@ const MeatPackagingInventory = lazy(() => import("@/pages/meat/MeatPackagingInve
 const MeatFactoryInventory = lazy(() => import("@/pages/meat/MeatFactoryInventory"));
 const UnifiedMeatInventory = lazy(() => import("@/pages/meat/UnifiedMeatInventory"));
 const MeatFactoryReports = lazy(() => import("@/pages/meat/MeatFactoryReports"));
+const FactoryProfitReport = lazy(() => import("@/pages/factory/FactoryProfitReport"));
 const FactoryOverview = lazy(() => import("@/pages/factory/FactoryOverview"));
 const FactoryReports = lazy(() => import("@/pages/factory/FactoryReports"));
 const FeedOrders = lazy(() => import("@/pages/modules/feed/Orders"));
@@ -733,6 +735,11 @@ const AnimatedRoutes = () => {
               <PageTransition><MeatFactoryReports /></PageTransition>
             </ProtectedRoute>
           } />
+          <Route path="/meat-factory/profit" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'financial_manager']}>
+              <PageTransition><FactoryProfitReport /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/factories/overview" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'meat_factory_manager', 'feed_factory_manager', 'production_manager', 'accountant', 'financial_manager']}>
               <PageTransition><FactoryOverview /></PageTransition>
@@ -1105,6 +1112,11 @@ const AnimatedRoutes = () => {
           <Route path="/modules/warehouses/reports" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'accountant', 'financial_manager']}>
               <PageTransition><WarehouseReports /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/agouza-supply" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'warehouse_supervisor', 'agouza_warehouse_keeper', 'accountant', 'financial_manager', 'production_manager', 'meat_factory_manager']}>
+              <PageTransition><AgouzaStockSupplyReport /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/reconciliation" element={
