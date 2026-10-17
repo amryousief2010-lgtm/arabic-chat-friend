@@ -99,6 +99,16 @@ export const baseSalaryForKey = (key: string, defaultBase: number = DEFAULT_BASE
   return own;
 };
 
+// الإعداد العام القابل للتعديل (أساسي / بونص العظم) يُطبَّق بعد نجاح تحميل الاعتمادات
+// ولو الشهر لسه مفتوح. قبل كده، أو لو الشهر معتمد، نفضل على القيمة التاريخية
+// عشان جدول القبض ما يعرضش الرقم الجديد مكان لقطة يوليو/أغسطس/سبتمبر.
+export const payrollDefaultForMonth = (
+  monthSettled: boolean,
+  closed: boolean,
+  current: number,
+  historical: number,
+): number => (monthSettled && !closed ? current : historical);
+
 
 // اسم العرض للمسوقة استناداً إلى القيمة المخزّنة في orders.moderator أو مفاتيح التجميع.
 // تُستخدم لعرض "هاجر" بدلاً من "منال" في الواجهات، مع الحفاظ على مفاتيح البيانات كما هي.
