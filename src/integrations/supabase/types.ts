@@ -18781,6 +18781,7 @@ export type Database = {
           created_by: string | null
           id: string
           live_receipt_id: string
+          live_weight_kg: number | null
           notes: string | null
           reference_id: string | null
           slaughter_batch_id: string
@@ -18794,6 +18795,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           live_receipt_id: string
+          live_weight_kg?: number | null
           notes?: string | null
           reference_id?: string | null
           slaughter_batch_id: string
@@ -18807,6 +18809,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           live_receipt_id?: string
+          live_weight_kg?: number | null
           notes?: string | null
           reference_id?: string | null
           slaughter_batch_id?: string

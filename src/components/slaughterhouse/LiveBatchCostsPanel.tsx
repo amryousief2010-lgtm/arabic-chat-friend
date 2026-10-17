@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { OstrichFeedConsumptionDialog } from "@/components/slaughterhouse/OstrichFeedConsumptionDialog";
 import { LiveBatchMortalityDialog } from "@/components/slaughterhouse/LiveBatchMortalityDialog";
 import { OpeningCostDialog } from "@/components/slaughterhouse/OpeningCostDialog";
+import { costPerKgFromSnapshots } from "@/lib/slaughterBatchCost";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
@@ -60,6 +61,18 @@ export default function LiveBatchCostsPanel({ overrideLiveCount }: { overrideLiv
     },
   });
 
+  const sourcesQ = useQuery({
+    queryKey: ["sl_batch_live_sources"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("slaughter_batch_live_sources" as any)
+        .select("slaughter_batch_id, live_receipt_id, birds_count, total_birds_cost, cost_per_bird_snapshot")
+        .limit(5000);
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+
   const allReceipts = receiptsQ.data || [];
   const receipts = allReceipts.filter(
     (r) => !r.archived && !r.excluded_from_costing && r.source_type !== 'opening_balance'
@@ -69,11 +82,13 @@ export default function LiveBatchCostsPanel({ overrideLiveCount }: { overrideLiv
   );
   const inv = invQ.data || [];
   const slaughterBatches = slaughterQ.data || [];
+  const liveSources = sourcesQ.data || [];
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["sl_live_receipts_cost"] });
     qc.invalidateQueries({ queryKey: ["sl_feed_inv_for_cons"] });
     qc.invalidateQueries({ queryKey: ["sl_batches_for_alloc"] });
+    qc.invalidateQueries({ queryKey: ["sl_batch_live_sources"] });
   };
 
   const activeBatch = useMemo(
@@ -83,12 +98,16 @@ export default function LiveBatchCostsPanel({ overrideLiveCount }: { overrideLiv
 
   const slaughteredByReceipt = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const b of slaughterBatches) {
-      if (b.status === 'cancelled' || !b.live_receipt_id) continue;
-      map[b.live_receipt_id] = (map[b.live_receipt_id] || 0) + Number(b.birds_slaughtered || 0);
+    const batchesWithSources = new Set(liveSources.map((source) => source.slaughter_batch_id));
+    for (const source of liveSources) {
+      map[source.live_receipt_id] = (map[source.live_receipt_id] || 0) + Number(source.birds_count || 0);
+    }
+    for (const batch of slaughterBatches) {
+      if (batch.status === "cancelled" || batchesWithSources.has(batch.id) || !batch.live_receipt_id) continue;
+      map[batch.live_receipt_id] = (map[batch.live_receipt_id] || 0) + Number(batch.birds_slaughtered || 0);
     }
     return map;
-  }, [slaughterBatches]);
+  }, [slaughterBatches, liveSources]);
 
   const totals = useMemo(() => {
     const base = receipts.reduce(
@@ -144,7 +163,7 @@ export default function LiveBatchCostsPanel({ overrideLiveCount }: { overrideLiv
       let fail = 0;
       for (const id of ids) {
         const { error } = await supabase.rpc("recalc_live_batch_cost" as any, {
-          p_receipt_id: id,
+          p_live_batch_id: id,
         });
         if (error) fail++; else ok++;
       }
@@ -380,8 +399,24 @@ export default function LiveBatchCostsPanel({ overrideLiveCount }: { overrideLiv
                 <TableBody>
                   {slaughterBatches.map((b) => {
                     const live = receipts.find((r) => r.id === b.live_receipt_id);
-                    const cpb = Number(live?.cost_per_bird_current || 0);
-                    const previewBirdsCost = cpb * Number(b.birds_slaughtered || 0);
+                    const sources = liveSources.filter((source) => source.slaughter_batch_id === b.id);
+                    const birdsCost = sources.reduce(
+                      (sum, source) => sum + (Number(source.total_birds_cost) || (Number(source.cost_per_bird_snapshot) || 0) * (Number(source.birds_count) || 0)),
+                      0,
+                    );
+                    const sourceBirds = sources.reduce((sum, source) => sum + Number(source.birds_count || 0), 0);
+                    const cpb = sourceBirds > 0 ? birdsCost / sourceBirds : Number(live?.cost_per_bird_current || 0);
+                    const previewBirdsCost = birdsCost > 0 ? birdsCost : cpb * Number(b.birds_slaughtered || 0);
+                    const correctedPerKg = costPerKgFromSnapshots({
+                      sources: sources.map((source) => ({
+                        totalBirdsCost: Number(source.total_birds_cost) || 0,
+                        costPerBird: Number(source.cost_per_bird_snapshot) || 0,
+                        birds: Number(source.birds_count) || 0,
+                      })),
+                      outputs: [],
+                      meatKgFallback: Number(b.total_meat_kg) || 0,
+                    });
+                    const shownPerKg = correctedPerKg != null ? correctedPerKg : Number(b.cost_per_kg_meat || 0);
                     return (
                       <TableRow key={b.id}>
                         <TableCell className="font-medium">{b.batch_number}</TableCell>
@@ -391,7 +426,7 @@ export default function LiveBatchCostsPanel({ overrideLiveCount }: { overrideLiv
                         <TableCell className="text-xs">{live?.receipt_number || "—"}</TableCell>
                         <TableCell>{fmt(cpb)}</TableCell>
                         <TableCell className="font-bold">{fmt(b.total_allocatable_cost || previewBirdsCost)}</TableCell>
-                        <TableCell className="font-bold text-primary">{fmt(b.cost_per_kg_meat)}</TableCell>
+                        <TableCell className="font-bold text-primary">{fmt(shownPerKg)}</TableCell>
                         <TableCell>
                           {b.cost_allocation_done
                             ? <Badge variant="default">موزعة</Badge>

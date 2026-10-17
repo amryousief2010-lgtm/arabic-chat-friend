@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, AlertCircle, ChevronRight, ChevronLeft, Save, Trash2, X, Info, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fairCostPerBird } from "@/lib/slaughterBatchCost";
 
 const DRAFT_KEY = "slaughter_batch_draft_v2";
 
@@ -150,14 +151,21 @@ export const SlaughterBatchDialog = ({ open, onOpenChange, receipts, workers = [
     }
   }, [dashboardLiveBalance, totalAvailableInDropdown, diagDiff]);
 
-  // تكلفة النعامة الفعلية: snapshot أولاً، وإلا نرجع للتكلفة الأصلية (رصيد افتتاحي أو إجمالي شراء) ÷ العدد الأصلي
+  // حصة النعامة من تكلفة الإيصال الأصلية، وليست cost_per_bird_current
+  // التي كانت تُعاد حسابها على الطيور المتبقية فتضخّم الدفعة التالية.
   const getCostPerBird = (r: any): number => {
     if (!r) return 0;
-    const snap = Number(r.cost_per_bird_current || 0);
-    if (snap > 0) return snap;
-    const orig = Number(r.bird_count || 0);
-    const baseCost = Number(r.opening_cost_total || 0) + Number(r.total_cost || 0);
-    return orig > 0 && baseCost > 0 ? baseCost / orig : 0;
+    const fair = fairCostPerBird({
+      id: r.id,
+      birdCount: Number(r.bird_count || 0),
+      totalCost: Number(r.total_cost || 0),
+      openingCost: Number(r.opening_cost_total || 0),
+      feedCost: Number(r.feed_cost_loaded || 0),
+      mortalityCost: Number(r.mortality_cost_loaded || 0),
+      otherCost: Number(r.other_costs_loaded || 0),
+    });
+    if (fair > 0) return fair;
+    return Number(r.cost_per_bird_current || 0);
   };
 
   // Sources aggregates
