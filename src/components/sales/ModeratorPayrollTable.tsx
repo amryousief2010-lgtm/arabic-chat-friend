@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 import PrevMonthBonusDialog, { CarriedDetail } from './PrevMonthBonusDialog';
 import { usePayrollClosureCutoff, applyClosureCutoff } from '@/hooks/usePayrollClosure';
-import { matchesModeratorGroup, moderatorKeysForMonth, baseSalaryForKey, displayModeratorName } from '@/constants/moderators';
+import { matchesModeratorGroup, moderatorKeysForMonth, baseSalaryForKey, displayModeratorName, DEFAULT_BASE_SALARY } from '@/constants/moderators';
 
 
 type Girl = string;
@@ -42,7 +42,8 @@ const DEFAULT_MEAT_TIERS: Array<{ sales: number; bonus: number; label: string }>
   { sales: 500000, bonus: 7, label: 'السادس' },
   { sales: 600000, bonus: 7, label: 'السابع' },
 ];
-const BONE_BONUS_PER_KG = 3.5;
+// الافتراضي لو مفيش صف 'لحوم بالعظم/كجم' في target_bonus_settings.
+const DEFAULT_BONE_BONUS_PER_KG = 3.5;
 
 // التصنيف المعتمد للمسوقات الأربعة (لا تُعدّل بدون طلب صريح):
 // لحوم: قطع، استيك، موزة، فراشة، قطعية الدبوس، تربيانكو، اسكالوب، رول، كباب
@@ -282,6 +283,17 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     return r ? Number(r.bonus_amount) : 50;
   }, [tierSettings]);
 
+  // بونص اللحوم بالعظم لكل كجم + المرتب الأساسي العام — قابلين للتعديل من جدول التارجت الشهري.
+  const BONE_BONUS_PER_KG = useMemo(() => {
+    const r = tierSettings.find(t => t.category === 'لحوم بالعظم/كجم' && t.tier === 1);
+    return r ? Number(r.bonus_amount) : DEFAULT_BONE_BONUS_PER_KG;
+  }, [tierSettings]);
+
+  const defaultBaseSalary = useMemo(() => {
+    const r = tierSettings.find(t => t.category === 'أساسي' && t.tier === 1);
+    return r ? Number(r.bonus_amount) : DEFAULT_BASE_SALARY;
+  }, [tierSettings]);
+
   // ===== اعتماد قبض الشهر (Closures) =====
   const { data: closures = [] } = useQuery({
     queryKey: ['payroll-month-closures'],
@@ -457,7 +469,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const procOverridden = ov?.processed_bonus != null;
       const meatOverridden = ov?.meat_bonus != null;
       const boneOverridden = ov?.bone_bonus != null;
-      const base = baseSalaryForKey(g);
+      const base = baseSalaryForKey(g, defaultBaseSalary);
       return {
         girl: g, base, meatKg, boneKg, procKg, chickCount,
         meatSales, procSales, procTier, meatTier,
@@ -469,7 +481,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         total: base + procBonus + meatBonus + boneBonus + chickBonus - deductions,
       };
     });
-  }, [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS, chickQtyByGirl, chickBonusRate]);
+  }, [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS, chickQtyByGirl, chickBonusRate, BONE_BONUS_PER_KG, defaultBaseSalary]);
 
   // بونص الشهر السابق (الأوردرات المرحّلة) بأسعار تارجت الشهر الحالي
   const carryByGirl = useMemo(() => {

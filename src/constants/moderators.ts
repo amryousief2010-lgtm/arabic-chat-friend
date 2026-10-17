@@ -88,8 +88,16 @@ export const moderatorKeysForMonth = (year: number, month: number): string[] =>
 
 export const ALL_MODERATOR_KEYS: string[] = MODERATORS.map((m) => m.payrollKey);
 
-export const baseSalaryForKey = (key: string): number =>
-  MODERATORS.find((m) => m.payrollKey === key)?.baseSalary ?? 2500;
+// المرتب الأساسي الافتراضي. قابل للتعديل من "جدول التارجت الشهري" (target_bonus_settings: category 'أساسي', tier 1).
+export const DEFAULT_BASE_SALARY = 2500;
+
+// المرتب الأساسي لموديريتور معيّن. لو المسوقة ليها أساسي مختلف عن الافتراضي في الإعداد أعلاه (زي آية 3000)
+// يفضل أساسيها الخاص، وإلا يُستخدم الأساسي العام `defaultBase` المحفوظ في جدول التارجت.
+export const baseSalaryForKey = (key: string, defaultBase: number = DEFAULT_BASE_SALARY): number => {
+  const own = MODERATORS.find((m) => m.payrollKey === key)?.baseSalary;
+  if (own == null || own === DEFAULT_BASE_SALARY) return defaultBase;
+  return own;
+};
 
 
 // اسم العرض للمسوقة استناداً إلى القيمة المخزّنة في orders.moderator أو مفاتيح التجميع.
