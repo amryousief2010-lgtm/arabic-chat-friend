@@ -7,6 +7,7 @@ import { Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { DEFAULT_BASE_SALARY } from "@/constants/moderators";
 
 const tiers = [
   "التارجت الأول",
@@ -30,6 +31,11 @@ interface BonusRow {
 }
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-US");
+
+// صفوف إعداد بقيمة واحدة (tier 1 / bonus_amount) — نفس نمط "كتاكيت".
+const BASE_CATEGORY = "أساسي";
+const BONE_RATE_CATEGORY = "لحوم بالعظم/كجم";
+const DEFAULT_BONE_RATE = 3.5;
 
 const MonthlyTargetTable = () => {
   const { role, isGeneralManager, isExecutiveManager, isSalesManager } = useAuth();
@@ -68,6 +74,64 @@ const MonthlyTargetTable = () => {
       toast({ title: "تعذر الحفظ", description: e.message, variant: "destructive" });
     },
   });
+
+  // حفظ قيمة واحدة (الأساسي / بونص اللحوم بالعظم لكل كجم): تحديث الصف لو موجود، وإلا إنشاؤه.
+  const singleValueMutation = useMutation({
+    mutationFn: async ({ category, value }: { category: string; value: number }) => {
+      const existing = rows.find((r) => r.category === category && r.tier === 1);
+      if (existing) {
+        const { error } = await supabase
+          .from("target_bonus_settings")
+          .update({ bonus_amount: value })
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("target_bonus_settings")
+          .insert({ category, tier: 1, sales_amount: 0, bonus_amount: value });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["target_bonus_settings"] });
+    },
+    onError: (e: any) => {
+      toast({ title: "تعذر الحفظ", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const baseRow = rows.find((r) => r.category === BASE_CATEGORY && r.tier === 1);
+  const boneRow = rows.find((r) => r.category === BONE_RATE_CATEGORY && r.tier === 1);
+  const baseSalary = baseRow ? Number(baseRow.bonus_amount) : DEFAULT_BASE_SALARY;
+  const boneRate = boneRow ? Number(boneRow.bonus_amount) : DEFAULT_BONE_RATE;
+
+  const renderSingleValue = (category: string, value: number, suffix: string) => {
+    if (canEdit) {
+      return (
+        <div className="flex items-center justify-center gap-1">
+          <Input
+            key={`${category}-${value}`}
+            type="number"
+            step="any"
+            min={0}
+            defaultValue={value}
+            className="h-8 text-center w-28 px-1 text-xs"
+            onBlur={(e) => {
+              const raw = e.target.value.trim();
+              const v = Number(raw);
+              if (raw === "" || !Number.isFinite(v) || v < 0) {
+                e.target.value = String(value);
+                return;
+              }
+              if (v !== value) singleValueMutation.mutate({ category, value: v });
+            }}
+          />
+          {suffix && <span className="text-xs text-muted-foreground">{suffix}</span>}
+        </div>
+      );
+    }
+    return <span>{fmt(value)}{suffix ? ` ${suffix}` : ""}</span>;
+  };
 
   const grouped = useMemo(() => {
     const map: Record<Category, BonusRow[]> = {
@@ -161,24 +225,22 @@ const MonthlyTargetTable = () => {
               <TableCell className="text-center font-bold border bg-muted/30 whitespace-nowrap px-1 md:px-2">
                 أساسي
               </TableCell>
-              {categories.map((cat) => (
-                <TableCell key={cat} colSpan={2} className="text-center border font-semibold">
-                  2,500
-                </TableCell>
-              ))}
+              <TableCell colSpan={categories.length * 2} className="text-center border font-semibold p-1">
+                {renderSingleValue(BASE_CATEGORY, baseSalary, "ج")}
+              </TableCell>
             </TableRow>
             <TableRow>
               <TableCell className="text-center font-bold border bg-muted/30 whitespace-nowrap px-1 md:px-2">
                 اللحوم بالعظم
               </TableCell>
-              <TableCell colSpan={4} className="text-center border font-semibold">
-                3.5 ج/كجم
+              <TableCell colSpan={categories.length * 2} className="text-center border font-semibold p-1">
+                {renderSingleValue(BONE_RATE_CATEGORY, boneRate, "ج/كجم")}
               </TableCell>
             </TableRow>
           </TableBody>
         </Table>
         <p className="text-[10px] md:text-xs text-muted-foreground mt-3">
-          * "أساسي" يمثل المرتب الأساسي الثابت لكل مرحلة. "البونص" يُحتسب عند بلوغ "قيمة المبيعات" المقابلة. بونص اللحوم بالعظم ثابت 3.5 ج لكل كجم.
+          * "أساسي" يمثل المرتب الأساسي الثابت لكل مرحلة (لكل الموديريتورز ما عدا من لها أساسي خاص مثل آية 3,000). "البونص" يُحتسب عند بلوغ "قيمة المبيعات" المقابلة. بونص اللحوم بالعظم {fmt(boneRate)} ج لكل كجم. التعديل يسري على الشهور غير المعتمدة فقط؛ الشهور المعتمدة محفوظة كما هي.
         </p>
       </CardContent>
     </Card>

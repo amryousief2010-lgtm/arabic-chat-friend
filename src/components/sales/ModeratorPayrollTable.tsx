@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 import PrevMonthBonusDialog, { CarriedDetail } from './PrevMonthBonusDialog';
 import { usePayrollClosureCutoff, applyClosureCutoff } from '@/hooks/usePayrollClosure';
-import { matchesModeratorGroup, moderatorKeysForMonth, baseSalaryForKey, displayModeratorName } from '@/constants/moderators';
+import { matchesModeratorGroup, moderatorKeysForMonth, baseSalaryForKey, displayModeratorName, DEFAULT_BASE_SALARY, payrollDefaultForMonth } from '@/constants/moderators';
 
 
 type Girl = string;
@@ -42,7 +42,8 @@ const DEFAULT_MEAT_TIERS: Array<{ sales: number; bonus: number; label: string }>
   { sales: 500000, bonus: 7, label: 'السادس' },
   { sales: 600000, bonus: 7, label: 'السابع' },
 ];
-const BONE_BONUS_PER_KG = 3.5;
+// الافتراضي لو مفيش صف 'لحوم بالعظم/كجم' في target_bonus_settings.
+const DEFAULT_BONE_BONUS_PER_KG = 3.5;
 
 // التصنيف المعتمد للمسوقات الأربعة (لا تُعدّل بدون طلب صريح):
 // لحوم: قطع، استيك، موزة، فراشة، قطعية الدبوس، تربيانكو، اسكالوب، رول، كباب
@@ -282,8 +283,19 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     return r ? Number(r.bonus_amount) : 50;
   }, [tierSettings]);
 
+  // بونص اللحوم بالعظم لكل كجم + المرتب الأساسي العام — قابلين للتعديل من جدول التارجت الشهري.
+  const BONE_BONUS_PER_KG = useMemo(() => {
+    const r = tierSettings.find(t => t.category === 'لحوم بالعظم/كجم' && t.tier === 1);
+    return r ? Number(r.bonus_amount) : DEFAULT_BONE_BONUS_PER_KG;
+  }, [tierSettings]);
+
+  const defaultBaseSalary = useMemo(() => {
+    const r = tierSettings.find(t => t.category === 'أساسي' && t.tier === 1);
+    return r ? Number(r.bonus_amount) : DEFAULT_BASE_SALARY;
+  }, [tierSettings]);
+
   // ===== اعتماد قبض الشهر (Closures) =====
-  const { data: closures = [] } = useQuery({
+  const { data: closures = [], isSuccess: closuresLoaded } = useQuery({
     queryKey: ['payroll-month-closures'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -426,6 +438,12 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     onError: (e: any) => toast({ title: 'تعذر الحفظ', description: e.message, variant: 'destructive' }),
   });
 
+  // شهر معتمد (أو لسه مش عارفين): الأساسي وبونص العظم يفضلوا على 2,500 / 3.5.
+  // الشهر المفتوح بس هو اللي ياخد القيم المعدّلة من target_bonus_settings.
+  // لقطة القبض، لو اتحملت، بتستبدل الأرقام دي بالكامل في `rows`.
+  const baseForLive = payrollDefaultForMonth(closuresLoaded, !!selectedClosure, defaultBaseSalary, DEFAULT_BASE_SALARY);
+  const boneForLive = payrollDefaultForMonth(closuresLoaded, !!selectedClosure, BONE_BONUS_PER_KG, DEFAULT_BONE_BONUS_PER_KG);
+
   const baseRows = useMemo(() => {
 
     return GIRLS.map(g => {
@@ -442,7 +460,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const tierMeatRate = meatTier ? meatTier.bonus : 0;
       const procRate = ov?.processed_rate != null ? Number(ov.processed_rate) : tierProcRate;
       const meatRate = ov?.meat_rate != null ? Number(ov.meat_rate) : tierMeatRate;
-      const boneRate = ov?.bone_rate != null ? Number(ov.bone_rate) : (meatTier ? BONE_BONUS_PER_KG : 0);
+      const boneRate = ov?.bone_rate != null ? Number(ov.bone_rate) : (meatTier ? boneForLive : 0);
       const procRateOverridden = ov?.processed_rate != null;
       const meatRateOverridden = ov?.meat_rate != null;
       const boneRateOverridden = ov?.bone_rate != null;
@@ -457,7 +475,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const procOverridden = ov?.processed_bonus != null;
       const meatOverridden = ov?.meat_bonus != null;
       const boneOverridden = ov?.bone_bonus != null;
-      const base = baseSalaryForKey(g);
+      const base = baseSalaryForKey(g, baseForLive);
       return {
         girl: g, base, meatKg, boneKg, procKg, chickCount,
         meatSales, procSales, procTier, meatTier,
@@ -469,7 +487,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         total: base + procBonus + meatBonus + boneBonus + chickBonus - deductions,
       };
     });
-  }, [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS, chickQtyByGirl, chickBonusRate]);
+  }, [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS, chickQtyByGirl, chickBonusRate, boneForLive, baseForLive, GIRLS]);
 
   // بونص الشهر السابق (الأوردرات المرحّلة) بأسعار تارجت الشهر الحالي
   const carryByGirl = useMemo(() => {
@@ -502,7 +520,8 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     return { ...r, prevBonus, total: r.total + prevBonus };
   }), [baseRows, carryByGirl]);
 
-  // بعد الاعتماد: تُعرض النسخة المثبتة (Snapshot) بدل الحساب المباشر
+  // بعد الاعتماد: تُعرض النسخة المثبتة (Snapshot) بدل الحساب المباشر.
+  // الأساسي وبونص العظم هنا من اللقطة المحفوظة، مش من الإعداد الحالي.
   const rows = useMemo(() => {
     if (!selectedClosure || snapshots.length === 0) return liveRows;
     return liveRows.map(r => {
@@ -866,7 +885,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         </div>
         <p className="text-xs text-muted-foreground mt-3">
           * المبيعات تُحسب من الأوردرات المسلَّمة. الأسعار المستخدمة (لحوم/بالعظم/مصنعات) تتبع الأسعار في "جدول مبيعات المسوقات".<br />
-          * بونص اللحوم = (بونص التارجت × كجم اللحوم) + ({BONE_BONUS_PER_KG} ج × كجم اللحوم بالعظم).
+          * بونص اللحوم = (بونص التارجت × كجم اللحوم) + ({boneForLive} ج × كجم اللحوم بالعظم).
         </p>
 
         <PrevMonthBonusDialog

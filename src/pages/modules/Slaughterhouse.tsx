@@ -1488,6 +1488,7 @@ const Slaughterhouse = () => {
             outputs={outputs}
             branches={branches}
             settings={settings}
+            displayedCostPerKg={displayedCostPerKg}
           />
         </TabsContent>
 
@@ -4082,10 +4083,11 @@ const WarehouseTransfersLog = ({ outputs, batches, warehouses, onPrint }: {
     </div>
   );
 };
-const DailyReportTab = ({ reportDate, setReportDate, receipts, birds, batches, outputs, branches, settings }: {
+const DailyReportTab = ({ reportDate, setReportDate, receipts, birds, batches, outputs, branches, settings, displayedCostPerKg }: {
   reportDate: string; setReportDate: (d: string) => void;
   receipts: Receipt[]; birds: LiveBird[]; batches: Batch[]; outputs: Output[]; branches: Branch[];
   settings: Settings | null;
+  displayedCostPerKg: (batch: Batch) => number;
 }) => {
   const [branchFilter, setBranchFilter] = useState<string>("");
   const lowThr = Number(settings?.low_yield_threshold ?? 40);
