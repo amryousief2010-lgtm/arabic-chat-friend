@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +39,7 @@ import { ProductionDispatchInbox } from "@/components/production/ProductionDispa
 import RequestCorrectionDialog from "@/components/corrections/RequestCorrectionDialog";
 import LiveBatchCostsPanel from "@/components/slaughterhouse/LiveBatchCostsPanel";
 import LiveOstrichSalesTab from "@/components/slaughterhouse/LiveOstrichSalesTab";
+import { costPerKgFromSnapshots } from "@/lib/slaughterBatchCost";
 
 type Receipt = { id: string; receipt_number: string; receipt_date: string; source_type: string; source_name: string | null; bird_count: number; total_weight_kg: number; avg_weight_kg: number; price_per_kg: number; total_cost: number; dead_on_arrival: number; status: string; };
 type Batch = { id: string; batch_number: string; slaughter_date: string; shift: string; live_receipt_id: string | null; birds_slaughtered: number; total_live_weight_kg: number; total_meat_kg: number; actual_yield_pct: number; cost_per_kg_meat: number; status: string; pre_slaughter_dead: number; rejected_birds: number; };
@@ -95,6 +96,7 @@ const Slaughterhouse = () => {
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [adjustments, setAdjustments] = useState<Array<{ id: string; adjustment_date: string; new_balance: number; delta: number; reason: string | null; created_by: string | null; created_at: string }>>([]);
   const [liveSales, setLiveSales] = useState<Array<{ id: string; live_receipt_id: string; bird_count: number }>>([]);
+  const [batchSources, setBatchSources] = useState<Array<{ slaughter_batch_id: string; live_receipt_id: string; birds_count: number; total_birds_cost: number; cost_per_bird_snapshot: number }>>([]);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [costDetailOpen, setCostDetailOpen] = useState(false);
   const [adjustForm, setAdjustForm] = useState({ new_balance: 0, reason: "", adjustment_date: new Date().toISOString().slice(0, 10) });
@@ -123,7 +125,7 @@ const Slaughterhouse = () => {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [r, b, y, o, w, q, br, bd, tr, st, au, pr, adj, wh, ls] = await Promise.all([
+    const [r, b, y, o, w, q, br, bd, tr, st, au, pr, adj, wh, ls, src] = await Promise.all([
       supabase.from("slaughter_live_receipts" as any).select("*").order("receipt_date", { ascending: false }).limit(500),
       supabase.from("slaughter_batches" as any).select("*").order("slaughter_date", { ascending: false }).limit(500),
       supabase.from("slaughter_yield_standards" as any).select("*").order("display_order"),
@@ -139,6 +141,7 @@ const Slaughterhouse = () => {
       supabase.from("slaughter_live_stock_adjustments" as any).select("*").order("created_at", { ascending: false }).limit(200),
       supabase.from("warehouses" as any).select("id,name").order("name"),
       supabase.from("slaughter_live_sales" as any).select("id, live_receipt_id, bird_count").limit(2000),
+      supabase.from("slaughter_batch_live_sources" as any).select("slaughter_batch_id, live_receipt_id, birds_count, total_birds_cost, cost_per_bird_snapshot").limit(5000),
     ]);
     setReceipts((r.data as any) || []);
     setBatches((b.data as any) || []);
@@ -157,10 +160,36 @@ const Slaughterhouse = () => {
     setAdjustments((adj.data as any) || []);
     setWarehouses((wh.data as any) || []);
     setLiveSales((ls.data as any) || []);
+    setBatchSources((src.data as any) || []);
     setLoading(false);
   };
 
   useEffect(() => { fetchAll(); }, []);
+
+  const displayedCostPerKg = (batch: Batch) => {
+    const sources = batchSources
+      .filter((source) => source.slaughter_batch_id === batch.id)
+      .map((source) => ({
+        totalBirdsCost: Number(source.total_birds_cost) || 0,
+        costPerBird: Number(source.cost_per_bird_snapshot) || 0,
+        birds: Number(source.birds_count) || 0,
+      }));
+    const batchOutputs = outputs
+      .filter((output) => output.batch_id === batch.id)
+      .map((output) => ({
+        actualWeightKg: Number(output.actual_weight_kg) || 0,
+        damagedKg: Number(output.damaged_weight_kg) || 0,
+        quarantinedKg: Number(output.quarantined_weight_kg) || 0,
+        destination: output.destination,
+      }));
+    const computed = costPerKgFromSnapshots({
+      sources,
+      directExpenses: Number((batch as any).direct_slaughter_expenses) || 0,
+      outputs: batchOutputs,
+      meatKgFallback: Number(batch.total_meat_kg) || 0,
+    });
+    return computed != null ? computed : Number(batch.cost_per_kg_meat) || 0;
+  };
 
   // KPIs
   const today = new Date().toISOString().slice(0, 10);
@@ -253,9 +282,9 @@ const Slaughterhouse = () => {
     return todays.reduce((s, b) => s + Number(b.actual_yield_pct), 0) / todays.length;
   })();
   const avgCost = (() => {
-    const recent = batches.filter(b => b.cost_per_kg_meat > 0).slice(0, 10);
+    const recent = batches.map((b) => displayedCostPerKg(b)).filter((cost) => cost > 0).slice(0, 10);
     if (!recent.length) return 0;
-    return recent.reduce((s, b) => s + Number(b.cost_per_kg_meat), 0) / recent.length;
+    return recent.reduce((s, cost) => s + cost, 0) / recent.length;
   })();
 
   // ===== اللحم المشفى (received-into-warehouse, accepted quality only) =====
@@ -882,7 +911,7 @@ const Slaughterhouse = () => {
       ["الوزن الحي (كجم)", Number(b.total_live_weight_kg || 0).toFixed(2)],
       ["إجمالي اللحم (كجم)", Number(b.total_meat_kg || 0).toFixed(2)],
       ["نسبة التصافي %", Number(b.actual_yield_pct || 0).toFixed(2)],
-      ["تكلفة الكيلو", Number(b.cost_per_kg_meat || 0).toFixed(2)],
+      ["تكلفة الكيلو", displayedCostPerKg(b).toFixed(2)],
     ];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), "ملخص الدفعة");
     XLSX.writeFile(wb, `تقسيمة-${b.batch_number}.xlsx`);
@@ -994,7 +1023,7 @@ const Slaughterhouse = () => {
     <div><strong>إجمالي اللحم (كجم)</strong>${Number(b.total_meat_kg || 0).toFixed(1)}</div>
     <div><strong>نسبة التصافي الإجمالية</strong>${Number(b.actual_yield_pct || 0).toFixed(1)}%</div>
     <div style="background:#ecfdf5;border-color:#10b981"><strong style="color:#047857">نسبة تصافي اللحم فقط</strong><span style="color:#047857;font-weight:700">${meatYieldPct.toFixed(1)}%</span><div style="font-size:9px;color:#666">(${meatOnlyKg.toFixed(1)} كجم لحم ÷ ${liveW.toFixed(1)} كجم حي)</div></div>
-    <div><strong>تكلفة الكيلو</strong>${Number(b.cost_per_kg_meat || 0).toFixed(0)} ج.م</div>
+    <div><strong>تكلفة الكيلو</strong>${displayedCostPerKg(b).toFixed(0)} ج.م</div>
   </div>
 
   <table>
@@ -1493,7 +1522,7 @@ const Slaughterhouse = () => {
                       <TableCell>{Number(b.total_live_weight_kg).toFixed(1)}</TableCell>
                       <TableCell>{Number(b.total_meat_kg || 0).toFixed(1)}</TableCell>
                       <TableCell><span className={Number(b.actual_yield_pct) < 40 && Number(b.actual_yield_pct) > 0 ? "text-red-600 font-bold" : ""}>{Number(b.actual_yield_pct || 0).toFixed(1)}%</span></TableCell>
-                      <TableCell>{Number(b.cost_per_kg_meat || 0).toFixed(0)}</TableCell>
+                      <TableCell>{displayedCostPerKg(b).toFixed(0)}</TableCell>
                       <TableCell>{statusBadge(b.status)}</TableCell>
                       <TableCell className="flex gap-2 flex-wrap">
                         <Button size="sm" variant="outline" onClick={() => setOutputBatchId(b.id)}>التقسيمة</Button>
@@ -2476,14 +2505,18 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
   // Total birds in the purchase receipts that contributed to this slaughter batch (NOT what was slaughtered).
   const [birdsPurchased, setBirdsPurchased] = useState<number>(0);
 
-  // Fallback total = sum of saved per-source snapshots on slaughter_batch_live_sources.
-  // Used when batch-level cost fields (total_allocatable_cost/total_birds_cost) weren't populated.
-  const batchTotalCost =
-    Number(b.total_allocatable_cost) ||
-    Number(b.total_birds_cost) ||
-    (Number(b.cost_per_bird_snapshot) || 0) * (Number(batch.birds_slaughtered) || 0) ||
-    Number(sourcesSnapshotTotal) ||
-    0;
+  // Prefer the locked per-source share. cost_per_kg_meat still holds the old full-receipt figure
+  // until finalize/recompute runs, so it must not win over the source snapshots.
+  const directExpenses = Number(b.direct_slaughter_expenses) || 0;
+  const snapshotBatchCost = sourcesSnapshotTotal > 0 ? sourcesSnapshotTotal + directExpenses : 0;
+  const batchTotalCost = snapshotBatchCost > 0
+    ? snapshotBatchCost
+    : (
+      Number(b.total_allocatable_cost) ||
+      Number(b.total_birds_cost) ||
+      (Number(b.cost_per_bird_snapshot) || 0) * (Number(batch.birds_slaughtered) || 0) ||
+      0
+    );
   const storedCostPerKg = Number(batch.cost_per_kg_meat) || 0;
   // Match DB allocation base in recalc_slaughter_output_auto_costs: accepted weight only, excluding waste.
   const outputsTotalKg = (outputs || []).reduce((s, o: any) => {
@@ -2491,29 +2524,9 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
     const accepted = Math.max(0, (Number(o.actual_weight_kg) || 0) - (Number(o.damaged_weight_kg) || 0) - (Number(o.quarantined_weight_kg) || 0));
     return s + accepted;
   }, 0);
-  const batchCostPerKg = storedCostPerKg > 0
-    ? storedCostPerKg
-    : (batchTotalCost > 0 && outputsTotalKg > 0 ? batchTotalCost / outputsTotalKg : 0);
-
-  // Auto-recalc auto_cost_per_kg once when opening a batch whose outputs lack the per-batch snapshot.
-  // Safe because slaughter_batch_live_sources.cost_per_bird_snapshot is frozen at insert time — no drift for old batches.
-  useEffect(() => {
-    if (!outputs || outputs.length === 0) return;
-    const needsRecalc = (outputs as any[]).some(o => {
-      if ((o.destination || "") === "waste") return false;
-      const accepted = Math.max(0, (Number(o.actual_weight_kg) || 0) - (Number(o.damaged_weight_kg) || 0) - (Number(o.quarantined_weight_kg) || 0));
-      return accepted > 0 && !(Number(o.auto_cost_per_kg) > 0);
-    });
-    if (!needsRecalc) return;
-    (async () => {
-      try {
-        await supabase.rpc("recalc_slaughter_output_auto_costs" as any, { p_batch_id: batchId });
-        onUpdate();
-      } catch {}
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batchId]);
-
+  const batchCostPerKg = batchTotalCost > 0 && outputsTotalKg > 0
+    ? batchTotalCost / outputsTotalKg
+    : storedCostPerKg;
 
   useEffect(() => {
     (async () => {
@@ -2629,6 +2642,17 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
     return Array.from(map.values());
   })();
   const [rows, setRows] = useState(initial);
+  const appliedSourceCost = useRef(false);
+  useEffect(() => {
+    if (appliedSourceCost.current) return;
+    if (!(snapshotBatchCost > 0) || !(outputsTotalKg > 0)) return;
+    appliedSourceCost.current = true;
+    const cpk = snapshotBatchCost / outputsTotalKg;
+    setRows((prev) => prev.map((row) => {
+      if (row.manual_cost_per_kg != null && Number(row.manual_cost_per_kg) > 0) return row;
+      return { ...row, auto_cost_per_kg: cpk, unit_cost: cpk };
+    }));
+  }, [snapshotBatchCost, outputsTotalKg]);
   const [pickCut, setPickCut] = useState<string>("");
   const [searchCut, setSearchCut] = useState<string>("");
   const [pendingConfirm, setPendingConfirm] = useState<null | { mismatchRows: { name: string; produced: number; sum: number }[] }>(null);
@@ -2947,8 +2971,9 @@ const BatchOutputsDialog = ({ batchId, batch, yields, outputs, branches, yieldCu
           }, 0);
           const diff = sumItemsCost - batchTotalCost;
           const balanced = batchTotalCost > 0 && Math.abs(diff) <= Math.max(1, batchTotalCost * 0.01);
-          const costSource =
-            Number(b.total_allocatable_cost) > 0 ? "إجمالي تكلفة موزَّعة (snapshot)" :
+          const costSource = snapshotBatchCost > 0
+            ? "حصة الطيور المستخدمة من إيصالات الاستلام"
+            : Number(b.total_allocatable_cost) > 0 ? "إجمالي تكلفة موزَّعة (snapshot)" :
             Number(b.total_birds_cost) > 0 ? "تكلفة النعام المثبتة" :
             (Number(b.cost_per_bird_snapshot) || 0) > 0 ? "تكلفة النعامة × عدد النعام (snapshot)" :
             "غير محسوبة";
@@ -4156,7 +4181,7 @@ const DailyReportTab = ({ reportDate, setReportDate, receipts, birds, batches, o
     live: Number(b.total_live_weight_kg || 0),
     meat: Number(b.total_meat_kg || 0),
     yield: Number(b.actual_yield_pct || 0),
-    cost: Number(b.cost_per_kg_meat || 0),
+    cost: displayedCostPerKg(b),
   }));
 
   return (
