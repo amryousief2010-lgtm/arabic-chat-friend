@@ -60,12 +60,32 @@ export const scheduleForMonth = (
 
 const clampKg = (kg: number) => (Number.isFinite(kg) && kg > 0 ? kg : 0);
 
+/**
+ * qualifyingKg = كل كيلوات الشهر المحسوبة للحد الأدنى (كيلوات الشهر + المرحّل من شهر معتمد).
+ * قرار 19 أكتوبر 2026: أوردرات الشهر السابق المسلّمة بعد اعتماد قبضه تُضاف لكيلوات الشهر الحالي
+ * وتدخل في الحد الأدنى وفي الشرائح.
+ */
 export const meetsProcessedMinimum = (kg: number, schedule: MarginalSchedule) =>
   clampKg(kg) >= schedule.minimumKg;
 
-export const marginalBreakdown = (kg: number, schedule: MarginalSchedule): BandSlice[] => {
+/** حافز الشرائح بدون شرط الحد الأدنى. يُستخدم لتقسيم المبلغ بين كيلوات الشهر والمرحّل. */
+export const rawMarginalBonus = (kg: number, schedule: MarginalSchedule) => {
   const qty = clampKg(kg);
-  const qualified = qty >= schedule.minimumKg;
+  return [...schedule.bands]
+    .sort((a, b) => a.fromKg - b.fromKg)
+    .reduce((sum, band) => {
+      const end = band.toKg ?? Number.POSITIVE_INFINITY;
+      return sum + Math.max(0, Math.min(qty, end) - band.fromKg) * band.rate;
+    }, 0);
+};
+
+export const marginalBreakdown = (
+  kg: number,
+  schedule: MarginalSchedule,
+  qualifyingKg: number = kg,
+): BandSlice[] => {
+  const qty = clampKg(kg);
+  const qualified = meetsProcessedMinimum(qualifyingKg, schedule);
   const bands = [...schedule.bands].sort((a, b) => a.fromKg - b.fromKg);
   return bands.map((band) => {
     if (!qualified) return { ...band, kg: 0, amount: 0 };
@@ -78,12 +98,16 @@ export const marginalBreakdown = (kg: number, schedule: MarginalSchedule): BandS
 export const marginalProcessedBonus = (kg: number, schedule: MarginalSchedule) =>
   marginalBreakdown(kg, schedule).reduce((sum, slice) => sum + slice.amount, 0);
 
-/** زيادة الحافز لو أضفنا كميات فوق رصيد قائم (للأوردرات المرحّلة بعد بلوغ الحد). */
+/**
+ * زيادة الحافز لكميات فوق رصيد قائم. الحد الأدنى يُقاس على الإجمالي (الرصيد + الإضافة)،
+ * فلو الإجمالي بلغ الحد تُسعَّر الإضافة بشرائحها فوق الرصيد.
+ */
 export const marginalIncrement = (startKg: number, addKg: number, schedule: MarginalSchedule) => {
   const add = clampKg(addKg);
   if (add <= 0) return 0;
   const start = clampKg(startKg);
-  return marginalProcessedBonus(start + add, schedule) - marginalProcessedBonus(start, schedule);
+  if (!meetsProcessedMinimum(start + add, schedule)) return 0;
+  return rawMarginalBonus(start + add, schedule) - rawMarginalBonus(start, schedule);
 };
 
 export const salaryWithProcessedBonus = (
@@ -257,7 +281,12 @@ export type CounterStatus =
   | 'top_band';
 
 export interface KgCounterView {
+  /** إجمالي الكيلوات المحسوبة = كيلوات الشهر + المرحّل. */
   kg: number;
+  ownKg: number;
+  carriedKg: number;
+  /** جزء حافز المصنّعات الناتج عن الكيلوات المرحّلة (داخل processedBonus). */
+  carriedProcessedBonus: number;
   processedBonus: number;
   calculatedProcessedBonus: number;
   bandLabel: string;
@@ -286,9 +315,13 @@ export interface KgCounterView {
 
 export const buildKgCounterView = (input: {
   name: string;
+  /** كيلوات مصنّعات الشهر نفسه. */
   kg: number;
+  /** كيلوات مصنّعات أوردرات شهر سابق سُلّمت بعد اعتماد قبضه. تُضاف للإجمالي والحد الأدنى والشرائح. */
+  carriedKg?: number;
   schedule?: MarginalSchedule;
   baseSalary: number;
+  /** مرحّل غير المصنّعات (لحوم/عظم) إن وُجد. المصنّعات المرحّلة تدخل عبر carriedKg. */
   carriedBonus?: number;
   meatBonus?: number;
   boneBonus?: number;
@@ -298,13 +331,17 @@ export const buildKgCounterView = (input: {
   frozen?: boolean;
 }): KgCounterView => {
   const schedule = input.schedule ?? APPROVED_OCT_2026_SCHEDULE;
-  const kg = clampKg(input.kg);
+  const ownKg = clampKg(input.kg);
+  const carriedKg = clampKg(input.carriedKg ?? 0);
+  const kg = ownKg + carriedKg;
   const bands = [...schedule.bands].sort((a, b) => a.fromKg - b.fromKg);
   const pace = cairoMonthPace(input.now ?? new Date());
   const breakdown = marginalBreakdown(kg, schedule);
   const calculatedProcessedBonus = breakdown.reduce((sum, slice) => sum + slice.amount, 0);
+  const carriedProcessedBonus = marginalIncrement(ownKg, carriedKg, schedule);
+  // التعديل اليدوي يخص كيلوات الشهر فقط، والمرحّل يُضاف فوقه بشرائحه.
   const processedBonus = input.processedBonusOverride != null
-    ? input.processedBonusOverride
+    ? input.processedBonusOverride + carriedProcessedBonus
     : calculatedProcessedBonus;
   const qualified = meetsProcessedMinimum(kg, schedule);
   const active = activeBandIndex(kg, bands);
@@ -321,8 +358,9 @@ export const buildKgCounterView = (input: {
     ? 0
     : Math.max(0, marginalProcessedBonus(nextEdge, schedule) - calculatedProcessedBonus);
   const elapsed = Math.max(1, pace.dayOfMonth);
-  const avgPerDay = input.frozen ? kg / Math.max(1, pace.daysInMonth) : kg / elapsed;
-  const projectedKg = input.frozen ? kg : avgPerDay * pace.daysInMonth;
+  // الوتيرة من كيلوات الشهر فقط، والمرحّل رصيد ثابت فوقها.
+  const avgPerDay = input.frozen ? ownKg / Math.max(1, pace.daysInMonth) : ownKg / elapsed;
+  const projectedKg = input.frozen ? kg : avgPerDay * pace.daysInMonth + carriedKg;
   const projectedProcessedBonus = marginalProcessedBonus(projectedKg, schedule);
   const meat = input.meatBonus ?? 0;
   const bone = input.boneBonus ?? 0;
@@ -389,6 +427,9 @@ export const buildKgCounterView = (input: {
 
   return {
     kg,
+    ownKg,
+    carriedKg,
+    carriedProcessedBonus,
     processedBonus,
     calculatedProcessedBonus,
     bandLabel,
@@ -483,16 +524,28 @@ export interface StoredBandBreakdown {
   minimum_kg: number;
   qualified: boolean;
   calculated_bonus: number;
+  /** كيلوات مرحّلة دخلت في الحد الأدنى والشرائح (تُدفع في payroll_carried_orders). */
+  carried_kg?: number;
+  /** الإجمالي المحسوب للشرائح = كيلوات الشهر + المرحّل. */
+  counted_kg?: number;
   bands: Array<{ from_kg: number; to_kg: number | null; rate: number; kg: number; amount: number }>;
 }
 
-export const toStoredBreakdown = (kg: number, schedule: MarginalSchedule): StoredBandBreakdown => {
-  const slices = marginalBreakdown(kg, schedule);
+export const toStoredBreakdown = (
+  kg: number,
+  schedule: MarginalSchedule,
+  carriedKg = 0,
+): StoredBandBreakdown => {
+  const carried = clampKg(carriedKg);
+  const counted = clampKg(kg) + carried;
+  const slices = marginalBreakdown(kg, schedule, counted);
   return {
     scheme: 'marginal',
     minimum_kg: schedule.minimumKg,
-    qualified: meetsProcessedMinimum(kg, schedule),
+    qualified: meetsProcessedMinimum(counted, schedule),
     calculated_bonus: slices.reduce((sum, slice) => sum + slice.amount, 0),
+    carried_kg: carried,
+    counted_kg: counted,
     bands: slices.map((slice) => ({
       from_kg: slice.fromKg,
       to_kg: slice.toKg,

@@ -29,7 +29,7 @@ export const ModeratorKgCounterBoard = ({ year, month, onlyPayrollKey, celebrate
     );
   }
 
-  if (progress.isLoading && !progress.rows.some((row) => row.procKg > 0)) {
+  if (progress.isLoading && !progress.rows.some((row) => row.countedProcKg > 0)) {
     return <div className="h-40 animate-pulse rounded-3xl bg-[#4B2364]/20" />;
   }
 
@@ -43,8 +43,8 @@ export const ModeratorKgCounterBoard = ({ year, month, onlyPayrollKey, celebrate
             key={key}
             name={displayModeratorName(key)}
             kg={row.procKg}
+            carriedKg={row.carriedProcKg}
             baseSalary={row.base}
-            carriedBonus={progress.carriedByGirl.get(key) || 0}
             meatBonus={row.meatBonus}
             boneBonus={row.boneBonus}
             processedBonusOverride={row.procOverridden ? row.procBonus : null}

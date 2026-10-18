@@ -86,6 +86,16 @@ export const useModeratorBonusProgress = (year: number, month: number) => {
     }));
   }, [tierSettings]);
 
+  // كيلوات المصنّعات المرحّلة تدخل في كيلوات الشهر (الحد الأدنى + الشرائح).
+  const carriedKgByGirl = useMemo(() => {
+    const map: Record<string, number> = {};
+    girls.forEach((girl) => { map[girl] = 0; });
+    carried.forEach((item) => {
+      if (item.girl in map) map[item.girl] += Number(item.procKg) || 0;
+    });
+    return map;
+  }, [carried, girls]);
+
   const rows = useMemo(() => buildPayrollBaseRows({
     girls,
     qty: qtyQuery.data ?? { meat: {}, bone: {}, processed: {} },
@@ -100,7 +110,8 @@ export const useModeratorBonusProgress = (year: number, month: number) => {
     year,
     month,
     schedules,
-  }), [girls, qtyQuery.data, prices, processedTiers, meatTiers, bonePerKg, baseDefault, overrides, year, month, schedules]);
+    carriedProcessedKg: carriedKgByGirl,
+  }), [girls, qtyQuery.data, prices, processedTiers, meatTiers, bonePerKg, baseDefault, overrides, year, month, schedules, carriedKgByGirl]);
 
   const carriedByGirl = useMemo(() => {
     const map = new Map<string, number>();
@@ -121,6 +132,7 @@ export const useModeratorBonusProgress = (year: number, month: number) => {
     girls,
     rows,
     carriedByGirl,
+    carriedKgByGirl,
     schedule: schedule ?? APPROVED_OCT_2026_SCHEDULE,
     marginal: !!schedule,
     isLoading: qtyQuery.isLoading,

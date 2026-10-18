@@ -250,6 +250,15 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   const { schedules } = useProcessedKgSchedules();
   const marginalSchedule = scheduleForMonth(schedules, selectedYear, selectedMonth);
 
+  // قرار 19 أكتوبر 2026: مصنّعات الأوردرات المرحّلة تُحسب ضمن كيلوات الشهر للحد الأدنى والشرائح.
+  const carriedProcessedKg = useMemo(() => {
+    const map: Record<string, number> = {};
+    (carried as any[]).forEach((item) => {
+      map[item.girl] = (map[item.girl] || 0) + (Number(item.procKg) || 0);
+    });
+    return map;
+  }, [carried]);
+
   const baseRows = useMemo(() => buildPayrollBaseRows({
     girls: GIRLS,
     qty,
@@ -264,7 +273,8 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     year: selectedYear,
     month: selectedMonth,
     schedules,
-  }), [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS, chickQtyByGirl, chickBonusRate, boneForLive, baseForLive, GIRLS, selectedYear, selectedMonth, schedules]);
+    carriedProcessedKg,
+  }), [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS, chickQtyByGirl, chickBonusRate, boneForLive, baseForLive, GIRLS, selectedYear, selectedMonth, schedules, carriedProcessedKg]);
 
   // بونص الشهر السابق (الأوردرات المرحّلة) بأسعار تارجت الشهر الحالي
   const carryByGirl = useMemo(() => {
@@ -315,7 +325,8 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const s = snapshots.find((x: any) => x.moderator_name === r.girl);
       if (!s) return r;
       const storedSlices = slicesFromStored(s.processed_band_breakdown);
-      const storedMinimum = Number((s.processed_band_breakdown as { minimum_kg?: number } | null)?.minimum_kg);
+      const storedMeta = s.processed_band_breakdown as { minimum_kg?: number; qualified?: boolean; carried_kg?: number } | null;
+      const storedMinimum = Number(storedMeta?.minimum_kg);
       return {
         ...r,
         scheme: storedSlices ? 'marginal' as const : 'flat' as const,
@@ -323,8 +334,12 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         storedBreakdown: storedSlices ? s.processed_band_breakdown : null,
         minimumKg: Number.isFinite(storedMinimum) ? storedMinimum : r.minimumKg,
         qualified: storedSlices
-          ? Number(s.processed_qty) >= (Number.isFinite(storedMinimum) ? storedMinimum : 0)
+          ? (typeof storedMeta?.qualified === 'boolean'
+            ? storedMeta.qualified
+            : Number(s.processed_qty) >= (Number.isFinite(storedMinimum) ? storedMinimum : 0))
           : !!s.processed_tier_label,
+        carriedProcKg: Number(storedMeta?.carried_kg) || 0,
+        countedProcKg: Number(s.processed_qty) + (Number(storedMeta?.carried_kg) || 0),
         base: Number(s.base_salary),
         procSales: Number(s.processed_sales),
         procKg: Number(s.processed_qty),
@@ -570,6 +585,16 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
               <TableCell className="font-bold border bg-muted/30">كمية المصنعات (كجم)</TableCell>
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{fmt(r.procKg)}</TableCell>)}
             </TableRow>
+            {showMarginal && rows.some(r => r.carriedProcKg > 0) && (
+              <TableRow>
+                <TableCell className="font-bold border bg-muted/30">+ مرحّل من الشهر السابق (كجم)</TableCell>
+                {rows.map(r => (
+                  <TableCell key={r.girl} className="text-center border">
+                    {r.carriedProcKg > 0 ? `${formatBandKg(r.carriedProcKg)} · الإجمالي ${formatBandKg(r.countedProcKg)}` : "—"}
+                  </TableCell>
+                ))}
+              </TableRow>
+            )}
             {showMarginal ? bandTemplate.map((band) => (
               <TableRow key={`band-${band.fromKg}-${band.rate}`}>
                 <TableCell className="font-bold border bg-muted/20 text-xs">
