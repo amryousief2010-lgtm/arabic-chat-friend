@@ -17605,6 +17605,7 @@ export type Database = {
           moderator_name: string
           month: number
           prev_month_bonus: number
+          processed_band_breakdown: Json | null
           processed_bonus: number
           processed_qty: number
           processed_rate: number
@@ -17633,6 +17634,7 @@ export type Database = {
           moderator_name: string
           month: number
           prev_month_bonus?: number
+          processed_band_breakdown?: Json | null
           processed_bonus?: number
           processed_qty?: number
           processed_rate?: number
@@ -17661,6 +17663,7 @@ export type Database = {
           moderator_name?: string
           month?: number
           prev_month_bonus?: number
+          processed_band_breakdown?: Json | null
           processed_bonus?: number
           processed_qty?: number
           processed_rate?: number
@@ -18074,6 +18077,36 @@ export type Database = {
           notes?: string | null
           price?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      processed_kg_bonus_schedules: {
+        Row: {
+          bands: Json
+          created_at: string
+          effective_from: string
+          id: string
+          minimum_kg: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          bands: Json
+          created_at?: string
+          effective_from: string
+          id?: string
+          minimum_kg: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          bands?: Json
+          created_at?: string
+          effective_from?: string
+          id?: string
+          minimum_kg?: number
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useKgPrices } from '@/hooks/useKgPrices';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,8 +16,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 import PrevMonthBonusDialog, { CarriedDetail } from './PrevMonthBonusDialog';
-import { usePayrollClosureCutoff, applyClosureCutoff } from '@/hooks/usePayrollClosure';
-import { matchesModeratorGroup, moderatorKeysForMonth, baseSalaryForKey, displayModeratorName, DEFAULT_BASE_SALARY, payrollDefaultForMonth } from '@/constants/moderators';
+import { moderatorKeysForMonth, displayModeratorName, DEFAULT_BASE_SALARY, payrollDefaultForMonth, matchesModeratorGroup } from '@/constants/moderators';
+import { useModeratorCategoryQty } from '@/hooks/useModeratorCategoryQty';
+import { useProcessedKgSchedules } from '@/hooks/useProcessedKgSchedules';
+import { fetchPayrollCarried } from '@/lib/fetchPayrollCarried';
+import { allocateProcessedCarry, buildPayrollBaseRows, type PayrollOverride } from '@/lib/moderatorPayrollMath';
+import { scheduleForMonth, slicesFromStored, formatKg as formatBandKg, formatEgp } from '@/lib/processedKgBonus';
+import type { Json } from '@/integrations/supabase/types';
 
 
 type Girl = string;
@@ -45,14 +50,6 @@ const DEFAULT_MEAT_TIERS: Array<{ sales: number; bonus: number; label: string }>
 // الافتراضي لو مفيش صف 'لحوم بالعظم/كجم' في target_bonus_settings.
 const DEFAULT_BONE_BONUS_PER_KG = 3.5;
 
-// التصنيف المعتمد للمسوقات الأربعة (لا تُعدّل بدون طلب صريح):
-// لحوم: قطع، استيك، موزة، فراشة، قطعية الدبوس، تربيانكو، اسكالوب، رول، كباب
-// لحوم بالعظم: دبوس 6 كيلو، فخدة نعام، نعامة صندوق
-// مصنعات: شاورما، شيش، كفتة، سجق، برجر، طرب، حواشي، مفروم، كفتة أرز، برجر بالجبنة
-const MEAT_KEYWORDS = ['قطع', 'استيك', 'موزة', 'فراشة', 'قطعية', 'تربيانكو', 'اسكالوب', 'رول', 'كباب'];
-const BONE_MEAT_KEYWORDS = ['دبوس بالعظم', 'دبوس 6', 'فخده', 'فخذه', 'فخدة', 'نعامه صندوق', 'نعامة صندوق'];
-const PROCESSED_KEYWORDS = ['شاورما', 'شيش', 'كفته', 'كفتة', 'سجق', 'برجر', 'طرب', 'حواشي', 'حواشى', 'حواوشي', 'حواوشى', 'مفروم'];
-
 const months = [
   { value: 1, label: 'يناير' }, { value: 2, label: 'فبراير' }, { value: 3, label: 'مارس' },
   { value: 4, label: 'أبريل' }, { value: 5, label: 'مايو' }, { value: 6, label: 'يونيو' },
@@ -64,19 +61,7 @@ const _cur = currentCairoYearMonth();
 const currentYear = _cur.year;
 const currentMonth = _cur.monthIndex0 + 1;
 
-const normalize = (s: string) => (s || '').replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
-const matches = (name: string, target: string) => matchesModeratorGroup(name, target);
-
-
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
-
-const findTier = (sales: number, tiers: Array<{ sales: number; bonus: number; label: string }>) => {
-  let achieved: { sales: number; bonus: number; label: string } | null = null;
-  for (const t of tiers) {
-    if (sales >= t.sales) achieved = t;
-  }
-  return achieved;
-};
 
 interface Props {
   month?: number;
@@ -107,91 +92,9 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
 
   const { prices } = useKgPrices({ year: selectedYear, month: selectedMonth });
 
-  const { cutoff } = usePayrollClosureCutoff(selectedYear, selectedMonth);
+  const { data: qty = { meat: {}, bone: {}, processed: {} } } = useModeratorCategoryQty(selectedYear, selectedMonth, GIRLS);
 
-  const { data: qty = { meat: {}, bone: {}, processed: {} } as { meat: Record<string, number>; bone: Record<string, number>; processed: Record<string, number> } } = useQuery({
-    queryKey: ['girls-auto-qty', selectedMonth, selectedYear, cutoff],
-    queryFn: async () => {
-      // حدود الشهر بـ UTC لتطابق created_at المخزّن
-      const startDate = cairoMonthStartUTC(selectedYear, selectedMonth - 1).toISOString();
-      const endDate = cairoMonthStartUTC(selectedYear, selectedMonth).toISOString();
-      const empty = () => GIRLS.reduce((acc, g) => { acc[g] = 0; return acc; }, {} as Record<string, number>);
-      const result = { meat: empty(), bone: empty(), processed: empty() };
-
-      const PAGE_ORDERS = 1000;
-      const orders: Array<{ id: string; moderator: string | null; created_by: string | null }> = [];
-      let offset = 0;
-      while (true) {
-        const baseQ = supabase
-          .from('orders')
-          .select('id, moderator, created_by')
-          .eq('status', 'delivered')
-          .gte('created_at', startDate)
-          .lt('created_at', endDate);
-        const { data: chunk, error } = await applyClosureCutoff(baseQ, cutoff)
-          .range(offset, offset + PAGE_ORDERS - 1);
-        if (error) throw error;
-        if (!chunk || chunk.length === 0) break;
-        orders.push(...chunk);
-        if (chunk.length < PAGE_ORDERS) break;
-        offset += PAGE_ORDERS;
-      }
-      if (orders.length === 0) return result;
-
-      const userIds = Array.from(new Set(orders.map(o => o.created_by).filter(Boolean))) as string[];
-      let profileMap = new Map<string, string>();
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabase.from('profile_directory').select('id, full_name').in('id', userIds);
-        profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
-      }
-
-      const orderToGirl = new Map<string, Girl>();
-      orders.forEach(o => {
-        const modName = o.moderator || '';
-        const creatorName = o.created_by ? (profileMap.get(o.created_by) || '') : '';
-        const girl = GIRLS.find(g => matches(modName, g) || matches(creatorName, g));
-        if (girl) orderToGirl.set(o.id, girl);
-      });
-
-      const orderIds = Array.from(orderToGirl.keys());
-      if (orderIds.length === 0) return result;
-
-      // Fetch order_items in chunks (orderIds chunk + paginated rows) to avoid 1000 row limit
-      const ID_CHUNK = 200;
-      const PAGE = 1000;
-      const allItems: Array<{ order_id: string; product_name: string | null; quantity: number | null }> = [];
-      for (let i = 0; i < orderIds.length; i += ID_CHUNK) {
-        const chunk = orderIds.slice(i, i + ID_CHUNK);
-        let from = 0;
-        while (true) {
-          const { data: items, error: itemsError } = await supabase
-            .from('order_items')
-            .select('order_id, product_name, quantity')
-            .in('order_id', chunk)
-            .range(from, from + PAGE - 1);
-          if (itemsError) throw itemsError;
-          if (!items || items.length === 0) break;
-          allItems.push(...items);
-          if (items.length < PAGE) break;
-          from += PAGE;
-        }
-      }
-
-      allItems.forEach(item => {
-        const girl = orderToGirl.get(item.order_id);
-        if (!girl) return;
-        const pname = normalize(item.product_name || '');
-        const q = Number(item.quantity) || 0;
-        if (BONE_MEAT_KEYWORDS.some(k => pname.includes(normalize(k)))) { result.bone[girl] += q; return; }
-        if (PROCESSED_KEYWORDS.some(k => pname.includes(normalize(k)))) { result.processed[girl] += q; return; }
-        if (MEAT_KEYWORDS.some(k => pname.includes(normalize(k)))) { result.meat[girl] += q; }
-      });
-      return result;
-    },
-    refetchInterval: 60000,
-  });
-
-  // Chick orders count per girl
+    // Chick orders count per girl
   const { data: chickQtyByGirl = {} as Record<string, number> } = useQuery({
     queryKey: ['girls-chick-qty', selectedMonth, selectedYear],
     queryFn: async () => {
@@ -214,7 +117,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       }
       (rows || []).forEach(r => {
         const name = r.created_by ? (profileMap.get(r.created_by) || '') : '';
-        const girl = GIRLS.find(g => matches(name, g));
+        const girl = GIRLS.find(g => matchesModeratorGroup(name, g));
         if (girl) empty[girl] += Number(r.chick_count) || 0;
       });
       return empty;
@@ -222,22 +125,6 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     refetchInterval: 60000,
   });
 
-
-  useEffect(() => {
-    const channel = supabase
-      .channel('moderator-payroll-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['girls-auto-qty'] });
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['girls-auto-qty'] });
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chick_orders' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['girls-chick-qty'] });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [queryClient]);
 
   const { data: overrides = [] } = useQuery({
     queryKey: ['payroll-overrides', selectedMonth, selectedYear],
@@ -328,94 +215,11 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   });
 
   // الأوردرات المرحّلة من شهور معتمدة إلى قبض الشهر المحدد
+  const closureKey = closures.map(c => `${c.year}-${c.month}-${c.approved_at}`).join('|');
   const { data: carried = [] } = useQuery({
-    queryKey: ['payroll-carried-orders', selectedMonth, selectedYear, closures.map(c => `${c.year}-${c.month}-${c.approved_at}`).join('|')],
+    queryKey: ['payroll-carried-orders', selectedMonth, selectedYear, closureKey, GIRLS.join('|')],
     enabled: closures.length > 0,
-    queryFn: async () => {
-      const idxOf = (y: number, m: number) => y * 12 + (m - 1);
-      const selIdx = idxOf(selectedYear, selectedMonth);
-      const closureAtIdx = (i: number) => {
-        const y = Math.floor(i / 12);
-        const m = (i % 12) + 1;
-        return closures.find(c => c.year === y && c.month === m) || null;
-      };
-      // الشهر الذي يُصرف فيه بونص الأوردر المرحّل: أول شهر تالٍ لم يكن معتمداً وقت التسليم
-      const payingIdx = (originIdx: number, deliveredAt: string) => {
-        for (let i = originIdx + 1; i <= selIdx; i++) {
-          const cl = closureAtIdx(i);
-          if (!cl || new Date(cl.approved_at).getTime() > new Date(deliveredAt).getTime()) return i;
-        }
-        return -1;
-      };
-
-      const out: Array<{
-        orderId: string; orderNumber: string; girl: Girl; deliveredAt: string;
-        originYear: number; originMonth: number; closureApprovedAt: string;
-      }> = [];
-
-      for (const cl of closures) {
-        const originIdx = idxOf(cl.year, cl.month);
-        if (originIdx >= selIdx) continue;
-        const start = cairoMonthStartUTC(cl.year, cl.month - 1).toISOString();
-        const end = cairoMonthStartUTC(cl.year, cl.month).toISOString();
-        const { data: rowsO, error } = await supabase
-          .from('orders')
-          .select('id, order_number, moderator, created_by, delivered_at')
-          .eq('status', 'delivered')
-          .gte('created_at', start)
-          .lt('created_at', end)
-          .gt('delivered_at', cl.approved_at);
-        if (error) throw error;
-        const candidates = (rowsO || []).filter(o => o.delivered_at && payingIdx(originIdx, o.delivered_at) === selIdx);
-        if (candidates.length === 0) continue;
-
-        const userIds = Array.from(new Set(candidates.map(o => o.created_by).filter(Boolean))) as string[];
-        let profileMap = new Map<string, string>();
-        if (userIds.length > 0) {
-          const { data: profiles } = await supabase.from('profile_directory').select('id, full_name').in('id', userIds);
-          profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
-        }
-        candidates.forEach(o => {
-          const modName = o.moderator || '';
-          const creatorName = o.created_by ? (profileMap.get(o.created_by) || '') : '';
-          const girl = GIRLS.find(g => matches(modName, g) || matches(creatorName, g));
-          if (!girl) return;
-          out.push({
-            orderId: o.id,
-            orderNumber: o.order_number || '',
-            girl,
-            deliveredAt: o.delivered_at as string,
-            originYear: cl.year,
-            originMonth: cl.month,
-            closureApprovedAt: cl.approved_at,
-          });
-        });
-      }
-
-      if (out.length === 0) return [] as Array<typeof out[number] & { meatKg: number; boneKg: number; procKg: number }>;
-
-      const byId = new Map(out.map(o => [o.orderId, { ...o, meatKg: 0, boneKg: 0, procKg: 0 }]));
-      const ids = Array.from(byId.keys());
-      const ID_CHUNK = 200;
-      for (let i = 0; i < ids.length; i += ID_CHUNK) {
-        const chunk = ids.slice(i, i + ID_CHUNK);
-        const { data: items, error } = await supabase
-          .from('order_items')
-          .select('order_id, product_name, quantity')
-          .in('order_id', chunk);
-        if (error) throw error;
-        (items || []).forEach(it => {
-          const rec = byId.get(it.order_id);
-          if (!rec) return;
-          const pname = normalize(it.product_name || '');
-          const q = Number(it.quantity) || 0;
-          if (BONE_MEAT_KEYWORDS.some(k => pname.includes(normalize(k)))) { rec.boneKg += q; return; }
-          if (PROCESSED_KEYWORDS.some(k => pname.includes(normalize(k)))) { rec.procKg += q; return; }
-          if (MEAT_KEYWORDS.some(k => pname.includes(normalize(k)))) { rec.meatKg += q; }
-        });
-      }
-      return Array.from(byId.values());
-    },
+    queryFn: () => fetchPayrollCarried(selectedYear, selectedMonth, GIRLS, closures),
   });
 
 
@@ -443,64 +247,46 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   // لقطة القبض، لو اتحملت، بتستبدل الأرقام دي بالكامل في `rows`.
   const baseForLive = payrollDefaultForMonth(closuresLoaded, !!selectedClosure, defaultBaseSalary, DEFAULT_BASE_SALARY);
   const boneForLive = payrollDefaultForMonth(closuresLoaded, !!selectedClosure, BONE_BONUS_PER_KG, DEFAULT_BONE_BONUS_PER_KG);
+  const { schedules } = useProcessedKgSchedules();
+  const marginalSchedule = scheduleForMonth(schedules, selectedYear, selectedMonth);
 
-  const baseRows = useMemo(() => {
-
-    return GIRLS.map(g => {
-      const meatKg = qty.meat[g] || 0;
-      const boneKg = qty.bone[g] || 0;
-      const procKg = qty.processed[g] || 0;
-      const chickCount = chickQtyByGirl[g] || 0;
-      const meatSales = meatKg * prices.meat_price + boneKg * prices.bone_meat_price;
-      const procSales = procKg * prices.processed_price;
-      const procTier = findTier(procSales, PROCESSED_TIERS);
-      const meatTier = findTier(meatSales, MEAT_TIERS);
-      const ov = overrides.find(o => o.moderator_name === g);
-      const tierProcRate = procTier ? procTier.bonus : 0;
-      const tierMeatRate = meatTier ? meatTier.bonus : 0;
-      const procRate = ov?.processed_rate != null ? Number(ov.processed_rate) : tierProcRate;
-      const meatRate = ov?.meat_rate != null ? Number(ov.meat_rate) : tierMeatRate;
-      const boneRate = ov?.bone_rate != null ? Number(ov.bone_rate) : (meatTier ? boneForLive : 0);
-      const procRateOverridden = ov?.processed_rate != null;
-      const meatRateOverridden = ov?.meat_rate != null;
-      const boneRateOverridden = ov?.bone_rate != null;
-      const calcProcBonus = procRate * procKg;
-      const calcMeatBonus = meatTier ? meatRate * meatKg : 0;
-      const calcBoneBonus = meatTier ? boneRate * boneKg : 0;
-      const procBonus = ov?.processed_bonus != null ? Number(ov.processed_bonus) : calcProcBonus;
-      const meatBonus = ov?.meat_bonus != null ? Number(ov.meat_bonus) : calcMeatBonus;
-      const boneBonus = ov?.bone_bonus != null ? Number(ov.bone_bonus) : calcBoneBonus;
-      const chickBonus = chickCount * chickBonusRate;
-      const deductions = ov?.deduction != null ? Number(ov.deduction) : 0;
-      const procOverridden = ov?.processed_bonus != null;
-      const meatOverridden = ov?.meat_bonus != null;
-      const boneOverridden = ov?.bone_bonus != null;
-      const base = baseSalaryForKey(g, baseForLive);
-      return {
-        girl: g, base, meatKg, boneKg, procKg, chickCount,
-        meatSales, procSales, procTier, meatTier,
-        procRate, procRateOverridden,
-        meatRate, meatRateOverridden,
-        boneRate, boneRateOverridden,
-        procBonus, meatBonus, boneBonus, chickBonus, deductions,
-        procOverridden, meatOverridden, boneOverridden,
-        total: base + procBonus + meatBonus + boneBonus + chickBonus - deductions,
-      };
-    });
-  }, [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS, chickQtyByGirl, chickBonusRate, boneForLive, baseForLive, GIRLS]);
+  const baseRows = useMemo(() => buildPayrollBaseRows({
+    girls: GIRLS,
+    qty,
+    prices,
+    processedTiers: PROCESSED_TIERS,
+    meatTiers: MEAT_TIERS,
+    chickQtyByGirl,
+    chickBonusRate,
+    bonePerKg: boneForLive,
+    baseDefault: baseForLive,
+    overrides: overrides as PayrollOverride[],
+    year: selectedYear,
+    month: selectedMonth,
+    schedules,
+  }), [qty, prices, overrides, PROCESSED_TIERS, MEAT_TIERS, chickQtyByGirl, chickBonusRate, boneForLive, baseForLive, GIRLS, selectedYear, selectedMonth, schedules]);
 
   // بونص الشهر السابق (الأوردرات المرحّلة) بأسعار تارجت الشهر الحالي
   const carryByGirl = useMemo(() => {
     const map = new Map<string, { bonus: number; details: CarriedDetail[] }>();
+    const processedByOrder = new Map<string, { bonus: number; rate: number; tierLabel: string }>();
     GIRLS.forEach(g => map.set(g, { bonus: 0, details: [] }));
+    baseRows.forEach((row) => {
+      const items = carried
+        .filter((item: any) => item.girl === row.girl)
+        .map((item: any) => ({ orderId: item.orderId, procKg: item.procKg, deliveredAt: item.deliveredAt }));
+      allocateProcessedCarry(row.procKg, row, marginalSchedule, items).forEach((item) => {
+        processedByOrder.set(`${row.girl}:${item.orderId}`, item);
+      });
+    });
     carried.forEach((c: any) => {
       const row = baseRows.find(r => r.girl === c.girl);
       if (!row) return;
       const entry = map.get(c.girl)!;
       const originLabel = `${months.find(m => m.value === c.originMonth)?.label} ${c.originYear}`;
-      const push = (category: CarriedDetail['category'], quantity: number, rate: number, tierLabel: string) => {
+      const push = (category: CarriedDetail['category'], quantity: number, rate: number, tierLabel: string, exactBonus?: number) => {
         if (!quantity) return;
-        const bonus = quantity * rate;
+        const bonus = exactBonus ?? quantity * rate;
         entry.details.push({
           orderId: c.orderId, orderNumber: c.orderNumber, girl: c.girl, originLabel,
           closureApprovedAt: c.closureApprovedAt, deliveredAt: c.deliveredAt,
@@ -508,12 +294,13 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         });
         entry.bonus += bonus;
       };
-      push('مصنعات', c.procKg, row.procTier ? row.procRate : 0, row.procTier ? `التارجت ${row.procTier.label}` : 'لم يتحقق');
+      const processedAlloc = processedByOrder.get(`${c.girl}:${c.orderId}`);
+      push('مصنعات', c.procKg, processedAlloc?.rate ?? 0, processedAlloc?.tierLabel ?? 'لم يتحقق', processedAlloc?.bonus);
       push('لحوم', c.meatKg, row.meatTier ? row.meatRate : 0, row.meatTier ? `التارجت ${row.meatTier.label}` : 'لم يتحقق');
       push('لحوم بالعظم', c.boneKg, row.meatTier ? row.boneRate : 0, row.meatTier ? `التارجت ${row.meatTier.label}` : 'لم يتحقق');
     });
     return map;
-  }, [carried, baseRows]);
+  }, [carried, baseRows, marginalSchedule]);
 
   const liveRows = useMemo(() => baseRows.map(r => {
     const prevBonus = carryByGirl.get(r.girl)?.bonus || 0;
@@ -527,8 +314,17 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     return liveRows.map(r => {
       const s = snapshots.find((x: any) => x.moderator_name === r.girl);
       if (!s) return r;
+      const storedSlices = slicesFromStored(s.processed_band_breakdown);
+      const storedMinimum = Number((s.processed_band_breakdown as { minimum_kg?: number } | null)?.minimum_kg);
       return {
         ...r,
+        scheme: storedSlices ? 'marginal' as const : 'flat' as const,
+        bandBreakdown: storedSlices ?? [],
+        storedBreakdown: storedSlices ? s.processed_band_breakdown : null,
+        minimumKg: Number.isFinite(storedMinimum) ? storedMinimum : r.minimumKg,
+        qualified: storedSlices
+          ? Number(s.processed_qty) >= (Number.isFinite(storedMinimum) ? storedMinimum : 0)
+          : !!s.processed_tier_label,
         base: Number(s.base_salary),
         procSales: Number(s.processed_sales),
         procKg: Number(s.processed_qty),
@@ -581,6 +377,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         processed_qty: r.procKg,
         processed_rate: r.procRate,
         processed_bonus: r.procBonus,
+        processed_band_breakdown: r.scheme === 'marginal' ? (r.storedBreakdown as unknown as Json) : null,
         meat_sales: r.meatSales,
         meat_tier_label: r.meatTier?.label ?? null,
         meat_qty: r.meatKg,
@@ -673,6 +470,11 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   };
 
 
+  const showMarginal = rows.some((row) => row.scheme === 'marginal');
+  const bandTemplate = (rows.find((row) => row.bandBreakdown.length)?.bandBreakdown
+    ?? marginalSchedule?.bands.map((band) => ({ ...band, kg: 0, amount: 0 }))
+    ?? []);
+
   return (
     <Card className="glass-card">
       <CardHeader>
@@ -737,26 +539,59 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
               <TableCell className="font-bold border bg-muted/30">مبيعات المصنعات (ج.م)</TableCell>
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{fmt(r.procSales)}</TableCell>)}
             </TableRow>
-            <TableRow>
-              <TableCell className="font-bold border bg-muted/30">التارجت المحقق (مصنعات)</TableCell>
-              {rows.map(r => (
-                <TableCell key={r.girl} className="text-center border">
-                  {r.procTier ? (
-                    <span className="text-primary font-semibold">التارجت {r.procTier.label} ({r.procTier.bonus} ج/كجم)</span>
-                  ) : (
-                    <span className="text-muted-foreground">لم يتحقق</span>
-                  )}
-                </TableCell>
-              ))}
-            </TableRow>
+            {showMarginal ? (
+              <TableRow>
+                <TableCell className="font-bold border bg-muted/30">الحد الأدنى لحافز المصنعات</TableCell>
+                {rows.map(r => (
+                  <TableCell key={r.girl} className="text-center border">
+                    {r.qualified ? (
+                      <span className="text-primary font-semibold">تحقق ({formatBandKg(r.minimumKg || 0, true)} كجم)</span>
+                    ) : (
+                      <span className="text-muted-foreground">لم يتحقق ({formatBandKg(r.minimumKg || 0, true)} كجم)</span>
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ) : (
+              <TableRow>
+                <TableCell className="font-bold border bg-muted/30">التارجت المحقق (مصنعات)</TableCell>
+                {rows.map(r => (
+                  <TableCell key={r.girl} className="text-center border">
+                    {r.procTier ? (
+                      <span className="text-primary font-semibold">التارجت {r.procTier.label} ({r.procTier.bonus} ج/كجم)</span>
+                    ) : (
+                      <span className="text-muted-foreground">لم يتحقق</span>
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            )}
             <TableRow>
               <TableCell className="font-bold border bg-muted/30">كمية المصنعات (كجم)</TableCell>
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{fmt(r.procKg)}</TableCell>)}
             </TableRow>
-            <TableRow>
-              <TableCell className="font-bold border bg-muted/30">بونص المصنعات لكل كجم (ج)</TableCell>
-              {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.procRate, 'processed_rate', r.procRateOverridden)}</TableCell>)}
-            </TableRow>
+            {showMarginal ? bandTemplate.map((band) => (
+              <TableRow key={`band-${band.fromKg}-${band.rate}`}>
+                <TableCell className="font-bold border bg-muted/20 text-xs">
+                  {band.toKg == null
+                    ? `أكثر من ${formatBandKg(band.fromKg, true)} كجم × ${formatBandKg(band.rate)} ج`
+                    : `${formatBandKg(band.fromKg, true)}–${formatBandKg(band.toKg, true)} كجم × ${formatBandKg(band.rate)} ج`}
+                </TableCell>
+                {rows.map((row) => {
+                  const slice = row.bandBreakdown.find((item) => item.fromKg === band.fromKg && item.rate === band.rate);
+                  return (
+                    <TableCell key={row.girl} className="text-center border text-xs">
+                      {slice && slice.kg > 0 ? `${formatBandKg(slice.kg)} × ${formatBandKg(slice.rate)} = ${formatEgp(slice.amount)}` : '—'}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            )) : (
+              <TableRow>
+                <TableCell className="font-bold border bg-muted/30">بونص المصنعات لكل كجم (ج)</TableCell>
+                {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.procRate, 'processed_rate', r.procRateOverridden)}</TableCell>)}
+              </TableRow>
+            )}
             <TableRow className="bg-yellow-100 dark:bg-yellow-900/30">
               <TableCell className="font-bold border">بونص المصنعات (ج.م)</TableCell>
               {rows.map(r => <TableCell key={r.girl} className="text-center border">{renderBonusCell(r.girl, r.procBonus, 'processed_bonus', r.procOverridden)}</TableCell>)}
@@ -885,7 +720,8 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         </div>
         <p className="text-xs text-muted-foreground mt-3">
           * المبيعات تُحسب من الأوردرات المسلَّمة. الأسعار المستخدمة (لحوم/بالعظم/مصنعات) تتبع الأسعار في "جدول مبيعات المسوقات".<br />
-          * بونص اللحوم = (بونص التارجت × كجم اللحوم) + ({boneForLive} ج × كجم اللحوم بالعظم).
+          * بونص اللحوم = (بونص التارجت × كجم اللحوم) + ({boneForLive} ج × كجم اللحوم بالعظم).<br />
+          * من أكتوبر 2026: بونص المصنعات تراكمي بالشرائح (كل كيلو بسعر شريحته من أول كيلو بعد الحد الأدنى). الشهور الأقدم تبقى على تارجت القيمة. الشهور المعتمدة تُعرض من اللقطة المحفوظة.
         </p>
 
         <PrevMonthBonusDialog

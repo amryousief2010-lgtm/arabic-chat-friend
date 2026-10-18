@@ -43,6 +43,9 @@ import MonthlyTargetTable from '@/components/sales/MonthlyTargetTable';
 import ModeratorOrdersBreakdown from '@/components/sales/ModeratorOrdersBreakdown';
 import GirlsSalesQuantityTable from '@/components/sales/GirlsSalesQuantityTable';
 import ModeratorPayrollTable from '@/components/sales/ModeratorPayrollTable';
+import ProcessedKgBonusSettings from '@/components/sales/ProcessedKgBonusSettings';
+import { ModeratorKgCounterBoard } from '@/components/sales/ModeratorKgCounters';
+import { findModeratorByName } from '@/constants/moderators';
 import TargetKgPriceSettingsPanel from '@/components/sales/TargetKgPriceSettingsPanel';
 import ModeratorQuickAccessCards from '@/components/sales/ModeratorQuickAccessCards';
 import ModeratorsAggregateSummary from '@/components/sales/ModeratorsAggregateSummary';
@@ -83,7 +86,7 @@ interface SalesTarget {
 
 const SalesTargets = () => {
   const { toast } = useToast();
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
@@ -400,10 +403,17 @@ const SalesTargets = () => {
           </CardContent>
         </Card>
 
+        <ModeratorKgCounterBoard
+          month={selectedMonth}
+          year={selectedYear}
+          onlyPayrollKey={isModerator ? (findModeratorByName(profile?.full_name)?.payrollKey ?? '__none__') : undefined}
+          celebrate={isModerator}
+        />
         <TargetKgPriceSettingsPanel />
         <ModeratorQuickAccessCards month={selectedMonth} year={selectedYear} />
         {!isModerator && <ModeratorsAggregateSummary month={selectedMonth} year={selectedYear} />}
         {!isModerator && <MonthlyTargetTable />}
+        {!isModerator && <ProcessedKgBonusSettings />}
         <ModeratorOrdersBreakdown month={selectedMonth} year={selectedYear} />
         {!isModerator && <GirlsSalesQuantityTable month={selectedMonth} year={selectedYear} />}
         {!isModerator && <ModeratorPayrollTable month={selectedMonth} year={selectedYear} />}
