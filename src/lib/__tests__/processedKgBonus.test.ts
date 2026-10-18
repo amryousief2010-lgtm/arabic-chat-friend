@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { baseSalaryForKey } from "@/constants/moderators";
-import { allocateProcessedCarry } from "@/lib/moderatorPayrollMath";
+import { allocateProcessedCarry, buildPayrollBaseRows } from "@/lib/moderatorPayrollMath";
 import { classifyPayrollProduct } from "@/lib/payrollProductCategories";
 import {
   APPROVED_OCT_2026_SCHEDULE,
@@ -13,7 +13,9 @@ import {
   marginalBreakdown,
   marginalIncrement,
   marginalProcessedBonus,
+  rawMarginalBonus,
   salaryWithProcessedBonus,
+  toStoredBreakdown,
   scheduleForMonth,
   validateScheduleDraft,
 } from "@/lib/processedKgBonus";
@@ -90,17 +92,41 @@ describe("marginal processed bonus", () => {
     expect(tier && tier.bonus * 40).toBe(240);
   });
 
-  it("adds carried kilograms on top of the current bands only after the minimum is reached", () => {
+  it("counts carried kilograms toward the minimum and prices them at the current bands", () => {
     expect(marginalIncrement(857.5, 76.125, schedule)).toBe(609);
     expect(marginalIncrement(400, 100, schedule)).toBe(600);
-    expect(marginalIncrement(399, 50, schedule)).toBe(1894);
-    const blocked = allocateProcessedCarry(
+    // 399 + 50 = 449 يبلغ الحد. المرحّل يأخذ ما فوق 399 فقط، وكيلوات الشهر تأخذ 1,596.
+    expect(marginalIncrement(399, 50, schedule)).toBe(298);
+    expect(rawMarginalBonus(399, schedule)).toBe(1596);
+    expect(marginalIncrement(300, 50, schedule)).toBe(0);
+    const reached = allocateProcessedCarry(
       399,
       { scheme: "marginal", procTier: null, procRate: 0, minimumKg: 400 },
       schedule,
       [{ orderId: "a", procKg: 50, deliveredAt: "2026-10-02T00:00:00Z" }],
     );
-    expect(blocked[0].bonus).toBe(0);
+    expect(reached[0].bonus).toBe(298);
+    const blocked = allocateProcessedCarry(
+      300,
+      { scheme: "marginal", procTier: null, procRate: 0, minimumKg: 400 },
+      schedule,
+      [
+        { orderId: "a", procKg: 50, deliveredAt: "2026-10-02T00:00:00Z" },
+        { orderId: "b", procKg: 40, deliveredAt: "2026-10-03T00:00:00Z" },
+      ],
+    );
+    expect(blocked.map((item) => item.bonus)).toEqual([0, 0]);
+    const split = allocateProcessedCarry(
+      350,
+      { scheme: "marginal", procTier: null, procRate: 0, minimumKg: 400 },
+      schedule,
+      [
+        { orderId: "late", procKg: 30, deliveredAt: "2026-10-05T00:00:00Z" },
+        { orderId: "early", procKg: 30, deliveredAt: "2026-10-02T00:00:00Z" },
+      ],
+    );
+    // early: 350→380 × 4 = 120، late: 380→400 × 4 + 400→410 × 6 = 140
+    expect(split.map((item) => [item.orderId, item.bonus])).toEqual([["early", 120], ["late", 140]]);
     const added = allocateProcessedCarry(
       857.5,
       { scheme: "marginal", procTier: { sales: 0, bonus: 8, label: "750–1000" }, procRate: 8, minimumKg: 400 },
@@ -108,6 +134,43 @@ describe("marginal processed bonus", () => {
       [{ orderId: "a", procKg: 76.125, deliveredAt: "2026-10-02T00:00:00Z" }],
     );
     expect(added[0].bonus).toBe(609);
+  });
+
+  it("qualifies the payroll row on month + carried kilograms", () => {
+    const build = (carried: number) => buildPayrollBaseRows({
+      girls: ["نورا"],
+      qty: { meat: {}, bone: {}, processed: { "نورا": 350 } },
+      prices: { meat_price: 390, bone_meat_price: 350, processed_price: 250 },
+      processedTiers: [],
+      meatTiers: [],
+      chickQtyByGirl: {},
+      chickBonusRate: 0,
+      bonePerKg: 3.5,
+      baseDefault: 2500,
+      overrides: [],
+      year: 2026,
+      month: 10,
+      schedules: [schedule],
+      carriedProcessedKg: { "نورا": carried },
+    })[0];
+    const alone = build(0);
+    expect(alone.qualified).toBe(false);
+    expect(alone.procBonus).toBe(0);
+    const withCarry = build(60);
+    expect(withCarry.qualified).toBe(true);
+    expect(withCarry.carriedProcKg).toBe(60);
+    expect(withCarry.countedProcKg).toBe(410);
+    expect(withCarry.procBonus).toBe(1400);
+    expect(withCarry.activeBandLabel).toBe("400–750");
+    expect(withCarry.storedBreakdown?.carried_kg).toBe(60);
+    expect(withCarry.storedBreakdown?.counted_kg).toBe(410);
+    expect(withCarry.storedBreakdown?.qualified).toBe(true);
+    // كيلوات الشهر 1,400 + المرحّل 260 = حافز 410 كجم كاملة
+    const carry = allocateProcessedCarry(350, withCarry, schedule, [
+      { orderId: "a", procKg: 60, deliveredAt: "2026-10-02T00:00:00Z" },
+    ]);
+    expect(withCarry.procBonus + carry[0].bonus).toBe(marginalProcessedBonus(410, schedule));
+    expect(toStoredBreakdown(350, schedule).qualified).toBe(false);
   });
 
   it("rejects a broken band draft and accepts the approved table", () => {
@@ -118,56 +181,79 @@ describe("marginal processed bonus", () => {
 });
 
 describe("October 2026 counter for the real month-to-date figures", () => {
-  it("matches Aya on 18 Oct with her own 3,000 base", () => {
+  it("matches Aya on 18 Oct with her own 3,000 base and carried September kilograms", () => {
     const view = buildKgCounterView({
       name: "آية",
       kg: 857.5,
+      carriedKg: 114.5,
       baseSalary: 3000,
-      carriedBonus: 609,
       now: OCT_18,
       schedule,
     });
+    expect(view.kg).toBe(972);
+    expect(view.ownKg).toBe(857.5);
+    expect(view.carriedKg).toBe(114.5);
     expect(view.bandLabel).toBe("750–1,000");
-    expect(view.kgToNext).toBe(142.5);
-    expect(view.processedBonus).toBe(4560);
-    expect(view.salarySoFar).toBe(8169);
+    expect(view.kgToNext).toBe(28);
+    expect(view.processedBonus).toBe(5476);
+    expect(view.carriedProcessedBonus).toBe(916);
+    expect(view.salarySoFar).toBe(8476);
     expect(view.daysPhrase).toBe("باقي 13 يومًا على نهاية الشهر");
+    // الوتيرة من كيلوات الشهر فقط، والمرحّل يُضاف للمتوقع كرصيد ثابت.
     expect(view.avgPerDay).toBeCloseTo(47.6389, 3);
-    expect(Math.round(view.projectedKg)).toBe(1477);
+    expect(Math.round(view.projectedKg)).toBe(1591);
     expect(view.message.startsWith("يا آية")).toBe(true);
     expect(view.qualified).toBe(true);
   });
 
-  it("matches Noura and Manal with the shared 2,500 base", () => {
+  it("matches Noura and Hajar with the shared 2,500 base", () => {
     const noura = buildKgCounterView({
       name: "نورا",
       kg: 620.5,
+      carriedKg: 120,
       baseSalary: 2500,
-      carriedBonus: 565,
       now: OCT_18,
       schedule,
     });
     expect(noura.bandLabel).toBe("400–750");
-    expect(noura.kgToNext).toBe(129.5);
-    expect(noura.processedBonus).toBe(2923);
-    expect(noura.salarySoFar).toBe(5988);
+    expect(noura.kgToNext).toBe(9.5);
+    expect(noura.processedBonus).toBe(3643);
+    expect(noura.carriedProcessedBonus).toBe(720);
+    expect(noura.salarySoFar).toBe(6143);
     expect(Math.round(noura.avgPerDay * 10) / 10).toBe(34.5);
-    expect(Math.round(noura.projectedKg)).toBe(1069);
+    expect(Math.round(noura.projectedKg)).toBe(1189);
 
-    const manal = buildKgCounterView({
+    const hajar = buildKgCounterView({
       name: "هاجر",
       kg: 452.5,
+      carriedKg: 82,
       baseSalary: baseSalaryForKey("منال"),
-      carriedBonus: 347,
       now: OCT_18,
       schedule,
     });
-    expect(manal.bandLabel).toBe("400–750");
-    expect(manal.kgToNext).toBe(297.5);
-    expect(manal.processedBonus).toBe(1915);
-    expect(manal.salarySoFar).toBe(4762);
-    expect(Math.round(manal.avgPerDay * 10) / 10).toBe(25.1);
-    expect(Math.round(manal.projectedKg)).toBe(779);
+    expect(hajar.bandLabel).toBe("400–750");
+    expect(hajar.kgToNext).toBe(215.5);
+    expect(hajar.processedBonus).toBe(2407);
+    expect(hajar.salarySoFar).toBe(4907);
+    expect(Math.round(hajar.avgPerDay * 10) / 10).toBe(25.1);
+    expect(Math.round(hajar.projectedKg)).toBe(861);
+  });
+
+  it("lets carried kilograms lift a moderator over the 400 kg minimum", () => {
+    const view = buildKgCounterView({ name: "س", kg: 350, carriedKg: 60, baseSalary: 2500, now: OCT_18, schedule });
+    expect(view.qualified).toBe(true);
+    expect(view.kg).toBe(410);
+    expect(view.processedBonus).toBe(1660);
+    expect(view.carriedProcessedBonus).toBe(260);
+    expect(view.salarySoFar).toBe(4160);
+    const short = buildKgCounterView({ name: "س", kg: 300, carriedKg: 60, baseSalary: 2500, now: OCT_18, schedule });
+    expect(short.qualified).toBe(false);
+    expect(short.kgToMinimum).toBe(40);
+    expect(short.processedBonus).toBe(0);
+    const overridden = buildKgCounterView({
+      name: "س", kg: 857.5, carriedKg: 114.5, baseSalary: 3000, now: OCT_18, schedule, processedBonusOverride: 4000,
+    });
+    expect(overridden.processedBonus).toBe(4916);
   });
 
   it("highlights the current band on the gauge", () => {

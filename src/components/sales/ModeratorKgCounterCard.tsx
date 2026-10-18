@@ -28,7 +28,10 @@ const markerPoint = (deg: number) => {
 
 export interface ModeratorKgCounterCardProps {
   name: string;
+  /** كيلوات الشهر نفسه. */
   kg: number;
+  /** كيلوات مرحّلة من شهر معتمد، تُضاف للعداد وتدخل في الحد الأدنى والشرائح. */
+  carriedKg?: number;
   baseSalary: number;
   carriedBonus?: number;
   meatBonus?: number;
@@ -45,6 +48,7 @@ export interface ModeratorKgCounterCardProps {
 const ModeratorKgCounterCard = ({
   name,
   kg,
+  carriedKg = 0,
   baseSalary,
   carriedBonus = 0,
   meatBonus = 0,
@@ -60,6 +64,7 @@ const ModeratorKgCounterCard = ({
   const view = buildKgCounterView({
     name,
     kg,
+    carriedKg,
     baseSalary,
     carriedBonus,
     meatBonus,
@@ -174,6 +179,12 @@ const ModeratorKgCounterCard = ({
           </svg>
         </div>
 
+        {view.carriedKg > 0 && (
+          <p className="-mt-2 text-center text-xs text-[#F6E7B2]">
+            منها {formatKg(view.carriedKg)} كجم مرحّلة من الشهر السابق، محسوبة في الحد الأدنى والشرائح
+          </p>
+        )}
+
         <div className="text-center">
           <p className="text-sm text-[#F6E7B2]">
             {view.qualified ? `الشريحة الحالية ${view.bandLabel} · ${formatKg(view.bandRate)} ج/كجم` : `قبل الحد الأدنى ${formatKg(view.minimumKg, true)} كجم`}
@@ -235,6 +246,7 @@ const ModeratorKgCounterCard = ({
           </div>
           <p className="text-[11px] leading-5 text-white/75">
             أساسي {formatEgp(baseSalary)} + مصنّعات {formatEgp(view.processedBonus)}
+            {view.carriedProcessedBonus ? ` (منها مرحّل ${formatEgp(view.carriedProcessedBonus)})` : ''}
             {carriedBonus ? ` + مرحّل ${formatEgp(carriedBonus)}` : ''}
             {meatBonus ? ` + لحوم ${formatEgp(meatBonus)}` : ''}
             {boneBonus ? ` + عظم ${formatEgp(boneBonus)}` : ''}

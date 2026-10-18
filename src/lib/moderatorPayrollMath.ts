@@ -5,8 +5,8 @@ import {
   type MarginalSchedule,
   type StoredBandBreakdown,
   findSalesTier,
-  marginalIncrement,
   marginalProcessedBonus,
+  rawMarginalBonus,
   activeBandIndex,
   meetsProcessedMinimum,
   scheduleForMonth,
@@ -36,6 +36,10 @@ export interface PayrollBaseRow {
   meatKg: number;
   boneKg: number;
   procKg: number;
+  /** كيلوات مصنّعات مرحّلة من شهر معتمد، محسوبة في الحد الأدنى والشرائح. */
+  carriedProcKg: number;
+  /** procKg + carriedProcKg. */
+  countedProcKg: number;
   chickCount: number;
   meatSales: number;
   procSales: number;
@@ -79,12 +83,16 @@ export const buildPayrollBaseRows = (args: {
   year: number;
   month: number;
   schedules: MarginalSchedule[];
+  /** كيلوات المصنّعات المرحّلة لكل مسوقة (أوردرات شهر سابق سُلّمت بعد اعتماد قبضه). */
+  carriedProcessedKg?: Record<string, number>;
 }): PayrollBaseRow[] => {
   const schedule = scheduleForMonth(args.schedules, args.year, args.month);
   return args.girls.map((girl) => {
     const meatKg = args.qty.meat[girl] || 0;
     const boneKg = args.qty.bone[girl] || 0;
     const procKg = args.qty.processed[girl] || 0;
+    const carriedProcKg = schedule ? Math.max(0, args.carriedProcessedKg?.[girl] || 0) : 0;
+    const countedProcKg = procKg + carriedProcKg;
     const chickCount = args.chickQtyByGirl[girl] || 0;
     const meatSales = meatKg * args.prices.meat_price + boneKg * args.prices.bone_meat_price;
     const procSales = procKg * args.prices.processed_price;
@@ -102,7 +110,8 @@ export const buildPayrollBaseRows = (args: {
     const base = baseSalaryForKey(girl, args.baseDefault);
 
     if (schedule) {
-      const storedBreakdown = toStoredBreakdown(procKg, schedule);
+      // المرحّل يدخل في الحد الأدنى والشرائح، لكن مبلغه يُصرف في صف الأوردرات المرحّلة.
+      const storedBreakdown = toStoredBreakdown(procKg, schedule, carriedProcKg);
       const bandBreakdown: BandSlice[] = storedBreakdown.bands.map((band) => ({
         fromKg: band.from_kg,
         toKg: band.to_kg,
@@ -111,8 +120,8 @@ export const buildPayrollBaseRows = (args: {
         amount: band.amount,
       }));
       const calculatedProcBonus = storedBreakdown.calculated_bonus;
-      const qualified = meetsProcessedMinimum(procKg, schedule);
-      const active = bandBreakdown[activeBandIndex(procKg, schedule.bands)] ?? bandBreakdown[0];
+      const qualified = meetsProcessedMinimum(countedProcKg, schedule);
+      const active = bandBreakdown[activeBandIndex(countedProcKg, schedule.bands)] ?? bandBreakdown[0];
       const activeBandLabel = !qualified || !active
         ? null
         : active.toKg == null
@@ -129,6 +138,8 @@ export const buildPayrollBaseRows = (args: {
         meatKg,
         boneKg,
         procKg,
+        carriedProcKg,
+        countedProcKg,
         chickCount,
         meatSales,
         procSales,
@@ -170,6 +181,8 @@ export const buildPayrollBaseRows = (args: {
       meatKg,
       boneKg,
       procKg,
+      carriedProcKg,
+      countedProcKg,
       chickCount,
       meatSales,
       procSales,
@@ -207,7 +220,11 @@ export interface CarrySliceInput {
   deliveredAt: string;
 }
 
-/** بونص المصنّعات المرحّل. قبل أكتوبر: سعر التارجت الواحد. من أكتوبر: تكملة الشرائح فوق كميات الشهر. */
+/**
+ * بونص المصنّعات المرحّل. قبل أكتوبر: سعر التارجت الواحد.
+ * من أكتوبر (قرار 19 أكتوبر 2026): المرحّل جزء من كيلوات الشهر، يدخل في الحد الأدنى،
+ * ويُسعَّر بشرائح الشهر فوق كيلوات الشهر نفسه.
+ */
 export const allocateProcessedCarry = (
   ownKg: number,
   row: Pick<PayrollBaseRow, 'scheme' | 'procTier' | 'procRate' | 'minimumKg'>,
@@ -228,16 +245,17 @@ export const allocateProcessedCarry = (
       tierLabel,
     }));
   }
-  const qualified = ownKg >= (row.minimumKg ?? schedule.minimumKg);
+  const carriedTotal = ordered.reduce((sum, item) => sum + Math.max(0, item.procKg), 0);
+  const qualified = ownKg + carriedTotal >= (row.minimumKg ?? schedule.minimumKg);
   let cursor = ownKg;
   return ordered.map((item) => {
     if (!qualified || item.procKg <= 0) {
       return { orderId: item.orderId, bonus: 0, rate: 0, tierLabel: 'لم يبلغ الحد الأدنى' };
     }
-    const bonus = marginalIncrement(cursor, item.procKg, schedule);
+    const bonus = rawMarginalBonus(cursor + item.procKg, schedule) - rawMarginalBonus(cursor, schedule);
     cursor += item.procKg;
     const rate = item.procKg ? bonus / item.procKg : 0;
-    return { orderId: item.orderId, bonus, rate, tierLabel: 'شرائح تراكميّة' };
+    return { orderId: item.orderId, bonus, rate, tierLabel: 'شرائح الشهر الحالي' };
   });
 };
 
