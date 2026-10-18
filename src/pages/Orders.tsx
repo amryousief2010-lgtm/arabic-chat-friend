@@ -63,6 +63,7 @@ import DiscrepancyBanner from "@/components/orders/DiscrepancyBanner";
 import QuickDeliveryDialog from "@/components/orders/QuickDeliveryDialog";
 import ReassignOwnerDialog from "@/components/orders/ReassignOwnerDialog";
 import { MODERATORS, FILTER_MARKETERS, EXTRA_MARKETERS, findModeratorByName, isOrderForModerator, matchesModeratorGroup } from "@/constants/moderators";
+import { ModeratorOwnKgCounter } from "@/components/sales/ModeratorKgCounters";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -2199,6 +2200,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   if (loading && orders.length === 0) {
     return (
       <DashboardLayout>
+        <ModeratorOwnKgCounter />
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </div>
@@ -2208,6 +2210,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
 
   return (
     <DashboardLayout>
+      <ModeratorOwnKgCounter />
       <DiscrepancyBanner />
       {isMobile ? (
         <div className="mb-3">
