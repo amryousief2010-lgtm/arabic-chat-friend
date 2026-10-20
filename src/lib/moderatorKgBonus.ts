@@ -268,3 +268,146 @@ export const buildModeratorBonusView = (input: {
     milestoneIndex: reached ? BONUS_MILESTONES.findIndex((item) => item.kg === reached.kg) + 1 : 0,
   };
 };
+
+export interface BonusLane {
+  id: 'processed' | 'meat' | 'bone' | 'chicks';
+  title: string;
+  quantity: number;
+  unit: string;
+  bonus: number;
+  /** من 0 إلى 1. 1 لما مفيش هدف جاي أو الهدف خلّص. */
+  progress: number;
+  /** فاضي لما النوع ده مالوش مستوى جاي. من غير سعر الكيلو. */
+  nextHint: string | null;
+}
+
+export interface ModeratorBonusBoard {
+  processed: ModeratorBonusView;
+  lanes: BonusLane[];
+  totalBonus: number;
+  salary: number;
+  baseSalary: number;
+  message: string;
+  daysPhrase: string;
+  milestoneIndex: number;
+}
+
+const clampMoney = (value: number | undefined) => (Number.isFinite(value) && (value as number) > 0 ? (value as number) : 0);
+
+const meatLane = (
+  kg: number,
+  sales: number,
+  bonus: number,
+  tiers: Array<{ sales: number; label: string }>,
+): BonusLane => {
+  const ordered = [...tiers]
+    .filter((tier) => Number.isFinite(tier.sales) && tier.sales > 0)
+    .sort((a, b) => a.sales - b.sales);
+  const next = ordered.find((tier) => sales < tier.sales) ?? null;
+  const previous = [...ordered].reverse().find((tier) => sales >= tier.sales) ?? null;
+  const from = previous?.sales ?? 0;
+  const progress = next
+    ? Math.max(0, Math.min(1, (sales - from) / Math.max(1, next.sales - from)))
+    : (ordered.length > 0 ? 1 : 0);
+  const nextHint = next
+    ? `فاضلِك ${formatBonusEgp(next.sales - sales)} جنيه مبيعات على المستوى الجاي`
+    : ordered.length > 0
+      ? 'عدّيتي آخر مستوى'
+      : null;
+  return { id: 'meat', title: 'لحمة', quantity: kg, unit: 'كجم', bonus, progress, nextHint };
+};
+
+const boneLane = (
+  kg: number,
+  bonus: number,
+  sales: number,
+  tiers: Array<{ sales: number; label: string }>,
+): BonusLane => {
+  const first = [...tiers]
+    .filter((tier) => Number.isFinite(tier.sales) && tier.sales > 0)
+    .sort((a, b) => a.sales - b.sales)[0];
+  const unlocked = first ? sales >= first.sales : bonus > 0;
+  const progress = !first
+    ? (bonus > 0 ? 1 : 0)
+    : unlocked
+      ? 1
+      : Math.max(0, Math.min(1, sales / first.sales));
+  return {
+    id: 'bone',
+    title: 'عضم',
+    quantity: kg,
+    unit: 'كجم',
+    bonus,
+    progress,
+    nextHint: unlocked ? 'البونص مفتوح' : 'البونص بيفتح مع أول مستوى للحمة',
+  };
+};
+
+/** بونص الشاشة = مصنّعات + لحوم + عظم + كتاكيت. المعادلة دي مصدر الرقمين في الكارت والقبض. */
+export const buildModeratorBonusBoard = (input: {
+  name: string;
+  kg: number;
+  carriedKg?: number;
+  baseSalary: number;
+  bonusOverride?: number | null;
+  now?: Date;
+  frozen?: boolean;
+  meatKg?: number;
+  meatSales?: number;
+  meatBonus?: number;
+  meatTiers?: Array<{ sales: number; label: string }>;
+  boneKg?: number;
+  boneBonus?: number;
+  chickCount?: number;
+  chickBonus?: number;
+  /** لحوم وعظم مرحّلين، بنفس حساب القبض، من غير ما يتخلطوا بكمية الشهر. */
+  carriedSideBonus?: number;
+}): ModeratorBonusBoard => {
+  const processed = buildModeratorBonusView(input);
+  const tiers = input.meatTiers ?? [];
+  const meatKg = clampKg(input.meatKg ?? 0);
+  const meatSales = clampMoney(input.meatSales);
+  const meatBonus = clampMoney(input.meatBonus);
+  const boneKg = clampKg(input.boneKg ?? 0);
+  const boneBonus = clampMoney(input.boneBonus);
+  const chickCount = clampKg(input.chickCount ?? 0);
+  const chickBonus = clampMoney(input.chickBonus);
+  const carriedSideBonus = clampMoney(input.carriedSideBonus);
+  const processedLane: BonusLane = {
+    id: 'processed',
+    title: 'مصنّعات',
+    quantity: processed.kg,
+    unit: 'كجم',
+    bonus: processed.bonus,
+    progress: processed.segmentProgress,
+    nextHint: processed.nextMilestoneKg == null
+      ? 'عدّيتي آخر محطة'
+      : `فاضلِك ${formatBonusKg(processed.kgRemaining ?? 0)} كجم على ${processed.nextGoal}`,
+  };
+  const chicks: BonusLane = {
+    id: 'chicks',
+    title: 'كتاكيت',
+    quantity: chickCount,
+    unit: chickCount === 1 ? 'كتكوت' : 'كتاكيت',
+    bonus: chickBonus,
+    progress: chickCount > 0 ? 1 : 0,
+    nextHint: null,
+  };
+  const lanes = [
+    processedLane,
+    meatLane(meatKg, meatSales, meatBonus, tiers),
+    boneLane(boneKg, boneBonus, meatSales, tiers),
+    chicks,
+  ];
+  const totalBonus = processed.bonus + meatBonus + boneBonus + chickBonus + carriedSideBonus;
+  return {
+    processed,
+    lanes,
+    totalBonus,
+    salary: processed.baseSalary + totalBonus,
+    baseSalary: processed.baseSalary,
+    message: processed.message,
+    daysPhrase: processed.daysPhrase,
+    milestoneIndex: processed.milestoneIndex,
+  };
+};

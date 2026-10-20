@@ -58,7 +58,24 @@ const MonthlyTargetTable = () => {
     },
   });
 
-  // حفظ قيمة واحدة (الأساسي): تحديث الصف لو موجود، وإلا إنشاؤه.
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, field, value }: { id: string; field: "sales_amount" | "bonus_amount"; value: number }) => {
+      const payload: any = { [field]: value };
+      const { error } = await supabase
+        .from("target_bonus_settings")
+        .update(payload)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["target_bonus_settings"] });
+    },
+    onError: (e: any) => {
+      toast({ title: "تعذر الحفظ", description: e.message, variant: "destructive" });
+    },
+  });
+
+  // حفظ قيمة واحدة (الأساسي / بونص اللحوم بالعظم لكل كجم): تحديث الصف لو موجود، وإلا إنشاؤه.
   const singleValueMutation = useMutation({
     mutationFn: async ({ category, value }: { category: string; value: number }) => {
       const existing = rows.find((r) => r.category === category && r.tier === 1);
@@ -128,12 +145,32 @@ const MonthlyTargetTable = () => {
     return map;
   }, [rows]);
 
+  const renderCell = (row: BonusRow | undefined, field: "sales_amount" | "bonus_amount") => {
+    if (!row) return <span>-</span>;
+    if (canEdit) {
+      return (
+        <Input
+          type="number"
+          defaultValue={row[field]}
+          className="h-8 text-center w-full px-1 text-xs"
+          onBlur={(e) => {
+            const v = Number(e.target.value);
+            if (v !== Number(row[field])) {
+              updateMutation.mutate({ id: row.id, field, value: v });
+            }
+          }}
+        />
+      );
+    }
+    return <span className={field === "bonus_amount" ? "font-semibold text-primary" : ""}>{fmt(row[field])}</span>;
+  };
+
   return (
     <Card className="glass-card mb-6">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 flex-wrap text-sm md:text-base">
           <Target className="w-5 h-5 text-primary" />
-          المرتب الأساسي
+          جدول التارجت الشهري لموديريتور نعام العاصمة
           {canEdit && (
             <span className="text-xs font-normal text-muted-foreground mr-2">
               (اضغط على الخانة للتعديل)
@@ -143,61 +180,68 @@ const MonthlyTargetTable = () => {
       </CardHeader>
       <CardContent className="p-2 md:p-4">
         <Table className="border w-full text-xs md:text-sm">
+          <TableHeader>
+            <TableRow className="bg-muted/50">
+              <TableHead rowSpan={2} className="text-center font-bold border align-middle px-1 md:px-2">
+                التارجت
+              </TableHead>
+              {categories.map((cat) => (
+                <TableHead key={cat} colSpan={2} className="text-center font-bold border text-primary px-1 md:px-2">
+                  {cat}
+                </TableHead>
+              ))}
+            </TableRow>
+            <TableRow className="bg-muted/30">
+              {categories.map((cat) => (
+                <Fragment key={cat}>
+                  <TableHead key={`${cat}-s`} className="text-center border text-[10px] md:text-xs px-1">
+                    قيمة المبيعات
+                  </TableHead>
+                  <TableHead key={`${cat}-b`} className="text-center border text-[10px] md:text-xs px-1">
+                    البونص
+                  </TableHead>
+                </Fragment>
+              ))}
+            </TableRow>
+          </TableHeader>
           <TableBody>
+            {tiers.map((t, i) => (
+              <TableRow key={t}>
+                <TableCell className="text-center font-bold border bg-muted/30 whitespace-nowrap px-1 md:px-2">
+                  {t}
+                </TableCell>
+                {categories.map((cat) => {
+                  const row = grouped[cat].find((r) => r.tier === i + 1);
+                  return (
+                    <Fragment key={`${cat}-${i}`}>
+                      <TableCell className="text-center border p-1">{renderCell(row, "sales_amount")}</TableCell>
+                      <TableCell className="text-center border p-1">{renderCell(row, "bonus_amount")}</TableCell>
+                    </Fragment>
+                  );
+                })}
+              </TableRow>
+            ))}
             <TableRow>
               <TableCell className="text-center font-bold border bg-muted/30 whitespace-nowrap px-1 md:px-2">
-                أساسي افتراضي
+                أساسي
               </TableCell>
-              <TableCell className="text-center border font-semibold p-1">
+              <TableCell colSpan={categories.length * 2} className="text-center border font-semibold p-1">
                 {renderSingleValue(BASE_CATEGORY, baseSalary, "ج")}
+              </TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell className="text-center font-bold border bg-muted/30 whitespace-nowrap px-1 md:px-2">
+                اللحوم بالعظم
+              </TableCell>
+              <TableCell colSpan={categories.length * 2} className="text-center border font-semibold p-1">
+                {renderSingleValue(BONE_RATE_CATEGORY, boneRate, "ج/كجم")}
               </TableCell>
             </TableRow>
           </TableBody>
         </Table>
         <p className="text-[10px] md:text-xs text-muted-foreground mt-3">
-          الأساسي ده لكل مسوقة ما عدا اللي لها أساسي خاص محفوظ، زي آية ٣٬٠٠٠. التعديل يسري على الشهور المفتوحة فقط.
+          * "أساسي" يمثل المرتب الأساسي الثابت لكل مسوقة ما عدا من لها أساسي خاص مثل آية 3,000. بونص اللحوم يُحتسب عند بلوغ قيمة المبيعات، وبونص اللحوم بالعظم {fmt(boneRate)} ج لكل كجم. أعمدة المصنعات هنا للشهور قبل أكتوبر 2026 فقط. بونص المصنّعات الحالي معادلة مستقلة ومش بيقرأ شرائح ٤ و٦ و٨ و١٠ و١٢ و١٤. التعديل يسري على الشهور غير المعتمدة فقط.
         </p>
-        <details className="mt-3 rounded-xl border bg-muted/30 p-3">
-          <summary className="cursor-pointer text-xs font-bold">أرشيف تارجت النظام السابق — مش بيتطبّق</summary>
-          <p className="mt-2 text-[10px] text-muted-foreground">
-            الأرقام دي محفوظة للمراجعة. القبض المفتوح مش بيقراها، ومفيش تعديل من هنا عشان محدّش يفتكر إنها لسه شغالة.
-          </p>
-          <Table className="mt-2 border w-full text-xs">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="border text-center">التارجت</TableHead>
-                {categories.map((cat) => (
-                  <Fragment key={cat}>
-                    <TableHead className="border text-center">{cat} قيمة</TableHead>
-                    <TableHead className="border text-center">{cat} بونص قديم</TableHead>
-                  </Fragment>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tiers.map((tier, index) => (
-                <TableRow key={tier}>
-                  <TableCell className="border text-center">{tier}</TableCell>
-                  {categories.map((cat) => {
-                    const row = grouped[cat].find((item) => item.tier === index + 1);
-                    return (
-                      <Fragment key={`${cat}-${index}`}>
-                        <TableCell className="border text-center">{row ? fmt(row.sales_amount) : "—"}</TableCell>
-                        <TableCell className="border text-center">{row ? fmt(row.bonus_amount) : "—"}</TableCell>
-                      </Fragment>
-                    );
-                  })}
-                </TableRow>
-              ))}
-              <TableRow>
-                <TableCell className="border text-center">لحوم بالعظم</TableCell>
-                <TableCell className="border text-center" colSpan={categories.length * 2}>
-                  {fmt(boneRate)} ج/كجم — متوقف
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </details>
       </CardContent>
     </Card>
   );

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import companyLogo from '@/assets/company-logo.jpg';
 import {
   BONUS_MILESTONES,
-  buildModeratorBonusView,
+  type BonusLane,
+  buildModeratorBonusBoard,
   formatBonusEgp,
   formatBonusKg,
 } from '@/lib/moderatorKgBonus';
@@ -11,21 +12,27 @@ const PURPLE = '#A4288A';
 const ORANGE = '#F37346';
 const INK = '#3A1238';
 
-const RING = 78;
+const RING = 42;
 const CIRC = 2 * Math.PI * RING;
 
 export interface ModeratorKgCounterCardProps {
   name: string;
-  /** كيلوات الشهر نفسه. */
+  /** كيلوات مصنّعات الشهر نفسه. */
   kg: number;
-  /** كيلوات مرحّلة من شهر معتمد، داخلة في نفس البونص. */
+  /** كيلوات مصنّعات مرحّلة من شهر معتمد. */
   carriedKg?: number;
   baseSalary: number;
-  /** البونص المستحق لو الإدارة عدّلته. */
+  /** بونص المصنّعات لو الإدارة عدّلته، شامل المرحّل لو اتبعت. */
   bonusOverride?: number | null;
-  /** @deprecated اللحوم والعظم مش داخلين في النظام الجديد. */
+  meatKg?: number;
+  meatSales?: number;
   meatBonus?: number;
+  meatTiers?: Array<{ sales: number; label: string }>;
+  boneKg?: number;
   boneBonus?: number;
+  chickCount?: number;
+  chickBonus?: number;
+  carriedSideBonus?: number;
   processedBonusOverride?: number | null;
   periodLabel?: string;
   now?: Date;
@@ -35,12 +42,65 @@ export interface ModeratorKgCounterCardProps {
   frozen?: boolean;
 }
 
+const quantityText = (lane: BonusLane) => {
+  const digits = lane.id === 'chicks' ? formatBonusEgp(lane.quantity) : formatBonusKg(lane.quantity);
+  return `${digits} ${lane.unit}`;
+};
+
+const LaneGauge = ({ lane, drawn }: { lane: BonusLane; drawn: boolean }) => {
+  const progress = drawn ? lane.progress : 0;
+  const offset = CIRC * (1 - progress);
+  return (
+    <section
+      aria-label={`${lane.title}: ${quantityText(lane)}، بونص ${formatBonusEgp(lane.bonus)}`}
+      style={{ background: '#FBF7FA', borderRadius: 13, padding: 13 }}
+    >
+      <div className="flex items-center justify-between" style={{ gap: 8 }}>
+        <h3 className="m-0 font-extrabold" style={{ color: PURPLE, fontSize: 16 }}>{lane.title}</h3>
+        <span className="font-bold tabular-nums" style={{ color: ORANGE, fontSize: 13 }}>{formatBonusEgp(lane.bonus)} ج</span>
+      </div>
+      <svg viewBox="0 0 120 120" className="mx-auto h-auto w-full" style={{ maxWidth: 128 }} role="img">
+        <circle cx="60" cy="60" r={RING} fill="none" stroke="#F3D5E8" strokeWidth="9" />
+        <circle
+          cx="60"
+          cy="60"
+          r={RING}
+          fill="none"
+          stroke={ORANGE}
+          strokeWidth="9"
+          strokeLinecap="round"
+          strokeDasharray={CIRC}
+          strokeDashoffset={offset}
+          transform="rotate(-90 60 60)"
+          style={{ transition: 'stroke-dashoffset 900ms cubic-bezier(.22,.8,.24,1)' }}
+        />
+        <text x="60" y="56" textAnchor="middle" fill={INK} fontSize="16" fontWeight="800">
+          {lane.id === 'chicks' ? formatBonusEgp(lane.quantity) : formatBonusKg(lane.quantity)}
+        </text>
+        <text x="60" y="74" textAnchor="middle" fill={PURPLE} fontSize="11" fontWeight="700">{lane.unit}</text>
+      </svg>
+      <p className="m-0 text-center" style={{ fontSize: 13, lineHeight: 1.45, minHeight: 38 }}>
+        {lane.nextHint ?? (lane.id === 'chicks' ? 'كل كتكوت بيزوّد البونص' : 'مفيش مستوى جاي')}
+      </p>
+    </section>
+  );
+};
+
 const ModeratorKgCounterCard = ({
   name,
   kg,
   carriedKg = 0,
   baseSalary,
   bonusOverride = null,
+  meatKg = 0,
+  meatSales = 0,
+  meatBonus = 0,
+  meatTiers = [],
+  boneKg = 0,
+  boneBonus = 0,
+  chickCount = 0,
+  chickBonus = 0,
+  carriedSideBonus = 0,
   processedBonusOverride = null,
   periodLabel,
   now,
@@ -49,15 +109,25 @@ const ModeratorKgCounterCard = ({
   forceCelebration = false,
   frozen = false,
 }: ModeratorKgCounterCardProps) => {
-  const view = buildModeratorBonusView({
+  const board = buildModeratorBonusBoard({
     name,
     kg,
     carriedKg,
     baseSalary,
     bonusOverride: bonusOverride ?? processedBonusOverride,
+    meatKg,
+    meatSales,
+    meatBonus,
+    meatTiers,
+    boneKg,
+    boneBonus,
+    chickCount,
+    chickBonus,
+    carriedSideBonus,
     now,
     frozen,
   });
+  const view = board.processed;
   const [burst, setBurst] = useState(forceCelebration);
   const [drawn, setDrawn] = useState(false);
 
@@ -70,21 +140,15 @@ const ModeratorKgCounterCard = ({
     if (!celebrate || forceCelebration) return;
     const key = `coceg-rising-milestone:${storageKey || name}`;
     const previous = Number(window.localStorage.getItem(key));
-    if (Number.isFinite(previous) && view.milestoneIndex > previous) setBurst(true);
-    window.localStorage.setItem(key, String(view.milestoneIndex));
-  }, [celebrate, forceCelebration, name, storageKey, view.milestoneIndex]);
+    if (Number.isFinite(previous) && board.milestoneIndex > previous) setBurst(true);
+    window.localStorage.setItem(key, String(board.milestoneIndex));
+  }, [board.milestoneIndex, celebrate, forceCelebration, name, storageKey]);
 
   useEffect(() => {
     if (!burst) return;
     const timer = window.setTimeout(() => setBurst(false), 4200);
     return () => window.clearTimeout(timer);
   }, [burst]);
-
-  const progress = drawn ? view.segmentProgress : 0;
-  const dashOffset = CIRC * (1 - progress);
-  const goalLine = view.nextMilestoneKg == null
-    ? 'عدّيتي آخر محطة'
-    : `فاضلِك ${formatBonusKg(view.kgRemaining ?? 0)} كجم على ${view.nextGoal}`;
 
   return (
     <article
@@ -141,31 +205,13 @@ const ModeratorKgCounterCard = ({
       <style>{`@keyframes bonus-confetti { from { transform: translateY(0) rotate(0deg); opacity: 1 } to { transform: translateY(120px) rotate(160deg); opacity: 0 } } @media (prefers-reduced-motion: reduce) { span { animation: none !important } }`}</style>
 
       <div style={{ padding: 21, display: 'flex', flexDirection: 'column', gap: 21 }}>
-        <div className="mx-auto" style={{ width: 'min(100%, 262px)' }}>
-          <svg viewBox="0 0 200 200" className="h-auto w-full" role="img" aria-label={`${formatBonusKg(view.kg)} كيلوجرام`}>
-            <circle cx="100" cy="100" r={RING} fill="none" stroke="#F3D5E8" strokeWidth="14" />
-            <circle
-              cx="100"
-              cy="100"
-              r={RING}
-              fill="none"
-              stroke={ORANGE}
-              strokeWidth="14"
-              strokeLinecap="round"
-              strokeDasharray={CIRC}
-              strokeDashoffset={dashOffset}
-              transform="rotate(-90 100 100)"
-              style={{ transition: 'stroke-dashoffset 900ms cubic-bezier(.22,.8,.24,1)' }}
-            />
-            <text x="100" y="92" textAnchor="middle" fill={PURPLE} fontSize="13" fontWeight="600">كيلو الشهر</text>
-            <text x="100" y="122" textAnchor="middle" fill={INK} fontSize="42" fontWeight="800">{formatBonusKg(view.kg)}</text>
-            <text x="100" y="144" textAnchor="middle" fill={ORANGE} fontSize="14" fontWeight="700">كجم</text>
-          </svg>
+        <div className="grid grid-cols-2" style={{ gap: 13 }}>
+          {board.lanes.map((lane) => <LaneGauge key={lane.id} lane={lane} drawn={drawn} />)}
         </div>
 
         {view.carriedKg > 0 && (
           <p className="m-0 text-center" style={{ fontSize: 13, marginTop: -8, color: PURPLE }}>
-            منها {formatBonusKg(view.carriedKg)} كجم من الشهر اللي فات، محسوبة في البونص
+            كيلو المصنّعات فيه {formatBonusKg(view.carriedKg)} كجم من الشهر اللي فات
           </p>
         )}
 
@@ -191,35 +237,39 @@ const ModeratorKgCounterCard = ({
           })}
         </ol>
 
-        <p className="m-0 text-center font-bold" style={{ fontSize: 16 }}>{goalLine}</p>
+        {view.nextMilestoneKg != null && (
+          <div style={{ borderRadius: 13, background: PURPLE, color: 'white', padding: '13px 16px' }}>
+            <p className="m-0" style={{ fontSize: 13, opacity: 0.85 }}>مصنّعات: لما توصّلي {view.nextGoal}</p>
+            <p className="m-0 font-extrabold" style={{ fontSize: 21 }}>
+              بونص المصنّعات هيبقى {formatBonusEgp(view.bonusAtNext ?? 0)} جنيه
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-2" style={{ gap: 13 }}>
           <div style={{ background: '#F6ECF4', borderRadius: 13, padding: 13 }}>
-            <p className="m-0" style={{ fontSize: 13, color: PURPLE }}>البونص دلوقتي</p>
-            <p className="m-0 font-extrabold tabular-nums" style={{ fontSize: 26, lineHeight: 1.15 }}>{formatBonusEgp(view.bonus)}</p>
+            <p className="m-0" style={{ fontSize: 13, color: PURPLE }}>إجمالي البونص</p>
+            <p className="m-0 font-extrabold tabular-nums" style={{ fontSize: 26, lineHeight: 1.15 }}>{formatBonusEgp(board.totalBonus)}</p>
             <p className="m-0" style={{ fontSize: 13 }}>جنيه</p>
           </div>
           <div style={{ background: '#FDE4D8', borderRadius: 13, padding: 13 }}>
             <p className="m-0" style={{ fontSize: 13, color: '#9A3B22' }}>المرتب المتوقع</p>
-            <p className="m-0 font-extrabold tabular-nums" style={{ fontSize: 26, lineHeight: 1.15 }}>{formatBonusEgp(view.salary)}</p>
-            <p className="m-0" style={{ fontSize: 13 }}>أساسي {formatBonusEgp(view.baseSalary)}</p>
+            <p className="m-0 font-extrabold tabular-nums" style={{ fontSize: 26, lineHeight: 1.15 }}>{formatBonusEgp(board.salary)}</p>
+            <p className="m-0" style={{ fontSize: 13 }}>أساسي {formatBonusEgp(board.baseSalary)}</p>
           </div>
         </div>
 
-        {view.nextMilestoneKg != null && (
-          <div style={{ borderRadius: 13, background: PURPLE, color: 'white', padding: '13px 16px' }}>
-            <p className="m-0" style={{ fontSize: 13, opacity: 0.85 }}>لما توصّلي {view.nextGoal}</p>
-            <p className="m-0 font-extrabold" style={{ fontSize: 21 }}>
-              البونص هيبقى {formatBonusEgp(view.bonusAtNext ?? 0)} جنيه
-            </p>
-          </div>
+        {carriedSideBonus > 0 && (
+          <p className="m-0 text-center" style={{ fontSize: 13, color: PURPLE }}>
+            الإجمالي شامل {formatBonusEgp(carriedSideBonus)} جنيه لحوم وعظم من الشهر اللي فات
+          </p>
         )}
 
         <div
           className="text-center font-bold"
           style={{ borderRadius: 13, background: '#FFF6F1', color: ORANGE, padding: '10px 13px', fontSize: 16 }}
         >
-          {view.daysPhrase}
+          {board.daysPhrase}
         </div>
 
         <p
@@ -233,7 +283,7 @@ const ModeratorKgCounterCard = ({
             lineHeight: 1.7,
           }}
         >
-          {view.message}
+          {board.message}
         </p>
       </div>
     </article>

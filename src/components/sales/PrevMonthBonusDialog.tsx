@@ -71,7 +71,9 @@ const PrevMonthBonusDialog = ({ open, onOpenChange, girl, details }: Props) => {
                     <TableCell className="text-center border">{d.category}</TableCell>
                     <TableCell className="text-center border">{fmtN(d.quantity)}</TableCell>
                     <TableCell className="text-center border">{d.tierLabel}</TableCell>
-                    {showRate && <TableCell className="text-center border">{fmtN(d.rate)}</TableCell>}
+                    {showRate && (
+                      <TableCell className="text-center border">{d.category === 'مصنعات' || d.rate <= 0 ? '—' : fmtN(d.rate)}</TableCell>
+                    )}
                     <TableCell className="text-center border font-semibold text-primary">{fmtN(d.bonus)}</TableCell>
                   </TableRow>
                 ))}

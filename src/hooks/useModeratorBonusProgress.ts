@@ -5,9 +5,10 @@ import { useKgPrices } from '@/hooks/useKgPrices';
 import { usePayrollClosures } from '@/hooks/usePayrollClosure';
 import { useModeratorCategoryQty } from '@/hooks/useModeratorCategoryQty';
 import { useProcessedKgSchedules } from '@/hooks/useProcessedKgSchedules';
-import { moderatorKeysForMonth, displayModeratorName, DEFAULT_BASE_SALARY, payrollDefaultForMonth } from '@/constants/moderators';
+import { moderatorKeysForMonth, displayModeratorName, DEFAULT_BASE_SALARY, payrollDefaultForMonth, matchesModeratorGroup } from '@/constants/moderators';
+import { cairoMonthStartUTC } from '@/lib/cairoDate';
 import { fetchPayrollCarried } from '@/lib/fetchPayrollCarried';
-import { allocateProcessedCarry, buildPayrollBaseRows, type PayrollOverride } from '@/lib/moderatorPayrollMath';
+import { allocateProcessedCarry, buildPayrollBaseRows, carriedMeatBoneBonus, type PayrollOverride } from '@/lib/moderatorPayrollMath';
 import { scheduleForMonth, APPROVED_OCT_2026_SCHEDULE } from '@/lib/processedKgBonus';
 
 const TIER_LABELS = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع'];
@@ -96,14 +97,47 @@ export const useModeratorBonusProgress = (year: number, month: number) => {
     return map;
   }, [carried, girls]);
 
+  const { data: chickQtyByGirl = {} as Record<string, number> } = useQuery({
+    queryKey: ['girls-chick-qty', month, year],
+    queryFn: async () => {
+      const startDate = cairoMonthStartUTC(year, month - 1).toISOString();
+      const endDate = cairoMonthStartUTC(year, month).toISOString();
+      const empty = girls.reduce((acc, girl) => { acc[girl] = 0; return acc; }, {} as Record<string, number>);
+      const { data: chickRows, error } = await supabase
+        .from('chick_orders')
+        .select('chick_count, created_by')
+        .gte('updated_at', startDate)
+        .lt('updated_at', endDate)
+        .eq('status', 'delivered');
+      if (error) throw error;
+      const userIds = Array.from(new Set((chickRows || []).map((row) => row.created_by).filter(Boolean))) as string[];
+      let profileMap = new Map<string, string>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase.from('profile_directory').select('id, full_name').in('id', userIds);
+        profileMap = new Map((profiles || []).map((profile) => [profile.id, profile.full_name]));
+      }
+      (chickRows || []).forEach((row) => {
+        const fullName = row.created_by ? (profileMap.get(row.created_by) || '') : '';
+        const girl = girls.find((key) => matchesModeratorGroup(fullName, key));
+        if (girl) empty[girl] += Number(row.chick_count) || 0;
+      });
+      return empty;
+    },
+  });
+
+  const chickBonusRate = useMemo(() => {
+    const row = tierSettings.find((item) => item.category === 'كتاكيت' && item.tier === 1);
+    return row ? Number(row.bonus_amount) : 50;
+  }, [tierSettings]);
+
   const rows = useMemo(() => buildPayrollBaseRows({
     girls,
     qty: qtyQuery.data ?? { meat: {}, bone: {}, processed: {} },
     prices,
     processedTiers,
     meatTiers,
-    chickQtyByGirl: {},
-    chickBonusRate: 0,
+    chickQtyByGirl,
+    chickBonusRate,
     bonePerKg,
     baseDefault,
     overrides,
@@ -111,7 +145,7 @@ export const useModeratorBonusProgress = (year: number, month: number) => {
     month,
     schedules,
     carriedProcessedKg: carriedKgByGirl,
-  }), [girls, qtyQuery.data, prices, processedTiers, meatTiers, bonePerKg, baseDefault, overrides, year, month, schedules, carriedKgByGirl]);
+  }), [girls, qtyQuery.data, prices, processedTiers, meatTiers, chickQtyByGirl, chickBonusRate, bonePerKg, baseDefault, overrides, year, month, schedules, carriedKgByGirl]);
 
   const carriedByGirl = useMemo(() => {
     const map = new Map<string, number>();
@@ -128,11 +162,22 @@ export const useModeratorBonusProgress = (year: number, month: number) => {
     return map;
   }, [carried, girls, rows, schedule]);
 
+  const sideCarryByGirl = useMemo(() => {
+    const map = new Map<string, number>();
+    rows.forEach((row) => {
+      const items = carried.filter((item) => item.girl === row.girl);
+      map.set(row.girl, carriedMeatBoneBonus(row, items));
+    });
+    return map;
+  }, [carried, rows]);
+
   return {
     girls,
     rows,
+    meatTiers,
     carriedByGirl,
     carriedKgByGirl,
+    sideCarryByGirl,
     schedule: schedule ?? APPROVED_OCT_2026_SCHEDULE,
     marginal: !!schedule,
     isLoading: qtyQuery.isLoading,

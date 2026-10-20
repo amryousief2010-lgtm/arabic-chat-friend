@@ -9,6 +9,19 @@ export interface RisingPayrollRow {
   countedKg: number;
   ownBonus: number;
   carriedBonus: number;
+  meatKg: number;
+  meatBonus: number;
+  meatRate: number;
+  meatRateOverridden: boolean;
+  meatTierLabel: string | null;
+  meatOverridden: boolean;
+  boneKg: number;
+  boneBonus: number;
+  boneRate: number;
+  boneRateOverridden: boolean;
+  boneOverridden: boolean;
+  chickCount: number;
+  chickBonus: number;
   deductions: number;
   total: number;
   overridden: boolean;
@@ -20,6 +33,10 @@ interface Props {
   canEdit?: boolean;
   locked?: boolean;
   onBonusCommit?: (girl: string, value: number | null) => void;
+  onMeatBonusCommit?: (girl: string, value: number | null) => void;
+  onMeatRateCommit?: (girl: string, value: number | null) => void;
+  onBoneBonusCommit?: (girl: string, value: number | null) => void;
+  onBoneRateCommit?: (girl: string, value: number | null) => void;
   onDeductionCommit?: (girl: string, value: number | null) => void;
   onOpenCarry?: (girl: string) => void;
   carryEnabled?: (girl: string) => boolean;
@@ -33,6 +50,10 @@ const RisingPayrollTable = ({
   canEdit = false,
   locked = false,
   onBonusCommit,
+  onMeatBonusCommit,
+  onMeatRateCommit,
+  onBoneBonusCommit,
+  onBoneRateCommit,
   onDeductionCommit,
   onOpenCarry,
   carryEnabled,
@@ -122,10 +143,126 @@ const RisingPayrollTable = ({
               </tr>
             )}
             <tr>
+              <td className={label}>كجم اللحمة</td>
+              {rows.map((row) => <td key={row.girl} className={cell}>{formatBonusKg(row.meatKg)}</td>)}
+            </tr>
+            <tr>
+              <td className={label}>مستوى اللحمة</td>
+              {rows.map((row) => (
+                <td key={row.girl} className={cell}>{row.meatTierLabel ? `المستوى ${row.meatTierLabel}` : 'لسه'}</td>
+              ))}
+            </tr>
+            <tr>
+              <td className={label}>بونص اللحمة لكل كجم</td>
+              {rows.map((row) => (
+                <td key={row.girl} className={cell}>
+                  {editable ? (
+                    <input
+                      type="number"
+                      aria-label={`سعر لحمة ${row.name}`}
+                      defaultValue={row.meatRate}
+                      key={`${row.girl}-meat-rate-${row.meatRate}`}
+                      className="h-8 w-24 rounded-md border px-1 text-center"
+                      onBlur={(event) => {
+                        const value = Number(event.target.value);
+                        if (value !== row.meatRate) onMeatRateCommit?.(row.girl, value);
+                      }}
+                    />
+                  ) : (
+                    <span>{formatBonusEgp(row.meatRate)}</span>
+                  )}
+                  {row.meatRateOverridden && <span className="mt-0.5 block text-[11px]">معدّل</span>}
+                </td>
+              ))}
+            </tr>
+            <tr style={{ background: '#F6ECF4' }}>
+              <td className={label}>بونص اللحمة</td>
+              {rows.map((row) => (
+                <td key={row.girl} className={cell}>
+                  {editable ? (
+                    <input
+                      type="number"
+                      aria-label={`بونص لحمة ${row.name}`}
+                      defaultValue={Math.round(row.meatBonus)}
+                      key={`${row.girl}-meat-${row.meatBonus}`}
+                      className="h-8 w-24 rounded-md border px-1 text-center"
+                      onBlur={(event) => {
+                        const value = Number(event.target.value);
+                        if (value !== Math.round(row.meatBonus)) onMeatBonusCommit?.(row.girl, value);
+                      }}
+                    />
+                  ) : (
+                    <span className="font-bold" style={{ color: '#A4288A' }}>{formatBonusEgp(row.meatBonus)}</span>
+                  )}
+                  {row.meatOverridden && <span className="mt-0.5 block text-[11px]">معدّل</span>}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className={label}>كجم العضم</td>
+              {rows.map((row) => <td key={row.girl} className={cell}>{formatBonusKg(row.boneKg)}</td>)}
+            </tr>
+            <tr>
+              <td className={label}>بونص العضم لكل كجم</td>
+              {rows.map((row) => (
+                <td key={row.girl} className={cell}>
+                  {editable ? (
+                    <input
+                      type="number"
+                      aria-label={`سعر عضم ${row.name}`}
+                      defaultValue={row.boneRate}
+                      key={`${row.girl}-bone-rate-${row.boneRate}`}
+                      className="h-8 w-24 rounded-md border px-1 text-center"
+                      onBlur={(event) => {
+                        const value = Number(event.target.value);
+                        if (value !== row.boneRate) onBoneRateCommit?.(row.girl, value);
+                      }}
+                    />
+                  ) : (
+                    <span>{formatBonusEgp(row.boneRate)}</span>
+                  )}
+                  {row.boneRateOverridden && <span className="mt-0.5 block text-[11px]">معدّل</span>}
+                </td>
+              ))}
+            </tr>
+            <tr style={{ background: '#F6ECF4' }}>
+              <td className={label}>بونص العضم</td>
+              {rows.map((row) => (
+                <td key={row.girl} className={cell}>
+                  {editable ? (
+                    <input
+                      type="number"
+                      aria-label={`بونص عضم ${row.name}`}
+                      defaultValue={Math.round(row.boneBonus)}
+                      key={`${row.girl}-bone-${row.boneBonus}`}
+                      className="h-8 w-24 rounded-md border px-1 text-center"
+                      onBlur={(event) => {
+                        const value = Number(event.target.value);
+                        if (value !== Math.round(row.boneBonus)) onBoneBonusCommit?.(row.girl, value);
+                      }}
+                    />
+                  ) : (
+                    <span className="font-bold" style={{ color: '#A4288A' }}>{formatBonusEgp(row.boneBonus)}</span>
+                  )}
+                  {row.boneOverridden && <span className="mt-0.5 block text-[11px]">معدّل</span>}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className={label}>عدد الكتاكيت</td>
+              {rows.map((row) => <td key={row.girl} className={cell}>{formatBonusEgp(row.chickCount)}</td>)}
+            </tr>
+            <tr>
+              <td className={label}>بونص الكتاكيت</td>
+              {rows.map((row) => (
+                <td key={row.girl} className={`${cell} font-bold`} style={{ color: '#A4288A' }}>{formatBonusEgp(row.chickBonus)}</td>
+              ))}
+            </tr>
+            <tr>
               <td className={label}>إجمالي البونص</td>
               {rows.map((row) => (
                 <td key={row.girl} className={`${cell} font-extrabold`} style={{ color: '#A4288A' }}>
-                  {formatBonusEgp(row.ownBonus + row.carriedBonus)}
+                  {formatBonusEgp(row.ownBonus + row.carriedBonus + row.meatBonus + row.boneBonus + row.chickBonus)}
                 </td>
               ))}
             </tr>
@@ -166,10 +303,10 @@ const RisingPayrollTable = ({
         </table>
       </div>
       <p className="mt-3 text-xs leading-6 text-muted-foreground">
-        البونص على كيلوات المصنّعات المسلّمة بنفس العدّ القديم: أوردرات الشهر، والكيلو المرحّل من شهر اتقيّد قبضه.
-        تحت ٤٠٠ كجم البونص صفر، وعند ٤٠٠ يفتح بـ ٢٬٤٠٠ جنيه وبعدين بيزيد لحد الطن وطن ونص و٢ طن.
-        فوق الـ ٢ طن كل كيلو لسه بيزوّد البونص. المرتب = الأساسي + البونص − الخصم.
-        لحوم وعظم وكتاكيت وتارجت القيمة وبونص الفريق مش داخلين. الشهور المعتمدة القديمة متسيبة زي ما اتسجّلت.
+        بونص المصنّعات على الكيلو المسلّم: أوردرات الشهر، والكيلو المرحّل من شهر اتقيّد قبضه.
+        تحت ٤٠٠ كجم بونص المصنّعات صفر، وعند ٤٠٠ يفتح بـ ٢٬٤٠٠ جنيه وبعدين بيزيد لحد الطن وطن ونص و٢ طن.
+        اللحوم بتارجت قيمة المبيعات، والعظم لكل كيلو بعد ما التارجت يتحقق، والكتاكيت لكل كتكوت. الإجمالي = المصنّعات + اللحوم + العضم + الكتاكيت.
+        شرائح المصنّعات القديمة مش بتتحسب. الشهور المعتمدة القديمة متسيبة زي ما اتسجّلت.
       </p>
     </div>
   );

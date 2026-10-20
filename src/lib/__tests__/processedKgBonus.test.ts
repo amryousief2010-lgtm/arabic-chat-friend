@@ -157,9 +157,10 @@ describe("marginal processed bonus", () => {
     expect(alone.scheme).toBe("rising");
     expect(alone.qualified).toBe(false);
     expect(alone.procBonus).toBe(0);
-    expect(alone.meatBonus).toBe(0);
-    expect(alone.boneBonus).toBe(0);
-    expect(alone.chickBonus).toBe(0);
+    expect(alone.meatBonus).toBe(720);
+    expect(alone.boneBonus).toBe(70);
+    expect(alone.chickBonus).toBe(200);
+    expect(alone.total).toBe(2500 + 720 + 70 + 200);
     const withCarry = build(60);
     expect(withCarry.qualified).toBe(true);
     expect(withCarry.carriedProcKg).toBe(60);

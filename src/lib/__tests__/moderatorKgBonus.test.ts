@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { baseSalaryForKey } from "@/constants/moderators";
 import {
   BONUS_AT_MINIMUM,
+  buildModeratorBonusBoard,
   buildModeratorBonusView,
   formatBonusEgp,
   moderatorKgBonus,
@@ -133,5 +134,37 @@ describe("moderator bonus screen", () => {
     expect(close.message).toContain("2,400");
     const past = buildModeratorBonusView({ name: "نورا", kg: 2100, baseSalary: 2500, now: OCT_20 });
     expect(past.message).toContain("٢ طن");
+  });
+
+  it("adds meat, bone, and chick bonuses on top of the processed formula", () => {
+    const processed = moderatorKgBonus(500);
+    const board = buildModeratorBonusBoard({
+      name: "نورا",
+      kg: 500,
+      baseSalary: 2500,
+      now: OCT_20,
+      meatKg: 80,
+      meatSales: 40000,
+      meatBonus: 240,
+      meatTiers: [
+        { sales: 30000, label: "الأول" },
+        { sales: 90000, label: "الثاني" },
+      ],
+      boneKg: 10,
+      boneBonus: 35,
+      chickCount: 4,
+      chickBonus: 200,
+      carriedSideBonus: 70,
+    });
+    expect(board.processed.bonus).toBeCloseTo(processed, 6);
+    expect(board.lanes.map((lane) => lane.id)).toEqual(["processed", "meat", "bone", "chicks"]);
+    expect(board.lanes.find((lane) => lane.id === "meat")?.progress).toBeCloseTo((40000 - 30000) / (90000 - 30000), 6);
+    expect(board.lanes.find((lane) => lane.id === "bone")?.nextHint).toBe("البونص مفتوح");
+    expect(board.lanes.find((lane) => lane.id === "chicks")?.nextHint).toBeNull();
+    expect(board.totalBonus).toBeCloseTo(processed + 240 + 35 + 200 + 70, 6);
+    expect(board.salary).toBeCloseTo(2500 + board.totalBonus, 6);
+    for (const lane of board.lanes) {
+      expect(lane.nextHint ?? "").not.toMatch(/ج\/كجم|14\.25|ربح|هامش/);
+    }
   });
 });

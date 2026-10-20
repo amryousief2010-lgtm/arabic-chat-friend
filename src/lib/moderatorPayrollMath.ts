@@ -9,6 +9,7 @@ import {
   type FlatTier,
   type MarginalSchedule,
   type StoredBandBreakdown,
+  findSalesTier,
   rawMarginalBonus,
   marginalProcessedBonus,
 } from '@/lib/processedKgBonus';
@@ -86,12 +87,9 @@ export const buildPayrollBaseRows = (args: {
   /** كيلوات المصنّعات المرحّلة لكل مسوقة (أوردرات شهر سابق سُلّمت بعد اعتماد قبضه). */
   carriedProcessedKg?: Record<string, number>;
 }): PayrollBaseRow[] => {
-  // الشهور المفتوحة على المعادلة الجديدة. لقطة الشهر المعتمد هي اللي بتحفظ أرقام النظام القديم.
+  // المصنّعات على المعادلة الجديدة. اللحوم والعظم والكتاكيت زي النظام السابق.
   void args.schedules;
   void args.processedTiers;
-  void args.meatTiers;
-  void args.bonePerKg;
-  void args.chickBonusRate;
   return args.girls.map((girl) => {
     const meatKg = args.qty.meat[girl] || 0;
     const boneKg = args.qty.bone[girl] || 0;
@@ -101,7 +99,16 @@ export const buildPayrollBaseRows = (args: {
     const chickCount = args.chickQtyByGirl[girl] || 0;
     const meatSales = meatKg * args.prices.meat_price + boneKg * args.prices.bone_meat_price;
     const procSales = procKg * args.prices.processed_price;
+    const meatTier = findSalesTier(meatSales, args.meatTiers);
     const ov = args.overrides.find((row) => row.moderator_name === girl);
+    const tierMeatRate = meatTier ? meatTier.bonus : 0;
+    const meatRate = ov?.meat_rate != null ? Number(ov.meat_rate) : tierMeatRate;
+    const boneRate = ov?.bone_rate != null ? Number(ov.bone_rate) : (meatTier ? args.bonePerKg : 0);
+    const calcMeatBonus = meatTier ? meatRate * meatKg : 0;
+    const calcBoneBonus = meatTier ? boneRate * boneKg : 0;
+    const meatBonus = ov?.meat_bonus != null ? Number(ov.meat_bonus) : calcMeatBonus;
+    const boneBonus = ov?.bone_bonus != null ? Number(ov.bone_bonus) : calcBoneBonus;
+    const chickBonus = chickCount * args.chickBonusRate;
     const deductions = ov?.deduction != null ? Number(ov.deduction) : 0;
     const base = baseSalaryForKey(girl, args.baseDefault);
     const storedBreakdown = toRisingBreakdown(procKg, carriedProcKg);
@@ -119,22 +126,22 @@ export const buildPayrollBaseRows = (args: {
       meatSales,
       procSales,
       procTier: null,
-      meatTier: null,
+      meatTier,
       procRate: 0,
       procRateOverridden: false,
-      meatRate: 0,
-      meatRateOverridden: false,
-      boneRate: 0,
-      boneRateOverridden: false,
+      meatRate,
+      meatRateOverridden: ov?.meat_rate != null,
+      boneRate,
+      boneRateOverridden: ov?.bone_rate != null,
       procBonus,
-      meatBonus: 0,
-      boneBonus: 0,
-      chickBonus: 0,
+      meatBonus,
+      boneBonus,
+      chickBonus,
       deductions,
       procOverridden: ov?.processed_bonus != null,
-      meatOverridden: false,
-      boneOverridden: false,
-      total: base + procBonus - deductions,
+      meatOverridden: ov?.meat_bonus != null,
+      boneOverridden: ov?.bone_bonus != null,
+      total: base + procBonus + meatBonus + boneBonus + chickBonus - deductions,
       scheme: 'rising' as const,
       bandBreakdown: [],
       storedBreakdown,
@@ -198,6 +205,18 @@ export const allocateProcessedCarry = (
     const rate = item.procKg ? bonus / item.procKg : 0;
     return { orderId: item.orderId, bonus, rate, tierLabel: 'شرائح الشهر الحالي' };
   });
+};
+
+/** لحوم وعظم مرحّلين. بيفتحوا مع تارجت اللحوم زي بونص الشهر نفسه. */
+export const carriedMeatBoneBonus = (
+  row: Pick<PayrollBaseRow, 'meatTier' | 'meatRate' | 'boneRate'>,
+  items: Array<{ meatKg: number; boneKg: number }>,
+) => {
+  if (!row.meatTier) return 0;
+  return items.reduce(
+    (sum, item) => sum + Math.max(0, item.meatKg) * row.meatRate + Math.max(0, item.boneKg) * row.boneRate,
+    0,
+  );
 };
 
 export { marginalProcessedBonus };

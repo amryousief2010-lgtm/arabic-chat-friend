@@ -305,10 +305,8 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       };
       const processedAlloc = processedByOrder.get(`${c.girl}:${c.orderId}`);
       push('مصنعات', c.procKg, processedAlloc?.rate ?? 0, processedAlloc?.tierLabel ?? 'بونص الكيلو', processedAlloc?.bonus);
-      if (row.scheme !== 'rising') {
-        push('لحوم', c.meatKg, row.meatTier ? row.meatRate : 0, row.meatTier ? `التارجت ${row.meatTier.label}` : 'لم يتحقق');
-        push('لحوم بالعظم', c.boneKg, row.meatTier ? row.boneRate : 0, row.meatTier ? `التارجت ${row.meatTier.label}` : 'لم يتحقق');
-      }
+      push('لحوم', c.meatKg, row.meatTier ? row.meatRate : 0, row.meatTier ? `التارجت ${row.meatTier.label}` : 'لم يتحقق');
+      push('لحوم بالعظم', c.boneKg, row.meatTier ? row.boneRate : 0, row.meatTier ? `التارجت ${row.meatTier.label}` : 'لم يتحقق');
     });
     return map;
   }, [carried, baseRows]);
@@ -344,14 +342,14 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
           procTier: null,
           meatSales: Number(s.meat_sales),
           meatKg: Number(s.meat_qty),
-          meatRate: 0,
-          meatBonus: 0,
-          meatTier: null,
+          meatRate: Number(s.meat_rate),
+          meatBonus: Number(s.meat_bonus),
+          meatTier: s.meat_tier_label ? { sales: 0, bonus: Number(s.meat_rate), label: s.meat_tier_label } : null,
           boneKg: Number(s.bone_qty),
-          boneRate: 0,
-          boneBonus: 0,
+          boneRate: Number(s.bone_rate),
+          boneBonus: Number(s.bone_bonus),
           chickCount: Number(s.chick_count),
-          chickBonus: 0,
+          chickBonus: Number(s.chick_bonus),
           prevBonus: Number(s.prev_month_bonus),
           deductions: Number((s as any).deductions ?? 0),
           total: Number(s.grand_total),
@@ -428,16 +426,16 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         processed_bonus: r.procBonus,
         processed_band_breakdown: (r.storedBreakdown as unknown as Json) ?? null,
         meat_sales: r.meatSales,
-        meat_tier_label: null,
+        meat_tier_label: r.meatTier?.label ?? null,
         meat_qty: r.meatKg,
-        meat_rate: 0,
-        meat_bonus: 0,
+        meat_rate: r.meatRate,
+        meat_bonus: r.meatBonus,
         bone_qty: r.boneKg,
-        bone_rate: 0,
-        bone_bonus: 0,
+        bone_rate: r.boneRate,
+        bone_bonus: r.boneBonus,
         chick_count: r.chickCount,
-        chick_bonus: 0,
-        total_bonus: r.procBonus,
+        chick_bonus: r.chickBonus,
+        total_bonus: r.procBonus + r.meatBonus + r.boneBonus + r.chickBonus,
         prev_month_bonus: r.prevBonus,
         deductions: r.deductions,
         grand_total: r.total,
@@ -532,6 +530,19 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     countedKg: row.countedProcKg,
     ownBonus: row.procBonus,
     carriedBonus: row.prevBonus,
+    meatKg: row.meatKg,
+    meatBonus: row.meatBonus,
+    meatRate: row.meatRate,
+    meatRateOverridden: row.meatRateOverridden,
+    meatTierLabel: row.meatTier?.label ?? null,
+    meatOverridden: row.meatOverridden,
+    boneKg: row.boneKg,
+    boneBonus: row.boneBonus,
+    boneRate: row.boneRate,
+    boneRateOverridden: row.boneRateOverridden,
+    boneOverridden: row.boneOverridden,
+    chickCount: row.chickCount,
+    chickBonus: row.chickBonus,
     deductions: row.deductions,
     total: row.total,
     overridden: row.procOverridden,
@@ -594,6 +605,10 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
               canEdit={canEdit}
               locked={!!selectedClosure}
               onBonusCommit={(girl, value) => overrideMutation.mutate({ girl, field: 'processed_bonus', value })}
+              onMeatBonusCommit={(girl, value) => overrideMutation.mutate({ girl, field: 'meat_bonus', value })}
+              onMeatRateCommit={(girl, value) => overrideMutation.mutate({ girl, field: 'meat_rate', value })}
+              onBoneBonusCommit={(girl, value) => overrideMutation.mutate({ girl, field: 'bone_bonus', value })}
+              onBoneRateCommit={(girl, value) => overrideMutation.mutate({ girl, field: 'bone_rate', value })}
               onDeductionCommit={(girl, value) => overrideMutation.mutate({ girl, field: 'deduction', value })}
               onOpenCarry={setPrevDialogGirl}
               carryEnabled={(girl) => !!(carryByGirl.get(girl)?.details.length)}

@@ -40,6 +40,15 @@ export const ModeratorKgCounterBoard = ({ year, month, onlyPayrollKey, celebrate
             carriedKg={row.carriedProcKg}
             baseSalary={row.base}
             bonusOverride={row.procOverridden ? row.procBonus + carriedBonus : null}
+            meatKg={row.meatKg}
+            meatSales={row.meatSales}
+            meatBonus={row.meatBonus}
+            meatTiers={progress.meatTiers}
+            boneKg={row.boneKg}
+            boneBonus={row.boneBonus}
+            chickCount={row.chickCount}
+            chickBonus={row.chickBonus}
+            carriedSideBonus={progress.sideCarryByGirl.get(key) || 0}
             periodLabel={periodLabel}
             celebrate={celebrate && onlyPayrollKey === key}
             storageKey={`${key}:${year}-${month}`}
