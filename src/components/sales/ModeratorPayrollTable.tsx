@@ -18,10 +18,10 @@ import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 import PrevMonthBonusDialog, { CarriedDetail } from './PrevMonthBonusDialog';
 import { moderatorKeysForMonth, displayModeratorName, DEFAULT_BASE_SALARY, payrollDefaultForMonth, matchesModeratorGroup } from '@/constants/moderators';
 import { useModeratorCategoryQty } from '@/hooks/useModeratorCategoryQty';
-import { useProcessedKgSchedules } from '@/hooks/useProcessedKgSchedules';
 import { fetchPayrollCarried } from '@/lib/fetchPayrollCarried';
 import { allocateProcessedCarry, buildPayrollBaseRows, type PayrollOverride } from '@/lib/moderatorPayrollMath';
-import { scheduleForMonth, slicesFromStored, formatKg as formatBandKg, formatEgp } from '@/lib/processedKgBonus';
+import { slicesFromStored, formatKg as formatBandKg, formatEgp } from '@/lib/processedKgBonus';
+import RisingPayrollTable from '@/components/sales/RisingPayrollTable';
 import type { Json } from '@/integrations/supabase/types';
 
 
@@ -247,8 +247,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   // لقطة القبض، لو اتحملت، بتستبدل الأرقام دي بالكامل في `rows`.
   const baseForLive = payrollDefaultForMonth(closuresLoaded, !!selectedClosure, defaultBaseSalary, DEFAULT_BASE_SALARY);
   const boneForLive = payrollDefaultForMonth(closuresLoaded, !!selectedClosure, BONE_BONUS_PER_KG, DEFAULT_BONE_BONUS_PER_KG);
-  const { schedules } = useProcessedKgSchedules();
-  const marginalSchedule = scheduleForMonth(schedules, selectedYear, selectedMonth);
+  const schedules: never[] = [];
 
   // قرار 19 أكتوبر 2026: مصنّعات الأوردرات المرحّلة تُحسب ضمن كيلوات الشهر للحد الأدنى والشرائح.
   const carriedProcessedKg = useMemo(() => {
@@ -285,7 +284,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
       const items = carried
         .filter((item: any) => item.girl === row.girl)
         .map((item: any) => ({ orderId: item.orderId, procKg: item.procKg, deliveredAt: item.deliveredAt }));
-      allocateProcessedCarry(row.procKg, row, marginalSchedule, items).forEach((item) => {
+      allocateProcessedCarry(row.procKg, row, null, items).forEach((item) => {
         processedByOrder.set(`${row.girl}:${item.orderId}`, item);
       });
     });
@@ -305,12 +304,14 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         entry.bonus += bonus;
       };
       const processedAlloc = processedByOrder.get(`${c.girl}:${c.orderId}`);
-      push('مصنعات', c.procKg, processedAlloc?.rate ?? 0, processedAlloc?.tierLabel ?? 'لم يتحقق', processedAlloc?.bonus);
-      push('لحوم', c.meatKg, row.meatTier ? row.meatRate : 0, row.meatTier ? `التارجت ${row.meatTier.label}` : 'لم يتحقق');
-      push('لحوم بالعظم', c.boneKg, row.meatTier ? row.boneRate : 0, row.meatTier ? `التارجت ${row.meatTier.label}` : 'لم يتحقق');
+      push('مصنعات', c.procKg, processedAlloc?.rate ?? 0, processedAlloc?.tierLabel ?? 'بونص الكيلو', processedAlloc?.bonus);
+      if (row.scheme !== 'rising') {
+        push('لحوم', c.meatKg, row.meatTier ? row.meatRate : 0, row.meatTier ? `التارجت ${row.meatTier.label}` : 'لم يتحقق');
+        push('لحوم بالعظم', c.boneKg, row.meatTier ? row.boneRate : 0, row.meatTier ? `التارجت ${row.meatTier.label}` : 'لم يتحقق');
+      }
     });
     return map;
-  }, [carried, baseRows, marginalSchedule]);
+  }, [carried, baseRows]);
 
   const liveRows = useMemo(() => baseRows.map(r => {
     const prevBonus = carryByGirl.get(r.girl)?.bonus || 0;
@@ -324,6 +325,39 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     return liveRows.map(r => {
       const s = snapshots.find((x: any) => x.moderator_name === r.girl);
       if (!s) return r;
+      const storedMetaEarly = s.processed_band_breakdown as { scheme?: string; qualified?: boolean; carried_kg?: number; counted_kg?: number } | null;
+      if (storedMetaEarly?.scheme === 'rising') {
+        return {
+          ...r,
+          scheme: 'rising' as const,
+          bandBreakdown: [],
+          storedBreakdown: s.processed_band_breakdown,
+          minimumKg: 400,
+          qualified: !!storedMetaEarly.qualified,
+          carriedProcKg: Number(storedMetaEarly.carried_kg) || 0,
+          countedProcKg: Number(storedMetaEarly.counted_kg) || Number(s.processed_qty),
+          base: Number(s.base_salary),
+          procSales: Number(s.processed_sales),
+          procKg: Number(s.processed_qty),
+          procRate: 0,
+          procBonus: Number(s.processed_bonus),
+          procTier: null,
+          meatSales: Number(s.meat_sales),
+          meatKg: Number(s.meat_qty),
+          meatRate: 0,
+          meatBonus: 0,
+          meatTier: null,
+          boneKg: Number(s.bone_qty),
+          boneRate: 0,
+          boneBonus: 0,
+          chickCount: Number(s.chick_count),
+          chickBonus: 0,
+          prevBonus: Number(s.prev_month_bonus),
+          deductions: Number((s as any).deductions ?? 0),
+          total: Number(s.grand_total),
+          procOverridden: false,
+        };
+      }
       const storedSlices = slicesFromStored(s.processed_band_breakdown);
       const storedMeta = s.processed_band_breakdown as { minimum_kg?: number; qualified?: boolean; carried_kg?: number } | null;
       const storedMinimum = Number(storedMeta?.minimum_kg);
@@ -388,22 +422,22 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         moderator_name: r.girl,
         base_salary: r.base,
         processed_sales: r.procSales,
-        processed_tier_label: r.procTier?.label ?? null,
+        processed_tier_label: null,
         processed_qty: r.procKg,
-        processed_rate: r.procRate,
+        processed_rate: 0,
         processed_bonus: r.procBonus,
-        processed_band_breakdown: r.scheme === 'marginal' ? (r.storedBreakdown as unknown as Json) : null,
+        processed_band_breakdown: (r.storedBreakdown as unknown as Json) ?? null,
         meat_sales: r.meatSales,
-        meat_tier_label: r.meatTier?.label ?? null,
+        meat_tier_label: null,
         meat_qty: r.meatKg,
-        meat_rate: r.meatRate,
-        meat_bonus: r.meatBonus,
+        meat_rate: 0,
+        meat_bonus: 0,
         bone_qty: r.boneKg,
-        bone_rate: r.boneRate,
-        bone_bonus: r.boneBonus,
+        bone_rate: 0,
+        bone_bonus: 0,
         chick_count: r.chickCount,
-        chick_bonus: r.chickBonus,
-        total_bonus: r.procBonus + r.meatBonus + r.boneBonus + r.chickBonus,
+        chick_bonus: 0,
+        total_bonus: r.procBonus,
         prev_month_bonus: r.prevBonus,
         deductions: r.deductions,
         grand_total: r.total,
@@ -485,10 +519,24 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   };
 
 
+  const showingHistory = !!selectedClosure && snapshots.length > 0 && rows.some((row) => row.scheme !== 'rising');
   const showMarginal = rows.some((row) => row.scheme === 'marginal');
   const bandTemplate = (rows.find((row) => row.bandBreakdown.length)?.bandBreakdown
-    ?? marginalSchedule?.bands.map((band) => ({ ...band, kg: 0, amount: 0 }))
     ?? []);
+  const risingRows = rows.map((row) => ({
+    girl: row.girl,
+    name: displayModeratorName(row.girl),
+    base: row.base,
+    ownKg: row.procKg,
+    carriedKg: row.carriedProcKg,
+    countedKg: row.countedProcKg,
+    ownBonus: row.procBonus,
+    carriedBonus: row.prevBonus,
+    deductions: row.deductions,
+    total: row.total,
+    overridden: row.procOverridden,
+    qualified: row.qualified,
+  }));
 
   return (
     <Card className="glass-card">
@@ -534,6 +582,24 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         </div>
       </CardHeader>
       <CardContent className="p-2 md:p-4">
+        {showingHistory && (
+          <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-6 text-amber-900">
+            لقطة معتمدة بالنظام السابق. الأرقام محفوظة زي ما اتسجّلت وقت الاعتماد، ومش بتتعاد حسابها.
+          </p>
+        )}
+        {!showingHistory ? (
+          <div id="moderator-payroll-table">
+            <RisingPayrollTable
+              rows={risingRows}
+              canEdit={canEdit}
+              locked={!!selectedClosure}
+              onBonusCommit={(girl, value) => overrideMutation.mutate({ girl, field: 'processed_bonus', value })}
+              onDeductionCommit={(girl, value) => overrideMutation.mutate({ girl, field: 'deduction', value })}
+              onOpenCarry={setPrevDialogGirl}
+              carryEnabled={(girl) => !!(carryByGirl.get(girl)?.details.length)}
+            />
+          </div>
+        ) : (
         <div id="moderator-payroll-table">
         <Table className="w-full border text-xs md:text-sm">
           <TableHeader>
@@ -742,12 +808,11 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
             </TableRow>
           </TableBody>
         </Table>
-        </div>
         <p className="text-xs text-muted-foreground mt-3">
-          * المبيعات تُحسب من الأوردرات المسلَّمة. الأسعار المستخدمة (لحوم/بالعظم/مصنعات) تتبع الأسعار في "جدول مبيعات المسوقات".<br />
-          * بونص اللحوم = (بونص التارجت × كجم اللحوم) + ({boneForLive} ج × كجم اللحوم بالعظم).<br />
-          * من أكتوبر 2026: بونص المصنعات تراكمي بالشرائح (كل كيلو بسعر شريحته من أول كيلو بعد الحد الأدنى). الشهور الأقدم تبقى على تارجت القيمة. الشهور المعتمدة تُعرض من اللقطة المحفوظة.
+          * أرقام اللقطة دي من النظام السابق ومحفوظة للإدارة. مش ظاهرة للمسوقات، ومش بتتعدل.
         </p>
+        </div>
+        )}
 
         <PrevMonthBonusDialog
           open={!!prevDialogGirl}
@@ -761,7 +826,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
             <AlertDialogHeader>
               <AlertDialogTitle>اعتماد القبض</AlertDialogTitle>
               <AlertDialogDescription>
-                {`هل أنت متأكد من اعتماد قبض شهر ${months.find(m => m.value === selectedMonth)?.label}؟ بعد الاعتماد سيتم تثبيت جميع نتائج القبض والتارجت، وأي أوردر تابع لهذا الشهر يتحول إلى تسليم ناجح بعد الاعتماد سيتم ترحيل بونصه إلى القبض التالي.`}
+                {`هل أنت متأكد من اعتماد قبض شهر ${months.find(m => m.value === selectedMonth)?.label}؟ بعد الاعتماد هتتثبت أرقام البونص الجديد، وأي أوردر من الشهر ده يتسلّم بعد الاعتماد هيتضاف كيلو بتاعه على قبض الشهر الجاي.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

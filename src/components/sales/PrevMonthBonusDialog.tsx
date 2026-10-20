@@ -30,6 +30,10 @@ const PrevMonthBonusDialog = ({ open, onOpenChange, girl, details }: Props) => {
   const sum = (cat: CarriedDetail['category']) =>
     details.filter((d) => d.category === cat).reduce((s, d) => s + d.bonus, 0);
   const total = details.reduce((s, d) => s + d.bonus, 0);
+  const showRate = details.some((detail) => detail.rate > 0);
+  const categories = (['مصنعات', 'لحوم', 'لحوم بالعظم'] as const).filter(
+    (category) => details.some((detail) => detail.category === category),
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -51,8 +55,8 @@ const PrevMonthBonusDialog = ({ open, onOpenChange, girl, details }: Props) => {
                   <TableHead className="text-center border">تاريخ التسليم الناجح</TableHead>
                   <TableHead className="text-center border">التصنيف</TableHead>
                   <TableHead className="text-center border">الكمية</TableHead>
-                  <TableHead className="text-center border">التارجت الحالي</TableHead>
-                  <TableHead className="text-center border">بونص الكيلو</TableHead>
+                  <TableHead className="text-center border">البيان</TableHead>
+                  {showRate && <TableHead className="text-center border">بونص الكيلو</TableHead>}
                   <TableHead className="text-center border">قيمة البونص</TableHead>
                 </TableRow>
               </TableHeader>
@@ -67,22 +71,18 @@ const PrevMonthBonusDialog = ({ open, onOpenChange, girl, details }: Props) => {
                     <TableCell className="text-center border">{d.category}</TableCell>
                     <TableCell className="text-center border">{fmtN(d.quantity)}</TableCell>
                     <TableCell className="text-center border">{d.tierLabel}</TableCell>
-                    <TableCell className="text-center border">{fmtN(d.rate)}</TableCell>
+                    {showRate && <TableCell className="text-center border">{fmtN(d.rate)}</TableCell>}
                     <TableCell className="text-center border font-semibold text-primary">{fmtN(d.bonus)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
             <div className="mt-4 grid gap-2 text-sm">
-              <div className="flex justify-between border-b pb-1">
-                <span>إجمالي بونص المصنعات المرحّلة</span><span className="font-semibold">{fmtN(sum('مصنعات'))} ج.م</span>
-              </div>
-              <div className="flex justify-between border-b pb-1">
-                <span>إجمالي بونص اللحوم المرحّلة</span><span className="font-semibold">{fmtN(sum('لحوم'))} ج.م</span>
-              </div>
-              <div className="flex justify-between border-b pb-1">
-                <span>إجمالي بونص اللحوم بالعظم المرحّلة</span><span className="font-semibold">{fmtN(sum('لحوم بالعظم'))} ج.م</span>
-              </div>
+              {categories.map((category) => (
+                <div key={category} className="flex justify-between border-b pb-1">
+                  <span>إجمالي بونص {category} المرحّل</span><span className="font-semibold">{fmtN(sum(category))} ج.م</span>
+                </div>
+              ))}
               <div className="flex justify-between text-primary font-bold">
                 <span>إجمالي بونص الشهر السابق</span><span>{fmtN(total)} ج.م</span>
               </div>

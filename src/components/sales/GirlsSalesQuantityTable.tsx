@@ -1,16 +1,14 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useKgPrices } from '@/hooks/useKgPrices';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAuth } from '@/hooks/useAuth';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
 import { usePayrollClosureCutoff, applyClosureCutoff } from '@/hooks/usePayrollClosure';
 import { matchesModeratorGroup, moderatorKeysForMonth, ALL_MODERATOR_KEYS, displayModeratorName } from '@/constants/moderators';
@@ -76,8 +74,6 @@ interface Props {
 
 const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
   const queryClient = useQueryClient();
-  const { role, isGeneralManager, isExecutiveManager, isSalesManager } = useAuth();
-  const canEditChickRate = isGeneralManager || isExecutiveManager || isSalesManager || role === 'marketing_sales_manager';
   const [internalMonth, setInternalMonth] = useState(currentMonth);
   const [internalYear, setInternalYear] = useState(currentYear);
   const isControlled = month !== undefined && year !== undefined;
@@ -239,41 +235,6 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
     },
     refetchInterval: 60000,
   });
-
-  // Chick bonus rate stored in target_bonus_settings
-  const { data: chickBonusSetting } = useQuery({
-    queryKey: ['chick-bonus-setting'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('target_bonus_settings')
-        .select('id, bonus_amount')
-        .eq('category', 'كتاكيت')
-        .eq('tier', 1)
-        .maybeSingle();
-      if (error) throw error;
-      return data as { id: string; bonus_amount: number } | null;
-    },
-  });
-  const chickBonusRate = Number(chickBonusSetting?.bonus_amount ?? 50);
-
-  const updateChickRateMutation = useMutation({
-    mutationFn: async (value: number) => {
-      if (!chickBonusSetting?.id) throw new Error('إعداد بونص الكتاكيت غير موجود');
-      const { error } = await supabase
-        .from('target_bonus_settings')
-        .update({ bonus_amount: value })
-        .eq('id', chickBonusSetting.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chick-bonus-setting'] });
-      toast.success('تم تحديث سعر بونص الكتكوت');
-    },
-    onError: (e: any) => toast.error(e.message || 'تعذر التحديث'),
-  });
-
-
-
 
   // Realtime: refetch on order/items changes
   useEffect(() => {
@@ -472,45 +433,13 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
 
               {/* Chick rows */}
               <TableRow>
-                <TableCell className="font-medium">عدد الكتاكيت</TableCell>
+                <TableCell className="font-medium">
+                  عدد الكتاكيت
+                  <span className="block text-[10px] font-normal text-muted-foreground">للعلم فقط، ومش داخل في البونص</span>
+                </TableCell>
                 {GIRLS.map(g => (
                   <TableCell key={g} className="text-center font-bold">
                     {(chickQtyByGirl[g] || 0).toLocaleString()}
-                  </TableCell>
-                ))}
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">
-                  سعر بونص الكتكوت (ج.م)
-                  {canEditChickRate && (
-                    <span className="text-xs text-muted-foreground mr-2">(قابل للتعديل)</span>
-                  )}
-                </TableCell>
-                {GIRLS.map((g, idx) => (
-                  <TableCell key={g} className="text-center">
-                    {canEditChickRate && idx === 0 ? (
-                      <Input
-                        type="number"
-                        min="0"
-                        defaultValue={chickBonusRate}
-                        key={`chick-rate-${chickBonusRate}`}
-                        className="w-24 text-center mx-auto h-8"
-                        onBlur={(e) => {
-                          const v = Number(e.target.value);
-                          if (v !== chickBonusRate) updateChickRateMutation.mutate(v);
-                        }}
-                      />
-                    ) : (
-                      chickBonusRate.toLocaleString()
-                    )}
-                  </TableCell>
-                ))}
-              </TableRow>
-              <TableRow className="bg-primary/15 hover:bg-primary/20">
-                <TableCell className="font-bold text-primary">بونص الكتاكيت (ج.م)</TableCell>
-                {GIRLS.map(g => (
-                  <TableCell key={g} className="text-center font-bold text-primary">
-                    {((chickQtyByGirl[g] || 0) * chickBonusRate).toLocaleString()}
                   </TableCell>
                 ))}
               </TableRow>

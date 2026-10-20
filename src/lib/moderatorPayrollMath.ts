@@ -1,16 +1,16 @@
 import { baseSalaryForKey } from '@/constants/moderators';
 import {
+  type RisingBreakdown,
+  risingCarryIncrements,
+  toRisingBreakdown,
+} from '@/lib/moderatorKgBonus';
+import {
   type BandSlice,
   type FlatTier,
   type MarginalSchedule,
   type StoredBandBreakdown,
-  findSalesTier,
-  marginalProcessedBonus,
   rawMarginalBonus,
-  activeBandIndex,
-  meetsProcessedMinimum,
-  scheduleForMonth,
-  toStoredBreakdown,
+  marginalProcessedBonus,
 } from '@/lib/processedKgBonus';
 
 export interface PayrollQty {
@@ -60,9 +60,9 @@ export interface PayrollBaseRow {
   meatOverridden: boolean;
   boneOverridden: boolean;
   total: number;
-  scheme: 'flat' | 'marginal';
+  scheme: 'flat' | 'marginal' | 'rising';
   bandBreakdown: BandSlice[];
-  storedBreakdown: StoredBandBreakdown | null;
+  storedBreakdown: StoredBandBreakdown | RisingBreakdown | null;
   minimumKg: number | null;
   qualified: boolean;
   calculatedProcBonus: number;
@@ -86,95 +86,27 @@ export const buildPayrollBaseRows = (args: {
   /** كيلوات المصنّعات المرحّلة لكل مسوقة (أوردرات شهر سابق سُلّمت بعد اعتماد قبضه). */
   carriedProcessedKg?: Record<string, number>;
 }): PayrollBaseRow[] => {
-  const schedule = scheduleForMonth(args.schedules, args.year, args.month);
+  // الشهور المفتوحة على المعادلة الجديدة. لقطة الشهر المعتمد هي اللي بتحفظ أرقام النظام القديم.
+  void args.schedules;
+  void args.processedTiers;
+  void args.meatTiers;
+  void args.bonePerKg;
+  void args.chickBonusRate;
   return args.girls.map((girl) => {
     const meatKg = args.qty.meat[girl] || 0;
     const boneKg = args.qty.bone[girl] || 0;
     const procKg = args.qty.processed[girl] || 0;
-    const carriedProcKg = schedule ? Math.max(0, args.carriedProcessedKg?.[girl] || 0) : 0;
+    const carriedProcKg = Math.max(0, args.carriedProcessedKg?.[girl] || 0);
     const countedProcKg = procKg + carriedProcKg;
     const chickCount = args.chickQtyByGirl[girl] || 0;
     const meatSales = meatKg * args.prices.meat_price + boneKg * args.prices.bone_meat_price;
     const procSales = procKg * args.prices.processed_price;
-    const meatTier = findSalesTier(meatSales, args.meatTiers);
     const ov = args.overrides.find((row) => row.moderator_name === girl);
-    const tierMeatRate = meatTier ? meatTier.bonus : 0;
-    const meatRate = ov?.meat_rate != null ? Number(ov.meat_rate) : tierMeatRate;
-    const boneRate = ov?.bone_rate != null ? Number(ov.bone_rate) : (meatTier ? args.bonePerKg : 0);
-    const calcMeatBonus = meatTier ? meatRate * meatKg : 0;
-    const calcBoneBonus = meatTier ? boneRate * boneKg : 0;
-    const meatBonus = ov?.meat_bonus != null ? Number(ov.meat_bonus) : calcMeatBonus;
-    const boneBonus = ov?.bone_bonus != null ? Number(ov.bone_bonus) : calcBoneBonus;
-    const chickBonus = chickCount * args.chickBonusRate;
     const deductions = ov?.deduction != null ? Number(ov.deduction) : 0;
     const base = baseSalaryForKey(girl, args.baseDefault);
-
-    if (schedule) {
-      // المرحّل يدخل في الحد الأدنى والشرائح، لكن مبلغه يُصرف في صف الأوردرات المرحّلة.
-      const storedBreakdown = toStoredBreakdown(procKg, schedule, carriedProcKg);
-      const bandBreakdown: BandSlice[] = storedBreakdown.bands.map((band) => ({
-        fromKg: band.from_kg,
-        toKg: band.to_kg,
-        rate: band.rate,
-        kg: band.kg,
-        amount: band.amount,
-      }));
-      const calculatedProcBonus = storedBreakdown.calculated_bonus;
-      const qualified = meetsProcessedMinimum(countedProcKg, schedule);
-      const active = bandBreakdown[activeBandIndex(countedProcKg, schedule.bands)] ?? bandBreakdown[0];
-      const activeBandLabel = !qualified || !active
-        ? null
-        : active.toKg == null
-          ? `أكثر من ${active.fromKg}`
-          : `${active.fromKg}–${active.toKg}`;
-      const blended = procKg > 0 ? calculatedProcBonus / procKg : 0;
-      const procBonus = ov?.processed_bonus != null ? Number(ov.processed_bonus) : calculatedProcBonus;
-      const procTier = qualified && active
-        ? { sales: 0, bonus: active.rate, label: activeBandLabel || 'تراكمي' }
-        : null;
-      return {
-        girl,
-        base,
-        meatKg,
-        boneKg,
-        procKg,
-        carriedProcKg,
-        countedProcKg,
-        chickCount,
-        meatSales,
-        procSales,
-        procTier,
-        meatTier,
-        procRate: blended,
-        procRateOverridden: false,
-        meatRate,
-        meatRateOverridden: ov?.meat_rate != null,
-        boneRate,
-        boneRateOverridden: ov?.bone_rate != null,
-        procBonus,
-        meatBonus,
-        boneBonus,
-        chickBonus,
-        deductions,
-        procOverridden: ov?.processed_bonus != null,
-        meatOverridden: ov?.meat_bonus != null,
-        boneOverridden: ov?.bone_bonus != null,
-        total: base + procBonus + meatBonus + boneBonus + chickBonus - deductions,
-        scheme: 'marginal' as const,
-        bandBreakdown,
-        storedBreakdown,
-        minimumKg: schedule.minimumKg,
-        qualified,
-        calculatedProcBonus,
-        activeBandLabel,
-      };
-    }
-
-    const procTier = findSalesTier(procSales, args.processedTiers);
-    const tierProcRate = procTier ? procTier.bonus : 0;
-    const procRate = ov?.processed_rate != null ? Number(ov.processed_rate) : tierProcRate;
-    const calcProcBonus = procRate * procKg;
-    const procBonus = ov?.processed_bonus != null ? Number(ov.processed_bonus) : calcProcBonus;
+    const storedBreakdown = toRisingBreakdown(procKg, carriedProcKg);
+    const calculatedProcBonus = storedBreakdown.calculated_bonus;
+    const procBonus = ov?.processed_bonus != null ? Number(ov.processed_bonus) : calculatedProcBonus;
     return {
       girl,
       base,
@@ -186,30 +118,30 @@ export const buildPayrollBaseRows = (args: {
       chickCount,
       meatSales,
       procSales,
-      procTier,
-      meatTier,
-      procRate,
-      procRateOverridden: ov?.processed_rate != null,
-      meatRate,
-      meatRateOverridden: ov?.meat_rate != null,
-      boneRate,
-      boneRateOverridden: ov?.bone_rate != null,
+      procTier: null,
+      meatTier: null,
+      procRate: 0,
+      procRateOverridden: false,
+      meatRate: 0,
+      meatRateOverridden: false,
+      boneRate: 0,
+      boneRateOverridden: false,
       procBonus,
-      meatBonus,
-      boneBonus,
-      chickBonus,
+      meatBonus: 0,
+      boneBonus: 0,
+      chickBonus: 0,
       deductions,
       procOverridden: ov?.processed_bonus != null,
-      meatOverridden: ov?.meat_bonus != null,
-      boneOverridden: ov?.bone_bonus != null,
-      total: base + procBonus + meatBonus + boneBonus + chickBonus - deductions,
-      scheme: 'flat' as const,
+      meatOverridden: false,
+      boneOverridden: false,
+      total: base + procBonus - deductions,
+      scheme: 'rising' as const,
       bandBreakdown: [],
-      storedBreakdown: null,
-      minimumKg: null,
-      qualified: !!procTier,
-      calculatedProcBonus: calcProcBonus,
-      activeBandLabel: procTier?.label ?? null,
+      storedBreakdown,
+      minimumKg: storedBreakdown.minimum_kg,
+      qualified: storedBreakdown.qualified,
+      calculatedProcBonus,
+      activeBandLabel: null,
     };
   });
 };
@@ -221,9 +153,9 @@ export interface CarrySliceInput {
 }
 
 /**
- * بونص المصنّعات المرحّل. قبل أكتوبر: سعر التارجت الواحد.
- * من أكتوبر (قرار 19 أكتوبر 2026): المرحّل جزء من كيلوات الشهر، يدخل في الحد الأدنى،
- * ويُسعَّر بشرائح الشهر فوق كيلوات الشهر نفسه.
+ * بونص المصنّعات المرحّل.
+ * النظام الحالي: فرق المعادلة فوق كيلوات الشهر، والمجموع يساوي بونص الإجمالي.
+ * فرع الشرائح القديمة موجود بس لقراءة اختبارات اللقطات التاريخية.
  */
 export const allocateProcessedCarry = (
   ownKg: number,
@@ -235,6 +167,15 @@ export const allocateProcessedCarry = (
     const time = a.deliveredAt.localeCompare(b.deliveredAt);
     return time || a.orderId.localeCompare(b.orderId);
   });
+  if (row.scheme === 'rising') {
+    const pieces = risingCarryIncrements(ownKg, ordered);
+    return pieces.map((item) => ({
+      orderId: item.orderId,
+      bonus: item.bonus,
+      rate: 0,
+      tierLabel: 'بونص الكيلو',
+    }));
+  }
   if (row.scheme !== 'marginal' || !schedule) {
     const rate = row.procTier ? row.procRate : 0;
     const tierLabel = row.procTier ? `التارجت ${row.procTier.label}` : 'لم يتحقق';

@@ -20,24 +20,18 @@ export const ModeratorKgCounterBoard = ({ year, month, onlyPayrollKey, celebrate
   const cairo = currentCairoYearMonth();
   const isCurrent = year === cairo.year && month === cairo.monthIndex0 + 1;
   const keys = onlyPayrollKey ? progress.girls.filter((girl) => girl === onlyPayrollKey) : progress.girls;
-
-  if (!progress.marginal) {
-    return (
-      <div className="rounded-2xl border bg-card p-4 text-sm text-muted-foreground" dir="rtl">
-        عداد شرائح المصنّعات يبدأ من أكتوبر 2026. {monthNames[month - 1]} {year} ما زال على تارجت قيمة المبيعات.
-      </div>
-    );
-  }
+  const periodLabel = `${monthNames[month - 1]} ${year}`;
 
   if (progress.isLoading && !progress.rows.some((row) => row.countedProcKg > 0)) {
-    return <div className="h-40 animate-pulse rounded-3xl bg-[#4B2364]/20" />;
+    return <div className="h-40 animate-pulse rounded-3xl bg-[#A4288A]/15" />;
   }
 
   return (
-    <div className={`grid grid-cols-1 gap-4 ${keys.length > 1 ? 'xl:grid-cols-2' : ''}`} dir="rtl">
+    <div className={`grid grid-cols-1 gap-[21px] ${keys.length > 1 ? 'xl:grid-cols-2' : ''}`} dir="rtl">
       {keys.map((key) => {
         const row = progress.rows.find((item) => item.girl === key);
         if (!row) return null;
+        const carriedBonus = progress.carriedByGirl.get(key) || 0;
         return (
           <ModeratorKgCounterCard
             key={key}
@@ -45,10 +39,8 @@ export const ModeratorKgCounterBoard = ({ year, month, onlyPayrollKey, celebrate
             kg={row.procKg}
             carriedKg={row.carriedProcKg}
             baseSalary={row.base}
-            meatBonus={row.meatBonus}
-            boneBonus={row.boneBonus}
-            processedBonusOverride={row.procOverridden ? row.procBonus : null}
-            schedule={progress.schedule}
+            bonusOverride={row.procOverridden ? row.procBonus + carriedBonus : null}
+            periodLabel={periodLabel}
             celebrate={celebrate && onlyPayrollKey === key}
             storageKey={`${key}:${year}-${month}`}
             frozen={!isCurrent}

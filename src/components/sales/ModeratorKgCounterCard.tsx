@@ -1,43 +1,33 @@
 import { useEffect, useState } from 'react';
+import companyLogo from '@/assets/company-logo.jpg';
 import {
-  APPROVED_OCT_2026_SCHEDULE,
-  type MarginalSchedule,
-  buildGauge,
-  buildKgCounterView,
-  completedFiniteBands,
-  formatEgp,
-  formatKg,
-} from '@/lib/processedKgBonus';
+  BONUS_MILESTONES,
+  buildModeratorBonusView,
+  formatBonusEgp,
+  formatBonusKg,
+} from '@/lib/moderatorKgBonus';
 
-const arc = (cx: number, cy: number, r: number, start: number, end: number) => {
-  if (end - start < 0.4) return '';
-  const polar = (deg: number) => {
-    const rad = ((deg - 90) * Math.PI) / 180;
-    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
-  };
-  const [x1, y1] = polar(start);
-  const [x2, y2] = polar(end);
-  const large = end - start > 180 ? 1 : 0;
-  return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
-};
+const PURPLE = '#A4288A';
+const ORANGE = '#F37346';
+const INK = '#3A1238';
 
-const markerPoint = (deg: number) => {
-  const rad = ((deg - 90) * Math.PI) / 180;
-  return { x: 150 + 124 * Math.cos(rad), y: 150 + 124 * Math.sin(rad) };
-};
+const RING = 78;
+const CIRC = 2 * Math.PI * RING;
 
 export interface ModeratorKgCounterCardProps {
   name: string;
   /** كيلوات الشهر نفسه. */
   kg: number;
-  /** كيلوات مرحّلة من شهر معتمد، تُضاف للعداد وتدخل في الحد الأدنى والشرائح. */
+  /** كيلوات مرحّلة من شهر معتمد، داخلة في نفس البونص. */
   carriedKg?: number;
   baseSalary: number;
-  carriedBonus?: number;
+  /** البونص المستحق لو الإدارة عدّلته. */
+  bonusOverride?: number | null;
+  /** @deprecated اللحوم والعظم مش داخلين في النظام الجديد. */
   meatBonus?: number;
   boneBonus?: number;
   processedBonusOverride?: number | null;
-  schedule?: MarginalSchedule;
+  periodLabel?: string;
   now?: Date;
   celebrate?: boolean;
   storageKey?: string;
@@ -50,41 +40,39 @@ const ModeratorKgCounterCard = ({
   kg,
   carriedKg = 0,
   baseSalary,
-  carriedBonus = 0,
-  meatBonus = 0,
-  boneBonus = 0,
+  bonusOverride = null,
   processedBonusOverride = null,
-  schedule = APPROVED_OCT_2026_SCHEDULE,
+  periodLabel,
   now,
   celebrate = false,
   storageKey,
   forceCelebration = false,
   frozen = false,
 }: ModeratorKgCounterCardProps) => {
-  const view = buildKgCounterView({
+  const view = buildModeratorBonusView({
     name,
     kg,
     carriedKg,
     baseSalary,
-    carriedBonus,
-    meatBonus,
-    boneBonus,
-    processedBonusOverride,
-    schedule,
+    bonusOverride: bonusOverride ?? processedBonusOverride,
     now,
     frozen,
   });
-  const gauge = buildGauge(view.kg, schedule);
   const [burst, setBurst] = useState(forceCelebration);
+  const [drawn, setDrawn] = useState(false);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setDrawn(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     if (!celebrate || forceCelebration) return;
-    const completed = completedFiniteBands(view.kg, schedule.bands);
-    const key = `coceg-processed-band:${storageKey || name}`;
+    const key = `coceg-rising-milestone:${storageKey || name}`;
     const previous = Number(window.localStorage.getItem(key));
-    if (Number.isFinite(previous) && completed > previous) setBurst(true);
-    window.localStorage.setItem(key, String(completed));
-  }, [celebrate, forceCelebration, name, schedule.bands, storageKey, view.kg]);
+    if (Number.isFinite(previous) && view.milestoneIndex > previous) setBurst(true);
+    window.localStorage.setItem(key, String(view.milestoneIndex));
+  }, [celebrate, forceCelebration, name, storageKey, view.milestoneIndex]);
 
   useEffect(() => {
     if (!burst) return;
@@ -92,183 +80,163 @@ const ModeratorKgCounterCard = ({
     return () => window.clearTimeout(timer);
   }, [burst]);
 
-  const activeBand = schedule.bands[view.activeIndex];
-  const span = activeBand?.toKg == null ? null : activeBand.toKg - activeBand.fromKg;
-  const intoBand = activeBand ? Math.max(0, view.kg - activeBand.fromKg) : 0;
-  const bar = !view.qualified
-    ? Math.max(0, Math.min(1, view.kg / Math.max(1, view.minimumKg)))
-    : span
-      ? Math.max(0, Math.min(1, intoBand / span))
-      : 1;
-  const goalText = !view.qualified
-    ? `باقي ${formatKg(view.kgToMinimum)} كجم على الحد الأدنى للحافز`
-    : view.kgToNext == null
-      ? 'وصلتِ لأعلى شريحة'
-      : `باقي ${formatKg(view.kgToNext)} كجم على الشريحة التالية`;
-  const chip = view.status === 'top_band'
-    ? 'أعلى شريحة'
-    : view.status === 'on_fire'
-      ? 'وتيرة قوية'
-      : view.onTrack
-        ? 'على المسار'
-        : 'أبطأ من المطلوب';
-  const chipHot = view.onTrack || view.status === 'top_band';
+  const progress = drawn ? view.segmentProgress : 0;
+  const dashOffset = CIRC * (1 - progress);
+  const goalLine = view.nextMilestoneKg == null
+    ? 'عدّيتي آخر محطة'
+    : `فاضلِك ${formatBonusKg(view.kgRemaining ?? 0)} كجم على ${view.nextGoal}`;
 
   return (
-    <section
+    <article
       dir="rtl"
-      className="relative overflow-hidden rounded-3xl text-white shadow-xl"
-      style={{ background: 'linear-gradient(165deg, #4B2364 0%, #321546 58%, #1C0E28 100%)' }}
-      aria-label={`عداد كيلو المصنّعات لـ ${name}`}
+      data-testid="moderator-bonus-card"
+      className="relative overflow-hidden bg-white text-[#3A1238] shadow-lg"
+      style={{ borderRadius: 21, fontFamily: 'Cairo, sans-serif' }}
+      aria-label={`بونص ${name}`}
     >
-      <div className="pointer-events-none absolute -left-8 -top-10 h-32 w-32 rounded-full bg-[#E8C547]/20 blur-2xl" />
-      <div className="pointer-events-none absolute -bottom-12 -right-8 h-36 w-36 rounded-full bg-[#F6E7B2]/10 blur-2xl" />
+      <header
+        className="relative flex items-center justify-between text-white"
+        style={{ background: PURPLE, padding: '21px 21px 18px', gap: 13 }}
+      >
+        <div className="min-w-0">
+          <p className="m-0 font-medium text-white/80" style={{ fontSize: 13 }}>بونص الشهر</p>
+          <h2 className="m-0 font-extrabold leading-none" style={{ fontSize: 26, marginTop: 4 }}>{name}</h2>
+          {periodLabel && (
+            <p className="m-0 text-white/85" style={{ fontSize: 13, marginTop: 6 }}>{periodLabel}</p>
+          )}
+        </div>
+        <img
+          src={companyLogo}
+          alt=""
+          className="shrink-0 rounded-full bg-white object-contain"
+          style={{ width: 55, height: 55, padding: 4 }}
+        />
+        {burst && (
+          <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center" aria-hidden>
+            <span
+              className="rounded-full px-3 py-1 font-extrabold"
+              style={{ background: ORANGE, color: 'white', fontSize: 13 }}
+            >
+              مبروك يا {name.trim() || 'قمر'}
+            </span>
+          </div>
+        )}
+      </header>
+
       {burst && (
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-          {Array.from({ length: 18 }).map((_, index) => (
+          {Array.from({ length: 16 }).map((_, index) => (
             <span
               key={index}
-              className="absolute top-4 h-2 w-2 rounded-sm"
+              className="absolute top-16 h-2 w-2 rounded-sm"
               style={{
                 right: `${8 + (index * 17) % 84}%`,
-                background: index % 2 ? '#E8C547' : '#FFF6D4',
-                animation: `kg-confetti 1.1s ease-out ${index * 0.04}s both`,
+                background: index % 2 ? ORANGE : PURPLE,
+                animation: `bonus-confetti 1.15s ease-out ${index * 0.04}s both`,
               }}
             />
           ))}
-          <div className="absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-[#E8C547] px-3 py-1 text-xs font-bold text-[#3A1D4E]">
-            شريحة جديدة
-          </div>
         </div>
       )}
-      <style>{`@keyframes kg-confetti { from { transform: translateY(0) rotate(0deg); opacity: 1 } to { transform: translateY(92px) rotate(180deg); opacity: 0 } } @media (prefers-reduced-motion: reduce) { span { animation: none !important } }`}</style>
+      <style>{`@keyframes bonus-confetti { from { transform: translateY(0) rotate(0deg); opacity: 1 } to { transform: translateY(120px) rotate(160deg); opacity: 0 } } @media (prefers-reduced-motion: reduce) { span { animation: none !important } }`}</style>
 
-      <div className="relative space-y-4 p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-medium text-[#F6E7B2]">حافز المصنّعات · هذا الشهر</p>
-            <h2 className="text-2xl font-extrabold leading-tight">{name}</h2>
-          </div>
-          <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${chipHot ? 'bg-[#E8C547] text-[#3A1D4E]' : 'bg-white/15 text-[#F6E7B2]'}`}>
-            {chip}
-          </span>
-        </div>
-
-        <div className="mx-auto w-full max-w-[280px]">
-          <svg viewBox="0 0 300 300" className="h-auto w-full" role="img" aria-label={`${formatKg(view.kg)} كجم، الشريحة ${view.bandLabel}`} style={{ fontFamily: 'Cairo, "Noto Naskh Arabic", sans-serif' }}>
-            {gauge.segments.map((segment) => (
-              <g key={segment.index}>
-                <path d={arc(150, 150, 96, segment.startDeg, segment.endDeg)} fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth={segment.active ? 20 : 16} strokeLinecap="butt" />
-                <path d={arc(150, 150, 96, segment.startDeg, segment.filledDeg)} fill="none" stroke={segment.color} strokeWidth={segment.active ? 20 : 16} strokeLinecap="butt" />
-              </g>
-            ))}
-            {gauge.markers.map((marker) => {
-              const point = markerPoint(marker.deg);
-              return (
-                <g key={marker.kg}>
-                  <circle cx={point.x} cy={point.y} r="3.5" fill="#E8C547" />
-                  <text x={point.x} y={point.y - 8} textAnchor="middle" fill="#F6E7B2" fontSize="11" fontWeight="700">
-                    {marker.label}
-                  </text>
-                </g>
-              );
-            })}
-            <text x="150" y="142" textAnchor="middle" fill="#F6E7B2" fontSize="13">المصنّعات</text>
-            <text x="150" y="176" textAnchor="middle" fill="#FFFFFF" fontSize="40" fontWeight="800">{formatKg(view.kg)}</text>
-            <text x="150" y="198" textAnchor="middle" fill="#E8C547" fontSize="14" fontWeight="700">كجم</text>
+      <div style={{ padding: 21, display: 'flex', flexDirection: 'column', gap: 21 }}>
+        <div className="mx-auto" style={{ width: 'min(100%, 262px)' }}>
+          <svg viewBox="0 0 200 200" className="h-auto w-full" role="img" aria-label={`${formatBonusKg(view.kg)} كيلوجرام`}>
+            <circle cx="100" cy="100" r={RING} fill="none" stroke="#F3D5E8" strokeWidth="14" />
+            <circle
+              cx="100"
+              cy="100"
+              r={RING}
+              fill="none"
+              stroke={ORANGE}
+              strokeWidth="14"
+              strokeLinecap="round"
+              strokeDasharray={CIRC}
+              strokeDashoffset={dashOffset}
+              transform="rotate(-90 100 100)"
+              style={{ transition: 'stroke-dashoffset 900ms cubic-bezier(.22,.8,.24,1)' }}
+            />
+            <text x="100" y="92" textAnchor="middle" fill={PURPLE} fontSize="13" fontWeight="600">كيلو الشهر</text>
+            <text x="100" y="122" textAnchor="middle" fill={INK} fontSize="42" fontWeight="800">{formatBonusKg(view.kg)}</text>
+            <text x="100" y="144" textAnchor="middle" fill={ORANGE} fontSize="14" fontWeight="700">كجم</text>
           </svg>
         </div>
 
         {view.carriedKg > 0 && (
-          <p className="-mt-2 text-center text-xs text-[#F6E7B2]">
-            منها {formatKg(view.carriedKg)} كجم مرحّلة من الشهر السابق، محسوبة في الحد الأدنى والشرائح
+          <p className="m-0 text-center" style={{ fontSize: 13, marginTop: -8, color: PURPLE }}>
+            منها {formatBonusKg(view.carriedKg)} كجم من الشهر اللي فات، محسوبة في البونص
           </p>
         )}
 
-        <div className="text-center">
-          <p className="text-sm text-[#F6E7B2]">
-            {view.qualified ? `الشريحة الحالية ${view.bandLabel} · ${formatKg(view.bandRate)} ج/كجم` : `قبل الحد الأدنى ${formatKg(view.minimumKg, true)} كجم`}
-          </p>
-          <p className="mt-1 text-base font-bold">{goalText}</p>
+        <ol className="m-0 grid list-none grid-cols-4 p-0" style={{ gap: 8 }}>
+          {BONUS_MILESTONES.map((milestone) => {
+            const done = view.kg >= milestone.kg;
+            const current = view.nextMilestoneKg === milestone.kg;
+            return (
+              <li
+                key={milestone.kg}
+                className="text-center"
+                style={{
+                  borderRadius: 13,
+                  padding: '8px 4px',
+                  background: done ? PURPLE : current ? '#FDE4D8' : '#F6ECF4',
+                  color: done ? 'white' : INK,
+                }}
+              >
+                <div className="font-extrabold" style={{ fontSize: 13 }}>{milestone.title}</div>
+                <div style={{ fontSize: 11, opacity: 0.85 }}>{done ? 'اتحقق' : 'جاي'}</div>
+              </li>
+            );
+          })}
+        </ol>
+
+        <p className="m-0 text-center font-bold" style={{ fontSize: 16 }}>{goalLine}</p>
+
+        <div className="grid grid-cols-2" style={{ gap: 13 }}>
+          <div style={{ background: '#F6ECF4', borderRadius: 13, padding: 13 }}>
+            <p className="m-0" style={{ fontSize: 13, color: PURPLE }}>البونص دلوقتي</p>
+            <p className="m-0 font-extrabold tabular-nums" style={{ fontSize: 26, lineHeight: 1.15 }}>{formatBonusEgp(view.bonus)}</p>
+            <p className="m-0" style={{ fontSize: 13 }}>جنيه</p>
+          </div>
+          <div style={{ background: '#FDE4D8', borderRadius: 13, padding: 13 }}>
+            <p className="m-0" style={{ fontSize: 13, color: '#9A3B22' }}>المرتب المتوقع</p>
+            <p className="m-0 font-extrabold tabular-nums" style={{ fontSize: 26, lineHeight: 1.15 }}>{formatBonusEgp(view.salary)}</p>
+            <p className="m-0" style={{ fontSize: 13 }}>أساسي {formatBonusEgp(view.baseSalary)}</p>
+          </div>
         </div>
 
-        <div className="h-2.5 overflow-hidden rounded-full bg-white/15">
-          <div className="h-full rounded-full bg-[#E8C547]" style={{ width: `${Math.round(bar * 100)}%` }} />
-        </div>
-
-        <div className="flex flex-wrap justify-center gap-1.5">
-          {schedule.bands.map((band, index) => (
-            <span
-              key={`${band.fromKg}-${band.rate}`}
-              className={`rounded-full px-2 py-0.5 text-[11px] ${index === view.activeIndex ? 'bg-[#E8C547] font-bold text-[#3A1D4E]' : 'bg-white/10 text-[#F6E7B2]'}`}
-            >
-              {band.toKg == null ? `+${formatKg(band.fromKg, true)}` : formatKg(band.toKg, true)} · {formatKg(band.rate)} ج
-            </span>
-          ))}
-        </div>
-
-        <div className="rounded-2xl bg-white/10 px-3 py-2 text-center text-sm">
-          <span className="font-bold text-[#E8C547]">{view.daysPhrase}</span>
-        </div>
-
-        {!frozen && (
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-2xl bg-white/10 p-3">
-              <p className="text-[11px] text-[#F6E7B2]">معدّلك اليومي</p>
-              <p className="text-2xl font-extrabold tabular-nums">{formatKg(view.avgPerDay)}</p>
-              <p className="text-[11px] text-white/80">كجم / يوم</p>
-            </div>
-            <div className="rounded-2xl bg-white/10 p-3">
-              <p className="text-[11px] text-[#F6E7B2]">{view.kgToNext == null ? 'لا شريحة تالية' : 'المطلوب يوميًا'}</p>
-              <p className="text-2xl font-extrabold tabular-nums">{view.kgToNext == null ? '—' : formatKg(view.requiredPerDay)}</p>
-              <p className="text-[11px] text-white/80">{view.kgToNext == null ? 'أعلى سعر' : 'كجم / يوم للهدف القادم'}</p>
-            </div>
+        {view.nextMilestoneKg != null && (
+          <div style={{ borderRadius: 13, background: PURPLE, color: 'white', padding: '13px 16px' }}>
+            <p className="m-0" style={{ fontSize: 13, opacity: 0.85 }}>لما توصّلي {view.nextGoal}</p>
+            <p className="m-0 font-extrabold" style={{ fontSize: 21 }}>
+              البونص هيبقى {formatBonusEgp(view.bonusAtNext ?? 0)} جنيه
+            </p>
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-2xl bg-[#E8C547]/15 p-3">
-            <p className="text-[11px] text-[#F6E7B2]">حافز المصنّعات حتى الآن</p>
-            <p className="text-2xl font-extrabold tabular-nums">{formatEgp(view.processedBonus)}</p>
-            <p className="text-[11px]">جنيه</p>
-          </div>
-          <div className="rounded-2xl bg-[#E8C547]/15 p-3">
-            <p className="text-[11px] text-[#F6E7B2]">{view.qualified ? 'زيادة الشريحة التالية' : 'حافز الحد الأدنى'}</p>
-            <p className="text-2xl font-extrabold tabular-nums">{view.kgToNext == null ? '—' : formatEgp(view.extraToNext)}</p>
-            <p className="text-[11px]">{view.kgToNext == null ? 'كل كيلو بأعلى سعر' : 'جنيه عند بلوغها'}</p>
-          </div>
+        <div
+          className="text-center font-bold"
+          style={{ borderRadius: 13, background: '#FFF6F1', color: ORANGE, padding: '10px 13px', fontSize: 16 }}
+        >
+          {view.daysPhrase}
         </div>
 
-        <div className="space-y-1 rounded-2xl bg-black/20 p-3 text-sm">
-          <div className="flex items-center justify-between gap-3">
-            <span>المرتب حتى الآن</span>
-            <span className="text-xl font-extrabold tabular-nums">{formatEgp(view.salarySoFar)} ج</span>
-          </div>
-          <p className="text-[11px] leading-5 text-white/75">
-            أساسي {formatEgp(baseSalary)} + مصنّعات {formatEgp(view.processedBonus)}
-            {view.carriedProcessedBonus ? ` (منها مرحّل ${formatEgp(view.carriedProcessedBonus)})` : ''}
-            {carriedBonus ? ` + مرحّل ${formatEgp(carriedBonus)}` : ''}
-            {meatBonus ? ` + لحوم ${formatEgp(meatBonus)}` : ''}
-            {boneBonus ? ` + عظم ${formatEgp(boneBonus)}` : ''}
-          </p>
-          {!frozen && (
-            <>
-              <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-2">
-                <span>المتوقع آخر الشهر</span>
-                <span className="text-lg font-extrabold tabular-nums text-[#E8C547]">{formatEgp(view.projectedSalary)} ج</span>
-              </div>
-              <p className="text-[11px] leading-5 text-white/75">
-                على وتيرتك الحالية: {formatKg(Math.round(view.projectedKg))} كجم مصنّعات، وحافزها {formatEgp(view.projectedProcessedBonus)} ج. اللحوم والعظم والمرحّل كما هما اليوم.
-              </p>
-            </>
-          )}
-        </div>
-
-        <p className="rounded-2xl border border-[#E8C547]/40 bg-[#E8C547]/10 px-3 py-3 text-sm leading-7">
+        <p
+          className="m-0"
+          style={{
+            borderRadius: 13,
+            background: '#FBF7FA',
+            borderRight: `4px solid ${ORANGE}`,
+            padding: '13px 16px',
+            fontSize: 16,
+            lineHeight: 1.7,
+          }}
+        >
           {view.message}
         </p>
       </div>
-    </section>
+    </article>
   );
 };
 
