@@ -23,7 +23,11 @@ const BonusPreview = () => {
   const variant = (params.get('variant') || 'a').toLowerCase();
   const showModerator = view !== 'admin';
   const showAdmin = view !== 'moderator';
-  const focusProps = toBonusCardProps(fixtureFocus());
+  const requestedGirl = params.get('girl');
+  const focusRow = requestedGirl
+    ? octoberBonusFixture.moderators.find((row) => row.key === requestedGirl || row.name === requestedGirl) ?? fixtureFocus()
+    : fixtureFocus();
+  const focusProps = toBonusCardProps(focusRow);
   const rows = fixturePayrollRows();
   return (
     <main dir="rtl" className="min-h-screen bg-[#FBF7FA] p-4" style={{ fontFamily: 'Cairo, sans-serif' }}>
