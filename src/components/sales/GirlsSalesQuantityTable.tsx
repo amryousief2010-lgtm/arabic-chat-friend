@@ -5,7 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClipboardList } from 'lucide-react';
@@ -240,7 +239,6 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
     refetchInterval: 60000,
   });
 
-  // Chick bonus rate stored in target_bonus_settings
   const { data: chickBonusSetting } = useQuery({
     queryKey: ['chick-bonus-setting'],
     queryFn: async () => {
@@ -269,11 +267,8 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
       queryClient.invalidateQueries({ queryKey: ['chick-bonus-setting'] });
       toast.success('تم تحديث سعر بونص الكتكوت');
     },
-    onError: (e: any) => toast.error(e.message || 'تعذر التحديث'),
+    onError: (e: Error) => toast.error(e.message || 'تعذر التحديث'),
   });
-
-
-
 
   // Realtime: refetch on order/items changes
   useEffect(() => {
@@ -470,7 +465,6 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
                 ))}
               </TableRow>
 
-              {/* Chick rows */}
               <TableRow>
                 <TableCell className="font-medium">عدد الكتاكيت</TableCell>
                 {GIRLS.map(g => (

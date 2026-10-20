@@ -49,10 +49,8 @@ export const registerServiceWorker = () => {
           duration: 6000,
         });
       } else {
-        toast("تم تفعيل التخزين المؤقت الذكي", {
-          description: "ستتحمّل الأصول الثابتة أسرع في الزيارات القادمة",
-          duration: 4000,
-        });
+        // أول تثبيت للكاش رسالة تقنية. متتكتبش للمستخدم عشان متغطيش شاشة البونص.
+        console.info("[sw] cache ready", newVer);
       }
     }
   });

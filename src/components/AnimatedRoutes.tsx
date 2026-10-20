@@ -72,6 +72,7 @@ const OAuthConsent = lazy(() => import("@/pages/OAuthConsent"));
 const Trust = lazy(() => import("@/pages/Trust"));
 const TeamPerformance = lazy(() => import("@/pages/TeamPerformance"));
 const SalesTargets = lazy(() => import("@/pages/SalesTargets"));
+const BonusPreview = import.meta.env.DEV ? lazy(() => import("@/pages/dev/BonusPreview")) : null;
 const HagarOrdersReview = lazy(() => import("@/pages/HagarOrdersReview"));
 const MyDeliverySummary = lazy(() => import("@/pages/MyDeliverySummary"));
 const OfferBoxes = lazy(() => import("@/pages/OfferBoxes"));
@@ -279,6 +280,11 @@ const AnimatedRoutes = () => {
           <Route path="/trust" element={
             <PageTransition><Trust /></PageTransition>
           } />
+          {BonusPreview && (
+            <Route path="/dev/bonus-preview" element={
+              <PageTransition><BonusPreview /></PageTransition>
+            } />
+          )}
           <Route path="/debug" element={
             <ProtectedRoute allowedRoles={['general_manager']}>
               <PageTransition><Debug /></PageTransition>

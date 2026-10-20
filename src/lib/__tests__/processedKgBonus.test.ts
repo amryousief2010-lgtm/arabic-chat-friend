@@ -136,15 +136,15 @@ describe("marginal processed bonus", () => {
     expect(added[0].bonus).toBe(609);
   });
 
-  it("qualifies the payroll row on month + carried kilograms", () => {
+  it("qualifies the payroll row on month + carried kilograms with the rising bonus", () => {
     const build = (carried: number) => buildPayrollBaseRows({
       girls: ["نورا"],
-      qty: { meat: {}, bone: {}, processed: { "نورا": 350 } },
+      qty: { meat: { "نورا": 80 }, bone: { "نورا": 20 }, processed: { "نورا": 350 } },
       prices: { meat_price: 390, bone_meat_price: 350, processed_price: 250 },
       processedTiers: [],
-      meatTiers: [],
-      chickQtyByGirl: {},
-      chickBonusRate: 0,
+      meatTiers: [{ sales: 1, bonus: 9, label: "قديم" }],
+      chickQtyByGirl: { "نورا": 4 },
+      chickBonusRate: 50,
       bonePerKg: 3.5,
       baseDefault: 2500,
       overrides: [],
@@ -154,22 +154,31 @@ describe("marginal processed bonus", () => {
       carriedProcessedKg: { "نورا": carried },
     })[0];
     const alone = build(0);
+    expect(alone.scheme).toBe("rising");
     expect(alone.qualified).toBe(false);
     expect(alone.procBonus).toBe(0);
+    expect(alone.meatBonus).toBe(720);
+    expect(alone.boneBonus).toBe(70);
+    expect(alone.chickBonus).toBe(200);
+    expect(alone.total).toBe(2500 + 720 + 70 + 200);
     const withCarry = build(60);
     expect(withCarry.qualified).toBe(true);
     expect(withCarry.carriedProcKg).toBe(60);
     expect(withCarry.countedProcKg).toBe(410);
-    expect(withCarry.procBonus).toBe(1400);
-    expect(withCarry.activeBandLabel).toBe("400–750");
+    expect(withCarry.procBonus).toBe(0);
+    expect(withCarry.storedBreakdown?.scheme).toBe("rising");
     expect(withCarry.storedBreakdown?.carried_kg).toBe(60);
     expect(withCarry.storedBreakdown?.counted_kg).toBe(410);
     expect(withCarry.storedBreakdown?.qualified).toBe(true);
-    // كيلوات الشهر 1,400 + المرحّل 260 = حافز 410 كجم كاملة
     const carry = allocateProcessedCarry(350, withCarry, schedule, [
       { orderId: "a", procKg: 60, deliveredAt: "2026-10-02T00:00:00Z" },
     ]);
-    expect(withCarry.procBonus + carry[0].bonus).toBe(marginalProcessedBonus(410, schedule));
+    expect(withCarry.procBonus + carry[0].bonus).toBeCloseTo(
+      (withCarry.storedBreakdown && "total_bonus" in withCarry.storedBreakdown
+        ? withCarry.storedBreakdown.total_bonus
+        : 0),
+      6,
+    );
     expect(toStoredBreakdown(350, schedule).qualified).toBe(false);
   });
 
