@@ -4,6 +4,7 @@ import {
   BONUS_AT_MINIMUM,
   buildModeratorBonusBoard,
   buildModeratorBonusView,
+  carriedProcessedPhrase,
   formatBonusEgp,
   moderatorKgBonus,
   moderatorSalary,
@@ -134,6 +135,7 @@ describe("moderator bonus screen", () => {
     expect(close.message).toContain("2,400");
     const past = buildModeratorBonusView({ name: "نورا", kg: 2100, baseSalary: 2500, now: OCT_20 });
     expect(past.message).toContain("٢ طن");
+    expect(carriedProcessedPhrase(40)).toBe("اتضافلك 40 كجم من أوردرات الشهر اللي فات اتسلّمت الشهر ده");
   });
 
   it("adds meat, bone, and chick bonuses on top of the processed formula", () => {

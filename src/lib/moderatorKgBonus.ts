@@ -97,6 +97,10 @@ export const formatBonusKg = (n: number) => {
   });
 };
 
+/** جملة الكيلو المرحّل على كارت المسوقة. من غير سعر ومن غير اصطلاحات. */
+export const carriedProcessedPhrase = (kg: number) =>
+  `اتضافلك ${formatBonusKg(kg)} كجم من أوردرات الشهر اللي فات اتسلّمت الشهر ده`;
+
 export interface RisingBreakdown {
   scheme: 'rising';
   minimum_kg: number;

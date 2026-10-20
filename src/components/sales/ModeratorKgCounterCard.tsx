@@ -4,6 +4,7 @@ import {
   BONUS_MILESTONES,
   type BonusLane,
   buildModeratorBonusBoard,
+  carriedProcessedPhrase,
   formatBonusEgp,
   formatBonusKg,
 } from '@/lib/moderatorKgBonus';
@@ -160,13 +161,13 @@ const ModeratorKgCounterCard = ({
     >
       <header
         className="relative flex items-center justify-between text-white"
-        style={{ background: PURPLE, padding: '21px 21px 18px', gap: 13 }}
+        style={{ background: PURPLE, padding: 21, gap: 13, minHeight: 89 }}
       >
-        <div className="min-w-0">
-          <p className="m-0 font-medium text-white/80" style={{ fontSize: 13 }}>بونص الشهر</p>
-          <h2 className="m-0 font-extrabold leading-none" style={{ fontSize: 26, marginTop: 4 }}>{name}</h2>
+        <div className="min-w-0 flex-1">
+          <p className="m-0 font-medium text-white/80" style={{ fontSize: 13, lineHeight: 1.45 }}>بونص الشهر</p>
+          <h2 className="m-0 font-extrabold" style={{ fontSize: 26, lineHeight: 1.45, marginTop: 4 }}>{name}</h2>
           {periodLabel && (
-            <p className="m-0 text-white/85" style={{ fontSize: 13, marginTop: 6 }}>{periodLabel}</p>
+            <p className="m-0 text-white/85" style={{ fontSize: 16, lineHeight: 1.45, marginTop: 4 }}>{periodLabel}</p>
           )}
         </div>
         <img
@@ -210,19 +211,19 @@ const ModeratorKgCounterCard = ({
         </div>
 
         {view.carriedKg > 0 && (
-          <p className="m-0 text-center" style={{ fontSize: 13, marginTop: -8, color: PURPLE }}>
-            كيلو المصنّعات فيه {formatBonusKg(view.carriedKg)} كجم من الشهر اللي فات
+          <p className="m-0 text-center" style={{ fontSize: 16, lineHeight: 1.6, color: PURPLE }}>
+            {carriedProcessedPhrase(view.carriedKg)}
           </p>
         )}
 
-        <ol className="m-0 grid list-none grid-cols-4 p-0" style={{ gap: 8 }}>
+        <ol className="m-0 grid list-none grid-cols-4 p-0" style={{ gap: 13 }}>
           {BONUS_MILESTONES.map((milestone) => {
             const done = view.kg >= milestone.kg;
             const current = view.nextMilestoneKg === milestone.kg;
             return (
               <li
                 key={milestone.kg}
-                className="text-center"
+                className="min-w-0 text-center"
                 style={{
                   borderRadius: 13,
                   padding: '8px 4px',
@@ -230,8 +231,8 @@ const ModeratorKgCounterCard = ({
                   color: done ? 'white' : INK,
                 }}
               >
-                <div className="font-extrabold" style={{ fontSize: 13 }}>{milestone.title}</div>
-                <div style={{ fontSize: 11, opacity: 0.85 }}>{done ? 'اتحقق' : 'جاي'}</div>
+                <div className="font-extrabold" style={{ fontSize: 13, lineHeight: 1.45 }}>{milestone.title}</div>
+                <div style={{ fontSize: 11, lineHeight: 1.45, opacity: 0.85 }}>{done ? 'اتحقق' : 'جاي'}</div>
               </li>
             );
           })}
