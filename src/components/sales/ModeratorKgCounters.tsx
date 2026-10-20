@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { currentCairoYearMonth } from '@/lib/cairoDate';
 import { findModeratorByName, moderatorKeysForMonth, displayModeratorName } from '@/constants/moderators';
 import { useAuth } from '@/hooks/useAuth';
 import { useModeratorBonusProgress } from '@/hooks/useModeratorBonusProgress';
 import ModeratorKgCounterCard from '@/components/sales/ModeratorKgCounterCard';
+import { supabase } from '@/integrations/supabase/client';
 
 const monthNames = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
@@ -15,8 +16,32 @@ interface BoardProps {
   celebrate?: boolean;
 }
 
+/** يطابق مسوقة بمستخدمها عشان صورة profiles.avatar_url تتوقَّع بالجلسة. */
+const usePayrollUserIds = () => {
+  const [ids, setIds] = useState<Map<string, string>>(() => new Map());
+  useEffect(() => {
+    let live = true;
+    supabase.from('profile_directory').select('id, full_name').then(({ data, error }) => {
+      if (!live || error || !data) return;
+      const next = new Map<string, string>();
+      data.forEach((row) => {
+        const moderator = findModeratorByName(row.full_name);
+        if (moderator && row.id) next.set(moderator.payrollKey, row.id);
+      });
+      setIds(next);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  return ids;
+};
+
 export const ModeratorKgCounterBoard = ({ year, month, onlyPayrollKey, celebrate = false }: BoardProps) => {
   const progress = useModeratorBonusProgress(year, month);
+  const { user, profile } = useAuth();
+  const payrollUserIds = usePayrollUserIds();
+  const selfKey = findModeratorByName(profile?.full_name)?.payrollKey;
   const cairo = currentCairoYearMonth();
   const isCurrent = year === cairo.year && month === cairo.monthIndex0 + 1;
   const keys = onlyPayrollKey ? progress.girls.filter((girl) => girl === onlyPayrollKey) : progress.girls;
@@ -53,6 +78,7 @@ export const ModeratorKgCounterBoard = ({ year, month, onlyPayrollKey, celebrate
             celebrate={celebrate && onlyPayrollKey === key}
             storageKey={`${key}:${year}-${month}`}
             frozen={!isCurrent}
+            userId={key === selfKey ? user?.id ?? payrollUserIds.get(key) ?? null : payrollUserIds.get(key) ?? null}
           />
         );
       })}

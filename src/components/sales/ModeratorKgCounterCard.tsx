@@ -1,20 +1,54 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import companyLogo from '@/assets/company-logo.jpg';
+import { useAvatarUrl } from '@/hooks/useAvatars';
 import {
-  BONUS_MILESTONES,
   type BonusLane,
+  type ModeratorBonusView,
   buildModeratorBonusBoard,
   carriedProcessedPhrase,
   formatBonusEgp,
   formatBonusKg,
+  moderatorKgBonus,
 } from '@/lib/moderatorKgBonus';
 
 const PURPLE = '#A4288A';
 const ORANGE = '#F37346';
-const INK = '#3A1238';
+const INK = '#1A1A1A';
+const MUTED = '#5C5C5C';
+const PAPER = '#F6F6F6';
+const LINE = '#E6E6E6';
+const FONT = 'Cairo, sans-serif';
 
-const RING = 42;
-const CIRC = 2 * Math.PI * RING;
+const ROAD_FLAGS = [
+  { kg: 400, title: '٤٠٠' },
+  { kg: 750, title: '٧٥٠' },
+  { kg: 1000, title: 'طن' },
+  { kg: 1500, title: 'طن ونص' },
+  { kg: 2000, title: '٢ طن' },
+  { kg: 2500, title: '٢٫٥ طن' },
+] as const;
+
+const ROAD_MAX = 2500;
+const ROAD_W = 360;
+const ROAD_H = 980;
+const ROAD_TOP = 64;
+const ROAD_BOTTOM = 900;
+
+const roadPoint = (kg: number) => {
+  const t = Math.max(0, Math.min(1, kg / ROAD_MAX));
+  const y = ROAD_BOTTOM - t * (ROAD_BOTTOM - ROAD_TOP);
+  const x = 180 + Math.sin(t * Math.PI * 3) * 26;
+  return { x, y };
+};
+
+const ROAD_D = (() => {
+  let d = '';
+  for (let kg = 0; kg <= ROAD_MAX; kg += 25) {
+    const { x, y } = roadPoint(kg);
+    d += `${kg === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)} `;
+  }
+  return d;
+})();
 
 export interface ModeratorKgCounterCardProps {
   name: string;
@@ -41,49 +75,86 @@ export interface ModeratorKgCounterCardProps {
   storageKey?: string;
   forceCelebration?: boolean;
   frozen?: boolean;
+  /**
+   * مستخدم الصورة. للمسوقة الداخلة ده user.id بتاع الجلسة.
+   * الرابط الموقّع ييجي من useAvatarUrl على bucket avatars.
+   */
+  userId?: string | null;
 }
 
-const quantityText = (lane: BonusLane) => {
-  const digits = lane.id === 'chicks' ? formatBonusEgp(lane.quantity) : formatBonusKg(lane.quantity);
-  return `${digits} ${lane.unit}`;
+const qtyText = (lane: BonusLane) => (lane.id === 'chicks' ? formatBonusEgp(lane.quantity) : formatBonusKg(lane.quantity));
+
+const laneHint = (lane: BonusLane) => lane.nextHint ?? 'مفيش مستوى جاي';
+
+const Walker = ({ name, userId }: { name: string; userId?: string | null }) => {
+  const signedUrl = useAvatarUrl(userId);
+  const [failed, setFailed] = useState(false);
+  const photo = Boolean(signedUrl) && !failed;
+  const initial = name.trim().charAt(0) || 'م';
+  return (
+    <div
+      data-avatar-state={photo ? 'photo' : 'initial'}
+      style={{
+        width: 55,
+        height: 55,
+        borderRadius: 55,
+        overflow: 'hidden',
+        background: PURPLE,
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 21,
+        fontWeight: 800,
+        border: '3px solid #fff',
+        boxShadow: `0 0 0 2px ${ORANGE}, 0 8px 21px rgba(26,26,26,0.28)`,
+      }}
+    >
+      {photo ? (
+        <img
+          src={signedUrl ?? ''}
+          alt=""
+          onError={() => setFailed(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      ) : (
+        initial
+      )}
+    </div>
+  );
 };
 
-const LaneGauge = ({ lane, drawn }: { lane: BonusLane; drawn: boolean }) => {
-  const progress = drawn ? lane.progress : 0;
-  const offset = CIRC * (1 - progress);
+const MiniRing = ({ progress, color }: { progress: number; color: string }) => {
+  const r = 20;
+  const c = 2 * Math.PI * r;
+  const shown = Math.max(0, Math.min(1, progress));
   return (
-    <section
-      aria-label={`${lane.title}: ${quantityText(lane)}، بونص ${formatBonusEgp(lane.bonus)}`}
-      style={{ background: '#FBF7FA', borderRadius: 13, padding: 13 }}
-    >
-      <div className="flex items-center justify-between" style={{ gap: 8 }}>
-        <h3 className="m-0 font-extrabold" style={{ color: PURPLE, fontSize: 16 }}>{lane.title}</h3>
-        <span className="font-bold tabular-nums" style={{ color: ORANGE, fontSize: 13 }}>{formatBonusEgp(lane.bonus)} ج</span>
-      </div>
-      <svg viewBox="0 0 120 120" className="mx-auto h-auto w-full" style={{ maxWidth: 128 }} role="img">
-        <circle cx="60" cy="60" r={RING} fill="none" stroke="#F3D5E8" strokeWidth="9" />
-        <circle
-          cx="60"
-          cy="60"
-          r={RING}
-          fill="none"
-          stroke={ORANGE}
-          strokeWidth="9"
-          strokeLinecap="round"
-          strokeDasharray={CIRC}
-          strokeDashoffset={offset}
-          transform="rotate(-90 60 60)"
-          style={{ transition: 'stroke-dashoffset 900ms cubic-bezier(.22,.8,.24,1)' }}
-        />
-        <text x="60" y="56" textAnchor="middle" fill={INK} fontSize="16" fontWeight="800">
-          {lane.id === 'chicks' ? formatBonusEgp(lane.quantity) : formatBonusKg(lane.quantity)}
-        </text>
-        <text x="60" y="74" textAnchor="middle" fill={PURPLE} fontSize="11" fontWeight="700">{lane.unit}</text>
-      </svg>
-      <p className="m-0 text-center" style={{ fontSize: 13, lineHeight: 1.45, minHeight: 38 }}>
-        {lane.nextHint ?? (lane.id === 'chicks' ? 'كل كتكوت بيزوّد البونص' : 'مفيش مستوى جاي')}
+    <svg width="55" height="55" viewBox="0 0 55 55" aria-hidden>
+      <circle cx="27.5" cy="27.5" r={r} fill="none" stroke={LINE} strokeWidth="5" />
+      <circle
+        cx="27.5"
+        cy="27.5"
+        r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeDasharray={`${c * shown} ${c}`}
+        transform="rotate(-90 27.5 27.5)"
+      />
+    </svg>
+  );
+};
+
+const UnlockTeaser = ({ view }: { view: ModeratorBonusView }) => {
+  if (view.qualified) return null;
+  return (
+    <div style={{ background: '#FFF4EF', border: `1px solid ${ORANGE}`, borderRadius: 21, padding: '13px 21px', textAlign: 'center' }}>
+      <p style={{ margin: 0, color: ORANGE, fontWeight: 800, fontSize: 21, lineHeight: 1.618 }}>افتحي البونص</p>
+      <p style={{ margin: '8px 0 0', color: INK, fontSize: 13, lineHeight: 1.618 }}>
+        فاضلِك {formatBonusKg(view.kgRemaining ?? 0)} كجم والبونص يفتح بـ {formatBonusEgp(view.bonusAtNext ?? 0)} جنيه
       </p>
-    </section>
+    </div>
   );
 };
 
@@ -109,6 +180,7 @@ const ModeratorKgCounterCard = ({
   storageKey,
   forceCelebration = false,
   frozen = false,
+  userId = null,
 }: ModeratorKgCounterCardProps) => {
   const board = buildModeratorBonusBoard({
     name,
@@ -129,13 +201,12 @@ const ModeratorKgCounterCard = ({
     frozen,
   });
   const view = board.processed;
+  const gradientId = `road-${useId().replace(/:/g, '')}`;
+  const nextFlag = ROAD_FLAGS.find((flag) => view.kg < flag.kg) ?? null;
+  const walker = roadPoint(Math.min(view.kg, ROAD_MAX));
+  const lanes = board.lanes.filter((lane) => lane.id !== 'processed');
+  const colors: Record<string, string> = { meat: ORANGE, bone: PURPLE, chicks: ORANGE };
   const [burst, setBurst] = useState(forceCelebration);
-  const [drawn, setDrawn] = useState(false);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setDrawn(true));
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
 
   useEffect(() => {
     if (!celebrate || forceCelebration) return;
@@ -155,137 +226,173 @@ const ModeratorKgCounterCard = ({
     <article
       dir="rtl"
       data-testid="moderator-bonus-card"
-      className="relative overflow-hidden bg-white text-[#3A1238] shadow-lg"
-      style={{ borderRadius: 21, fontFamily: 'Cairo, sans-serif' }}
+      className="relative bg-white shadow-lg"
+      style={{ fontFamily: FONT, color: INK, borderRadius: 34, overflow: 'hidden' }}
       aria-label={`بونص ${name}`}
     >
-      <header
-        className="relative flex items-center justify-between text-white"
-        style={{ background: PURPLE, padding: 21, gap: 13, minHeight: 89 }}
-      >
-        <div className="min-w-0 flex-1">
-          <p className="m-0 font-medium text-white/80" style={{ fontSize: 13, lineHeight: 1.45 }}>بونص الشهر</p>
-          <h2 className="m-0 font-extrabold" style={{ fontSize: 26, lineHeight: 1.45, marginTop: 4 }}>{name}</h2>
-          {periodLabel && (
-            <p className="m-0 text-white/85" style={{ fontSize: 16, lineHeight: 1.45, marginTop: 4 }}>{periodLabel}</p>
-          )}
-        </div>
-        <img
-          src={companyLogo}
-          alt=""
-          className="shrink-0 rounded-full bg-white object-contain"
-          style={{ width: 55, height: 55, padding: 4 }}
-        />
-        {burst && (
-          <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center" aria-hidden>
-            <span
-              className="rounded-full px-3 py-1 font-extrabold"
-              style={{ background: ORANGE, color: 'white', fontSize: 13 }}
-            >
-              مبروك يا {name.trim() || 'قمر'}
-            </span>
+      <div style={{ padding: 21, display: 'flex', flexDirection: 'column', gap: 13 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 13 }}>
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ margin: 0, fontSize: 34, lineHeight: 1.3, fontWeight: 800 }}>{name}</h2>
+            {periodLabel && <p style={{ margin: '4px 0 0', fontSize: 13, lineHeight: 1.618, color: MUTED }}>{periodLabel}</p>}
           </div>
-        )}
-      </header>
-
-      {burst && (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-          {Array.from({ length: 16 }).map((_, index) => (
-            <span
-              key={index}
-              className="absolute top-16 h-2 w-2 rounded-sm"
-              style={{
-                right: `${8 + (index * 17) % 84}%`,
-                background: index % 2 ? ORANGE : PURPLE,
-                animation: `bonus-confetti 1.15s ease-out ${index * 0.04}s both`,
-              }}
-            />
-          ))}
+          <img src={companyLogo} alt="" width={34} height={34} style={{ width: 34, height: 34, borderRadius: 8, objectFit: 'cover', background: '#fff' }} />
         </div>
-      )}
-      <style>{`@keyframes bonus-confetti { from { transform: translateY(0) rotate(0deg); opacity: 1 } to { transform: translateY(120px) rotate(160deg); opacity: 0 } } @media (prefers-reduced-motion: reduce) { span { animation: none !important } }`}</style>
+        {burst && (
+          <p style={{ margin: 0, textAlign: 'center', background: ORANGE, color: '#fff', borderRadius: 21, padding: '8px 13px', fontSize: 13, fontWeight: 800 }}>
+            مبروك يا {name.trim() || 'قمر'}
+          </p>
+        )}
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.618, color: MUTED }}>
+          طريق المصنّعات · <span className="tabular-nums" style={{ fontWeight: 800, color: INK }}>{formatBonusKg(view.kg)}</span> كجم · بونص {formatBonusEgp(view.bonus)} جنيه
+        </p>
+      </div>
+
+      <div style={{ position: 'relative', width: '100%', aspectRatio: `${ROAD_W} / ${ROAD_H}` }}>
+        <svg viewBox={`0 0 ${ROAD_W} ${ROAD_H}`} width="100%" height="100%" role="img" aria-label="طريق محطات المصنّعات">
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0" stopColor={PURPLE} />
+              <stop offset="1" stopColor={ORANGE} />
+            </linearGradient>
+          </defs>
+          <path d={ROAD_D} fill="none" stroke={LINE} strokeWidth="28" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d={ROAD_D}
+            fill="none"
+            stroke={`url(#${gradientId})`}
+            strokeWidth="28"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            pathLength={ROAD_MAX}
+            strokeDasharray={`${Math.min(view.kg, ROAD_MAX)} ${ROAD_MAX}`}
+          />
+          <path d={ROAD_D} fill="none" stroke="rgba(255,255,255,0.88)" strokeWidth="3" strokeDasharray="8 12" strokeLinecap="round" />
+          {ROAD_FLAGS.map((flag, index) => {
+            const spot = roadPoint(flag.kg);
+            const passed = view.kg >= flag.kg;
+            const current = nextFlag?.kg === flag.kg;
+            const edge = index % 2 === 0 ? 118 : 242;
+            return (
+              <line key={`pole-${flag.kg}`} x1={spot.x} y1={spot.y} x2={edge} y2={spot.y} stroke={passed ? PURPLE : current ? ORANGE : LINE} strokeWidth="2" />
+            );
+          })}
+          {ROAD_FLAGS.map((flag) => {
+            const spot = roadPoint(flag.kg);
+            const passed = view.kg >= flag.kg;
+            const current = nextFlag?.kg === flag.kg;
+            return (
+              <circle
+                key={flag.kg}
+                cx={spot.x}
+                cy={spot.y}
+                r={current ? 8 : 6}
+                fill={passed ? '#fff' : current ? ORANGE : '#fff'}
+                stroke={passed ? PURPLE : current ? ORANGE : LINE}
+                strokeWidth="3"
+              />
+            );
+          })}
+        </svg>
+        {ROAD_FLAGS.map((flag, index) => {
+          const spot = roadPoint(flag.kg);
+          const passed = view.kg >= flag.kg;
+          const current = nextFlag?.kg === flag.kg;
+          const onLeft = index % 2 === 0;
+          return (
+            <div
+              key={flag.kg}
+              style={{
+                position: 'absolute',
+                left: onLeft ? '2%' : 'auto',
+                right: onLeft ? 'auto' : '2%',
+                width: '30%',
+                top: `${(spot.y / ROAD_H) * 100}%`,
+                transform: 'translateY(-50%)',
+                textAlign: 'center',
+                background: passed ? PURPLE : current ? ORANGE : '#fff',
+                color: passed || current ? '#fff' : INK,
+                border: passed || current ? 'none' : `1px solid ${LINE}`,
+                borderRadius: 13,
+                padding: '8px 8px',
+                boxShadow: current ? '0 8px 21px rgba(243,115,70,0.35)' : '0 4px 13px rgba(26,26,26,0.06)',
+              }}
+            >
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 800, lineHeight: 1.35 }}>{flag.title}</p>
+              <p className="tabular-nums" style={{ margin: '4px 0 0', fontSize: 13, fontWeight: 800, lineHeight: 1.35, direction: 'ltr' }}>
+                {formatBonusEgp(moderatorKgBonus(flag.kg))} ج
+              </p>
+              {current && (
+                <p style={{ margin: '4px 0 0', fontSize: 13, fontWeight: 800, lineHeight: 1.45 }}>
+                  فاضلِك {formatBonusKg(flag.kg - view.kg)} كجم
+                </p>
+              )}
+            </div>
+          );
+        })}
+        <div
+          style={{
+            position: 'absolute',
+            left: `${(walker.x / ROAD_W) * 100}%`,
+            top: `${(walker.y / ROAD_H) * 100}%`,
+            transform: 'translate(-50%, -58%)',
+            zIndex: 2,
+          }}
+        >
+          <Walker name={name} userId={userId} />
+        </div>
+      </div>
 
       <div style={{ padding: 21, display: 'flex', flexDirection: 'column', gap: 21 }}>
-        <div className="grid grid-cols-2" style={{ gap: 13 }}>
-          {board.lanes.map((lane) => <LaneGauge key={lane.id} lane={lane} drawn={drawn} />)}
-        </div>
-
+        <UnlockTeaser view={view} />
         {view.carriedKg > 0 && (
-          <p className="m-0 text-center" style={{ fontSize: 16, lineHeight: 1.6, color: PURPLE }}>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.618, color: PURPLE, textAlign: 'center' }}>
             {carriedProcessedPhrase(view.carriedKg)}
           </p>
         )}
-
-        <ol className="m-0 grid list-none grid-cols-4 p-0" style={{ gap: 13 }}>
-          {BONUS_MILESTONES.map((milestone) => {
-            const done = view.kg >= milestone.kg;
-            const current = view.nextMilestoneKg === milestone.kg;
-            return (
-              <li
-                key={milestone.kg}
-                className="min-w-0 text-center"
-                style={{
-                  borderRadius: 13,
-                  padding: '8px 4px',
-                  background: done ? PURPLE : current ? '#FDE4D8' : '#F6ECF4',
-                  color: done ? 'white' : INK,
-                }}
-              >
-                <div className="font-extrabold" style={{ fontSize: 13, lineHeight: 1.45 }}>{milestone.title}</div>
-                <div style={{ fontSize: 11, lineHeight: 1.45, opacity: 0.85 }}>{done ? 'اتحقق' : 'جاي'}</div>
-              </li>
-            );
-          })}
-        </ol>
-
-        {view.nextMilestoneKg != null && (
-          <div style={{ borderRadius: 13, background: PURPLE, color: 'white', padding: '13px 16px' }}>
-            <p className="m-0" style={{ fontSize: 13, opacity: 0.85 }}>مصنّعات: لما توصّلي {view.nextGoal}</p>
-            <p className="m-0 font-extrabold" style={{ fontSize: 21 }}>
-              بونص المصنّعات هيبقى {formatBonusEgp(view.bonusAtNext ?? 0)} جنيه
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 13 }}>
+          {lanes.map((lane) => (
+            <section key={lane.id} aria-label={`${lane.title}: ${qtyText(lane)} ${lane.unit}`} style={{ textAlign: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <MiniRing progress={lane.progress} color={colors[lane.id] ?? PURPLE} />
+              </div>
+              <p style={{ margin: '8px 0 0', fontSize: 13, fontWeight: 800, color: PURPLE }}>{lane.title}</p>
+              <p className="tabular-nums" style={{ margin: '8px 0 0', fontSize: 21, fontWeight: 800, lineHeight: 1.2, direction: 'ltr' }}>
+                {qtyText(lane)}
+              </p>
+              <p style={{ margin: 0, fontSize: 13, color: MUTED }}>{lane.unit}</p>
+              <p className="tabular-nums" style={{ margin: '8px 0 0', fontSize: 13, fontWeight: 800, color: ORANGE }}>
+                {formatBonusEgp(lane.bonus)} ج
+              </p>
+              <p style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.618, color: MUTED }}>{laneHint(lane)}</p>
+            </section>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.618fr 1fr', gap: 13 }}>
+          <div style={{ background: PAPER, borderRadius: 21, padding: 21 }}>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.618, color: MUTED }}>البونص كله</p>
+            <p className="tabular-nums" style={{ margin: '8px 0 0', fontSize: 34, lineHeight: 1.15, fontWeight: 800, color: PURPLE, direction: 'ltr', textAlign: 'right' }}>
+              {formatBonusEgp(board.totalBonus)}
+            </p>
+            <p style={{ margin: '8px 0 0', fontSize: 13, color: MUTED }}>جنيه</p>
+          </div>
+          <div style={{ background: INK, borderRadius: 21, padding: 13, color: '#fff' }}>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.618, color: 'rgba(255,255,255,0.75)' }}>المرتب المتوقع</p>
+            <p className="tabular-nums" style={{ margin: '8px 0 0', fontSize: 21, lineHeight: 1.3, fontWeight: 800, color: ORANGE, direction: 'ltr', textAlign: 'right' }}>
+              {formatBonusEgp(board.salary)}
+            </p>
+            <p style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.618, color: 'rgba(255,255,255,0.75)' }}>
+              أساسي {formatBonusEgp(board.baseSalary)}
             </p>
           </div>
-        )}
-
-        <div className="grid grid-cols-2" style={{ gap: 13 }}>
-          <div style={{ background: '#F6ECF4', borderRadius: 13, padding: 13 }}>
-            <p className="m-0" style={{ fontSize: 13, color: PURPLE }}>إجمالي البونص</p>
-            <p className="m-0 font-extrabold tabular-nums" style={{ fontSize: 26, lineHeight: 1.15 }}>{formatBonusEgp(board.totalBonus)}</p>
-            <p className="m-0" style={{ fontSize: 13 }}>جنيه</p>
-          </div>
-          <div style={{ background: '#FDE4D8', borderRadius: 13, padding: 13 }}>
-            <p className="m-0" style={{ fontSize: 13, color: '#9A3B22' }}>المرتب المتوقع</p>
-            <p className="m-0 font-extrabold tabular-nums" style={{ fontSize: 26, lineHeight: 1.15 }}>{formatBonusEgp(board.salary)}</p>
-            <p className="m-0" style={{ fontSize: 13 }}>أساسي {formatBonusEgp(board.baseSalary)}</p>
-          </div>
         </div>
-
         {carriedSideBonus > 0 && (
-          <p className="m-0 text-center" style={{ fontSize: 13, color: PURPLE }}>
+          <p style={{ margin: 0, textAlign: 'center', fontSize: 13, lineHeight: 1.618, color: PURPLE }}>
             الإجمالي شامل {formatBonusEgp(carriedSideBonus)} جنيه لحوم وعظم من الشهر اللي فات
           </p>
         )}
-
-        <div
-          className="text-center font-bold"
-          style={{ borderRadius: 13, background: '#FFF6F1', color: ORANGE, padding: '10px 13px', fontSize: 16 }}
-        >
-          {board.daysPhrase}
-        </div>
-
-        <p
-          className="m-0"
-          style={{
-            borderRadius: 13,
-            background: '#FBF7FA',
-            borderRight: `4px solid ${ORANGE}`,
-            padding: '13px 16px',
-            fontSize: 16,
-            lineHeight: 1.7,
-          }}
-        >
-          {board.message}
-        </p>
+        <p style={{ margin: 0, textAlign: 'center', fontSize: 13, fontWeight: 800, color: ORANGE, lineHeight: 1.618 }}>{board.daysPhrase}</p>
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.618, color: INK }}>{board.message}</p>
       </div>
     </article>
   );

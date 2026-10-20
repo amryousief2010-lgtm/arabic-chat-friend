@@ -1,4 +1,4 @@
-import type { BonusVariantProps } from '@/pages/dev/BonusCardVariants';
+import type { ModeratorKgCounterCardProps } from '@/components/sales/ModeratorKgCounterCard';
 import type { RisingPayrollRow } from '@/components/sales/RisingPayrollTable';
 import { toRisingBreakdown } from '@/lib/moderatorKgBonus';
 
@@ -126,7 +126,7 @@ export const fixtureFocus = () =>
   octoberBonusFixture.moderators.find((row) => row.key === octoberBonusFixture.focusKey)
   ?? octoberBonusFixture.moderators[0];
 
-export const toBonusCardProps = (row: OctoberModeratorFixture): BonusVariantProps => ({
+export const toBonusCardProps = (row: OctoberModeratorFixture): ModeratorKgCounterCardProps => ({
   name: row.name,
   kg: row.processedKg,
   carriedKg: row.carriedProcessedKg,
