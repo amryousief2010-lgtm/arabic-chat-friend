@@ -2,6 +2,7 @@ import { useSearchParams } from 'react-router-dom';
 import ModeratorKgCounterCard from '@/components/sales/ModeratorKgCounterCard';
 import RisingPayrollTable from '@/components/sales/RisingPayrollTable';
 import { BonusLayoutB, BonusLayoutC, BonusLayoutD } from '@/pages/dev/BonusCardVariants';
+import { BonusLayoutE, BonusLayoutF, BonusLayoutG } from '@/pages/dev/BonusCreativeLayouts';
 import {
   fixtureFocus,
   fixturePayrollRows,
@@ -14,6 +15,9 @@ const VARIANTS = [
   { id: 'b', label: 'ب · السلّم' },
   { id: 'c', label: 'ج · الطريق' },
   { id: 'd', label: 'د · اللوحة' },
+  { id: 'e', label: 'ه · الخاتم' },
+  { id: 'f', label: 'و · الوسام' },
+  { id: 'g', label: 'ز · الأعلام' },
 ] as const;
 
 /** شاشة معاينة محلية. مش متاحة في نسخة الإنتاج. الأرقام من octoberBonusFixture.ts */
@@ -62,7 +66,10 @@ const BonusPreview = () => {
             {variant === 'b' && <BonusLayoutB {...focusProps} />}
             {variant === 'c' && <BonusLayoutC {...focusProps} />}
             {variant === 'd' && <BonusLayoutD {...focusProps} />}
-            {variant !== 'b' && variant !== 'c' && variant !== 'd' && (
+            {variant === 'e' && <BonusLayoutE {...focusProps} />}
+            {variant === 'f' && <BonusLayoutF {...focusProps} />}
+            {variant === 'g' && <BonusLayoutG {...focusProps} />}
+            {variant !== 'b' && variant !== 'c' && variant !== 'd' && variant !== 'e' && variant !== 'f' && variant !== 'g' && (
               <ModeratorKgCounterCard {...focusProps} celebrate={false} />
             )}
           </div>
