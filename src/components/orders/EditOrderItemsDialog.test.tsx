@@ -80,6 +80,13 @@ vi.mock("@/integrations/supabase/client", () => {
         }),
       };
     }
+    if (table === "order_items") {
+      return {
+        select: () => ({
+          eq: () => Promise.resolve({ data: [], error: null }),
+        }),
+      };
+    }
     if (table === "orders") {
       return {
         select: () => ({
