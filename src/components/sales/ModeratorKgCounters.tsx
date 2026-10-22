@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useModeratorBonusProgress } from '@/hooks/useModeratorBonusProgress';
 import ModeratorKgCounterCard from '@/components/sales/ModeratorKgCounterCard';
 import { supabase } from '@/integrations/supabase/client';
+import QueryStateGate from '@/components/common/QueryStateGate';
 
 const monthNames = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
@@ -38,7 +39,7 @@ const usePayrollUserIds = () => {
 };
 
 export const ModeratorKgCounterBoard = ({ year, month, onlyPayrollKey, celebrate = false }: BoardProps) => {
-  const progress = useModeratorBonusProgress(year, month);
+  const progress = useModeratorBonusProgress(year, month, { onlyGirl: onlyPayrollKey ?? null });
   const { user, profile } = useAuth();
   const payrollUserIds = usePayrollUserIds();
   const selfKey = findModeratorByName(profile?.full_name)?.payrollKey;
@@ -47,11 +48,9 @@ export const ModeratorKgCounterBoard = ({ year, month, onlyPayrollKey, celebrate
   const keys = onlyPayrollKey ? progress.girls.filter((girl) => girl === onlyPayrollKey) : progress.girls;
   const periodLabel = `${monthNames[month - 1]} ${year}`;
 
-  if (progress.isLoading && !progress.rows.some((row) => row.countedProcKg > 0)) {
-    return <div className="h-40 animate-pulse rounded-3xl bg-[#A4288A]/15" />;
-  }
-
+  // الكروت تظهر بس بعد ما كميات الشهر توصل بنجاح؛ عند الفشل رسالة + إعادة محاولة بدل الأصفار.
   return (
+    <QueryStateGate state={progress.queryState}>
     <div className={`grid grid-cols-1 gap-[21px] ${keys.length > 1 ? 'xl:grid-cols-2' : ''}`} dir="rtl">
       {keys.map((key) => {
         const row = progress.rows.find((item) => item.girl === key);
@@ -83,6 +82,7 @@ export const ModeratorKgCounterBoard = ({ year, month, onlyPayrollKey, celebrate
         );
       })}
     </div>
+    </QueryStateGate>
   );
 };
 

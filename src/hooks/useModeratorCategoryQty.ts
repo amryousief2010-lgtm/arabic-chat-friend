@@ -7,6 +7,9 @@ import { matchesModeratorGroup } from '@/constants/moderators';
 import { applyClosureCutoff, usePayrollClosureCutoff } from '@/hooks/usePayrollClosure';
 import type { PayrollQty } from '@/lib/moderatorPayrollMath';
 
+/** مدة تجميع تحديثات realtime قبل إعادة الحساب. */
+export const REALTIME_DEBOUNCE_MS = 8000;
+
 export const fetchModeratorCategoryQty = async (args: {
   year: number;
   month: number;
@@ -104,19 +107,28 @@ export const useModeratorCategoryQty = (year: number, month: number, girls: stri
   });
 
   useEffect(() => {
+    // تجميع تحديثات realtime: أي أوردر بيتعدّل في السيستم كله كان بيعيد حساب الشهر بالكامل فورًا.
+    const pending = new Set<string>();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const schedule = (key: string) => {
+      pending.add(key);
+      if (timer) return;
+      timer = setTimeout(() => {
+        timer = null;
+        pending.forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
+        pending.clear();
+      }, REALTIME_DEBOUNCE_MS);
+    };
     const channel = supabase
       .channel(`moderator-qty-${month}-${year}-${Math.random().toString(36).slice(2)}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['girls-auto-qty'] });
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['girls-auto-qty'] });
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chick_orders' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['girls-chick-qty'] });
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => schedule('girls-auto-qty'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => schedule('girls-auto-qty'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chick_orders' }, () => schedule('girls-chick-qty'))
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (timer) clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
   }, [queryClient, month, year]);
 
   return query;

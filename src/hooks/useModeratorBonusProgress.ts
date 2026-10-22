@@ -10,17 +10,28 @@ import { cairoMonthStartUTC } from '@/lib/cairoDate';
 import { fetchPayrollCarried } from '@/lib/fetchPayrollCarried';
 import { allocateProcessedCarry, buildPayrollBaseRows, carriedMeatBoneBonus, type PayrollOverride } from '@/lib/moderatorPayrollMath';
 import { scheduleForMonth, APPROVED_OCT_2026_SCHEDULE } from '@/lib/processedKgBonus';
+import { combineQueryStates } from '@/lib/queryGuard';
 
 const TIER_LABELS = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع'];
 
-export const useModeratorBonusProgress = (year: number, month: number) => {
-  const girls = useMemo(() => moderatorKeysForMonth(year, month), [year, month]);
+export interface ModeratorBonusProgressOptions {
+  /** لما المسوقة بتشوف شاشتها: نجيب أوردراتها هي بس بدل كل المسوقات. */
+  onlyGirl?: string | null;
+}
+
+export const useModeratorBonusProgress = (year: number, month: number, options: ModeratorBonusProgressOptions = {}) => {
+  const { onlyGirl = null } = options;
+  const girls = useMemo(() => {
+    const all = moderatorKeysForMonth(year, month);
+    return onlyGirl ? all.filter((girl) => girl === onlyGirl) : all;
+  }, [year, month, onlyGirl]);
   const qtyQuery = useModeratorCategoryQty(year, month, girls);
   const { schedules } = useProcessedKgSchedules();
   const { prices } = useKgPrices({ year, month });
-  const { data: closures = [], isSuccess: closuresLoaded } = usePayrollClosures();
+  const closuresQuery = usePayrollClosures();
+  const { data: closures = [], isSuccess: closuresLoaded } = closuresQuery;
 
-  const { data: tierSettings = [] } = useQuery({
+  const tierQuery = useQuery({
     queryKey: ['target_bonus_settings'],
     queryFn: async () => {
       const { data, error } = await supabase.from('target_bonus_settings').select('*').order('tier');
@@ -29,7 +40,7 @@ export const useModeratorBonusProgress = (year: number, month: number) => {
     },
   });
 
-  const { data: overrides = [] } = useQuery({
+  const overridesQuery = useQuery({
     queryKey: ['payroll-overrides', month, year],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -43,11 +54,17 @@ export const useModeratorBonusProgress = (year: number, month: number) => {
   });
 
   const closureKey = closures.map((closure) => `${closure.year}-${closure.month}-${closure.approved_at}`).join('|');
-  const { data: carried = [] } = useQuery({
+  const carriedQuery = useQuery({
     queryKey: ['payroll-carried-orders', month, year, closureKey, girls.join('|')],
     enabled: closures.length > 0,
     queryFn: () => fetchPayrollCarried(year, month, girls, closures),
   });
+
+  const tierSettings = useMemo(() => tierQuery.data ?? [], [tierQuery.data]);
+  const overrides = useMemo(() => overridesQuery.data ?? [], [overridesQuery.data]);
+  // الشهر اللي ملهوش أي قفل سابق مفيهوش ترحيل أصلًا، فده صفر حقيقي مش fallback.
+  const carriedEnabled = closures.length > 0;
+  const carried = useMemo(() => carriedQuery.data ?? [], [carriedQuery.data]);
 
   const schedule = scheduleForMonth(schedules, year, month);
   const selectedClosure = closures.find((closure) => closure.year === year && closure.month === month) || null;
@@ -97,8 +114,8 @@ export const useModeratorBonusProgress = (year: number, month: number) => {
     return map;
   }, [carried, girls]);
 
-  const { data: chickQtyByGirl = {} as Record<string, number> } = useQuery({
-    queryKey: ['girls-chick-qty', month, year],
+  const chickQuery = useQuery({
+    queryKey: ['girls-chick-qty', month, year, girls.join('|')],
     queryFn: async () => {
       const startDate = cairoMonthStartUTC(year, month - 1).toISOString();
       const endDate = cairoMonthStartUTC(year, month).toISOString();
@@ -125,14 +142,26 @@ export const useModeratorBonusProgress = (year: number, month: number) => {
     },
   });
 
+  const chickQtyByGirl = useMemo(() => chickQuery.data ?? ({} as Record<string, number>), [chickQuery.data]);
+
+  // ممنوع نبني الكروت بأصفار لو الكميات لسه بتحمّل أو فشلت (حادثة نورا 22/10/2026).
+  const state = combineQueryStates([
+    qtyQuery,
+    chickQuery,
+    tierQuery,
+    overridesQuery,
+    closuresQuery,
+    carriedEnabled ? carriedQuery : null,
+  ]);
+
   const chickBonusRate = useMemo(() => {
     const row = tierSettings.find((item) => item.category === 'كتاكيت' && item.tier === 1);
     return row ? Number(row.bonus_amount) : 50;
   }, [tierSettings]);
 
-  const rows = useMemo(() => buildPayrollBaseRows({
+  const rows = useMemo(() => (!state.isReady || !qtyQuery.data ? [] : buildPayrollBaseRows({
     girls,
-    qty: qtyQuery.data ?? { meat: {}, bone: {}, processed: {} },
+    qty: qtyQuery.data,
     prices,
     processedTiers,
     meatTiers,
@@ -145,7 +174,7 @@ export const useModeratorBonusProgress = (year: number, month: number) => {
     month,
     schedules,
     carriedProcessedKg: carriedKgByGirl,
-  }), [girls, qtyQuery.data, prices, processedTiers, meatTiers, chickQtyByGirl, chickBonusRate, bonePerKg, baseDefault, overrides, year, month, schedules, carriedKgByGirl]);
+  })), [state.isReady, girls, qtyQuery.data, prices, processedTiers, meatTiers, chickQtyByGirl, chickBonusRate, bonePerKg, baseDefault, overrides, year, month, schedules, carriedKgByGirl]);
 
   const carriedByGirl = useMemo(() => {
     const map = new Map<string, number>();
@@ -180,7 +209,12 @@ export const useModeratorBonusProgress = (year: number, month: number) => {
     sideCarryByGirl,
     schedule: schedule ?? APPROVED_OCT_2026_SCHEDULE,
     marginal: !!schedule,
-    isLoading: qtyQuery.isLoading,
+    isLoading: state.isPending,
+    isError: state.isError,
+    isReady: state.isReady,
+    error: state.error,
+    retry: state.retry,
+    queryState: state,
     displayName: displayModeratorName,
   };
 };
