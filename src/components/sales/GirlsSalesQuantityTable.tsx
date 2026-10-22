@@ -1,3 +1,6 @@
+import { REALTIME_DEBOUNCE_MS } from '@/hooks/useModeratorCategoryQty';
+import QueryStateGate from '@/components/common/QueryStateGate';
+import { combineQueryStates } from '@/lib/queryGuard';
 import { useState, useMemo, useEffect } from 'react';
 import { useKgPrices } from '@/hooks/useKgPrices';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -114,7 +117,7 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
   // Fetch delivered orders + items for the selected month
   const { cutoff } = usePayrollClosureCutoff(selectedYear, selectedMonth);
 
-  const { data: autoQtyByGirl = { meat: {}, bone: {}, processed: {} } } = useQuery({
+  const { data: autoQtyByGirl = { meat: {}, bone: {}, processed: {} }, ...autoQtyQ } = useQuery({
     queryKey: ['girls-auto-qty', selectedMonth, selectedYear, cutoff],
     queryFn: async () => {
       // حدود الشهر بـ UTC لتطابق created_at المخزّن
@@ -208,7 +211,7 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
   const processedQtyByGirl = autoQtyByGirl.processed;
 
   // Chick orders count per girl
-  const { data: chickQtyByGirl = {} as Record<string, number> } = useQuery({
+  const { data: chickQtyByGirl = {} as Record<string, number>, ...chickQ } = useQuery({
     queryKey: ['girls-chick-qty', selectedMonth, selectedYear],
     queryFn: async () => {
       const startDate = cairoMonthStartUTC(selectedYear, selectedMonth - 1).toISOString();
@@ -270,21 +273,29 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
     onError: (e: Error) => toast.error(e.message || 'تعذر التحديث'),
   });
 
-  // Realtime: refetch on order/items changes
+  // Realtime: refetch on order/items changes — مجمّعة (debounced) عشان كل تعديل أوردر مايعيدش الحساب كله.
   useEffect(() => {
+    const pendingKeys = new Set<string>();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const schedule = (key: string) => {
+      pendingKeys.add(key);
+      if (timer) return;
+      timer = setTimeout(() => {
+        timer = null;
+        pendingKeys.forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
+        pendingKeys.clear();
+      }, REALTIME_DEBOUNCE_MS);
+    };
     const channel = supabase
       .channel('girls-auto-qty-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['girls-auto-qty'] });
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['girls-auto-qty'] });
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chick_orders' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['girls-chick-qty'] });
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => schedule('girls-auto-qty'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => schedule('girls-auto-qty'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chick_orders' }, () => schedule('girls-chick-qty'))
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (timer) clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
   }, [queryClient]);
 
   const updateQty = (girl: string, field: keyof GirlData, value: number, label: string) => {
@@ -326,6 +337,10 @@ const GirlsSalesQuantityTable = ({ month, year }: Props = {}) => {
       className="w-24 text-center mx-auto"
     />
   );
+
+  // ممنوع عرض أصفار وكميات الشهر لسه بتحمّل أو فشلت.
+  const dataState = combineQueryStates([autoQtyQ, chickQ]);
+  if (!dataState.isReady) return <QueryStateGate state={dataState}>{null}</QueryStateGate>;
 
   return (
     <Card>

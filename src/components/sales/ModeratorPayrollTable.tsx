@@ -1,3 +1,5 @@
+import QueryStateGate from '@/components/common/QueryStateGate';
+import { combineQueryStates } from '@/lib/queryGuard';
 import { useMemo, useState } from 'react';
 import { useKgPrices } from '@/hooks/useKgPrices';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -92,10 +94,10 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
 
   const { prices } = useKgPrices({ year: selectedYear, month: selectedMonth });
 
-  const { data: qty = { meat: {}, bone: {}, processed: {} } } = useModeratorCategoryQty(selectedYear, selectedMonth, GIRLS);
+  const { data: qty = { meat: {}, bone: {}, processed: {} }, ...qtyQ } = useModeratorCategoryQty(selectedYear, selectedMonth, GIRLS);
 
     // Chick orders count per girl
-  const { data: chickQtyByGirl = {} as Record<string, number> } = useQuery({
+  const { data: chickQtyByGirl = {} as Record<string, number>, ...chickQ } = useQuery({
     queryKey: ['girls-chick-qty', selectedMonth, selectedYear],
     queryFn: async () => {
       const startDate = cairoMonthStartUTC(selectedYear, selectedMonth - 1).toISOString();
@@ -126,7 +128,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   });
 
 
-  const { data: overrides = [] } = useQuery({
+  const { data: overrides = [], ...overridesQ } = useQuery({
     queryKey: ['payroll-overrides', selectedMonth, selectedYear],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -140,7 +142,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   });
 
   // Tiers loaded from target_bonus_settings so editing the targets table reflects here automatically.
-  const { data: tierSettings = [] } = useQuery({
+  const { data: tierSettings = [], ...tierQ } = useQuery({
     queryKey: ['target_bonus_settings'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -182,7 +184,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   }, [tierSettings]);
 
   // ===== اعتماد قبض الشهر (Closures) =====
-  const { data: closures = [], isSuccess: closuresLoaded } = useQuery({
+  const { data: closures = [], isSuccess: closuresLoaded, ...closuresQ } = useQuery({
     queryKey: ['payroll-month-closures'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -216,7 +218,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
 
   // الأوردرات المرحّلة من شهور معتمدة إلى قبض الشهر المحدد
   const closureKey = closures.map(c => `${c.year}-${c.month}-${c.approved_at}`).join('|');
-  const { data: carried = [] } = useQuery({
+  const { data: carried = [], ...carriedQ } = useQuery({
     queryKey: ['payroll-carried-orders', selectedMonth, selectedYear, closureKey, GIRLS.join('|')],
     enabled: closures.length > 0,
     queryFn: () => fetchPayrollCarried(selectedYear, selectedMonth, GIRLS, closures),
@@ -548,6 +550,10 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
     overridden: row.procOverridden,
     qualified: row.qualified,
   }));
+
+  // ممنوع عرض أصفار وكميات الشهر لسه بتحمّل أو فشلت.
+  const dataState = combineQueryStates([qtyQ, chickQ, tierQ, overridesQ, { ...closuresQ, isSuccess: closuresLoaded }, closures.length > 0 ? carriedQ : null]);
+  if (!dataState.isReady) return <QueryStateGate state={dataState}>{null}</QueryStateGate>;
 
   return (
     <Card className="glass-card">
