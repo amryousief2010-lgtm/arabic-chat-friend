@@ -69,6 +69,8 @@ type AuditEntry = { id: string; action: string; target_type: string; target_id: 
 
 // "received_previously" = اعتُبرت موردة/مستلمة سابقًا بدون إدخال كميات للمخزون، فلا تظهر في تنبيه الدفعات غير المنقولة.
 const DONE_RECEIVED_STATUSES = ["received", "received_previously"];
+// مخرج أُرسل مباشرة لمصنع اللحوم وينتظر استلام المصنع: لا يظهر في تنبيه «لم يُنقل للرئيسي»
+const isAwaitingFactory = (o: { destination?: string | null }) => (o.destination || "") === "meat_factory";
 
 const Slaughterhouse = () => {
   const { role } = useAuth();
@@ -310,7 +312,8 @@ const Slaughterhouse = () => {
           o.batch_id === b.id &&
           !DONE_RECEIVED_STATUSES.includes(o.received_status || "pending") &&
           (o.quality_status || "accepted") === "accepted" &&
-          Number(o.actual_weight_kg) > 0
+          Number(o.actual_weight_kg) > 0 &&
+          !isAwaitingFactory(o)
         );
         const totalKg = rows.reduce((s, r) => s + Number(r.actual_weight_kg || 0), 0);
         const hasOstrich = rows.some(r => (r.cut_name_ar || "").includes("نعام"));
@@ -335,8 +338,18 @@ const Slaughterhouse = () => {
       Number(o.actual_weight_kg) > 0
     );
     if (!rows.length) { toast.error("لا توجد أصناف للتحديث"); return; }
-    const destLabel = destination === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي";
-    const wh = await findWarehouseByName(destination === "meat_factory" ? "%مصنع اللحوم%" : "%رئيسي%");
+    if (destination === "meat_factory") {
+      const items = rows.filter(o => !isAwaitingFactory(o)).map(o => ({ output_id: o.id, qty: Number(o.actual_weight_kg) }));
+      if (!items.length) { toast.info("كل أصناف الدفعة مرسلة بالفعل لمصنع اللحوم وتنتظر الاستلام"); return; }
+      const { data, error } = await supabase.rpc("send_slaughter_outputs_to_meat_factory" as any, { p_batch_id: batchId, p_items: items as any });
+      if (error) { toast.error(error.message); return; }
+      const d: any = data || {};
+      toast.success(`تم إرسال ${d.sent_count || 0} صنف إلى مصنع اللحوم (${Number(d.total_kg || 0).toFixed(1)} كجم) — بانتظار استلام المصنع من «وارد المجزر»`);
+      fetchAll();
+      return;
+    }
+    const destLabel = "المخزن الرئيسي";
+    const wh = await findWarehouseByName("%رئيسي%");
     if (!wh) { toast.error(`لم يتم العثور على ${destLabel}`); return; }
     const { data, error } = await supabase.rpc("receive_slaughter_batch" as any, {
       p_batch_id: batchId,
@@ -350,7 +363,7 @@ const Slaughterhouse = () => {
 
   const markAllTransferred = async (destination: "main" | "meat_factory") => {
     if (!untransferredBatches.length) return;
-    if (!confirm(`سيتم نقل كل تقسيمات الدفعات المكتملة (${untransferredBatches.length}) إلى ${destination === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي"} ودخول كمياتها للمخزون. متابعة؟`)) return;
+    if (!confirm(`سيتم نقل كل تقسيمات الدفعات المكتملة (${untransferredBatches.length}) ${destination === "meat_factory" ? "إلى مصنع اللحوم مباشرة (تدخل مخزون خامات المصنع بعد استلامه من «وارد المجزر»)" : "إلى المخزن الرئيسي ودخول كمياتها للمخزون"}. متابعة؟`)) return;
     for (const x of untransferredBatches) {
       await markBatchTransferred(x.batch.id, destination);
     }
@@ -650,9 +663,10 @@ const Slaughterhouse = () => {
     setSendDestination(dest);
     const rows = outputs.filter(o =>
       o.batch_id === b.id &&
-      (o.received_status || "pending") !== "received" &&
+      !DONE_RECEIVED_STATUSES.includes(o.received_status || "pending") &&
       (o.quality_status || "accepted") === "accepted" &&
-      Number(o.actual_weight_kg) > 0
+      Number(o.actual_weight_kg) > 0 &&
+      !isAwaitingFactory(o)
     );
     const init: Record<string, string> = {};
     rows.forEach(o => { init[o.id] = String(Number(o.actual_weight_kg) || 0); });
@@ -697,10 +711,9 @@ const Slaughterhouse = () => {
   const sendBatchToWarehouse = async (b: Batch, dest: "main" | "meat_factory") => {
     setSendingBatch(true);
     try {
-      const pattern = dest === "meat_factory" ? "%مصنع اللحوم%" : "%رئيسي%";
       const destLabel = dest === "meat_factory" ? "مصنع اللحوم" : "المخزن الرئيسي";
-      const wh = await findWarehouseByName(pattern);
-      if (!wh) { toast.error(`لم يتم العثور على ${destLabel}`); return; }
+      const wh = dest === "meat_factory" ? null : await findWarehouseByName("%رئيسي%");
+      if (dest !== "meat_factory" && !wh) { toast.error(`لم يتم العثور على ${destLabel}`); return; }
 
       // Build items payload from partialQty
       const itemsPayload: { output_id: string; qty: number }[] = [];
@@ -721,6 +734,20 @@ const Slaughterhouse = () => {
         return;
       }
 
+      if (dest === "meat_factory") {
+        const { data, error } = await supabase.rpc("send_slaughter_outputs_to_meat_factory" as any, {
+          p_batch_id: b.id,
+          p_items: itemsPayload as any,
+        });
+        if (error) { toast.error(error.message); return; }
+        const d: any = data || {};
+        toast.success(`تم إرسال ${d.sent_count || 0} صنف إلى مصنع اللحوم (${Number(d.total_kg || 0).toFixed(1)} كجم) — بانتظار استلام المصنع من «وارد المجزر»`);
+        printTransferNote(b, destLabel, printLines, totalKg);
+        setConfirmSendBatch(null);
+        setPartialQty({});
+        fetchAll();
+        return;
+      }
       const { data, error } = await supabase.rpc("transfer_slaughter_partial" as any, {
         p_batch_id: b.id,
         p_warehouse_id: wh.id,
