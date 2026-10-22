@@ -739,6 +739,60 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   }, [orders.length]);
 
 
+  // بعد حفظ تعديل منتجات طلب: نحدّث الطلب ده بس بدل إعادة تحميل القائمة كلها.
+  // إعادة التحميل الكاملة كانت بتوصل لحد مهلة قاعدة البيانات (8 ثواني) فتظهر
+  // «حدث خطأ أثناء جلب الطلبات» رغم إن الحفظ نجح، فالمسوقة تعيد الإضافة.
+  const refreshSingleOrder = async (orderId: string) => {
+    try {
+      const [ordRes, itemsRes] = await Promise.all([
+        supabase
+          .from('orders')
+          .select('subtotal, discount, delivery_fee, total, order_offer_instances (offer_name, quantity)')
+          .eq('id', orderId)
+          .maybeSingle(),
+        supabase
+          .from('order_items')
+          .select('id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg,is_gift')
+          .eq('order_id', orderId),
+      ]);
+      if (ordRes.error) throw ordRes.error;
+      if (itemsRes.error) throw itemsRes.error;
+      const o: any = ordRes.data;
+      if (!o) return;
+      const patch = (prev: any) => ({
+        ...prev,
+        subtotal: Number(o.subtotal),
+        discount: Number(o.discount),
+        delivery_fee: Number(o.delivery_fee),
+        total: Number(o.total),
+        offer_instances: ((o.order_offer_instances || []) as any[]).map((entry: any) => ({
+          offer_name: entry.offer_name,
+          quantity: Number(entry.quantity) || 1,
+        })),
+        items: ((itemsRes.data || []) as any[]).map((item: any) => {
+          const old = (prev.items || []).find((x: any) => x.product_id && x.product_id === item.product_id);
+          return {
+            id: item.id,
+            product_id: item.product_id ?? null,
+            product_name: item.product_name,
+            quantity: Number(item.quantity),
+            unit_price: Number(item.unit_price),
+            total_price: Number(item.total_price),
+            unit: old?.unit || 'كجم',
+            offer_name: item.offer_name ?? null,
+            is_half_kg: !!item.is_half_kg,
+            is_gift: !!item.is_gift,
+          };
+        }),
+      });
+      setOrders((prev) => prev.map((ord) => (ord.id === orderId ? patch(ord) : ord)));
+      setSelectedOrder((prev: any) => (prev && prev.id === orderId ? patch(prev) : prev));
+    } catch (error) {
+      console.error('Error refreshing saved order:', error);
+      toast.warning('التعديل اتحفظ ✅ بس القائمة ماتحدّثتش. ماتعيدش الإضافة — حدّث الصفحة لو محتاج تشوف التغيير');
+    }
+  };
+
   const fetchOrders = async (searchOverride?: string) => {
     const activeSearch = (searchOverride ?? appliedSearch).trim();
     const restrictToCurrentMonthForFetch = shouldRestrictOrdersToCurrentMonth({
@@ -782,7 +836,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         'collection_method','courier_cash_due','collection_updated_at',
         'vodafone_cash_amount','instapay_amount','free_amount','shipping_bill_no',
       ].join(',');
-      const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg';
+      const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg,is_gift';
 
       // الخرائط المساعدة تُبنى بشكل تراكمي حتى يظهر الجدول بسرعة
       const profilesMap: Record<string, string> = {};
@@ -837,6 +891,8 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
             total_price: Number(item.total_price),
             unit: (item.product_id && productsMap[item.product_id]) || 'كجم',
             offer_name: (item as any).offer_name ?? null,
+            is_half_kg: !!(item as any).is_half_kg,
+            is_gift: !!(item as any).is_gift,
           })),
           offer_instances: ((order as any).order_offer_instances || []).map((entry: any) => ({
             offer_name: entry.offer_name,
@@ -1151,7 +1207,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         'collection_method','courier_cash_due','collection_updated_at',
         'vodafone_cash_amount','instapay_amount','free_amount','shipping_bill_no',
       ].join(',');
-      const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg';
+      const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg,is_gift';
       let q = supabase
         .from('orders')
         .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`)
@@ -4138,8 +4194,9 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           initialDiscount={editingOrder.discount}
           initialDeliveryFee={editingOrder.delivery_fee}
           onSaved={() => {
+            const savedId = editingOrder.id;
             setEditingOrder(null);
-            fetchOrders();
+            void refreshSingleOrder(savedId);
           }}
         />
       )}

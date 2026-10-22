@@ -254,6 +254,39 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     savingRef.current = true;
     setSaving(true);
     try {
+      // حماية من التكرار: لو الطلب على السيرفر فيه أصناف مش ظاهرة هنا
+      // (حفظ سابق نجح لكن القائمة ماتحدّثتش)، مانحفظش النسخة القديمة
+      // عشان مانضيفش نفس الصنف مرتين. نعرض آخر نسخة ونطلب المراجعة.
+      const { data: serverRows, error: serverErr } = await supabase
+        .from("order_items")
+        .select("id, product_id, product_name, quantity, unit_price, offer_name, is_half_kg, is_gift")
+        .eq("order_id", orderId);
+      if (serverErr) throw new Error("تعذر التأكد من آخر نسخة من الطلب، حاول تاني بعد لحظات");
+      const knownIds = new Set(items.map((it) => it.id).filter(Boolean) as string[]);
+      const unseen = (serverRows || []).filter((r: any) => !knownIds.has(r.id));
+      if (unseen.length > 0) {
+        setItems(
+          (serverRows || []).map((it: any) => ({
+            id: it.id,
+            product_id: it.product_id ?? null,
+            product_name: it.product_name,
+            quantity: Number(it.quantity),
+            unit_price: Number(it.unit_price),
+            offer_name: it.offer_name ?? null,
+            is_half_kg: !!it.is_half_kg,
+            is_gift: !!it.is_gift,
+            _original: {
+              product_id: it.product_id ?? null,
+              quantity: Number(it.quantity),
+              unit_price: Number(it.unit_price),
+            },
+          }))
+        );
+        toast.error(
+          "التعديل اللي قبل كده اتحفظ فعلًا. عرضنا المنتجات الحالية للطلب — راجعها وزوّد اللي ناقص بس ثم احفظ"
+        );
+        return;
+      }
       const lineShipping = items.reduce((sum, it) => {
         if (it._deleted || !isOfferShippingLine(it)) return sum;
         return sum + Number(it.quantity || 0) * Number(it.unit_price || 0);
