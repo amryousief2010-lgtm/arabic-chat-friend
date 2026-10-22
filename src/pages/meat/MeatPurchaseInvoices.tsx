@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { isSlaughterhouseSupplier, SLAUGHTER_SUPPLIER_MESSAGE, SLAUGHTER_INBOX_PATH } from "@/lib/slaughterSupplier";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -76,6 +77,7 @@ export default function MeatPurchaseInvoices() {
   const saveEdit = async () => {
     if (!editing) return;
     if (!editForm.reason.trim()) { toast.error("أدخل سبب التعديل"); return; }
+    if (editForm.supplier.trim() !== (editing.supplier || "") && isSlaughterhouseSupplier(editForm.supplier)) { toast.error(SLAUGHTER_SUPPLIER_MESSAGE); return; }
     setEditSaving(true);
     try {
       const before = {
@@ -222,6 +224,7 @@ export default function MeatPurchaseInvoices() {
     const valid = lines.filter(l => l.raw_item_id && l.quantity > 0 && l.unit_price >= 0);
     if (valid.length === 0) { toast.error("أضف على الأقل سطر واحد بصنف وكمية"); return; }
     if (!supplier.trim()) { toast.error("أدخل اسم المورد"); return; }
+    if (isSlaughterhouseSupplier(supplier)) { toast.error(SLAUGHTER_SUPPLIER_MESSAGE); return; }
     setSaving(true);
     try {
       // Idempotency: if a purchase with same purchaseUuid already exists, fetch it instead of inserting twice
@@ -389,7 +392,16 @@ export default function MeatPurchaseInvoices() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div><Label>التاريخ</Label><Input type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} /></div>
-                  <div><Label>المورد</Label><Input value={supplier} onChange={e => setSupplier(e.target.value)} placeholder="اسم المورد" /></div>
+                  <div>
+                    <Label>المورد</Label>
+                    <Input value={supplier} onChange={e => setSupplier(e.target.value)} placeholder="اسم المورد" />
+                    {isSlaughterhouseSupplier(supplier) && (
+                      <div className="text-xs text-red-600 mt-1">
+                        ⚠ {SLAUGHTER_SUPPLIER_MESSAGE}{" "}
+                        <a href={SLAUGHTER_INBOX_PATH} className="underline font-semibold">فتح وارد المجزر</a>
+                      </div>
+                    )}
+                  </div>
                   <div>
                     <Label>نوع الفاتورة</Label>
                     <Select value={invoiceType} onValueChange={setInvoiceType}>

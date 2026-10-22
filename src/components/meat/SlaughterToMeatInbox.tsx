@@ -123,8 +123,8 @@ export function SlaughterToMeatInbox() {
 
   useEffect(() => { fetchAll(); }, []);
 
-  const pending = outputs.filter(o => o.received_status !== 'received');
-  const received = outputs.filter(o => o.received_status === 'received');
+  const pending = outputs.filter(o => !['received', 'received_previously'].includes(o.received_status || 'pending'));
+  const received = outputs.filter(o => ['received', 'received_previously'].includes(o.received_status || 'pending'));
 
   const pendingBatches = Object.values(
     pending.reduce((acc: Record<string, any>, o: any) => {
