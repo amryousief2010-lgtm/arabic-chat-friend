@@ -4,6 +4,8 @@ import { useAuth, AppRole } from '@/hooks/useAuth';
 import { MARKETING_ONLY_EXTRA_PREFIXES } from '@/config/sidebarOverrides';
 import { CALLER_LOOKUP_PATH } from '@/constants/callerLookup';
 import { toast } from 'sonner';
+import ForcePasswordChange from '@/components/ForcePasswordChange';
+import { mustChangePassword } from '@/lib/mustChangePassword';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -105,7 +107,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const isDenied = isModeratorBlocked || isRoleDenied;
 
   useEffect(() => {
-    if (!loading && user && isDenied) {
+    if (!loading && user && isDenied && !mustChangePassword(user)) {
       // Silent redirect for private delivery rep and for moderators landing on root —
       // these are expected automatic landings, not real permission errors.
       const isSilentLanding =
@@ -135,6 +137,12 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
 
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+
+  // First login with a temporary password: block the whole app until she
+  // picks her own password (user_metadata.must_change_password).
+  if (mustChangePassword(user)) {
+    return <ForcePasswordChange />;
   }
 
   if (isDenied) {

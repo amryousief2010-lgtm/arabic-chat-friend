@@ -3,6 +3,8 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { getLandingForRole } from "@/constants/roleLandings";
 import PageTransition from "@/components/layout/PageTransition";
+import ForcePasswordChange from "@/components/ForcePasswordChange";
+import { mustChangePassword } from "@/lib/mustChangePassword";
 
 const Index = lazy(() => import("@/pages/Index"));
 
@@ -25,6 +27,10 @@ const RoleLanding = () => {
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  if (mustChangePassword(user)) {
+    return <ForcePasswordChange />;
   }
 
   const target = getLandingForRole(role);
