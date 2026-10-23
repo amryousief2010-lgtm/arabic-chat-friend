@@ -11,8 +11,13 @@ describe("baseSalaryForKey", () => {
     expect(baseSalaryForKey("اية")).toBe(3000);
   });
 
+  it("keeps سها's own 3000 (like آية) when the shared default changes", () => {
+    expect(baseSalaryForKey("سها", 4000)).toBe(3000);
+    expect(baseSalaryForKey("سها")).toBe(3000);
+  });
+
   it("uses the shared default for moderators still on the historical 2,500", () => {
-    for (const key of ["نورا", "منال", "مريم", "سها"]) {
+    for (const key of ["نورا", "منال", "مريم"]) {
       expect(baseSalaryForKey(key)).toBe(DEFAULT_BASE_SALARY);
       expect(baseSalaryForKey(key, 2800)).toBe(2800);
     }

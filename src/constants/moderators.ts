@@ -13,6 +13,9 @@ export interface ModeratorConfig {
   payrollKey: string;
   // تاريخ بداية العمل (YYYY-MM-DD). لا تُحسب لها تارجت/بونص/قبض قبل هذا الشهر.
   startDate?: string;
+  // آخر شهر عمل (YYYY-MM-DD، أي يوم داخل الشهر). لا تظهر في تارجت/بونص/قبض أي شهر بعده.
+  // الشهور لحد endDate (شاملة) تفضل زي ما هي.
+  endDate?: string;
   baseSalary: number;
   aliases: string[];
   gradient: string; // tailwind gradient classes for the card
@@ -60,6 +63,8 @@ export const MODERATORS: ModeratorConfig[] = [
     payrollKey: "مريم",
     // بداية العمل الرسمية — لا قبض/تارجت/بونص عن أي شهر قبلها.
     startDate: "2026-09-01",
+    // آخر شهر لها أكتوبر 2026 — تختفي من نوفمبر 2026 (قرار عمرو 23/10/2026).
+    endDate: "2026-10-31",
     baseSalary: 2500,
     aliases: ["مريم", "مريام"],
     gradient: "from-chart-2 to-chart-2/70",
@@ -74,7 +79,8 @@ export const MODERATORS: ModeratorConfig[] = [
     canonicalModerator: "سها",
     payrollKey: "سها",
     startDate: "2026-10-01",
-    baseSalary: 2500,
+    // أساسي خاص 3000 زي آية (قرار عمرو 23/10/2026)، مش الأساسي العام القابل للتعديل.
+    baseSalary: 3000,
     aliases: ["سها"],
     gradient: "from-chart-5 to-chart-5/70",
     iconBg: "bg-chart-5",
@@ -87,9 +93,15 @@ export const isModeratorActiveInMonth = (
   year: number,
   month: number,
 ): boolean => {
-  if (!m.startDate) return true;
-  const [sy, sm] = m.startDate.split("-").map(Number);
-  return year > sy || (year === sy && month >= sm);
+  if (m.startDate) {
+    const [sy, sm] = m.startDate.split("-").map(Number);
+    if (year < sy || (year === sy && month < sm)) return false;
+  }
+  if (m.endDate) {
+    const [ey, em] = m.endDate.split("-").map(Number);
+    if (year > ey || (year === ey && month > em)) return false;
+  }
+  return true;
 };
 
 // قائمة المسوقات الفعّالة في شهر معيّن (تُستخدم في التارجت/القبض/البونص/الإحصائيات).

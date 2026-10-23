@@ -8,6 +8,7 @@ import {
   displayModeratorName,
   findModeratorByName,
   findModeratorBySlug,
+  isModeratorActiveInMonth,
   isOrderForModerator,
   matchesModeratorGroup,
   moderatorKeysForMonth,
@@ -30,17 +31,25 @@ describe("سها as an independent moderator slot", () => {
     expect(findModeratorBySlug("soha")?.payrollKey).toBe("سها");
   });
 
-  it("gets the same base salary scheme as نورا/هاجر (shared editable default)", () => {
-    expect(soha().baseSalary).toBe(DEFAULT_BASE_SALARY);
-    expect(baseSalaryForKey("سها", 2800)).toBe(baseSalaryForKey("نورا", 2800));
+  it("has her own 3000 base like آية, not the shared editable default", () => {
+    expect(soha().baseSalary).toBe(3000);
+    expect(soha().baseSalary).not.toBe(DEFAULT_BASE_SALARY);
+    expect(baseSalaryForKey("سها", 2800)).toBe(3000);
+    expect(baseSalaryForKey("سها", 2800)).toBe(baseSalaryForKey("اية", 2800));
   });
 
-  it("is active from October 2026 only, alongside مريم", () => {
-    expect(moderatorKeysForMonth(2026, 9)).not.toContain("سها");
-    const oct = moderatorKeysForMonth(2026, 10);
-    expect(oct).toEqual(["اية", "نورا", "منال", "مريم", "سها"]);
-    expect(moderatorKeysForMonth(2026, 11)).toContain("سها");
+  it("is active from October 2026; مريم stops after October 2026", () => {
+    expect(moderatorKeysForMonth(2026, 9)).toEqual(["اية", "نورا", "منال", "مريم"]);
+    expect(moderatorKeysForMonth(2026, 10)).toEqual(["اية", "نورا", "منال", "مريم", "سها"]);
+    expect(moderatorKeysForMonth(2026, 11)).toEqual(["اية", "نورا", "منال", "سها"]);
+    expect(moderatorKeysForMonth(2027, 1)).not.toContain("مريم");
+    expect(moderatorKeysForMonth(2026, 8)).not.toContain("مريم");
     expect(moderatorsForMonth(2026, 10).map((m) => m.slug)).toContain("soha");
+    const mariam = MODERATORS.find((m) => m.slug === "mariam")!;
+    expect(isModeratorActiveInMonth(mariam, 2026, 10)).toBe(true);
+    expect(isModeratorActiveInMonth(mariam, 2026, 11)).toBe(false);
+    // Her historical key stays for October and earlier lookups.
+    expect(ALL_MODERATOR_KEYS).toContain("مريم");
   });
 
   it("auto-detects her from her profile name (NewOrder / own screens)", () => {
@@ -60,6 +69,19 @@ describe("سها as an independent moderator slot", () => {
     expect(matchesModeratorGroup("سها", "سها")).toBe(true);
     expect(matchesModeratorGroup("مريم", "سها")).toBe(false);
     expect(displayModeratorName("سها")).toBe("سها");
+  });
+
+  it("drops مريم from November payroll rows but keeps her in October", () => {
+    const build = (month: number) => buildPayrollBaseRows({
+      girls: moderatorKeysForMonth(2026, month),
+      qty: { meat: {}, bone: {}, processed: { مريم: 50 } } as any,
+      prices: { meat_price: 600, bone_meat_price: 400, processed_price: 500 },
+      processedTiers: [], meatTiers: [], chickQtyByGirl: {}, chickBonusRate: 0,
+      bonePerKg: 3.5, baseDefault: 2500, overrides: [], year: 2026, month, schedules: [],
+    });
+    expect(build(10).find((r) => r.girl === "مريم")?.procKg).toBe(50);
+    expect(build(10).find((r) => r.girl === "مريم")?.base).toBe(2500);
+    expect(build(11).some((r) => r.girl === "مريم")).toBe(false);
   });
 
   it("gets a payroll row with the hybrid processed bonus like the others", () => {
@@ -85,7 +107,8 @@ describe("سها as an independent moderator slot", () => {
     const s = rows.find((r) => r.girl === "سها")!;
     const n = rows.find((r) => r.girl === "نورا")!;
     expect(s).toBeDefined();
-    expect(s.base).toBe(2500);
+    expect(s.base).toBe(3000);
+    expect(n.base).toBe(2500);
     expect(s.procKg).toBe(120);
     expect(s.calculatedProcBonus).toBe(n.calculatedProcBonus);
     expect(s.scheme).toBe(n.scheme);

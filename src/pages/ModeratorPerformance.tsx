@@ -37,7 +37,8 @@ import { useModeratorPerformance, type YearFilter } from "@/hooks/useModeratorPe
 import { SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
 import { exportModeratorPDF } from "@/utils/exportModeratorReport";
 import ModeratorComparison from "@/components/moderator/ModeratorComparison";
-import { MODERATORS } from "@/constants/moderators";
+import { moderatorsForMonth } from "@/constants/moderators";
+import { currentCairoYearMonth } from "@/lib/cairoDate";
 
 const COLORS = [
   "hsl(var(--primary))",
@@ -233,7 +234,7 @@ const ModeratorPerformance = () => {
       <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
         <Header
           title="أداء الموديراتور"
-          subtitle={`فريق المبيعات: ${MODERATORS.map((m) => m.displayName).join("، ")} — ${SALES_NET_LABEL_AR}`}
+          subtitle={`فريق المبيعات: ${moderatorsForMonth(currentCairoYearMonth().year, currentCairoYearMonth().monthIndex0 + 1).map((m) => m.displayName).join("، ")} — ${SALES_NET_LABEL_AR}`}
         />
         <div className="flex items-center gap-2 flex-wrap">
           <Tabs value={yearFilter} onValueChange={(v) => setYearFilter(v as YearFilter)}>
