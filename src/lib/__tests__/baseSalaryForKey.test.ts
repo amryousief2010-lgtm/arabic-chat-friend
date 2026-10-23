@@ -12,7 +12,7 @@ describe("baseSalaryForKey", () => {
   });
 
   it("uses the shared default for moderators still on the historical 2,500", () => {
-    for (const key of ["نورا", "منال", "مريم"]) {
+    for (const key of ["نورا", "منال", "مريم", "سها"]) {
       expect(baseSalaryForKey(key)).toBe(DEFAULT_BASE_SALARY);
       expect(baseSalaryForKey(key, 2800)).toBe(2800);
     }

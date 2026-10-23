@@ -1,4 +1,4 @@
-// Configuration for the 4 sales moderator girls.
+// Configuration for the sales moderator girls.
 // `aliases` are matched (after Arabic normalization) against either the
 // `orders.moderator` text or the creator's profile full_name, so historical
 // data with different spellings still attributes correctly.
@@ -64,6 +64,20 @@ export const MODERATORS: ModeratorConfig[] = [
     aliases: ["مريم", "مريام"],
     gradient: "from-chart-2 to-chart-2/70",
     iconBg: "bg-chart-2",
+  },
+  {
+    // سها — موديريتور جديدة بمرتب وتارجت من أكتوبر 2026، خانة مستقلة (مش مكان مريم).
+    // الحساب: soha@coceg.net (user id 295046a4-aea0-4eb4-a069-85a68cc30cb3)، الربط بالاسم
+    // في profiles.full_name / orders.moderator زي باقي البنات.
+    slug: "soha",
+    displayName: "سها",
+    canonicalModerator: "سها",
+    payrollKey: "سها",
+    startDate: "2026-10-01",
+    baseSalary: 2500,
+    aliases: ["سها"],
+    gradient: "from-chart-5 to-chart-5/70",
+    iconBg: "bg-chart-5",
   },
 ];
 
