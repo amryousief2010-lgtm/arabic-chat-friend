@@ -1,4 +1,4 @@
-// Configuration for the 4 sales moderator girls.
+// Configuration for the sales moderator girls.
 // `aliases` are matched (after Arabic normalization) against either the
 // `orders.moderator` text or the creator's profile full_name, so historical
 // data with different spellings still attributes correctly.
@@ -13,6 +13,9 @@ export interface ModeratorConfig {
   payrollKey: string;
   // تاريخ بداية العمل (YYYY-MM-DD). لا تُحسب لها تارجت/بونص/قبض قبل هذا الشهر.
   startDate?: string;
+  // آخر شهر عمل (YYYY-MM-DD، أي يوم داخل الشهر). لا تظهر في تارجت/بونص/قبض أي شهر بعده.
+  // الشهور لحد endDate (شاملة) تفضل زي ما هي.
+  endDate?: string;
   baseSalary: number;
   aliases: string[];
   gradient: string; // tailwind gradient classes for the card
@@ -60,10 +63,27 @@ export const MODERATORS: ModeratorConfig[] = [
     payrollKey: "مريم",
     // بداية العمل الرسمية — لا قبض/تارجت/بونص عن أي شهر قبلها.
     startDate: "2026-09-01",
+    // آخر شهر لها أكتوبر 2026 — تختفي من نوفمبر 2026 (قرار عمرو 23/10/2026).
+    endDate: "2026-10-31",
     baseSalary: 2500,
     aliases: ["مريم", "مريام"],
     gradient: "from-chart-2 to-chart-2/70",
     iconBg: "bg-chart-2",
+  },
+  {
+    // سها — موديريتور جديدة بمرتب وتارجت من أكتوبر 2026، خانة مستقلة (مش مكان مريم).
+    // الحساب: soha@coceg.net (user id 295046a4-aea0-4eb4-a069-85a68cc30cb3)، الربط بالاسم
+    // في profiles.full_name / orders.moderator زي باقي البنات.
+    slug: "soha",
+    displayName: "سها",
+    canonicalModerator: "سها",
+    payrollKey: "سها",
+    startDate: "2026-10-01",
+    // أساسي خاص 3000 زي آية (قرار عمرو 23/10/2026)، مش الأساسي العام القابل للتعديل.
+    baseSalary: 3000,
+    aliases: ["سها"],
+    gradient: "from-chart-5 to-chart-5/70",
+    iconBg: "bg-chart-5",
   },
 ];
 
@@ -73,9 +93,15 @@ export const isModeratorActiveInMonth = (
   year: number,
   month: number,
 ): boolean => {
-  if (!m.startDate) return true;
-  const [sy, sm] = m.startDate.split("-").map(Number);
-  return year > sy || (year === sy && month >= sm);
+  if (m.startDate) {
+    const [sy, sm] = m.startDate.split("-").map(Number);
+    if (year < sy || (year === sy && month < sm)) return false;
+  }
+  if (m.endDate) {
+    const [ey, em] = m.endDate.split("-").map(Number);
+    if (year > ey || (year === ey && month > em)) return false;
+  }
+  return true;
 };
 
 // قائمة المسوقات الفعّالة في شهر معيّن (تُستخدم في التارجت/القبض/البونص/الإحصائيات).
