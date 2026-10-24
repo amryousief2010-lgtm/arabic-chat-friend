@@ -694,7 +694,12 @@ const HREmployees = () => {
                             )}
                           </TableCell>
                           <TableCell>
-                            <div className="flex gap-1 justify-end">
+                            <div className="flex flex-wrap gap-1 justify-end min-w-[140px]">
+                              {canManage && (
+                                <Button size="sm" variant="outline" onClick={() => openEdit(e)}>
+                                  <Edit className="w-3.5 h-3.5 ml-1" />تعديل
+                                </Button>
+                              )}
                               <Button size="sm" variant="ghost" onClick={() => setDeductionsOf(e)} title="الخصومات">
                                 <Wallet className="w-4 h-4" />
                               </Button>
@@ -726,11 +731,6 @@ const HREmployees = () => {
                                   title="إعادة تفعيل الموظف"
                                 >
                                   <UserCheck className="w-4 h-4" />
-                                </Button>
-                              )}
-                              {canManage && (
-                                <Button size="sm" variant="outline" onClick={() => openEdit(e)}>
-                                  <Edit className="w-3.5 h-3.5 ml-1" />تعديل
                                 </Button>
                               )}
                               {isGeneralManager && (
