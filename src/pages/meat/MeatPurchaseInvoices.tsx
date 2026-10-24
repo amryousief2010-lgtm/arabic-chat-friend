@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import MainTreasuryTxnPicker from "@/components/meat/MainTreasuryTxnPicker";
+import { findAmountDateMatches, formatMatchWarning } from "@/lib/factoryTreasuryMatch";
 import { ShoppingCart, Plus, Trash2, CheckCircle2, XCircle, Printer, Loader2, Eye, Pencil } from "lucide-react";
 
 type Kind = "raw" | "spice" | "packaging";
@@ -27,7 +29,7 @@ type Purchase = {
 };
 
 const KIND_LABEL: Record<Kind,string> = { raw: "خامات", spice: "بهارات", packaging: "تغليف" };
-const PAY_LABEL: Record<string,string> = { cash: "نقدي", credit: "آجل", transfer: "تحويل", other: "أخرى" };
+const PAY_LABEL: Record<string,string> = { cash: "نقدي", credit: "آجل", transfer: "تحويل", other: "أخرى", main_treasury: "مدفوع من الخزنة الرئيسية" };
 const newLine = (): Line => ({ tmp: crypto.randomUUID(), raw_item_id: "", raw_item_name: "", kind: "raw", unit: "كجم", quantity: 0, unit_price: 0, line_total: 0, expiry_date: null, notes: null });
 const esc = (s: any) => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 const fmt = (n: number) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
@@ -45,6 +47,8 @@ export default function MeatPurchaseInvoices() {
   const [supplier, setSupplier] = useState("");
   const [invoiceType, setInvoiceType] = useState("mixed");
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [mainTxnId, setMainTxnId] = useState<string | null>(null);
+  const [dupWarning, setDupWarning] = useState<string>("");
   const [receiptNo, setReceiptNo] = useState("");
   const [attachmentUrl, setAttachmentUrl] = useState("");
   const [notes, setNotes] = useState("");
@@ -59,7 +63,7 @@ export default function MeatPurchaseInvoices() {
 
   // edit metadata dialog (general/executive only)
   const [editing, setEditing] = useState<Purchase | null>(null);
-  const [editForm, setEditForm] = useState({ invoice_type: "mixed", supplier: "", payment_method: "cash", purchase_date: "", notes: "", receipt_no: "", reason: "" });
+  const [editForm, setEditForm] = useState({ invoice_type: "mixed", supplier: "", payment_method: "cash", purchase_date: "", notes: "", receipt_no: "", reason: "", main_treasury_txn_id: null as string | null });
   const [editSaving, setEditSaving] = useState(false);
   const openEdit = (p: Purchase) => {
     setEditing(p);
@@ -71,11 +75,13 @@ export default function MeatPurchaseInvoices() {
       notes: p.notes || "",
       receipt_no: p.receipt_no || "",
       reason: "",
+      main_treasury_txn_id: (p as any).main_treasury_txn_id || null,
     });
   };
   const saveEdit = async () => {
     if (!editing) return;
     if (!editForm.reason.trim()) { toast.error("أدخل سبب التعديل"); return; }
+    if (editForm.payment_method === "main_treasury" && !editForm.main_treasury_txn_id) { toast.error("اختر حركة الخزنة الرئيسية"); return; }
     setEditSaving(true);
     try {
       const before = {
@@ -87,6 +93,7 @@ export default function MeatPurchaseInvoices() {
         invoice_type: editForm.invoice_type, supplier: editForm.supplier.trim(),
         payment_method: editForm.payment_method, purchase_date: editForm.purchase_date,
         notes: editForm.notes || null, receipt_no: editForm.receipt_no || null,
+        main_treasury_txn_id: editForm.payment_method === "main_treasury" ? editForm.main_treasury_txn_id : null,
       };
       const { error } = await supabase.from("meat_factory_purchases" as any).update(after).eq("id", editing.id);
       if (error) throw error;
@@ -212,9 +219,24 @@ export default function MeatPurchaseInvoices() {
 
   const total = useMemo(() => lines.reduce((s,l) => s + Number(l.line_total || 0), 0), [lines]);
 
+  // تحذير التكرار: مصروف في الخزنة الرئيسية بنفس المبلغ ±50 ج وفي حدود ±3 أيام
+  useEffect(() => {
+    if (!(total > 0) || !purchaseDate) { setDupWarning(""); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const { data } = await (supabase.rpc as any)("mt_expense_match_candidates", { p_amount: total, p_date: purchaseDate });
+      if (cancelled) return;
+      const m = findAmountDateMatches(total, purchaseDate, ((data || []) as any[])
+        .filter(r => r.id !== mainTxnId && !r.linked_invoice_no)
+        .map(r => ({ id: r.id, label: r.reference_no, amount: Number(r.amount), date: r.txn_date })));
+      setDupWarning(m.length ? formatMatchWarning("expense", m) + " لو الفلوس اتدفعت من الرئيسية اختار «مدفوع من الخزنة الرئيسية» واربطها." : "");
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [total, purchaseDate, mainTxnId]);
+
   const resetForm = () => {
     setLines([newLine()]); setSupplier(""); setReceiptNo(""); setAttachmentUrl(""); setNotes("");
-    setInvoiceType("mixed"); setPaymentMethod("cash"); setPurchaseUuid(crypto.randomUUID());
+    setInvoiceType("mixed"); setPaymentMethod("cash"); setMainTxnId(null); setDupWarning(""); setPurchaseUuid(crypto.randomUUID());
     setPurchaseDate(new Date().toISOString().slice(0,10));
   };
 
@@ -222,6 +244,8 @@ export default function MeatPurchaseInvoices() {
     const valid = lines.filter(l => l.raw_item_id && l.quantity > 0 && l.unit_price >= 0);
     if (valid.length === 0) { toast.error("أضف على الأقل سطر واحد بصنف وكمية"); return; }
     if (!supplier.trim()) { toast.error("أدخل اسم المورد"); return; }
+    if (paymentMethod === "main_treasury" && !mainTxnId) { toast.error("اختر حركة الخزنة الرئيسية اللي اتدفعت منها الفاتورة"); return; }
+    if (dupWarning && paymentMethod !== "main_treasury" && !window.confirm(dupWarning + "\n\nتكمل الحفظ؟")) return;
     setSaving(true);
     try {
       // Idempotency: if a purchase with same purchaseUuid already exists, fetch it instead of inserting twice
@@ -238,6 +262,7 @@ export default function MeatPurchaseInvoices() {
         supplier: supplier.trim(),
         invoice_type: invoiceType,
         payment_method: paymentMethod,
+        main_treasury_txn_id: paymentMethod === "main_treasury" ? mainTxnId : null,
         receipt_no: receiptNo || null,
         attachment_url: attachmentUrl || null,
         notes: notes || null,
@@ -411,9 +436,16 @@ export default function MeatPurchaseInvoices() {
                         <SelectItem value="credit">آجل</SelectItem>
                         <SelectItem value="transfer">تحويل</SelectItem>
                         <SelectItem value="other">أخرى</SelectItem>
+                        <SelectItem value="main_treasury">مدفوع من الخزنة الرئيسية</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                  {paymentMethod === "main_treasury" && (
+                    <MainTreasuryTxnPicker amount={total} date={purchaseDate} value={mainTxnId} onChange={setMainTxnId} />
+                  )}
+                  {dupWarning && paymentMethod !== "main_treasury" && (
+                    <div className="md:col-span-3 rounded-md border border-amber-400 bg-amber-50 p-2 text-sm text-amber-900">{dupWarning}</div>
+                  )}
                   <div><Label>رقم الإيصال</Label><Input value={receiptNo} onChange={e => setReceiptNo(e.target.value)} /></div>
                   <div className="md:col-span-3"><Label>رابط مرفق صورة الفاتورة</Label><Input value={attachmentUrl} onChange={e => setAttachmentUrl(e.target.value)} placeholder="https://…" /></div>
                 </div>
@@ -640,9 +672,15 @@ export default function MeatPurchaseInvoices() {
                       <SelectItem value="credit">آجل</SelectItem>
                       <SelectItem value="transfer">تحويل</SelectItem>
                       <SelectItem value="other">أخرى</SelectItem>
+                      <SelectItem value="main_treasury">مدفوع من الخزنة الرئيسية</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                {editForm.payment_method === "main_treasury" && editing && (
+                  <MainTreasuryTxnPicker amount={Number(editing.total_amount || 0)} date={editForm.purchase_date}
+                    value={editForm.main_treasury_txn_id} excludeInvoiceNo={editing.invoice_no}
+                    onChange={(v) => setEditForm(s => ({ ...s, main_treasury_txn_id: v }))} />
+                )}
                 <div>
                   <Label>التاريخ</Label>
                   <Input type="date" value={editForm.purchase_date} onChange={e => setEditForm(s => ({ ...s, purchase_date: e.target.value }))} />
