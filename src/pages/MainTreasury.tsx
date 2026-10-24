@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { findAmountDateMatches, formatMatchWarning } from "@/lib/factoryTreasuryMatch";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { supabase } from "@/integrations/supabase/client";
@@ -232,6 +233,14 @@ export default function MainTreasury() {
     if (amt <= 0) return toast.error("المبلغ مطلوب");
     if (!txnForm.description.trim()) return toast.error("الوصف مطلوب");
     if (txnForm.txn_type === "expense" && !txnForm.category_id) return toast.error("اختر بند المصروف");
+    if (txnForm.txn_type === "expense") {
+      // تحذير: فاتورة شراء مصنع بنفس المبلغ ±50 ج و±3 أيام — غالبًا نفس الشراء
+      const { data: inv } = await (supabase.rpc as any)("meat_purchase_match_candidates", { p_amount: amt, p_date: txnForm.txn_date });
+      const m = findAmountDateMatches(amt, txnForm.txn_date, ((inv || []) as any[]).map(r => ({
+        id: r.id, label: r.invoice_no || "مسودة", amount: Number(r.amount), date: r.purchase_date,
+      })));
+      if (m.length && !window.confirm(formatMatchWarning("invoice", m) + "\n\nلو الفلوس دي رايحة للمصنع سجّلها «تحويل لخزنة فرعية» أو اختار في الفاتورة «مدفوع من الخزنة الرئيسية».\nتكمل تسجيل المصروف؟")) return;
+    }
     setBusy(true);
     const { error } = await (supabase as any).from("main_treasury_transactions").insert({
       account_id: txnForm.account_id, txn_type: txnForm.txn_type, amount: amt,
