@@ -49,6 +49,7 @@ export default function MeatPurchaseInvoices() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [mainTxnId, setMainTxnId] = useState<string | null>(null);
   const [dupWarning, setDupWarning] = useState<string>("");
+  const [dupInvoiceWarning, setDupInvoiceWarning] = useState<string>("");
   const [receiptNo, setReceiptNo] = useState("");
   const [attachmentUrl, setAttachmentUrl] = useState("");
   const [notes, setNotes] = useState("");
@@ -234,9 +235,25 @@ export default function MeatPurchaseInvoices() {
     return () => { cancelled = true; clearTimeout(t); };
   }, [total, purchaseDate, mainTxnId]);
 
+  // تحذير فاتورة مكررة: فاتورة شراء مصنع بنفس المبلغ ±50 ج وفي حدود ±3 أيام (يفضّل نفس المورد)
+  useEffect(() => {
+    if (!(total > 0) || !purchaseDate) { setDupInvoiceWarning(""); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const { data } = await (supabase.rpc as any)("meat_purchase_match_candidates", { p_amount: total, p_date: purchaseDate });
+      if (cancelled) return;
+      const sup = supplier.trim();
+      const rows = ((data || []) as any[]).filter(r => !sup || !r.supplier || String(r.supplier).trim() === sup);
+      setDupInvoiceWarning(rows.length
+        ? `فيه فاتورة مطابقة ${rows.map(r => `${r.invoice_no} (${r.supplier || "—"} — ${Number(r.amount).toLocaleString("en-US")} ج — ${r.purchase_date})`).join("، ")} (نفس المورد/المبلغ/التاريخ). تأكد إنها مش نفس الفاتورة قبل الحفظ.`
+        : "");
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [total, purchaseDate, supplier]);
+
   const resetForm = () => {
     setLines([newLine()]); setSupplier(""); setReceiptNo(""); setAttachmentUrl(""); setNotes("");
-    setInvoiceType("mixed"); setPaymentMethod("cash"); setMainTxnId(null); setDupWarning(""); setPurchaseUuid(crypto.randomUUID());
+    setInvoiceType("mixed"); setPaymentMethod("cash"); setMainTxnId(null); setDupWarning(""); setDupInvoiceWarning(""); setPurchaseUuid(crypto.randomUUID());
     setPurchaseDate(new Date().toISOString().slice(0,10));
   };
 
@@ -245,6 +262,7 @@ export default function MeatPurchaseInvoices() {
     if (valid.length === 0) { toast.error("أضف على الأقل سطر واحد بصنف وكمية"); return; }
     if (!supplier.trim()) { toast.error("أدخل اسم المورد"); return; }
     if (paymentMethod === "main_treasury" && !mainTxnId) { toast.error("اختر حركة الخزنة الرئيسية اللي اتدفعت منها الفاتورة"); return; }
+    if (dupInvoiceWarning && !window.confirm(dupInvoiceWarning + "\n\nتكمل الحفظ؟")) return;
     if (dupWarning && paymentMethod !== "main_treasury" && !window.confirm(dupWarning + "\n\nتكمل الحفظ؟")) return;
     setSaving(true);
     try {
@@ -442,6 +460,9 @@ export default function MeatPurchaseInvoices() {
                   </div>
                   {paymentMethod === "main_treasury" && (
                     <MainTreasuryTxnPicker amount={total} date={purchaseDate} value={mainTxnId} onChange={setMainTxnId} />
+                  )}
+                  {dupInvoiceWarning && (
+                    <div className="md:col-span-3 rounded-md border border-red-400 bg-red-50 p-2 text-sm text-red-900">{dupInvoiceWarning}</div>
                   )}
                   {dupWarning && paymentMethod !== "main_treasury" && (
                     <div className="md:col-span-3 rounded-md border border-amber-400 bg-amber-50 p-2 text-sm text-amber-900">{dupWarning}</div>
