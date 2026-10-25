@@ -26633,6 +26633,23 @@ export type Database = {
           cover_moderator_ids: string[]
         }[]
       }
+      cm_ingest_whatsapp_message: {
+        Args: {
+          _body?: string
+          _ctwa_clid?: string
+          _phone_number_id: string
+          _profile_name: string
+          _provider_message_id: string
+          _raw?: Json
+          _referral_headline?: string
+          _referral_source_id?: string
+          _referral_source_type?: string
+          _sent_at: string
+          _type?: string
+          _wa_id: string
+        }
+        Returns: Json
+      }
       cm_is_supervisor: { Args: never; Returns: boolean }
       cm_is_system_or_manager: { Args: never; Returns: boolean }
       cm_is_viewer: { Args: never; Returns: boolean }
@@ -26676,6 +26693,14 @@ export type Database = {
       cm_service_minutes: {
         Args: { _from: string; _to: string }
         Returns: number
+      }
+      cm_set_cover: {
+        Args: {
+          _conversation_id: string
+          _moderator_id: string
+          _on?: boolean
+        }
+        Returns: undefined
       }
       cm_split_phone_field: { Args: { _raw: string }; Returns: string[] }
       cm_sync_customer_phones: { Args: never; Returns: Json }

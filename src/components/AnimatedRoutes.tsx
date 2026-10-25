@@ -15,7 +15,7 @@ import { CALLER_LOOKUP_ROLES } from "@/constants/callerLookup";
 // Wrap lazy() so that when a dynamically-imported chunk is missing (e.g. after a
 // new deploy invalidated old chunk hashes), we force a single hard reload instead
 // of crashing the whole app / closing the sidebar.
-import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES } from "@/config/chatManagement";
+import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES } from "@/config/chatManagement";
 const lazy: typeof reactLazy = ((factory: any) =>
   reactLazy(() =>
     factory().catch((err: any) => {
@@ -41,6 +41,9 @@ const lazy: typeof reactLazy = ((factory: any) =>
 // Each route's JS chunk is only fetched when the user navigates to it.
 const Index = lazy(() => import("@/pages/Index"));
 const ChatManagementShifts = lazy(() => import("@/pages/ChatManagementShifts"));
+const ChatInbox = lazy(() => import("@/pages/ChatInbox"));
+const ChatSupervisor = lazy(() => import("@/pages/ChatSupervisor"));
+const ChatPhoneReview = lazy(() => import("@/pages/ChatPhoneReview"));
 const Products = lazy(() => import("@/pages/Products"));
 const ProductCosts = lazy(() => import("@/pages/ProductCosts"));
 const BoxCosts = lazy(() => import("@/pages/BoxCosts"));
@@ -295,6 +298,21 @@ const AnimatedRoutes = () => {
           <Route path={CHAT_MANAGEMENT_SETTINGS_PATH} element={
             <ProtectedRoute allowedRoles={CHAT_MANAGEMENT_VIEW_ROLES}>
               <PageTransition><ChatManagementShifts tab="settings" /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={CHAT_INBOX_PATH} element={
+            <ProtectedRoute allowedRoles={CHAT_INBOX_ROLES}>
+              <PageTransition><ChatInbox /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={CHAT_SUPERVISOR_PATH} element={
+            <ProtectedRoute allowedRoles={CHAT_SUPERVISOR_ROLES}>
+              <PageTransition><ChatSupervisor /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={CHAT_PHONE_REVIEW_PATH} element={
+            <ProtectedRoute allowedRoles={CHAT_PHONE_REVIEW_ROLES}>
+              <PageTransition><ChatPhoneReview /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/debug" element={

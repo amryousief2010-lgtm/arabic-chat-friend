@@ -3,6 +3,8 @@ import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import {
   CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, canEditChatManagement,
+  CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES,
+  canManageConversations,
 } from "@/config/chatManagement";
 import { moduleSections } from "@/components/layout/SidebarMenuSections";
 
@@ -15,11 +17,11 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import ProtectedRoute from "@/components/ProtectedRoute";
 
-const renderAt = (path: string) =>
+const renderAt = (path: string, allowed: readonly string[] = CHAT_MANAGEMENT_VIEW_ROLES) =>
   render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path={path} element={<ProtectedRoute allowedRoles={CHAT_MANAGEMENT_VIEW_ROLES}><div data-testid="page">ok</div></ProtectedRoute>} />
+        <Route path={path} element={<ProtectedRoute allowedRoles={allowed as any}><div data-testid="page">ok</div></ProtectedRoute>} />
         <Route path="*" element={<div data-testid="redirected">x</div>} />
       </Routes>
     </MemoryRouter>,
@@ -57,16 +59,54 @@ describe("chat management route access", () => {
     expect(canEditChatManagement(["social_media_manager"])).toBe(false);
   });
 
-  it("sidebar has the إدارة المحادثات section with both pages", () => {
+  it("sidebar has the إدارة المحادثات section with all pages", () => {
     const s = moduleSections.find((x) => x.id === "chat-management")!;
     expect(s.label).toBe("إدارة المحادثات");
-    expect(s.items.map((i) => i.path)).toEqual([CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH]);
+    expect(s.items.map((i) => i.path)).toEqual([CHAT_INBOX_PATH, CHAT_SUPERVISOR_PATH, CHAT_PHONE_REVIEW_PATH, CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH]);
+    const item = (p: string) => s.items.find((i) => i.path === p)!;
+    expect(item(CHAT_INBOX_PATH).roles).toEqual(["sales_moderator"]);
+    expect(item(CHAT_SUPERVISOR_PATH).roles).not.toContain("sales_moderator");
+    expect(item(CHAT_PHONE_REVIEW_PATH).roles).not.toContain("sales_moderator");
+    expect(item(CHAT_MANAGEMENT_SHIFTS_PATH).roles).not.toContain("sales_moderator");
   });
 
-  it("sidebar section is visible to viewers and hidden from moderators/accountant", () => {
+  it("sidebar section is visible to viewers and moderators, hidden from accountant", () => {
     const s = moduleSections.find((x) => x.id === "chat-management")!;
-    for (const r of ["sales_manager", "general_manager", "executive_manager", "marketing_sales_manager", "marketing_sales_viewer", "social_media_manager"])
+    for (const r of ["sales_manager", "general_manager", "executive_manager", "marketing_sales_manager", "marketing_sales_viewer", "social_media_manager", "sales_moderator"])
       expect(s.roles).toContain(r);
-    for (const r of ["sales_moderator", "accountant", "warehouse_supervisor"]) expect(s.roles).not.toContain(r);
+    for (const r of ["accountant", "warehouse_supervisor"]) expect(s.roles).not.toContain(r);
+  });
+
+  it("moderator reaches her inbox but not supervisor / phone review / shifts", async () => {
+    currentRoles = ["sales_moderator"];
+    renderAt(CHAT_INBOX_PATH, CHAT_INBOX_ROLES);
+    await waitFor(() => expect(screen.getByTestId("page")).toBeInTheDocument());
+    for (const [p, r] of [[CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES], [CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES], [CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_VIEW_ROLES]] as const) {
+      cleanup(); renderAt(p, r);
+      await waitFor(() => expect(screen.queryByTestId("page")).toBeNull());
+    }
+  });
+
+  it.each([[["sales_manager"]], [["general_manager"]], [["executive_manager"]], [["marketing_sales_viewer"]], [["social_media_manager"]]])(
+    "supervisor view allows %j", async (roles) => {
+      currentRoles = roles;
+      renderAt(CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES);
+      await waitFor(() => expect(screen.getByTestId("page")).toBeInTheDocument());
+    });
+
+  it("phone review: managers only, viewers blocked", async () => {
+    for (const roles of [["marketing_sales_viewer"], ["social_media_manager"], ["accountant"]]) {
+      currentRoles = roles; cleanup(); renderAt(CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES);
+      await waitFor(() => expect(screen.queryByTestId("page")).toBeNull());
+    }
+    currentRoles = ["sales_manager"]; cleanup(); renderAt(CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES);
+    await waitFor(() => expect(screen.getByTestId("page")).toBeInTheDocument());
+  });
+
+  it("reassign/cover/merge controls only for SM/GM", () => {
+    expect(canManageConversations(["sales_manager"])).toBe(true);
+    expect(canManageConversations(["general_manager"])).toBe(true);
+    for (const r of ["executive_manager", "marketing_sales_manager", "marketing_sales_viewer", "social_media_manager", "sales_moderator"])
+      expect(canManageConversations([r])).toBe(false);
   });
 });
