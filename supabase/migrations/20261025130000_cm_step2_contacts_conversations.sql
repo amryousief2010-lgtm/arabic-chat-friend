@@ -542,7 +542,9 @@ BEGIN
   WITH src AS (
     SELECT cu.id customer_id, f.src, f.raw FROM public.customers cu
     CROSS JOIN LATERAL (VALUES ('customers.phone', cu.phone), ('customers.phone2', cu.phone2)) f(src, raw)
-    WHERE nullif(btrim(f.raw), '') IS NOT NULL),
+    WHERE nullif(btrim(f.raw), '') IS NOT NULL
+      -- العميل المدموج (دمج نشط) لا تُعاد أرقامه؛ أرقامه انتقلت للعميل الباقي، والتراجع يعيدها
+      AND NOT EXISTS (SELECT 1 FROM public.cm_customer_merges mg WHERE mg.merged_customer_id = cu.id AND mg.undone_at IS NULL)),
   parts AS (SELECT s.*, p, count(*) OVER (PARTITION BY s.customer_id, s.src) nparts
             FROM src s CROSS JOIN LATERAL public.cm_split_phone_field(s.raw) p),
   ins AS (
@@ -854,3 +856,23 @@ BEGIN
     END IF;
   END LOOP;
 END $$;
+
+-- ───────────── تقوية: لا شيء من cm_* متاح لـ anon ─────────────
+-- Supabase يمنح anon صلاحيات افتراضية على كل دالة/جدول جديد في public؛ REVOKE FROM PUBLIC وحده لا يكفي.
+DO $cm_harden$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT p.oid::regprocedure AS sig FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           WHERE n.nspname = 'public' AND p.proname LIKE 'cm\_%' AND p.prosecdef LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC', r.sig);
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+      EXECUTE format('REVOKE ALL ON FUNCTION %s FROM anon', r.sig);
+    END IF;
+  END LOOP;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    FOR r IN SELECT c.oid::regclass AS rel FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+             WHERE n.nspname = 'public' AND c.relkind IN ('r','v','p') AND c.relname LIKE 'cm\_%' LOOP
+      EXECUTE format('REVOKE ALL ON %s FROM anon', r.rel);
+    END LOOP;
+  END IF;
+END $cm_harden$;

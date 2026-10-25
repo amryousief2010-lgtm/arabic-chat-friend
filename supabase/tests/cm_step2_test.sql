@@ -64,6 +64,9 @@ END $$;
 
 -- 2) صاحبة الخط في إجازتها الأسبوعية (الأربعاء 28/10): تبقى المالكة + تغطية لمن في الشيفت (آية 14–20)
 INSERT INTO cm_weekly_days_off (moderator_id, dow, valid_from) VALUES (cmt.mid('noura'), 3, '2026-10-01');
+-- اثنتان في الشيفت (آية sort 2، سها sort 4): التغطية لأول واحدة بالترتيب
+INSERT INTO cm_shift_assignments (work_date, slot_no, label, starts_at, ends_at, moderator_id, source)
+  VALUES ('2026-10-28', 6, 'اختبار', '14:00', '20:00', cmt.mid('soha'), 'manual');
 INSERT INTO cm_conversations (id, line_id) SELECT '00000000-0000-0000-0000-0000000c0a02', id FROM cm_lines WHERE label='خط مودريتور 1';
 INSERT INTO cm_messages (conversation_id, direction, provider_message_id, sent_at)
   VALUES ('00000000-0000-0000-0000-0000000c0a02','in','wamid.2', cmt.ct('2026-10-28 15:00'));
@@ -73,6 +76,7 @@ DO $$ DECLARE r record; BEGIN
   ASSERT (SELECT moderator_id FROM cm_conversation_assignments WHERE conversation_id='00000000-0000-0000-0000-0000000c0a02'
           AND kind='cover' AND ended_at IS NULL) = cmt.mid('aya'), 'cover to on-shift aya';
 END $$;
+DELETE FROM cm_shift_assignments WHERE work_date='2026-10-28' AND slot_no=6;
 
 -- 3) مالكة انتهى عملها لا تُعتبر مالكة → توزيع (حملة افتراضية ← خط ← سها)
 UPDATE cm_lines SET owner_moderator_id = cmt.mid('mariam') WHERE label='خط بدون مالكة';
@@ -218,6 +222,12 @@ DO $$ DECLARE m uuid; BEGIN
   ASSERT (SELECT count(*) FROM cm_contact_phones WHERE customer_id='00000000-0000-0000-0000-00000000c001') = 1, 'undo phones';
   ASSERT (SELECT customer_id FROM cm_conversations WHERE id='00000000-0000-0000-0000-0000000c0a01') = '00000000-0000-0000-0000-00000000c001', 'undo conv';
   ASSERT (SELECT status FROM cm_phone_review_queue WHERE issue='multi_customer') = 'open', 'queue reopened';
+  -- دمج عكسي: صاحب أحدث طلب (c002) هو المدموج → البحث بالرقم يجب أن يرجع الباقي c001
+  m := cm_merge_customers('00000000-0000-0000-0000-00000000c001','00000000-0000-0000-0000-00000000c002');
+  PERFORM cm_sync_customer_phones();  -- إعادة المزامنة بعد الدمج لا تعيد ربط الرقم بالعميل المدموج
+  ASSERT cm_customer_for_phone('01012345678') = '00000000-0000-0000-0000-00000000c001', 'lookup skips merged customer';
+  PERFORM cm_undo_merge(m);
+  ASSERT cm_customer_for_phone('01012345678') = '00000000-0000-0000-0000-00000000c002', 'lookup restored after undo';
 END $$;
 RESET ROLE; RESET request.jwt.claim.sub; RESET request.jwt.claim.role;
 DO $$ BEGIN

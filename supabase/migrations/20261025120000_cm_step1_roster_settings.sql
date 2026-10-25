@@ -397,3 +397,23 @@ SELECT o.moderator AS moderator_text, count(*) AS orders_count
 FROM public.orders o
 WHERE o.moderator_id IS NULL AND o.moderator IS NOT NULL AND btrim(o.moderator) <> ''
 GROUP BY o.moderator;
+
+-- ───────────── تقوية: لا شيء من cm_* متاح لـ anon ─────────────
+-- Supabase يمنح anon صلاحيات افتراضية على كل دالة/جدول جديد في public؛ REVOKE FROM PUBLIC وحده لا يكفي.
+DO $cm_harden$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT p.oid::regprocedure AS sig FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           WHERE n.nspname = 'public' AND p.proname LIKE 'cm\_%' AND p.prosecdef LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC', r.sig);
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+      EXECUTE format('REVOKE ALL ON FUNCTION %s FROM anon', r.sig);
+    END IF;
+  END LOOP;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    FOR r IN SELECT c.oid::regclass AS rel FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+             WHERE n.nspname = 'public' AND c.relkind IN ('r','v','p') AND c.relname LIKE 'cm\_%' LOOP
+      EXECUTE format('REVOKE ALL ON %s FROM anon', r.rel);
+    END LOOP;
+  END IF;
+END $cm_harden$;

@@ -92,7 +92,5 @@ JOIN public.cm_shift_templates t ON t.day_pattern = 'three_shift'
 JOIN public.cm_moderators m ON m.slug = (ARRAY['noura','aya','manal'])[t.slot_no]
 ON CONFLICT (work_date, slot_no) DO NOTHING;
 
--- ملء orders.moderator_id للطلبات القديمة (مطابقة تامة بعد التطبيع؛ العمود النصي يبقى).
-UPDATE public.orders o SET moderator_id = public.cm_moderator_id_for_name(o.moderator)
-WHERE o.moderator_id IS NULL AND o.moderator IS NOT NULL
-  AND public.cm_moderator_id_for_name(o.moderator) IS NOT NULL;
+-- ملء orders.moderator_id للطلبات القديمة لا يتم هنا (حجم بيانات الإنتاج + triggers جدول orders).
+-- يُشغَّل يدوياً بعد النشر: scripts/cm/post_deploy_backfill_orders_moderator_id.sql (على دفعات، آمن للتكرار).
