@@ -45,6 +45,44 @@ function getRetryAfterSeconds(error: unknown): number {
   return 60
 }
 
+
+// Resend provider (replaces the Lovable email API when RESEND_API_KEY is set).
+// Errors carry `status` / `retryAfterSeconds` so the existing 429/403 handling keeps working.
+const RESEND_FROM = Deno.env.get('RESEND_FROM') || 'COCEG <noreply@mail.coceg.net>'
+
+async function sendViaResend(
+  payload: Record<string, unknown>,
+  resendKey: string
+): Promise<void> {
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${resendKey}`,
+      'Content-Type': 'application/json',
+      // Same logical message => same key, so retries never double-send.
+      'Idempotency-Key': String(payload.message_id || payload.idempotency_key || crypto.randomUUID()),
+    },
+    body: JSON.stringify({
+      from: RESEND_FROM,
+      to: Array.isArray(payload.to) ? payload.to : [payload.to],
+      subject: payload.subject,
+      html: payload.html,
+      text: payload.text,
+    }),
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    const err = new Error(`Resend ${res.status}: ${body.slice(0, 300)}`) as Error & {
+      status: number
+      retryAfterSeconds: number | null
+    }
+    err.status = res.status
+    const ra = Number(res.headers.get('retry-after'))
+    err.retryAfterSeconds = Number.isFinite(ra) && ra > 0 ? ra : null
+    throw err
+  }
+}
+
 // Move a message to the dead letter queue and log the reason.
 async function moveToDlq(
   supabase: ReturnType<typeof createClient>,
@@ -72,11 +110,12 @@ async function moveToDlq(
 }
 
 Deno.serve(async (req) => {
+  const resendKey = Deno.env.get('RESEND_API_KEY')
   const apiKey = Deno.env.get('LOVABLE_API_KEY')
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-  if (!apiKey || !supabaseUrl || !supabaseServiceKey) {
+  if ((!resendKey && !apiKey) || !supabaseUrl || !supabaseServiceKey) {
     console.error('Missing required environment variables')
     return new Response(
       JSON.stringify({ error: 'Server configuration error' }),
@@ -236,7 +275,9 @@ Deno.serve(async (req) => {
       }
 
       try {
-        await sendLovableEmail(
+        if (resendKey) {
+          await sendViaResend(payload, resendKey)
+        } else await sendLovableEmail(
           {
             run_id: payload.run_id,
             to: payload.to,
