@@ -14,6 +14,517 @@ export type Database = {
   }
   public: {
     Tables: {
+      cm_audit_log: {
+        Row: {
+          id: number
+          actor_id: string | null
+          action: string
+          entity: string
+          entity_id: string | null
+          before: Json | null
+          after: Json | null
+          at: string
+        }
+        Insert: {
+          id?: number
+          actor_id?: string | null
+          action: string
+          entity: string
+          entity_id?: string | null
+          before?: Json | null
+          after?: Json | null
+          at?: string
+        }
+        Update: {
+          id?: number
+          actor_id?: string | null
+          action?: string
+          entity?: string
+          entity_id?: string | null
+          before?: Json | null
+          after?: Json | null
+          at?: string
+        }
+        Relationships: []
+      }
+      cm_channels: {
+        Row: {
+          id: string
+          kind: string
+          name: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          kind: string
+          name: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          kind?: string
+          name?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_distribution_settings: {
+        Row: {
+          id: string
+          method: string
+          fallback_method: string
+          rotation_offset: number
+          updated_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          method?: string
+          fallback_method?: string
+          rotation_offset?: number
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          method?: string
+          fallback_method?: string
+          rotation_offset?: number
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_governance_settings: {
+        Row: {
+          id: string
+          bonus_proposer_role: string
+          bonus_approver_role: string
+          automatic_deduction: boolean
+          campaign_stop_proposer_role: string
+          campaign_stop_approver_role: string
+          updated_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          bonus_proposer_role?: string
+          bonus_approver_role?: string
+          automatic_deduction?: boolean
+          campaign_stop_proposer_role?: string
+          campaign_stop_approver_role?: string
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          bonus_proposer_role?: string
+          bonus_approver_role?: string
+          automatic_deduction?: boolean
+          campaign_stop_proposer_role?: string
+          campaign_stop_approver_role?: string
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_kpi_settings: {
+        Row: {
+          id: string
+          timezone: string
+          service_window_start: string
+          service_window_end: string
+          abandoned_minutes: number
+          first_reply_target_on_shift_min: number
+          first_reply_target_off_shift_min: number
+          missed_call_followup_min: number
+          conversion_window_days: number
+          updated_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          timezone?: string
+          service_window_start?: string
+          service_window_end?: string
+          abandoned_minutes?: number
+          first_reply_target_on_shift_min?: number
+          first_reply_target_off_shift_min?: number
+          missed_call_followup_min?: number
+          conversion_window_days?: number
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          timezone?: string
+          service_window_start?: string
+          service_window_end?: string
+          abandoned_minutes?: number
+          first_reply_target_on_shift_min?: number
+          first_reply_target_off_shift_min?: number
+          missed_call_followup_min?: number
+          conversion_window_days?: number
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_lines: {
+        Row: {
+          id: string
+          channel_id: string
+          label: string
+          phone_raw: string | null
+          phone_norm: string | null
+          external_id: string | null
+          mode: string
+          owner_moderator_id: string | null
+          is_api_line: boolean
+          meta_registered: boolean
+          connection_status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          channel_id: string
+          label: string
+          phone_raw?: string | null
+          phone_norm?: string | null
+          external_id?: string | null
+          mode?: string
+          owner_moderator_id?: string | null
+          is_api_line?: boolean
+          meta_registered?: boolean
+          connection_status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          channel_id?: string
+          label?: string
+          phone_raw?: string | null
+          phone_norm?: string | null
+          external_id?: string | null
+          mode?: string
+          owner_moderator_id?: string | null
+          is_api_line?: boolean
+          meta_registered?: boolean
+          connection_status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_moderator_aliases: {
+        Row: {
+          id: string
+          moderator_id: string
+          alias: string
+          alias_norm: string | null
+          valid_from: string | null
+          valid_to: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          moderator_id: string
+          alias: string
+          valid_from?: string | null
+          valid_to?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          moderator_id?: string
+          alias?: string
+          valid_from?: string | null
+          valid_to?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_moderators: {
+        Row: {
+          id: string
+          user_id: string | null
+          slug: string
+          display_name: string
+          canonical_name: string
+          payroll_key: string
+          is_active: boolean
+          chat_active: boolean
+          start_date: string | null
+          end_date: string | null
+          sort_order: number
+          max_open_conversations: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          slug: string
+          display_name: string
+          canonical_name: string
+          payroll_key: string
+          is_active?: boolean
+          chat_active?: boolean
+          start_date?: string | null
+          end_date?: string | null
+          sort_order?: number
+          max_open_conversations?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          slug?: string
+          display_name?: string
+          canonical_name?: string
+          payroll_key?: string
+          is_active?: boolean
+          chat_active?: boolean
+          start_date?: string | null
+          end_date?: string | null
+          sort_order?: number
+          max_open_conversations?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_peer_review: {
+        Row: {
+          id: string
+          reviewer_moderator_id: string
+          reviewee_moderator_id: string
+          valid_from: string
+          valid_to: string | null
+          source_policy: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          reviewer_moderator_id: string
+          reviewee_moderator_id: string
+          valid_from?: string
+          valid_to?: string | null
+          source_policy?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          reviewer_moderator_id?: string
+          reviewee_moderator_id?: string
+          valid_from?: string
+          valid_to?: string | null
+          source_policy?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_retention_settings: {
+        Row: {
+          id: string
+          message_text_days: number
+          media_days: number
+          recording_days: number
+          recording_listener_roles: string[]
+          log_every_listen: boolean
+          updated_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          message_text_days?: number
+          media_days?: number
+          recording_days?: number
+          recording_listener_roles?: string[]
+          log_every_listen?: boolean
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          message_text_days?: number
+          media_days?: number
+          recording_days?: number
+          recording_listener_roles?: string[]
+          log_every_listen?: boolean
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_roster_days: {
+        Row: {
+          work_date: string
+          day_pattern: string
+          notes: string | null
+          generated_at: string | null
+          generated_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          work_date: string
+          day_pattern: string
+          notes?: string | null
+          generated_at?: string | null
+          generated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          work_date?: string
+          day_pattern?: string
+          notes?: string | null
+          generated_at?: string | null
+          generated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_shift_assignments: {
+        Row: {
+          id: string
+          work_date: string
+          slot_no: string
+          label: string
+          starts_at: string
+          ends_at: string
+          moderator_id: string | null
+          source: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          work_date: string
+          slot_no: string
+          label: string
+          starts_at: string
+          ends_at: string
+          moderator_id?: string | null
+          source?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          work_date?: string
+          slot_no?: string
+          label?: string
+          starts_at?: string
+          ends_at?: string
+          moderator_id?: string | null
+          source?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_shift_templates: {
+        Row: {
+          id: string
+          day_pattern: string
+          slot_no: string
+          label: string
+          starts_at: string
+          ends_at: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          day_pattern: string
+          slot_no: string
+          label: string
+          starts_at: string
+          ends_at: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          day_pattern?: string
+          slot_no?: string
+          label?: string
+          starts_at?: string
+          ends_at?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_weekday_patterns: {
+        Row: {
+          dow: string
+          day_pattern: string
+          updated_at: string
+        }
+        Insert: {
+          dow: string
+          day_pattern: string
+          updated_at?: string
+        }
+        Update: {
+          dow?: string
+          day_pattern?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_weekly_days_off: {
+        Row: {
+          id: string
+          moderator_id: string
+          dow: string
+          valid_from: string
+          valid_to: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          moderator_id: string
+          dow: string
+          valid_from?: string
+          valid_to?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          moderator_id?: string
+          dow?: string
+          valid_from?: string
+          valid_to?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       _bak_20261006_fn_receive_slaughter_output: {
         Row: {
           def: string | null
@@ -16830,6 +17341,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          moderator_id: string | null
           bank_transfer_amount: number
           collected_at: string | null
           collected_by: string | null
@@ -16892,6 +17404,7 @@ export type Database = {
           zodex_synced_at: string | null
         }
         Insert: {
+          moderator_id?: string | null
           bank_transfer_amount?: number
           collected_at?: string | null
           collected_by?: string | null
@@ -16954,6 +17467,7 @@ export type Database = {
           zodex_synced_at?: string | null
         }
         Update: {
+          moderator_id?: string | null
           bank_transfer_amount?: number
           collected_at?: string | null
           collected_by?: string | null

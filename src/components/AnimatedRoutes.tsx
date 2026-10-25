@@ -15,6 +15,7 @@ import { CALLER_LOOKUP_ROLES } from "@/constants/callerLookup";
 // Wrap lazy() so that when a dynamically-imported chunk is missing (e.g. after a
 // new deploy invalidated old chunk hashes), we force a single hard reload instead
 // of crashing the whole app / closing the sidebar.
+import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES } from "@/config/chatManagement";
 const lazy: typeof reactLazy = ((factory: any) =>
   reactLazy(() =>
     factory().catch((err: any) => {
@@ -39,6 +40,7 @@ const lazy: typeof reactLazy = ((factory: any) =>
 // All page components are lazy-loaded to dramatically reduce initial bundle size.
 // Each route's JS chunk is only fetched when the user navigates to it.
 const Index = lazy(() => import("@/pages/Index"));
+const ChatManagementShifts = lazy(() => import("@/pages/ChatManagementShifts"));
 const Products = lazy(() => import("@/pages/Products"));
 const ProductCosts = lazy(() => import("@/pages/ProductCosts"));
 const BoxCosts = lazy(() => import("@/pages/BoxCosts"));
@@ -285,6 +287,16 @@ const AnimatedRoutes = () => {
               <PageTransition><BonusPreview /></PageTransition>
             } />
           )}
+          <Route path={CHAT_MANAGEMENT_SHIFTS_PATH} element={
+            <ProtectedRoute allowedRoles={CHAT_MANAGEMENT_VIEW_ROLES}>
+              <PageTransition><ChatManagementShifts tab="shifts" /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={CHAT_MANAGEMENT_SETTINGS_PATH} element={
+            <ProtectedRoute allowedRoles={CHAT_MANAGEMENT_VIEW_ROLES}>
+              <PageTransition><ChatManagementShifts tab="settings" /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/debug" element={
             <ProtectedRoute allowedRoles={['general_manager']}>
               <PageTransition><Debug /></PageTransition>

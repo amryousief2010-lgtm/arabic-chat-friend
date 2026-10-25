@@ -53,6 +53,8 @@ import {
   FileSpreadsheet,
   Eye,
   Phone,
+  MessagesSquare,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { SIDEBAR_ITEM_MOVES, MARKETING_ONLY_EXTRA_PREFIXES } from "@/config/sidebarOverrides";
@@ -64,6 +66,7 @@ import { useUnreadInternalMessages } from "@/hooks/useUnreadInternalMessages";
 import { useMandatoryMessages } from "@/hooks/useMandatoryMessages";
 import { findModeratorByName } from "@/constants/moderators";
 import { CALLER_LOOKUP_PATH, CALLER_LOOKUP_ROLES } from "@/constants/callerLookup";
+import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES } from "@/config/chatManagement";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -142,6 +145,16 @@ export const moduleSections: ModuleSection[] = [
       { icon: BarChart3, label: "التقارير", path: "/reports", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'quality_manager','marketing_sales_viewer'] },
       { icon: MessageSquare, label: "حملات واتساب", path: "/marketing/whatsapp-campaigns", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: TrendingUp, label: "تحليل الأداء اليومي وخطة الشهر", path: "/sales/daily-performance-analysis", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant','marketing_sales_viewer'] },
+    ],
+  },
+  {
+    id: "chat-management",
+    icon: MessagesSquare,
+    label: "إدارة المحادثات",
+    roles: CHAT_MANAGEMENT_VIEW_ROLES,
+    items: [
+      { icon: CalendarClock, label: "الشيفتات والأجازات", path: CHAT_MANAGEMENT_SHIFTS_PATH, roles: CHAT_MANAGEMENT_VIEW_ROLES },
+      { icon: SlidersHorizontal, label: "إعدادات التوزيع والمؤشرات", path: CHAT_MANAGEMENT_SETTINGS_PATH, roles: CHAT_MANAGEMENT_VIEW_ROLES },
     ],
   },
   {
