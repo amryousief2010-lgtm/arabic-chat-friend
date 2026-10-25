@@ -46,6 +46,8 @@ const SOCIAL_MEDIA_ALLOWED_PREFIXES = [
   '/social-media',
   '/notifications',
   '/permissions',
+  // إدارة المحادثات: عرض فقط (الشيفتات والإعدادات)
+  '/chat-management',
   '/auth',
   '/install',
 ];

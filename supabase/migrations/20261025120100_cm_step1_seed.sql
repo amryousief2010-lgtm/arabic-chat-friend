@@ -65,6 +65,10 @@ ON CONFLICT (label) DO NOTHING;
 -- المراجعة المتبادلة: نفس أزواج السياسات الثلاث الحالية (خانة منال = هاجر).
 -- «Manal can review Nora and Aya» → هاجر تراجع نورا وآية؛ «Nora can review Hagar» → نورا تراجع هاجر.
 -- السياسات القديمة على orders/order_items باقية كما هي؛ هذا الجدول لا يغيّر أي صلاحية على الطلبات بعد.
+-- المراجعة المتبادلة: هذه الأزواج افتراضي أولي فقط (مأخوذ من السياسات الاسمية الحالية).
+-- مديرة المبيعات (والمدير العام) تضيف وتلغي الأزواج من صفحة «إعدادات التوزيع والمؤشرات» ← «المراجعة المتبادلة».
+-- لاحقاً (PR منفصل بعد اختبار التطابق) تُستبدل السياسات الاسمية الثلاث على orders/order_items
+-- بسياسة واحدة تعتمد على cm_peer_review (valid_to IS NULL).
 INSERT INTO public.cm_peer_review (reviewer_moderator_id, reviewee_moderator_id, valid_from, source_policy)
 SELECT r.id, e.id, '2026-10-25', p.src
 FROM (VALUES ('manal','noura','Manal can review Nora and Aya orders'),

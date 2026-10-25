@@ -27,7 +27,7 @@ type PermissionKey =
 const permissionDetails: Record<PermissionKey, { label: string; description: string }> = {
   manage_chat_shifts: {
     label: "إدارة الشيفتات وتوزيع المحادثات",
-    description: "تحديد شيفتات المودريتورز والأجازات الأسبوعية وطريقة التوزيع وأهداف الرد",
+    description: "تحديد الشيفتات والأجازات الأسبوعية والمراجعة المتبادلة وطريقة التوزيع وأهداف الرد (المدير التنفيذي ومدير التسويق والمبيعات والمشاهدون ومشرف السوشيال: عرض فقط)",
   },
   manage_employees: {
     label: "إدارة الموظفين",

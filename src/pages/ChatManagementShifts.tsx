@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ChevronRight, ChevronLeft, Wand2, Save } from "lucide-react";
+import { ChevronRight, ChevronLeft, Wand2, Save, Trash2, Plus, Info } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -30,6 +30,7 @@ const db = supabase as any; // جداول cm_* مضافة يدوياً إلى ty
 
 interface TemplateRow extends ShiftTemplate { id: string }
 interface AssignmentRow { id?: string; work_date: string; slot_no: number; label: string; starts_at: string; ends_at: string; moderator_id: string | null; source: string }
+interface PeerRow { id: string; reviewer_moderator_id: string; reviewee_moderator_id: string; valid_from: string; source_policy: string | null }
 interface DistRow { id: number; method: DistributionMethod; fallback_method: FallbackMethod; rotation_offset: number }
 interface KpiRow { id: number; service_window_start: string; service_window_end: string; abandoned_minutes: number; first_reply_target_on_shift_min: number; first_reply_target_off_shift_min: number }
 
@@ -49,12 +50,15 @@ export default function ChatManagementShifts({ tab = "shifts" }: { tab?: Tab }) 
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
   const [dist, setDist] = useState<DistRow | null>(null);
   const [kpi, setKpi] = useState<KpiRow | null>(null);
+  const [peers, setPeers] = useState<PeerRow[]>([]);
+  const [newReviewer, setNewReviewer] = useState<string>(NONE);
+  const [newReviewee, setNewReviewee] = useState<string>(NONE);
   const [loading, setLoading] = useState(true);
   const dates = useMemo(() => weekDates(weekStart), [weekStart]);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [m, t, p, o, a, d, k] = await Promise.all([
+    const [m, t, p, o, a, d, k, pr] = await Promise.all([
       db.from("cm_moderators").select("id,display_name,sort_order,is_active,chat_active,start_date,end_date").order("sort_order"),
       db.from("cm_shift_templates").select("*").order("day_pattern").order("slot_no"),
       db.from("cm_weekday_patterns").select("dow,day_pattern"),
@@ -62,8 +66,9 @@ export default function ChatManagementShifts({ tab = "shifts" }: { tab?: Tab }) 
       db.from("cm_shift_assignments").select("*").gte("work_date", dates[0]).lte("work_date", dates[6]),
       db.from("cm_distribution_settings").select("*").maybeSingle(),
       db.from("cm_kpi_settings").select("*").maybeSingle(),
+      db.from("cm_peer_review").select("id,reviewer_moderator_id,reviewee_moderator_id,valid_from,source_policy").is("valid_to", null).order("created_at"),
     ]);
-    const err = [m, t, p, o, a, d, k].find((r) => r.error)?.error;
+    const err = [m, t, p, o, a, d, k, pr].find((r) => r.error)?.error;
     if (err) toast.error(`تعذّر تحميل البيانات: ${err.message}`);
     setModerators(m.data ?? []);
     setTemplates(t.data ?? []);
@@ -72,6 +77,7 @@ export default function ChatManagementShifts({ tab = "shifts" }: { tab?: Tab }) 
     setAssignments(a.data ?? []);
     setDist(d.data ?? null);
     setKpi(k.data ?? null);
+    setPeers(pr.data ?? []);
     setLoading(false);
   }, [dates]);
 
@@ -157,6 +163,24 @@ export default function ChatManagementShifts({ tab = "shifts" }: { tab?: Tab }) 
     const { error } = await db.from("cm_distribution_settings").update({ method: dist.method, fallback_method: dist.fallback_method, rotation_offset: dist.rotation_offset }).eq("id", dist.id);
     error ? toast.error(`تعذّر الحفظ: ${error.message}`) : toast.success("تم حفظ إعدادات التوزيع");
   };
+  const addPeer = async () => {
+    if (newReviewer === NONE || newReviewee === NONE) return toast.error("اختر المراجِعة والمراجَعة");
+    if (newReviewer === newReviewee) return toast.error("لا يمكن أن تراجع المودريتور نفسها");
+    if (peers.some((p) => p.reviewer_moderator_id === newReviewer && p.reviewee_moderator_id === newReviewee)) return toast.error("هذه المراجعة موجودة بالفعل");
+    const { error } = await db.from("cm_peer_review").insert({ reviewer_moderator_id: newReviewer, reviewee_moderator_id: newReviewee });
+    if (error) return toast.error(`تعذّر الحفظ: ${error.message}`);
+    toast.success("تمت إضافة المراجعة");
+    setNewReviewer(NONE); setNewReviewee(NONE);
+    load();
+  };
+  const endPeer = async (id: string) => {
+    // إنهاء وليس حذفاً: يبقى السجل للتاريخ، ويُسجَّل التغيير في سجل التدقيق.
+    const { error } = await db.from("cm_peer_review").update({ valid_to: new Date().toISOString().slice(0, 10) }).eq("id", id);
+    if (error) return toast.error(`تعذّر الحذف: ${error.message}`);
+    toast.success("تم إلغاء المراجعة");
+    load();
+  };
+
   const saveKpi = async () => {
     if (!kpi) return;
     const { id, ...rest } = kpi;
@@ -245,7 +269,17 @@ export default function ChatManagementShifts({ tab = "shifts" }: { tab?: Tab }) 
                 <CardTitle>الأجازة الأسبوعية</CardTitle>
                 <CardDescription>يوم أجازة واحد لكل مودريتور، ويُستبعد تلقائياً عند توليد الأسبوع</CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <CardContent className="space-y-3">
+                {!loading && chatMods.some((m) => daysOff[m.id] == null) && (
+                  <div role="status" className="flex items-start gap-2 rounded-md border border-[#F37346]/40 bg-[#F37346]/10 p-3 text-sm">
+                    <Info className="h-4 w-4 mt-0.5 text-[#F37346]" />
+                    <span>
+                      لم يُحدَّد يوم الأجازة بعد لـ: {chatMods.filter((m) => daysOff[m.id] == null).map((m) => m.display_name).join("، ")}.
+                      {canEdit ? " اختاري يوم الأجازة لكل مودريتور من القوائم أدناه قبل «توليد الأسبوع»، وإلا ستُوزَّع على كل الأيام." : " تحددها مديرة المبيعات من هذه الصفحة."}
+                    </span>
+                  </div>
+                )}
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {chatMods.map((m) => (
                   <div key={m.id} className="space-y-1">
                     <Label>{m.display_name}</Label>
@@ -258,11 +292,59 @@ export default function ChatManagementShifts({ tab = "shifts" }: { tab?: Tab }) 
                     </Select>
                   </div>
                 ))}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>المراجعة المتبادلة</CardTitle>
+                <CardDescription>
+                  تحدد مديرة المبيعات من تراجع أوردرات من. الأزواج المعلَّمة «افتراضي أولي» أُدخلت كبداية فقط ويمكن حذفها أو تغييرها، وكل تعديل يُسجَّل في سجل التدقيق.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {peers.length === 0 && <div className="text-sm text-muted-foreground">لا توجد مراجعات محددة حالياً.</div>}
+                {peers.map((p) => (
+                  <div key={p.id} className="flex flex-wrap items-center gap-2 border rounded-md p-2">
+                    <span className="font-medium">{modName(p.reviewer_moderator_id)}</span>
+                    <span className="text-muted-foreground">تراجع</span>
+                    <span className="font-medium">{modName(p.reviewee_moderator_id)}</span>
+                    {p.source_policy && <Badge variant="outline" className="text-[#662D8C]">افتراضي أولي</Badge>}
+                    <span className="text-xs text-muted-foreground">منذ {p.valid_from}</span>
+                    {canEdit && (
+                      <Button size="sm" variant="ghost" className="mr-auto" aria-label="إلغاء المراجعة" onClick={() => endPeer(p.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {canEdit && (
+                  <div className="flex flex-wrap items-end gap-2 pt-2">
+                    <div className="space-y-1"><Label>المراجِعة</Label>
+                      <Select value={newReviewer} onValueChange={setNewReviewer}>
+                        <SelectTrigger className="w-40"><SelectValue placeholder="اختر" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NONE}>اختر</SelectItem>
+                          {chatMods.map((m) => <SelectItem key={m.id} value={m.id}>{m.display_name}</SelectItem>)}
+                        </SelectContent>
+                      </Select></div>
+                    <div className="space-y-1"><Label>تراجع أوردرات</Label>
+                      <Select value={newReviewee} onValueChange={setNewReviewee}>
+                        <SelectTrigger className="w-40"><SelectValue placeholder="اختر" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NONE}>اختر</SelectItem>
+                          {moderators.filter((m) => m.is_active && m.id !== newReviewer).map((m) => <SelectItem key={m.id} value={m.id}>{m.display_name}</SelectItem>)}
+                        </SelectContent>
+                      </Select></div>
+                    <Button onClick={addPeer}><Plus className="h-4 w-4 ml-1" />إضافة</Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader><CardTitle>نظام كل يوم</CardTitle></CardHeader>
               <CardContent className="grid gap-3 sm:grid-cols-4 lg:grid-cols-7">
