@@ -15,7 +15,7 @@ import { CALLER_LOOKUP_ROLES } from "@/constants/callerLookup";
 // Wrap lazy() so that when a dynamically-imported chunk is missing (e.g. after a
 // new deploy invalidated old chunk hashes), we force a single hard reload instead
 // of crashing the whole app / closing the sidebar.
-import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES } from "@/config/chatManagement";
+import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES, CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES } from "@/config/chatManagement";
 const lazy: typeof reactLazy = ((factory: any) =>
   reactLazy(() =>
     factory().catch((err: any) => {
@@ -44,6 +44,9 @@ const ChatManagementShifts = lazy(() => import("@/pages/ChatManagementShifts"));
 const ChatInbox = lazy(() => import("@/pages/ChatInbox"));
 const ChatSupervisor = lazy(() => import("@/pages/ChatSupervisor"));
 const ChatPhoneReview = lazy(() => import("@/pages/ChatPhoneReview"));
+const ChatKpis = lazy(() => import("@/pages/ChatKpis"));
+const ChatAdSpend = lazy(() => import("@/pages/ChatAdSpend"));
+const ChatCalls = lazy(() => import("@/pages/ChatCalls"));
 const Products = lazy(() => import("@/pages/Products"));
 const ProductCosts = lazy(() => import("@/pages/ProductCosts"));
 const BoxCosts = lazy(() => import("@/pages/BoxCosts"));
@@ -313,6 +316,21 @@ const AnimatedRoutes = () => {
           <Route path={CHAT_PHONE_REVIEW_PATH} element={
             <ProtectedRoute allowedRoles={CHAT_PHONE_REVIEW_ROLES}>
               <PageTransition><ChatPhoneReview /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={CHAT_KPIS_PATH} element={
+            <ProtectedRoute allowedRoles={CHAT_KPIS_ROLES}>
+              <PageTransition><ChatKpis /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={CHAT_AD_SPEND_PATH} element={
+            <ProtectedRoute allowedRoles={CHAT_AD_SPEND_ROLES}>
+              <PageTransition><ChatAdSpend /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={CHAT_CALLS_PATH} element={
+            <ProtectedRoute allowedRoles={CHAT_CALLS_ROLES}>
+              <PageTransition><ChatCalls /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/debug" element={

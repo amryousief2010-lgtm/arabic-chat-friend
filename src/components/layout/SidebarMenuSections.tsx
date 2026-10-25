@@ -29,6 +29,7 @@ import {
   Truck,
   ChevronDown,
   Megaphone,
+  PhoneCall,
   Network,
   TrendingUp,
   Calculator,
@@ -66,7 +67,7 @@ import { useUnreadInternalMessages } from "@/hooks/useUnreadInternalMessages";
 import { useMandatoryMessages } from "@/hooks/useMandatoryMessages";
 import { findModeratorByName } from "@/constants/moderators";
 import { CALLER_LOOKUP_PATH, CALLER_LOOKUP_ROLES } from "@/constants/callerLookup";
-import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, CHAT_MANAGEMENT_SECTION_ROLES, CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES } from "@/config/chatManagement";
+import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, CHAT_MANAGEMENT_SECTION_ROLES, CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES, CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES } from "@/config/chatManagement";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -156,6 +157,9 @@ export const moduleSections: ModuleSection[] = [
       { icon: MessagesSquare, label: "صندوق الرسائل", path: CHAT_INBOX_PATH, roles: CHAT_INBOX_ROLES },
       { icon: MessagesSquare, label: "كل المحادثات", path: CHAT_SUPERVISOR_PATH, roles: CHAT_SUPERVISOR_ROLES },
       { icon: SlidersHorizontal, label: "مراجعة الأرقام ودمج العملاء", path: CHAT_PHONE_REVIEW_PATH, roles: CHAT_PHONE_REVIEW_ROLES },
+      { icon: BarChart3, label: "مؤشرات الأداء", path: CHAT_KPIS_PATH, roles: CHAT_KPIS_ROLES },
+      { icon: Megaphone, label: "الإنفاق الإعلاني اليومي", path: CHAT_AD_SPEND_PATH, roles: CHAT_AD_SPEND_ROLES },
+      { icon: PhoneCall, label: "مكالمات الخط الساخن", path: CHAT_CALLS_PATH, roles: CHAT_CALLS_ROLES },
       { icon: CalendarClock, label: "الشيفتات والأجازات", path: CHAT_MANAGEMENT_SHIFTS_PATH, roles: CHAT_MANAGEMENT_VIEW_ROLES },
       { icon: SlidersHorizontal, label: "إعدادات التوزيع والمؤشرات", path: CHAT_MANAGEMENT_SETTINGS_PATH, roles: CHAT_MANAGEMENT_VIEW_ROLES },
     ],

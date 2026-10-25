@@ -45,3 +45,19 @@ export const canManageConversations = canEditChatManagement;
 
 /** نص الحقل المعطَّل حتى يُربط الإرسال عبر واتساب. */
 export const COMPOSER_DISABLED_PLACEHOLDER = "الإرسال من هنا غير متاح بعد — سيُفعَّل بعد ربط واتساب. ردّي من تطبيق واتساب على الخط.";
+
+// ───── الخطوة 4: المؤشرات، الإنفاق، المكالمات ─────
+export const CHAT_KPIS_PATH = "/chat-management/kpis";
+export const CHAT_AD_SPEND_PATH = "/chat-management/ad-spend";
+export const CHAT_CALLS_PATH = "/chat-management/calls";
+/** «مؤشرات الأداء»: SM / GM / EM / MSM (القراءة نفسها محكومة بـ RLS). */
+export const CHAT_KPIS_ROLES: AppRole[] = ["sales_manager", "general_manager", "executive_manager", "marketing_sales_manager"];
+/** إدخال الإنفاق اليومي واستيراده: MSM / SM / GM (قاعدة البيانات تسمح لـ EM أيضاً). */
+export const CHAT_AD_SPEND_ROLES: AppRole[] = ["marketing_sales_manager", "sales_manager", "general_manager"];
+/** سجل مكالمات الخط الساخن: نفس أدوار المؤشرات؛ الاستيراد SM/GM؛ الاستماع GM/EM/SM. */
+export const CHAT_CALLS_ROLES: AppRole[] = CHAT_KPIS_ROLES;
+export const CHAT_CDR_IMPORT_ROLES: AppRole[] = ["sales_manager", "general_manager"];
+export const CHAT_RECORDING_ROLES: AppRole[] = ["general_manager", "executive_manager", "sales_manager"];
+export const canImportCdr = (roles: readonly string[] | null | undefined) => hasAny(roles, CHAT_CDR_IMPORT_ROLES);
+export const canListenRecordings = (roles: readonly string[] | null | undefined) => hasAny(roles, CHAT_RECORDING_ROLES);
+export const canWriteAdSpend = (roles: readonly string[] | null | undefined) => hasAny(roles, CHAT_AD_SPEND_ROLES);

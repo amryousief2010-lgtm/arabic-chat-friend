@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import {
   CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, canEditChatManagement,
   CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES,
+  CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES, canImportCdr, canListenRecordings, canWriteAdSpend,
   canManageConversations,
 } from "@/config/chatManagement";
 import { moduleSections } from "@/components/layout/SidebarMenuSections";
@@ -62,7 +63,7 @@ describe("chat management route access", () => {
   it("sidebar has the إدارة المحادثات section with all pages", () => {
     const s = moduleSections.find((x) => x.id === "chat-management")!;
     expect(s.label).toBe("إدارة المحادثات");
-    expect(s.items.map((i) => i.path)).toEqual([CHAT_INBOX_PATH, CHAT_SUPERVISOR_PATH, CHAT_PHONE_REVIEW_PATH, CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH]);
+    expect(s.items.map((i) => i.path)).toEqual([CHAT_INBOX_PATH, CHAT_SUPERVISOR_PATH, CHAT_PHONE_REVIEW_PATH, CHAT_KPIS_PATH, CHAT_AD_SPEND_PATH, CHAT_CALLS_PATH, CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH]);
     const item = (p: string) => s.items.find((i) => i.path === p)!;
     expect(item(CHAT_INBOX_PATH).roles).toEqual(["sales_moderator"]);
     expect(item(CHAT_SUPERVISOR_PATH).roles).not.toContain("sales_moderator");
@@ -81,7 +82,7 @@ describe("chat management route access", () => {
     currentRoles = ["sales_moderator"];
     renderAt(CHAT_INBOX_PATH, CHAT_INBOX_ROLES);
     await waitFor(() => expect(screen.getByTestId("page")).toBeInTheDocument());
-    for (const [p, r] of [[CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES], [CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES], [CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_VIEW_ROLES]] as const) {
+    for (const [p, r] of [[CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES], [CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES], [CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_VIEW_ROLES], [CHAT_KPIS_PATH, CHAT_KPIS_ROLES], [CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES], [CHAT_CALLS_PATH, CHAT_CALLS_ROLES]] as const) {
       cleanup(); renderAt(p, r);
       await waitFor(() => expect(screen.queryByTestId("page")).toBeNull());
     }
@@ -108,5 +109,17 @@ describe("chat management route access", () => {
     expect(canManageConversations(["general_manager"])).toBe(true);
     for (const r of ["executive_manager", "marketing_sales_manager", "marketing_sales_viewer", "social_media_manager", "sales_moderator"])
       expect(canManageConversations([r])).toBe(false);
+  });
+  it("step 4 pages: KPIs/calls/ad-spend role gates", () => {
+    for (const r of [CHAT_KPIS_ROLES, CHAT_AD_SPEND_ROLES, CHAT_CALLS_ROLES]) {
+      expect(r).not.toContain("sales_moderator"); expect(r).not.toContain("accountant"); expect(r).not.toContain("marketing_sales_viewer");
+    }
+    expect(canWriteAdSpend(["marketing_sales_manager"])).toBe(true);
+    expect(canWriteAdSpend(["executive_manager"])).toBe(false);
+    expect(canImportCdr(["sales_manager"])).toBe(true);
+    expect(canImportCdr(["marketing_sales_manager"])).toBe(false);
+    expect(canListenRecordings(["executive_manager"])).toBe(true);
+    expect(canListenRecordings(["marketing_sales_manager"])).toBe(false);
+    expect(canListenRecordings(["sales_moderator"])).toBe(false);
   });
 });

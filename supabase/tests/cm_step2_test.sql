@@ -7,14 +7,14 @@ GRANT USAGE ON SCHEMA cmt TO authenticated;
 
 -- ── التطبيع ──
 DO $$ BEGIN
-  ASSERT cm_normalize_phone('+20 10 1234 5678') = '01012345678', 'plus20';
-  ASSERT cm_normalize_phone('0201098765432') = '01098765432', '02 prefix';
-  ASSERT cm_normalize_phone('+20 2 01098765432') = '01098765432', '+20 2 prefix';
-  ASSERT cm_normalize_phone('٠١٥٥٥٦٦٦٧٧٧') = '01555666777', 'arabic digits';
+  ASSERT cm_normalize_phone('+20 10 0000 0001') = '01000000001', 'plus20';
+  ASSERT cm_normalize_phone('0201000000004') = '01000000004', '02 prefix';
+  ASSERT cm_normalize_phone('+20 2 01000000004') = '01000000004', '+20 2 prefix';
+  ASSERT cm_normalize_phone('٠١٠٠٠٠٠٠٠٠٥') = '01000000005', 'arabic digits';
   ASSERT cm_normalize_phone('0223456789') = '0223456789' AND NOT cm_phone_is_valid('0223456789'), 'landline stays invalid';
-  ASSERT (SELECT count(*) FROM cm_split_phone_field('01112223334 / 01223334445')) = 2, 'split slash';
-  ASSERT (SELECT count(*) FROM cm_split_phone_field('0111222333401223334445')) = 2, 'split glued';
-  ASSERT (SELECT count(*) FROM cm_split_phone_field('010 1234 5678')) = 1, 'single with spaces';
+  ASSERT (SELECT count(*) FROM cm_split_phone_field('01000000002 / 01000000003')) = 2, 'split slash';
+  ASSERT (SELECT count(*) FROM cm_split_phone_field('0100000000201000000003')) = 2, 'split glued';
+  ASSERT (SELECT count(*) FROM cm_split_phone_field('010 0000 0001')) = 1, 'single with spaces';
 END $$;
 
 -- ── مزامنة الأرقام (مرتين = نفس النتيجة) ──
@@ -25,11 +25,11 @@ DO $$ BEGIN
   ASSERT (SELECT count(*) FROM cm_contact_phones WHERE NOT is_valid) = 1, 'one malformed';
   ASSERT (SELECT count(*) FROM cm_phone_review_queue WHERE issue='malformed') = 1, 'queue malformed';
   ASSERT (SELECT count(*) FROM cm_phone_review_queue WHERE issue='two_numbers') = 1, 'queue two numbers';
-  ASSERT (SELECT count(*) FROM cm_phone_review_queue WHERE issue='multi_customer' AND phone_norm='01012345678'
+  ASSERT (SELECT count(*) FROM cm_phone_review_queue WHERE issue='multi_customer' AND phone_norm='01000000001'
           AND cardinality(related_customer_ids)=2) = 1, 'queue multi customer';
-  ASSERT (SELECT phone FROM customers WHERE id='00000000-0000-0000-0000-00000000c002') = '+20 10 1234 5678', 'customers.phone untouched';
-  ASSERT cm_customer_for_phone('01012345678') = '00000000-0000-0000-0000-00000000c002', 'latest order wins';
-  ASSERT cm_customer_for_phone('+20 2 01098765432') = '00000000-0000-0000-0000-00000000c005', 'hotline lookup';
+  ASSERT (SELECT phone FROM customers WHERE id='00000000-0000-0000-0000-00000000c002') = '+20 10 0000 0001', 'customers.phone untouched';
+  ASSERT cm_customer_for_phone('01000000001') = '00000000-0000-0000-0000-00000000c002', 'latest order wins';
+  ASSERT cm_customer_for_phone('+20 2 01000000004') = '00000000-0000-0000-0000-00000000c005', 'hotline lookup';
 END $$;
 
 -- ── التهيئة: ربط حسابات، خط بمالكة، شيفت إضافي ──
@@ -42,7 +42,7 @@ UPDATE cm_distribution_settings SET method='campaign', fallback_method='load';
 
 -- ── التوزيع ──
 -- 1) صاحبة الخط تأخذ محادثة خطها
-INSERT INTO cm_conversations (id, line_id, phone_norm) SELECT '00000000-0000-0000-0000-0000000c0a01', id, '01012345678' FROM cm_lines WHERE label='خط مودريتور 1';
+INSERT INTO cm_conversations (id, line_id, phone_norm) SELECT '00000000-0000-0000-0000-0000000c0a01', id, '01000000001' FROM cm_lines WHERE label='خط مودريتور 1';
 INSERT INTO cm_messages (conversation_id, direction, body, provider_message_id, sent_at)
   VALUES ('00000000-0000-0000-0000-0000000c0a01','in','سلام','wamid.1', cmt.ct('2026-10-27 11:00'));
 DO $$ DECLARE r record; BEGIN
@@ -225,9 +225,9 @@ DO $$ DECLARE m uuid; BEGIN
   -- دمج عكسي: صاحب أحدث طلب (c002) هو المدموج → البحث بالرقم يجب أن يرجع الباقي c001
   m := cm_merge_customers('00000000-0000-0000-0000-00000000c001','00000000-0000-0000-0000-00000000c002');
   PERFORM cm_sync_customer_phones();  -- إعادة المزامنة بعد الدمج لا تعيد ربط الرقم بالعميل المدموج
-  ASSERT cm_customer_for_phone('01012345678') = '00000000-0000-0000-0000-00000000c001', 'lookup skips merged customer';
+  ASSERT cm_customer_for_phone('01000000001') = '00000000-0000-0000-0000-00000000c001', 'lookup skips merged customer';
   PERFORM cm_undo_merge(m);
-  ASSERT cm_customer_for_phone('01012345678') = '00000000-0000-0000-0000-00000000c002', 'lookup restored after undo';
+  ASSERT cm_customer_for_phone('01000000001') = '00000000-0000-0000-0000-00000000c002', 'lookup restored after undo';
 END $$;
 RESET ROLE; RESET request.jwt.claim.sub; RESET request.jwt.claim.role;
 DO $$ BEGIN

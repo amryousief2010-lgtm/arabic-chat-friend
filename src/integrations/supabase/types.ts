@@ -4229,6 +4229,51 @@ export type Database = {
         }
         Relationships: []
       }
+      cm_ad_spend_daily: {
+        Row: {
+          ad_account_id: string | null
+          campaign_id: string
+          clicks: number | null
+          created_at: string
+          currency: string
+          entered_by: string | null
+          id: string
+          impressions: number | null
+          source: string
+          spend: number
+          spend_date: string
+          updated_at: string
+        }
+        Insert: {
+          ad_account_id?: string | null
+          campaign_id: string
+          clicks?: number | null
+          created_at?: string
+          currency?: string
+          entered_by?: string | null
+          id?: string
+          impressions?: number | null
+          source?: string
+          spend: number
+          spend_date: string
+          updated_at?: string
+        }
+        Update: {
+          ad_account_id?: string | null
+          campaign_id?: string
+          clicks?: number | null
+          created_at?: string
+          currency?: string
+          entered_by?: string | null
+          id?: string
+          impressions?: number | null
+          source?: string
+          spend?: number
+          spend_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cm_audit_log: {
         Row: {
           action: string
@@ -4259,6 +4304,72 @@ export type Database = {
           entity?: string
           entity_id?: string | null
           id?: number
+        }
+        Relationships: []
+      }
+      cm_calls: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          customer_id: string | null
+          direction: string
+          duration_sec: number
+          external_call_id: string
+          followed_up_at: string | null
+          followed_up_by: string | null
+          id: string
+          imported_by: string | null
+          line_id: string | null
+          moderator_id: string | null
+          phone_norm: string | null
+          phone_raw: string | null
+          recording_path: string | null
+          source: string
+          started_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          direction: string
+          duration_sec?: number
+          external_call_id: string
+          followed_up_at?: string | null
+          followed_up_by?: string | null
+          id?: string
+          imported_by?: string | null
+          line_id?: string | null
+          moderator_id?: string | null
+          phone_norm?: string | null
+          phone_raw?: string | null
+          recording_path?: string | null
+          source?: string
+          started_at: string
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          direction?: string
+          duration_sec?: number
+          external_call_id?: string
+          followed_up_at?: string | null
+          followed_up_by?: string | null
+          id?: string
+          imported_by?: string | null
+          line_id?: string | null
+          moderator_id?: string | null
+          phone_norm?: string | null
+          phone_raw?: string | null
+          recording_path?: string | null
+          source?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -4493,6 +4604,36 @@ export type Database = {
           moderator_id?: string
           reason?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_conversation_orders: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          linked_by: string | null
+          method: string
+          order_id: string
+          phone_norm: string | null
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+          linked_by?: string | null
+          method: string
+          order_id: string
+          phone_norm?: string | null
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          linked_by?: string | null
+          method?: string
+          order_id?: string
+          phone_norm?: string | null
         }
         Relationships: []
       }
@@ -5030,6 +5171,30 @@ export type Database = {
           resolved_by?: string | null
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_recording_access_log: {
+        Row: {
+          accessed_at: string
+          call_id: string
+          id: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          accessed_at?: string
+          call_id: string
+          id?: string
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          accessed_at?: string
+          call_id?: string
+          id?: string
+          storage_path?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -24313,6 +24478,48 @@ export type Database = {
       }
     }
     Views: {
+      cm_kpi_conversations_v: {
+        Row: {
+          campaign_id: string | null
+          conversation_id: string | null
+          converted_in_window: boolean | null
+          first_inbound_at: string | null
+          first_reply_status: string | null
+          is_abandoned: boolean | null
+          kpi_date: string | null
+          line_id: string | null
+          moderator_id: string | null
+        }
+        Relationships: []
+      }
+      cm_kpi_missed_calls_v: {
+        Row: {
+          call_id: string | null
+          followed_within_target: boolean | null
+          followup_at: string | null
+          kpi_date: string | null
+          moderator_id: string | null
+          phone_norm: string | null
+          started_at: string | null
+        }
+        Relationships: []
+      }
+      cm_kpi_orders_v: {
+        Row: {
+          campaign_id: string | null
+          conversation_id: string | null
+          created_at: string | null
+          delivered_value: number | null
+          is_cancelled: boolean | null
+          is_delivered: boolean | null
+          is_resolved: boolean | null
+          kpi_date: string | null
+          moderator_id: string | null
+          order_id: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
       cm_v_unmatched_order_moderators: {
         Row: {
           moderator_text: string | null
@@ -26601,6 +26808,7 @@ export type Database = {
         }
         Returns: string
       }
+      cm_can_listen_recordings: { Args: never; Returns: boolean }
       cm_can_manage: { Args: never; Returns: boolean }
       cm_can_manage_campaigns: { Args: never; Returns: boolean }
       cm_can_read_all: { Args: never; Returns: boolean }
@@ -26608,6 +26816,7 @@ export type Database = {
         Args: { _conversation_id: string }
         Returns: boolean
       }
+      cm_can_write_spend: { Args: never; Returns: boolean }
       cm_clock_start: { Args: { _ts: string }; Returns: string }
       cm_current_moderator_id: { Args: never; Returns: string }
       cm_customer_for_phone: { Args: { _phone: string }; Returns: string }
@@ -26633,6 +26842,17 @@ export type Database = {
           cover_moderator_ids: string[]
         }[]
       }
+      cm_first_reply_kpi_status: {
+        Args: {
+          _clock: string
+          _first_reply: string
+          _now?: string
+          _owner: string
+          _was_cover: boolean
+        }
+        Returns: string
+      }
+      cm_import_hotline_cdr: { Args: { _rows: Json }; Returns: Json }
       cm_ingest_whatsapp_message: {
         Args: {
           _body?: string
@@ -26650,12 +26870,64 @@ export type Database = {
         }
         Returns: Json
       }
+      cm_is_service: { Args: never; Returns: boolean }
       cm_is_supervisor: { Args: never; Returns: boolean }
       cm_is_system_or_manager: { Args: never; Returns: boolean }
       cm_is_viewer: { Args: never; Returns: boolean }
+      cm_kpi_by_campaign: {
+        Args: { _from: string; _to: string }
+        Returns: {
+          campaign_id: string
+          campaign_name: string
+          spend: number
+          conversations: number
+          converted: number
+          orders: number
+          delivered: number
+          resolved: number
+          delivered_value: number
+          cost_per_delivered: number
+        }[]
+      }
+      cm_kpi_by_moderator: {
+        Args: { _from: string; _to: string }
+        Returns: {
+          moderator_id: string
+          display_name: string
+          conversations: number
+          on_time: number
+          cover: number
+          late: number
+          pending: number
+          abandoned: number
+          converted: number
+          missed_calls: number
+          missed_followed: number
+          orders: number
+          delivered: number
+          resolved: number
+          delivered_value: number
+          campaign_delivered: number
+          allocated_spend: number
+          cost_per_delivered: number
+        }[]
+      }
       cm_line_owner_on: {
         Args: { _day: string; _line_id: string }
         Returns: string
+      }
+      cm_link_conversation_order: {
+        Args: {
+          _conversation_id: string
+          _manual?: boolean
+          _order_id: string
+        }
+        Returns: string
+      }
+      cm_local_date: { Args: { _ts: string }; Returns: string }
+      cm_mark_missed_call_followed_up: {
+        Args: { _call_id: string }
+        Returns: undefined
       }
       cm_merge_customers: {
         Args: {
@@ -26681,6 +26953,16 @@ export type Database = {
           moderator_id: string
         }[]
       }
+      cm_order_is_cancelled: { Args: { _status: string }; Returns: boolean }
+      cm_order_is_delivered: { Args: { _status: string }; Returns: boolean }
+      cm_order_is_resolved: { Args: { _status: string }; Returns: boolean }
+      cm_order_matches_phone: {
+        Args: {
+          _order_id: string
+          _phone_norm: string
+        }
+        Returns: boolean
+      }
       cm_phone_is_valid: { Args: { _norm: string }; Returns: boolean }
       cm_reassign_conversation: {
         Args: {
@@ -26690,6 +26972,7 @@ export type Database = {
         }
         Returns: string
       }
+      cm_request_recording_access: { Args: { _call_id: string }; Returns: Json }
       cm_service_minutes: {
         Args: { _from: string; _to: string }
         Returns: number
@@ -26703,8 +26986,25 @@ export type Database = {
         Returns: undefined
       }
       cm_split_phone_field: { Args: { _raw: string }; Returns: string[] }
+      cm_suggest_conversation_orders: {
+        Args: {
+          _conversation_id: string
+        }
+        Returns: {
+          order_id: string
+          order_number: string
+          created_at: string
+          status: string
+          total: number
+          already_linked: boolean
+        }[]
+      }
       cm_sync_customer_phones: { Args: never; Returns: Json }
       cm_undo_merge: { Args: { _merge_id: string }; Returns: undefined }
+      cm_upsert_ad_spend: {
+        Args: { _rows: Json; _source?: string }
+        Returns: Json
+      }
       commit_agouza_stock_on_delivery: {
         Args: { p_order_id: string }
         Returns: Json
