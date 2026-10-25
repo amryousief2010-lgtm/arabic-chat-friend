@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      cm_ad_attributions: {
+        Row: {
+          id: string
+          conversation_id: string
+          method: string
+          ctwa_clid: string | null
+          referral_source_id: string | null
+          referral_source_type: string | null
+          referral_headline: string | null
+          manual_value: string | null
+          campaign_id: string | null
+          ad_id: string | null
+          set_by: string | null
+          captured_at: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          method: string
+          ctwa_clid?: string | null
+          referral_source_id?: string | null
+          referral_source_type?: string | null
+          referral_headline?: string | null
+          manual_value?: string | null
+          campaign_id?: string | null
+          ad_id?: string | null
+          set_by?: string | null
+          captured_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          method?: string
+          ctwa_clid?: string | null
+          referral_source_id?: string | null
+          referral_source_type?: string | null
+          referral_headline?: string | null
+          manual_value?: string | null
+          campaign_id?: string | null
+          ad_id?: string | null
+          set_by?: string | null
+          captured_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cm_audit_log: {
         Row: {
           id: number
@@ -47,6 +98,99 @@ export type Database = {
         }
         Relationships: []
       }
+      cm_campaign_ads: {
+        Row: {
+          id: string
+          campaign_id: string
+          meta_ad_id: string
+          name: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          campaign_id: string
+          meta_ad_id: string
+          name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          campaign_id?: string
+          meta_ad_id?: string
+          name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_campaign_line_map: {
+        Row: {
+          id: string
+          campaign_id: string
+          line_id: string
+          valid_from: string
+          valid_to: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          campaign_id: string
+          line_id: string
+          valid_from?: string
+          valid_to?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          campaign_id?: string
+          line_id?: string
+          valid_from?: string
+          valid_to?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_campaigns: {
+        Row: {
+          id: string
+          meta_campaign_id: string | null
+          name: string
+          objective: string | null
+          status: string
+          product_tag: string | null
+          is_default: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          meta_campaign_id?: string | null
+          name: string
+          objective?: string | null
+          status?: string
+          product_tag?: string | null
+          is_default?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          meta_campaign_id?: string | null
+          name?: string
+          objective?: string | null
+          status?: string
+          product_tag?: string | null
+          is_default?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cm_channels: {
         Row: {
           id: string
@@ -74,36 +218,282 @@ export type Database = {
         }
         Relationships: []
       }
-      cm_distribution_settings: {
+      cm_contact_phones: {
         Row: {
           id: string
+          customer_id: string | null
+          contact_id: string | null
+          phone_raw: string
+          phone_norm: string | null
+          source: string
+          is_valid: boolean
+          invalid_reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          customer_id?: string | null
+          contact_id?: string | null
+          phone_raw: string
+          phone_norm?: string | null
+          source: string
+          is_valid?: boolean
+          invalid_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          customer_id?: string | null
+          contact_id?: string | null
+          phone_raw?: string
+          phone_norm?: string | null
+          source?: string
+          is_valid?: boolean
+          invalid_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_contacts: {
+        Row: {
+          id: string
+          phone_raw: string | null
+          phone_norm: string | null
+          wa_id: string | null
+          profile_name: string | null
+          customer_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          phone_raw?: string | null
+          phone_norm?: string | null
+          wa_id?: string | null
+          profile_name?: string | null
+          customer_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          phone_raw?: string | null
+          phone_norm?: string | null
+          wa_id?: string | null
+          profile_name?: string | null
+          customer_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_conversation_assignments: {
+        Row: {
+          id: string
+          conversation_id: string
+          moderator_id: string
+          kind: string
+          method: string
+          assigned_by: string | null
+          assigned_at: string
+          ended_at: string | null
+          reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          moderator_id: string
+          kind?: string
+          method: string
+          assigned_by?: string | null
+          assigned_at?: string
+          ended_at?: string | null
+          reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          moderator_id?: string
+          kind?: string
+          method?: string
+          assigned_by?: string | null
+          assigned_at?: string
+          ended_at?: string | null
+          reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_conversations: {
+        Row: {
+          id: string
+          channel: string
+          line_id: string | null
+          contact_id: string | null
+          customer_id: string | null
+          phone_norm: string | null
+          external_thread_id: string | null
+          page_id: string | null
+          ig_user_id: string | null
+          owner_moderator_id: string | null
+          assigned_moderator_id: string | null
+          status: string
+          campaign_id: string | null
+          opened_at: string
+          first_inbound_at: string | null
+          clock_started_at: string | null
+          first_reply_at: string | null
+          first_reply_moderator_id: string | null
+          first_reply_was_cover: boolean | null
+          awaiting_reply_since: string | null
+          last_inbound_at: string | null
+          last_outbound_at: string | null
+          closed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          channel?: string
+          line_id?: string | null
+          contact_id?: string | null
+          customer_id?: string | null
+          phone_norm?: string | null
+          external_thread_id?: string | null
+          page_id?: string | null
+          ig_user_id?: string | null
+          owner_moderator_id?: string | null
+          assigned_moderator_id?: string | null
+          status?: string
+          campaign_id?: string | null
+          opened_at?: string
+          first_inbound_at?: string | null
+          clock_started_at?: string | null
+          first_reply_at?: string | null
+          first_reply_moderator_id?: string | null
+          first_reply_was_cover?: boolean | null
+          awaiting_reply_since?: string | null
+          last_inbound_at?: string | null
+          last_outbound_at?: string | null
+          closed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          channel?: string
+          line_id?: string | null
+          contact_id?: string | null
+          customer_id?: string | null
+          phone_norm?: string | null
+          external_thread_id?: string | null
+          page_id?: string | null
+          ig_user_id?: string | null
+          owner_moderator_id?: string | null
+          assigned_moderator_id?: string | null
+          status?: string
+          campaign_id?: string | null
+          opened_at?: string
+          first_inbound_at?: string | null
+          clock_started_at?: string | null
+          first_reply_at?: string | null
+          first_reply_moderator_id?: string | null
+          first_reply_was_cover?: boolean | null
+          awaiting_reply_since?: string | null
+          last_inbound_at?: string | null
+          last_outbound_at?: string | null
+          closed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_customer_merges: {
+        Row: {
+          id: string
+          survivor_customer_id: string
+          merged_customer_id: string
+          reason: string | null
+          review_id: string | null
+          approved_by: string
+          merged_at: string
+          snapshot: Json
+          undone_by: string | null
+          undone_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          survivor_customer_id: string
+          merged_customer_id: string
+          reason?: string | null
+          review_id?: string | null
+          approved_by: string
+          merged_at?: string
+          snapshot: Json
+          undone_by?: string | null
+          undone_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          survivor_customer_id?: string
+          merged_customer_id?: string
+          reason?: string | null
+          review_id?: string | null
+          approved_by?: string
+          merged_at?: string
+          snapshot?: Json
+          undone_by?: string | null
+          undone_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_distribution_settings: {
+        Row: {
+          id: number
           method: string
           fallback_method: string
           rotation_offset: number
           updated_by: string | null
           updated_at: string
+          last_assigned_moderator_id: string | null
         }
         Insert: {
-          id?: string
+          id?: number
           method?: string
           fallback_method?: string
           rotation_offset?: number
           updated_by?: string | null
           updated_at?: string
+          last_assigned_moderator_id?: string | null
         }
         Update: {
-          id?: string
+          id?: number
           method?: string
           fallback_method?: string
           rotation_offset?: number
           updated_by?: string | null
           updated_at?: string
+          last_assigned_moderator_id?: string | null
         }
         Relationships: []
       }
       cm_governance_settings: {
         Row: {
-          id: string
+          id: number
           bonus_proposer_role: string
           bonus_approver_role: string
           automatic_deduction: boolean
@@ -113,7 +503,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          id?: string
+          id?: number
           bonus_proposer_role?: string
           bonus_approver_role?: string
           automatic_deduction?: boolean
@@ -123,7 +513,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          id?: string
+          id?: number
           bonus_proposer_role?: string
           bonus_approver_role?: string
           automatic_deduction?: boolean
@@ -136,7 +526,7 @@ export type Database = {
       }
       cm_kpi_settings: {
         Row: {
-          id: string
+          id: number
           timezone: string
           service_window_start: string
           service_window_end: string
@@ -149,7 +539,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          id?: string
+          id?: number
           timezone?: string
           service_window_start?: string
           service_window_end?: string
@@ -162,7 +552,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          id?: string
+          id?: number
           timezone?: string
           service_window_start?: string
           service_window_end?: string
@@ -172,6 +562,36 @@ export type Database = {
           missed_call_followup_min?: number
           conversion_window_days?: number
           updated_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_line_moderator_map: {
+        Row: {
+          id: string
+          line_id: string
+          moderator_id: string
+          valid_from: string
+          valid_to: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          line_id: string
+          moderator_id: string
+          valid_from?: string
+          valid_to?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          line_id?: string
+          moderator_id?: string
+          valid_from?: string
+          valid_to?: string | null
+          created_at?: string
           updated_at?: string
         }
         Relationships: []
@@ -224,6 +644,69 @@ export type Database = {
         }
         Relationships: []
       }
+      cm_messages: {
+        Row: {
+          id: string
+          conversation_id: string
+          direction: string
+          type: string
+          body: string | null
+          media_path: string | null
+          media_mime: string | null
+          provider: string
+          provider_message_id: string | null
+          sender_moderator_id: string | null
+          sent_via: string | null
+          sent_at: string
+          delivery_status: string
+          delivered_at: string | null
+          read_at: string | null
+          failed_reason: string | null
+          raw: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          direction: string
+          type?: string
+          body?: string | null
+          media_path?: string | null
+          media_mime?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          sender_moderator_id?: string | null
+          sent_via?: string | null
+          sent_at?: string
+          delivery_status?: string
+          delivered_at?: string | null
+          read_at?: string | null
+          failed_reason?: string | null
+          raw?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          direction?: string
+          type?: string
+          body?: string | null
+          media_path?: string | null
+          media_mime?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          sender_moderator_id?: string | null
+          sent_via?: string | null
+          sent_at?: string
+          delivery_status?: string
+          delivered_at?: string | null
+          read_at?: string | null
+          failed_reason?: string | null
+          raw?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       cm_moderator_aliases: {
         Row: {
           id: string
@@ -239,6 +722,7 @@ export type Database = {
           id?: string
           moderator_id: string
           alias: string
+          alias_norm?: never
           valid_from?: string | null
           valid_to?: string | null
           created_at?: string
@@ -248,6 +732,7 @@ export type Database = {
           id?: string
           moderator_id?: string
           alias?: string
+          alias_norm?: never
           valid_from?: string | null
           valid_to?: string | null
           created_at?: string
@@ -339,9 +824,54 @@ export type Database = {
         }
         Relationships: []
       }
-      cm_retention_settings: {
+      cm_phone_review_queue: {
         Row: {
           id: string
+          issue: string
+          customer_id: string | null
+          phone_raw: string | null
+          phone_norm: string | null
+          related_customer_ids: string[]
+          status: string
+          resolution: string | null
+          resolved_by: string | null
+          resolved_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          issue: string
+          customer_id?: string | null
+          phone_raw?: string | null
+          phone_norm?: string | null
+          related_customer_ids?: string[]
+          status?: string
+          resolution?: string | null
+          resolved_by?: string | null
+          resolved_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          issue?: string
+          customer_id?: string | null
+          phone_raw?: string | null
+          phone_norm?: string | null
+          related_customer_ids?: string[]
+          status?: string
+          resolution?: string | null
+          resolved_by?: string | null
+          resolved_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_retention_settings: {
+        Row: {
+          id: number
           message_text_days: number
           media_days: number
           recording_days: number
@@ -351,7 +881,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          id?: string
+          id?: number
           message_text_days?: number
           media_days?: number
           recording_days?: number
@@ -361,7 +891,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          id?: string
+          id?: number
           message_text_days?: number
           media_days?: number
           recording_days?: number
@@ -406,7 +936,7 @@ export type Database = {
         Row: {
           id: string
           work_date: string
-          slot_no: string
+          slot_no: number
           label: string
           starts_at: string
           ends_at: string
@@ -418,7 +948,7 @@ export type Database = {
         Insert: {
           id?: string
           work_date: string
-          slot_no: string
+          slot_no: number
           label: string
           starts_at: string
           ends_at: string
@@ -430,7 +960,7 @@ export type Database = {
         Update: {
           id?: string
           work_date?: string
-          slot_no?: string
+          slot_no?: number
           label?: string
           starts_at?: string
           ends_at?: string
@@ -445,7 +975,7 @@ export type Database = {
         Row: {
           id: string
           day_pattern: string
-          slot_no: string
+          slot_no: number
           label: string
           starts_at: string
           ends_at: string
@@ -456,7 +986,7 @@ export type Database = {
         Insert: {
           id?: string
           day_pattern: string
-          slot_no: string
+          slot_no: number
           label: string
           starts_at: string
           ends_at: string
@@ -467,7 +997,7 @@ export type Database = {
         Update: {
           id?: string
           day_pattern?: string
-          slot_no?: string
+          slot_no?: number
           label?: string
           starts_at?: string
           ends_at?: string
@@ -479,17 +1009,17 @@ export type Database = {
       }
       cm_weekday_patterns: {
         Row: {
-          dow: string
+          dow: number
           day_pattern: string
           updated_at: string
         }
         Insert: {
-          dow: string
+          dow: number
           day_pattern: string
           updated_at?: string
         }
         Update: {
-          dow?: string
+          dow?: number
           day_pattern?: string
           updated_at?: string
         }
@@ -499,7 +1029,7 @@ export type Database = {
         Row: {
           id: string
           moderator_id: string
-          dow: string
+          dow: number
           valid_from: string
           valid_to: string | null
           created_at: string
@@ -508,7 +1038,7 @@ export type Database = {
         Insert: {
           id?: string
           moderator_id: string
-          dow: string
+          dow: number
           valid_from?: string
           valid_to?: string | null
           created_at?: string
@@ -517,539 +1047,11 @@ export type Database = {
         Update: {
           id?: string
           moderator_id?: string
-          dow?: string
+          dow?: number
           valid_from?: string
           valid_to?: string | null
           created_at?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      _bak_20261006_fn_receive_slaughter_output: {
-        Row: {
-          def: string | null
-          saved_at: string | null
-        }
-        Insert: {
-          def?: string | null
-          saved_at?: string | null
-        }
-        Update: {
-          def?: string | null
-          saved_at?: string | null
-        }
-        Relationships: []
-      }
-      _bak_20261006_inv_items_main: {
-        Row: {
-          blocked_qty: number | null
-          category: string | null
-          created_at: string | null
-          expiry_date: string | null
-          id: string | null
-          is_active: boolean | null
-          item_code: string | null
-          last_movement_date: string | null
-          low_stock_threshold: number | null
-          module: string | null
-          name: string | null
-          notes: string | null
-          pack_weight_kg: number | null
-          product_id: string | null
-          reserved_qty: number | null
-          sku: string | null
-          stock: number | null
-          unit: string | null
-          unit_cost: number | null
-          updated_at: string | null
-          warehouse_id: string | null
-        }
-        Insert: {
-          blocked_qty?: number | null
-          category?: string | null
-          created_at?: string | null
-          expiry_date?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          item_code?: string | null
-          last_movement_date?: string | null
-          low_stock_threshold?: number | null
-          module?: string | null
-          name?: string | null
-          notes?: string | null
-          pack_weight_kg?: number | null
-          product_id?: string | null
-          reserved_qty?: number | null
-          sku?: string | null
-          stock?: number | null
-          unit?: string | null
-          unit_cost?: number | null
-          updated_at?: string | null
-          warehouse_id?: string | null
-        }
-        Update: {
-          blocked_qty?: number | null
-          category?: string | null
-          created_at?: string | null
-          expiry_date?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          item_code?: string | null
-          last_movement_date?: string | null
-          low_stock_threshold?: number | null
-          module?: string | null
-          name?: string | null
-          notes?: string | null
-          pack_weight_kg?: number | null
-          product_id?: string | null
-          reserved_qty?: number | null
-          sku?: string | null
-          stock?: number | null
-          unit?: string | null
-          unit_cost?: number | null
-          updated_at?: string | null
-          warehouse_id?: string | null
-        }
-        Relationships: []
-      }
-      _bak_20261006_inv_movements: {
-        Row: {
-          approval_status: string | null
-          approved_at: string | null
-          approved_by: string | null
-          batch_id: string | null
-          created_at: string | null
-          destination_warehouse_id: string | null
-          effect_mode: string | null
-          id: string | null
-          item_id: string | null
-          module: string | null
-          movement_no: string | null
-          movement_type: string | null
-          notes: string | null
-          order_item_id: string | null
-          package_count: number | null
-          package_weight_kg: number | null
-          party: string | null
-          performed_at: string | null
-          performed_by: string | null
-          period_lock_override_reason: string | null
-          product_id: string | null
-          quantity: number | null
-          quantity_kg: number | null
-          reason: string | null
-          reference: string | null
-          reference_id: string | null
-          reference_type: string | null
-          reverses_movement_id: string | null
-          source_id: string | null
-          source_line_id: string | null
-          source_type: string | null
-          source_warehouse_id: string | null
-          stock_after: number | null
-          stock_before: number | null
-          total_cost: number | null
-          unit_cost: number | null
-          warehouse_id: string | null
-        }
-        Insert: {
-          approval_status?: string | null
-          approved_at?: string | null
-          approved_by?: string | null
-          batch_id?: string | null
-          created_at?: string | null
-          destination_warehouse_id?: string | null
-          effect_mode?: string | null
-          id?: string | null
-          item_id?: string | null
-          module?: string | null
-          movement_no?: string | null
-          movement_type?: string | null
-          notes?: string | null
-          order_item_id?: string | null
-          package_count?: number | null
-          package_weight_kg?: number | null
-          party?: string | null
-          performed_at?: string | null
-          performed_by?: string | null
-          period_lock_override_reason?: string | null
-          product_id?: string | null
-          quantity?: number | null
-          quantity_kg?: number | null
-          reason?: string | null
-          reference?: string | null
-          reference_id?: string | null
-          reference_type?: string | null
-          reverses_movement_id?: string | null
-          source_id?: string | null
-          source_line_id?: string | null
-          source_type?: string | null
-          source_warehouse_id?: string | null
-          stock_after?: number | null
-          stock_before?: number | null
-          total_cost?: number | null
-          unit_cost?: number | null
-          warehouse_id?: string | null
-        }
-        Update: {
-          approval_status?: string | null
-          approved_at?: string | null
-          approved_by?: string | null
-          batch_id?: string | null
-          created_at?: string | null
-          destination_warehouse_id?: string | null
-          effect_mode?: string | null
-          id?: string | null
-          item_id?: string | null
-          module?: string | null
-          movement_no?: string | null
-          movement_type?: string | null
-          notes?: string | null
-          order_item_id?: string | null
-          package_count?: number | null
-          package_weight_kg?: number | null
-          party?: string | null
-          performed_at?: string | null
-          performed_by?: string | null
-          period_lock_override_reason?: string | null
-          product_id?: string | null
-          quantity?: number | null
-          quantity_kg?: number | null
-          reason?: string | null
-          reference?: string | null
-          reference_id?: string | null
-          reference_type?: string | null
-          reverses_movement_id?: string | null
-          source_id?: string | null
-          source_line_id?: string | null
-          source_type?: string | null
-          source_warehouse_id?: string | null
-          stock_after?: number | null
-          stock_before?: number | null
-          total_cost?: number | null
-          unit_cost?: number | null
-          warehouse_id?: string | null
-        }
-        Relationships: []
-      }
-      _bak_20261006_slaughter_outputs: {
-        Row: {
-          actual_weight_kg: number | null
-          auto_cost_per_kg: number | null
-          barcode: string | null
-          batch_id: string | null
-          branch_id: string | null
-          created_at: string | null
-          cut_name_ar: string | null
-          damaged_weight_kg: number | null
-          destination: string | null
-          expiry_date: string | null
-          id: string | null
-          manual_cost_per_kg: number | null
-          manual_sale_price_per_kg: number | null
-          notes: string | null
-          package_count: number | null
-          price_edit_reason: string | null
-          price_updated_at: string | null
-          price_updated_by: string | null
-          product_id: string | null
-          quality_status: string | null
-          quarantined_weight_kg: number | null
-          received_at: string | null
-          received_by: string | null
-          received_inventory_item_id: string | null
-          received_status: string | null
-          received_warehouse_id: string | null
-          reverse_movement_id: string | null
-          reversed_at: string | null
-          reversed_by: string | null
-          standard_weight_kg: number | null
-          suggested_sale_price_per_kg: number | null
-          total_cost: number | null
-          unit_cost: number | null
-          unit_price: number | null
-          variance_kg: number | null
-          variance_pct: number | null
-          yield_standard_id: string | null
-        }
-        Insert: {
-          actual_weight_kg?: number | null
-          auto_cost_per_kg?: number | null
-          barcode?: string | null
-          batch_id?: string | null
-          branch_id?: string | null
-          created_at?: string | null
-          cut_name_ar?: string | null
-          damaged_weight_kg?: number | null
-          destination?: string | null
-          expiry_date?: string | null
-          id?: string | null
-          manual_cost_per_kg?: number | null
-          manual_sale_price_per_kg?: number | null
-          notes?: string | null
-          package_count?: number | null
-          price_edit_reason?: string | null
-          price_updated_at?: string | null
-          price_updated_by?: string | null
-          product_id?: string | null
-          quality_status?: string | null
-          quarantined_weight_kg?: number | null
-          received_at?: string | null
-          received_by?: string | null
-          received_inventory_item_id?: string | null
-          received_status?: string | null
-          received_warehouse_id?: string | null
-          reverse_movement_id?: string | null
-          reversed_at?: string | null
-          reversed_by?: string | null
-          standard_weight_kg?: number | null
-          suggested_sale_price_per_kg?: number | null
-          total_cost?: number | null
-          unit_cost?: number | null
-          unit_price?: number | null
-          variance_kg?: number | null
-          variance_pct?: number | null
-          yield_standard_id?: string | null
-        }
-        Update: {
-          actual_weight_kg?: number | null
-          auto_cost_per_kg?: number | null
-          barcode?: string | null
-          batch_id?: string | null
-          branch_id?: string | null
-          created_at?: string | null
-          cut_name_ar?: string | null
-          damaged_weight_kg?: number | null
-          destination?: string | null
-          expiry_date?: string | null
-          id?: string | null
-          manual_cost_per_kg?: number | null
-          manual_sale_price_per_kg?: number | null
-          notes?: string | null
-          package_count?: number | null
-          price_edit_reason?: string | null
-          price_updated_at?: string | null
-          price_updated_by?: string | null
-          product_id?: string | null
-          quality_status?: string | null
-          quarantined_weight_kg?: number | null
-          received_at?: string | null
-          received_by?: string | null
-          received_inventory_item_id?: string | null
-          received_status?: string | null
-          received_warehouse_id?: string | null
-          reverse_movement_id?: string | null
-          reversed_at?: string | null
-          reversed_by?: string | null
-          standard_weight_kg?: number | null
-          suggested_sale_price_per_kg?: number | null
-          total_cost?: number | null
-          unit_cost?: number | null
-          unit_price?: number | null
-          variance_kg?: number | null
-          variance_pct?: number | null
-          yield_standard_id?: string | null
-        }
-        Relationships: []
-      }
-      _migration_backup_farm_to_hatchery_shipments_20261002: {
-        Row: {
-          created_at: string | null
-          damaged_count: number | null
-          egg_count: number | null
-          family_id: string | null
-          family_number: string | null
-          farm_transfer_id: string | null
-          hatch_batch_id: string | null
-          id: string | null
-          is_test: boolean | null
-          production_date: string | null
-          production_id: string | null
-          receipt_notes: string | null
-          received_at: string | null
-          received_by: string | null
-          received_egg_count: number | null
-          rejection_reason: string | null
-          status: string | null
-          suggested_batch_id: string | null
-          transfer_batch_id: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          damaged_count?: number | null
-          egg_count?: number | null
-          family_id?: string | null
-          family_number?: string | null
-          farm_transfer_id?: string | null
-          hatch_batch_id?: string | null
-          id?: string | null
-          is_test?: boolean | null
-          production_date?: string | null
-          production_id?: string | null
-          receipt_notes?: string | null
-          received_at?: string | null
-          received_by?: string | null
-          received_egg_count?: number | null
-          rejection_reason?: string | null
-          status?: string | null
-          suggested_batch_id?: string | null
-          transfer_batch_id?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          damaged_count?: number | null
-          egg_count?: number | null
-          family_id?: string | null
-          family_number?: string | null
-          farm_transfer_id?: string | null
-          hatch_batch_id?: string | null
-          id?: string | null
-          is_test?: boolean | null
-          production_date?: string | null
-          production_id?: string | null
-          receipt_notes?: string | null
-          received_at?: string | null
-          received_by?: string | null
-          received_egg_count?: number | null
-          rejection_reason?: string | null
-          status?: string | null
-          suggested_batch_id?: string | null
-          transfer_batch_id?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      _migration_backup_sales_kg_price_settings_20260929: {
-        Row: {
-          bone_meat_price: number | null
-          created_at: string | null
-          id: string | null
-          meat_price: number | null
-          processed_price: number | null
-          singleton: boolean | null
-          updated_at: string | null
-          updated_by: string | null
-        }
-        Insert: {
-          bone_meat_price?: number | null
-          created_at?: string | null
-          id?: string | null
-          meat_price?: number | null
-          processed_price?: number | null
-          singleton?: boolean | null
-          updated_at?: string | null
-          updated_by?: string | null
-        }
-        Update: {
-          bone_meat_price?: number | null
-          created_at?: string | null
-          id?: string | null
-          meat_price?: number | null
-          processed_price?: number | null
-          singleton?: boolean | null
-          updated_at?: string | null
-          updated_by?: string | null
-        }
-        Relationships: []
-      }
-      _migration_backup_sales_kg_price_settings_20261001: {
-        Row: {
-          bone_meat_price: number | null
-          created_at: string | null
-          id: string | null
-          meat_price: number | null
-          processed_price: number | null
-          singleton: boolean | null
-          updated_at: string | null
-          updated_by: string | null
-        }
-        Insert: {
-          bone_meat_price?: number | null
-          created_at?: string | null
-          id?: string | null
-          meat_price?: number | null
-          processed_price?: number | null
-          singleton?: boolean | null
-          updated_at?: string | null
-          updated_by?: string | null
-        }
-        Update: {
-          bone_meat_price?: number | null
-          created_at?: string | null
-          id?: string | null
-          meat_price?: number | null
-          processed_price?: number | null
-          singleton?: boolean | null
-          updated_at?: string | null
-          updated_by?: string | null
-        }
-        Relationships: []
-      }
-      _migration_backup_sales_kg_price_versions_20261001: {
-        Row: {
-          bone_meat_price: number | null
-          created_at: string | null
-          effective_from: string | null
-          id: string | null
-          meat_price: number | null
-          processed_price: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          bone_meat_price?: number | null
-          created_at?: string | null
-          effective_from?: string | null
-          id?: string | null
-          meat_price?: number | null
-          processed_price?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          bone_meat_price?: number | null
-          created_at?: string | null
-          effective_from?: string | null
-          id?: string | null
-          meat_price?: number | null
-          processed_price?: number | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      _stk_live_post_20261003: {
-        Row: {
-          item_id: string
-          notes: string | null
-          performed_at: string | null
-          product_id: string | null
-          qty: number
-          reason: string | null
-          ref: string
-          unit_cost: number | null
-          warehouse_id: string | null
-        }
-        Insert: {
-          item_id: string
-          notes?: string | null
-          performed_at?: string | null
-          product_id?: string | null
-          qty: number
-          reason?: string | null
-          ref: string
-          unit_cost?: number | null
-          warehouse_id?: string | null
-        }
-        Update: {
-          item_id?: string
-          notes?: string | null
-          performed_at?: string | null
-          product_id?: string | null
-          qty?: number
-          reason?: string | null
-          ref?: string
-          unit_cost?: number | null
-          warehouse_id?: string | null
         }
         Relationships: []
       }
