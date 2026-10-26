@@ -18,6 +18,7 @@ import { normalizePhone } from "@/lib/normalizePhone";
 import { exportCSV } from "@/lib/csvExport";
 import { toast } from "sonner";
 import { MessageCircle, Download, Copy, Filter, Users, PhoneCall } from "lucide-react";
+import { formatDate } from "@/lib/dateFormat";
 
 // Keywords that mark a customer as opted-out from WhatsApp marketing.
 const OPT_OUT_PATTERNS = [
@@ -294,7 +295,7 @@ const WhatsAppCampaigns = () => {
       "واتساب دولي": r.whatsapp,
       "المحافظة": r.governorate,
       "المنطقة / العنوان": r.area,
-      "آخر تاريخ طلب": r.lastOrderDate ? new Date(r.lastOrderDate).toLocaleDateString("ar-EG") : "",
+      "آخر تاريخ طلب": r.lastOrderDate ? formatDate(r.lastOrderDate) : "",
       "عدد الطلبات السابقة": r.ordersCount,
       "إجمالي المشتريات": r.totalSpent,
       "آخر منتج تم طلبه": r.lastProduct,
@@ -483,7 +484,7 @@ const WhatsAppCampaigns = () => {
                       <TableCell dir="ltr" className="font-mono">{r.whatsapp}</TableCell>
                       <TableCell>{r.governorate}</TableCell>
                       <TableCell className="max-w-[220px] truncate">{r.area}</TableCell>
-                      <TableCell>{r.lastOrderDate ? new Date(r.lastOrderDate).toLocaleDateString("ar-EG") : "-"}</TableCell>
+                      <TableCell>{r.lastOrderDate ? formatDate(r.lastOrderDate) : "-"}</TableCell>
                       <TableCell>{r.ordersCount}</TableCell>
                       <TableCell>{r.totalSpent.toLocaleString("ar-EG")}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{r.lastProduct || "-"}</TableCell>

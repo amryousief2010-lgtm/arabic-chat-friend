@@ -15,6 +15,7 @@ import { paginateUntilDone } from "@/lib/paginateQuery";
 import { STOCK_ADJUSTMENT_REASONS } from "@/lib/warehouseAdjustmentReasons";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
 import * as XLSX from "xlsx";
+import { formatDate } from "@/lib/dateFormat";
 
 interface Mov {
   id: string;
@@ -296,7 +297,7 @@ export default function WarehouseAdjustmentsLog() {
           </CardContent></Card>
           <Card><CardContent className="p-4">
             <div className="text-xs text-muted-foreground">آخر اعتماد جرد</div>
-            <div className="text-sm font-semibold mt-1">{approvedSessionAt ? new Date(approvedSessionAt).toLocaleDateString("ar-EG") : "—"}</div>
+            <div className="text-sm font-semibold mt-1">{approvedSessionAt ? formatDate(approvedSessionAt) : "—"}</div>
           </CardContent></Card>
         </div>
 

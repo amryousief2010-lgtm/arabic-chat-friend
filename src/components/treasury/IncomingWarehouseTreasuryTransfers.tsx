@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Warehouse, CheckCircle2, XCircle, Loader2, Printer } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { formatDate } from "@/lib/dateFormat";
 
 interface Row {
   id: string;
@@ -248,7 +249,7 @@ export default function IncomingWarehouseTreasuryTransfers({ onReceived }: { onR
       <table class="deposits">
         <thead><tr><th>يوم التوريد</th><th>المندوب</th><th>المبلغ النقدي</th><th>عدد الأوردرات</th></tr></thead>
         <tbody>${linkedDeposits.map((d) => `<tr>
-          <td>${new Date(d.deposit_date).toLocaleDateString("ar-EG")}</td>
+          <td>${formatDate(d.deposit_date)}</td>
           <td>${esc(d.courier_name || "—")}</td>
           <td class="num strong">${fmt(Number(d.amount || 0))}</td>
           <td class="num">${Number(d.orders_count || 0)}</td>

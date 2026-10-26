@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { fmtNum, openPrintWindow, escapeHtml } from "@/lib/printPdf";
 import { Printer, FileSpreadsheet, Plus, CheckCircle2, AlertTriangle, Wallet } from "lucide-react";
+import { formatDate } from "@/lib/dateFormat";
 
 type Status = "unpaid" | "partial" | "paid";
 const ST_LBL: Record<Status, string> = { unpaid: "غير مسدد", partial: "مسدد جزئيًا", paid: "مسدد بالكامل" };
@@ -33,7 +34,7 @@ interface Settlement {
   created_by: string | null; approved_by: string | null; approved_at: string | null; created_at: string;
 }
 
-const fmtDateAr = (d: string) => new Date(d + "T00:00:00").toLocaleDateString("ar-EG-u-nu-latn");
+const fmtDateAr = (d: string) => formatDate(d + "T00:00:00");
 
 export default function HistoricalReceivables() {
   const { user, isGeneralManager, isExecutiveManager, roles } = useAuth();

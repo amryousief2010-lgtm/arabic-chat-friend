@@ -452,7 +452,7 @@ interface ReceiptData {
 const printReceipt = (d: ReceiptData) => {
   const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   const dt = new Date(d.collectedAt).toLocaleString("ar-EG");
-  const rows = d.orders.map((o, i) => `<tr><td>${i + 1}</td><td>${esc(o.order_number || o.id.slice(0, 8))}</td><td>${esc(o.customer_name || "-")}</td><td>${o.delivered_at ? new Date(o.delivered_at).toLocaleDateString("ar-EG") : "-"}</td><td>${Number(o.total).toLocaleString("en-US")}</td></tr>`).join("");
+  const rows = d.orders.map((o, i) => `<tr><td>${i + 1}</td><td>${esc(o.order_number || o.id.slice(0, 8))}</td><td>${esc(o.customer_name || "-")}</td><td>${o.delivered_at ? formatDate(o.delivered_at) : "-"}</td><td>${Number(o.total).toLocaleString("en-US")}</td></tr>`).join("");
   const variantRow = Math.abs(d.variance) > 0.001
     ? `<div class="row"><span>الفرق (${d.variance > 0 ? "نقص" : "زيادة"})</span><b>${Math.abs(d.variance).toLocaleString("en-US")} ج</b></div><div class="row"><span>السبب</span><b>${esc(d.reason)}</b></div>`
     : "";

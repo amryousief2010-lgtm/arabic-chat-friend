@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Beef, Boxes, Package as PackageIcon, AlertTriangle, Factory, Truck, ShoppingCart, Activity, Wallet } from "lucide-react";
+import { formatDate } from "@/lib/dateFormat";
 
 type RawItem = { id: string; name: string; unit: string; current_stock: number; avg_cost: number; low_stock_threshold: number | null; kind: "raw"|"spice"|"packaging"; is_active: boolean; updated_at: string };
 type Move = { id: string; item_kind: string; item_id: string; item_name: string; direction: "IN"|"OUT"; quantity: number; unit_cost: number | null; reason: string | null; ref_table: string | null; ref_id: string | null; stock_before: number | null; stock_after: number | null; created_by: string | null; created_at: string };
@@ -16,7 +17,7 @@ type Move = { id: string; item_kind: string; item_id: string; item_name: string;
 const KIND_LABEL: Record<string,string> = { raw: "خامة", spice: "بهارات", packaging: "تغليف" };
 const KIND_COLOR: Record<string,string> = { raw: "bg-blue-600", spice: "bg-amber-600", packaging: "bg-emerald-600" };
 const fmt = (n: any) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
-const fmtDate = (s: string | null | undefined) => s ? new Date(s).toLocaleDateString("ar-EG") : "—";
+const fmtDate = (s: string | null | undefined) => s ? formatDate(s) : "—";
 
 function classifyMove(m: Move): "slaughter"|"purchase"|"manufacturing"|"adjustment" {
   const r = (m.ref_table || "").toLowerCase();

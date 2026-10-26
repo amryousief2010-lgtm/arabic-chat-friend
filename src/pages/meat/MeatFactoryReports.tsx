@@ -16,6 +16,7 @@ import {
   PackageOpen, Factory, Boxes, TrendingDown
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatDate } from "@/lib/dateFormat";
 
 type Move = {
   id: string; item_kind: string; item_id: string; item_name: string;
@@ -31,7 +32,7 @@ const fmt = (n: any, d = 2) => Number(n || 0).toLocaleString("ar-EG", { minimumF
 const fmtInt = (n: any) => Number(n || 0).toLocaleString("ar-EG");
 const fmtMoney = (n: any) => `${fmt(n, 2)} ج.م`;
 const fmtDT = (d: any) => d ? new Date(d).toLocaleString("ar-EG", { dateStyle: "short", timeStyle: "short" }) : "—";
-const fmtD = (d: any) => d ? new Date(d).toLocaleDateString("ar-EG") : "—";
+const fmtD = (d: any) => d ? formatDate(d) : "—";
 
 const KIND_LABEL: Record<string, string> = { raw: "خام", spice: "بهارات", packaging: "تغليف", finished: "منتج جاهز" };
 

@@ -178,8 +178,8 @@ export function exportOrdersToPDF(rows: OrderExportRow[], periodLabel = "كل ا
               <td>${escapeHtml(paymentStatusAR[r.payment_status] || r.payment_status)}</td>
               <td>${escapeHtml(collectionAR[r.collection_status] || r.collection_status)}</td>
               <td>${escapeHtml(statusAR[r.status] || r.status)}</td>
-              <td>${escapeHtml(new Date(r.created_at).toLocaleDateString("ar-EG-u-nu-latn"))}</td>
-              <td>${r.delivered_at ? escapeHtml(new Date(r.delivered_at).toLocaleDateString("ar-EG-u-nu-latn")) : "—"}</td>
+              <td>${escapeHtml(formatDate(r.created_at))}</td>
+              <td>${r.delivered_at ? escapeHtml(formatDate(r.delivered_at)) : "—"}</td>
             </tr>`,
           )
           .join("")}
