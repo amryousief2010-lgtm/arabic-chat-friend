@@ -185,6 +185,7 @@ const WarehouseDashboard = lazy(() => import("@/pages/modules/warehouse/Warehous
 const WarehouseDetail = lazy(() => import("@/pages/modules/warehouse/WarehouseDetail"));
 const InventoryImport = lazy(() => import("@/pages/modules/warehouse/InventoryImport"));
 const ZodexReview = lazy(() => import("@/pages/modules/warehouse/ZodexReview"));
+const ZodexAutoLinkReview = lazy(() => import("@/pages/modules/warehouse/ZodexAutoLinkReview"));
 const MegaOrdersReview = lazy(() => import("@/pages/orders/MegaOrdersReview"));
 const MegaOrderDiscrepancies = lazy(() => import("@/pages/orders/MegaOrderDiscrepancies"));
 
@@ -1178,6 +1179,11 @@ const AnimatedRoutes = () => {
           <Route path="/modules/warehouses/zodex-review" element={
             <ProtectedRoute allowedRoles={[...ZODEX_REVIEW_ALLOWED_ROLES]}>
               <PageTransition><ZodexReview /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/modules/warehouses/zodex-autolink" element={
+            <ProtectedRoute allowedRoles={[...ZODEX_REVIEW_ALLOWED_ROLES]}>
+              <PageTransition><ZodexAutoLinkReview /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/modules/warehouses/zodex-missing" element={<Navigate to="/modules/warehouses/zodex-review" replace />} />
