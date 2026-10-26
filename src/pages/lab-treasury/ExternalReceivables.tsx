@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { fmtNum, openPrintWindow, escapeHtml } from "@/lib/printPdf";
 import { Plus, Printer, FileSpreadsheet, Wallet, ArrowRight, Eye, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { formatDate } from "@/lib/dateFormat";
 
 type Party = "main_treasury" | "slaughter_custody" | "other";
 type Status = "unpaid" | "partial" | "paid";
@@ -54,7 +55,7 @@ interface Settlement {
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
-const fmtDateAr = (d: string) => new Date(d + "T00:00:00").toLocaleDateString("ar-EG-u-nu-latn");
+const fmtDateAr = (d: string) => formatDate(d + "T00:00:00");
 
 interface Props { embedded?: boolean }
 export default function ExternalReceivables({ embedded = false }: Props) {

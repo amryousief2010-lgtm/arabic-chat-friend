@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Package, Warehouse, Factory, ArrowRightCircle, Plus, Trash2, Loader2, Pencil, History, Scale } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { formatDate } from "@/lib/dateFormat";
 
 interface RawRow {
   id: string;
@@ -341,7 +342,7 @@ export default function MeatProductionWarehouses() {
                     ) : (transfersQ.data || []).map((t) => (
                       <TableRow key={t.id}>
                         <TableCell className="font-mono text-xs">{t.transfer_no}</TableCell>
-                        <TableCell>{new Date(t.created_at).toLocaleDateString("ar-EG")}</TableCell>
+                        <TableCell>{formatDate(t.created_at)}</TableCell>
                         <TableCell>{productById.get(t.product_id)?.name_ar || "—"}</TableCell>
                         <TableCell className="text-left">{Number(t.quantity).toLocaleString("ar-EG", { maximumFractionDigits: 3 })}</TableCell>
                         <TableCell className="text-left">{Number(t.unit_cost).toLocaleString("ar-EG", { maximumFractionDigits: 2 })}</TableCell>

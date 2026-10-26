@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { paginateUntilDone } from "@/lib/paginateQuery";
 import { signedDelta } from "@/lib/warehouseMovementSign";
 import * as XLSX from "xlsx";
+import { formatDate } from "@/lib/dateFormat";
 
 const IN_TYPES = ["in", "purchase_receipt", "opening_balance", "sales_return", "finished_goods_receipt", "return", "stock_in"];
 const OUT_TYPES = ["out", "sales_dispatch", "transfer", "waste_loss", "production_consumption", "packaging_consumption", "stock_out"];
@@ -509,8 +510,8 @@ function TransfersReport({ warehouses }: { warehouses: { id: string; name: strin
                 <TableCell className="text-xs">{whName(t.source_warehouse_id)}</TableCell>
                 <TableCell className="text-xs">{whName(t.destination_warehouse_id)}</TableCell>
                 <TableCell><Badge variant="outline">{t.status}</Badge></TableCell>
-                <TableCell className="text-xs">{t.sent_at ? new Date(t.sent_at).toLocaleDateString("ar-EG") : "—"}</TableCell>
-                <TableCell className="text-xs">{t.received_at ? new Date(t.received_at).toLocaleDateString("ar-EG") : "—"}</TableCell>
+                <TableCell className="text-xs">{t.sent_at ? formatDate(t.sent_at) : "—"}</TableCell>
+                <TableCell className="text-xs">{t.received_at ? formatDate(t.received_at) : "—"}</TableCell>
                 <TableCell className="font-mono">{t.sent}</TableCell>
                 <TableCell className="font-mono">{t.recv}</TableCell>
                 <TableCell className={`font-mono ${t.short > 0 ? "text-rose-600 font-bold" : ""}`}>{t.short}</TableCell>

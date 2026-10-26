@@ -1,5 +1,6 @@
 import type { WorkSheet } from "xlsx";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
+import { formatDate } from "@/lib/dateFormat";
 
 export interface OrderExportRow {
   order_number: string;
@@ -104,7 +105,7 @@ export async function exportOrdersToXLSX(
   if (meta) {
     const headerRows: any[][] = [
       ["المسوقة:", meta.moderatorName || "-"],
-      ["التاريخ:", meta.dateLabel || new Date().toLocaleDateString("ar-EG")],
+      ["التاريخ:", meta.dateLabel || formatDate(new Date())],
       ["عدد الطلبات:", rows.length],
       ["إجمالي القيمة:", totalSum],
       [],
@@ -177,8 +178,8 @@ export function exportOrdersToPDF(rows: OrderExportRow[], periodLabel = "كل ا
               <td>${escapeHtml(paymentStatusAR[r.payment_status] || r.payment_status)}</td>
               <td>${escapeHtml(collectionAR[r.collection_status] || r.collection_status)}</td>
               <td>${escapeHtml(statusAR[r.status] || r.status)}</td>
-              <td>${escapeHtml(new Date(r.created_at).toLocaleDateString("ar-EG-u-nu-latn"))}</td>
-              <td>${r.delivered_at ? escapeHtml(new Date(r.delivered_at).toLocaleDateString("ar-EG-u-nu-latn")) : "—"}</td>
+              <td>${escapeHtml(formatDate(r.created_at))}</td>
+              <td>${r.delivered_at ? escapeHtml(formatDate(r.delivered_at)) : "—"}</td>
             </tr>`,
           )
           .join("")}
