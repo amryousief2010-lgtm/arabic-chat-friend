@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { UsersRound, Plus, Search, Edit, History as HistoryIcon, Printer, FileText, Wallet, UserMinus, UserCheck, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { canEditPayDay, payDayPatch, PAY_DAYS } from "@/lib/hr/payDay";
 import { toast } from "sonner";
 import PrintEmployeesAdvancesDialog from "@/components/hr/PrintEmployeesAdvancesDialog";
 import EmployeeDocumentsDialog from "@/components/hr/EmployeeDocumentsDialog";
@@ -32,6 +33,7 @@ interface Employee {
   status: "active" | "inactive";
   notes: string | null;
   pay_day: number;
+  pay_day_manual?: boolean;
   photo_url?: string | null;
   is_suspended?: boolean;
   suspension_date?: string | null;
@@ -105,6 +107,7 @@ const HREmployees = () => {
 
   const [editing, setEditing] = useState<Employee | null>(null);
   const [form, setForm] = useState<Partial<Employee>>(blankForm());
+  const [payDayChoice, setPayDayChoice] = useState<"auto" | number | undefined>(undefined);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -272,6 +275,7 @@ const HREmployees = () => {
   const openEdit = (e: Employee) => {
     setEditing(e);
     setForm({ ...e });
+    setPayDayChoice(undefined);
     setOpen(true);
   };
 
@@ -318,6 +322,7 @@ const HREmployees = () => {
         start_date: form.start_date || null,
         status: form.status,
         notes: form.notes || null,
+        ...(editing ? payDayPatch(canEditPayDay({ isGeneralManager, isExecutiveManager }), payDayChoice) : {}),
       };
 
       if (editing) {
@@ -844,9 +849,26 @@ const HREmployees = () => {
                   <span className="font-semibold">يوم صرف الراتب الحالي:</span>
                   <Badge className={PAY_DAY_BADGE[editing.pay_day] || "bg-muted"}>يوم {editing.pay_day} من كل شهر</Badge>
                 </div>
+                {canEditPayDay({ isGeneralManager, isExecutiveManager }) && (
+                  <div className="mt-2">
+                    <Select
+                      value={payDayChoice === undefined ? (editing.pay_day_manual ? String(editing.pay_day) : "auto") : String(payDayChoice)}
+                      onValueChange={(v) => setPayDayChoice(v === "auto" ? "auto" : Number(v))}
+                    >
+                      <SelectTrigger aria-label="يوم صرف الراتب"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">آلي حسب القاعدة</SelectItem>
+                        {PAY_DAYS.map((d) => (
+                          <SelectItem key={d} value={String(d)}>يدوي: يوم {d}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground mt-1">
-                  يُحسب آليًا حسب القاعدة: البواب=1، التسويق/ألاء=5، شركة الشحن=15، الباقي=1.
-                  أي تغيير في مكان العمل أو القسم يُحدّث هذا اليوم تلقائيًا.
+                  {editing.pay_day_manual
+                    ? "محدد يدويًا — لا يتغير مع تغيير القسم أو مكان العمل."
+                    : "يُحسب آليًا: البواب=1، التسويق/المبيعات/ألاء=5، شركة الشحن=15، الباقي=1. يعدّله المدير العام أو المدير التنفيذي فقط."}
                 </p>
               </div>
             )}
