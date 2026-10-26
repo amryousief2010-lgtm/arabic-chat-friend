@@ -1875,7 +1875,7 @@ var box_costs_report_default = defineTool20({
 });
 
 // src/lib/mcp/index.ts
-var projectRef = "ssznmzijopyxkwpctcxw";
+var projectRef = (Deno.env.get("SUPABASE_URL") ?? "").replace(/^https?:\/\//, "").split(".")[0] || "project-ref-unset";
 var mcp_default = defineMcp({
   name: "naam-al-asima-management-system",
   title: "Naam Al-Asima Management System",
