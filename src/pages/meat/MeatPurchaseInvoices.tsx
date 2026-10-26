@@ -459,7 +459,7 @@ export default function MeatPurchaseInvoices() {
                     </Select>
                   </div>
                   {paymentMethod === "main_treasury" && (
-                    <MainTreasuryTxnPicker amount={total} date={purchaseDate} value={mainTxnId} onChange={setMainTxnId} />
+                    <MainTreasuryTxnPicker amount={total} date={purchaseDate} value={mainTxnId} onChange={setMainTxnId} supplier={supplier} invoiceType={invoiceType} />
                   )}
                   {dupInvoiceWarning && (
                     <div className="md:col-span-3 rounded-md border border-red-400 bg-red-50 p-2 text-sm text-red-900">{dupInvoiceWarning}</div>
