@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 
 interface UserAvatarProps {
   userId?: string | null;
+  /** معرّف ملف الموظف (hr_employees.id) — يُستخدم إن لم يكن هناك حساب مربوط */
+  employeeId?: string | null;
   name?: string | null;
   className?: string;
   fallbackClassName?: string;
@@ -14,8 +16,8 @@ const initial = (name?: string | null) => {
   return trimmed ? trimmed.charAt(0) : "م";
 };
 
-const UserAvatar = ({ userId, name, className, fallbackClassName }: UserAvatarProps) => {
-  const url = useAvatarUrl(userId);
+const UserAvatar = ({ userId, employeeId, name, className, fallbackClassName }: UserAvatarProps) => {
+  const url = useAvatarUrl(userId, employeeId);
 
   return (
     <Avatar className={cn("w-10 h-10", className)}>

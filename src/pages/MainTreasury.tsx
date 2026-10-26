@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import UserAvatar from "@/components/UserAvatar";
 import { findAmountDateMatches, formatMatchWarning } from "@/lib/factoryTreasuryMatch";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
@@ -760,7 +761,7 @@ export default function MainTreasury() {
                     <div><span className="text-muted-foreground text-xs">المبلغ</span><div className="font-mono font-bold text-primary">{fmtNum(lastTransferTxn.amount,2)} ج.م</div></div>
                     <div><span className="text-muted-foreground text-xs">الخزنة المصدر</span><div className="font-semibold">الخزنة الرئيسية</div></div>
                     <div><span className="text-muted-foreground text-xs">الخزنة المستلمة</span><div className="font-semibold">خزنة العهدة</div></div>
-                    <div><span className="text-muted-foreground text-xs">أمين العهدة المستلم</span><div className="font-semibold">{keeperName}</div></div>
+                    <div><span className="text-muted-foreground text-xs">أمين العهدة المستلم</span><div className="font-semibold inline-flex items-center gap-1.5"><UserAvatar userId={lastTransferLink?.custody_keeper_id} name={keeperName} className="w-6 h-6" fallbackClassName="text-xs" />{keeperName}</div></div>
                     <div><span className="text-muted-foreground text-xs">سبب التوريد</span><div className="font-semibold">{reason}</div></div>
                     <div><span className="text-muted-foreground text-xs">طريقة التسليم</span><div className="font-semibold">{pm}</div></div>
                     <div><span className="text-muted-foreground text-xs">الحالة</span><div><Badge variant={STATUS_TONE[lastTransferTxn.status]}>{STATUS_LBL[lastTransferTxn.status] || lastTransferTxn.status}</Badge></div></div>
@@ -1204,7 +1205,7 @@ export default function MainTreasury() {
                   <div><span className="text-muted-foreground text-xs block">الخزنة المستلمة</span><span className="font-semibold">خزنة العهدة</span></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><span className="text-muted-foreground text-xs block">أمين العهدة المستلم</span><span className="font-semibold">{keeperName}</span></div>
+                  <div><span className="text-muted-foreground text-xs block">أمين العهدة المستلم</span><span className="font-semibold inline-flex items-center gap-1.5"><UserAvatar userId={lastTransferLink?.custody_keeper_id} name={keeperName} className="w-6 h-6" fallbackClassName="text-xs" />{keeperName}</span></div>
                   <div><span className="text-muted-foreground text-xs block">طريقة التسليم</span><span className="font-semibold">{pm}</span></div>
                 </div>
                 <div><span className="text-muted-foreground text-xs block">سبب التوريد</span><span className="font-semibold">{reason}</span></div>
