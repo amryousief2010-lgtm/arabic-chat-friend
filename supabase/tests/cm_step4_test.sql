@@ -290,11 +290,11 @@ DO $$ BEGIN
           WHERE c.relname IN ('cm_kpi_conversations_v','cm_kpi_missed_calls_v','cm_kpi_orders_v')), 'views security_invoker';
 END $$;
 
--- EM يرى صفحة الإنفاق (قراءة). صلاحية الكتابة في القاعدة تُركت كما هي (cm_can_write_spend تشمل EM)؛ الواجهة تعرضها لـ EM للقراءة فقط.
+-- EM يرى صفحة الإنفاق (قراءة فقط) — الخطوة 5 شدّدت cm_can_write_spend فلم تعد تشمل EM.
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b1', false);
 DO $$ BEGIN
   ASSERT (SELECT count(*) FROM cm_ad_spend_daily) >= 4, 'em reads spend';
-  ASSERT cm_can_write_spend(), 'db write permission unchanged for EM';
+  ASSERT NOT cm_can_write_spend(), 'EM cannot write spend (step5)';
 END $$;
 RESET ROLE;
 -- ── 7) أسماء مستخدمي الهوت لاين: SM/GM فقط يعدّلون ──

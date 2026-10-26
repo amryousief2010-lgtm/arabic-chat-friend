@@ -68,6 +68,8 @@ import { useMandatoryMessages } from "@/hooks/useMandatoryMessages";
 import { findModeratorByName } from "@/constants/moderators";
 import { CALLER_LOOKUP_PATH, CALLER_LOOKUP_ROLES } from "@/constants/callerLookup";
 import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, CHAT_MANAGEMENT_SECTION_ROLES, CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES, CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES } from "@/config/chatManagement";
+import { cmGateAllows, isChatManagementPath } from "@/config/chatManagement";
+import { useCmFeatureGate } from "@/hooks/useCmFeatureGate";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -507,11 +509,16 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
       (p) => path === p || path.startsWith(p + '/'),
     );
 
+  // بوابة «إدارة المحادثات»: القسم مخفي تماماً عن غير المدير العام في وضع general_manager_only (وأثناء التحميل).
+  const { mode: cmMode, loading: cmGateLoading } = useCmFeatureGate(!!user);
+  const cmVisible = !cmGateLoading && cmGateAllows(userRoles, cmMode);
+
   const visibleSections = sectionsWithMoves
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
         if (!hasAnyRole(item.roles)) return false;
+        if (isChatManagementPath(item.path) && !cmVisible) return false;
         if (isMarketingOnly && !isPathAllowedForMarketingOnly(item.path)) return false;
         // مراجعة أوردرات هاجر: تظهر لنورا فقط (قراءة فقط)
         if (item.path === '/hagar-orders-review') {

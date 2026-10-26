@@ -16,9 +16,14 @@ for run in 1 2; do
   $PSQL -d $DB -f supabase/migrations/20261025140000_cm_step3_inbox_webhook.sql
   $PSQL -d $DB -f supabase/migrations/20261025150000_cm_step4_kpis_calls_spend.sql
   $PSQL -d $DB -f supabase/migrations/20261025160000_cm_step4b_recordings_hotline.sql
+  $PSQL -d $DB -f supabase/migrations/20261025170000_cm_step5_access_gate.sql
 done
+# اختبارات الخطوات 1–4 تتحقق من مصفوفة الأدوار ⇒ تعمل في وضع 'roles' (يثبت أن الوضع يعيد المصفوفة القديمة)
+$PSQL -d $DB -c "UPDATE public.cm_feature_gate SET access_mode = 'roles'"
+
 $PSQL -d $DB -f supabase/tests/cm_security_test.sql
 $PSQL -d $DB -f supabase/tests/cm_step2_test.sql
 $PSQL -d $DB -f supabase/tests/cm_step3_test.sql
 $PSQL -d $DB -f supabase/tests/cm_step4_test.sql
-$PSQL -d postgres -c "DROP DATABASE $DB"
+$PSQL -d $DB -f supabase/tests/cm_step5_test.sql
+[ "${KEEP:-0}" = 1 ] || $PSQL -d postgres -c "DROP DATABASE $DB"

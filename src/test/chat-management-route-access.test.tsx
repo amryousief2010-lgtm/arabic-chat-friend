@@ -5,7 +5,7 @@ import {
   CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, canEditChatManagement,
   CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES,
   CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES, canImportCdr, canListenRecordings, canWriteAdSpend, CHAT_AD_SPEND_WRITE_ROLES, canUploadRecordings,
-  canManageConversations,
+  canManageConversations, cmGateAllows, cmGateRoles, canChangeCmGate, isChatManagementPath, CM_GATE_DEFAULT_MODE,
 } from "@/config/chatManagement";
 import { moduleSections } from "@/components/layout/SidebarMenuSections";
 
@@ -14,6 +14,12 @@ vi.mock("@/hooks/useAuth", async () => {
   const actual = await vi.importActual<any>("@/hooks/useAuth");
   return { ...actual, useAuth: () => ({ user: { id: "u" }, role: currentRoles[0], roles: currentRoles, loading: false }) };
 });
+let gateMode: "general_manager_only" | "roles" = "roles";
+let gateLoading = false;
+vi.mock("@/hooks/useCmFeatureGate", () => ({
+  useCmFeatureGate: () => ({ mode: gateMode, loading: gateLoading }),
+  setCmGateModeCache: vi.fn(), resetCmGateCache: vi.fn(), loadCmGateMode: vi.fn(),
+}));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -28,8 +34,8 @@ const renderAt = (path: string, allowed: readonly string[] = CHAT_MANAGEMENT_VIE
     </MemoryRouter>,
   );
 
-describe("chat management route access", () => {
-  beforeEach(() => cleanup());
+describe("chat management route access (roles mode = old matrix)", () => {
+  beforeEach(() => { cleanup(); gateMode = "roles"; gateLoading = false; });
 
   it.each([
     [["sales_manager"]], [["marketing_sales_manager", "sales_manager"]], [["general_manager"]],
@@ -125,5 +131,74 @@ describe("chat management route access", () => {
     expect(canListenRecordings(["executive_manager"])).toBe(true);
     expect(canListenRecordings(["marketing_sales_manager"])).toBe(false);
     expect(canListenRecordings(["sales_moderator"])).toBe(false);
+  });
+});
+
+const ALL_CM_ROUTES = [
+  [CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_VIEW_ROLES], [CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES],
+  [CHAT_INBOX_PATH, CHAT_INBOX_ROLES], [CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES], [CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES],
+  [CHAT_KPIS_PATH, CHAT_KPIS_ROLES], [CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES], [CHAT_CALLS_PATH, CHAT_CALLS_ROLES],
+] as const;
+
+const renderGate = (path: string, allowed: readonly string[]) =>
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path={path} element={<ProtectedRoute allowedRoles={allowed as any}><div data-testid="page">ok</div></ProtectedRoute>} />
+        <Route path="/unauthorized" element={<div data-testid="unauthorized">u</div>} />
+        <Route path="*" element={<div data-testid="redirected">x</div>} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+describe("chat management master gate (general_manager_only)", () => {
+  beforeEach(() => { cleanup(); gateMode = "general_manager_only"; gateLoading = false; });
+
+  it("defaults to GM-only (fail closed)", () => {
+    expect(CM_GATE_DEFAULT_MODE).toBe("general_manager_only");
+    expect(cmGateAllows(["sales_manager"], undefined)).toBe(false);
+    expect(cmGateAllows(["general_manager"], undefined)).toBe(true);
+    expect(cmGateRoles(CHAT_KPIS_ROLES, "general_manager_only")).toEqual(["general_manager"]);
+    expect(cmGateRoles(CHAT_KPIS_ROLES, "roles")).toEqual(CHAT_KPIS_ROLES);
+    expect(isChatManagementPath("/chat-management/kpis")).toBe(true);
+    expect(isChatManagementPath("/chat-managementx")).toBe(false);
+  });
+
+  it.each([
+    [["sales_manager"]], [["marketing_sales_manager", "sales_manager"]], [["executive_manager"]], [["marketing_sales_manager"]],
+    [["marketing_sales_viewer"]], [["social_media_manager"]], [["sales_moderator"]], [["accountant"]],
+  ])("direct URL → /unauthorized for %j on every page", async (roles) => {
+    currentRoles = roles;
+    for (const [p] of ALL_CM_ROUTES) {
+      cleanup(); renderGate(p, ["general_manager", "executive_manager", "sales_manager", "marketing_sales_manager", "marketing_sales_viewer", "social_media_manager", "sales_moderator", "accountant"]);
+      await waitFor(() => expect(screen.getByTestId("unauthorized")).toBeInTheDocument());
+      expect(screen.queryByTestId("page")).toBeNull();
+    }
+  });
+
+  it("general_manager opens every page (inbox stays moderator-only by matrix)", async () => {
+    currentRoles = ["general_manager"];
+    for (const [p, r] of ALL_CM_ROUTES) {
+      if (p === CHAT_INBOX_PATH) continue;
+      cleanup(); renderGate(p, r);
+      await waitFor(() => expect(screen.getByTestId("page")).toBeInTheDocument());
+    }
+  });
+
+  it("nothing renders while the gate is loading", async () => {
+    gateLoading = true; currentRoles = ["sales_manager"];
+    renderGate(CHAT_KPIS_PATH, CHAT_KPIS_ROLES);
+    expect(screen.queryByTestId("page")).toBeNull();
+  });
+
+  it("non-cm routes are unaffected by the gate", async () => {
+    currentRoles = ["accountant"];
+    renderGate("/reports", ["accountant"]);
+    await waitFor(() => expect(screen.getByTestId("page")).toBeInTheDocument());
+  });
+
+  it("only general_manager may flip the gate switch", () => {
+    expect(canChangeCmGate(["general_manager"])).toBe(true);
+    for (const r of ["executive_manager", "sales_manager", "marketing_sales_manager", "sales_moderator"]) expect(canChangeCmGate([r])).toBe(false);
   });
 });

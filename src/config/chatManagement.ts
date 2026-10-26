@@ -52,7 +52,7 @@ export const CHAT_AD_SPEND_PATH = "/chat-management/ad-spend";
 export const CHAT_CALLS_PATH = "/chat-management/calls";
 /** «مؤشرات الأداء»: SM / GM / EM / MSM (القراءة نفسها محكومة بـ RLS). */
 export const CHAT_KPIS_ROLES: AppRole[] = ["sales_manager", "general_manager", "executive_manager", "marketing_sales_manager"];
-/** إدخال الإنفاق اليومي واستيراده: MSM / SM / GM (قاعدة البيانات تسمح لـ EM أيضاً). */
+/** إدخال الإنفاق اليومي واستيراده: MSM / SM / GM فقط (القاعدة أيضاً، منذ الخطوة 5). */
 /** من يرى صفحة الإنفاق (EM عرض فقط، بقرار عمرو). */
 export const CHAT_AD_SPEND_ROLES: AppRole[] = ["marketing_sales_manager", "sales_manager", "general_manager", "executive_manager"];
 /** من يكتب الإنفاق (يطابق صلاحية قاعدة البيانات cm_upsert_ad_spend — بدون EM). */
@@ -68,3 +68,20 @@ export const canWriteAdSpend = (roles: readonly string[] | null | undefined) => 
 export const CHAT_RECORDING_UPLOAD_ROLES: AppRole[] = ["sales_manager", "general_manager"];
 export const canUploadRecordings = (roles: readonly string[] | null | undefined) => hasAny(roles, CHAT_RECORDING_UPLOAD_ROLES);
 export const canManageHotlineUsernames = canUploadRecordings;
+
+// ───── الخطوة 5: بوابة الوصول الرئيسية (تطابق cm_feature_gate / cm_gate_allows في القاعدة) ─────
+export type CmAccessMode = "general_manager_only" | "roles";
+/** الافتراضي وأي خطأ في القراءة ⇒ مغلق على المدير العام فقط (fail closed). */
+export const CM_GATE_DEFAULT_MODE: CmAccessMode = "general_manager_only";
+export const CM_GATE_OWNER_ROLE: AppRole = "general_manager";
+export const CHAT_MANAGEMENT_PATH_PREFIX = "/chat-management";
+export const isChatManagementPath = (path: string) =>
+  path === CHAT_MANAGEMENT_PATH_PREFIX || path.startsWith(CHAT_MANAGEMENT_PATH_PREFIX + "/");
+/** هل تسمح البوابة لهذا المستخدم بالقسم أصلاً؟ (قبل مصفوفة الأدوار) */
+export const cmGateAllows = (roles: readonly string[] | null | undefined, mode: CmAccessMode | null | undefined) =>
+  (mode ?? CM_GATE_DEFAULT_MODE) === "roles" || !!roles?.includes(CM_GATE_OWNER_ROLE);
+/** قائمة الأدوار الفعلية لصفحة/عنصر بعد تطبيق البوابة. */
+export const cmGateRoles = <T extends string>(base: readonly T[], mode: CmAccessMode | null | undefined): T[] =>
+  (mode ?? CM_GATE_DEFAULT_MODE) === "roles" ? [...base] : base.filter((r) => r === CM_GATE_OWNER_ROLE);
+/** مفتاح البوابة في صفحة الإعدادات: المدير العام فقط. */
+export const canChangeCmGate = (roles: readonly string[] | null | undefined) => !!roles?.includes(CM_GATE_OWNER_ROLE);

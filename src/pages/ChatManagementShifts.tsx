@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import CmAccessGateCard from "@/components/chat/CmAccessGateCard";
 import {
   canEditChatManagement, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_SHIFTS_PATH,
 } from "@/config/chatManagement";
@@ -298,6 +299,7 @@ export default function ChatManagementShifts({ tab = "shifts" }: { tab?: Tab }) 
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
+            <CmAccessGateCard />
             <Card>
               <CardHeader>
                 <CardTitle>المراجعة المتبادلة</CardTitle>

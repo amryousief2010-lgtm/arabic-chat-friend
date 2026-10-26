@@ -4814,6 +4814,27 @@ export type Database = {
         }
         Relationships: []
       }
+      cm_feature_gate: {
+        Row: {
+          access_mode: string
+          id: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          access_mode?: string
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          access_mode?: string
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       cm_governance_settings: {
         Row: {
           automatic_deduction: boolean
@@ -26956,6 +26977,8 @@ export type Database = {
         }
         Returns: string
       }
+      cm_gate_allows: { Args: never; Returns: boolean }
+      cm_gate_assert: { Args: never; Returns: boolean }
       cm_import_hotline_cdr: { Args: { _rows: Json }; Returns: Json }
       cm_ingest_call_recording: {
         Args: {
@@ -27102,6 +27125,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      cm_set_feature_gate: { Args: { _mode: string }; Returns: string }
       cm_split_phone_field: { Args: { _raw: string }; Returns: string[] }
       cm_suggest_conversation_orders: {
         Args: {
