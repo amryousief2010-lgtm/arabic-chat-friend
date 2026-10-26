@@ -35,51 +35,128 @@ export const previewNormalizePhone = (raw: string | null | undefined): string | 
 const pick = (h: string[], aliases: string[]) => h.findIndex((x) => aliases.includes(x.trim().toLowerCase()));
 export interface RowIssue { row: number; reason: string }
 
-// ───── CDR ─────
-export const CDR_HEADERS: Record<string, string[]> = {
-  external_call_id: ["call_id", "id", "uniqueid", "external_call_id", "رقم المكالمة"],
-  direction: ["direction", "type", "الاتجاه"],
-  started_at: ["started_at", "start", "date", "calldate", "الوقت", "التاريخ"],
-  duration_sec: ["duration", "duration_sec", "billsec", "المدة"],
-  status: ["status", "disposition", "الحالة"],
-  phone: ["phone", "caller", "number", "src", "الرقم"],
-  moderator: ["moderator", "agent", "extension", "المودريتور"],
-  line: ["line", "trunk", "الخط"],
-  recording_path: ["recording_path", "recording", "التسجيل"],
+// ───── CDR (تصدير بوابة الهوت لاين: zip فيه CDR.csv + Switched.csv) ─────
+// الأعمدة بالضبط كما في التصدير الفعلي؛ Cdr Id هو مفتاح عدم التكرار (السجلات تختفي من البوابة بعد 5 أيام → أعيدي الرفع كل بضعة أيام).
+export const CDR_COLUMNS = ["Cdr Id", "A Number", "Customer Name", "B Number", "Call Record", "Voicemail", "Start Time", "End Time",
+  "Switched Time", "Call Result", "Call Duration", "Call Direction"] as const;
+export const SWITCHED_COLUMNS = ["Cdr Id", "Username", "Switch Time", "Switching Status", "Call Status", "Answer Time", "End Time"] as const;
+const CDR_REQUIRED = ["Cdr Id", "A Number", "B Number", "Start Time", "Call Direction"];
+const SW_REQUIRED = ["Cdr Id", "Username", "Switching Status"];
+export const KNOWN_CALL_RESULTS = ["ANSWERED", "ANSWERED_BY_AGENT"];
+export const CDR_ID_RE = /^CDR\.\d{6}\.\d{6}\.[A-Za-z0-9]+$/;
+
+export interface SwitchAttempt { username: string; switch_time?: string; switching_status: string; call_status?: string; answer_time?: string; end_time?: string }
+export interface CdrRow {
+  cdr_id: string; a_number: string; b_number: string; customer_name?: string; call_record?: string; start_time: string; end_time?: string;
+  call_result?: string; call_duration?: string; call_direction: string; attempts: SwitchAttempt[];
+  // للمعاينة فقط (لا تُرسل): الحالة/المودريتور المشتقّان والرقم المطبَّع
+  preview: { status: "answered" | "missed" | "failed"; username: string | null; phone: string | null; unknownResult: boolean };
+}
+export interface CdrParse { rows: CdrRow[]; issues: RowIssue[]; missingColumns: string[]; unknownResults: string[]; orphanSwitched: number }
+
+const headerIndex = (h: string[]) => { const m = new Map(h.map((x, i) => [x.replace(/^\uFEFF/, "").trim().toLowerCase(), i])); return (c: string) => m.get(c.toLowerCase()) ?? -1; };
+/** DD-MM-YYYY HH:MM:SS (توقيت القاهرة المحلي) — يُرسل كما هو والخادم يحوّله؛ هنا فقط للتحقق. */
+export const CDR_TS_RE = /^(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2}):(\d{2})$/;
+export const isValidCdrTime = (s: string) => { const m = CDR_TS_RE.exec(s.trim()); if (!m) return false;
+  const [d, mo, , h, mi, se] = m.slice(1).map(Number); return d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && h < 24 && mi < 60 && se < 60; };
+export const parseCdrDuration = (s: string | undefined): number | null => { const t = (s ?? "").trim(); if (!t) return 0;
+  const m = /^(\d+):([0-5]\d):([0-5]\d)$/.exec(t); if (m) return +m[1] * 3600 + +m[2] * 60 + +m[3]; return /^\d+$/.test(t) ? +t : null; };
+
+/** حالة المكالمة: مفقودة إذا لا توجد محاولة ACCEPTED (نفس منطق الخادم). */
+export const deriveCdrStatus = (direction: string, result: string | undefined, attempts: SwitchAttempt[]) => {
+  if (attempts.some((a) => a.switching_status.toUpperCase() === "ACCEPTED")) return "answered" as const;
+  if (direction === "INBOUND") return "missed" as const;
+  return /^ANSWERED/.test((result ?? "").toUpperCase()) ? "answered" as const : "failed" as const;
 };
-const DIR: Record<string, "inbound" | "outbound"> = { inbound: "inbound", in: "inbound", incoming: "inbound", "وارد": "inbound",
-  outbound: "outbound", out: "outbound", outgoing: "outbound", "صادر": "outbound" };
-const STATUS: Record<string, string> = { answered: "answered", "no answer": "missed", noanswer: "missed", missed: "missed", "فائتة": "missed",
-  "لم يتم الرد": "missed", busy: "busy", failed: "failed", voicemail: "voicemail", "تم الرد": "answered" };
+const deriveUsername = (attempts: SwitchAttempt[]) => {
+  const acc = attempts.find((a) => a.switching_status.toUpperCase() === "ACCEPTED");
+  return (acc ?? attempts[attempts.length - 1])?.username.trim().toLowerCase() || null;
+};
 
-export interface CdrRow { external_call_id: string; direction: "inbound" | "outbound"; started_at: string; duration_sec: number;
-  status: string; phone: string; phone_preview: string | null; moderator?: string; line?: string; recording_path?: string }
+export const mapSwitched = (table: string[][]): { byId: Map<string, SwitchAttempt[]>; missingColumns: string[] } => {
+  const [h = [], ...body] = table; const ix = headerIndex(h);
+  const missingColumns = SW_REQUIRED.filter((c) => ix(c) < 0).map((c) => `Switched.csv: ${c}`);
+  const byId = new Map<string, SwitchAttempt[]>();
+  if (missingColumns.length) return { byId, missingColumns };
+  for (const r of body) {
+    const g = (c: string) => (ix(c) >= 0 ? (r[ix(c)] ?? "").trim() : "");
+    const id = g("Cdr Id"); if (!id) continue;
+    const a: SwitchAttempt = { username: g("Username"), switching_status: g("Switching Status").toUpperCase() };
+    const opt = { switch_time: g("Switch Time"), call_status: g("Call Status"), answer_time: g("Answer Time"), end_time: g("End Time") };
+    for (const [k, v] of Object.entries(opt)) if (v) (a as unknown as Record<string, string>)[k] = v;
+    (byId.get(id) ?? byId.set(id, []).get(id)!).push(a);
+  }
+  for (const list of byId.values()) list.sort((x, y) => (x.switch_time ?? "").localeCompare(y.switch_time ?? ""));
+  return { byId, missingColumns };
+};
 
-export const mapCdr = (table: string[][]): { rows: CdrRow[]; issues: RowIssue[]; missingColumns: string[] } => {
-  const [h = [], ...body] = table;
-  const idx = Object.fromEntries(Object.entries(CDR_HEADERS).map(([k, a]) => [k, pick(h, a)]));
-  const required = ["external_call_id", "direction", "started_at", "status", "phone"];
-  const missingColumns = required.filter((k) => idx[k] < 0);
-  if (missingColumns.length) return { rows: [], issues: [], missingColumns };
-  const rows: CdrRow[] = []; const issues: RowIssue[] = []; const seen = new Set<string>();
+export const mapCdr = (cdr: string[][], switched?: string[][]): CdrParse => {
+  const [h = [], ...body] = cdr; const ix = headerIndex(h);
+  const sw = switched ? mapSwitched(switched) : { byId: new Map<string, SwitchAttempt[]>(), missingColumns: [] };
+  const missingColumns = [...CDR_REQUIRED.filter((c) => ix(c) < 0).map((c) => `CDR.csv: ${c}`), ...sw.missingColumns];
+  if (missingColumns.length) return { rows: [], issues: [], missingColumns, unknownResults: [], orphanSwitched: 0 };
+  const rows: CdrRow[] = []; const issues: RowIssue[] = []; const seen = new Set<string>(); const unknown = new Set<string>();
   body.forEach((r, i) => {
-    const g = (k: string) => (idx[k] >= 0 ? (r[idx[k]] ?? "").trim() : "");
-    const n = i + 2; const id = g("external_call_id");
-    const direction = DIR[g("direction").toLowerCase()]; const status = STATUS[g("status").toLowerCase()];
-    const started = new Date(g("started_at").replace(" ", "T"));
-    const dur = g("duration_sec") === "" ? 0 : Number(toLatinDigits(g("duration_sec")));
-    const rec = g("recording_path");
-    const reason = !id ? "رقم المكالمة ناقص" : seen.has(id) ? "مكرر داخل الملف" : !direction ? "اتجاه غير معروف"
-      : !status ? "حالة غير معروفة" : isNaN(+started) ? "وقت غير صالح" : !Number.isFinite(dur) || dur < 0 ? "مدة غير صالحة"
-      : !previewNormalizePhone(g("phone")) ? "رقم غير صالح" : rec && (/^[a-z]+:\/\//i.test(rec) || /[?#]/.test(rec) || rec.includes(".."))
-      ? "التسجيل يجب أن يكون مساراً داخل التخزين وليس رابطاً" : null;
+    const g = (c: string) => (ix(c) >= 0 ? (r[ix(c)] ?? "").trim() : "");
+    const n = i + 2; const id = g("Cdr Id"); const dir = g("Call Direction").toUpperCase();
+    const phoneRaw = dir === "OUTBOUND" ? g("B Number") : g("A Number");
+    const reason = !id ? "Cdr Id ناقص" : seen.has(id) ? "مكرر داخل الملف" : dir !== "INBOUND" && dir !== "OUTBOUND" ? "اتجاه غير معروف"
+      : !isValidCdrTime(g("Start Time")) ? "وقت البدء غير صالح (المتوقع DD-MM-YYYY HH:MM:SS)"
+      : parseCdrDuration(g("Call Duration")) === null ? "مدة غير صالحة (المتوقع HH:MM:SS)"
+      : !previewNormalizePhone(phoneRaw) ? "رقم العميل غير صالح" : null;
     if (reason) { issues.push({ row: n, reason }); return; }
     seen.add(id);
-    rows.push({ external_call_id: id, direction, started_at: g("started_at"), duration_sec: Math.round(dur), status, phone: g("phone"),
-      phone_preview: previewNormalizePhone(g("phone")), moderator: g("moderator") || undefined, line: g("line") || undefined,
-      recording_path: rec || undefined });
+    const attempts = sw.byId.get(id) ?? []; const result = g("Call Result").toUpperCase();
+    const unknownResult = !!result && !KNOWN_CALL_RESULTS.includes(result); if (unknownResult) unknown.add(result);
+    const row: CdrRow = { cdr_id: id, a_number: g("A Number"), b_number: g("B Number"), start_time: g("Start Time"), call_direction: dir, attempts,
+      preview: { status: deriveCdrStatus(dir, result, attempts), username: deriveUsername(attempts), phone: previewNormalizePhone(phoneRaw), unknownResult } };
+    const opt = { customer_name: g("Customer Name"), call_record: g("Call Record"), end_time: g("End Time"), call_result: result, call_duration: g("Call Duration") };
+    for (const [k, v] of Object.entries(opt)) if (v) (row as unknown as Record<string, string>)[k] = v;
+    rows.push(row);
   });
-  return { rows, issues, missingColumns };
+  const orphanSwitched = [...sw.byId.keys()].filter((k) => !seen.has(k)).length;
+  return { rows, issues, missingColumns, unknownResults: [...unknown], orphanSwitched };
+};
+
+/** الصف كما يُرسل لـ cm_import_hotline_cdr (بدون حقول المعاينة واسم العميل). */
+export const toCdrPayload = ({ preview: _p, customer_name: _c, ...r }: CdrRow) => r;
+
+/** قراءة ملفات المستخدم: zip (CDR.csv + Switched.csv) أو الملفين منفصلين. */
+export const readCdrFiles = async (files: { name: string; text: () => Promise<string>; arrayBuffer: () => Promise<ArrayBuffer> }[]) => {
+  const texts: Record<string, string> = {};
+  for (const f of files) {
+    if (/\.zip$/i.test(f.name)) {
+      const { unzipSync, strFromU8 } = await import("fflate");
+      const entries = unzipSync(new Uint8Array(await f.arrayBuffer()), { filter: (e) => /\.csv$/i.test(e.name) && !(e.originalSize > 20_000_000) });
+      for (const [name, data] of Object.entries(entries)) texts[name.split("/").pop()!.toLowerCase()] = strFromU8(data);
+    } else texts[f.name.toLowerCase()] = await f.text();
+  }
+  const cdr = Object.entries(texts).find(([k]) => /^cdr.*\.csv$/.test(k))?.[1];
+  const sw = Object.entries(texts).find(([k]) => /^switched.*\.csv$/.test(k))?.[1];
+  if (!cdr) return { ...mapCdr([[]]), missingColumns: ["ملف CDR.csv غير موجود"] } as CdrParse;
+  return mapCdr(parseCsv(cdr), sw ? parseCsv(sw) : undefined);
+};
+
+// ───── مطابقة ملفات التسجيل بالمكالمات ─────
+export interface MatchableCall { id: string; external_call_id: string | null; phone_norm: string | null; started_at: string }
+const AUDIO_EXT: Record<string, string> = { mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", wav: "audio/wav", ogg: "audio/ogg",
+  opus: "audio/opus", webm: "audio/webm", amr: "audio/amr", "3gp": "audio/3gpp" };
+export const audioMimeFor = (name: string) => AUDIO_EXT[name.split(".").pop()?.toLowerCase() ?? ""] ?? null;
+export const RECORDING_MAX_BYTES = 50 * 1024 * 1024;
+/** بالـ Cdr Id داخل اسم الملف، وإلا رقم + وقت (YYYYMMDD[-_ ]HHMMSS) خلال ±2 دقيقة وبنتيجة وحيدة. */
+export const matchRecording = (fileName: string, calls: MatchableCall[]): { call: MatchableCall | null; by: "cdr_id" | "phone_time" | null; reason?: string } => {
+  const base = fileName.split("/").pop() ?? fileName;
+  const id = /CDR\.\d{6}\.\d{6}\.[A-Za-z0-9]+/.exec(base)?.[0];
+  if (id) { const c = calls.find((x) => x.external_call_id === id); return c ? { call: c, by: "cdr_id" } : { call: null, by: null, reason: "Cdr Id غير موجود في المكالمات المستوردة" }; }
+  const digits = toLatinDigits(base);
+  const phone = (digits.match(/(?:\+?20|0)?1[0125]\d{8}/g) ?? []).map(previewNormalizePhone).find(Boolean);
+  const t = /(20\d{2})[-_]?(\d{2})[-_]?(\d{2})[-_ T]?(\d{2})[-_:]?(\d{2})[-_:]?(\d{2})/.exec(digits);
+  if (!phone || !t) return { call: null, by: null, reason: "لا يحتوي الاسم على Cdr Id ولا رقم + وقت" };
+  // وقت الاسم محلي للقاهرة (+02 شتاءً / +03 صيفاً)
+  const local = `${t[1]}-${t[2]}-${t[3]}T${t[4]}:${t[5]}:${t[6]}`;
+  const near = (c: MatchableCall) => ["+02:00", "+03:00"].some((o) => Math.abs(Date.parse(c.started_at) - Date.parse(local + o)) <= 120_000);
+  const hits = calls.filter((c) => c.phone_norm === phone && near(c));
+  return hits.length === 1 ? { call: hits[0], by: "phone_time" } : { call: null, by: null, reason: hits.length ? "أكثر من مكالمة مطابقة" : "لا مكالمة مطابقة" };
 };
 
 // ───── الإنفاق اليومي ─────

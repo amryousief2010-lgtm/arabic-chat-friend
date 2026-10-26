@@ -79,7 +79,7 @@ describe("conversion within 7 days", () => {
 describe("per campaign (same numbers as SQL test)", () => {
   const r = Object.fromEntries(kpiByCampaign(convs, orders, spend).map((x) => [x.campaign_id, x]));
   it("campaign A", () => expect(r.A).toEqual({ campaign_id: "A", spend: 170, conversations: 2, converted: 1, orders: 2, delivered: 1,
-    resolved: 2, delivered_value: 90, cost_per_delivered: 170 }));
+    resolved: 2, delivered_value: 100, cost_per_delivered: 170 }));
   it("campaign B", () => expect(r.B).toMatchObject({ spend: 60, conversations: 2, delivered: 1, delivered_value: 200, cost_per_delivered: 60 }));
   it("retroactive cancellation removes delivery", () => {
     const o2 = orders.map((o, i) => (i === 0 ? { ...o, status: "cancelled" } : o));
@@ -98,7 +98,7 @@ describe("per moderator", () => {
     expect(a.get("aya")).toBe(85);
   });
   it("noura", () => expect(r.noura).toEqual({ moderator_id: "noura", conversations: 3, on_time: 1, cover: 1, late: 1, pending: 0, abandoned: 1,
-    converted: 1, orders: 2, delivered: 2, resolved: 2, delivered_value: 290, campaign_delivered: 2, allocated_spend: 145, cost_per_delivered: 72.5 }));
+    converted: 1, orders: 2, delivered: 2, resolved: 2, delivered_value: 300, campaign_delivered: 2, allocated_spend: 145, cost_per_delivered: 72.5 }));
   it("aya", () => expect(r.aya).toMatchObject({ conversations: 1, late: 1, orders: 1, delivered: 0, resolved: 1, allocated_spend: 85, cost_per_delivered: null }));
   it("delivered orders without a campaign do not dilute cost per delivered", () => {
     const extra = [...orders, { moderator_id: "noura", campaign_id: null, status: "delivered", total: 10 }];

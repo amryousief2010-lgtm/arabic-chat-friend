@@ -29,7 +29,7 @@ DO $$ DECLARE a uuid; b uuid; x uuid; y uuid; z uuid; c uuid; o uuid; i int; BEG
     INSERT INTO ids VALUES ('c'||i, c);
     INSERT INTO cm_ad_attributions (conversation_id, campaign_id, method) VALUES (c, CASE WHEN i <= 2 THEN a ELSE b END, 'manual');
   END LOOP;
-  -- o1 مُسلَّم (قيمة عند التسليم 90) خلال 7 أيام | o2 ملغي | o3 مُسلَّم بعد 8 أيام (خارج نافذة التحويل)
+  -- o1 مُسلَّم (إجمالي 100، قيمة عند التسليم 90 تُتجاهل) خلال 7 أيام | o2 ملغي | o3 مُسلَّم بعد 8 أيام (خارج نافذة التحويل)
   INSERT INTO orders (customer_id, moderator_id, total, total_at_delivery, status, created_at)
     VALUES (x, cmt.mid('noura'), 100, 90, 'delivered', cmt.ct('2026-09-02 12:00')) RETURNING id INTO o; INSERT INTO ids VALUES ('o1', o);
   INSERT INTO orders (customer_id, moderator_id, total, status, created_at)
@@ -76,30 +76,60 @@ DO $$ DECLARE r jsonb; BEGIN
   EXCEPTION WHEN check_violation THEN NULL; END;
 END $$;
 
--- ── 3) استيراد CDR: تحقق، تطبيع، ربط، وإعادة استيراد آمنة ──
-DO $$ DECLARE r jsonb; rows jsonb; BEGIN
+-- ── 3) استيراد CDR بصيغة البوابة (CDR.csv + Switched.csv) — أرقام وهمية فقط ──
+INSERT INTO cm_hotline_usernames (username, moderator_id) VALUES ('noura', cmt.mid('noura'));
+DO $$ DECLARE r jsonb; rows jsonb;
+  att_missed jsonb := '[{"username":"Noura","switch_time":"2026-09-01T12:00:05+03:00","switching_status":"MISSED","call_status":"SWITCHED_REJECTED"}]';
+BEGIN
   rows := jsonb_build_array(
-    jsonb_build_object('external_call_id','CDR-T-1','direction','inbound','started_at','2026-09-01T12:00:00+03:00','duration_sec','0',
-                       'status','missed','phone','+20 100 000 0007','moderator',(SELECT display_name FROM cm_moderators WHERE slug='noura')),
-    jsonb_build_object('external_call_id','CDR-T-2','direction','outbound','started_at','2026-09-01T12:40:00+03:00','duration_sec','95',
-                       'status','answered','phone','01000000007','moderator',(SELECT display_name FROM cm_moderators WHERE slug='noura'),
-                       'recording_path','calls/2026/12/CDR-T-2.mp3'),
-    jsonb_build_object('external_call_id','CDR-T-3','direction','inbound','started_at','2026-09-01T12:00:00+03:00',
-                       'status','missed','phone','01000000008','moderator',(SELECT display_name FROM cm_moderators WHERE slug='aya')),
-    jsonb_build_object('external_call_id','CDR-T-4','direction','inbound','started_at','2026-09-01T12:00:00+03:00','status','missed',
-                       'phone','01000000008','recording_path','https://vendor.example/rec.mp3?token=x'),
-    jsonb_build_object('external_call_id','CDR-T-5','direction','inbound','started_at','2026-09-01T12:00:00+03:00','status','missed','phone','12345'),
-    jsonb_build_object('external_call_id','CDR-T-6','direction','sideways','started_at','2026-09-01T12:00:00+03:00','status','missed','phone','01000000008'),
-    jsonb_build_object('direction','inbound','started_at','2026-09-01T12:00:00+03:00','status','missed','phone','01000000008'));
+    jsonb_build_object('cdr_id','CDR.260901.120000.0000001','a_number','+20 100 000 0007','b_number','0220000000','call_record','',
+                       'start_time','01-09-2026 12:00:00','end_time','01-09-2026 12:00:40','call_result','ANSWERED','call_duration','00:00:00',
+                       'call_direction','INBOUND','attempts', att_missed),
+    jsonb_build_object('cdr_id','CDR.260901.124000.0000002','a_number','0220000000','b_number','01000000007','call_record','CDR.260901.124000.0000002',
+                       'start_time','01-09-2026 12:40:00','call_result','ANSWERED','call_duration','00:01:35','call_direction','OUTBOUND',
+                       'attempts','[{"username":"noura","switch_time":"2026-09-01T12:40:00+03:00","switching_status":"ACCEPTED","call_status":"SWITCHED_ACCEPTED"}]'::jsonb),
+    jsonb_build_object('cdr_id','CDR.260901.120000.0000003','a_number','01000000008','b_number','0220000000',
+                       'start_time','01-09-2026 12:00:00','call_result','ABANDONED','call_duration','00:00:00','call_direction','INBOUND',
+                       'attempts','[{"username":"aya1","switch_time":"2026-09-01T12:00:03+03:00","switching_status":"MISSED","call_status":"SWITCHED_REJECTED"}]'::jsonb),
+    jsonb_build_object('cdr_id','CDR.260901.130000.0000004','a_number','01000000008','b_number','0220000000',
+                       'start_time','01-09-2026 13:00:00','call_result','XFER_NEW_VALUE','call_duration','00:02:00','call_direction','INBOUND',
+                       'attempts','[{"username":"aya1","switch_time":"2026-09-01T13:00:02+03:00","switching_status":"MISSED"},{"username":"noura","switch_time":"2026-09-01T13:00:20+03:00","switching_status":"ACCEPTED","call_status":"SWITCHED_ACCEPTED"}]'::jsonb),
+    jsonb_build_object('cdr_id','CDR.260901.120000.0000005','a_number','12345','start_time','01-09-2026 12:00:00','call_direction','INBOUND'),
+    jsonb_build_object('cdr_id','CDR.260901.120000.0000006','a_number','01000000008','start_time','01-09-2026 12:00:00','call_direction','SIDEWAYS'),
+    jsonb_build_object('a_number','01000000008','start_time','01-09-2026 12:00:00','call_direction','INBOUND'),
+    jsonb_build_object('cdr_id','CDR.260901.120000.0000001','a_number','01000000008','start_time','01-09-2026 12:00:00','call_direction','INBOUND'),
+    jsonb_build_object('cdr_id','CDR.260901.120000.0000009','a_number','01000000008','start_time','2026/09/01 12:00','call_direction','INBOUND'));
   r := cm_import_hotline_cdr(rows);
-  ASSERT (r->>'inserted')::int = 3 AND (r->>'duplicates')::int = 0 AND jsonb_array_length(r->'rejected') = 4, 'cdr first '||r;
-  ASSERT r->'rejected' @> '[{"row":4,"reason":"recording_must_be_path"},{"row":5,"reason":"bad_phone"},{"row":6,"reason":"bad_direction"},{"row":7,"reason":"missing_id"}]', 'reasons '||r;
+  ASSERT (r->>'inserted')::int = 4 AND (r->>'updated')::int = 0 AND jsonb_array_length(r->'rejected') = 5, 'cdr first '||r;
+  ASSERT r->'rejected' @> '[{"row":5,"reason":"bad_phone"},{"row":6,"reason":"bad_direction"},{"row":7,"reason":"missing_id"},{"row":8,"reason":"duplicate_in_file"},{"row":9,"reason":"bad_started_at"}]', 'reasons '||r;
+  ASSERT r->'unknown_results' = '["XFER_NEW_VALUE"]' AND r->'unmapped_usernames' = '["aya1"]', 'surfaced '||r;
   r := cm_import_hotline_cdr(rows);
-  ASSERT (r->>'inserted')::int = 0 AND (r->>'duplicates')::int = 3, 'cdr re-import '||r;
-  ASSERT (SELECT phone_norm FROM cm_calls WHERE external_call_id = 'CDR-T-1') = '01000000007', 'normalized';
-  ASSERT (SELECT customer_id FROM cm_calls WHERE external_call_id = 'CDR-T-1') = cmt.id('X'), 'customer linked by phone';
-  ASSERT (SELECT moderator_id FROM cm_calls WHERE external_call_id = 'CDR-T-3') = cmt.mid('aya'), 'moderator by name';
-  BEGIN UPDATE cm_calls SET recording_path = 'https://x.example/a' WHERE external_call_id = 'CDR-T-2'; ASSERT false, 'url stored';
+  ASSERT (r->>'inserted')::int = 0 AND (r->>'updated')::int = 0 AND (r->>'unchanged')::int = 4, 'cdr re-import '||r;
+  -- مزامنة لاحقة بنفس Cdr Id ببيانات أحدث ⇒ تحديث لا تكرار
+  rows := jsonb_set(rows, '{3,call_duration}', '"00:03:00"');
+  r := cm_import_hotline_cdr(rows);
+  ASSERT (r->>'updated')::int = 1 AND (r->>'unchanged')::int = 3, 'cdr resync '||r;
+  ASSERT (SELECT count(*) FROM cm_calls WHERE external_call_id LIKE 'CDR.2609%') = 4, 'no dup calls';
+  ASSERT (SELECT duration_sec FROM cm_calls WHERE external_call_id = 'CDR.260901.130000.0000004') = 180, 'resync dur';
+  ASSERT (SELECT started_at FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000001') = '2026-09-01 12:00:00+03', 'cairo local time';
+  ASSERT (SELECT status FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000001') = 'missed', 'no ACCEPTED ⇒ missed (even if result ANSWERED)';
+  ASSERT (SELECT status||'/'||moderator_id FROM cm_calls WHERE external_call_id = 'CDR.260901.130000.0000004') = 'answered/'||cmt.mid('noura'), 'accepted attempt wins';
+  ASSERT (SELECT status FROM cm_calls WHERE external_call_id = 'CDR.260901.124000.0000002') = 'answered', 'outbound answered';
+  ASSERT (SELECT duration_sec FROM cm_calls WHERE external_call_id = 'CDR.260901.124000.0000002') = 95, 'HH:MM:SS';
+  ASSERT (SELECT has_vendor_recording FROM cm_calls WHERE external_call_id = 'CDR.260901.124000.0000002'), 'call record flag';
+  ASSERT (SELECT phone_norm FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000001') = '01000000007', 'normalized A number';
+  ASSERT (SELECT phone_norm FROM cm_calls WHERE external_call_id = 'CDR.260901.124000.0000002') = '01000000007', 'outbound uses B number';
+  ASSERT (SELECT customer_id FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000001') = cmt.id('X'), 'customer linked by phone';
+  ASSERT (SELECT moderator_id FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000001') = cmt.mid('noura'), 'username case-insensitive';
+  ASSERT (SELECT moderator_id FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000003') IS NULL, 'unmapped ⇒ null';
+END $$;
+-- ربط aya1 لاحقاً يعيد نسب مكالماتها
+INSERT INTO cm_hotline_usernames (username, moderator_id) VALUES ('aya1', cmt.mid('aya'));
+DO $$ BEGIN
+  ASSERT (SELECT moderator_id FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000003') = cmt.mid('aya'), 'reattributed';
+  ASSERT (SELECT count(*) FROM cm_audit_log WHERE entity = 'cm_hotline_usernames' AND action = 'insert') = 2, 'mapping audited';
+  UPDATE cm_calls SET recording_path = 'calls/2026/12/CDR-T-2.mp3' WHERE external_call_id = 'CDR.260901.124000.0000002';
+  BEGIN UPDATE cm_calls SET recording_path = 'https://x.example/a' WHERE external_call_id = 'CDR.260901.124000.0000002'; ASSERT false, 'url stored';
   EXCEPTION WHEN check_violation THEN NULL; END;
   -- رسالة صادرة لاحقة لعميل c2 بعد ساعتين: لا تُحسب متابعة خلال ساعة
   INSERT INTO cm_messages (conversation_id, direction, sent_at) VALUES (cmt.id('c2'), 'out', cmt.ct('2026-09-01 15:00'));
@@ -117,12 +147,12 @@ DO $$ DECLARE r record; BEGIN
   ASSERT cm_first_reply_kpi_status(cmt.ct('2026-09-01 00:50'), cmt.ct('2026-09-01 09:30'), false, NULL) = 'on_time', 'outside window does not count';
   ASSERT (SELECT array_agg(conversation_id ORDER BY first_inbound_at) FROM cm_kpi_conversations_v WHERE converted_in_window
           AND conversation_id IN (cmt.id('c1'), cmt.id('c2'), cmt.id('c3'), cmt.id('c4'))) = ARRAY[cmt.id('c1')], 'only c1 converted';
-  ASSERT (SELECT followed_within_target FROM cm_kpi_missed_calls_v v JOIN cm_calls c ON c.id = v.call_id WHERE external_call_id = 'CDR-T-1'), 'callback 40m';
-  ASSERT NOT (SELECT followed_within_target FROM cm_kpi_missed_calls_v v JOIN cm_calls c ON c.id = v.call_id WHERE external_call_id = 'CDR-T-3'), 'msg after 2h';
+  ASSERT (SELECT followed_within_target FROM cm_kpi_missed_calls_v v JOIN cm_calls c ON c.id = v.call_id WHERE external_call_id = 'CDR.260901.120000.0000001'), 'callback 40m';
+  ASSERT NOT (SELECT followed_within_target FROM cm_kpi_missed_calls_v v JOIN cm_calls c ON c.id = v.call_id WHERE external_call_id = 'CDR.260901.120000.0000003'), 'msg after 2h';
 
   SELECT * INTO r FROM cm_kpi_by_campaign('2026-09-01', '2026-09-10') WHERE campaign_id = cmt.id('A');
   ASSERT r.spend = 170 AND r.conversations = 2 AND r.converted = 1 AND r.orders = 2 AND r.delivered = 1 AND r.resolved = 2
-         AND r.delivered_value = 90 AND r.cost_per_delivered = 170, 'campaign A '||row_to_json(r);
+         AND r.delivered_value = 100 AND r.cost_per_delivered = 170, 'campaign A '||row_to_json(r);
   SELECT * INTO r FROM cm_kpi_by_campaign('2026-09-01', '2026-09-10') WHERE campaign_id = cmt.id('B');
   ASSERT r.spend = 60 AND r.conversations = 2 AND r.converted = 0 AND r.delivered = 1 AND r.delivered_value = 200
          AND r.cost_per_delivered = 60, 'campaign B '||row_to_json(r);
@@ -131,7 +161,7 @@ DO $$ DECLARE r record; BEGIN
 
   SELECT * INTO r FROM cm_kpi_by_moderator('2026-09-01', '2026-09-10') WHERE moderator_id = cmt.mid('noura');
   ASSERT r.conversations = 3 AND r.on_time = 1 AND r.cover = 1 AND r.late = 1 AND r.abandoned = 1 AND r.converted = 1
-         AND r.missed_calls = 1 AND r.missed_followed = 1 AND r.orders = 2 AND r.delivered = 2 AND r.delivered_value = 290
+         AND r.missed_calls = 1 AND r.missed_followed = 1 AND r.orders = 2 AND r.delivered = 2 AND r.delivered_value = 300
          AND r.allocated_spend = 145 AND r.cost_per_delivered = 72.50, 'noura '||row_to_json(r);
   SELECT * INTO r FROM cm_kpi_by_moderator('2026-09-01', '2026-09-10') WHERE moderator_id = cmt.mid('aya');
   ASSERT r.conversations = 1 AND r.late = 1 AND r.missed_calls = 1 AND r.missed_followed = 0 AND r.orders = 1 AND r.delivered = 0
@@ -156,9 +186,9 @@ DO $$ DECLARE r jsonb; BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN PERFORM cm_import_hotline_cdr('[]'::jsonb); ASSERT false, 'msm import';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-  BEGIN PERFORM cm_request_recording_access((SELECT id FROM cm_calls WHERE external_call_id = 'CDR-T-2')); ASSERT false, 'msm listen';
+  BEGIN PERFORM cm_request_recording_access((SELECT id FROM cm_calls WHERE external_call_id = 'CDR.260901.124000.0000002')); ASSERT false, 'msm listen';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-  ASSERT (SELECT count(*) FROM cm_calls WHERE external_call_id LIKE 'CDR-T-%') = 3, 'msm reads calls';
+  ASSERT (SELECT count(*) FROM cm_calls WHERE external_call_id LIKE 'CDR.2609%') = 4, 'msm reads calls';
   ASSERT (SELECT spend FROM cm_kpi_by_campaign('2026-09-01','2026-09-10') WHERE campaign_id = cmt.id('A')) = 170, 'msm kpi';
 END $$;
 RESET ROLE;
@@ -166,26 +196,26 @@ RESET ROLE;
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000c1', false);
 DO $$ BEGIN
   ASSERT (SELECT count(*) FROM cm_ad_spend_daily) = 0, 'mod no spend rows';
-  ASSERT (SELECT count(*) FROM cm_calls) = 2, 'mod own calls only';
+  ASSERT (SELECT count(*) FROM cm_calls) = 3, 'mod own calls only (noura: 1,2,4)';
   BEGIN PERFORM cm_upsert_ad_spend('[]'::jsonb); ASSERT false, 'mod spend'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN INSERT INTO cm_ad_spend_daily (campaign_id, spend_date, spend) VALUES (cmt.id('A'), '2026-09-09', 1); ASSERT false, 'mod direct';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN PERFORM cm_import_hotline_cdr('[]'::jsonb); ASSERT false, 'mod import'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-  BEGIN PERFORM cm_request_recording_access((SELECT id FROM cm_calls WHERE external_call_id = 'CDR-T-2')); ASSERT false, 'mod listen';
+  BEGIN PERFORM cm_request_recording_access((SELECT id FROM cm_calls WHERE external_call_id = 'CDR.260901.124000.0000002')); ASSERT false, 'mod listen';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN PERFORM cm_link_conversation_order(cmt.id('c1'), cmt.id('o4'), true); ASSERT false, 'mod manual link';
   EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
   BEGIN INSERT INTO cm_conversation_orders (conversation_id, order_id, method) VALUES (cmt.id('c1'), cmt.id('o4'), 'manual'); ASSERT false, 'mod direct link';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-  PERFORM cm_mark_missed_call_followed_up((SELECT id FROM cm_calls WHERE external_call_id = 'CDR-T-1'));
-  BEGIN PERFORM cm_mark_missed_call_followed_up((SELECT id FROM cm_calls WHERE external_call_id = 'CDR-T-3' UNION ALL SELECT NULL LIMIT 1));
+  PERFORM cm_mark_missed_call_followed_up((SELECT id FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000001'));
+  BEGIN PERFORM cm_mark_missed_call_followed_up((SELECT id FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000003' UNION ALL SELECT NULL LIMIT 1));
     ASSERT false, 'mod marks other call'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   ASSERT (SELECT spend FROM cm_kpi_by_campaign('2026-09-01','2026-09-10') WHERE campaign_id = cmt.id('A')) = 0, 'mod kpi sees no spend';
 END $$;
 RESET ROLE;
 DO $$ BEGIN
-  ASSERT (SELECT followed_up_at IS NOT NULL FROM cm_calls WHERE external_call_id = 'CDR-T-1'), 'mod marked own';
-  ASSERT (SELECT followed_up_at IS NULL FROM cm_calls WHERE external_call_id = 'CDR-T-3'), 'other untouched';
+  ASSERT (SELECT followed_up_at IS NOT NULL FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000001'), 'mod marked own';
+  ASSERT (SELECT followed_up_at IS NULL FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000003'), 'other untouched';
 END $$;
 -- المشاهِدة (viewer): قراءة فقط
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000d1', false);
@@ -193,7 +223,7 @@ DO $$ BEGIN
   ASSERT (SELECT count(*) FROM cm_ad_spend_daily) >= 4, 'viewer reads spend';
   BEGIN PERFORM cm_upsert_ad_spend('[]'::jsonb); ASSERT false, 'viewer spend'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN UPDATE cm_ad_spend_daily SET spend = 0; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-  BEGIN PERFORM cm_request_recording_access((SELECT id FROM cm_calls WHERE external_call_id = 'CDR-T-2')); ASSERT false, 'viewer listen';
+  BEGIN PERFORM cm_request_recording_access((SELECT id FROM cm_calls WHERE external_call_id = 'CDR.260901.124000.0000002')); ASSERT false, 'viewer listen';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 RESET ROLE;
@@ -214,11 +244,11 @@ DO $$ BEGIN ASSERT (SELECT NOT public FROM storage.buckets WHERE id = 'cm-call-r
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', false);
 DO $$ DECLARE r jsonb; BEGIN
   ASSERT (SELECT count(*) FROM storage.objects) = 0, 'sm no object before log';
-  r := cm_request_recording_access((SELECT id FROM cm_calls WHERE external_call_id = 'CDR-T-2'));
+  r := cm_request_recording_access((SELECT id FROM cm_calls WHERE external_call_id = 'CDR.260901.124000.0000002'));
   ASSERT r->>'bucket' = 'cm-call-recordings' AND r->>'path' = 'calls/2026/12/CDR-T-2.mp3' AND (r->>'expires_in')::int <= 300, 'req '||r;
   ASSERT r::text !~* 'https?://|token', 'no url/secret';
   ASSERT (SELECT count(*) FROM storage.objects) = 1, 'sm sees object after log';
-  BEGIN PERFORM cm_request_recording_access((SELECT id FROM cm_calls WHERE external_call_id = 'CDR-T-1')); ASSERT false, 'no rec';
+  BEGIN PERFORM cm_request_recording_access((SELECT id FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000001')); ASSERT false, 'no rec';
   EXCEPTION WHEN raise_exception THEN NULL; END;
   BEGIN INSERT INTO cm_recording_access_log (call_id, user_id, storage_path) VALUES ((SELECT id FROM cm_calls LIMIT 1), auth.uid(), 'x'); ASSERT false, 'direct log';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
@@ -228,12 +258,12 @@ SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '00000000-000
 DO $$ BEGIN
   ASSERT (SELECT count(*) FROM storage.objects) = 0, 'gm without own log sees nothing';
   ASSERT (SELECT count(*) FROM cm_recording_access_log) = 1, 'gm audits log';
-  PERFORM cm_request_recording_access((SELECT id FROM cm_calls WHERE external_call_id = 'CDR-T-2'));
+  PERFORM cm_request_recording_access((SELECT id FROM cm_calls WHERE external_call_id = 'CDR.260901.124000.0000002'));
   ASSERT (SELECT count(*) FROM storage.objects) = 1, 'gm after log';
 END $$;
 RESET ROLE;
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b1', false);
-DO $$ BEGIN PERFORM cm_request_recording_access((SELECT id FROM cm_calls WHERE external_call_id = 'CDR-T-2')); END $$;
+DO $$ BEGIN PERFORM cm_request_recording_access((SELECT id FROM cm_calls WHERE external_call_id = 'CDR.260901.124000.0000002')); END $$;
 RESET ROLE;
 DO $$ BEGIN
   ASSERT (SELECT count(*) FROM cm_recording_access_log) = 3, 'every listen logged';
@@ -258,5 +288,131 @@ DO $$ BEGIN
   ASSERT NOT has_table_privilege('authenticated', 'public.cm_calls', 'INSERT'), 'no direct call insert';
   ASSERT (SELECT bool_and(c.reloptions @> ARRAY['security_invoker=true']) FROM pg_class c
           WHERE c.relname IN ('cm_kpi_conversations_v','cm_kpi_missed_calls_v','cm_kpi_orders_v')), 'views security_invoker';
+END $$;
+
+-- EM يرى صفحة الإنفاق (قراءة). صلاحية الكتابة في القاعدة تُركت كما هي (cm_can_write_spend تشمل EM)؛ الواجهة تعرضها لـ EM للقراءة فقط.
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b1', false);
+DO $$ BEGIN
+  ASSERT (SELECT count(*) FROM cm_ad_spend_daily) >= 4, 'em reads spend';
+  ASSERT cm_can_write_spend(), 'db write permission unchanged for EM';
+END $$;
+RESET ROLE;
+-- ── 7) أسماء مستخدمي الهوت لاين: SM/GM فقط يعدّلون ──
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b1', false);
+DO $$ BEGIN
+  ASSERT (SELECT count(*) FROM cm_hotline_usernames) = 2, 'em reads mapping';
+  BEGIN INSERT INTO cm_hotline_usernames (username, moderator_id) VALUES ('x1', cmt.mid('aya')); ASSERT false, 'em writes mapping';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+RESET ROLE;
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000c1', false);
+DO $$ BEGIN ASSERT (SELECT count(*) FROM cm_hotline_usernames) = 0, 'mod no mapping'; END $$;
+RESET ROLE;
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', false);
+DO $$ BEGIN
+  UPDATE cm_hotline_usernames SET moderator_id = cmt.mid('noura') WHERE username = 'aya1';
+  ASSERT (SELECT moderator_id FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000003') = cmt.mid('noura'), 'remap follows';
+  UPDATE cm_hotline_usernames SET moderator_id = cmt.mid('aya') WHERE username = 'aya1';
+  BEGIN INSERT INTO cm_hotline_usernames (username, moderator_id) VALUES ('Has Caps', cmt.mid('aya')); ASSERT false, 'lowercase only';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+END $$;
+RESET ROLE;
+
+-- ── 8) رفع التسجيلات يدوياً (SM/GM) عبر تذكرة + سياسة Storage + سجل تدقيق ──
+CREATE TEMP TABLE up (k text PRIMARY KEY, v jsonb); GRANT ALL ON up TO authenticated;
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', false);
+DO $$ DECLARE c uuid := (SELECT id FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000003'); r jsonb; BEGIN
+  BEGIN PERFORM cm_begin_recording_upload(c, 'application/pdf', 1000, 'x.pdf'); ASSERT false, 'bad type';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  BEGIN PERFORM cm_begin_recording_upload(c, 'audio/mpeg', 60000000, 'big.mp3'); ASSERT false, 'too big';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  BEGIN PERFORM cm_begin_recording_upload(c, 'audio/mpeg', 0, 'z.mp3'); ASSERT false, 'empty';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  BEGIN PERFORM cm_begin_recording_upload(gen_random_uuid(), 'audio/mpeg', 10, 'z.mp3'); ASSERT false, 'no call';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  r := cm_begin_recording_upload(c, 'audio/mpeg', 123456, 'CDR.260901.120000.0000003.mp3');
+  ASSERT r->>'bucket' = 'cm-call-recordings' AND r->>'path' ~ ('^calls/2026/09/' || c || '/[0-9a-f-]{36}\.mp3$'), 'reserved '||r;
+  INSERT INTO pg_temp.up VALUES ('a', r);
+  BEGIN INSERT INTO storage.objects (bucket_id, name) VALUES ('cm-call-recordings', 'calls/2026/09/free.mp3'); ASSERT false, 'free upload';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN PERFORM cm_complete_recording_upload((r->>'upload_id')::uuid); ASSERT false, 'complete before file';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  INSERT INTO storage.objects (bucket_id, name) VALUES ('cm-call-recordings', r->>'path');
+END $$;
+RESET ROLE;
+-- GM لا يكمل تذكرة غيره؛ EM والمودريتور لا يرفعان
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a3', false);
+DO $$ BEGIN
+  BEGIN PERFORM cm_complete_recording_upload(((SELECT v FROM pg_temp.up WHERE k='a')->>'upload_id')::uuid); ASSERT false, 'other user ticket';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  BEGIN INSERT INTO storage.objects (bucket_id, name) VALUES ('cm-call-recordings', (SELECT v FROM pg_temp.up WHERE k='a')->>'path' || 'x'); ASSERT false, 'gm other path';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+RESET ROLE;
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b1', false);
+DO $$ BEGIN
+  BEGIN PERFORM cm_begin_recording_upload((SELECT id FROM cm_calls LIMIT 1), 'audio/mpeg', 10, 'a.mp3'); ASSERT false, 'em upload';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+RESET ROLE;
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000c1', false);
+DO $$ BEGIN
+  BEGIN PERFORM cm_begin_recording_upload((SELECT id FROM cm_calls LIMIT 1), 'audio/mpeg', 10, 'a.mp3'); ASSERT false, 'mod upload';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN PERFORM cm_ingest_call_recording('CDR.260901.120000.0000003', NULL, NULL, 'audio/mpeg', 10); ASSERT false, 'mod ingest';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+RESET ROLE;
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', false);
+DO $$ DECLARE r jsonb := (SELECT v FROM pg_temp.up WHERE k='a'); x jsonb; BEGIN
+  x := cm_complete_recording_upload((r->>'upload_id')::uuid);
+  ASSERT (SELECT recording_path FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000003') = r->>'path', 'attached';
+  BEGIN PERFORM cm_complete_recording_upload((r->>'upload_id')::uuid); ASSERT false, 'double complete';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  BEGIN PERFORM cm_ingest_call_recording('CDR.260901.120000.0000003', NULL, NULL, 'audio/mpeg', 10); ASSERT false, 'sm ingest';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- تذكرة منتهية (أكثر من 10 دقائق) لا تسمح بالرفع
+  x := cm_begin_recording_upload((SELECT id FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000001'), 'audio/x-m4a', 2048, 'old.m4a');
+  INSERT INTO pg_temp.up VALUES ('old', x);
+END $$;
+RESET ROLE;
+UPDATE cm_recording_uploads SET created_at = now() - interval '11 minutes' WHERE id = ((SELECT v FROM pg_temp.up WHERE k='old')->>'upload_id')::uuid;
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', false);
+DO $$ BEGIN
+  BEGIN INSERT INTO storage.objects (bucket_id, name) VALUES ('cm-call-recordings', (SELECT v FROM pg_temp.up WHERE k='old')->>'path'); ASSERT false, 'expired ticket';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+RESET ROLE;
+DO $$ BEGIN
+  ASSERT (SELECT count(*) FROM cm_audit_log WHERE action = 'recording_upload_started') = 2, 'upload start audited';
+  ASSERT (SELECT count(*) FROM cm_audit_log WHERE action = 'recording_attached' AND actor_id = '00000000-0000-0000-0000-0000000000a1'
+          AND after->>'source' = 'manual') = 1, 'attach audited with actor';
+END $$;
+
+-- ── 9) استقبال الخدمة (تطبيق موبايل لاحقاً): حجز ← رفع ← ربط، بالـ Cdr Id أو الرقم+الوقت ──
+SELECT set_config('request.jwt.claim.sub', '', false);
+DO $$ DECLARE r jsonb; x jsonb; BEGIN
+  r := cm_ingest_call_recording('CDR.260901.124000.0000002', NULL, NULL, 'audio/mpeg', 5000);
+  ASSERT NOT (r->>'attached')::boolean AND r->>'path' LIKE 'calls/2026/09/%', 'service reserve '||r;
+  BEGIN PERFORM cm_ingest_call_recording('CDR.260901.124000.0000002', NULL, NULL, 'audio/mpeg', 5000, r->>'path'); ASSERT false, 'attach missing file';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  INSERT INTO storage.objects (bucket_id, name) VALUES ('cm-call-recordings', r->>'path');
+  x := cm_ingest_call_recording('CDR.260901.124000.0000002', NULL, NULL, 'audio/mpeg', 5000, r->>'path');
+  ASSERT (x->>'attached')::boolean AND (SELECT recording_path FROM cm_calls WHERE external_call_id = 'CDR.260901.124000.0000002') = r->>'path', 'service attach';
+  -- بالرقم + الوقت (±2 د)
+  r := cm_ingest_call_recording(NULL, '+20 100 000 0007', '2026-09-01 12:01:00+03', 'audio/ogg', 900);
+  ASSERT (r->>'call_id')::uuid = (SELECT id FROM cm_calls WHERE external_call_id = 'CDR.260901.120000.0000001'), 'match by phone+time';
+  BEGIN PERFORM cm_ingest_call_recording(NULL, '01000000007', '2026-09-01 18:00:00+03', 'audio/ogg', 900); ASSERT false, 'no match';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  BEGIN PERFORM cm_ingest_call_recording('CDR.260901.124000.0000002', NULL, NULL, 'audio/mpeg', 10, 'https://evil.example/x.mp3'); ASSERT false, 'url path';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  BEGIN PERFORM cm_ingest_call_recording('CDR.260901.124000.0000002', NULL, NULL, 'text/html', 10); ASSERT false, 'svc bad type';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  ASSERT (SELECT count(*) FROM cm_audit_log WHERE action = 'recording_attached' AND after->>'source' = 'service') = 1, 'service attach audited';
+  ASSERT NOT has_function_privilege('anon', 'public.cm_begin_recording_upload(uuid,text,bigint,text)', 'EXECUTE'), 'anon begin';
+  ASSERT NOT has_function_privilege('anon', 'public.cm_ingest_call_recording(text,text,timestamptz,text,bigint,text)', 'EXECUTE'), 'anon ingest';
+  ASSERT NOT has_function_privilege('authenticated', 'public.cm_attach_recording(uuid)', 'EXECUTE'), 'attach internal';
+  ASSERT NOT has_table_privilege('anon', 'public.cm_hotline_usernames', 'SELECT'), 'anon mapping';
+  ASSERT NOT has_table_privilege('authenticated', 'public.cm_recording_uploads', 'INSERT'), 'no direct ticket';
 END $$;
 SELECT 'ALL CM STEP4 SQL TESTS PASSED';

@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { canWriteAdSpend } from "@/config/chatManagement";
 import { CsvImportCard } from "@/components/chatManagement/CsvImportCard";
 import { mapSpend, type SpendRow } from "@/lib/chatManagement/csvImport";
 import { formatMoney } from "@/lib/chatManagement/kpiMetrics";
@@ -17,6 +19,8 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 /** الإنفاق الإعلاني اليومي: إدخال يدوي أو CSV (حتى يُفعَّل ربط Marketing API بعد توثيق ميتا). إعادة الإدخال لنفس الحملة واليوم تُحدِّث القيمة. */
 export default function ChatAdSpend() {
+  const { roles } = useAuth() as { roles?: string[] };
+  const canWrite = canWriteAdSpend(roles); // EM: عرض فقط
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [rows, setRows] = useState<Spend[]>([]);
   const [form, setForm] = useState({ campaign_id: "", spend_date: today(), spend: "", impressions: "", clicks: "" });
@@ -53,6 +57,8 @@ export default function ChatAdSpend() {
     <DashboardLayout>
       <div dir="rtl" className="space-y-4">
         <Header title="الإنفاق الإعلاني اليومي" subtitle="إدخال يدوي أو استيراد CSV — الربط التلقائي مع ميتا يُفعَّل بعد اكتمال توثيق النشاط التجاري" />
+        {!canWrite && <p role="note" className="rounded border border-[#662D8C]/30 bg-[#662D8C]/5 p-2 text-sm">عرض فقط — الإدخال والاستيراد لمدير التسويق والمبيعات ومدير المبيعات والمدير العام.</p>}
+        {canWrite && <>
         <Card><CardHeader><CardTitle>إدخال يوم</CardTitle><CardDescription>نفس الحملة ونفس اليوم = تحديث القيمة وليس تكراراً</CardDescription></CardHeader>
           <CardContent className="flex flex-wrap items-end gap-3">
             <label className="text-sm">الحملة
@@ -71,6 +77,7 @@ export default function ChatAdSpend() {
           map={mapSpend} previewHeaders={["الحملة", "التاريخ", "المبلغ", "الظهور", "النقرات"]}
           preview={(r) => [r.campaign_name ?? r.meta_campaign_id ?? "", r.spend_date, formatMoney(r.spend, r.currency), String(r.impressions ?? "—"), String(r.clicks ?? "—")]}
           onImport={(list) => upsert(list)} />
+        </>}
 
         <Card><CardHeader><CardTitle>آخر الإدخالات</CardTitle></CardHeader>
           <CardContent className="overflow-auto"><table className="w-full text-sm">

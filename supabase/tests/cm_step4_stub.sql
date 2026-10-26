@@ -6,4 +6,4 @@ CREATE TABLE IF NOT EXISTS storage.buckets (id text PRIMARY KEY, name text NOT N
 CREATE TABLE IF NOT EXISTS storage.objects (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), bucket_id text, name text);
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON SCHEMA storage TO authenticated, anon;
-GRANT SELECT ON storage.objects TO authenticated, anon;
+GRANT SELECT, INSERT ON storage.objects TO authenticated, anon;

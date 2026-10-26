@@ -42,7 +42,8 @@ export interface KpiOrder { moderator_id: string | null; campaign_id: string | n
 export interface KpiSpend { campaign_id: string; spend: number }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
-export const deliveredValue = (o: KpiOrder) => (isDelivered(o.status) ? (o.total_at_delivery ?? o.total) : 0);
+/** قيمة المُسلَّم = إجمالي الطلب (قرار عمرو 26-10)، ولا يُستخدم total_at_delivery. */
+export const deliveredValue = (o: KpiOrder) => (isDelivered(o.status) ? o.total : 0);
 export const ratio = (num: number, den: number): number | null => (den > 0 ? num / den : null);
 
 export interface CampaignKpi { campaign_id: string; spend: number; conversations: number; converted: number; orders: number;

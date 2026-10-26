@@ -46,6 +46,7 @@
         "date-fns": "^3.6.0",
         "embla-carousel-react": "^8.6.0",
         "exceljs": "^4.4.0",
+        "fflate": "^0.8.2",
         "framer-motion": "^12.38.0",
         "html2canvas": "^1.4.1",
         "html2pdf.js": "^0.14.0",

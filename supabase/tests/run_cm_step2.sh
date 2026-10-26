@@ -15,6 +15,7 @@ for run in 1 2; do
   $PSQL -d $DB -f supabase/migrations/20261025130000_cm_step2_contacts_conversations.sql
   $PSQL -d $DB -f supabase/migrations/20261025140000_cm_step3_inbox_webhook.sql
   $PSQL -d $DB -f supabase/migrations/20261025150000_cm_step4_kpis_calls_spend.sql
+  $PSQL -d $DB -f supabase/migrations/20261025160000_cm_step4b_recordings_hotline.sql
 done
 $PSQL -d $DB -f supabase/tests/cm_security_test.sql
 $PSQL -d $DB -f supabase/tests/cm_step2_test.sql

@@ -4309,17 +4309,22 @@ export type Database = {
       }
       cm_calls: {
         Row: {
+          call_result: string | null
           contact_id: string | null
           created_at: string
           customer_id: string | null
           direction: string
           duration_sec: number
+          ended_at: string | null
           external_call_id: string
           followed_up_at: string | null
           followed_up_by: string | null
+          has_vendor_recording: boolean
+          hotline_username: string | null
           id: string
           imported_by: string | null
           line_id: string | null
+          line_number: string | null
           moderator_id: string | null
           phone_norm: string | null
           phone_raw: string | null
@@ -4327,20 +4332,26 @@ export type Database = {
           source: string
           started_at: string
           status: string
+          switch_attempts: Json
           updated_at: string
         }
         Insert: {
+          call_result?: string | null
           contact_id?: string | null
           created_at?: string
           customer_id?: string | null
           direction: string
           duration_sec?: number
+          ended_at?: string | null
           external_call_id: string
           followed_up_at?: string | null
           followed_up_by?: string | null
+          has_vendor_recording?: boolean
+          hotline_username?: string | null
           id?: string
           imported_by?: string | null
           line_id?: string | null
+          line_number?: string | null
           moderator_id?: string | null
           phone_norm?: string | null
           phone_raw?: string | null
@@ -4348,20 +4359,26 @@ export type Database = {
           source?: string
           started_at: string
           status: string
+          switch_attempts?: Json
           updated_at?: string
         }
         Update: {
+          call_result?: string | null
           contact_id?: string | null
           created_at?: string
           customer_id?: string | null
           direction?: string
           duration_sec?: number
+          ended_at?: string | null
           external_call_id?: string
           followed_up_at?: string | null
           followed_up_by?: string | null
+          has_vendor_recording?: boolean
+          hotline_username?: string | null
           id?: string
           imported_by?: string | null
           line_id?: string | null
+          line_number?: string | null
           moderator_id?: string | null
           phone_norm?: string | null
           phone_raw?: string | null
@@ -4369,6 +4386,7 @@ export type Database = {
           source?: string
           started_at?: string
           status?: string
+          switch_attempts?: Json
           updated_at?: string
         }
         Relationships: []
@@ -4829,6 +4847,33 @@ export type Database = {
         }
         Relationships: []
       }
+      cm_hotline_usernames: {
+        Row: {
+          created_at: string
+          moderator_id: string
+          notes: string | null
+          updated_at: string
+          updated_by: string | null
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          moderator_id: string
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          username: string
+        }
+        Update: {
+          created_at?: string
+          moderator_id?: string
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
       cm_kpi_settings: {
         Row: {
           abandoned_minutes: number
@@ -5195,6 +5240,48 @@ export type Database = {
           id?: string
           storage_path?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      cm_recording_uploads: {
+        Row: {
+          call_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          mime: string
+          original_name: string | null
+          size_bytes: number
+          source: string
+          status: string
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          call_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          mime: string
+          original_name?: string | null
+          size_bytes: number
+          source?: string
+          status?: string
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          call_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          mime?: string
+          original_name?: string | null
+          size_bytes?: number
+          source?: string
+          status?: string
+          storage_path?: string
+          uploaded_by?: string | null
         }
         Relationships: []
       }
@@ -26789,6 +26876,7 @@ export type Database = {
           function_name: string
         }[]
       }
+      cm_attach_recording: { Args: { _upload_id: string }; Returns: undefined }
       cm_attribute_conversation: {
         Args: {
           _conversation_id: string
@@ -26800,6 +26888,15 @@ export type Database = {
           _referral_source_type?: string
         }
         Returns: string
+      }
+      cm_begin_recording_upload: {
+        Args: {
+          _call_id: string
+          _mime: string
+          _original_name?: string
+          _size_bytes: number
+        }
+        Returns: Json
       }
       cm_campaign_moderator_on: {
         Args: {
@@ -26816,8 +26913,15 @@ export type Database = {
         Args: { _conversation_id: string }
         Returns: boolean
       }
+      cm_can_upload_recordings: { Args: never; Returns: boolean }
       cm_can_write_spend: { Args: never; Returns: boolean }
+      cm_cdr_duration: { Args: { _v: string }; Returns: number }
+      cm_cdr_ts: { Args: { _v: string }; Returns: string }
       cm_clock_start: { Args: { _ts: string }; Returns: string }
+      cm_complete_recording_upload: {
+        Args: { _upload_id: string }
+        Returns: Json
+      }
       cm_current_moderator_id: { Args: never; Returns: string }
       cm_customer_for_phone: { Args: { _phone: string }; Returns: string }
       cm_distribute_conversation: {
@@ -26853,6 +26957,17 @@ export type Database = {
         Returns: string
       }
       cm_import_hotline_cdr: { Args: { _rows: Json }; Returns: Json }
+      cm_ingest_call_recording: {
+        Args: {
+          _external_call_id: string
+          _mime: string
+          _path?: string
+          _phone: string
+          _size_bytes: number
+          _started_at: string
+        }
+        Returns: Json
+      }
       cm_ingest_whatsapp_message: {
         Args: {
           _body?: string
@@ -26972,6 +27087,8 @@ export type Database = {
         }
         Returns: string
       }
+      cm_recording_ext: { Args: { _mime: string }; Returns: string }
+      cm_recording_max_bytes: { Args: never; Returns: number }
       cm_request_recording_access: { Args: { _call_id: string }; Returns: Json }
       cm_service_minutes: {
         Args: { _from: string; _to: string }

@@ -333,7 +333,7 @@ SELECT o.id AS order_id, o.created_at, public.cm_local_date(o.created_at) AS kpi
        coalesce(o.moderator_id, lc.moderator_id) AS moderator_id, lc.campaign_id, lc.conversation_id,
        public.cm_order_is_delivered(o.status) AS is_delivered, public.cm_order_is_cancelled(o.status) AS is_cancelled,
        public.cm_order_is_resolved(o.status) AS is_resolved,
-       CASE WHEN public.cm_order_is_delivered(o.status) THEN coalesce(o.total_at_delivery, o.total) ELSE 0 END AS delivered_value
+       CASE WHEN public.cm_order_is_delivered(o.status) THEN coalesce(o.total, 0) ELSE 0 END AS delivered_value  -- قرار 26-10: قيمة التسليم = إجمالي الطلب
 FROM public.orders o
 LEFT JOIN LATERAL (
   SELECT l.conversation_id, coalesce(c.assigned_moderator_id, c.owner_moderator_id) AS moderator_id, a.campaign_id

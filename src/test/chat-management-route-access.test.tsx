@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import {
   CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, canEditChatManagement,
   CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES,
-  CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES, canImportCdr, canListenRecordings, canWriteAdSpend,
+  CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES, canImportCdr, canListenRecordings, canWriteAdSpend, CHAT_AD_SPEND_WRITE_ROLES, canUploadRecordings,
   canManageConversations,
 } from "@/config/chatManagement";
 import { moduleSections } from "@/components/layout/SidebarMenuSections";
@@ -116,6 +116,10 @@ describe("chat management route access", () => {
     }
     expect(canWriteAdSpend(["marketing_sales_manager"])).toBe(true);
     expect(canWriteAdSpend(["executive_manager"])).toBe(false);
+    expect(CHAT_AD_SPEND_ROLES).toContain("executive_manager"); // EM يرى الصفحة (عرض فقط)
+    expect(CHAT_AD_SPEND_WRITE_ROLES).not.toContain("executive_manager");
+    expect(canUploadRecordings(["sales_manager"])).toBe(true); expect(canUploadRecordings(["general_manager"])).toBe(true);
+    for (const r of ["executive_manager", "marketing_sales_manager", "sales_moderator"]) expect(canUploadRecordings([r])).toBe(false);
     expect(canImportCdr(["sales_manager"])).toBe(true);
     expect(canImportCdr(["marketing_sales_manager"])).toBe(false);
     expect(canListenRecordings(["executive_manager"])).toBe(true);

@@ -53,11 +53,18 @@ export const CHAT_CALLS_PATH = "/chat-management/calls";
 /** «مؤشرات الأداء»: SM / GM / EM / MSM (القراءة نفسها محكومة بـ RLS). */
 export const CHAT_KPIS_ROLES: AppRole[] = ["sales_manager", "general_manager", "executive_manager", "marketing_sales_manager"];
 /** إدخال الإنفاق اليومي واستيراده: MSM / SM / GM (قاعدة البيانات تسمح لـ EM أيضاً). */
-export const CHAT_AD_SPEND_ROLES: AppRole[] = ["marketing_sales_manager", "sales_manager", "general_manager"];
+/** من يرى صفحة الإنفاق (EM عرض فقط، بقرار عمرو). */
+export const CHAT_AD_SPEND_ROLES: AppRole[] = ["marketing_sales_manager", "sales_manager", "general_manager", "executive_manager"];
+/** من يكتب الإنفاق (يطابق صلاحية قاعدة البيانات cm_upsert_ad_spend — بدون EM). */
+export const CHAT_AD_SPEND_WRITE_ROLES: AppRole[] = ["marketing_sales_manager", "sales_manager", "general_manager"];
 /** سجل مكالمات الخط الساخن: نفس أدوار المؤشرات؛ الاستيراد SM/GM؛ الاستماع GM/EM/SM. */
 export const CHAT_CALLS_ROLES: AppRole[] = CHAT_KPIS_ROLES;
 export const CHAT_CDR_IMPORT_ROLES: AppRole[] = ["sales_manager", "general_manager"];
 export const CHAT_RECORDING_ROLES: AppRole[] = ["general_manager", "executive_manager", "sales_manager"];
 export const canImportCdr = (roles: readonly string[] | null | undefined) => hasAny(roles, CHAT_CDR_IMPORT_ROLES);
 export const canListenRecordings = (roles: readonly string[] | null | undefined) => hasAny(roles, CHAT_RECORDING_ROLES);
-export const canWriteAdSpend = (roles: readonly string[] | null | undefined) => hasAny(roles, CHAT_AD_SPEND_ROLES);
+export const canWriteAdSpend = (roles: readonly string[] | null | undefined) => hasAny(roles, CHAT_AD_SPEND_WRITE_ROLES);
+/** رفع تسجيلات المكالمات يدوياً + تعديل ربط أسماء مستخدمي الهوت لاين: SM/GM. */
+export const CHAT_RECORDING_UPLOAD_ROLES: AppRole[] = ["sales_manager", "general_manager"];
+export const canUploadRecordings = (roles: readonly string[] | null | undefined) => hasAny(roles, CHAT_RECORDING_UPLOAD_ROLES);
+export const canManageHotlineUsernames = canUploadRecordings;
