@@ -427,7 +427,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${aiKey}`,
       },
       body: JSON.stringify({
-        model: Deno.env.get("AI_ASSISTANT_MODEL") || "google/gemini-3-flash",
+        model: Deno.env.get("AI_ASSISTANT_MODEL") || "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           {
@@ -438,7 +438,7 @@ Deno.serve(async (req) => {
           },
         ],
         temperature: 0.2,
-        max_tokens: 1200,
+        max_tokens: 2500,
       }),
     });
 
