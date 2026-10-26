@@ -50,10 +50,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const apiKey = Deno.env.get('LOVABLE_API_KEY');
+    const apiKey = Deno.env.get('AI_GATEWAY_API_KEY');
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY غير مهيأ' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      return new Response(JSON.stringify({ error: 'خدمة الذكاء الاصطناعي غير مفعّلة حاليًا (مفتاح AI_GATEWAY_API_KEY غير مُعد). تواصل مع مدير النظام.', code: 'ai_not_configured' }), {
+        status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -78,11 +78,11 @@ ${category ? `الفئة: ${category}` : ''}
   "reasoning": "نص قصير بالعربية"
 }`;
 
-    const aiRes = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiRes = await fetch('https://ai-gateway.vercel.sh/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: Deno.env.get('AI_PRICE_MODEL') || 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: 'أرجع JSON صالحًا فقط.' },
           { role: 'user', content: prompt },
