@@ -154,3 +154,64 @@ GRANT SELECT ON public.zodex_sync_health TO authenticated;
 --   public.zodex_review_decide(uuid,text,uuid,text), public.zodex_can_review();
 -- DROP TABLE IF EXISTS public.zodex_link_queue;
 -- ALTER TABLE public.orders DROP COLUMN IF EXISTS zodex_amount_diff, DROP COLUMN IF EXISTS zodex_cod_amount;
+
+-- ===== zx-match-2 additions (27/10): sheet source, reverse matching, guarded bulk status plan =====
+ALTER TABLE public.zodex_link_queue ADD COLUMN IF NOT EXISTS origin text NOT NULL DEFAULT 'SYNC'
+  CHECK (origin IN ('SYNC','SHEET','REVERSE','SWEEP'));
+
+-- Waybills seen (sync or delivery sheet) with no order yet; consumed by reverse matching on order insert + periodic sweep.
+CREATE TABLE IF NOT EXISTS public.zodex_unmatched_bills (
+  bill_no text PRIMARY KEY,
+  phones_last9 text[] NOT NULL DEFAULT '{}',
+  cod numeric, shipment_date timestamptz, zodex_status text,
+  first_seen_at timestamptz NOT NULL DEFAULT now(), last_tried_at timestamptz,
+  resolved_order_id uuid, resolved_at timestamptz
+);
+ALTER TABLE public.zodex_unmatched_bills ENABLE ROW LEVEL SECURITY;
+CREATE POLICY zub_read ON public.zodex_unmatched_bills FOR SELECT USING (public.zodex_can_review());
+CREATE INDEX IF NOT EXISTS zub_open_idx ON public.zodex_unmatched_bills USING gin (phones_last9) WHERE resolved_order_id IS NULL;
+
+-- Bulk return/cancel plan: proposed rows reviewed then applied in one batch; each row keeps from_status for undo.
+CREATE TABLE IF NOT EXISTS public.zodex_status_plan (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), batch_id uuid NOT NULL,
+  order_id uuid NOT NULL REFERENCES public.orders(id), bill_no text NOT NULL,
+  from_status text NOT NULL, to_status text, zodex_status text, origin text NOT NULL DEFAULT 'SYNC',
+  needs_review boolean NOT NULL DEFAULT false, applied_at timestamptz, applied_by uuid, undone_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.zodex_status_plan ENABLE ROW LEVEL SECURITY;
+CREATE POLICY zsp_read ON public.zodex_status_plan FOR SELECT USING (public.zodex_can_review());
+
+CREATE OR REPLACE FUNCTION public.zodex_status_apply_batch(p_batch uuid) RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE n integer;
+BEGIN
+  IF NOT public.zodex_can_review() THEN RAISE EXCEPTION 'not allowed'; END IF;
+  WITH u AS (
+    UPDATE public.orders o SET status = p.to_status, updated_at = now()
+    FROM public.zodex_status_plan p
+    WHERE p.batch_id = p_batch AND p.order_id = o.id AND p.applied_at IS NULL AND NOT p.needs_review
+      AND p.to_status IS NOT NULL AND o.status = p.from_status   -- guard: unchanged since planning
+    RETURNING p.id)
+  UPDATE public.zodex_status_plan SET applied_at = now(), applied_by = auth.uid() WHERE id IN (SELECT id FROM u);
+  GET DIAGNOSTICS n = ROW_COUNT; RETURN n;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.zodex_status_undo_batch(p_batch uuid) RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE n integer;
+BEGIN
+  IF NOT public.zodex_can_review() THEN RAISE EXCEPTION 'not allowed'; END IF;
+  WITH u AS (
+    UPDATE public.orders o SET status = p.from_status, updated_at = now()
+    FROM public.zodex_status_plan p
+    WHERE p.batch_id = p_batch AND p.order_id = o.id AND p.applied_at IS NOT NULL AND p.undone_at IS NULL
+      AND o.status = p.to_status
+    RETURNING p.id)
+  UPDATE public.zodex_status_plan SET undone_at = now() WHERE id IN (SELECT id FROM u);
+  GET DIAGNOSTICS n = ROW_COUNT; RETURN n;
+END $$;
+-- Reverse-match trigger on orders INSERT is deliberately NOT here: it calls the edge engine via the sweep
+-- (every 15 min) in PR 2 to keep this migration free of side effects on order creation.
+-- Rollback (additions): DROP FUNCTION public.zodex_status_undo_batch(uuid), public.zodex_status_apply_batch(uuid);
+--   DROP TABLE public.zodex_status_plan, public.zodex_unmatched_bills; ALTER TABLE public.zodex_link_queue DROP COLUMN origin;

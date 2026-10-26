@@ -100,3 +100,32 @@ Full output: `/workspace/capital/zodex_dryrun_20261027.json`. These numbers will
 | 3 | Batched deliveries sync driven by the guarded status map. Remove hard-coded user ids (`sync-zodex-deliveries` L30, `MegaDiscrepancyAlert`, `useExecutiveApprovals`, `set_order_waybill_manual`) and use roles instead | Medium | 1–1.5 days |
 | 4 | One secure manual-link path: RelinkBillDialog, LinkBillToOrderDialog and EditAddress all call `zodex_review_decide` / the RPC. Stop `process-bostta-delivery` overwriting `total` | Medium-high (touches money) | 1 day |
 | 5 | Data cleanup scripts for the 852 suspicious links, the 4 multi-order waybills and the 9 multi-waybill orders. Full backup tables, dry-run then apply, rollback script | High (production writes; needs Amr's approval per batch) | 1 day + review |
+
+## Revision zx-match-2 (27/10/2026, after Alaa's answers)
+
+**Root cause of the 19 "not found" waybills:** 15 were in the last good sync's link_failures (`no_matching_phone`, 0 candidates). Each one had an open order on the same mobile, but that order was **pickup** or a **private courier** («مندوب خاص»), and `isExpectedZodexShipment` excludes both. The other 4 (…410/414/418/424) were created after sync stopped on 25/10 20:10 (Riyadh time, UTC+3) because the login broke. The delivery sheet only matches `shipping_bill_no`, so the 59 delivered rows were waybills the sync had already linked. Everything else was listed as "not found".
+
+**Rules:**
+- **Matching:** by mobile only.
+- **Amount:** informational. It never decides or downgrades a match.
+- **Guards:**
+  - the waybill date must not be before the order;
+  - the order must be at most 25 days old (month window);
+  - one waybill per order, and one order per waybill;
+  - never a cancelled order.
+- **Pickup and private-courier orders:** eligible (the sync fix is in PR 2).
+- **AUTO:** exactly one open order, with a date gap of 10 days or less.
+- **REVIEW:** several open orders (the suggestion is the closest date), or a far date.
+
+**Automatic paths:**
+- **Sync and delivery sheet:** a waybill that is not yet linked is resolved by mobile through `resolveSheetRows`. The result is auto_link, review or not_found. not_found goes to `zodex_unmatched_bills`.
+- **Reverse matching:** `reverseMatch` runs on a new order and on a 15-minute sweep.
+- **Returns and cancellations:** `planStatusUpdates` produces a plan in `zodex_status_plan`:
+  - pending → cancelled when Zodex says returned or cancelled, and the link is confident;
+  - anything else goes to review.
+
+  Apply and undo are bulk, per batch, with a guard that the status has not changed.
+
+**Dry-run v2 (read-only, 45 days):**
+- Existing links: AUTO 1187, BLOCKED 160. The 160 are cancelled orders that hold waybills, which matches returns. 99 links are flagged suspicious: shared mobile 92, waybill on many orders 3, order with many waybills 7.
+- Unlinked waybills from the last run: 28. AUTO 22, BLOCKED 5, NO_ORDER 1.

@@ -20,7 +20,7 @@ const fake = new Map<string, string>();
 const pseudo = (h: string) => { if (!fake.has(h)) fake.set(h, "010" + String(fake.size).padStart(8, "0")); return fake.get(h)!; };
 const toCand = (r: Row): CandidateOrder => ({ id: r.id, order_number: r.n, total: r.t, created_at: r.c, status: r.s,
   phones: (r.ph ?? []).map(pseudo), shipping_bill_no: r.b, fulfillment_type: r.f,
-  eligible: r.s !== "cancelled" && r.f !== "pickup" });
+  });
 
 const byPhone = new Map<string, Row[]>();
 for (const r of rows) for (const h of r.ph ?? []) (byPhone.get(h) ?? byPhone.set(h, []).get(h)!).push(r);
@@ -42,12 +42,26 @@ for (const r of linked) {
   const other = [...cands.values()].filter((x) => x.id !== r.id && x.s !== "cancelled" && Math.abs(Date.parse(x.c) - Date.parse(r.c)) < 30 * 86_400_000).length;
   const flags = auditExistingLink({ bill: { ...bill, cod: null }, order: toCand(r), otherOpenSamePhone: other,
     billOrderCount: Math.max(r.bo, holders.get(r.b!)?.length ?? 0), orderBillCount: r.ob, amountKnownMatched: amountMatched });
-  if (r.f === "pickup") flags.push("pickup_with_bill" as any);
-  if (r.s === "cancelled") flags.push("cancelled_with_bill" as any);
   for (const f of flags) (suspicious[f] ??= []).push(r.n);
 }
 const anySusp = new Set(Object.values(suspicious).flat());
+// Optional: unlinked waybills from the last good sync run (argv[4]) → what the engine would do now.
+let unlinked: any = undefined;
+if (process.argv[4]) {
+  let u = JSON.parse(readFileSync(process.argv[4], "utf8")); u = u.rows?.[0]?.j ?? u;
+  const res: Record<string, string[]> = { AUTO: [], REVIEW: [], BLOCKED: [], NO_ORDER: [] };
+  const pairs: string[] = [];
+  for (const f of u as { bill: string; ph: string[]; at: string; cod: number }[]) {
+    const cands = new Map<string, Row>();
+    for (const h of f.ph ?? []) for (const x of byPhone.get(h) ?? []) cands.set(x.id, x);
+    const d = evaluateBill({ bill_no: f.bill, phones: (f.ph ?? []).map(pseudo), cod: f.cod, shipment_date: f.at }, [...cands.values()].map(toCand), { billHolders: holders });
+    res[d.tier].push(f.bill);
+    pairs.push(`${f.bill} → ${d.tier}${d.best ? " " + d.best.order_number : ""}`);
+  }
+  unlinked = { evaluated: (u as any[]).length, tiers: Object.fromEntries(Object.entries(res).map(([k, v]) => [k, v.length])), pairs };
+}
 const out = {
+  unlinked_waybills_last_run: unlinked,
   window_days: days, linked_orders_evaluated: linked.length,
   tiers: Object.fromEntries(Object.entries(tiers).map(([k, v]) => [k, v.length])),
   existing_links_flagged_suspicious: anySusp.size,
