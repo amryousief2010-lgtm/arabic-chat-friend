@@ -18,6 +18,8 @@ import EmployeeDocumentsDialog from "@/components/hr/EmployeeDocumentsDialog";
 import EmployeeDeductionsDialog from "@/components/hr/EmployeeDeductionsDialog";
 import EmployeeSuspensionDialog from "@/components/hr/EmployeeSuspensionDialog";
 import EmployeePhotoCell from "@/components/hr/EmployeePhotoCell";
+import JobTitleField from "@/components/hr/JobTitleField";
+import DepartmentField from "@/components/hr/DepartmentField";
 
 interface Location { id: string; name: string; department: string | null }
 interface Employee {
@@ -788,11 +790,11 @@ const HREmployees = () => {
             </div>
             <div>
               <Label>الوظيفة</Label>
-              <Input value={form.job_title || ""} onChange={(e) => setForm({ ...form, job_title: e.target.value })} />
+              <JobTitleField value={form.job_title} department={form.department} onChange={(v) => setForm({ ...form, job_title: v })} />
             </div>
             <div>
               <Label>القسم</Label>
-              <Input value={form.department || ""} onChange={(e) => setForm({ ...form, department: e.target.value })} />
+              <DepartmentField value={form.department} onChange={(v) => setForm({ ...form, department: v })} />
             </div>
             <div>
               <Label>مكان العمل الحالي</Label>
