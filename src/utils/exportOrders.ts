@@ -1,5 +1,6 @@
 import type { WorkSheet } from "xlsx";
 import { openPrintWindow, escapeHtml, fmtNum, fmtDate, COMPANY_AR } from "@/lib/printPdf";
+import { formatDate } from "@/lib/dateFormat";
 
 export interface OrderExportRow {
   order_number: string;
@@ -104,7 +105,7 @@ export async function exportOrdersToXLSX(
   if (meta) {
     const headerRows: any[][] = [
       ["المسوقة:", meta.moderatorName || "-"],
-      ["التاريخ:", meta.dateLabel || new Date().toLocaleDateString("ar-EG")],
+      ["التاريخ:", meta.dateLabel || formatDate(new Date())],
       ["عدد الطلبات:", rows.length],
       ["إجمالي القيمة:", totalSum],
       [],
