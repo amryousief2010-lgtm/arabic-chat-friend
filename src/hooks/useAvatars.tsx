@@ -37,9 +37,13 @@ async function load(): Promise<void> {
     // قد لا يملك المستخدم صلاحية قراءة hr_employees — عندها نكتفي بصور الحسابات.
     const empPaths: Record<string, { userId: string | null; path: string | null }> = {};
     try {
-      const { data: emps } = await (supabase as any)
-        .from("hr_employees")
-        .select("id, user_id, photo_url");
+      // دالة آمنة تعرض حقول الصورة فقط لكل مستخدم مسجّل؛ وإن لم تكن موجودة بعد نرجع للجدول.
+      let { data: emps, error: rpcErr } = await (supabase as any).rpc("hr_avatar_directory");
+      if (rpcErr) {
+        ({ data: emps } = await (supabase as any)
+          .from("hr_employees")
+          .select("id, user_id, photo_url"));
+      }
       (emps || []).forEach((e: any) => {
         const userId = (e.user_id as string | null) || null;
         const path = (e.photo_url as string | null) || null;
