@@ -163,6 +163,7 @@ type FailedAttempt = { id: string; order_id: string; reason: string; notes: stri
 type BosttaUploadNet = { id: string; filename: string; netAmount: number; orderNumbers: string[]; created_at: string };
 
 import { MAIN_WAREHOUSE_ID as DEFAULT_MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
+import { formatDate } from "@/lib/dateFormat";
 
 interface CourierOrderCustodyTabProps {
   warehouseId?: string;
@@ -1225,7 +1226,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                 {remain > 0 && <span className="text-amber-700"> / متبقي {fmt(remain)}</span>}
                               </> : <span className="text-muted-foreground">—</span>}
                             </TableCell>
-                            <TableCell className="text-xs">{new Date(a.assigned_at).toLocaleDateString("ar-EG")}</TableCell>
+                            <TableCell className="text-xs">{formatDate(a.assigned_at)}</TableCell>
                             <TableCell className="min-w-[320px]">
                               <div className="flex gap-2 items-center flex-wrap">
                                 <Button size="sm" variant="outline" className={`${btnBase} bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-300`} onClick={() => setDetailsOrder(o ?? null)} disabled={!o} title="تفاصيل الأوردر">
@@ -1376,7 +1377,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                             <TableCell className="font-mono font-bold text-emerald-700">{fmt(Number(inv.total_amount))}</TableCell>
                             <TableCell className="text-xs text-emerald-700">مُسدَّد بالكامل</TableCell>
                             <TableCell className="font-mono text-xs text-emerald-700">{fmt(Number(inv.total_amount))}</TableCell>
-                            <TableCell className="text-xs">{new Date(inv.first_seen_at).toLocaleDateString("ar-EG")}</TableCell>
+                            <TableCell className="text-xs">{formatDate(inv.first_seen_at)}</TableCell>
                             <TableCell className="text-xs text-muted-foreground">—</TableCell>
                           </TableRow>
                         ));
@@ -1433,7 +1434,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                                 <TableCell className="font-mono font-bold text-sky-700">{fmt(Number(upload.netAmount))}</TableCell>
                                 <TableCell className="text-xs text-sky-700">مُسدَّد بالكامل</TableCell>
                                 <TableCell className="font-mono text-xs text-sky-700">{fmt(Number(upload.netAmount))}</TableCell>
-                                <TableCell className="text-xs">{new Date(upload.created_at).toLocaleDateString("ar-EG")}</TableCell>
+                                <TableCell className="text-xs">{formatDate(upload.created_at)}</TableCell>
                                 <TableCell className="text-xs">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     {isDeposited ? (
@@ -1650,7 +1651,7 @@ export default function CourierOrderCustodyTab({ warehouseId = DEFAULT_MAIN_WARE
                               <span className="text-emerald-700">{fmt(grp.collected)}</span>
                               {grp.remaining > 0 && <span className="text-amber-700"> / متبقي {fmt(grp.remaining)}</span>}
                             </TableCell>
-                            <TableCell className="text-xs">{new Date(grp.day).toLocaleDateString("ar-EG")}</TableCell>
+                            <TableCell className="text-xs">{formatDate(grp.day)}</TableCell>
                             <TableCell className="text-xs">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Button size="sm" variant="outline" className="h-7 px-2 gap-1" onClick={printDay} title="طباعة أوردرات اليوم">

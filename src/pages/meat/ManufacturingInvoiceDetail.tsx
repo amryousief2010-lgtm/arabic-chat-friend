@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowRight, Factory, Package } from "lucide-react";
 import { parseServiceCostsFromNotes, userNotesFromInvoice } from "@/lib/meatServiceCosts";
+import { formatDate } from "@/lib/dateFormat";
 
 const n = (v: unknown) => Number(v ?? 0);
 const money = (v: unknown) => n(v).toLocaleString("ar-EG", { maximumFractionDigits: 2 }) + " ج";
@@ -87,7 +88,7 @@ export default function ManufacturingInvoiceDetail() {
         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div><div className="text-muted-foreground text-xs">المنتج التام</div><div className="font-medium">{invoice.product_name}</div></div>
           <div><div className="text-muted-foreground text-xs">الكمية المنتجة</div><div className="font-medium">{qty(invoice.finished_qty)} {invoice.unit}</div></div>
-          <div><div className="text-muted-foreground text-xs">تاريخ الإنشاء</div><div className="font-medium">{new Date(invoice.created_at).toLocaleDateString("ar-EG")}</div></div>
+          <div><div className="text-muted-foreground text-xs">تاريخ الإنشاء</div><div className="font-medium">{formatDate(invoice.created_at)}</div></div>
           <div><div className="text-muted-foreground text-xs">تكلفة الوحدة الفعلية</div><div className="font-bold text-primary">{money(totals.unit)}</div></div>
         </CardContent>
       </Card>

@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { openPrintWindow, COMPANY_AR } from "@/lib/printPdf";
 import { cairoMonthStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
+import { formatDate } from "@/lib/dateFormat";
 
 const MONTHS_AR = [
   "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
@@ -289,7 +290,7 @@ export default function HRWorkforceAnalysis() {
     const needRev = highlights.needReview.map(r => `<li>${r.sector} — ${r.recommendation}</li>`).join("") || "<li>لا يوجد</li>";
     const body = `
       <header><div><h1>${COMPANY_AR}</h1><div class="en">Workforce Distribution Analysis</div></div>
-        <div class="meta">تحليل توزيع العمالة والترشيد<br>الشهر: ${MONTHS_AR[month - 1]} ${year}<br>التاريخ: ${new Date().toLocaleDateString("ar-EG")}</div>
+        <div class="meta">تحليل توزيع العمالة والترشيد<br>الشهر: ${MONTHS_AR[month - 1]} ${year}<br>التاريخ: ${formatDate(new Date())}</div>
       </header>
       <div class="stats">
         <div class="stat"><div class="k">إجمالي الموظفين</div><div class="v">${fmt(totals.employees)}</div></div>

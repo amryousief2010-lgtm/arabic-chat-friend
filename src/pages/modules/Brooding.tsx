@@ -21,6 +21,7 @@ import { MarketProfitabilityCard, MarketPricesTab, useMarketPrices } from "./Bro
 import { MovementsLog } from "@/components/MovementsLog";
 import FeedInternalDebtDashboard from "@/components/feed/FeedInternalDebtDashboard";
 import ChickTradingTab from "@/components/chick-trading/ChickTradingTab";
+import { formatDate } from "@/lib/dateFormat";
 
 // ===== Types =====
 type Batch = {
@@ -148,7 +149,7 @@ const printTable = (
 ) => {
   const header = settings.print_header_color;
   const accent = settings.print_accent_color;
-  const today = new Date().toLocaleDateString('ar-EG');
+  const today = formatDate(new Date());
   const metaRows = [
     meta?.reportType && `<div><strong>نوع التقرير:</strong> ${meta.reportType}</div>`,
     meta?.batchNumber && `<div><strong>رقم الدفعة/الحركة:</strong> ${meta.batchNumber}</div>`,
@@ -2033,7 +2034,7 @@ const FeedStockTab = ({ inventory, movements, batches, canManage, settings, onRe
             <TableBody>
               {movements.map(m => (
                 <TableRow key={m.id}>
-                  <TableCell>{new Date(m.created_at).toLocaleDateString("ar-EG")}</TableCell>
+                  <TableCell>{formatDate(m.created_at)}</TableCell>
                   <TableCell><Badge variant={m.movement_type === "consumption" ? "destructive" : "secondary"}>
                     {m.movement_type === "opening" ? "افتتاحي" : m.movement_type === "purchase" ? "شراء" : m.movement_type === "consumption" ? "صرف" : "تسوية"}
                   </Badge></TableCell>

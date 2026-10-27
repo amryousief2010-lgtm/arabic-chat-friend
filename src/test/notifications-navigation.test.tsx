@@ -80,7 +80,11 @@ vi.mock("@/integrations/supabase/client", () => {
     supabase: {
       from: (_table: string) => ({
         select: () => ({
-          order: () => Promise.resolve({ data: fakeNotifications, error: null }),
+          // Notifications page paginates: .order(...).range(from, to)
+          order: () => ({
+            range: (from: number, to: number) =>
+              Promise.resolve({ data: fakeNotifications.slice(from, to + 1), error: null }),
+          }),
         }),
         update: () => {
           const filters: Record<string, unknown> = {};

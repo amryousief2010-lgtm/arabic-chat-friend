@@ -33,6 +33,7 @@ import { Printer, PackagePlus, PackageMinus } from "lucide-react";
 
 
 import * as XLSX from "xlsx";
+import { formatDate } from "@/lib/dateFormat";
 
 const warehouseTypes: Record<string, string> = {
   raw_materials: "مواد خام", finished_goods: "منتج نهائي", feed: "أعلاف",
@@ -681,7 +682,7 @@ const WarehouseDetail = () => {
       p_source_warehouse_id: mainWarehouse.id,
       p_destination_warehouse_id: id!,
       p_lines: lines,
-      p_notes: `طلب توريد ${warehouse?.name || ""} - ${new Date().toLocaleDateString("ar-EG")}`,
+      p_notes: `طلب توريد ${warehouse?.name || ""} - ${formatDate(new Date())}`,
     });
     setSubmitting(false);
 
@@ -706,7 +707,7 @@ const WarehouseDetail = () => {
         transferNo: result?.transfer_no,
         fromWarehouse: mainWarehouse?.name,
         toWarehouse: warehouse?.name,
-        notes: `طلب توريد ${warehouse?.name || ""} - ${new Date().toLocaleDateString("ar-EG")}`,
+        notes: `طلب توريد ${warehouse?.name || ""} - ${formatDate(new Date())}`,
       });
     } catch {}
     setSupplyDialog(false);
