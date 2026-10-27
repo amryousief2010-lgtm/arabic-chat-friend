@@ -169,12 +169,21 @@ describe("Lovable remaining edge-function auth hardening", () => {
     }
   });
 
-  it("config.toml disables gateway JWT only for auth-email-hook and sync-zodex-shipments", () => {
+  it("config.toml disables gateway JWT only for auth-email-hook, sync-zodex-shipments and whatsapp-webhook", () => {
     const toml = config();
     const disabled = [...toml.matchAll(/\[functions\.([^\]]+)\]\s*\nverify_jwt\s*=\s*false/g)]
       .map((m) => m[1])
       .sort();
-    expect(disabled).toEqual(["auth-email-hook", "sync-zodex-shipments"]);
+    expect(disabled).toEqual(["auth-email-hook", "sync-zodex-shipments", "whatsapp-webhook"]);
+  });
+
+  // ميتا لا ترسل JWT؛ البديل الإلزامي هو التحقق من توقيع X-Hub-Signature-256 ورفض العمل بدون الأسرار.
+  it("whatsapp-webhook (no gateway JWT) verifies the Meta HMAC signature and is inert without secrets", () => {
+    const src = readFileSync(resolve(process.cwd(), "supabase/functions/whatsapp-webhook/handler.ts"), "utf8");
+    expect(src).toMatch(/x-hub-signature-256/i);
+    expect(src).toMatch(/verifySignature/);
+    expect(src).toMatch(/META_APP_SECRET/);
+    expect(src).toMatch(/503/);
   });
 
   it.each(REMAINING_HAND_AUTHORED_FUNCTIONS)(

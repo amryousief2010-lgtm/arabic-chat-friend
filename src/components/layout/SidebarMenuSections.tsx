@@ -29,6 +29,7 @@ import {
   Truck,
   ChevronDown,
   Megaphone,
+  PhoneCall,
   Network,
   TrendingUp,
   Calculator,
@@ -53,6 +54,8 @@ import {
   FileSpreadsheet,
   Eye,
   Phone,
+  MessagesSquare,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { SIDEBAR_ITEM_MOVES, MARKETING_ONLY_EXTRA_PREFIXES } from "@/config/sidebarOverrides";
@@ -64,6 +67,9 @@ import { useUnreadInternalMessages } from "@/hooks/useUnreadInternalMessages";
 import { useMandatoryMessages } from "@/hooks/useMandatoryMessages";
 import { findModeratorByName } from "@/constants/moderators";
 import { CALLER_LOOKUP_PATH, CALLER_LOOKUP_ROLES } from "@/constants/callerLookup";
+import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, CHAT_MANAGEMENT_SECTION_ROLES, CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES, CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES } from "@/config/chatManagement";
+import { cmGateAllows, isChatManagementPath } from "@/config/chatManagement";
+import { useCmFeatureGate } from "@/hooks/useCmFeatureGate";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -142,6 +148,24 @@ export const moduleSections: ModuleSection[] = [
       { icon: BarChart3, label: "التقارير", path: "/reports", roles: ['general_manager', 'executive_manager', 'sales_manager', 'accountant', 'marketing_sales_manager', 'financial_manager', 'quality_manager','marketing_sales_viewer'] },
       { icon: MessageSquare, label: "حملات واتساب", path: "/marketing/whatsapp-campaigns", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: TrendingUp, label: "تحليل الأداء اليومي وخطة الشهر", path: "/sales/daily-performance-analysis", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager', 'financial_manager', 'accountant','marketing_sales_viewer'] },
+    ],
+  },
+  {
+    id: "chat-management",
+    icon: MessagesSquare,
+    label: "إدارة المحادثات",
+    roles: CHAT_MANAGEMENT_SECTION_ROLES,
+    items: [
+      { icon: MessagesSquare, label: "صندوق الرسائل", path: CHAT_INBOX_PATH, roles: CHAT_INBOX_ROLES },
+      { icon: MessagesSquare, label: "كل المحادثات", path: CHAT_SUPERVISOR_PATH, roles: CHAT_SUPERVISOR_ROLES },
+      { icon: SlidersHorizontal, label: "مراجعة الأرقام ودمج العملاء", path: CHAT_PHONE_REVIEW_PATH, roles: CHAT_PHONE_REVIEW_ROLES },
+      { icon: BarChart3, label: "مؤشرات الأداء", path: CHAT_KPIS_PATH, roles: CHAT_KPIS_ROLES },
+      { icon: Megaphone, label: "الإنفاق الإعلاني اليومي", path: CHAT_AD_SPEND_PATH, roles: CHAT_AD_SPEND_ROLES },
+      { icon: PhoneCall, label: "مكالمات الخط الساخن", path: CHAT_CALLS_PATH, roles: CHAT_CALLS_ROLES },
+      { icon: CalendarClock, label: "الشيفتات والأجازات", path: CHAT_MANAGEMENT_SHIFTS_PATH, roles: CHAT_MANAGEMENT_VIEW_ROLES },
+      { icon: SlidersHorizontal, label: "إعدادات التوزيع والمؤشرات", path: CHAT_MANAGEMENT_SETTINGS_PATH, roles: CHAT_MANAGEMENT_VIEW_ROLES },
+      // اختصار لصفحة قائمة أصلاً في قسم المبيعات؛ يظهر هنا فقط لمن تسمح له البوابة بالقسم.
+      { icon: UserCheck, label: "أداء المودريتورز", path: "/moderator-performance", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
     ],
   },
   {
@@ -434,6 +458,24 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
+  const { mode: cmMode, loading: cmGateLoading } = useCmFeatureGate(!!user);
+  const cmVisible = !cmGateLoading && cmGateAllows(userRoles, cmMode);
+
+  // في صفحات «إدارة المحادثات»: مرّر القائمة حتى يظهر الرابط النشط (روابط القسم كانت تقع أسفل حافة الشاشة).
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el || !isChatManagementPath(location.pathname)) return;
+    const id = window.setTimeout(() => {
+      const a = el.querySelector<HTMLElement>(`a[href="${location.pathname}"]`);
+      if (!a) return;
+      const top = a.offsetTop - el.offsetTop;
+      if (top < el.scrollTop || top + a.offsetHeight > el.scrollTop + el.clientHeight) {
+        el.scrollTop = Math.max(0, top - el.clientHeight / 2);
+      }
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [location.pathname, cmVisible]);
+
   const toggleSection = (id: string) => {
     setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
   };
@@ -487,11 +529,14 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
       (p) => path === p || path.startsWith(p + '/'),
     );
 
+  // بوابة «إدارة المحادثات»: القسم مخفي تماماً عن غير المدير العام في وضع general_manager_only (وأثناء التحميل).
+
   const visibleSections = sectionsWithMoves
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
         if (!hasAnyRole(item.roles)) return false;
+        if ((isChatManagementPath(item.path) || section.id === 'chat-management') && !cmVisible) return false;
         if (isMarketingOnly && !isPathAllowedForMarketingOnly(item.path)) return false;
         // مراجعة أوردرات هاجر: تظهر لنورا فقط (قراءة فقط)
         if (item.path === '/hagar-orders-review') {

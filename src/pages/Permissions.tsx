@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 
 type PermissionKey =
+  | "manage_chat_shifts"
   | "manage_employees"
   | "manage_products"
   | "manage_stock"
@@ -24,6 +25,10 @@ type PermissionKey =
   | "manage_offers";
 
 const permissionDetails: Record<PermissionKey, { label: string; description: string }> = {
+  manage_chat_shifts: {
+    label: "إدارة الشيفتات وتوزيع المحادثات",
+    description: "تحديد الشيفتات والأجازات الأسبوعية والمراجعة المتبادلة وطريقة التوزيع وأهداف الرد (المدير التنفيذي ومدير التسويق والمبيعات والمشاهدون ومشرف السوشيال: عرض فقط)",
+  },
   manage_employees: {
     label: "إدارة الموظفين",
     description: "إضافة وتعديل وحذف حسابات الموظفين وتغيير أدوارهم",
@@ -86,6 +91,7 @@ const rolesOrder = [
 
 const permissionsMatrix: Record<(typeof rolesOrder)[number], Record<PermissionKey, boolean>> = {
   general_manager: {
+    manage_chat_shifts: true,
     manage_employees: true,
     manage_products: true,
     manage_stock: true,
@@ -97,6 +103,7 @@ const permissionsMatrix: Record<(typeof rolesOrder)[number], Record<PermissionKe
     manage_offers: true,
   },
   executive_manager: {
+    manage_chat_shifts: false,
     manage_employees: false,
     manage_products: true,
     manage_stock: true,
@@ -108,6 +115,7 @@ const permissionsMatrix: Record<(typeof rolesOrder)[number], Record<PermissionKe
     manage_offers: true,
   },
   sales_manager: {
+    manage_chat_shifts: true,
     manage_employees: false,
     manage_products: true,
     manage_stock: false,
@@ -119,6 +127,7 @@ const permissionsMatrix: Record<(typeof rolesOrder)[number], Record<PermissionKe
     manage_offers: true,
   },
   accountant: {
+    manage_chat_shifts: false,
     manage_employees: false,
     manage_products: false,
     manage_stock: false,
@@ -130,6 +139,7 @@ const permissionsMatrix: Record<(typeof rolesOrder)[number], Record<PermissionKe
     manage_offers: false,
   },
   warehouse_supervisor: {
+    manage_chat_shifts: false,
     manage_employees: false,
     manage_products: true,
     manage_stock: true,
@@ -141,6 +151,7 @@ const permissionsMatrix: Record<(typeof rolesOrder)[number], Record<PermissionKe
     manage_offers: false,
   },
   sales_moderator: {
+    manage_chat_shifts: false,
     manage_employees: false,
     manage_products: false,
     manage_stock: false,

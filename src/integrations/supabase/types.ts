@@ -4178,6 +4178,1320 @@ export type Database = {
           },
         ]
       }
+      cm_ad_attributions: {
+        Row: {
+          ad_id: string | null
+          campaign_id: string | null
+          captured_at: string
+          conversation_id: string
+          created_at: string
+          ctwa_clid: string | null
+          id: string
+          manual_value: string | null
+          method: string
+          referral_headline: string | null
+          referral_source_id: string | null
+          referral_source_type: string | null
+          set_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          ad_id?: string | null
+          campaign_id?: string | null
+          captured_at?: string
+          conversation_id: string
+          created_at?: string
+          ctwa_clid?: string | null
+          id?: string
+          manual_value?: string | null
+          method: string
+          referral_headline?: string | null
+          referral_source_id?: string | null
+          referral_source_type?: string | null
+          set_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ad_id?: string | null
+          campaign_id?: string | null
+          captured_at?: string
+          conversation_id?: string
+          created_at?: string
+          ctwa_clid?: string | null
+          id?: string
+          manual_value?: string | null
+          method?: string
+          referral_headline?: string | null
+          referral_source_id?: string | null
+          referral_source_type?: string | null
+          set_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_ad_spend_daily: {
+        Row: {
+          ad_account_id: string | null
+          campaign_id: string
+          clicks: number | null
+          created_at: string
+          currency: string
+          entered_by: string | null
+          id: string
+          impressions: number | null
+          source: string
+          spend: number
+          spend_date: string
+          updated_at: string
+        }
+        Insert: {
+          ad_account_id?: string | null
+          campaign_id: string
+          clicks?: number | null
+          created_at?: string
+          currency?: string
+          entered_by?: string | null
+          id?: string
+          impressions?: number | null
+          source?: string
+          spend: number
+          spend_date: string
+          updated_at?: string
+        }
+        Update: {
+          ad_account_id?: string | null
+          campaign_id?: string
+          clicks?: number | null
+          created_at?: string
+          currency?: string
+          entered_by?: string | null
+          id?: string
+          impressions?: number | null
+          source?: string
+          spend?: number
+          spend_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          after: Json | null
+          at: string
+          before: Json | null
+          entity: string
+          entity_id: string | null
+          id: number
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          after?: Json | null
+          at?: string
+          before?: Json | null
+          entity: string
+          entity_id?: string | null
+          id?: number
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          after?: Json | null
+          at?: string
+          before?: Json | null
+          entity?: string
+          entity_id?: string | null
+          id?: number
+        }
+        Relationships: []
+      }
+      cm_calls: {
+        Row: {
+          call_result: string | null
+          contact_id: string | null
+          created_at: string
+          customer_id: string | null
+          direction: string
+          duration_sec: number
+          ended_at: string | null
+          external_call_id: string
+          followed_up_at: string | null
+          followed_up_by: string | null
+          has_vendor_recording: boolean
+          hotline_username: string | null
+          id: string
+          imported_by: string | null
+          line_id: string | null
+          line_number: string | null
+          moderator_id: string | null
+          phone_norm: string | null
+          phone_raw: string | null
+          recording_path: string | null
+          source: string
+          started_at: string
+          status: string
+          switch_attempts: Json
+          updated_at: string
+        }
+        Insert: {
+          call_result?: string | null
+          contact_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          direction: string
+          duration_sec?: number
+          ended_at?: string | null
+          external_call_id: string
+          followed_up_at?: string | null
+          followed_up_by?: string | null
+          has_vendor_recording?: boolean
+          hotline_username?: string | null
+          id?: string
+          imported_by?: string | null
+          line_id?: string | null
+          line_number?: string | null
+          moderator_id?: string | null
+          phone_norm?: string | null
+          phone_raw?: string | null
+          recording_path?: string | null
+          source?: string
+          started_at: string
+          status: string
+          switch_attempts?: Json
+          updated_at?: string
+        }
+        Update: {
+          call_result?: string | null
+          contact_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          direction?: string
+          duration_sec?: number
+          ended_at?: string | null
+          external_call_id?: string
+          followed_up_at?: string | null
+          followed_up_by?: string | null
+          has_vendor_recording?: boolean
+          hotline_username?: string | null
+          id?: string
+          imported_by?: string | null
+          line_id?: string | null
+          line_number?: string | null
+          moderator_id?: string | null
+          phone_norm?: string | null
+          phone_raw?: string | null
+          recording_path?: string | null
+          source?: string
+          started_at?: string
+          status?: string
+          switch_attempts?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_campaign_ads: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          meta_ad_id: string
+          name: string | null
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          meta_ad_id: string
+          name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          meta_ad_id?: string
+          name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_campaign_line_map: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          line_id: string
+          updated_at: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          line_id: string
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          line_id?: string
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: []
+      }
+      cm_campaigns: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean
+          meta_campaign_id: string | null
+          name: string
+          objective: string | null
+          product_tag: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          meta_campaign_id?: string | null
+          name: string
+          objective?: string | null
+          product_tag?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          meta_campaign_id?: string | null
+          name?: string
+          objective?: string | null
+          product_tag?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_channels: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          kind: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_contact_phones: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          customer_id: string | null
+          id: string
+          invalid_reason: string | null
+          is_valid: boolean
+          phone_norm: string | null
+          phone_raw: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          invalid_reason?: string | null
+          is_valid?: boolean
+          phone_norm?: string | null
+          phone_raw: string
+          source: string
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          invalid_reason?: string | null
+          is_valid?: boolean
+          phone_norm?: string | null
+          phone_raw?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_contacts: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          id: string
+          phone_norm: string | null
+          phone_raw: string | null
+          profile_name: string | null
+          updated_at: string
+          wa_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          phone_norm?: string | null
+          phone_raw?: string | null
+          profile_name?: string | null
+          updated_at?: string
+          wa_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          phone_norm?: string | null
+          phone_raw?: string | null
+          profile_name?: string | null
+          updated_at?: string
+          wa_id?: string | null
+        }
+        Relationships: []
+      }
+      cm_conversation_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          conversation_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          kind: string
+          method: string
+          moderator_id: string
+          reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          conversation_id: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          kind?: string
+          method: string
+          moderator_id: string
+          reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          conversation_id?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          kind?: string
+          method?: string
+          moderator_id?: string
+          reason?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_conversation_orders: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          linked_by: string | null
+          method: string
+          order_id: string
+          phone_norm: string | null
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+          linked_by?: string | null
+          method: string
+          order_id: string
+          phone_norm?: string | null
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          linked_by?: string | null
+          method?: string
+          order_id?: string
+          phone_norm?: string | null
+        }
+        Relationships: []
+      }
+      cm_conversations: {
+        Row: {
+          assigned_moderator_id: string | null
+          awaiting_reply_since: string | null
+          campaign_id: string | null
+          channel: string
+          clock_started_at: string | null
+          closed_at: string | null
+          contact_id: string | null
+          created_at: string
+          customer_id: string | null
+          external_thread_id: string | null
+          first_inbound_at: string | null
+          first_reply_at: string | null
+          first_reply_moderator_id: string | null
+          first_reply_was_cover: boolean | null
+          id: string
+          ig_user_id: string | null
+          last_inbound_at: string | null
+          last_outbound_at: string | null
+          line_id: string | null
+          opened_at: string
+          owner_moderator_id: string | null
+          page_id: string | null
+          phone_norm: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_moderator_id?: string | null
+          awaiting_reply_since?: string | null
+          campaign_id?: string | null
+          channel?: string
+          clock_started_at?: string | null
+          closed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          external_thread_id?: string | null
+          first_inbound_at?: string | null
+          first_reply_at?: string | null
+          first_reply_moderator_id?: string | null
+          first_reply_was_cover?: boolean | null
+          id?: string
+          ig_user_id?: string | null
+          last_inbound_at?: string | null
+          last_outbound_at?: string | null
+          line_id?: string | null
+          opened_at?: string
+          owner_moderator_id?: string | null
+          page_id?: string | null
+          phone_norm?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_moderator_id?: string | null
+          awaiting_reply_since?: string | null
+          campaign_id?: string | null
+          channel?: string
+          clock_started_at?: string | null
+          closed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          external_thread_id?: string | null
+          first_inbound_at?: string | null
+          first_reply_at?: string | null
+          first_reply_moderator_id?: string | null
+          first_reply_was_cover?: boolean | null
+          id?: string
+          ig_user_id?: string | null
+          last_inbound_at?: string | null
+          last_outbound_at?: string | null
+          line_id?: string | null
+          opened_at?: string
+          owner_moderator_id?: string | null
+          page_id?: string | null
+          phone_norm?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_customer_merges: {
+        Row: {
+          approved_by: string
+          created_at: string
+          id: string
+          merged_at: string
+          merged_customer_id: string
+          reason: string | null
+          review_id: string | null
+          snapshot: Json
+          survivor_customer_id: string
+          undone_at: string | null
+          undone_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_by: string
+          created_at?: string
+          id?: string
+          merged_at?: string
+          merged_customer_id: string
+          reason?: string | null
+          review_id?: string | null
+          snapshot: Json
+          survivor_customer_id: string
+          undone_at?: string | null
+          undone_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string
+          created_at?: string
+          id?: string
+          merged_at?: string
+          merged_customer_id?: string
+          reason?: string | null
+          review_id?: string | null
+          snapshot?: Json
+          survivor_customer_id?: string
+          undone_at?: string | null
+          undone_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_distribution_settings: {
+        Row: {
+          fallback_method: string
+          id: number
+          last_assigned_moderator_id: string | null
+          method: string
+          rotation_offset: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          fallback_method?: string
+          id?: number
+          last_assigned_moderator_id?: string | null
+          method?: string
+          rotation_offset?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          fallback_method?: string
+          id?: number
+          last_assigned_moderator_id?: string | null
+          method?: string
+          rotation_offset?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      cm_feature_gate: {
+        Row: {
+          access_mode: string
+          id: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          access_mode?: string
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          access_mode?: string
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      cm_governance_settings: {
+        Row: {
+          automatic_deduction: boolean
+          bonus_approver_role: string
+          bonus_proposer_role: string
+          campaign_stop_approver_role: string
+          campaign_stop_proposer_role: string
+          id: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          automatic_deduction?: boolean
+          bonus_approver_role?: string
+          bonus_proposer_role?: string
+          campaign_stop_approver_role?: string
+          campaign_stop_proposer_role?: string
+          id?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          automatic_deduction?: boolean
+          bonus_approver_role?: string
+          bonus_proposer_role?: string
+          campaign_stop_approver_role?: string
+          campaign_stop_proposer_role?: string
+          id?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      cm_hotline_usernames: {
+        Row: {
+          created_at: string
+          moderator_id: string
+          notes: string | null
+          updated_at: string
+          updated_by: string | null
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          moderator_id: string
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          username: string
+        }
+        Update: {
+          created_at?: string
+          moderator_id?: string
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
+      cm_kpi_settings: {
+        Row: {
+          abandoned_minutes: number
+          conversion_window_days: number
+          first_reply_target_off_shift_min: number
+          first_reply_target_on_shift_min: number
+          id: number
+          missed_call_followup_min: number
+          service_window_end: string
+          service_window_start: string
+          timezone: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          abandoned_minutes?: number
+          conversion_window_days?: number
+          first_reply_target_off_shift_min?: number
+          first_reply_target_on_shift_min?: number
+          id?: number
+          missed_call_followup_min?: number
+          service_window_end?: string
+          service_window_start?: string
+          timezone?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          abandoned_minutes?: number
+          conversion_window_days?: number
+          first_reply_target_off_shift_min?: number
+          first_reply_target_on_shift_min?: number
+          id?: number
+          missed_call_followup_min?: number
+          service_window_end?: string
+          service_window_start?: string
+          timezone?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      cm_line_moderator_map: {
+        Row: {
+          created_at: string
+          id: string
+          line_id: string
+          moderator_id: string
+          updated_at: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          line_id: string
+          moderator_id: string
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          line_id?: string
+          moderator_id?: string
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: []
+      }
+      cm_lines: {
+        Row: {
+          channel_id: string
+          connection_status: string
+          created_at: string
+          external_id: string | null
+          id: string
+          is_api_line: boolean
+          label: string
+          meta_registered: boolean
+          mode: string
+          owner_moderator_id: string | null
+          phone_norm: string | null
+          phone_raw: string | null
+          updated_at: string
+        }
+        Insert: {
+          channel_id: string
+          connection_status?: string
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          is_api_line?: boolean
+          label: string
+          meta_registered?: boolean
+          mode?: string
+          owner_moderator_id?: string | null
+          phone_norm?: string | null
+          phone_raw?: string | null
+          updated_at?: string
+        }
+        Update: {
+          channel_id?: string
+          connection_status?: string
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          is_api_line?: boolean
+          label?: string
+          meta_registered?: boolean
+          mode?: string
+          owner_moderator_id?: string | null
+          phone_norm?: string | null
+          phone_raw?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_messages: {
+        Row: {
+          body: string | null
+          conversation_id: string
+          created_at: string
+          delivered_at: string | null
+          delivery_status: string
+          direction: string
+          failed_reason: string | null
+          id: string
+          media_mime: string | null
+          media_path: string | null
+          provider: string
+          provider_message_id: string | null
+          raw: Json | null
+          read_at: string | null
+          sender_moderator_id: string | null
+          sent_at: string
+          sent_via: string | null
+          type: string
+        }
+        Insert: {
+          body?: string | null
+          conversation_id: string
+          created_at?: string
+          delivered_at?: string | null
+          delivery_status?: string
+          direction: string
+          failed_reason?: string | null
+          id?: string
+          media_mime?: string | null
+          media_path?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          raw?: Json | null
+          read_at?: string | null
+          sender_moderator_id?: string | null
+          sent_at?: string
+          sent_via?: string | null
+          type?: string
+        }
+        Update: {
+          body?: string | null
+          conversation_id?: string
+          created_at?: string
+          delivered_at?: string | null
+          delivery_status?: string
+          direction?: string
+          failed_reason?: string | null
+          id?: string
+          media_mime?: string | null
+          media_path?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          raw?: Json | null
+          read_at?: string | null
+          sender_moderator_id?: string | null
+          sent_at?: string
+          sent_via?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
+      cm_moderator_aliases: {
+        Row: {
+          alias: string
+          alias_norm: string | null
+          created_at: string
+          id: string
+          moderator_id: string
+          updated_at: string
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          alias: string
+          alias_norm?: never
+          created_at?: string
+          id?: string
+          moderator_id: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          alias?: string
+          alias_norm?: never
+          created_at?: string
+          id?: string
+          moderator_id?: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: []
+      }
+      cm_moderators: {
+        Row: {
+          canonical_name: string
+          chat_active: boolean
+          created_at: string
+          display_name: string
+          end_date: string | null
+          id: string
+          is_active: boolean
+          max_open_conversations: number
+          payroll_key: string
+          slug: string
+          sort_order: number
+          start_date: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          canonical_name: string
+          chat_active?: boolean
+          created_at?: string
+          display_name: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          max_open_conversations?: number
+          payroll_key: string
+          slug: string
+          sort_order?: number
+          start_date?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          canonical_name?: string
+          chat_active?: boolean
+          created_at?: string
+          display_name?: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          max_open_conversations?: number
+          payroll_key?: string
+          slug?: string
+          sort_order?: number
+          start_date?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      cm_peer_review: {
+        Row: {
+          created_at: string
+          id: string
+          reviewee_moderator_id: string
+          reviewer_moderator_id: string
+          source_policy: string | null
+          updated_at: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reviewee_moderator_id: string
+          reviewer_moderator_id: string
+          source_policy?: string | null
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reviewee_moderator_id?: string
+          reviewer_moderator_id?: string
+          source_policy?: string | null
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: []
+      }
+      cm_phone_review_queue: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          id: string
+          issue: string
+          phone_norm: string | null
+          phone_raw: string | null
+          related_customer_ids: string[]
+          resolution: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          issue: string
+          phone_norm?: string | null
+          phone_raw?: string | null
+          related_customer_ids?: string[]
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          issue?: string
+          phone_norm?: string | null
+          phone_raw?: string | null
+          related_customer_ids?: string[]
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_recording_access_log: {
+        Row: {
+          accessed_at: string
+          call_id: string
+          id: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          accessed_at?: string
+          call_id: string
+          id?: string
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          accessed_at?: string
+          call_id?: string
+          id?: string
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cm_recording_uploads: {
+        Row: {
+          call_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          mime: string
+          original_name: string | null
+          size_bytes: number
+          source: string
+          status: string
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          call_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          mime: string
+          original_name?: string | null
+          size_bytes: number
+          source?: string
+          status?: string
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          call_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          mime?: string
+          original_name?: string | null
+          size_bytes?: number
+          source?: string
+          status?: string
+          storage_path?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
+      cm_retention_settings: {
+        Row: {
+          id: number
+          log_every_listen: boolean
+          media_days: number
+          message_text_days: number
+          recording_days: number
+          recording_listener_roles: string[]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: number
+          log_every_listen?: boolean
+          media_days?: number
+          message_text_days?: number
+          recording_days?: number
+          recording_listener_roles?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: number
+          log_every_listen?: boolean
+          media_days?: number
+          message_text_days?: number
+          recording_days?: number
+          recording_listener_roles?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      cm_roster_days: {
+        Row: {
+          created_at: string
+          day_pattern: string
+          generated_at: string | null
+          generated_by: string | null
+          notes: string | null
+          updated_at: string
+          work_date: string
+        }
+        Insert: {
+          created_at?: string
+          day_pattern: string
+          generated_at?: string | null
+          generated_by?: string | null
+          notes?: string | null
+          updated_at?: string
+          work_date: string
+        }
+        Update: {
+          created_at?: string
+          day_pattern?: string
+          generated_at?: string | null
+          generated_by?: string | null
+          notes?: string | null
+          updated_at?: string
+          work_date?: string
+        }
+        Relationships: []
+      }
+      cm_shift_assignments: {
+        Row: {
+          created_at: string
+          ends_at: string
+          id: string
+          label: string
+          moderator_id: string | null
+          slot_no: number
+          source: string
+          starts_at: string
+          updated_at: string
+          work_date: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          id?: string
+          label: string
+          moderator_id?: string | null
+          slot_no: number
+          source?: string
+          starts_at: string
+          updated_at?: string
+          work_date: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          id?: string
+          label?: string
+          moderator_id?: string | null
+          slot_no?: number
+          source?: string
+          starts_at?: string
+          updated_at?: string
+          work_date?: string
+        }
+        Relationships: []
+      }
+      cm_shift_templates: {
+        Row: {
+          created_at: string
+          day_pattern: string
+          ends_at: string
+          id: string
+          is_active: boolean
+          label: string
+          slot_no: number
+          starts_at: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day_pattern: string
+          ends_at: string
+          id?: string
+          is_active?: boolean
+          label: string
+          slot_no: number
+          starts_at: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day_pattern?: string
+          ends_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          slot_no?: number
+          starts_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_weekday_patterns: {
+        Row: {
+          day_pattern: string
+          dow: number
+          updated_at: string
+        }
+        Insert: {
+          day_pattern: string
+          dow: number
+          updated_at?: string
+        }
+        Update: {
+          day_pattern?: string
+          dow?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cm_weekly_days_off: {
+        Row: {
+          created_at: string
+          dow: number
+          id: string
+          moderator_id: string
+          updated_at: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          created_at?: string
+          dow: number
+          id?: string
+          moderator_id: string
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Update: {
+          created_at?: string
+          dow?: number
+          id?: string
+          moderator_id?: string
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: []
+      }
       correction_request_audit: {
         Row: {
           action: string
@@ -16863,6 +18177,7 @@ export type Database = {
           instapay_amount: number
           is_duplicate_approved: boolean
           moderator: string | null
+          moderator_id: string | null
           notes: string | null
           order_number: string
           other_amount: number
@@ -16925,6 +18240,7 @@ export type Database = {
           instapay_amount?: number
           is_duplicate_approved?: boolean
           moderator?: string | null
+          moderator_id?: string | null
           notes?: string | null
           order_number: string
           other_amount?: number
@@ -16987,6 +18303,7 @@ export type Database = {
           instapay_amount?: number
           is_duplicate_approved?: boolean
           moderator?: string | null
+          moderator_id?: string | null
           notes?: string | null
           order_number?: string
           other_amount?: number
@@ -23269,6 +24586,55 @@ export type Database = {
       }
     }
     Views: {
+      cm_kpi_conversations_v: {
+        Row: {
+          campaign_id: string | null
+          conversation_id: string | null
+          converted_in_window: boolean | null
+          first_inbound_at: string | null
+          first_reply_status: string | null
+          is_abandoned: boolean | null
+          kpi_date: string | null
+          line_id: string | null
+          moderator_id: string | null
+        }
+        Relationships: []
+      }
+      cm_kpi_missed_calls_v: {
+        Row: {
+          call_id: string | null
+          followed_within_target: boolean | null
+          followup_at: string | null
+          kpi_date: string | null
+          moderator_id: string | null
+          phone_norm: string | null
+          started_at: string | null
+        }
+        Relationships: []
+      }
+      cm_kpi_orders_v: {
+        Row: {
+          campaign_id: string | null
+          conversation_id: string | null
+          created_at: string | null
+          delivered_value: number | null
+          is_cancelled: boolean | null
+          is_delivered: boolean | null
+          is_resolved: boolean | null
+          kpi_date: string | null
+          moderator_id: string | null
+          order_id: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
+      cm_v_unmatched_order_moderators: {
+        Row: {
+          moderator_text: string | null
+          orders_count: number | null
+        }
+        Relationships: []
+      }
       hr_employees_masked: {
         Row: {
           base_salary: number | null
@@ -25530,6 +26896,255 @@ export type Database = {
         Returns: {
           function_name: string
         }[]
+      }
+      cm_attach_recording: { Args: { _upload_id: string }; Returns: undefined }
+      cm_attribute_conversation: {
+        Args: {
+          _conversation_id: string
+          _ctwa_clid?: string
+          _manual_campaign_id?: string
+          _manual_value?: string
+          _referral_headline?: string
+          _referral_source_id?: string
+          _referral_source_type?: string
+        }
+        Returns: string
+      }
+      cm_begin_recording_upload: {
+        Args: {
+          _call_id: string
+          _mime: string
+          _original_name?: string
+          _size_bytes: number
+        }
+        Returns: Json
+      }
+      cm_campaign_moderator_on: {
+        Args: {
+          _campaign_id: string
+          _day: string
+        }
+        Returns: string
+      }
+      cm_can_listen_recordings: { Args: never; Returns: boolean }
+      cm_can_manage: { Args: never; Returns: boolean }
+      cm_can_manage_campaigns: { Args: never; Returns: boolean }
+      cm_can_read_all: { Args: never; Returns: boolean }
+      cm_can_see_conversation: {
+        Args: { _conversation_id: string }
+        Returns: boolean
+      }
+      cm_can_upload_recordings: { Args: never; Returns: boolean }
+      cm_can_write_spend: { Args: never; Returns: boolean }
+      cm_cdr_duration: { Args: { _v: string }; Returns: number }
+      cm_cdr_ts: { Args: { _v: string }; Returns: string }
+      cm_clock_start: { Args: { _ts: string }; Returns: string }
+      cm_complete_recording_upload: {
+        Args: { _upload_id: string }
+        Returns: Json
+      }
+      cm_current_moderator_id: { Args: never; Returns: string }
+      cm_customer_for_phone: { Args: { _phone: string }; Returns: string }
+      cm_distribute_conversation: {
+        Args: {
+          _at?: string
+          _conversation_id: string
+        }
+        Returns: {
+          moderator_id: string
+          via: string
+        }[]
+      }
+      cm_evaluate_first_reply: {
+        Args: {
+          _conversation_id: string
+          _now?: string
+        }
+        Returns: {
+          status: string
+          target_min: number
+          elapsed_min: number
+          cover_moderator_ids: string[]
+        }[]
+      }
+      cm_first_reply_kpi_status: {
+        Args: {
+          _clock: string
+          _first_reply: string
+          _now?: string
+          _owner: string
+          _was_cover: boolean
+        }
+        Returns: string
+      }
+      cm_gate_allows: { Args: never; Returns: boolean }
+      cm_gate_assert: { Args: never; Returns: boolean }
+      cm_import_hotline_cdr: { Args: { _rows: Json }; Returns: Json }
+      cm_ingest_call_recording: {
+        Args: {
+          _external_call_id: string
+          _mime: string
+          _path?: string
+          _phone: string
+          _size_bytes: number
+          _started_at: string
+        }
+        Returns: Json
+      }
+      cm_ingest_whatsapp_message: {
+        Args: {
+          _body?: string
+          _ctwa_clid?: string
+          _phone_number_id: string
+          _profile_name: string
+          _provider_message_id: string
+          _raw?: Json
+          _referral_headline?: string
+          _referral_source_id?: string
+          _referral_source_type?: string
+          _sent_at: string
+          _type?: string
+          _wa_id: string
+        }
+        Returns: Json
+      }
+      cm_is_service: { Args: never; Returns: boolean }
+      cm_is_supervisor: { Args: never; Returns: boolean }
+      cm_is_system_or_manager: { Args: never; Returns: boolean }
+      cm_is_viewer: { Args: never; Returns: boolean }
+      cm_kpi_by_campaign: {
+        Args: { _from: string; _to: string }
+        Returns: {
+          campaign_id: string
+          campaign_name: string
+          spend: number
+          conversations: number
+          converted: number
+          orders: number
+          delivered: number
+          resolved: number
+          delivered_value: number
+          cost_per_delivered: number
+        }[]
+      }
+      cm_kpi_by_moderator: {
+        Args: { _from: string; _to: string }
+        Returns: {
+          moderator_id: string
+          display_name: string
+          conversations: number
+          on_time: number
+          cover: number
+          late: number
+          pending: number
+          abandoned: number
+          converted: number
+          missed_calls: number
+          missed_followed: number
+          orders: number
+          delivered: number
+          resolved: number
+          delivered_value: number
+          campaign_delivered: number
+          allocated_spend: number
+          cost_per_delivered: number
+        }[]
+      }
+      cm_line_owner_on: {
+        Args: { _day: string; _line_id: string }
+        Returns: string
+      }
+      cm_link_conversation_order: {
+        Args: {
+          _conversation_id: string
+          _manual?: boolean
+          _order_id: string
+        }
+        Returns: string
+      }
+      cm_local_date: { Args: { _ts: string }; Returns: string }
+      cm_mark_missed_call_followed_up: {
+        Args: { _call_id: string }
+        Returns: undefined
+      }
+      cm_merge_customers: {
+        Args: {
+          _merged: string
+          _reason?: string
+          _review_id?: string
+          _survivor: string
+        }
+        Returns: string
+      }
+      cm_moderator_available: {
+        Args: {
+          _moderator_id: string
+          _ts: string
+        }
+        Returns: boolean
+      }
+      cm_moderator_id_for_name: { Args: { _name: string }; Returns: string }
+      cm_normalize_phone: { Args: { _raw: string }; Returns: string }
+      cm_on_shift_moderators: {
+        Args: { _ts: string }
+        Returns: {
+          moderator_id: string
+        }[]
+      }
+      cm_order_is_cancelled: { Args: { _status: string }; Returns: boolean }
+      cm_order_is_delivered: { Args: { _status: string }; Returns: boolean }
+      cm_order_is_resolved: { Args: { _status: string }; Returns: boolean }
+      cm_order_matches_phone: {
+        Args: {
+          _order_id: string
+          _phone_norm: string
+        }
+        Returns: boolean
+      }
+      cm_phone_is_valid: { Args: { _norm: string }; Returns: boolean }
+      cm_reassign_conversation: {
+        Args: {
+          _conversation_id: string
+          _moderator_id: string
+          _reason?: string
+        }
+        Returns: string
+      }
+      cm_recording_ext: { Args: { _mime: string }; Returns: string }
+      cm_recording_max_bytes: { Args: never; Returns: number }
+      cm_request_recording_access: { Args: { _call_id: string }; Returns: Json }
+      cm_service_minutes: {
+        Args: { _from: string; _to: string }
+        Returns: number
+      }
+      cm_set_cover: {
+        Args: {
+          _conversation_id: string
+          _moderator_id: string
+          _on?: boolean
+        }
+        Returns: undefined
+      }
+      cm_set_feature_gate: { Args: { _mode: string }; Returns: string }
+      cm_split_phone_field: { Args: { _raw: string }; Returns: string[] }
+      cm_suggest_conversation_orders: {
+        Args: {
+          _conversation_id: string
+        }
+        Returns: {
+          order_id: string
+          order_number: string
+          created_at: string
+          status: string
+          total: number
+          already_linked: boolean
+        }[]
+      }
+      cm_sync_customer_phones: { Args: never; Returns: Json }
+      cm_undo_merge: { Args: { _merge_id: string }; Returns: undefined }
+      cm_upsert_ad_spend: {
+        Args: { _rows: Json; _source?: string }
+        Returns: Json
       }
       commit_agouza_stock_on_delivery: {
         Args: { p_order_id: string }

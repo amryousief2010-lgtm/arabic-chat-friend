@@ -6,6 +6,8 @@ import { CALLER_LOOKUP_PATH } from '@/constants/callerLookup';
 import { toast } from 'sonner';
 import ForcePasswordChange from '@/components/ForcePasswordChange';
 import { mustChangePassword } from '@/lib/mustChangePassword';
+import { cmGateAllows, isChatManagementPath } from '@/config/chatManagement';
+import { useCmFeatureGate } from '@/hooks/useCmFeatureGate';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -16,6 +18,7 @@ interface ProtectedRouteProps {
 // hard-redirected to her own orders log with a clear toast.
 const MODERATOR_ALLOWED_PREFIXES = [
   '/orders',
+  '/chat-management/inbox', // صندوق رسائل المودريتور فقط — باقي صفحات إدارة المحادثات محجوبة
   CALLER_LOOKUP_PATH,
   '/hagar-orders-review',
   '/my-delivery-summary',
@@ -46,6 +49,8 @@ const SOCIAL_MEDIA_ALLOWED_PREFIXES = [
   '/social-media',
   '/notifications',
   '/permissions',
+  // إدارة المحادثات: عرض فقط (الشيفتات والإعدادات)
+  '/chat-management',
   '/auth',
   '/install',
 ];
@@ -82,6 +87,10 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const { user, role, roles, loading } = useAuth();
   const location = useLocation();
   const effectiveRoles = roles ?? (role ? [role] : []);
+  // بوابة «إدارة المحادثات»: في وضع general_manager_only لا يدخل القسم إلا المدير العام (رابط مباشر ⇒ /unauthorized).
+  const isCmPath = isChatManagementPath(location.pathname);
+  const { mode: cmMode, loading: cmGateLoading } = useCmFeatureGate(isCmPath && !!user);
+  const isCmGateDenied = isCmPath && !cmGateLoading && !cmGateAllows(effectiveRoles, cmMode);
 
   // Users whose ONLY role is marketing_sales_manager get a strict read-only
   // marketing scope. Users who also hold sales_manager (or any other role)
@@ -104,7 +113,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
     (isMarketingOnly && !isPathAllowedForMarketingOnly(location.pathname));
   // 2) Standard role check — pass if ANY of the user's roles is allowed.
   const isRoleDenied = !!(allowedRoles && !(effectiveRoles.some((r) => allowedRoles.includes(r))));
-  const isDenied = isModeratorBlocked || isRoleDenied;
+  const isDenied = isCmGateDenied || isModeratorBlocked || isRoleDenied;
 
   useEffect(() => {
     if (!loading && user && isDenied && !mustChangePassword(user)) {
@@ -115,6 +124,10 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
         (role === 'social_media_manager') ||
         isMarketingOnly ||
         (role === 'sales_moderator' && (location.pathname === '/' || location.pathname.startsWith('/dashboard')));
+      if (isCmGateDenied) {
+        toast.error('🚫 قسم «إدارة المحادثات» متاح للمدير العام فقط حالياً', { duration: 6000 });
+        return;
+      }
       if (isSilentLanding) return;
       const isDashboardAttempt =
         location.pathname === '/' || location.pathname.startsWith('/dashboard');
@@ -125,9 +138,9 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
         duration: 6000,
       });
     }
-  }, [loading, user, isDenied, location.pathname, role, moderatorTarget]);
+  }, [loading, user, isDenied, isCmGateDenied, location.pathname, role, moderatorTarget]);
 
-  if (loading) {
+  if (loading || (user && isCmPath && cmGateLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
@@ -143,6 +156,10 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   // picks her own password (user_metadata.must_change_password).
   if (mustChangePassword(user)) {
     return <ForcePasswordChange />;
+  }
+
+  if (isCmGateDenied) {
+    return <Navigate to="/unauthorized" state={{ from: location.pathname }} replace />;
   }
 
   if (isDenied) {

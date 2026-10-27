@@ -61,3 +61,6 @@ verify_jwt = true
 
 [functions.update-user-email]
 verify_jwt = true
+
+[functions.whatsapp-webhook]
+verify_jwt = false
