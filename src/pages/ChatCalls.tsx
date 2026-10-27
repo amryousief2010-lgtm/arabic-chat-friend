@@ -21,7 +21,7 @@ interface Missed { call_id: string; followup_at: string | null; followed_within_
 const STATUS_AR: Record<string, string> = { answered: "تم الرد", missed: "فائتة", busy: "مشغول", failed: "فشل", voicemail: "بريد صوتي" };
 const REASON_AR: Record<string, string> = { missing_id: "Cdr Id ناقص", duplicate_in_file: "مكرر داخل الملف", bad_direction: "اتجاه غير معروف",
   bad_started_at: "وقت غير صالح", bad_duration: "مدة غير صالحة", bad_phone: "رقم غير صالح" };
-const fmt = (t: string) => new Date(t).toLocaleString("ar-EG", { timeZone: "Africa/Cairo", dateStyle: "short", timeStyle: "short" });
+const fmt = (t: string) => new Date(t).toLocaleString("ar-EG", { timeZone: "Africa/Cairo", dateStyle: "short", timeStyle: "short", hourCycle: "h23" });
 
 /** سجل مكالمات الخط الساخن: استيراد CDR يدوي (لا API لدى المزوّد)، متابعة الفائتة خلال ساعة، والاستماع المسجَّل. */
 export default function ChatCalls() {
@@ -73,7 +73,7 @@ export default function ChatCalls() {
         {canImportCdr(roles) && (
           <CsvImportCard<CdrRow> title="استيراد سجل المكالمات (CDR)"
             description="ارفعي ملف zip كما نزل من البوابة (CDR.csv + Switched.csv) أو الملفين معاً. Cdr Id يمنع التكرار؛ إعادة الرفع تُحدِّث فقط. السجلات تختفي من البوابة بعد 5 أيام — الرفع كل يومين أو ثلاثة على الأكثر."
-            columnsHint="CDR.csv: Cdr Id، A Number، B Number، Start Time (DD-MM-YYYY HH:MM:SS بتوقيت القاهرة)، Call Result، Call Duration (HH:MM:SS)، Call Direction. Switched.csv: Cdr Id، Username، Switching Status (ACCEPTED/MISSED). المكالمة فائتة إذا لم توجد محاولة ACCEPTED."
+            columnsHint={<><p>ملف السجل <code dir="ltr" className="font-mono">CDR.csv</code>: رقم المكالمة <code dir="ltr" className="font-mono">Cdr Id</code>، رقم المتصل <code dir="ltr" className="font-mono">A Number</code>، الرقم المطلوب <code dir="ltr" className="font-mono">B Number</code>، وقت البدء <code dir="ltr" className="font-mono">Start Time</code> بصيغة <code dir="ltr" className="font-mono">DD-MM-YYYY HH:MM:SS</code> بتوقيت القاهرة، النتيجة <code dir="ltr" className="font-mono">Call Result</code>، المدة <code dir="ltr" className="font-mono">Call Duration</code>، الاتجاه <code dir="ltr" className="font-mono">Call Direction</code>.</p><p>ملف التحويل <code dir="ltr" className="font-mono">Switched.csv</code>: <code dir="ltr" className="font-mono">Cdr Id</code>، اسم المستخدم <code dir="ltr" className="font-mono">Username</code>، حالة التحويل <code dir="ltr" className="font-mono">Switching Status</code> (رُدّ عليها <code dir="ltr" className="font-mono">ACCEPTED</code> أو فائتة <code dir="ltr" className="font-mono">MISSED</code>). تُعدّ المكالمة فائتة إذا لم تُقبل في أي محاولة.</p></>}
             accept=".zip,.csv,application/zip,text/csv" multiple maxBytes={20_000_000}
             loadFiles={async (files) => { const r = await readCdrFiles(files); return { ...r, notes: [
               ...(r.unknownResults.length ? [`نتائج Call Result غير معروفة (ستُحفظ كما هي): ${r.unknownResults.join("، ")}`] : []),

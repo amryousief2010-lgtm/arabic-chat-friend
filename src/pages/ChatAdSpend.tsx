@@ -73,7 +73,7 @@ export default function ChatAdSpend() {
           </CardContent></Card>
 
         <CsvImportCard<SpendRow> title="استيراد CSV" description="تصدير يومي من مدير الإعلانات أو ملف يدوي. يُحلَّل في المتصفح ويُعرض قبل الاستيراد."
-          columnsHint="الأعمدة: Campaign name أو campaign_id، التاريخ (YYYY-MM-DD)، Amount spent، واختيارياً Impressions و Clicks و Currency."
+          columnsHint={<p>الأعمدة المطلوبة: اسم الحملة <code dir="ltr" className="font-mono">Campaign name</code> أو معرّفها <code dir="ltr" className="font-mono">campaign_id</code>، والتاريخ بصيغة <code dir="ltr" className="font-mono">YYYY-MM-DD</code>، والمبلغ المصروف <code dir="ltr" className="font-mono">Amount spent</code>. واختيارياً: مرات الظهور <code dir="ltr" className="font-mono">Impressions</code>، والنقرات <code dir="ltr" className="font-mono">Clicks</code>، والعملة <code dir="ltr" className="font-mono">Currency</code>.</p>}
           map={mapSpend} previewHeaders={["الحملة", "التاريخ", "المبلغ", "الظهور", "النقرات"]}
           preview={(r) => [r.campaign_name ?? r.meta_campaign_id ?? "", r.spend_date, formatMoney(r.spend, r.currency), String(r.impressions ?? "—"), String(r.clicks ?? "—")]}
           onImport={(list) => upsert(list)} />

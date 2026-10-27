@@ -54,7 +54,7 @@ export default function ChatKpis() {
   return (
     <DashboardLayout>
       <div dir="rtl" className="space-y-4">
-        <Header title="مؤشرات الأداء" subtitle="محسوبة لحظياً من المحادثات والمكالمات والطلبات والإنفاق — بتوقيت القاهرة" />
+        <Header title="مؤشرات الأداء" subtitle="لحظية — بتوقيت القاهرة" />
         <Card><CardContent className="flex flex-wrap items-end gap-3 pt-6">
           <label className="text-sm">من<Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-44" /></label>
           <label className="text-sm">إلى<Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-44" /></label>
@@ -72,11 +72,11 @@ export default function ChatKpis() {
 
         <Card><CardHeader><CardTitle>حسب المودريتور</CardTitle>
           <CardDescription>تكلفة المودريتور = إنفاق كل حملة موزَّع بنسبة محادثاتها منها ÷ طلباتها المُسلَّمة من الحملات</CardDescription></CardHeader>
-          <CardContent className="overflow-auto"><table className="w-full text-sm">
-            <thead className="bg-muted"><tr>{["المودريتور","محادثات","في الوقت","تغطية","متأخر","متروكة","مكالمات فائتة","متابعة ≤ ساعة","تحويل","طلبات","مُسلَّم","نسبة التسليم","صافي المُسلَّم","إنفاق موزَّع","تكلفة المُسلَّم"].map((h) => <th key={h} className="p-2 text-right whitespace-nowrap">{h}</th>)}</tr></thead>
+          <CardContent><p className="mb-2 text-xs text-muted-foreground">↔ اسحب الجدول أفقياً لعرض باقي الأعمدة؛ العمود الأول ثابت</p><div className="overflow-x-auto rounded border [scrollbar-width:thin]"><table className="w-full min-w-max text-sm">
+            <thead className="bg-muted"><tr>{["المودريتور","محادثات","في الوقت","تغطية","متأخر","متروكة","مكالمات فائتة","متابعة ≤ ساعة","تحويل","طلبات","مُسلَّم","نسبة التسليم","صافي المُسلَّم","إنفاق موزَّع","تكلفة المُسلَّم"].map((h, i) => <th key={h} className={`p-2 text-right whitespace-nowrap ${i === 0 ? "sticky right-0 z-10 shadow-[-6px_0_8px_-6px_rgba(102,45,140,0.25)] bg-muted" : ""}`}>{h}</th>)}</tr></thead>
             <tbody>{mods.map((r) => (
               <tr key={r.moderator_id} className="border-t">
-                <td className="p-2 font-medium">{r.display_name}</td><td className="p-2">{r.conversations}</td>
+                <td className="sticky right-0 z-10 shadow-[-6px_0_8px_-6px_rgba(102,45,140,0.25)] bg-card p-2 font-medium whitespace-nowrap">{r.display_name}</td><td className="p-2">{r.conversations}</td>
                 <td className="p-2">{r.on_time}</td><td className="p-2">{r.cover}</td><td className="p-2 text-[#F37346]">{r.late}</td>
                 <td className="p-2">{r.abandoned}</td><td className="p-2">{r.missed_calls}</td><td className="p-2">{formatPct(r.missed_followed, r.missed_calls)}</td>
                 <td className="p-2">{formatPct(r.converted, r.conversations)}</td><td className="p-2">{r.orders}</td><td className="p-2">{r.delivered}</td>
@@ -84,20 +84,20 @@ export default function ChatKpis() {
                 <td className="p-2">{formatMoney(r.allocated_spend)}</td><td className="p-2">{formatMoney(r.cost_per_delivered)}</td>
               </tr>))}
               {!mods.length && !loading && <tr><td colSpan={15} className="p-4 text-center text-muted-foreground">لا بيانات في هذه الفترة</td></tr>}
-            </tbody></table></CardContent></Card>
+            </tbody></table></div></CardContent></Card>
 
         <Card><CardHeader><CardTitle>حسب الحملة</CardTitle><CardDescription>تكلفة الطلب المُسلَّم = الإنفاق ÷ صافي المُسلَّم</CardDescription></CardHeader>
-          <CardContent className="overflow-auto"><table className="w-full text-sm">
-            <thead className="bg-muted"><tr>{["الحملة","الإنفاق","محادثات","تحويل","طلبات","مُسلَّم","نسبة التسليم","صافي المُسلَّم","تكلفة المُسلَّم"].map((h) => <th key={h} className="p-2 text-right">{h}</th>)}</tr></thead>
+          <CardContent><p className="mb-2 text-xs text-muted-foreground">↔ اسحب الجدول أفقياً لعرض باقي الأعمدة؛ العمود الأول ثابت</p><div className="overflow-x-auto rounded border [scrollbar-width:thin]"><table className="w-full min-w-max text-sm">
+            <thead className="bg-muted"><tr>{["الحملة","الإنفاق","محادثات","تحويل","طلبات","مُسلَّم","نسبة التسليم","صافي المُسلَّم","تكلفة المُسلَّم"].map((h, i) => <th key={h} className={`p-2 text-right whitespace-nowrap ${i === 0 ? "sticky right-0 z-10 shadow-[-6px_0_8px_-6px_rgba(102,45,140,0.25)] bg-muted" : ""}`}>{h}</th>)}</tr></thead>
             <tbody>{camps.map((r) => (
               <tr key={r.campaign_id} className="border-t">
-                <td className="p-2 font-medium">{r.campaign_name ?? "—"}</td><td className="p-2">{formatMoney(r.spend)}</td><td className="p-2">{r.conversations}</td>
+                <td className="sticky right-0 z-10 shadow-[-6px_0_8px_-6px_rgba(102,45,140,0.25)] bg-card p-2 font-medium whitespace-nowrap">{r.campaign_name ?? "—"}</td><td className="p-2">{formatMoney(r.spend)}</td><td className="p-2">{r.conversations}</td>
                 <td className="p-2">{formatPct(r.converted, r.conversations)}</td><td className="p-2">{r.orders}</td><td className="p-2">{r.delivered}</td>
                 <td className="p-2">{formatPct(r.delivered, r.resolved)}</td><td className="p-2">{formatMoney(r.delivered_value)}</td>
                 <td className="p-2 font-semibold text-[#A4288A]">{formatMoney(r.cost_per_delivered)}</td>
               </tr>))}
               {!camps.length && !loading && <tr><td colSpan={9} className="p-4 text-center text-muted-foreground">لا بيانات في هذه الفترة</td></tr>}
-            </tbody></table></CardContent></Card>
+            </tbody></table></div></CardContent></Card>
       </div>
     </DashboardLayout>
   );

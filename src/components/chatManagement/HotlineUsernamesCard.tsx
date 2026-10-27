@@ -38,7 +38,7 @@ export function HotlineUsernamesCard({ onChange }: { onChange: () => void }) {
             <td className="p-1">{select(r.moderator_id ?? "", (v) => save(r.username, v || null), `مودريتور ${r.username}`)}</td></tr>))}
           {!rows.length && <tr><td className="p-2 text-muted-foreground">لا يوجد ربط بعد</td></tr>}</tbody></table>
         <div className="flex flex-wrap items-center gap-2">
-          <Input dir="ltr" placeholder="username" value={draft.username} onChange={(e) => setDraft({ ...draft, username: e.target.value })} className="w-44" aria-label="اسم المستخدم" />
+          <Input dir="ltr" placeholder="اسم المستخدم في البوابة" value={draft.username} onChange={(e) => setDraft({ ...draft, username: e.target.value })} className="w-44" aria-label="اسم المستخدم" />
           {select(draft.moderator_id, (v) => setDraft({ ...draft, moderator_id: v }), "المودريتور")}
           <Button size="sm" className="bg-[#A4288A] hover:bg-[#662D8C] text-white" onClick={() => save(draft.username, draft.moderator_id || null)}>إضافة</Button>
         </div>

@@ -69,7 +69,9 @@ describe("chat management route access (roles mode = old matrix)", () => {
   it("sidebar has the إدارة المحادثات section with all pages", () => {
     const s = moduleSections.find((x) => x.id === "chat-management")!;
     expect(s.label).toBe("إدارة المحادثات");
-    expect(s.items.map((i) => i.path)).toEqual([CHAT_INBOX_PATH, CHAT_SUPERVISOR_PATH, CHAT_PHONE_REVIEW_PATH, CHAT_KPIS_PATH, CHAT_AD_SPEND_PATH, CHAT_CALLS_PATH, CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH]);
+    expect(s.items.map((i) => i.path)).toEqual([CHAT_INBOX_PATH, CHAT_SUPERVISOR_PATH, CHAT_PHONE_REVIEW_PATH, CHAT_KPIS_PATH, CHAT_AD_SPEND_PATH, CHAT_CALLS_PATH, CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, "/moderator-performance"]);
+    // اختصار أداء المودريتورز لا يشمل المودريتور نفسها، ويُخفى مع القسم عند إغلاق البوابة.
+    expect(s.items.find((i) => i.path === "/moderator-performance")!.roles).not.toContain("sales_moderator");
     const item = (p: string) => s.items.find((i) => i.path === p)!;
     expect(item(CHAT_INBOX_PATH).roles).toEqual(["sales_moderator"]);
     expect(item(CHAT_SUPERVISOR_PATH).roles).not.toContain("sales_moderator");

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { FilePickButton } from "./FilePickButton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
@@ -6,7 +7,7 @@ import { parseCsv, type RowIssue } from "@/lib/chatManagement/csvImport";
 
 /** رفع CSV يدوي: تحليل في المتصفح ← تحقق ← معاينة ← استيراد عبر الدالة. لا يُرسل شيء قبل الضغط على «استيراد». */
 export function CsvImportCard<T>(props: {
-  title: string; description: string; columnsHint: string;
+  title: string; description: string; columnsHint: ReactNode;
   map?: (t: string[][]) => { rows: T[]; issues: RowIssue[]; missingColumns: string[] };
   /** بديل عن map: قراءة عدة ملفات/zip (مثل CDR.csv + Switched.csv). */
   loadFiles?: (files: File[]) => Promise<{ rows: T[]; issues: RowIssue[]; missingColumns: string[]; notes?: string[] }>;
@@ -30,8 +31,8 @@ export function CsvImportCard<T>(props: {
     <Card>
       <CardHeader><CardTitle>{props.title}</CardTitle><CardDescription>{props.description}</CardDescription></CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-xs text-muted-foreground">{props.columnsHint}</p>
-        <input type="file" accept={props.accept ?? ".csv,text/csv"} multiple={props.multiple} aria-label="ملف CSV" onChange={(e) => onFiles(e.target.files)} className="text-sm" />
+        <div className="text-xs leading-relaxed text-muted-foreground">{props.columnsHint}</div>
+        <FilePickButton accept={props.accept ?? ".csv,text/csv"} multiple={props.multiple} ariaLabel="ملف CSV" onFiles={(l) => onFiles(l)} />
         {res?.missingColumns.length ? <p role="alert" className="text-sm text-[#F37346]">أعمدة ناقصة: {res.missingColumns.join("، ")}</p> : null}
         {res && !res.missingColumns.length && (
           <>

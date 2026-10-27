@@ -1,3 +1,4 @@
+import { TimeInput24 } from "@/components/chatManagement/TimeInput24";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -217,13 +218,15 @@ export default function ChatManagementShifts({ tab = "shifts" }: { tab?: Tab }) 
                   {canEdit && <Button onClick={generate} disabled={loading} className="bg-[#A4288A] hover:bg-[#662D8C] text-white"><Wand2 className="h-4 w-4 ml-1" />توليد الأسبوع</Button>}
                 </div>
               </CardHeader>
-              <CardContent className="overflow-x-auto">
-                <table className="w-full text-sm border-collapse">
+              <CardContent>
+                <p className="mb-2 text-xs text-muted-foreground flex items-center gap-1">↔ اسحب الجدول أفقياً لعرض باقي الأيام؛ عمود الشيفت ثابت</p>
+                <div className="overflow-x-auto rounded border [scrollbar-color:#A4288A33_transparent] [scrollbar-width:thin]">
+                <table className="w-full min-w-max text-sm border-collapse">
                   <thead>
                     <tr>
-                      <th className="p-2 border text-right">الشيفت</th>
+                      <th className="sticky right-0 z-10 bg-card p-2 border text-right shadow-[-6px_0_8px_-6px_rgba(102,45,140,0.25)]">الشيفت</th>
                       {dates.map((d) => (
-                        <th key={d} className="p-2 border text-center min-w-[130px]">
+                        <th key={d} className="p-2 border text-center min-w-[112px]">
                           <div className="font-bold">{AR_WEEKDAYS[dowOf(d)]}</div>
                           <div className="text-xs text-muted-foreground">{d}</div>
                           <div className="text-xs text-[#F37346]">{PATTERN_LABEL[patterns[dowOf(d)] ?? "three_shift"]}</div>
@@ -234,7 +237,7 @@ export default function ChatManagementShifts({ tab = "shifts" }: { tab?: Tab }) 
                   <tbody>
                     {Array.from({ length: maxSlots }, (_, i) => i + 1).map((slot) => (
                       <tr key={slot}>
-                        <td className="p-2 border font-medium whitespace-nowrap">شيفت {slot}</td>
+                        <td className="sticky right-0 z-10 bg-card p-2 border font-medium whitespace-nowrap shadow-[-6px_0_8px_-6px_rgba(102,45,140,0.25)]">شيفت {slot}</td>
                         {dates.map((d) => {
                           const t = templateFor(d, slot);
                           const a = cell(d, slot);
@@ -262,6 +265,7 @@ export default function ChatManagementShifts({ tab = "shifts" }: { tab?: Tab }) 
                     ))}
                   </tbody>
                 </table>
+                </div>
               </CardContent>
             </Card>
 
@@ -372,8 +376,8 @@ export default function ChatManagementShifts({ tab = "shifts" }: { tab?: Tab }) 
                   <div key={t.id} className="flex flex-wrap items-end gap-2">
                     <Badge variant="outline" className="w-24 justify-center">{PATTERN_LABEL[t.day_pattern]}</Badge>
                     <div><Label>الاسم</Label><Input disabled={!canEdit} value={t.label} onChange={(e) => setTemplates((s) => s.map((x, i) => i === idx ? { ...x, label: e.target.value } : x))} /></div>
-                    <div><Label>من</Label><Input type="time" dir="ltr" disabled={!canEdit} value={hhmm(t.starts_at)} onChange={(e) => setTemplates((s) => s.map((x, i) => i === idx ? { ...x, starts_at: e.target.value } : x))} /></div>
-                    <div><Label>إلى</Label><Input type="time" dir="ltr" disabled={!canEdit} value={hhmm(t.ends_at)} onChange={(e) => setTemplates((s) => s.map((x, i) => i === idx ? { ...x, ends_at: e.target.value } : x))} /></div>
+                    <div><Label>من</Label><TimeInput24 disabled={!canEdit} value={hhmm(t.starts_at)} onChange={(v) => setTemplates((s) => s.map((x, i) => i === idx ? { ...x, starts_at: v } : x))} /></div>
+                    <div><Label>إلى</Label><TimeInput24 disabled={!canEdit} value={hhmm(t.ends_at)} onChange={(v) => setTemplates((s) => s.map((x, i) => i === idx ? { ...x, ends_at: v } : x))} /></div>
                     {canEdit && <Button size="sm" variant="outline" onClick={() => saveTemplate(t)}><Save className="h-4 w-4" /></Button>}
                   </div>
                 ))}
@@ -405,8 +409,8 @@ export default function ChatManagementShifts({ tab = "shifts" }: { tab?: Tab }) 
               <Card>
                 <CardHeader><CardTitle>مؤشرات الرد</CardTitle><CardDescription>الرسائل خارج نافذة الخدمة يبدأ عدّادها مع بداية النافذة</CardDescription></CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-5">
-                  <div><Label>بداية الخدمة</Label><Input type="time" dir="ltr" disabled={!canEdit} value={hhmm(kpi.service_window_start)} onChange={(e) => setKpi({ ...kpi, service_window_start: e.target.value })} /></div>
-                  <div><Label>نهاية الخدمة</Label><Input type="time" dir="ltr" disabled={!canEdit} value={hhmm(kpi.service_window_end)} onChange={(e) => setKpi({ ...kpi, service_window_end: e.target.value })} /></div>
+                  <div><Label>بداية الخدمة</Label><TimeInput24 disabled={!canEdit} value={hhmm(kpi.service_window_start)} onChange={(v) => setKpi({ ...kpi, service_window_start: v })} /></div>
+                  <div><Label>نهاية الخدمة</Label><TimeInput24 disabled={!canEdit} value={hhmm(kpi.service_window_end)} onChange={(v) => setKpi({ ...kpi, service_window_end: v })} /></div>
                   <div><Label>المحادثة المهملة (دقيقة)</Label><Input type="number" disabled={!canEdit} value={kpi.abandoned_minutes} onChange={(e) => setKpi({ ...kpi, abandoned_minutes: Number(e.target.value) })} /></div>
                   <div><Label>أول رد داخل الشيفت (دقيقة)</Label><Input type="number" disabled={!canEdit} value={kpi.first_reply_target_on_shift_min} onChange={(e) => setKpi({ ...kpi, first_reply_target_on_shift_min: Number(e.target.value) })} /></div>
                   <div><Label>أول رد خارج الشيفت (دقيقة)</Label><Input type="number" disabled={!canEdit} value={kpi.first_reply_target_off_shift_min} onChange={(e) => setKpi({ ...kpi, first_reply_target_off_shift_min: Number(e.target.value) })} /></div>

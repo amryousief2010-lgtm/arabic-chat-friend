@@ -164,6 +164,8 @@ export const moduleSections: ModuleSection[] = [
       { icon: PhoneCall, label: "مكالمات الخط الساخن", path: CHAT_CALLS_PATH, roles: CHAT_CALLS_ROLES },
       { icon: CalendarClock, label: "الشيفتات والأجازات", path: CHAT_MANAGEMENT_SHIFTS_PATH, roles: CHAT_MANAGEMENT_VIEW_ROLES },
       { icon: SlidersHorizontal, label: "إعدادات التوزيع والمؤشرات", path: CHAT_MANAGEMENT_SETTINGS_PATH, roles: CHAT_MANAGEMENT_VIEW_ROLES },
+      // اختصار لصفحة قائمة أصلاً في قسم المبيعات؛ يظهر هنا فقط لمن تسمح له البوابة بالقسم.
+      { icon: UserCheck, label: "أداء المودريتورز", path: "/moderator-performance", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
     ],
   },
   {
@@ -456,6 +458,24 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
+  const { mode: cmMode, loading: cmGateLoading } = useCmFeatureGate(!!user);
+  const cmVisible = !cmGateLoading && cmGateAllows(userRoles, cmMode);
+
+  // في صفحات «إدارة المحادثات»: مرّر القائمة حتى يظهر الرابط النشط (روابط القسم كانت تقع أسفل حافة الشاشة).
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el || !isChatManagementPath(location.pathname)) return;
+    const id = window.setTimeout(() => {
+      const a = el.querySelector<HTMLElement>(`a[href="${location.pathname}"]`);
+      if (!a) return;
+      const top = a.offsetTop - el.offsetTop;
+      if (top < el.scrollTop || top + a.offsetHeight > el.scrollTop + el.clientHeight) {
+        el.scrollTop = Math.max(0, top - el.clientHeight / 2);
+      }
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [location.pathname, cmVisible]);
+
   const toggleSection = (id: string) => {
     setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
   };
@@ -510,15 +530,13 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
     );
 
   // بوابة «إدارة المحادثات»: القسم مخفي تماماً عن غير المدير العام في وضع general_manager_only (وأثناء التحميل).
-  const { mode: cmMode, loading: cmGateLoading } = useCmFeatureGate(!!user);
-  const cmVisible = !cmGateLoading && cmGateAllows(userRoles, cmMode);
 
   const visibleSections = sectionsWithMoves
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
         if (!hasAnyRole(item.roles)) return false;
-        if (isChatManagementPath(item.path) && !cmVisible) return false;
+        if ((isChatManagementPath(item.path) || section.id === 'chat-management') && !cmVisible) return false;
         if (isMarketingOnly && !isPathAllowedForMarketingOnly(item.path)) return false;
         // مراجعة أوردرات هاجر: تظهر لنورا فقط (قراءة فقط)
         if (item.path === '/hagar-orders-review') {

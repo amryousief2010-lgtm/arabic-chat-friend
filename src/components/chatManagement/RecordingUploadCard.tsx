@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { audioMimeFor, matchRecording, RECORDING_MAX_BYTES, type MatchableCall } from "@/lib/chatManagement/csvImport";
+import { FilePickButton } from "./FilePickButton";
 
 const db = supabase as any;
 
@@ -47,8 +48,8 @@ export function RecordingUploadCard({ calls, onDone }: { calls: MatchableCall[];
       <CardHeader><CardTitle>رفع تسجيلات المكالمات</CardTitle>
         <CardDescription>صدّري التسجيلات من البوابة بأي طريقة وارفعيها هنا (ملفات أو zip). تُحفظ في تخزين خاص، وكل رفع يُسجَّل في سجل التدقيق. للرفع لمكالمة محددة استخدمي «رفع تسجيل» في الجدول.</CardDescription></CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-xs text-muted-foreground">المطابقة: Cdr Id داخل اسم الملف (مثل CDR.260901.120000.0000001.mp3)، أو رقم العميل + الوقت (مثل 01000000001_20260901_120000.mp3) خلال دقيقتين. حتى 50 ميجا للملف.</p>
-        <input type="file" multiple accept="audio/*,.zip,application/zip" aria-label="ملفات التسجيلات" className="text-sm" onChange={(e) => onFiles(e.target.files)} />
+        <p className="text-xs leading-relaxed text-muted-foreground">طريقة المطابقة: رقم المكالمة (<code dir="ltr" className="font-mono">Cdr Id</code>) داخل اسم الملف، مثل <code dir="ltr" className="font-mono">CDR.260901.120000.0000001.mp3</code>؛ أو رقم العميل مع وقت المكالمة بفارق دقيقتين على الأكثر، مثل <code dir="ltr" className="font-mono">01000000001_20260901_120000.mp3</code>. الحد الأقصى ٥٠ ميجا للملف.</p>
+        <FilePickButton multiple accept="audio/*,.zip,application/zip" ariaLabel="ملفات التسجيلات" label="اختيار التسجيلات" onFiles={(l) => onFiles(l)} />
         {plan && (<>
           <p className="text-sm">مطابق: <b>{ok.length}</b> — غير مطابق: <b className="text-[#F37346]">{plan.length - ok.length}</b></p>
           <ul className="max-h-40 overflow-auto text-xs">{plan.slice(0, 100).map((p, i) => (
