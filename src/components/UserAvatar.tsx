@@ -9,6 +9,7 @@ interface UserAvatarProps {
   name?: string | null;
   className?: string;
   fallbackClassName?: string;
+  fallbackStyle?: React.CSSProperties;
 }
 
 const initial = (name?: string | null) => {
@@ -16,13 +17,13 @@ const initial = (name?: string | null) => {
   return trimmed ? trimmed.charAt(0) : "م";
 };
 
-const UserAvatar = ({ userId, employeeId, name, className, fallbackClassName }: UserAvatarProps) => {
+const UserAvatar = ({ userId, employeeId, name, className, fallbackClassName, fallbackStyle }: UserAvatarProps) => {
   const url = useAvatarUrl(userId, employeeId);
 
   return (
     <Avatar className={cn("w-10 h-10", className)}>
       {url && <AvatarImage src={url} alt={name || "صورة المستخدم"} className="object-cover" />}
-      <AvatarFallback className={cn("bg-primary text-primary-foreground font-semibold", fallbackClassName)}>
+      <AvatarFallback className={cn("bg-primary text-primary-foreground font-semibold", fallbackClassName)} style={fallbackStyle}>
         {initial(name)}
       </AvatarFallback>
     </Avatar>
