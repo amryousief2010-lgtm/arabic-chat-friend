@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Crown, UserCog, Users } from "lucide-react";
 import { HrHeader, IconBadge, EmployeeAvatar, Chip, deptColor, deptIcon } from "@/components/hr/redesign/HrUi";
+import UserAvatar from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { useHrDirectory } from "@/hooks/useHrDirectory";
 import { BRAND, BRAND_GRADIENT, SCALE, tint } from "@/lib/hr/brand";
@@ -15,7 +16,9 @@ const VLine = ({ h = SCALE.lg }: { h?: number }) => <div className="mx-auto" sty
 const LeaderNode = ({ name, title, icon: Icon }: { name: string; title: string; icon: any }) => (
   <div className="bg-card rounded-2xl flex items-center gap-3 mx-auto shadow-sm" data-testid="leader-node"
     style={{ padding: `${SCALE.md}px ${SCALE.lg}px`, border: `2px solid ${BRAND.magenta}`, width: 300 }}>
-    <div className="flex items-center justify-center rounded-full text-white font-bold shrink-0" style={{ width: SCALE.xxl - SCALE.md, height: SCALE.xxl - SCALE.md, background: BRAND_GRADIENT, fontSize: SCALE.md + 4 }}>{initialOf(name)}</div>
+    <div className="shrink-0" style={{ width: SCALE.xxl - SCALE.md, height: SCALE.xxl - SCALE.md }}>
+      <UserAvatar matchNames={[name]} name={initialOf(name)} className="w-full h-full" fallbackClassName="text-white font-bold" fallbackStyle={{ background: BRAND_GRADIENT, fontSize: SCALE.md + 4 }} />
+    </div>
     <div className="min-w-0">
       <div className="font-extrabold text-lg" style={{ color: BRAND.purple }}>{name}</div>
       <div className="text-xs text-muted-foreground inline-flex items-center gap-1"><Icon className="w-3 h-3" />{title}</div>
