@@ -322,8 +322,10 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableKey) return json({ error: "LOVABLE_API_KEY غير مُعد على الخادم." }, 500);
+    const aiKey = Deno.env.get("AI_GATEWAY_API_KEY");
+    if (!aiKey) {
+      return json({ error: "خدمة الذكاء الاصطناعي غير مفعّلة حاليًا (مفتاح AI_GATEWAY_API_KEY غير مُعد). تواصل مع مدير النظام.", code: "ai_not_configured" }, 503);
+    }
 
     // service_role client is used ONLY for JWT verification, role checks, and
     // the cross-user global audit count. It NEVER touches operational/financial tables.
@@ -417,16 +419,15 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 6) Call Lovable AI Gateway
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // 6) Call Vercel AI Gateway (OpenAI-compatible)
+    const aiResp = await fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Lovable-API-Key": lovableKey,
-        "X-Lovable-AIG-SDK": "raw",
+        Authorization: `Bearer ${aiKey}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: Deno.env.get("AI_ASSISTANT_MODEL") || "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           {
@@ -437,7 +438,7 @@ Deno.serve(async (req) => {
           },
         ],
         temperature: 0.2,
-        max_tokens: 1200,
+        max_tokens: 2500,
       }),
     });
 
@@ -454,7 +455,7 @@ Deno.serve(async (req) => {
       });
       if (status === 429) return json({ error: "تجاوز معدل الاستخدام (429)، حاول لاحقًا." }, 429);
       if (status === 402)
-        return json({ error: "نفذت أرصدة الذكاء الاصطناعي. يرجى إضافة رصيد من إعدادات الحساب." }, 402);
+        return json({ error: "نفد رصيد بوابة الذكاء الاصطناعي (Vercel AI Gateway). يرجى إضافة رصيد." }, 402);
       return json({ error: `خطأ بوابة AI: ${status}`, detail: errText.slice(0, 300) }, 502);
     }
 
