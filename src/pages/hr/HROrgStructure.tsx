@@ -23,10 +23,10 @@ const LeaderNode = ({ name, title, icon: Icon }: { name: string; title: string; 
   </div>
 );
 
-const PersonNode = ({ m, dept, head }: { m: DirectoryEmployee; dept: string; head?: boolean }) => {
+const PersonNode = ({ m, dept, head, linkable = true }: { m: DirectoryEmployee; dept: string; head?: boolean; linkable?: boolean }) => {
   const color = deptColor(dept);
   return (
-    <Link to={`/hr/employees/${m.id}`} data-testid={head ? "head-node" : "staff-node"}
+    <Link to={linkable ? `/hr/employees/${m.id}` : "#"} onClick={linkable ? undefined : (e) => e.preventDefault()} data-testid={head ? "head-node" : "staff-node"}
       className="bg-card rounded-xl flex items-center gap-2 hover:shadow-md transition-shadow"
       style={{ padding: SCALE.sm, border: `1.5px solid ${head ? color : tint(color, 0.35)}`, background: head ? tint(color, 0.06) : undefined }}>
       <EmployeeAvatar employeeId={m.id} userId={m.user_id} name={m.full_name} size={head ? SCALE.xl + SCALE.xs : SCALE.xl - SCALE.xs} />
@@ -41,8 +41,8 @@ const PersonNode = ({ m, dept, head }: { m: DirectoryEmployee; dept: string; hea
 };
 
 /** الهيكل التنظيمي كمخطط انسيابي: المدير العام ← المدير التنفيذي ← رؤساء الأقسام ← الموظفون */
-const HROrgStructure = () => {
-  const { employees, loading } = useHrDirectory();
+const HROrgStructure = ({ publicView = false }: { publicView?: boolean }) => {
+  const { employees, loading, unavailable } = useHrDirectory({ source: publicView ? "public" : "table" });
   const [showInactive, setShowInactive] = useState(false);
   const depts = useMemo(() => buildFlowchart(employees, { showInactive }), [employees, showInactive]);
   const COL = 236;
@@ -70,7 +70,9 @@ const HROrgStructure = () => {
             <VLine />
             <LeaderNode name={LEADERSHIP[1].name} title={LEADERSHIP[1].title} icon={UserCog} />
             <VLine />
-            {loading ? <div className="text-center text-muted-foreground py-10">جارٍ التحميل...</div> : (
+            {loading ? <div className="text-center text-muted-foreground py-10">جارٍ التحميل...</div> : unavailable ? (
+              <div className="text-center text-muted-foreground py-10">تعذّر تحميل الهيكل الحي — <Link to="/org-chart/legacy" className="underline">عرض الهيكل العام</Link></div>
+            ) : (
               <div data-testid="flow-departments">
               {rows.map((row, ri) => (
               <div key={ri}>
@@ -90,7 +92,7 @@ const HROrgStructure = () => {
                         <span className="text-[11px] font-normal opacity-90 inline-flex items-center gap-0.5"><Users className="w-3 h-3" />{d.staff.filter((s) => s.status === "active").length + (d.head ? 1 : 0)}</span>
                       </div>
                       <VLine h={SCALE.sm} />
-                      {d.head ? <PersonNode m={d.head} dept={d.name} head /> : (
+                      {d.head ? <PersonNode m={d.head} dept={d.name} head linkable={!publicView} /> : (
                         <div className="text-center text-xs text-muted-foreground border border-dashed rounded-xl" style={{ padding: SCALE.sm }}>لم يُحدَّد رئيس القسم</div>
                       )}
                       {d.staff.length > 0 && (
@@ -100,7 +102,7 @@ const HROrgStructure = () => {
                             {d.staff.map((m) => (
                               <div key={m.id} className="relative">
                                 <div className="absolute" style={{ right: -SCALE.sm, top: "50%", width: SCALE.sm, height: 2, background: LINE }} />
-                                <PersonNode m={m} dept={d.name} />
+                                <PersonNode m={m} dept={d.name} linkable={!publicView} />
                               </div>
                             ))}
                           </div>
