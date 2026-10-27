@@ -34,7 +34,16 @@ export default function ChatKpis() {
       db.rpc("cm_kpi_by_moderator", { _from: from, _to: to }),
       db.rpc("cm_kpi_by_campaign", { _from: from, _to: to }),
     ]);
-    if (m.error || c.error) toast.error(`تعذّر تحميل المؤشرات: ${(m.error ?? c.error).message}`);
+    if (m.error || c.error) {
+      const e = m.error ?? c.error;
+      console.error("cm_kpi load failed", e);
+      const msg = String(e?.message ?? "");
+      toast.error(/timeout|canceling statement/i.test(msg) || e?.code === "57014"
+        ? "تعذّر تحميل المؤشرات: الاستعلام استغرق وقتاً أطول من المسموح. جرّب مدة أقصر أو أعد المحاولة بعد قليل."
+        : /permission|denied|42501/i.test(msg) || e?.code === "42501"
+        ? "تعذّر تحميل المؤشرات: ليس لديك صلاحية لعرض هذه البيانات."
+        : "تعذّر تحميل المؤشرات بسبب خطأ في الخادم. أعد المحاولة بعد قليل.");
+    }
     setMods(m.data ?? []); setCamps(c.data ?? []); setLoading(false);
   }, [from, to]);
   useEffect(() => { load(); }, [load]);
