@@ -122,6 +122,9 @@ const HREmployeeAdvancesReport = lazy(() => import("@/pages/hr/HREmployeeAdvance
 const HRDeductions = lazy(() => import("@/pages/hr/HRDeductions"));
 const HRWorkforceAnalysis = lazy(() => import("@/pages/hr/HRWorkforceAnalysis"));
 const HRPayDay1Report = lazy(() => import("@/pages/hr/HRPayDay1Report"));
+const HREmployeeProfile = lazy(() => import("@/pages/hr/HREmployeeProfile"));
+const HRPayDayBoard = lazy(() => import("@/pages/hr/HRPayDayBoard"));
+const OrgChartRoute = lazy(() => import("@/pages/OrgChartRoute"));
 const Warehouses = lazy(() => import("@/pages/modules/Warehouses"));
 const WarehouseManagementHub = lazy(() => import("@/pages/modules/WarehouseManagementHub"));
 const WarehousesByLocation = lazy(() => import("@/pages/modules/WarehousesByLocation"));
@@ -536,6 +539,11 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           } />
           <Route path="/org-chart" element={
+            <ProtectedRoute>
+              <PageTransition><OrgChartRoute /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/org-chart/legacy" element={
             <ProtectedRoute>
               <PageTransition><OrgChart /></PageTransition>
             </ProtectedRoute>
@@ -1043,6 +1051,16 @@ const AnimatedRoutes = () => {
           <Route path="/hr/employees" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant']}>
               <PageTransition><HREmployees /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/hr/employees/:id" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'accountant', 'hr_manager']}>
+              <PageTransition><HREmployeeProfile /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/hr/payday" element={
+            <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'hr_manager', 'accountant', 'financial_manager']}>
+              <PageTransition><HRPayDayBoard /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/hr/work-locations" element={
