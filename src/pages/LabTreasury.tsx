@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import UserAvatar from "@/components/UserAvatar";
 import { z } from "zod";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AdvancesTab from "@/components/lab-treasury/AdvancesTab";
@@ -1702,7 +1703,7 @@ export default function LabTreasury() {
                             return <Badge variant="outline" className="text-[10px]">يدوي</Badge>;
                           })()}
                         </TableCell>
-                        <TableCell className="text-xs">{profiles[m.created_by || ""] || "—"}</TableCell>
+                        <TableCell className="text-xs"><span className="inline-flex items-center gap-1.5">{m.created_by && <UserAvatar userId={m.created_by} name={profiles[m.created_by]} className="w-6 h-6" fallbackClassName="text-[10px]" />}{profiles[m.created_by || ""] || "—"}</span></TableCell>
                         <TableCell>
                           <div className="flex gap-1 items-center">
                             <Button size="icon" variant="ghost" title="عرض التفاصيل" onClick={() => setDetailsDlg({ open: true, movement: m })}>

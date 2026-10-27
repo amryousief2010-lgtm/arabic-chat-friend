@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 type Entry = { path: string | null; url: string | null };
 
 let store: Record<string, Entry> = {};
+/** صور الموظفين حسب معرّف الموظف (مصدر احتياطي حين لا يوجد حساب مربوط أو صورة حساب) */
+let employeeStore: Record<string, { userId: string | null; url: string | null }> = {};
 let loadPromise: Promise<void> | null = null;
 let loadedAt = 0;
 const TTL = 45 * 60 * 1000; // الرابط الموقّع صالح ساعة
@@ -31,10 +33,30 @@ async function load(): Promise<void> {
       if (path) paths.push(path);
     });
 
+    // مصدر واحد للصورة: صورة الحساب أولًا، ثم صورة ملف الموظف المربوط بالحساب.
+    // قد لا يملك المستخدم صلاحية قراءة hr_employees — عندها نكتفي بصور الحسابات.
+    const empPaths: Record<string, { userId: string | null; path: string | null }> = {};
+    try {
+      const { data: emps } = await (supabase as any)
+        .from("hr_employees")
+        .select("id, user_id, photo_url");
+      (emps || []).forEach((e: any) => {
+        const userId = (e.user_id as string | null) || null;
+        const path = (e.photo_url as string | null) || null;
+        empPaths[e.id as string] = { userId, path };
+        if (userId && path && !next[userId]?.path) {
+          next[userId] = { path, url: null };
+        }
+        if (path) paths.push(path);
+      });
+    } catch {
+      /* بدون صلاحية HR */
+    }
+
     if (paths.length) {
       const { data: signed } = await supabase.storage
         .from("avatars")
-        .createSignedUrls(paths, 60 * 60);
+        .createSignedUrls(Array.from(new Set(paths)), 60 * 60);
       const map = new Map<string, string>();
       (signed || []).forEach((s: any) => {
         if (s?.path && s?.signedUrl) map.set(s.path, s.signedUrl);
@@ -42,6 +64,15 @@ async function load(): Promise<void> {
       Object.values(next).forEach((e) => {
         if (e.path) e.url = map.get(e.path) ?? null;
       });
+      const nextEmp: typeof employeeStore = {};
+      Object.entries(empPaths).forEach(([id, e]) => {
+        nextEmp[id] = { userId: e.userId, url: e.path ? map.get(e.path) ?? null : null };
+      });
+      employeeStore = nextEmp;
+    } else {
+      employeeStore = Object.fromEntries(
+        Object.entries(empPaths).map(([id, e]) => [id, { userId: e.userId, url: null }]),
+      );
     }
 
     store = next;
@@ -67,7 +98,17 @@ export function refreshAvatars() {
 }
 
 /** رابط الصورة الشخصية لمستخدم معيّن (أو null) */
-export function useAvatarUrl(userId?: string | null): string | null {
+export function resolveAvatarUrl(userId?: string | null, employeeId?: string | null): string | null {
+  if (userId && store[userId]?.url) return store[userId].url;
+  if (employeeId) {
+    const e = employeeStore[employeeId];
+    if (e?.userId && store[e.userId]?.url) return store[e.userId].url;
+    if (e?.url) return e.url;
+  }
+  return null;
+}
+
+export function useAvatarUrl(userId?: string | null, employeeId?: string | null): string | null {
   const [, force] = useState(0);
 
   useEffect(() => {
@@ -79,6 +120,5 @@ export function useAvatarUrl(userId?: string | null): string | null {
     };
   }, []);
 
-  if (!userId) return null;
-  return store[userId]?.url ?? null;
+  return resolveAvatarUrl(userId, employeeId);
 }

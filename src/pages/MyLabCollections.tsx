@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import UserAvatar from "@/components/UserAvatar";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -109,7 +110,7 @@ export default function MyLabCollections() {
           <Wallet className="w-6 h-6 text-primary" />
           <div>
             <h1 className="text-2xl font-bold">تحصيلاتي لخزنة المعمل</h1>
-            <div className="text-sm text-muted-foreground">{profile?.full_name}</div>
+            <div className="text-sm text-muted-foreground inline-flex items-center gap-1.5"><UserAvatar userId={user?.id} name={profile?.full_name} className="w-5 h-5" fallbackClassName="text-[10px]" />{profile?.full_name}</div>
           </div>
         </div>
 
