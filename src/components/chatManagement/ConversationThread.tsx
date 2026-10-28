@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatDateTime12 } from "@/lib/chatManagement/timeFormat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { BRAND } from "./brand";
 const db = supabase as any;
 interface Msg { id: string; direction: "in" | "out"; type: string; body: string | null; sent_at: string }
 
-const fmt = (s: string) => new Date(s).toLocaleString("ar-EG", { timeZone: "Africa/Cairo", dateStyle: "short", timeStyle: "short", hourCycle: "h23" });
+const fmt = (x: string) => formatDateTime12(x);
 
 /** عرض المحادثة (قراءة فقط) + حقل كتابة معطّل حتى يُربط الإرسال عبر واتساب. */
 export default function ConversationThread({ conversationId, title }: { conversationId: string | null; title?: string }) {

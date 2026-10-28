@@ -1,4 +1,5 @@
 import { TimeInput24 } from "@/components/chatManagement/TimeInput24";
+import { formatClock12 } from "@/lib/chatManagement/timeFormat";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -245,7 +246,7 @@ export default function ChatManagementShifts({ tab = "shifts" }: { tab?: Tab }) 
                           const offIds = Object.entries(daysOff).filter(([, v]) => v === dowOf(d)).map(([k]) => k);
                           return (
                             <td key={d} className="p-2 border align-top">
-                              <div className="text-xs text-muted-foreground mb-1" dir="ltr">{hhmm(a?.starts_at ?? t.starts_at)}–{hhmm(a?.ends_at ?? t.ends_at)}</div>
+                              <div className="text-xs text-muted-foreground mb-1" dir="ltr">{formatClock12(a?.starts_at ?? t.starts_at)} – {formatClock12(a?.ends_at ?? t.ends_at)}</div>
                               {canEdit ? (
                                 <Select value={a?.moderator_id ?? NONE} onValueChange={(v) => setCell(d, slot, v === NONE ? null : v)}>
                                   <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>

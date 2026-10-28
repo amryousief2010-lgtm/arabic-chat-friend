@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { formatDateTime12 } from "@/lib/chatManagement/timeFormat";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
@@ -31,7 +32,7 @@ interface Missed { call_id: string; followup_at: string | null; followed_within_
 const STATUS_AR: Record<string, string> = { answered: "تم الرد", missed: "فائتة", busy: "مشغول", failed: "فشل", voicemail: "بريد صوتي" };
 const REASON_AR: Record<string, string> = { missing_id: "Cdr Id ناقص", duplicate_in_file: "مكرر داخل الملف", bad_direction: "اتجاه غير معروف",
   bad_started_at: "وقت غير صالح", bad_duration: "مدة غير صالحة", bad_phone: "رقم غير صالح" };
-const fmt = (t: string) => new Date(t).toLocaleString("ar-EG", { timeZone: "Africa/Cairo", dateStyle: "short", timeStyle: "short", hourCycle: "h23" });
+const fmt = (x: string) => formatDateTime12(x);
 
 /** سجل مكالمات الخط الساخن: استيراد CDR يدوي (لا API لدى المزوّد)، متابعة الفائتة خلال ساعة، والاستماع المسجَّل. */
 export default function ChatCalls() {
