@@ -9,17 +9,24 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { canImportCdr, canListenRecordings, canUploadRecordings, canManageHotlineUsernames } from "@/config/chatManagement";
 import { CsvImportCard } from "@/components/chatManagement/CsvImportCard";
-import { readCdrFiles, toCdrPayload, audioMimeFor, type CdrRow, type NestedRecording } from "@/lib/chatManagement/csvImport";
+import { readCdrFiles, toCdrPayload, audioMimeFor, type CdrRow, type NestedRecording, type MatchableCall } from "@/lib/chatManagement/csvImport";
 import { HotlineUsernamesCard } from "@/components/chatManagement/HotlineUsernamesCard";
 import { RecordingUploadCard, uploadRecording } from "@/components/chatManagement/RecordingUploadCard";
-import { maskPhone } from "@/lib/chatManagement/inbox";
 import { CallAnalysisDialog } from "@/components/chatManagement/CallAnalysisDialog";
 import { CallAnalysisStrip, type CallAnalysisKpis } from "@/components/chatManagement/KpiStrip";
 import { OUTCOME_AR, ANALYSIS_STATUS_AR, type CallAnalysisRow } from "@/lib/chatManagement/callAnalysis";
 
 const db = supabase as any;
-interface Call { id: string; external_call_id: string | null; direction: string; started_at: string; duration_sec: number; status: string; phone_norm: string | null;
-  moderator_id: string | null; recording_path: string | null; followed_up_at: string | null; is_sales?: boolean }
+interface Call { id: string; external_call_id: string | null; direction: string; started_at: string; duration_sec: number; status: string; phone_masked: string | null;
+  has_phone: boolean; moderator_id: string | null; recording_path: string | null; followed_up_at: string | null; is_sales?: boolean; category?: string }
+interface Filters { from: string; to: string; moderator: string; outcome: string; category: string }
+interface Summary { calls: number; analyzed: number; avg_score: number | null; order_pct: number | null; open_followups: number }
+const PAGE = 100;
+const NO_FILTERS: Filters = { from: "", to: "", moderator: "", outcome: "", category: "" };
+const CATEGORY_AR: Record<string, string> = { answered: "تم الرد", missed: "فائتة (مبيعات)", ivr: "انقطعت في القائمة الصوتية", non_sales: "غير المبيعات" };
+const OUTCOME_FILTER_AR: Record<string, string> = { inquiry_only: "استفسار فقط", order_placed: "تم الطلب", order_promised: "وعد بالطلب",
+  followup: "يحتاج متابعة", not_interested: "غير مهتم", complaint: "شكوى", other: "أخرى", followup_needed: "متابعة مطلوبة", not_analyzed: "لم تُحلَّل" };
+const sel = "h-9 rounded-md border bg-background px-2 text-sm";
 interface Missed { call_id: string; followup_at: string | null; followed_within_target: boolean }
 const STATUS_AR: Record<string, string> = { answered: "تم الرد", missed: "فائتة", busy: "مشغول", failed: "فشل", voicemail: "بريد صوتي" };
 const REASON_AR: Record<string, string> = { missing_id: "Cdr Id ناقص", duplicate_in_file: "مكرر داخل الملف", bad_direction: "اتجاه غير معروف",
@@ -32,6 +39,11 @@ export default function ChatCalls() {
   const [calls, setCalls] = useState<Call[]>([]);
   const [missed, setMissed] = useState<Record<string, Missed>>({});
   const [mods, setMods] = useState<Record<string, string>>({});
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [matchable, setMatchable] = useState<MatchableCall[]>([]);
+  const [phones, setPhones] = useState<Record<string, string>>({});
   const [audio, setAudio] = useState<{ id: string; url: string } | null>(null);
   const [analysis, setAnalysis] = useState<Record<string, CallAnalysisRow>>({});
   const [objections, setObjections] = useState<{ objection: string; calls: number }[]>([]);
@@ -41,21 +53,51 @@ export default function ChatCalls() {
   const isGM = (roles ?? []).includes("general_manager");
   const canAnalyze = canUploadRecordings(roles);
 
-  const load = useCallback(async () => {
-    const [c, m, md] = await Promise.all([
-      db.from("cm_calls").select("id,external_call_id,direction,started_at,duration_sec,status,phone_norm,moderator_id,recording_path,followed_up_at,is_sales").order("started_at", { ascending: false }).limit(300),
-      db.from("cm_kpi_missed_calls_v").select("call_id,followup_at,followed_within_target").order("started_at", { ascending: false }).limit(300),
+  const args = (f: Filters) => ({ _from: f.from || null, _to: f.to || null, _moderator: f.moderator || null, _outcome: f.outcome || null, _category: f.category || null });
+  // تُحمَّل المكالمات حسب الفلتر من الخادم (كل مكالمات الموظفة مثلاً)، على صفحات من 100 مع «تحميل المزيد».
+  const load = useCallback(async (more = false) => {
+    const offset = more ? calls.length : 0;
+    const [c, s, m, md] = await Promise.all([
+      db.rpc("cm_calls_search", { ...args(filters), _limit: Math.max(PAGE, more ? PAGE : calls.length), _offset: offset }),
+      db.rpc("cm_calls_search_summary", args(filters)),
+      db.from("cm_kpi_missed_calls_v").select("call_id,followup_at,followed_within_target").order("started_at", { ascending: false }).limit(2000),
       db.from("cm_moderators").select("id,display_name"),
     ]);
+    setSummary((s.data ?? [])[0] ?? null);
+    // مطابقة ملفات التسجيل اليدوية بالرقم تحتاج الرقم الكامل — لمن يرفع التسجيلات فقط (مدير المبيعات/المدير العام).
+    if (canUploadRecordings(roles)) {
+      const mc = await db.from("cm_calls").select("id,external_call_id,phone_norm,started_at").order("started_at", { ascending: false }).limit(1000);
+      setMatchable(mc.data ?? []);
+    }
     const [an, ob] = await Promise.all([db.rpc("cm_call_analysis_list", {}), db.rpc("cm_kpi_call_objections", { _from: "2000-01-01", _to: "2100-01-01", _limit: 5 })]);
     setAnalysis(Object.fromEntries(((an.data ?? []) as CallAnalysisRow[]).map((x) => [x.call_id, x])));
     setObjections(ob.data ?? []);
     if (c.error) toast.error(`تعذّر التحميل: ${c.error.message}`);
-    setCalls(c.data ?? []);
+    const rows = (c.data ?? []) as Call[];
+    setCalls((prev) => (more ? [...prev, ...rows] : rows));
+    setHasMore(rows.length >= (more ? PAGE : Math.max(PAGE, calls.length)));
     setMissed(Object.fromEntries((m.data ?? []).map((x: Missed) => [x.call_id, x])));
     setMods(Object.fromEntries((md.data ?? []).map((x: { id: string; display_name: string }) => [x.id, x.display_name])));
-  }, []);
-  useEffect(() => { load(); }, [load]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, calls.length, roles]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [filters]);
+  const setF = (k: keyof Filters, v: string) => { setCalls([]); setFilters((f) => ({ ...f, [k]: v })); };
+
+  // إظهار الرقم الكامل: كل إظهار يُسجَّل في cm_phone_reveal_log باسمك ووقته (المدير العام/التنفيذي/مدير المبيعات).
+  const reveal = async (c: Call) => {
+    const { data, error } = await db.rpc("cm_reveal_call_phone", { _call_id: c.id });
+    if (error) { toast.error(error.message.includes("CM_NO_PHONE") ? "لا يوجد رقم لهذه المكالمة" : "غير مسموح بإظهار الرقم"); return; }
+    setPhones((p) => ({ ...p, [c.id]: data as string }));
+  };
+  const intl = (p: string) => (p.startsWith("0") ? "20" + p.slice(1) : p);
+  const phoneCell = (c: Call) => phones[c.id]
+    ? <span className="flex flex-wrap items-center gap-2"><span dir="ltr" className="font-mono">{phones[c.id]}</span>
+        <a className="text-xs text-[#A4288A] underline" href={`tel:${phones[c.id]}`}>اتصال</a>
+        <a className="text-xs text-green-700 underline" href={`https://wa.me/${intl(phones[c.id])}`} target="_blank" rel="noreferrer">واتساب</a>
+        <button type="button" className="text-xs underline" onClick={() => navigator.clipboard?.writeText(phones[c.id]).then(() => toast.success("تم النسخ"))}>نسخ</button></span>
+    : <span className="flex items-center gap-2"><span dir="ltr">{c.phone_masked ?? "—"}</span>
+        {c.has_phone && canListenRecordings(roles) && <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-[#A4288A]" onClick={() => reveal(c)}>إظهار</Button>}</span>;
 
   const listen = async (c: Call) => {
     // كل استماع يُسجَّل أولاً في cm_recording_access_log؛ ثم رابط موقّع قصير العمر من التخزين الخاص.
@@ -150,18 +192,37 @@ export default function ChatCalls() {
             preview={(r) => [r.cdr_id, r.call_direction === "INBOUND" ? "وارد" : "صادر", r.start_time, STATUS_AR[r.preview.status], r.preview.phone ?? "—",
               r.preview.username ?? "—", (r.call_result ?? "—") + (r.preview.unknownResult ? " ⚠" : "")]}
             onImport={importRows} />)}
-        {canManageHotlineUsernames(roles) && <HotlineUsernamesCard onChange={load} />}
-        {canUploadRecordings(roles) && <RecordingUploadCard calls={calls} onDone={load} />}
+        {canManageHotlineUsernames(roles) && <HotlineUsernamesCard onChange={() => load()} />}
+        {canUploadRecordings(roles) && <RecordingUploadCard calls={matchable} onDone={() => load()} />}
         {canListenRecordings(roles) && <CallAnalysisStrip k={kpis} />}
-        <Card><CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0"><div><CardTitle>آخر المكالمات</CardTitle><CardDescription>{calls.length} مكالمة — اضغط على أي مكالمة لعرض التفريغ والتحليل</CardDescription></div>
+        <Card><CardContent className="space-y-3 pt-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-xs">الموظفة<select className={sel} value={filters.moderator} onChange={(e) => setF("moderator", e.target.value)}>
+              <option value="">الكل</option>{Object.entries(mods).sort((a, b) => a[1].localeCompare(b[1], "ar")).map(([id, n]) => <option key={id} value={id}>{n}</option>)}<option value="none">غير مرتبطة بموظفة</option></select></label>
+            <label className="flex flex-col gap-1 text-xs">نتيجة التحليل<select className={sel} value={filters.outcome} onChange={(e) => setF("outcome", e.target.value)}>
+              <option value="">الكل</option>{Object.entries(OUTCOME_FILTER_AR).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+            <label className="flex flex-col gap-1 text-xs">الحالة<select className={sel} value={filters.category} onChange={(e) => setF("category", e.target.value)}>
+              <option value="">الكل</option>{Object.entries(CATEGORY_AR).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+            <label className="flex flex-col gap-1 text-xs">من تاريخ<input type="date" className={sel} value={filters.from} onChange={(e) => setF("from", e.target.value)} /></label>
+            <label className="flex flex-col gap-1 text-xs">إلى تاريخ<input type="date" className={sel} value={filters.to} onChange={(e) => setF("to", e.target.value)} /></label>
+            <Button size="sm" variant="outline" onClick={() => { setCalls([]); setFilters(NO_FILTERS); }}>مسح الفلاتر</Button>
+          </div>
+          {summary && <div className="grid grid-cols-2 gap-2 text-center text-sm md:grid-cols-4">
+            <div className="rounded-md border p-2"><div className="text-lg font-bold">{summary.calls}</div><div className="text-xs text-muted-foreground">مكالمة مطابقة (المحلَّلة {summary.analyzed})</div></div>
+            <div className="rounded-md border p-2"><div className="text-lg font-bold">{summary.avg_score ?? "—"}</div><div className="text-xs text-muted-foreground">متوسط تقييم التعامل (من 5)</div></div>
+            <div className="rounded-md border p-2"><div className="text-lg font-bold">{summary.order_pct != null ? `${summary.order_pct}%` : "—"}</div><div className="text-xs text-muted-foreground">وصلت لطلب أو وعد (من المحلَّلة)</div></div>
+            <div className="rounded-md border p-2"><div className="text-lg font-bold">{summary.open_followups}</div><div className="text-xs text-muted-foreground">متابعات مطلوبة مفتوحة</div></div>
+          </div>}
+        </CardContent></Card>
+        <Card><CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0"><div><CardTitle>المكالمات</CardTitle><CardDescription>معروض {calls.length} من {summary?.calls ?? calls.length} — اضغط على أي مكالمة لعرض التفريغ والتحليل</CardDescription></div>
           {isGM && <Button size="sm" disabled={!!batchMsg} onClick={analyzeAll} className="bg-[#662D8C] text-white">{batchMsg ?? "تحليل الكل"}</Button>}</CardHeader>
           <CardContent className="overflow-auto"><table className="w-full text-sm">
             <thead className="bg-muted"><tr>{["الوقت","الاتجاه","الحالة","الرقم","المدة","المودريتور","المتابعة","التحليل",""].map((h, i) => <th key={i} className="p-2 text-right">{h}</th>)}</tr></thead>
             <tbody>{calls.map((c) => { const m = missed[c.id]; return (
               <tr key={c.id} className="cursor-pointer border-t align-top hover:bg-muted/50" onClick={() => setOpenCall(c)}>
                 <td className="p-2 whitespace-nowrap">{fmt(c.started_at)}</td><td className="p-2">{c.direction === "inbound" ? "وارد" : "صادر"}</td>
-                <td className="p-2"><Badge variant={c.status === "missed" ? "destructive" : "secondary"}>{STATUS_AR[c.status] ?? c.status}</Badge>{c.is_sales === false && <Badge variant="outline" className="ms-1">غير المبيعات</Badge>}</td>
-                <td className="p-2" dir="ltr">{maskPhone(c.phone_norm)}</td><td className="p-2">{Math.round(c.duration_sec / 60)} د</td>
+                <td className="p-2"><Badge variant={c.status === "missed" ? "destructive" : "secondary"}>{STATUS_AR[c.status] ?? c.status}</Badge>{c.is_sales === false && <Badge variant="outline" className="ms-1">غير المبيعات</Badge>}{c.category === "ivr" && <Badge variant="outline" className="ms-1">القائمة الصوتية</Badge>}</td>
+                <td className="p-2" onClick={(e) => e.stopPropagation()}>{phoneCell(c)}</td><td className="p-2">{Math.round(c.duration_sec / 60)} د</td>
                 <td className="p-2">{c.moderator_id ? mods[c.moderator_id] ?? "—" : "—"}</td>
                 <td className="p-2" onClick={(e) => e.stopPropagation()}>{c.status !== "missed" || c.direction !== "inbound" || c.is_sales === false ? "—" : m?.followed_within_target
                   ? <span className="text-green-700">خلال ساعة</span>
@@ -184,8 +245,10 @@ export default function ChatCalls() {
                       const f = e.target.files?.[0]; e.target.value = ""; if (!f) return;
                       const err = await uploadRecording(c.id, f); if (err) toast.error(err); else { toast.success("تم رفع التسجيل"); load(); } }} /></label>}</span></td>
               </tr>); })}
-              {!calls.length && <tr><td colSpan={9} className="p-4 text-center text-muted-foreground">لا مكالمات بعد</td></tr>}
+              {!calls.length && <tr><td colSpan={9} className="p-4 text-center text-muted-foreground">لا توجد مكالمات مطابقة</td></tr>}
             </tbody></table>
+            {hasMore && <div className="mt-3 text-center"><Button size="sm" variant="outline" onClick={() => load(true)}>تحميل المزيد</Button></div>}
+            {canListenRecordings(roles) && <p className="mt-2 text-xs text-muted-foreground">زر «إظهار» يعرض رقم العميل كاملاً مع روابط الاتصال والواتساب، وكل إظهار يُسجَّل باسمك ووقته.</p>}
             {canListenRecordings(roles) && <p className="mt-2 text-xs text-muted-foreground">كل استماع يُسجَّل باسمك ووقته، والرابط صالح لدقيقتين فقط.</p>}
           </CardContent></Card>
         <CallAnalysisDialog callId={openCall?.id ?? null} onClose={() => setOpenCall(null)}
