@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -935,6 +935,231 @@ export type Database = {
           module?: string | null
           question?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      backup_20261027_mod_hr: {
+        Row: {
+          base_salary: number | null
+          code: string | null
+          created_at: string | null
+          created_by: string | null
+          current_location_id: string | null
+          daily_rate: number | null
+          department: string | null
+          employment_type:
+            | Database["public"]["Enums"]["hr_employment_type"]
+            | null
+          full_name: string | null
+          id: string | null
+          is_suspended: boolean | null
+          job_title: string | null
+          national_id: string | null
+          notes: string | null
+          pay_day: number | null
+          phone: string | null
+          photo_url: string | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["hr_employee_status"] | null
+          suspended_at: string | null
+          suspended_by: string | null
+          suspension_date: string | null
+          suspension_net_amount: number | null
+          suspension_notes: string | null
+          suspension_reason: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          base_salary?: number | null
+          code?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          current_location_id?: string | null
+          daily_rate?: number | null
+          department?: string | null
+          employment_type?:
+            | Database["public"]["Enums"]["hr_employment_type"]
+            | null
+          full_name?: string | null
+          id?: string | null
+          is_suspended?: boolean | null
+          job_title?: string | null
+          national_id?: string | null
+          notes?: string | null
+          pay_day?: number | null
+          phone?: string | null
+          photo_url?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["hr_employee_status"] | null
+          suspended_at?: string | null
+          suspended_by?: string | null
+          suspension_date?: string | null
+          suspension_net_amount?: number | null
+          suspension_notes?: string | null
+          suspension_reason?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          base_salary?: number | null
+          code?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          current_location_id?: string | null
+          daily_rate?: number | null
+          department?: string | null
+          employment_type?:
+            | Database["public"]["Enums"]["hr_employment_type"]
+            | null
+          full_name?: string | null
+          id?: string | null
+          is_suspended?: boolean | null
+          job_title?: string | null
+          national_id?: string | null
+          notes?: string | null
+          pay_day?: number | null
+          phone?: string | null
+          photo_url?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["hr_employee_status"] | null
+          suspended_at?: string | null
+          suspended_by?: string | null
+          suspension_date?: string | null
+          suspension_net_amount?: number | null
+          suspension_notes?: string | null
+          suspension_reason?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      backup_20261027_soha_targets: {
+        Row: {
+          achieved_amount: number | null
+          created_at: string | null
+          id: string | null
+          month: number | null
+          target_amount: number | null
+          updated_at: string | null
+          user_id: string | null
+          year: number | null
+        }
+        Insert: {
+          achieved_amount?: number | null
+          created_at?: string | null
+          id?: string | null
+          month?: number | null
+          target_amount?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+          year?: number | null
+        }
+        Update: {
+          achieved_amount?: number | null
+          created_at?: string | null
+          id?: string | null
+          month?: number | null
+          target_amount?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+          year?: number | null
+        }
+        Relationships: []
+      }
+      backup_20261028_hajar_hr: {
+        Row: {
+          base_salary: number | null
+          code: string | null
+          created_at: string | null
+          created_by: string | null
+          current_location_id: string | null
+          daily_rate: number | null
+          department: string | null
+          employment_type:
+            | Database["public"]["Enums"]["hr_employment_type"]
+            | null
+          full_name: string | null
+          id: string | null
+          is_suspended: boolean | null
+          job_title: string | null
+          national_id: string | null
+          notes: string | null
+          pay_day: number | null
+          phone: string | null
+          photo_url: string | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["hr_employee_status"] | null
+          suspended_at: string | null
+          suspended_by: string | null
+          suspension_date: string | null
+          suspension_net_amount: number | null
+          suspension_notes: string | null
+          suspension_reason: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          base_salary?: number | null
+          code?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          current_location_id?: string | null
+          daily_rate?: number | null
+          department?: string | null
+          employment_type?:
+            | Database["public"]["Enums"]["hr_employment_type"]
+            | null
+          full_name?: string | null
+          id?: string | null
+          is_suspended?: boolean | null
+          job_title?: string | null
+          national_id?: string | null
+          notes?: string | null
+          pay_day?: number | null
+          phone?: string | null
+          photo_url?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["hr_employee_status"] | null
+          suspended_at?: string | null
+          suspended_by?: string | null
+          suspension_date?: string | null
+          suspension_net_amount?: number | null
+          suspension_notes?: string | null
+          suspension_reason?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          base_salary?: number | null
+          code?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          current_location_id?: string | null
+          daily_rate?: number | null
+          department?: string | null
+          employment_type?:
+            | Database["public"]["Enums"]["hr_employment_type"]
+            | null
+          full_name?: string | null
+          id?: string | null
+          is_suspended?: boolean | null
+          job_title?: string | null
+          national_id?: string | null
+          notes?: string | null
+          pay_day?: number | null
+          phone?: string | null
+          photo_url?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["hr_employee_status"] | null
+          suspended_at?: string | null
+          suspended_by?: string | null
+          suspension_date?: string | null
+          suspension_net_amount?: number | null
+          suspension_notes?: string | null
+          suspension_reason?: string | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -2096,6 +2321,426 @@ export type Database = {
           total_cost?: number | null
           unit_cost?: number | null
           warehouse_id?: string | null
+        }
+        Relationships: []
+      }
+      bak_pr65_20261012_fn: {
+        Row: {
+          args: string | null
+          def: string | null
+          proname: unknown
+          taken_at: string | null
+        }
+        Insert: {
+          args?: string | null
+          def?: string | null
+          proname?: unknown
+          taken_at?: string | null
+        }
+        Update: {
+          args?: string | null
+          def?: string | null
+          proname?: unknown
+          taken_at?: string | null
+        }
+        Relationships: []
+      }
+      bak_slaughter_mis_approve_20261012_batches: {
+        Row: {
+          actual_yield_pct: number | null
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
+          batch_number: string | null
+          birds_slaughtered: number | null
+          butcher_1_id: string | null
+          butcher_2_id: string | null
+          butcher_3_id: string | null
+          cost_allocation_done: boolean | null
+          cost_allocation_ref: string | null
+          cost_locked_at: string | null
+          cost_locked_by: string | null
+          cost_per_bird_snapshot: number | null
+          cost_per_kg_meat: number | null
+          created_at: string | null
+          created_by: string | null
+          direct_slaughter_expenses: number | null
+          end_time: string | null
+          evaluation_approval_note: string | null
+          evaluation_approved_at: string | null
+          evaluation_approved_by: string | null
+          evaluation_saved_at: string | null
+          evaluation_saved_by: string | null
+          evaluation_snapshot: Json | null
+          evaluation_status: string | null
+          id: string | null
+          live_receipt_id: string | null
+          low_yield_approval_at: string | null
+          low_yield_approval_by: string | null
+          low_yield_approval_note: string | null
+          low_yield_requested_at: string | null
+          low_yield_requested_by: string | null
+          notes: string | null
+          pre_slaughter_dead: number | null
+          rejected_at: string | null
+          rejected_birds: number | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          shift: string | null
+          slaughter_date: string | null
+          start_time: string | null
+          status: string | null
+          total_allocatable_cost: number | null
+          total_birds_cost: number | null
+          total_live_weight_kg: number | null
+          total_meat_kg: number | null
+          total_waste_kg: number | null
+          transfer_status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          actual_yield_pct?: number | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_number?: string | null
+          birds_slaughtered?: number | null
+          butcher_1_id?: string | null
+          butcher_2_id?: string | null
+          butcher_3_id?: string | null
+          cost_allocation_done?: boolean | null
+          cost_allocation_ref?: string | null
+          cost_locked_at?: string | null
+          cost_locked_by?: string | null
+          cost_per_bird_snapshot?: number | null
+          cost_per_kg_meat?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          direct_slaughter_expenses?: number | null
+          end_time?: string | null
+          evaluation_approval_note?: string | null
+          evaluation_approved_at?: string | null
+          evaluation_approved_by?: string | null
+          evaluation_saved_at?: string | null
+          evaluation_saved_by?: string | null
+          evaluation_snapshot?: Json | null
+          evaluation_status?: string | null
+          id?: string | null
+          live_receipt_id?: string | null
+          low_yield_approval_at?: string | null
+          low_yield_approval_by?: string | null
+          low_yield_approval_note?: string | null
+          low_yield_requested_at?: string | null
+          low_yield_requested_by?: string | null
+          notes?: string | null
+          pre_slaughter_dead?: number | null
+          rejected_at?: string | null
+          rejected_birds?: number | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          shift?: string | null
+          slaughter_date?: string | null
+          start_time?: string | null
+          status?: string | null
+          total_allocatable_cost?: number | null
+          total_birds_cost?: number | null
+          total_live_weight_kg?: number | null
+          total_meat_kg?: number | null
+          total_waste_kg?: number | null
+          transfer_status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          actual_yield_pct?: number | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_number?: string | null
+          birds_slaughtered?: number | null
+          butcher_1_id?: string | null
+          butcher_2_id?: string | null
+          butcher_3_id?: string | null
+          cost_allocation_done?: boolean | null
+          cost_allocation_ref?: string | null
+          cost_locked_at?: string | null
+          cost_locked_by?: string | null
+          cost_per_bird_snapshot?: number | null
+          cost_per_kg_meat?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          direct_slaughter_expenses?: number | null
+          end_time?: string | null
+          evaluation_approval_note?: string | null
+          evaluation_approved_at?: string | null
+          evaluation_approved_by?: string | null
+          evaluation_saved_at?: string | null
+          evaluation_saved_by?: string | null
+          evaluation_snapshot?: Json | null
+          evaluation_status?: string | null
+          id?: string | null
+          live_receipt_id?: string | null
+          low_yield_approval_at?: string | null
+          low_yield_approval_by?: string | null
+          low_yield_approval_note?: string | null
+          low_yield_requested_at?: string | null
+          low_yield_requested_by?: string | null
+          notes?: string | null
+          pre_slaughter_dead?: number | null
+          rejected_at?: string | null
+          rejected_birds?: number | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          shift?: string | null
+          slaughter_date?: string | null
+          start_time?: string | null
+          status?: string | null
+          total_allocatable_cost?: number | null
+          total_birds_cost?: number | null
+          total_live_weight_kg?: number | null
+          total_meat_kg?: number | null
+          total_waste_kg?: number | null
+          transfer_status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      bak_slaughter_mis_approve_20261012_movements: {
+        Row: {
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
+          batch_id: string | null
+          created_at: string | null
+          destination_warehouse_id: string | null
+          effect_mode: string | null
+          id: string | null
+          item_id: string | null
+          module: string | null
+          movement_no: string | null
+          movement_type: string | null
+          notes: string | null
+          order_item_id: string | null
+          package_count: number | null
+          package_weight_kg: number | null
+          party: string | null
+          performed_at: string | null
+          performed_by: string | null
+          period_lock_override_reason: string | null
+          product_id: string | null
+          quantity: number | null
+          quantity_kg: number | null
+          reason: string | null
+          reference: string | null
+          reference_id: string | null
+          reference_type: string | null
+          reverses_movement_id: string | null
+          source_id: string | null
+          source_line_id: string | null
+          source_type: string | null
+          source_warehouse_id: string | null
+          stock_after: number | null
+          stock_before: number | null
+          total_cost: number | null
+          unit_cost: number | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          created_at?: string | null
+          destination_warehouse_id?: string | null
+          effect_mode?: string | null
+          id?: string | null
+          item_id?: string | null
+          module?: string | null
+          movement_no?: string | null
+          movement_type?: string | null
+          notes?: string | null
+          order_item_id?: string | null
+          package_count?: number | null
+          package_weight_kg?: number | null
+          party?: string | null
+          performed_at?: string | null
+          performed_by?: string | null
+          period_lock_override_reason?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          quantity_kg?: number | null
+          reason?: string | null
+          reference?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          reverses_movement_id?: string | null
+          source_id?: string | null
+          source_line_id?: string | null
+          source_type?: string | null
+          source_warehouse_id?: string | null
+          stock_after?: number | null
+          stock_before?: number | null
+          total_cost?: number | null
+          unit_cost?: number | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          created_at?: string | null
+          destination_warehouse_id?: string | null
+          effect_mode?: string | null
+          id?: string | null
+          item_id?: string | null
+          module?: string | null
+          movement_no?: string | null
+          movement_type?: string | null
+          notes?: string | null
+          order_item_id?: string | null
+          package_count?: number | null
+          package_weight_kg?: number | null
+          party?: string | null
+          performed_at?: string | null
+          performed_by?: string | null
+          period_lock_override_reason?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          quantity_kg?: number | null
+          reason?: string | null
+          reference?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          reverses_movement_id?: string | null
+          source_id?: string | null
+          source_line_id?: string | null
+          source_type?: string | null
+          source_warehouse_id?: string | null
+          stock_after?: number | null
+          stock_before?: number | null
+          total_cost?: number | null
+          unit_cost?: number | null
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
+      bak_slaughter_mis_approve_20261012_outputs: {
+        Row: {
+          actual_weight_kg: number | null
+          auto_cost_per_kg: number | null
+          barcode: string | null
+          batch_id: string | null
+          branch_id: string | null
+          created_at: string | null
+          cut_name_ar: string | null
+          damaged_weight_kg: number | null
+          destination: string | null
+          expiry_date: string | null
+          id: string | null
+          manual_cost_per_kg: number | null
+          manual_sale_price_per_kg: number | null
+          notes: string | null
+          package_count: number | null
+          price_edit_reason: string | null
+          price_updated_at: string | null
+          price_updated_by: string | null
+          product_id: string | null
+          quality_status: string | null
+          quarantined_weight_kg: number | null
+          received_at: string | null
+          received_by: string | null
+          received_inventory_item_id: string | null
+          received_status: string | null
+          received_warehouse_id: string | null
+          reverse_movement_id: string | null
+          reversed_at: string | null
+          reversed_by: string | null
+          standard_weight_kg: number | null
+          suggested_sale_price_per_kg: number | null
+          total_cost: number | null
+          unit_cost: number | null
+          unit_price: number | null
+          variance_kg: number | null
+          variance_pct: number | null
+          yield_standard_id: string | null
+        }
+        Insert: {
+          actual_weight_kg?: number | null
+          auto_cost_per_kg?: number | null
+          barcode?: string | null
+          batch_id?: string | null
+          branch_id?: string | null
+          created_at?: string | null
+          cut_name_ar?: string | null
+          damaged_weight_kg?: number | null
+          destination?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          manual_cost_per_kg?: number | null
+          manual_sale_price_per_kg?: number | null
+          notes?: string | null
+          package_count?: number | null
+          price_edit_reason?: string | null
+          price_updated_at?: string | null
+          price_updated_by?: string | null
+          product_id?: string | null
+          quality_status?: string | null
+          quarantined_weight_kg?: number | null
+          received_at?: string | null
+          received_by?: string | null
+          received_inventory_item_id?: string | null
+          received_status?: string | null
+          received_warehouse_id?: string | null
+          reverse_movement_id?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          standard_weight_kg?: number | null
+          suggested_sale_price_per_kg?: number | null
+          total_cost?: number | null
+          unit_cost?: number | null
+          unit_price?: number | null
+          variance_kg?: number | null
+          variance_pct?: number | null
+          yield_standard_id?: string | null
+        }
+        Update: {
+          actual_weight_kg?: number | null
+          auto_cost_per_kg?: number | null
+          barcode?: string | null
+          batch_id?: string | null
+          branch_id?: string | null
+          created_at?: string | null
+          cut_name_ar?: string | null
+          damaged_weight_kg?: number | null
+          destination?: string | null
+          expiry_date?: string | null
+          id?: string | null
+          manual_cost_per_kg?: number | null
+          manual_sale_price_per_kg?: number | null
+          notes?: string | null
+          package_count?: number | null
+          price_edit_reason?: string | null
+          price_updated_at?: string | null
+          price_updated_by?: string | null
+          product_id?: string | null
+          quality_status?: string | null
+          quarantined_weight_kg?: number | null
+          received_at?: string | null
+          received_by?: string | null
+          received_inventory_item_id?: string | null
+          received_status?: string | null
+          received_warehouse_id?: string | null
+          reverse_movement_id?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          standard_weight_kg?: number | null
+          suggested_sale_price_per_kg?: number | null
+          total_cost?: number | null
+          unit_cost?: number | null
+          unit_price?: number | null
+          variance_kg?: number | null
+          variance_pct?: number | null
+          yield_standard_id?: string | null
         }
         Relationships: []
       }
@@ -9146,6 +9791,47 @@ export type Database = {
           },
         ]
       }
+      hr_departments: {
+        Row: {
+          code: string
+          created_at: string
+          is_active: boolean
+          manager_user_id: string | null
+          name: string
+          parent_code: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          is_active?: boolean
+          manager_user_id?: string | null
+          name: string
+          parent_code?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          is_active?: boolean
+          manager_user_id?: string | null
+          name?: string
+          parent_code?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_departments_parent_code_fkey"
+            columns: ["parent_code"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       hr_employee_documents: {
         Row: {
           created_at: string
@@ -9529,6 +10215,41 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_work_locations"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_job_titles: {
+        Row: {
+          department_code: string
+          description: string | null
+          id: string
+          is_active: boolean
+          sort_order: number
+          title: string
+        }
+        Insert: {
+          department_code: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          title: string
+        }
+        Update: {
+          department_code?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_job_titles_department_code_fkey"
+            columns: ["department_code"]
+            isOneToOne: false
+            referencedRelation: "hr_departments"
+            referencedColumns: ["code"]
           },
         ]
       }
@@ -13514,6 +14235,7 @@ export type Database = {
           id: string
           invoice_no: string | null
           invoice_type: string
+          main_treasury_txn_id: string | null
           notes: string | null
           payment_method: string
           purchase_date: string
@@ -13534,6 +14256,7 @@ export type Database = {
           id?: string
           invoice_no?: string | null
           invoice_type?: string
+          main_treasury_txn_id?: string | null
           notes?: string | null
           payment_method?: string
           purchase_date?: string
@@ -13554,6 +14277,7 @@ export type Database = {
           id?: string
           invoice_no?: string | null
           invoice_type?: string
+          main_treasury_txn_id?: string | null
           notes?: string | null
           payment_method?: string
           purchase_date?: string
@@ -13565,7 +14289,15 @@ export type Database = {
           treasury_txn_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "meat_factory_purchases_main_treasury_txn_id_fkey"
+            columns: ["main_treasury_txn_id"]
+            isOneToOne: false
+            referencedRelation: "main_treasury_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       meat_factory_quality_log: {
         Row: {
@@ -25540,10 +26272,6 @@ export type Database = {
         Returns: Json
       }
       compute_hatchery_invoice: { Args: { _lot_id: string }; Returns: string }
-      confirm_own_repeat_order_attempt: {
-        Args: { p_attempt_id: string; p_order_id: string }
-        Returns: boolean
-      }
       confirm_lab_to_custody_transfer: {
         Args: { p_transfer_id: string }
         Returns: undefined
@@ -25551,6 +26279,10 @@ export type Database = {
       confirm_main_to_custody_transfer: {
         Args: { p_transfer_id: string }
         Returns: string
+      }
+      confirm_own_repeat_order_attempt: {
+        Args: { p_attempt_id: string; p_order_id: string }
+        Returns: boolean
       }
       confirm_transfer_receipt: {
         Args: { p_lines: Json; p_notes?: string; p_transfer_id: string }
@@ -25963,6 +26695,37 @@ export type Database = {
           status: string
         }[]
       }
+      find_own_repeat_order_candidates: {
+        Args: {
+          p_customer_id: string
+          p_customer_name: string
+          p_customer_phone: string
+          p_delivery_address?: string
+          p_fulfillment_type?: string
+          p_items?: Json
+          p_shipping_company?: string
+        }
+        Returns: {
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          delivery_address: string
+          fulfillment_type: string
+          matched_on_address: boolean
+          matched_on_items: boolean
+          matched_on_name: boolean
+          matched_on_phone: boolean
+          matched_on_same_day: boolean
+          matched_on_shipping: boolean
+          matched_order_id: string
+          moderator_name: string
+          order_number: string
+          products_summary: string
+          shipping_company: string
+          similarity_score: number
+          status: string
+        }[]
+      }
       fix_feed_sales_return_refund: {
         Args: { p_return_id: string }
         Returns: {
@@ -26151,6 +26914,18 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      hr_avatar_directory: {
+        Args: never
+        Returns: {
+          department: string
+          full_name: string
+          id: string
+          job_title: string
+          photo_url: string
+          status: string
+          user_id: string
+        }[]
       }
       hr_compute_pay_day: {
         Args: {
@@ -26740,6 +27515,23 @@ export type Database = {
         }
         Returns: string
       }
+      meat_purchase_match_candidates: {
+        Args: {
+          p_amount: number
+          p_amount_tol?: number
+          p_date: string
+          p_days?: number
+        }
+        Returns: {
+          amount: number
+          id: string
+          invoice_no: string
+          payment_method: string
+          purchase_date: string
+          status: string
+          supplier: string
+        }[]
+      }
       merge_duplicate_inventory_cards: {
         Args: { p_apply?: boolean }
         Returns: Json
@@ -26752,6 +27544,7 @@ export type Database = {
         Args: { p_product_name: string }
         Returns: number
       }
+      moderator_kg_bonus: { Args: { kg: number }; Returns: number }
       mohtaseb_heartbeat: {
         Args: { p_payload: Json; p_token: string }
         Returns: Json
@@ -26887,6 +27680,23 @@ export type Database = {
           p_txn_date: string
         }
         Returns: string
+      }
+      mt_expense_match_candidates: {
+        Args: {
+          p_amount: number
+          p_amount_tol?: number
+          p_date: string
+          p_days?: number
+        }
+        Returns: {
+          amount: number
+          description: string
+          id: string
+          linked_invoice_no: string
+          reference_no: string
+          status: string
+          txn_date: string
+        }[]
       }
       mt_receive_custody_transfer: {
         Args: { p_transfer_id: string }
@@ -27370,6 +28180,10 @@ export type Database = {
         Args: { _idle_days?: number }
         Returns: number
       }
+      refresh_slaughter_batch_output_costs: {
+        Args: { p_batch_id: string }
+        Returns: Json
+      }
       register_added_order_box_copy: {
         Args: {
           p_item_ids: string[]
@@ -27752,6 +28566,18 @@ export type Database = {
       show_trgm: { Args: { "": string }; Returns: string[] }
       slaughter_daily_summary: { Args: { p_date: string }; Returns: Json }
       slaughter_outputs_backfill_product_ids: { Args: never; Returns: number }
+      slaughter_receipt_allocatable_cost: {
+        Args: { p_receipt_id: string }
+        Returns: number
+      }
+      slaughter_source_draw_cost: {
+        Args: {
+          p_birds: number
+          p_live_weight_kg: number
+          p_receipt_id: string
+        }
+        Returns: number
+      }
       stock_report_totals: {
         Args: { p_warehouse_id: string }
         Returns: {
@@ -27824,6 +28650,10 @@ export type Database = {
       sync_order_offer_instances: {
         Args: { p_box_id?: string; p_box_name?: string; p_order_id: string }
         Returns: undefined
+      }
+      sync_slaughter_receipt_alive: {
+        Args: { p_receipt_id: string }
+        Returns: number
       }
       transfer_between_sublocations: {
         Args: {
