@@ -16,7 +16,7 @@ import { maskPhone } from "@/lib/chatManagement/inbox";
 
 const db = supabase as any;
 interface Call { id: string; external_call_id: string | null; direction: string; started_at: string; duration_sec: number; status: string; phone_norm: string | null;
-  moderator_id: string | null; recording_path: string | null; followed_up_at: string | null }
+  moderator_id: string | null; recording_path: string | null; followed_up_at: string | null; is_sales?: boolean }
 interface Missed { call_id: string; followup_at: string | null; followed_within_target: boolean }
 const STATUS_AR: Record<string, string> = { answered: "تم الرد", missed: "فائتة", busy: "مشغول", failed: "فشل", voicemail: "بريد صوتي" };
 const REASON_AR: Record<string, string> = { missing_id: "Cdr Id ناقص", duplicate_in_file: "مكرر داخل الملف", bad_direction: "اتجاه غير معروف",
@@ -33,7 +33,7 @@ export default function ChatCalls() {
 
   const load = useCallback(async () => {
     const [c, m, md] = await Promise.all([
-      db.from("cm_calls").select("id,external_call_id,direction,started_at,duration_sec,status,phone_norm,moderator_id,recording_path,followed_up_at").order("started_at", { ascending: false }).limit(300),
+      db.from("cm_calls").select("id,external_call_id,direction,started_at,duration_sec,status,phone_norm,moderator_id,recording_path,followed_up_at,is_sales").order("started_at", { ascending: false }).limit(300),
       db.from("cm_kpi_missed_calls_v").select("call_id,followup_at,followed_within_target").order("started_at", { ascending: false }).limit(300),
       db.from("cm_moderators").select("id,display_name"),
     ]);
@@ -111,10 +111,10 @@ export default function ChatCalls() {
             <tbody>{calls.map((c) => { const m = missed[c.id]; return (
               <tr key={c.id} className="border-t align-top">
                 <td className="p-2 whitespace-nowrap">{fmt(c.started_at)}</td><td className="p-2">{c.direction === "inbound" ? "وارد" : "صادر"}</td>
-                <td className="p-2"><Badge variant={c.status === "missed" ? "destructive" : "secondary"}>{STATUS_AR[c.status] ?? c.status}</Badge></td>
+                <td className="p-2"><Badge variant={c.status === "missed" ? "destructive" : "secondary"}>{STATUS_AR[c.status] ?? c.status}</Badge>{c.is_sales === false && <Badge variant="outline" className="ms-1">غير المبيعات</Badge>}</td>
                 <td className="p-2" dir="ltr">{maskPhone(c.phone_norm)}</td><td className="p-2">{Math.round(c.duration_sec / 60)} د</td>
                 <td className="p-2">{c.moderator_id ? mods[c.moderator_id] ?? "—" : "—"}</td>
-                <td className="p-2">{c.status !== "missed" || c.direction !== "inbound" ? "—" : m?.followed_within_target
+                <td className="p-2">{c.status !== "missed" || c.direction !== "inbound" || c.is_sales === false ? "—" : m?.followed_within_target
                   ? <span className="text-green-700">خلال ساعة</span>
                   : <span className="flex items-center gap-2 text-[#F37346]">{m?.followup_at ? "متأخرة" : "لم تُتابَع"}
                       {!c.followed_up_at && <Button size="sm" variant="outline" onClick={() => markFollowed(c)}>تمت المتابعة</Button>}</span>}</td>
