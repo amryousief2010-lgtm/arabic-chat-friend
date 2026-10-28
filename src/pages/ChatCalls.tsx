@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { canImportCdr, canListenRecordings, canUploadRecordings, canManageHotlineUsernames } from "@/config/chatManagement";
 import { CsvImportCard } from "@/components/chatManagement/CsvImportCard";
-import { readCdrFiles, toCdrPayload, type CdrRow } from "@/lib/chatManagement/csvImport";
+import { readCdrFiles, toCdrPayload, audioMimeFor, type CdrRow, type NestedRecording } from "@/lib/chatManagement/csvImport";
 import { HotlineUsernamesCard } from "@/components/chatManagement/HotlineUsernamesCard";
 import { RecordingUploadCard, uploadRecording } from "@/components/chatManagement/RecordingUploadCard";
 import { maskPhone } from "@/lib/chatManagement/inbox";
@@ -56,14 +56,33 @@ export default function ChatCalls() {
     const { error } = await db.rpc("cm_mark_missed_call_followed_up", { _call_id: c.id });
     if (error) toast.error(error.message); else load();
   };
+  // تسجيلات callRecords.zip المتداخلة في zip البوابة — تُرفع بعد الاستيراد عبر نفس مسار رفع التسجيلات (SM/GM فقط).
+  const nestedRecs = useRef<NestedRecording[]>([]);
+  const uploadNested = async (rows: CdrRow[]): Promise<string> => {
+    const ids = new Set(rows.map((r) => r.cdr_id)); const recs = nestedRecs.current.filter((r) => ids.has(r.cdrId));
+    if (!recs.length || !canUploadRecordings(roles)) return "";
+    const { data: cs, error } = await db.from("cm_calls").select("id,external_call_id,recording_path").in("external_call_id", recs.map((r) => r.cdrId));
+    if (error) return ` — تعذّر رفع التسجيلات: ${error.message}`;
+    type RecCall = { id: string; external_call_id: string; recording_path: string | null };
+    const byId = new Map<string, RecCall>(((cs ?? []) as RecCall[]).map((c) => [c.external_call_id, c]));
+    let up = 0, had = 0; const fails: string[] = [];
+    for (const r of recs) {
+      const c = byId.get(r.cdrId); if (!c) { fails.push(`${r.name}: لا مكالمة`); continue; }
+      if (c.recording_path) { had++; continue; }
+      const e = await uploadRecording(c.id, new Blob([r.data as Uint8Array<ArrayBuffer>], { type: audioMimeFor(r.name)! }), r.name);
+      if (e) fails.push(e); else up++;
+    }
+    return ` — التسجيلات: رُفع ${up}، موجود مسبقاً ${had}` + (fails.length ? `، فشل ${fails.length} (${fails.slice(0, 3).join("، ")})` : "");
+  };
   const importRows = async (rows: CdrRow[]) => {
     const { data, error } = await db.rpc("cm_import_hotline_cdr", { _rows: rows.map(toCdrPayload) });
     if (error) { toast.error(`تعذّر الاستيراد: ${error.message}`); return null; }
+    const recMsg = await uploadNested(rows);
     load();
     return `جديد ${data.inserted} — حُدِّث ${data.updated} — بلا تغيير ${data.unchanged} — مرفوض ${data.rejected.length}` +
       (data.rejected.length ? ` (${data.rejected.slice(0, 5).map((r: { row: number; cdr_id?: string; reason: string }) => `صف ${r.row}${r.cdr_id ? ` ${r.cdr_id}` : ""}: ${REASON_AR[r.reason] ?? r.reason}`).join("، ")})` : "") +
       (data.unknown_results?.length ? ` — نتائج غير معروفة (حُفظت كما هي): ${data.unknown_results.join("، ")}` : "") +
-      (data.unmapped_usernames?.length ? ` — أسماء مستخدمين غير مربوطة بمودريتور: ${data.unmapped_usernames.join("، ")} (اربطيها بالأسفل)` : "");
+      (data.unmapped_usernames?.length ? ` — أسماء مستخدمين غير مربوطة بمودريتور: ${data.unmapped_usernames.join("، ")} (اربطيها بالأسفل)` : "") + recMsg;
   };
 
   return (
@@ -72,10 +91,11 @@ export default function ChatCalls() {
         <Header title="مكالمات الخط الساخن" subtitle="الفائتة يجب متابعتها خلال ساعة — بمكالمة أو رسالة أو تعليم يدوي" />
         {canImportCdr(roles) && (
           <CsvImportCard<CdrRow> title="استيراد سجل المكالمات (CDR)"
-            description="ارفعي ملف zip كما نزل من البوابة (CDR.csv + Switched.csv) أو الملفين معاً. Cdr Id يمنع التكرار؛ إعادة الرفع تُحدِّث فقط. السجلات تختفي من البوابة بعد 5 أيام — الرفع كل يومين أو ثلاثة على الأكثر."
+            description="ارفعي ملف zip كما نزل من البوابة (CDR.csv + Switched.csv) أو الملفين معاً؛ تسجيلات callRecords.zip داخله تُرفع تلقائياً. Cdr Id يمنع التكرار؛ إعادة الرفع تُحدِّث فقط. السجلات تختفي من البوابة بعد 5 أيام — الرفع كل يومين أو ثلاثة على الأكثر."
             columnsHint={<><p>ملف السجل <code dir="ltr" className="font-mono">CDR.csv</code>: رقم المكالمة <code dir="ltr" className="font-mono">Cdr Id</code>، رقم المتصل <code dir="ltr" className="font-mono">A Number</code>، الرقم المطلوب <code dir="ltr" className="font-mono">B Number</code>، وقت البدء <code dir="ltr" className="font-mono">Start Time</code> بصيغة <code dir="ltr" className="font-mono">DD-MM-YYYY HH:MM:SS</code> بتوقيت القاهرة، النتيجة <code dir="ltr" className="font-mono">Call Result</code>، المدة <code dir="ltr" className="font-mono">Call Duration</code>، الاتجاه <code dir="ltr" className="font-mono">Call Direction</code>.</p><p>ملف التحويل <code dir="ltr" className="font-mono">Switched.csv</code>: <code dir="ltr" className="font-mono">Cdr Id</code>، اسم المستخدم <code dir="ltr" className="font-mono">Username</code>، حالة التحويل <code dir="ltr" className="font-mono">Switching Status</code> (رُدّ عليها <code dir="ltr" className="font-mono">ACCEPTED</code> أو فائتة <code dir="ltr" className="font-mono">MISSED</code>). تُعدّ المكالمة فائتة إذا لم تُقبل في أي محاولة.</p></>}
-            accept=".zip,.csv,application/zip,text/csv" multiple maxBytes={20_000_000}
-            loadFiles={async (files) => { const r = await readCdrFiles(files); return { ...r, notes: [
+            accept=".zip,.csv,application/zip,text/csv" multiple maxBytes={200_000_000}
+            loadFiles={async (files) => { const r = await readCdrFiles(files); nestedRecs.current = r.recordings; return { ...r, notes: [
+              ...(r.recordings.length ? [`${r.recordings.length} تسجيل في callRecords.zip — ${canUploadRecordings(roles) ? "تُرفع تلقائياً بعد الاستيراد وتُربط بـ Cdr Id" : "لن تُرفع (الرفع لمدير المبيعات/المدير العام فقط)"}`] : []),
               ...(r.unknownResults.length ? [`نتائج Call Result غير معروفة (ستُحفظ كما هي): ${r.unknownResults.join("، ")}`] : []),
               ...(r.orphanSwitched ? [`${r.orphanSwitched} معرّف في Switched.csv بدون صف في CDR.csv (تم تجاهله)`] : []),
               ...(r.rows.length && !r.rows.some((x) => x.attempts.length) ? ["تنبيه: لا توجد بيانات Switched.csv — كل الواردة ستظهر فائتة"] : [])] }; }}

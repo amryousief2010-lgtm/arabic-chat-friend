@@ -24604,6 +24604,7 @@ export type Database = {
         Row: {
           call_id: string | null
           followed_within_target: boolean | null
+          ivr_abandoned: boolean | null
           followup_at: string | null
           kpi_date: string | null
           moderator_id: string | null

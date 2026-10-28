@@ -43,6 +43,7 @@ export const SWITCHED_COLUMNS = ["Cdr Id", "Username", "Switch Time", "Switching
 const CDR_REQUIRED = ["Cdr Id", "A Number", "B Number", "Start Time", "Call Direction"];
 const SW_REQUIRED = ["Cdr Id", "Username", "Switching Status"];
 export const KNOWN_CALL_RESULTS = ["ANSWERED", "ANSWERED_BY_AGENT", "ANSWERED_SWITCHED"]; // ANSWERED_SWITCHED: حُوِّلت للموظفات ولم تقبلها أي واحدة (تصدير 14-10 الفعلي)
+export const CDR_ID_IN_NAME_RE = /CDR\.\d{6}\.\d{6}\.[A-Za-z0-9]+/;
 export const CDR_ID_RE = /^CDR\.\d{6}\.\d{6}\.[A-Za-z0-9]+$/;
 
 export interface SwitchAttempt { username: string; switch_time?: string; switching_status: string; call_status?: string; answer_time?: string; end_time?: string }
@@ -121,20 +122,34 @@ export const mapCdr = (cdr: string[][], switched?: string[][]): CdrParse => {
 /** الصف كما يُرسل لـ cm_import_hotline_cdr (بدون حقول المعاينة واسم العميل). */
 export const toCdrPayload = ({ preview: _p, customer_name: _c, ...r }: CdrRow) => r;
 
-/** قراءة ملفات المستخدم: zip (CDR.csv + Switched.csv) أو الملفين منفصلين. */
-export const readCdrFiles = async (files: { name: string; text: () => Promise<string>; arrayBuffer: () => Promise<ArrayBuffer> }[]) => {
-  const texts: Record<string, string> = {};
+/** تسجيل صوتي مستخرج من callRecords.zip المتداخل داخل zip البوابة (اسمه = Cdr Id). */
+export interface NestedRecording { cdrId: string; name: string; data: Uint8Array }
+export const NESTED_RECORDINGS_RE = /(^|\/)callrecords[^/]*\.zip$/i;
+
+/** قراءة ملفات المستخدم: zip (CDR.csv + Switched.csv [+ callRecords.zip]) أو الملفين منفصلين. */
+export const readCdrFiles = async (files: { name: string; text: () => Promise<string>; arrayBuffer: () => Promise<ArrayBuffer> }[]):
+  Promise<CdrParse & { recordings: NestedRecording[] }> => {
+  const texts: Record<string, string> = {}; const recordings: NestedRecording[] = [];
   for (const f of files) {
     if (/\.zip$/i.test(f.name)) {
       const { unzipSync, strFromU8 } = await import("fflate");
-      const entries = unzipSync(new Uint8Array(await f.arrayBuffer()), { filter: (e) => /\.csv$/i.test(e.name) && !(e.originalSize > 20_000_000) });
-      for (const [name, data] of Object.entries(entries)) texts[name.split("/").pop()!.toLowerCase()] = strFromU8(data);
+      const entries = unzipSync(new Uint8Array(await f.arrayBuffer()), { filter: (e) =>
+        (/\.csv$/i.test(e.name) && !(e.originalSize > 20_000_000)) || NESTED_RECORDINGS_RE.test(e.name) });
+      for (const [name, data] of Object.entries(entries)) {
+        if (NESTED_RECORDINGS_RE.test(name)) {
+          const inner = unzipSync(data, { filter: (e) => !!audioMimeFor(e.name) && !(e.originalSize > RECORDING_MAX_BYTES) });
+          for (const [n, d] of Object.entries(inner)) {
+            const base = n.split("/").pop()!; const id = CDR_ID_IN_NAME_RE.exec(base)?.[0];
+            if (id && d.length > 0) recordings.push({ cdrId: id, name: base, data: d });
+          }
+        } else texts[name.split("/").pop()!.toLowerCase()] = strFromU8(data);
+      }
     } else texts[f.name.toLowerCase()] = await f.text();
   }
   const cdr = Object.entries(texts).find(([k]) => /^cdr.*\.csv$/.test(k))?.[1];
   const sw = Object.entries(texts).find(([k]) => /^switched.*\.csv$/.test(k))?.[1];
-  if (!cdr) return { ...mapCdr([[]]), missingColumns: ["ملف CDR.csv غير موجود"] } as CdrParse;
-  return mapCdr(parseCsv(cdr), sw ? parseCsv(sw) : undefined);
+  if (!cdr) return { ...mapCdr([[]]), missingColumns: ["ملف CDR.csv غير موجود"], recordings };
+  return { ...mapCdr(parseCsv(cdr), sw ? parseCsv(sw) : undefined), recordings };
 };
 
 // ───── مطابقة ملفات التسجيل بالمكالمات ─────
@@ -146,7 +161,7 @@ export const RECORDING_MAX_BYTES = 50 * 1024 * 1024;
 /** بالـ Cdr Id داخل اسم الملف، وإلا رقم + وقت (YYYYMMDD[-_ ]HHMMSS) خلال ±2 دقيقة وبنتيجة وحيدة. */
 export const matchRecording = (fileName: string, calls: MatchableCall[]): { call: MatchableCall | null; by: "cdr_id" | "phone_time" | null; reason?: string } => {
   const base = fileName.split("/").pop() ?? fileName;
-  const id = /CDR\.\d{6}\.\d{6}\.[A-Za-z0-9]+/.exec(base)?.[0];
+  const id = CDR_ID_IN_NAME_RE.exec(base)?.[0];
   if (id) { const c = calls.find((x) => x.external_call_id === id); return c ? { call: c, by: "cdr_id" } : { call: null, by: null, reason: "Cdr Id غير موجود في المكالمات المستوردة" }; }
   const digits = toLatinDigits(base);
   const phone = (digits.match(/(?:\+?20|0)?1[0125]\d{8}/g) ?? []).map(previewNormalizePhone).find(Boolean);
