@@ -513,13 +513,20 @@ Deno.serve(async (req) => {
         }
         continue;
       }
-      // Linked anyway; amount difference / cancelled order are review flags only
-      // (order total and status are never touched by the link).
+      // Amount differs → NOT linked; listed for review (unresolved) with both amounts.
+      if (picked.blocked) {
+        stats.amount_mismatch = (stats.amount_mismatch || 0) + 1;
+        failure("amount_mismatch", {
+          cod: picked.cod, order_total: picked.order_total,
+          suggested_order: (picked.suggested as any).order_number,
+        });
+        continue;
+      }
+      // Cancelled order: documentation link only (status/stock/ledger never touched).
       if (picked.flags.length) {
         stats.review_flags = stats.review_flags || [];
         if (stats.review_flags.length < 50) {
-          stats.review_flags.push({ bill_no: row.bill_no, order_number: picked.winner.order_number,
-            cod: row.cod, order_total: picked.winner.total, flags: picked.flags });
+          stats.review_flags.push({ bill_no: row.bill_no, order_number: picked.winner.order_number, flags: picked.flags });
         }
       }
       const winner = picked.winner;
@@ -640,7 +647,7 @@ Deno.serve(async (req) => {
     // ---- SYNC STATE COMMIT ----
     // Only a fully clean cycle (login OK + every page fetched + comparison
     // finished + no unhandled error) may advance the last-successful timestamp.
-    stats.unresolved = stats.no_matching_order + stats.no_phone_in_row + stats.ambiguous_skipped;
+    stats.unresolved = stats.no_matching_order + stats.no_phone_in_row + stats.ambiguous_skipped + (stats.amount_mismatch || 0);
     const fullyComplete = errors.length === 0 && paginationComplete;
     stats.complete = fullyComplete;
     if (fullyComplete) {

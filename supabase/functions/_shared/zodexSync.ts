@@ -359,15 +359,18 @@ export function isAutoLinkCandidate(o: ExpectedZodexShipmentOrder): boolean {
   return isExpectedZodexShipment({ ...o, status: null });
 }
 
-export type AutoLinkFlag = "cod_mismatch" | "cancelled_order_doc";
-export type AutoLinkPick<T> = { winner: T; reason: string; flags: AutoLinkFlag[] };
+export type AutoLinkFlag = "cancelled_order_doc";
+export type AutoLinkPick<T> =
+  | { winner: T; reason: string; flags: AutoLinkFlag[]; blocked?: undefined }
+  /** Amount differs: NOT linked — goes to review with the suggested order. */
+  | { blocked: "amount_mismatch"; suggested: T; cod: number; order_total: number; reason: string };
 
 /**
  * Pick the order for a waybill among same-phone, same-month candidates.
  * - Open orders are preferred; a cancelled order is used only when no open one exists.
- * - A return/cancel waybill links only to an already-cancelled order (documentation),
- *   so the returns step can never cancel an order or release stock off a phone guess.
- * - The amount never blocks the link; a difference becomes a review flag.
+ * - A return/cancel waybill links only to an already-cancelled order (documentation).
+ * - 28/10 (decision): when the bill COD differs from the order amount, do NOT link —
+ *   return `blocked: "amount_mismatch"` so it is listed for review before any link.
  */
 export function pickAutoLinkWinner<T extends { id: string; total?: number | null; created_at: string; status?: string | null }>(
   candidates: T[],
@@ -379,8 +382,11 @@ export function pickAutoLinkWinner<T extends { id: string; total?: number | null
   const pool = opts.returnBill ? cancelled : (open.length ? open : cancelled);
   const picked = pickAwbLinkWinner(pool, cod);
   if (!picked) return null;
+  const total = Number(picked.winner.total || 0);
+  if (cod > 0 && !amountMatchesZodex(total, cod).ok) {
+    return { blocked: "amount_mismatch", suggested: picked.winner, cod, order_total: total, reason: "amount_mismatch" };
+  }
   const flags: AutoLinkFlag[] = [];
-  if (cod > 0 && !amountMatchesZodex(Number(picked.winner.total || 0), cod).ok) flags.push("cod_mismatch");
   if (isCancelledStatus(picked.winner.status)) flags.push("cancelled_order_doc");
   return { winner: picked.winner, reason: picked.reason + flags.map((f) => "_" + f).join(""), flags };
 }
