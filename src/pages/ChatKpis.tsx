@@ -11,7 +11,8 @@ import { formatMoney, formatPct } from "@/lib/chatManagement/kpiMetrics";
 const db = supabase as any;
 interface ModRow { moderator_id: string; display_name: string; conversations: number; on_time: number; cover: number; late: number; pending: number;
   abandoned: number; converted: number; missed_calls: number; missed_followed: number; orders: number; delivered: number; resolved: number;
-  delivered_value: number; campaign_delivered: number; allocated_spend: number; cost_per_delivered: number | null }
+  delivered_value: number; campaign_delivered: number; allocated_spend: number; cost_per_delivered: number | null;
+  analyzed_calls?: number; avg_handling_score?: number | null; order_call_pct?: number | null; open_followups?: number }
 interface CampRow { campaign_id: string; campaign_name: string | null; spend: number; conversations: number; converted: number; orders: number;
   delivered: number; resolved: number; delivered_value: number; cost_per_delivered: number | null }
 
@@ -82,7 +83,7 @@ export default function ChatKpis() {
         <Card><CardHeader><CardTitle>حسب المودريتور</CardTitle>
           <CardDescription>تكلفة المودريتور = إنفاق كل حملة موزَّع بنسبة محادثاتها منها ÷ طلباتها المُسلَّمة من الحملات</CardDescription></CardHeader>
           <CardContent><p className="mb-2 text-xs text-muted-foreground">↔ اسحب الجدول أفقياً لعرض باقي الأعمدة؛ العمود الأول ثابت</p><div className="overflow-x-auto rounded border [scrollbar-width:thin]"><table className="w-full min-w-max text-sm">
-            <thead className="bg-muted"><tr>{["المودريتور","محادثات","في الوقت","تغطية","متأخر","متروكة","مكالمات فائتة","متابعة ≤ ساعة","تحويل","طلبات","مُسلَّم","نسبة التسليم","صافي المُسلَّم","إنفاق موزَّع","تكلفة المُسلَّم"].map((h, i) => <th key={h} className={`p-2 text-right whitespace-nowrap ${i === 0 ? "sticky right-0 z-10 shadow-[-6px_0_8px_-6px_rgba(102,45,140,0.25)] bg-muted" : ""}`}>{h}</th>)}</tr></thead>
+            <thead className="bg-muted"><tr>{["المودريتور","محادثات","في الوقت","تغطية","متأخر","متروكة","مكالمات فائتة","متابعة ≤ ساعة","تحويل","طلبات","مُسلَّم","نسبة التسليم","صافي المُسلَّم","إنفاق موزَّع","تكلفة المُسلَّم","مكالمات محلَّلة","متوسط تقييم التعامل","مكالمات وصلت لطلب","متابعات مفتوحة"].map((h, i) => <th key={h} className={`p-2 text-right whitespace-nowrap ${i === 0 ? "sticky right-0 z-10 shadow-[-6px_0_8px_-6px_rgba(102,45,140,0.25)] bg-muted" : ""}`}>{h}</th>)}</tr></thead>
             <tbody>{mods.map((r) => (
               <tr key={r.moderator_id} className="border-t">
                 <td className="sticky right-0 z-10 shadow-[-6px_0_8px_-6px_rgba(102,45,140,0.25)] bg-card p-2 font-medium whitespace-nowrap">{r.display_name}</td><td className="p-2">{r.conversations}</td>
@@ -91,8 +92,10 @@ export default function ChatKpis() {
                 <td className="p-2">{formatPct(r.converted, r.conversations)}</td><td className="p-2">{r.orders}</td><td className="p-2">{r.delivered}</td>
                 <td className="p-2">{formatPct(r.delivered, r.resolved)}</td><td className="p-2">{formatMoney(r.delivered_value)}</td>
                 <td className="p-2">{formatMoney(r.allocated_spend)}</td><td className="p-2">{formatMoney(r.cost_per_delivered)}</td>
+                <td className="p-2">{r.analyzed_calls ?? 0}</td><td className="p-2">{r.avg_handling_score == null ? "—" : `${Number(r.avg_handling_score).toFixed(1)} / 5`}</td>
+                <td className="p-2">{r.order_call_pct == null ? "—" : `${Number(r.order_call_pct).toFixed(0)}%`}</td><td className="p-2 text-[#F37346]">{r.open_followups ?? 0}</td>
               </tr>))}
-              {!mods.length && !loading && <tr><td colSpan={15} className="p-4 text-center text-muted-foreground">لا بيانات في هذه الفترة</td></tr>}
+              {!mods.length && !loading && <tr><td colSpan={19} className="p-4 text-center text-muted-foreground">لا بيانات في هذه الفترة</td></tr>}
             </tbody></table></div></CardContent></Card>
 
         <Card><CardHeader><CardTitle>حسب الحملة</CardTitle><CardDescription>تكلفة الطلب المُسلَّم = الإنفاق ÷ صافي المُسلَّم</CardDescription></CardHeader>

@@ -64,3 +64,6 @@ verify_jwt = true
 
 [functions.whatsapp-webhook]
 verify_jwt = false
+
+[functions.cm-analyze-call]
+verify_jwt = true
