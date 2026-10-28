@@ -321,13 +321,22 @@ export type ExpectedZodexShipmentOrder = {
   fulfillment_type?: string | null;
 };
 
+/** Private courier (مندوب خاص) never goes through the capital carrier — never auto-linked. */
+export const PRIVATE_COURIER = "مندوب خاص";
+export function isPrivateCourier(o: { shipping_company?: string | null }): boolean {
+  return (o.shipping_company || "").trim() === PRIVATE_COURIER;
+}
+export function isCancelledStatus(status: string | null | undefined): boolean {
+  return ["cancelled", "ملغى", "ملغي"].includes((status || "").trim());
+}
+
 /**
  * Orders that should get a Zodex ZX (Cairo/Giza Agouza delivery / شركة شحن).
- * Customer pickup (استلام) is warehouse collection — not a last-mile shipment.
+ * 28/10: customer pickup (استلام من المقر/الفرع) IS shipped through the capital
+ * carrier and must be linked like any delivery order. Private courier stays out.
  */
 export function isExpectedZodexShipment(o: ExpectedZodexShipmentOrder): boolean {
   if (NON_SHIPPABLE_STATUSES.has(o.status || "")) return false;
-  if ((o.fulfillment_type || "").toLowerCase() === "pickup") return false;
   const sc = (o.shipping_company || "").trim();
   if (sc === "مندوب خاص") return false;
   if (sc && !/zodex|زودكس/i.test(sc)) return false;
@@ -336,6 +345,44 @@ export function isExpectedZodexShipment(o: ExpectedZodexShipmentOrder): boolean 
   // Unclassified (no warehouse / company) may still have gone via Zodex.
   if (!o.source_warehouse_id && !sc) return true;
   return false;
+}
+
+/**
+ * Auto-link eligibility (28/10 rules): same carrier rules as isExpectedZodexShipment,
+ * but a cancelled/returned order is STILL eligible so its waybill is linked for the
+ * record (link only — no status, stock or money change). Drafts and private courier never.
+ */
+export function isAutoLinkCandidate(o: ExpectedZodexShipmentOrder): boolean {
+  const st = (o.status || "").trim();
+  if (st === "draft" || st === "مسودة") return false;
+  if (isPrivateCourier(o)) return false;
+  return isExpectedZodexShipment({ ...o, status: null });
+}
+
+export type AutoLinkFlag = "cod_mismatch" | "cancelled_order_doc";
+export type AutoLinkPick<T> = { winner: T; reason: string; flags: AutoLinkFlag[] };
+
+/**
+ * Pick the order for a waybill among same-phone, same-month candidates.
+ * - Open orders are preferred; a cancelled order is used only when no open one exists.
+ * - A return/cancel waybill links only to an already-cancelled order (documentation),
+ *   so the returns step can never cancel an order or release stock off a phone guess.
+ * - The amount never blocks the link; a difference becomes a review flag.
+ */
+export function pickAutoLinkWinner<T extends { id: string; total?: number | null; created_at: string; status?: string | null }>(
+  candidates: T[],
+  cod: number,
+  opts: { returnBill?: boolean } = {},
+): AutoLinkPick<T> | null {
+  const cancelled = candidates.filter((c) => isCancelledStatus(c.status));
+  const open = candidates.filter((c) => !isCancelledStatus(c.status));
+  const pool = opts.returnBill ? cancelled : (open.length ? open : cancelled);
+  const picked = pickAwbLinkWinner(pool, cod);
+  if (!picked) return null;
+  const flags: AutoLinkFlag[] = [];
+  if (cod > 0 && !amountMatchesZodex(Number(picked.winner.total || 0), cod).ok) flags.push("cod_mismatch");
+  if (isCancelledStatus(picked.winner.status)) flags.push("cancelled_order_doc");
+  return { winner: picked.winner, reason: picked.reason + flags.map((f) => "_" + f).join(""), flags };
 }
 
 /** Orders list: «+ بوليصة» / «تعديل البوليصة» only when Zodex last-mile is expected. */

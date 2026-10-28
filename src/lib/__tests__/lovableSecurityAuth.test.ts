@@ -108,7 +108,7 @@ describe("Lovable Zodex follow-up auth hardening", () => {
     const src = fn("sync-zodex-shipments");
     expect(src).toMatch(/resolveScheduledMode/);
     expect(src).toMatch(/already_running/);
-    expect(src).toMatch(/isExpectedZodexShipment/);
+    expect(src).toMatch(/isAutoLinkCandidate/);
     expect(src).toMatch(/phone2/);
   });
 
