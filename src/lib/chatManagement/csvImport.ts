@@ -42,7 +42,7 @@ export const CDR_COLUMNS = ["Cdr Id", "A Number", "Customer Name", "B Number", "
 export const SWITCHED_COLUMNS = ["Cdr Id", "Username", "Switch Time", "Switching Status", "Call Status", "Answer Time", "End Time"] as const;
 const CDR_REQUIRED = ["Cdr Id", "A Number", "B Number", "Start Time", "Call Direction"];
 const SW_REQUIRED = ["Cdr Id", "Username", "Switching Status"];
-export const KNOWN_CALL_RESULTS = ["ANSWERED", "ANSWERED_BY_AGENT"];
+export const KNOWN_CALL_RESULTS = ["ANSWERED", "ANSWERED_BY_AGENT", "ANSWERED_SWITCHED"]; // ANSWERED_SWITCHED: حُوِّلت للموظفات ولم تقبلها أي واحدة (تصدير 14-10 الفعلي)
 export const CDR_ID_RE = /^CDR\.\d{6}\.\d{6}\.[A-Za-z0-9]+$/;
 
 export interface SwitchAttempt { username: string; switch_time?: string; switching_status: string; call_status?: string; answer_time?: string; end_time?: string }
