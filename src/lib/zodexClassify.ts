@@ -34,10 +34,12 @@ export type FulfillmentEditKey =
 
 /**
  * Zodex last-mile is Agouza delivery (Cairo/Giza) and explicit شركة شحن.
- * Customer pickup and private-courier (كيمو / المخزن الرئيسي) must not keep a ZX bill.
+ * 28/10: customer pickup also goes through the capital carrier and keeps its bill.
+ * Private courier (كيمو / المخزن الرئيسي delivery) must not keep a ZX bill.
  */
 export function fulfillmentKeepsZodexWaybill(fKey: FulfillmentEditKey): boolean {
-  return fKey === "shipping_company" || fKey === "delivery_agouza";
+  return fKey === "shipping_company" || fKey === "delivery_agouza" ||
+    fKey === "pickup_agouza" || fKey === "pickup_main";
 }
 
 export const normPhone = (v?: string | null) =>

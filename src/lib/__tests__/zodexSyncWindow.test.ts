@@ -197,12 +197,12 @@ describe("AWB auto-link: phone2 / last-9 / delivery-only", () => {
     expect(picked?.reason).toBe("phone_only_fifo");
   });
 
-  it("does not treat pickup as a Zodex shipment for auto-link", () => {
+  it("treats pickup as a Zodex shipment for auto-link (28/10)", () => {
     expect(isExpectedZodexShipment({
       status: "pending",
       source_warehouse_id: AGOUZA_WAREHOUSE_ID,
       fulfillment_type: "pickup",
-    })).toBe(false);
+    })).toBe(true);
   });
 });
 

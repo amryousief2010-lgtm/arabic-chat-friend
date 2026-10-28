@@ -13,6 +13,8 @@ import {
   looksLikeEgyptianMobile,
   mapBalanceCells,
   phonesMatchLoose,
+  isAutoLinkCandidate,
+  isCancelledStatus,
 } from "../_shared/zodexSync.ts";
 import {
   isAuthResponse,
@@ -29,6 +31,8 @@ const ITEMS_PER_PAGE = 100;
 const DEFAULT_LOOKBACK_DAYS = 14;
 const ALAA_USER_ID = "77b71c5f-cfa8-42bc-85de-ae536a3ec1c1"; // م. آلاء حامد
 const DATE_WINDOW_DAYS = 3;
+/** Stop scraping/matching well before the edge worker wall-clock limit. */
+const DELIVERIES_TIME_BUDGET_MS = 110_000;
 const NAME_MATCH_THRESHOLD = 0.75;
 
 const OP_DELIVERY = "تكلفة التوصيل";
@@ -361,6 +365,11 @@ Deno.serve(async (req) => {
     missing_created: 0, missing_updated: 0, missing_auto_resolved: 0, unmatched_skipped: 0,
   };
   const errors: string[] = [];
+  // The run row MUST always be closed: a killed/slow worker used to leave it
+  // "running" forever and block the scheduled waybill sync (already_running).
+  let runClosed = false;
+  const startedMs = Date.now();
+  const overBudget = () => Date.now() - startedMs > DELIVERIES_TIME_BUDGET_MS;
 
   try {
     const client = new ZodexClient();
@@ -377,6 +386,7 @@ Deno.serve(async (req) => {
     const allRows: ZodexRow[] = [];
     let firstPageDebug: any = null;
     for (let page = 1; page <= maxPages; page++) {
+      if (overBudget()) { errors.push(`time_budget: stopped before page ${page}`); break; }
       const html = await client.get("/users.php", {
         action: "showBalance", id: SHIPPER_ID, account_type: "shipper",
         items: ITEMS_PER_PAGE, page, from: fromDate, to: toDate,
@@ -415,6 +425,7 @@ Deno.serve(async (req) => {
     const claimedInThisRun = new Set<string>();
 
     for (const row of allRows) {
+      if (overBudget()) { errors.push("time_budget: stopped matching early (partial run)"); break; }
       // Skip anything other than delivery or return operations
       if (row.operation_type !== OP_DELIVERY && row.operation_type !== OP_RETURN) {
         stats.unmatched_skipped++;
@@ -469,11 +480,12 @@ Deno.serve(async (req) => {
         const winStart = new Date(new Date(row.shipment_date).getTime() - DATE_WINDOW_DAYS * 86400_000).toISOString();
         const winEnd = new Date(new Date(row.shipment_date).getTime() + DATE_WINDOW_DAYS * 86400_000).toISOString();
         const { data: candidates } = await supabase.from("orders")
-          .select("id, total, moderator, created_at, customer_id, shipping_bill_no, customers!inner(name, phone, phone2)")
+          .select("id, total, moderator, created_at, customer_id, shipping_bill_no, status, shipping_company, fulfillment_type, source_warehouse_id, delivered_at, customers!inner(name, phone, phone2)")
           .is("shipping_bill_no", null)
           .gte("created_at", winStart)
           .lte("created_at", winEnd);
-        const list = (candidates || []) as any[];
+        // Private courier and drafts are never auto-linked; pickup and cancelled are (28/10).
+        const list = ((candidates || []) as any[]).filter((c) => isAutoLinkCandidate(c));
 
         // Strict filter: phone exact/last-9 + amount (exact ±5 or locked +110) + moderator,
         // and NOT already claimed by an earlier Zodex row in this run.
@@ -531,7 +543,11 @@ Deno.serve(async (req) => {
         // successful delivery. "مؤجل / معلق / مرتجع جزئى" rows can still appear on
         // closed invoices but MUST NOT auto-mark the order as delivered.
         const isSuccessfulDelivery = (row.shipment_status || "").trim() === STATUS_SUCCESS;
-        if (row.operation_type === OP_DELIVERY && row.invoice_no && isSuccessfulDelivery) {
+        if (isCancelledStatus(matchedOrder.status)) {
+          // Cancelled order: link the waybill for the record ONLY. No status,
+          // collection, amount, stock or ledger change.
+          (stats as any).cancelled_doc_linked = ((stats as any).cancelled_doc_linked || 0) + 1;
+        } else if (row.operation_type === OP_DELIVERY && row.invoice_no && isSuccessfulDelivery) {
           patch.status = "delivered";
           patch.collection_status = "collected";
           patch.total_at_delivery = row.cod_amount;
@@ -827,9 +843,10 @@ Deno.serve(async (req) => {
       pipelineCounts["بيك أب"] = { count: pickupCount, total: 0 };
     }
 
+    runClosed = true;
     await supabase.from("zodex_sync_runs").update({
       status: "success", finished_at: new Date().toISOString(),
-      ...stats, pipeline_counts: pipelineCounts, summary: { errors, sync_mode: syncMode },
+      ...stats, pipeline_counts: pipelineCounts, summary: { errors, sync_mode: syncMode, partial: errors.some((e) => e.startsWith("time_budget")) },
       sync_mode: syncMode, window_from: windowFrom, window_to: windowTo,
     }).eq("id", run!.id);
 
@@ -839,6 +856,7 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    runClosed = true;
     await supabase.from("zodex_sync_runs").update({
       status: "error", finished_at: new Date().toISOString(),
       error_message: msg, ...stats,
@@ -846,5 +864,14 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ ok: false, error: msg, ...stats }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  } finally {
+    if (!runClosed && run?.id) {
+      try {
+        await supabase.from("zodex_sync_runs").update({
+          status: "error", finished_at: new Date().toISOString(),
+          error_message: "deliveries run ended without closing (finally guard)",
+        }).eq("id", run.id).eq("status", "running");
+      } catch (_e) { /* best effort */ }
+    }
   }
 });
