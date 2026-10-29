@@ -12,6 +12,19 @@ interface Msg { id: string; direction: "in" | "out"; type: string; body: string 
 
 const fmt = (x: string) => formatDateTime12(x);
 
+/** وصف مقروء للرسائل غير النصية. */
+export const TYPE_LABEL: Record<string, string> = {
+  image: "📷 صورة", audio: "🎤 رسالة صوتية", video: "🎬 فيديو", document: "📄 ملف", sticker: "ملصق",
+  location: "📍 موقع", contacts: "👤 جهة اتصال", reaction: "تفاعل", interactive: "ضغط زر", order: "🛒 طلب",
+  template: "قالب", system: "إشعار نظام", media_placeholder: "وسائط (من السجل القديم)",
+  unsupported: "رسالة غير مدعومة من واتساب", unknown: "رسالة غير معروفة",
+};
+export const messageText = (m: { type: string; body: string | null }) => {
+  if (m.type === "text") return m.body ?? "";
+  const label = TYPE_LABEL[m.type] ?? `[${m.type}]`;
+  return m.body ? `${label}: ${m.body}` : label;
+};
+
 /** عرض المحادثة (قراءة فقط) + حقل كتابة معطّل حتى يُربط الإرسال عبر واتساب. */
 export default function ConversationThread({ conversationId, title }: { conversationId: string | null; title?: string }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -39,7 +52,7 @@ export default function ConversationThread({ conversationId, title }: { conversa
             <div key={m.id} className={`flex ${m.direction === "in" ? "justify-start" : "justify-end"}`}>
               <div className="max-w-[80%] rounded-lg px-3 py-2 text-sm shadow-sm"
                 style={m.direction === "out" ? { background: BRAND.purple, color: "#fff" } : { background: "#fff", border: `1px solid ${BRAND.magenta}33` }}>
-                <div className="whitespace-pre-wrap">{m.body ?? `[${m.type}]`}</div>
+                <div className="whitespace-pre-wrap">{messageText(m)}</div>
                 <div className="text-[10px] opacity-70 mt-1">{fmt(m.sent_at)}</div>
               </div>
             </div>

@@ -74,15 +74,15 @@ describe("whatsapp webhook", () => {
     const p = payload([msg("wamid.A", "2026-10-27T08:30:00Z")]);
     const r1 = await (await handleWebhook(await post(p), env, db.ingest)).json();
     const r2 = await (await handleWebhook(await post(p), env, db.ingest)).json();
-    expect(r1).toEqual({ processed: 1, duplicates: 0, deferred: 0 });
-    expect(r2).toEqual({ processed: 0, duplicates: 1, deferred: 0 });
+    expect(r1).toEqual({ processed: 1, duplicates: 0, deferred: 0, ops: 0 });
+    expect(r2).toEqual({ processed: 0, duplicates: 1, deferred: 0, ops: 0 });
     expect(db.msgs.size).toBe(1);
   });
 
   it("off-hours message (03:00 Cairo) is deferred to 09:00", async () => {
     const db = fakeDb();
     const r = await (await handleWebhook(await post(payload([msg("wamid.N", "2026-10-28T00:00:00Z")])), env, db.ingest)).json();
-    expect(r).toEqual({ processed: 1, duplicates: 0, deferred: 1 });
+    expect(r).toEqual({ processed: 1, duplicates: 0, deferred: 1, ops: 0 });
   });
 
   it("returns 500 on ingest failure so Meta retries", async () => {
