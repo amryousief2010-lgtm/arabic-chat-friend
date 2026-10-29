@@ -4,7 +4,7 @@ import Header from "@/components/layout/Header";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useChatConversations } from "@/hooks/useChatConversations";
-import { computeKpis, sortByActivity } from "@/lib/chatManagement/inbox";
+import { adSourceLabel, computeKpis, sortByActivity, type InboxConversation } from "@/lib/chatManagement/inbox";
 import KpiStrip from "@/components/chatManagement/KpiStrip";
 import ConversationList from "@/components/chatManagement/ConversationList";
 import ConversationThread from "@/components/chatManagement/ConversationThread";
@@ -27,12 +27,13 @@ export default function ChatInbox() {
 }
 
 function InboxFor({ moderatorId }: { moderatorId: string }) {
-  const { conversations, assignments, settings, lines, loading, error } = useChatConversations({ moderatorId });
+  const { conversations, assignments, settings, lines, campaigns, loading, error } = useChatConversations({ moderatorId });
   const [selected, setSelected] = useState<string | null>(null);
   const now = useMemo(() => new Date(), [conversations]);
   const items = useMemo(() => sortByActivity(conversations), [conversations]);
   const kpis = useMemo(() => computeKpis(conversations, assignments, now, settings), [conversations, assignments, now, settings]);
   const sel = items.find((c) => c.id === selected) ?? null;
+  const srcOf = (c: InboxConversation) => adSourceLabel(c, campaigns.find((x) => x.id === c.campaign_id)?.name);
   const lineName = (id: string | null) => lines.find((l) => l.id === id)?.label ?? "—";
   return (
     <DashboardLayout>
@@ -44,9 +45,9 @@ function InboxFor({ moderatorId }: { moderatorId: string }) {
           <Card className="lg:col-span-4"><CardContent className="p-0">
             {loading ? <p className="p-4 text-muted-foreground">جارٍ التحميل…</p> :
               <ConversationList items={items} selectedId={selected} onSelect={setSelected} now={now}
-                assignments={assignments} settings={settings} lineName={lineName} />}
+                assignments={assignments} settings={settings} lineName={lineName} sourceLabel={srcOf} />}
           </CardContent></Card>
-          <div className="lg:col-span-5"><ConversationThread conversationId={selected} /></div>
+          <div className="lg:col-span-5"><ConversationThread conversationId={selected} source={sel ? srcOf(sel) : null} /></div>
           <div className="lg:col-span-3"><CustomerPanel customerId={sel?.customer_id ?? null} phoneNorm={sel?.phone_norm ?? null} /></div>
         </div>
       </div>

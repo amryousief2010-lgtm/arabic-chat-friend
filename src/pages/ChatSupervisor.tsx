@@ -14,7 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useChatConversations } from "@/hooks/useChatConversations";
 import { CHAT_PHONE_REVIEW_PATH, canManageConversations, canReviewPhones } from "@/config/chatManagement";
 import {
-  STATUS_LABELS, computeKpis, filterConversations, sortByActivity, type ConversationStatus, type InboxFilters,
+  STATUS_LABELS, adSourceLabel, computeKpis, filterConversations, sortByActivity, type ConversationStatus, type InboxConversation, type InboxFilters,
 } from "@/lib/chatManagement/inbox";
 import KpiStrip from "@/components/chatManagement/KpiStrip";
 import ConversationList from "@/components/chatManagement/ConversationList";
@@ -28,7 +28,7 @@ const NONE = "__none__";
 export default function ChatSupervisor() {
   const { roles } = useAuth() as { roles?: string[] };
   const canManage = canManageConversations(roles);
-  const { conversations, moderators, lines, assignments, settings, loading, error, reload } = useChatConversations();
+  const { conversations, moderators, lines, campaigns, assignments, settings, loading, error, reload } = useChatConversations();
   const [filters, setFilters] = useState<InboxFilters>({ status: "all", lineId: "all", moderatorId: "all" });
   const [selected, setSelected] = useState<string | null>(null);
   const [reassignTo, setReassignTo] = useState(NONE);
@@ -38,6 +38,7 @@ export default function ChatSupervisor() {
   const kpis = useMemo(() => computeKpis(items, assignments, now, settings), [items, assignments, now, settings]);
   const sel = conversations.find((c) => c.id === selected) ?? null;
   const modName = (id: string | null) => (id ? moderators.find((m) => m.id === id)?.display_name ?? "—" : "غير مسندة");
+  const srcOf = (c: InboxConversation) => adSourceLabel(c, campaigns.find((x) => x.id === c.campaign_id)?.name);
   const lineName = (id: string | null) => lines.find((l) => l.id === id)?.label ?? "خط غير معروف";
   const set = (p: Partial<InboxFilters>) => setFilters((f) => ({ ...f, ...p }));
 
@@ -84,6 +85,13 @@ export default function ChatSupervisor() {
                 {moderators.map((m) => <SelectItem key={m.id} value={m.id}>{m.display_name}</SelectItem>)}
               </SelectContent>
             </Select></div>
+          <div><Label className="text-xs">المصدر</Label>
+            <Select value={filters.source ?? "all"} onValueChange={(v) => set({ source: v })}>
+              <SelectTrigger className="w-52" aria-label="المصدر"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="all">كل المصادر</SelectItem><SelectItem value="ads">من إعلان</SelectItem><SelectItem value="organic">عضوي</SelectItem>
+                {campaigns.filter((cp) => conversations.some((c) => c.campaign_id === cp.id)).map((cp) => <SelectItem key={cp.id} value={cp.id}>{cp.name}</SelectItem>)}
+              </SelectContent>
+            </Select></div>
           <div className="flex items-center gap-2"><Switch id="ab" checked={!!filters.abandonedOnly} onCheckedChange={(v) => set({ abandonedOnly: v })} /><Label htmlFor="ab">المهملة فقط</Label></div>
           <div className="flex items-center gap-2"><Switch id="df" checked={!!filters.deferredOnly} onCheckedChange={(v) => set({ deferredOnly: v })} /><Label htmlFor="df">المؤجلة للصباح فقط</Label></div>
         </CardContent></Card>
@@ -91,9 +99,9 @@ export default function ChatSupervisor() {
           <Card className="lg:col-span-4"><CardContent className="p-0">
             {loading ? <p className="p-4 text-muted-foreground">جارٍ التحميل…</p> :
               <ConversationList items={items} selectedId={selected} onSelect={setSelected} now={now} assignments={assignments}
-                settings={settings} moderatorName={modName} lineName={lineName} />}
+                settings={settings} moderatorName={modName} lineName={lineName} sourceLabel={srcOf} />}
           </CardContent></Card>
-          <div className="lg:col-span-5"><ConversationThread conversationId={selected} title={sel ? `المسندة: ${modName(sel.assigned_moderator_id)}` : undefined} /></div>
+          <div className="lg:col-span-5"><ConversationThread conversationId={selected} source={sel ? srcOf(sel) : null} title={sel ? `المسندة: ${modName(sel.assigned_moderator_id)}` : undefined} /></div>
           <div className="lg:col-span-3 space-y-4">
             <CustomerPanel customerId={sel?.customer_id ?? null} phoneNorm={sel?.phone_norm ?? null} />
             {canManage && sel && (

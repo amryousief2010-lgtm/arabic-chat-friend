@@ -20,7 +20,19 @@ export interface InboxConversation {
   awaiting_reply_since: string | null;
   last_inbound_at: string | null;
   last_outbound_at: string | null;
+  campaign_id?: string | null;
+  ad_id?: string | null;
+  ad_headline?: string | null;
+  ad_source_type?: string | null;
 }
+
+/** مصدر المحادثة للعرض: إعلان (عنوان + آخر أرقام المعرّف) أو عضوي. */
+export const adSourceLabel = (c: Pick<InboxConversation, "ad_id" | "ad_headline" | "campaign_id">, campaignName?: string | null): string | null => {
+  if (!c.ad_id && !c.campaign_id) return null;
+  if (campaignName) return campaignName;
+  const head = (c.ad_headline ?? "").replace(/^[\u064B-\u0652\s]+/, "").trim() || "إعلان";
+  return c.ad_id ? `${head} · …${c.ad_id.slice(-6)}` : head;
+};
 
 export const STATUS_LABELS: Record<ConversationStatus, string> = {
   open: "مفتوحة", pending: "قيد المتابعة", closed: "مغلقة", spam: "مزعجة",
@@ -77,6 +89,8 @@ export interface InboxFilters {
   moderatorId?: string | "all" | "unassigned";
   abandonedOnly?: boolean;
   deferredOnly?: boolean;
+  /** "all" | "ads" (أي إعلان) | "organic" | campaign_id */
+  source?: string;
 }
 
 export const filterConversations = (
@@ -88,6 +102,10 @@ export const filterConversations = (
   if (f.moderatorId && !["all", "unassigned"].includes(f.moderatorId) && c.assigned_moderator_id !== f.moderatorId) return false;
   if (f.abandonedOnly && !isConversationAbandoned(c, now, s)) return false;
   if (f.deferredOnly && !isDeferredToMorning(c, now)) return false;
+  if (f.source && f.source !== "all") {
+    const fromAd = !!(c.ad_id || c.campaign_id);
+    if (f.source === "ads" ? !fromAd : f.source === "organic" ? fromAd : c.campaign_id !== f.source) return false;
+  }
   return true;
 });
 

@@ -15,9 +15,11 @@ interface Props {
   settings: KpiSettings;
   moderatorName?: (id: string | null) => string;
   lineName?: (id: string | null) => string;
+  /** نص مصدر الإعلان أو null للعضوي */
+  sourceLabel?: (c: InboxConversation) => string | null;
 }
 
-export default function ConversationList({ items, selectedId, onSelect, now, assignments, settings, moderatorName, lineName }: Props) {
+export default function ConversationList({ items, selectedId, onSelect, now, assignments, settings, moderatorName, lineName, sourceLabel }: Props) {
   if (items.length === 0) return <p className="text-sm text-muted-foreground p-4 text-center" data-testid="empty-list">لا توجد محادثات</p>;
   return (
     <ul className="divide-y max-h-[60vh] overflow-y-auto" dir="rtl" data-testid="conversation-list">
@@ -25,6 +27,7 @@ export default function ConversationList({ items, selectedId, onSelect, now, ass
         const fr = firstReplyStatusOf(c, assignments, now, settings);
         const abandoned = isConversationAbandoned(c, now, settings);
         const deferred = isDeferredToMorning(c, now);
+        const src = sourceLabel?.(c) ?? null;
         return (
           <li key={c.id}>
             <button type="button" onClick={() => onSelect(c.id)}
@@ -40,6 +43,7 @@ export default function ConversationList({ items, selectedId, onSelect, now, ass
                 {fr && <Badge variant="secondary">{FIRST_REPLY_LABELS[fr]}</Badge>}
                 {abandoned && <Badge style={{ background: BRAND.orange, color: "#fff" }}>مهملة</Badge>}
                 {deferred && <Badge style={{ background: BRAND.purple, color: "#fff" }}>مؤجلة للصباح</Badge>}
+                {src && <Badge variant="outline" title={src} className="max-w-[14rem] truncate" data-testid="ad-badge">📣 {src}</Badge>}
               </div>
             </button>
           </li>

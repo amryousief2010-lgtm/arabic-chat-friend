@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney, formatPct } from "@/lib/chatManagement/kpiMetrics";
+import ChatAnalysisSection from "@/components/chatManagement/ChatAnalysisSection";
 
 const db = supabase as any;
 interface ModRow { moderator_id: string; display_name: string; conversations: number; on_time: number; cover: number; late: number; pending: number;
@@ -110,6 +111,7 @@ export default function ChatKpis() {
               </tr>))}
               {!camps.length && !loading && <tr><td colSpan={9} className="p-4 text-center text-muted-foreground">لا بيانات في هذه الفترة</td></tr>}
             </tbody></table></div></CardContent></Card>
+        <ChatAnalysisSection from={from} to={to} />
       </div>
     </DashboardLayout>
   );

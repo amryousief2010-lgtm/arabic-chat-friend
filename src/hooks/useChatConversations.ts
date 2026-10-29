@@ -14,6 +14,7 @@ export function useChatConversations(opts: { moderatorId?: string | null } = {})
   const [lines, setLines] = useState<LineOption[]>([]);
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
   const [settings, setSettings] = useState<KpiSettings>(DEFAULT_KPI_SETTINGS);
+  const [campaigns, setCampaigns] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,9 +22,11 @@ export function useChatConversations(opts: { moderatorId?: string | null } = {})
     setLoading(true);
     const since = new Date(Date.now() - 2 * 86400_000).toISOString().slice(0, 10);
     let q = db.from("cm_conversations").select(
-      "id,line_id,status,owner_moderator_id,assigned_moderator_id,phone_norm,customer_id,first_inbound_at,clock_started_at,first_reply_at,first_reply_was_cover,awaiting_reply_since,last_inbound_at,last_outbound_at",
+      "id,line_id,status,owner_moderator_id,assigned_moderator_id,phone_norm,customer_id,first_inbound_at,clock_started_at,first_reply_at,first_reply_was_cover,awaiting_reply_since,last_inbound_at,last_outbound_at,campaign_id,ad_id,ad_headline,ad_source_type",
     ).order("last_inbound_at", { ascending: false, nullsFirst: false }).limit(500);
     if (opts.moderatorId) q = q.or(`assigned_moderator_id.eq.${opts.moderatorId},owner_moderator_id.eq.${opts.moderatorId}`);
+    // أسماء الحملات للعرض/الفلتر — غير حرجة (قد تمنعها RLS عن بعض الأدوار).
+    db.from("cm_campaigns").select("id,name").order("name").then((r: any) => setCampaigns(r.data ?? []));
     const [c, m, l, a, k] = await Promise.all([
       q,
       db.from("cm_moderators").select("id,display_name,sort_order").eq("is_active", true).order("sort_order"),
@@ -43,5 +46,5 @@ export function useChatConversations(opts: { moderatorId?: string | null } = {})
   }, [opts.moderatorId]);
 
   useEffect(() => { load(); }, [load]);
-  return { conversations, moderators, lines, assignments, settings, loading, error, reload: load };
+  return { conversations, moderators, lines, campaigns, assignments, settings, loading, error, reload: load };
 }

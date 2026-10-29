@@ -2,6 +2,7 @@
 // غير منشورة. خاملة حتى تُضبط الأسرار (META_APP_SECRET، WHATSAPP_VERIFY_TOKEN): ترد 503 ولا تكتب شيئاً.
 // تحتاج verify_jwt = false (ميتا لا ترسل JWT)؛ الحماية بتوقيع X-Hub-Signature-256.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { processPendingMedia } from "../_shared/wa-media.ts";
 import { handleWebhook, type IngestArgs, type IngestResult, type Op } from "./handler.ts";
 
 const FN: Record<Op["kind"], string> = {
@@ -27,5 +28,15 @@ Deno.serve((req) => {
     if (error) throw new Error(error.message);
     return data;
   };
-  return handleWebhook(req, env, ingest, runOp);
+  return handleWebhook(req, env, ingest, runOp).then((res) => {
+    // تنزيل الوسائط في الخلفية بعد الرد (لا يبطئ الويبهوك)؛ كل استدعاء يعيد محاولة المعلّق أيضاً.
+    if (req.method === "POST" && res.status === 200) {
+      const job = processPendingMedia(db, Deno.env.get("WHATSAPP_ACCESS_TOKEN") ?? undefined, 5)
+        .catch(() => undefined);
+      // deno-lint-ignore no-explicit-any
+      const rt = (globalThis as any).EdgeRuntime;
+      if (rt?.waitUntil) rt.waitUntil(job);
+    }
+    return res;
+  });
 });
