@@ -35,7 +35,11 @@ export default function ConversationList({ items, selectedId, onSelect, now, ass
               style={selectedId === c.id ? { borderInlineStart: `3px solid ${BRAND.magenta}` } : undefined}>
               <div className="flex justify-between gap-2">
                 <span className="font-medium" dir="ltr">{maskPhone(c.phone_norm)}</span>
-                <Badge variant="outline">{STATUS_LABELS[c.status]}</Badge>
+                <span className="flex gap-1 shrink-0">
+                  {c.has_order && <Badge style={{ background: "#16a34a", color: "#fff" }} data-testid="order-badge"
+                    title={c.orders_count && c.orders_count > 1 ? `${c.orders_count} طلبات` : "طلب واحد"}>✓ تم الطلب</Badge>}
+                  <Badge variant="outline">{STATUS_LABELS[c.status]}</Badge>
+                </span>
               </div>
               <div className="flex flex-wrap gap-1 mt-1 text-xs text-muted-foreground">
                 {lineName && <span>{lineName(c.line_id)}</span>}
@@ -43,8 +47,8 @@ export default function ConversationList({ items, selectedId, onSelect, now, ass
                 {fr && <Badge variant="secondary">{FIRST_REPLY_LABELS[fr]}</Badge>}
                 {abandoned && <Badge style={{ background: BRAND.orange, color: "#fff" }}>مهملة</Badge>}
                 {deferred && <Badge style={{ background: BRAND.purple, color: "#fff" }}>مؤجلة للصباح</Badge>}
-                {src && <Badge variant="outline" title={src} className="max-w-[14rem] truncate" data-testid="ad-badge">📣 {src}</Badge>}
               </div>
+              {src && <div className="mt-1 text-xs text-muted-foreground truncate" title={src} data-testid="ad-badge">📣 {src}</div>}
             </button>
           </li>
         );

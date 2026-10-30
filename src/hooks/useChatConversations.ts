@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_KPI_SETTINGS, type AssignmentRow, type KpiSettings } from "@/lib/chatManagement/responseClock";
-import type { InboxConversation } from "@/lib/chatManagement/inbox";
+import { withOrderFlags, type InboxConversation } from "@/lib/chatManagement/inbox";
 
 const db = supabase as any;
 export interface ModOption { id: string; display_name: string; sort_order: number }
@@ -27,16 +27,18 @@ export function useChatConversations(opts: { moderatorId?: string | null } = {})
     if (opts.moderatorId) q = q.or(`assigned_moderator_id.eq.${opts.moderatorId},owner_moderator_id.eq.${opts.moderatorId}`);
     // أسماء الحملات للعرض/الفلتر — غير حرجة (قد تمنعها RLS عن بعض الأدوار).
     db.from("cm_campaigns").select("id,name").order("name").then((r: any) => setCampaigns(r.data ?? []));
-    const [c, m, l, a, k] = await Promise.all([
+    const [c, m, l, a, k, f] = await Promise.all([
       q,
       db.from("cm_moderators").select("id,display_name,sort_order").eq("is_active", true).order("sort_order"),
       db.from("cm_lines").select("id,label").order("label"),
       db.from("cm_shift_assignments").select("work_date,starts_at,ends_at,moderator_id").gte("work_date", since),
       db.from("cm_kpi_settings").select("*").maybeSingle(),
+      // «تم الطلب» — غير حرج: إن فشل تظهر القائمة بدون الشارة.
+      db.rpc("cm_conversation_order_flags"),
     ]);
     const err = [c, m, l, a, k].find((r: any) => r.error)?.error;
     setError(err ? err.message : null);
-    setConversations(c.data ?? []);
+    setConversations(withOrderFlags(c.data ?? [], f.error ? [] : f.data ?? []));
     setModerators(m.data ?? []);
     setLines(l.data ?? []);
     setAssignments(a.data ?? []);

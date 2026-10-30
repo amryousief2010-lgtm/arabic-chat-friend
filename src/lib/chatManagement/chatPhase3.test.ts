@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { extForMime, mediaPath, fetchOne, MAX_MEDIA_BYTES } from "../../../supabase/functions/_shared/wa-media";
 import { redact, buildChatTranscript, fixOutcome, normalizeChatAnalysis, chatHash } from "../../../supabase/functions/_shared/chat-analysis";
-import { adSourceLabel, filterConversations, type InboxConversation } from "./inbox";
+import { adSourceLabel, filterConversations, withOrderFlags, type InboxConversation } from "./inbox";
 import { mediaKind, mediaStatusText } from "@/components/chatManagement/MessageMedia";
 import { chatLabel, CHAT_CATEGORY_LABELS, fmtMin } from "./chatAnalysisLabels";
 
@@ -74,6 +74,14 @@ describe("ad source UI", () => {
     expect(filterConversations([base, ad], { source: "ads" }, now).map((c) => c.id)).toEqual(["b"]);
     expect(filterConversations([base, ad], { source: "organic" }, now).map((c) => c.id)).toEqual(["a"]);
     expect(filterConversations([base, ad], { source: "k1" }, now).map((c) => c.id)).toEqual(["b"]);
+  });
+  it("order flags + ordered filter", () => {
+    const now = new Date();
+    const l = withOrderFlags([base, ad], [{ conversation_id: "b", orders: "2" }]);
+    expect(l.map((c) => [c.has_order, c.orders_count])).toEqual([[false, 0], [true, 2]]);
+    expect(filterConversations(l, { ordered: "yes" }, now).map((c) => c.id)).toEqual(["b"]);
+    expect(filterConversations(l, { ordered: "no" }, now).map((c) => c.id)).toEqual(["a"]);
+    expect(filterConversations(l, { ordered: "all", source: "k1" }, now).map((c) => c.id)).toEqual(["b"]);
   });
   it("media helpers + labels", () => {
     expect(mediaKind({ type: "audio" })).toBe("audio");

@@ -24,6 +24,9 @@ export interface InboxConversation {
   ad_id?: string | null;
   ad_headline?: string | null;
   ad_source_type?: string | null;
+  /** نتج عنها طلب فعلي (نفس تعريف «تحوّلت» في المؤشرات: طلب غير ملغي مربوط خلال نافذة التحويل). */
+  has_order?: boolean;
+  orders_count?: number;
 }
 
 /** مصدر المحادثة للعرض: إعلان (عنوان + آخر أرقام المعرّف) أو عضوي. */
@@ -91,6 +94,8 @@ export interface InboxFilters {
   deferredOnly?: boolean;
   /** "all" | "ads" (أي إعلان) | "organic" | campaign_id */
   source?: string;
+  /** "all" | "yes" (تم الطلب) | "no" (بدون طلب) */
+  ordered?: "all" | "yes" | "no";
 }
 
 export const filterConversations = (
@@ -106,8 +111,18 @@ export const filterConversations = (
     const fromAd = !!(c.ad_id || c.campaign_id);
     if (f.source === "ads" ? !fromAd : f.source === "organic" ? fromAd : c.campaign_id !== f.source) return false;
   }
+  if (f.ordered === "yes" && !c.has_order) return false;
+  if (f.ordered === "no" && c.has_order) return false;
   return true;
 });
+
+/** يدمج أعلام الطلب (من cm_conversation_order_flags) في المحادثات. */
+export const withOrderFlags = (
+  list: InboxConversation[], flags: { conversation_id: string; orders: number | string | null }[],
+): InboxConversation[] => {
+  const m = new Map(flags.map((f) => [f.conversation_id, Number(f.orders ?? 0) || 1]));
+  return list.map((c) => ({ ...c, has_order: m.has(c.id), orders_count: m.get(c.id) ?? 0 }));
+};
 
 /** الأحدث نشاطاً أولاً. */
 export const sortByActivity = (list: InboxConversation[]) =>

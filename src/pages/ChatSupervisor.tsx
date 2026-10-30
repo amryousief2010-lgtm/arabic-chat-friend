@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,6 +42,17 @@ export default function ChatSupervisor() {
   const srcOf = (c: InboxConversation) => adSourceLabel(c, campaigns.find((x) => x.id === c.campaign_id)?.name);
   const lineName = (id: string | null) => lines.find((l) => l.id === id)?.label ?? "خط غير معروف";
   const set = (p: Partial<InboxFilters>) => setFilters((f) => ({ ...f, ...p }));
+  const canRename = (roles ?? []).includes("general_manager");
+  const adOptions = useMemo(() => campaigns.map((cp) => {
+    const cs = conversations.filter((c) => c.campaign_id === cp.id);
+    return { id: cp.id, name: cp.name, n: cs.length, orders: cs.filter((c) => c.has_order).length };
+  }).filter((o) => o.n > 0).sort((a, b) => b.n - a.n), [campaigns, conversations]);
+  const [adName, setAdName] = useState("");
+  useEffect(() => { setAdName(campaigns.find((x) => x.id === filters.source)?.name ?? ""); }, [filters.source, campaigns]);
+  const renameAd = async () => {
+    const { error: e } = await db.rpc("cm_rename_campaign", { _campaign_id: filters.source, _name: adName.trim() });
+    if (e) toast.error(`تعذّر حفظ الاسم: ${e.message}`); else { toast.success("تم حفظ اسم الإعلان"); reload(); }
+  };
 
   const reassign = async () => {
     if (!sel || reassignTo === NONE) return;
@@ -87,10 +99,23 @@ export default function ChatSupervisor() {
             </Select></div>
           <div><Label className="text-xs">المصدر</Label>
             <Select value={filters.source ?? "all"} onValueChange={(v) => set({ source: v })}>
-              <SelectTrigger className="w-52" aria-label="المصدر"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="all">كل المصادر</SelectItem><SelectItem value="ads">من إعلان</SelectItem><SelectItem value="organic">عضوي</SelectItem>
-                {campaigns.filter((cp) => conversations.some((c) => c.campaign_id === cp.id)).map((cp) => <SelectItem key={cp.id} value={cp.id}>{cp.name}</SelectItem>)}
+              <SelectTrigger className="w-64" aria-label="المصدر"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="all">كل المصادر</SelectItem><SelectItem value="ads">من إعلان</SelectItem><SelectItem value="organic">مباشر (بدون إعلان)</SelectItem>
+                {adOptions.map((o) => <SelectItem key={o.id} value={o.id}>{o.name} ({o.n}{o.orders ? ` · ${o.orders} طلب` : ""})</SelectItem>)}
               </SelectContent>
+            </Select></div>
+          {canRename && filters.source && !["all", "ads", "organic"].includes(filters.source) && (
+            <div className="flex gap-1 items-end">
+              <div><Label className="text-xs">اسم الإعلان</Label>
+                <Input className="w-48" aria-label="اسم الإعلان" value={adName} placeholder="مثال: إعلان التجار"
+                  onChange={(e) => setAdName(e.target.value)} /></div>
+              <Button size="sm" variant="outline" onClick={renameAd} disabled={!adName.trim()}>حفظ الاسم</Button>
+            </div>
+          )}
+          <div className="space-y-1"><Label>الطلب</Label>
+            <Select value={filters.ordered ?? "all"} onValueChange={(v) => set({ ordered: v as InboxFilters["ordered"] })}>
+              <SelectTrigger className="w-32" aria-label="الطلب"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="all">الكل</SelectItem><SelectItem value="yes">تم الطلب</SelectItem><SelectItem value="no">بدون طلب</SelectItem></SelectContent>
             </Select></div>
           <div className="flex items-center gap-2"><Switch id="ab" checked={!!filters.abandonedOnly} onCheckedChange={(v) => set({ abandonedOnly: v })} /><Label htmlFor="ab">المهملة فقط</Label></div>
           <div className="flex items-center gap-2"><Switch id="df" checked={!!filters.deferredOnly} onCheckedChange={(v) => set({ deferredOnly: v })} /><Label htmlFor="df">المؤجلة للصباح فقط</Label></div>
