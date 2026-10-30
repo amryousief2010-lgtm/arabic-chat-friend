@@ -21,7 +21,13 @@ import meatFactoryReportTool from "./tools/meat-factory-report";
 import boxCostsReportTool from "./tools/box-costs-report";
 
 
-const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unset";
+// Prefer the runtime project (edge function: SUPABASE_URL) so the bundled MCP function
+// never pins a specific project ref; fall back to the build-time env for the browser build.
+const runtimeUrl: string | undefined = (globalThis as { Deno?: { env: { get(k: string): string | undefined } } }).Deno?.env.get("SUPABASE_URL");
+const projectRef =
+  runtimeUrl?.replace(/^https?:\/\//, "").split(".")[0] ||
+  import.meta.env.VITE_SUPABASE_PROJECT_ID ||
+  "project-ref-unset";
 
 export default defineMcp({
   name: "naam-al-asima-management-system",

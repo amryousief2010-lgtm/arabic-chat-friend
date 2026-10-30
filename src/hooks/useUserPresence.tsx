@@ -65,7 +65,7 @@ export function useUserPresence() {
     // Mark offline on tab close
     const onUnload = () => {
       try {
-        const url = `https://ssznmzijopyxkwpctcxw.supabase.co/rest/v1/user_presence?user_id=eq.${user.id}`;
+        const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/user_presence?user_id=eq.${user.id}`;
         // Best-effort fire-and-forget; ignored if blocked
         navigator.sendBeacon?.(url);
       } catch {}
