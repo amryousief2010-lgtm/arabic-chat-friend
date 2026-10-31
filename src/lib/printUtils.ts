@@ -82,7 +82,7 @@ export const printOrderInvoice = (order: PrintOrderData) => {
 
   const body = `
     <div class="header">
-      <div class="brand">العاصمة للنعام<small>Capital Ostrich</small></div>
+      <div class="brand">العاصمة للنعام<small>Capital Ostrich</small><small>رقم التسجيل الضريبي: <span dir="ltr">623467593</span></small></div>
       <div class="doc-title">فاتورة طلب</div>
     </div>
     <div class="meta">
