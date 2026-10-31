@@ -27,7 +27,34 @@ export interface InboxConversation {
   /** نتج عنها طلب فعلي (نفس تعريف «تحوّلت» في المؤشرات: طلب غير ملغي مربوط خلال نافذة التحويل). */
   has_order?: boolean;
   orders_count?: number;
+  /** أدلة الطلبات المطابقة برقم العميل */
+  order_evidence?: OrderEvidence[];
 }
+
+/** دليل طلب مطابق (من cm_conversation_order_flags / cm_call_order_flags). */
+export interface OrderEvidence {
+  order_id: string;
+  order_number: string | null;
+  created_at: string;
+  status?: string | null;
+  customer_name: string | null;
+  registered_by: string | null;
+  registered_by_id?: string | null;
+  same_moderator: boolean | null;
+  method?: string | null;
+}
+
+export const sameModeratorLabel = (e: Pick<OrderEvidence, "same_moderator">) =>
+  e.same_moderator === true ? "سُجّل بواسطة نفس المودريتور" : e.same_moderator === false ? "سُجّل بواسطة مودريتور آخر" : "المودريتور غير محدد";
+
+/** نص الدليل لتلميح الشارة. */
+export const orderEvidenceText = (ev: OrderEvidence[] | undefined, source: "chat" | "call", tz = "Africa/Cairo"): string => {
+  if (!ev?.length) return "";
+  const head = source === "chat" ? "من المحادثة" : "من المكالمة";
+  const d = (iso: string) => new Intl.DateTimeFormat("ar-EG-u-nu-latn", { timeZone: tz, day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+  return [`${head} — مطابقة برقم العميل في الطلبات`, ...ev.map((e) =>
+    `طلب ${e.order_number ?? "—"} · ${d(e.created_at)} · العميل: ${e.customer_name ?? "—"} · سجّلته: ${e.registered_by ?? "غير معروف"} · ${sameModeratorLabel(e)}`)].join("\n");
+};
 
 /** مصدر المحادثة للعرض: إعلان (عنوان + آخر أرقام المعرّف) أو عضوي. */
 export const adSourceLabel = (c: Pick<InboxConversation, "ad_id" | "ad_headline" | "campaign_id">, campaignName?: string | null): string | null => {
@@ -96,7 +123,63 @@ export interface InboxFilters {
   source?: string;
   /** "all" | "yes" (تم الطلب) | "no" (بدون طلب) */
   ordered?: "all" | "yes" | "no";
+  /** فلتر اليوم حسب آخر نشاط (بتوقيت الإعدادات مثل cm_local_date) */
+  day?: DayFilter;
+  /** YYYY-MM-DD عند day = "date" */
+  date?: string;
 }
+
+export type DayFilter = "all" | "today" | "yesterday" | "7d" | "date";
+
+/** تاريخ محلي YYYY-MM-DD في المنطقة الزمنية (نفس اصطلاح cm_local_date). */
+export const localDateKey = (d: Date, tz = "Africa/Cairo") =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+
+const shiftKey = (key: string, days: number) => {
+  const d = new Date(key + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10);
+};
+
+export const lastActivityAt = (c: Pick<InboxConversation, "last_inbound_at" | "last_outbound_at" | "first_inbound_at">): number =>
+  Math.max(Date.parse(c.last_inbound_at ?? "") || 0, Date.parse(c.last_outbound_at ?? "") || 0, Date.parse(c.first_inbound_at ?? "") || 0);
+
+export const activityDateKey = (c: InboxConversation, tz = "Africa/Cairo") => {
+  const t = lastActivityAt(c); return t ? localDateKey(new Date(t), tz) : "";
+};
+
+export const matchesDay = (key: string, f: Pick<InboxFilters, "day" | "date">, now: Date, tz = "Africa/Cairo") => {
+  if (!f.day || f.day === "all") return true;
+  const today = localDateKey(now, tz);
+  if (f.day === "today") return key === today;
+  if (f.day === "yesterday") return key === shiftKey(today, -1);
+  if (f.day === "7d") return !!key && key >= shiftKey(today, -6) && key <= today;
+  return !f.date || key === f.date;
+};
+
+/** عنوان اليوم: اليوم / أمس / «الخميس 29 أكتوبر». */
+export const dayHeaderLabel = (key: string, now: Date, tz = "Africa/Cairo") => {
+  if (!key) return "بدون تاريخ";
+  const today = localDateKey(now, tz);
+  if (key === today) return "اليوم";
+  if (key === shiftKey(today, -1)) return "أمس";
+  const d = new Date(key + "T12:00:00Z");
+  const sameYear = key.slice(0, 4) === today.slice(0, 4);
+  const p = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("ar-EG-u-nu-latn", { timeZone: "UTC", ...o }).format(d);
+  return `${p({ weekday: "long" })} ${Number(key.slice(8, 10))} ${p({ month: "long" })}${sameYear ? "" : " " + key.slice(0, 4)}`;
+};
+
+export interface DayGroup { key: string; label: string; count: number; items: InboxConversation[] }
+
+/** يجمع قائمة (مرتبة بالنشاط) حسب يوم آخر نشاط، مع الحفاظ على الترتيب. */
+export const groupByDay = (list: InboxConversation[], now: Date, tz = "Africa/Cairo"): DayGroup[] => {
+  const out: DayGroup[] = []; const idx = new Map<string, DayGroup>();
+  for (const c of list) {
+    const key = activityDateKey(c, tz);
+    let g = idx.get(key);
+    if (!g) { g = { key, label: dayHeaderLabel(key, now, tz), count: 0, items: [] }; idx.set(key, g); out.push(g); }
+    g.items.push(c); g.count++;
+  }
+  return out;
+};
 
 export const filterConversations = (
   list: InboxConversation[], f: InboxFilters, now: Date, s: KpiSettings = DEFAULT_KPI_SETTINGS,
@@ -113,22 +196,25 @@ export const filterConversations = (
   }
   if (f.ordered === "yes" && !c.has_order) return false;
   if (f.ordered === "no" && c.has_order) return false;
+  if (f.day && f.day !== "all" && !matchesDay(activityDateKey(c, s.timezone), f, now, s.timezone)) return false;
   return true;
 });
 
 /** يدمج أعلام الطلب (من cm_conversation_order_flags) في المحادثات. */
 export const withOrderFlags = (
-  list: InboxConversation[], flags: { conversation_id: string; orders: number | string | null }[],
+  list: InboxConversation[], flags: { conversation_id: string; orders: number | string | null; evidence?: OrderEvidence[] | null }[],
 ): InboxConversation[] => {
-  const m = new Map(flags.map((f) => [f.conversation_id, Number(f.orders ?? 0) || 1]));
-  return list.map((c) => ({ ...c, has_order: m.has(c.id), orders_count: m.get(c.id) ?? 0 }));
+  const m = new Map(flags.map((f) => [f.conversation_id, f]));
+  return list.map((c) => {
+    const f = m.get(c.id);
+    return { ...c, has_order: !!f, orders_count: f ? Number(f.orders ?? 0) || 1 : 0, order_evidence: f?.evidence ?? [] };
+  });
 };
 
 /** الأحدث نشاطاً أولاً. */
 export const sortByActivity = (list: InboxConversation[]) =>
   [...list].sort((a, b) => {
-    const t = (c: InboxConversation) => Math.max(Date.parse(c.last_inbound_at ?? "") || 0, Date.parse(c.last_outbound_at ?? "") || 0);
-    return t(b) - t(a);
+    return lastActivityAt(b) - lastActivityAt(a);
   });
 
 /** يخفي منتصف الرقم في القوائم (01xxxxxx345). */

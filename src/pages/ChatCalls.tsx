@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatDateTime12 } from "@/lib/chatManagement/timeFormat";
 import { toast } from "sonner";
+import { OrderBadge } from "@/components/chatManagement/ConversationPhone";
+import type { OrderEvidence } from "@/lib/chatManagement/inbox";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -45,6 +47,7 @@ export default function ChatCalls() {
   const [hasMore, setHasMore] = useState(false);
   const [matchable, setMatchable] = useState<MatchableCall[]>([]);
   const [phones, setPhones] = useState<Record<string, string>>({});
+  const [orderFlags, setOrderFlags] = useState<Record<string, OrderEvidence[]>>({});
   const [audio, setAudio] = useState<{ id: string; url: string } | null>(null);
   const [analysis, setAnalysis] = useState<Record<string, CallAnalysisRow>>({});
   const [objections, setObjections] = useState<{ objection: string; calls: number }[]>([]);
@@ -75,6 +78,10 @@ export default function ChatCalls() {
     setObjections(ob.data ?? []);
     if (c.error) toast.error(`تعذّر التحميل: ${c.error.message}`);
     const rows = (c.data ?? []) as Call[];
+    // «تم الطلب» للمكالمة: طلب غير ملغي لنفس رقم العميل خلال نافذة التحويل بعد المكالمة — غير حرج.
+    if (rows.length) db.rpc("cm_call_order_flags", { _call_ids: rows.map((r) => r.id) }).then((r: any) => {
+      if (!r.error) setOrderFlags((p) => ({ ...(more ? p : {}), ...Object.fromEntries((r.data ?? []).map((x: { call_id: string; evidence: OrderEvidence[] }) => [x.call_id, x.evidence ?? []])) }));
+    });
     setCalls((prev) => (more ? [...prev, ...rows] : rows));
     setHasMore(rows.length >= (more ? PAGE : Math.max(PAGE, calls.length)));
     setMissed(Object.fromEntries((m.data ?? []).map((x: Missed) => [x.call_id, x])));
@@ -92,7 +99,8 @@ export default function ChatCalls() {
     setPhones((p) => ({ ...p, [c.id]: data as string }));
   };
   const intl = (p: string) => (p.startsWith("0") ? "20" + p.slice(1) : p);
-  const phoneCell = (c: Call) => phones[c.id]
+  const phoneCell = (c: Call) => <span className="flex flex-wrap items-center gap-2">{phoneInner(c)}{orderFlags[c.id] && <OrderBadge evidence={orderFlags[c.id]} count={orderFlags[c.id].length} source="call" />}</span>;
+  const phoneInner = (c: Call) => phones[c.id]
     ? <span className="flex flex-wrap items-center gap-2"><span dir="ltr" className="font-mono">{phones[c.id]}</span>
         <a className="text-xs text-[#A4288A] underline" href={`tel:${phones[c.id]}`}>اتصال</a>
         <a className="text-xs text-green-700 underline" href={`https://wa.me/${intl(phones[c.id])}`} target="_blank" rel="noreferrer">واتساب</a>

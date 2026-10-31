@@ -20,6 +20,7 @@ import {
 import KpiStrip from "@/components/chatManagement/KpiStrip";
 import ConversationList from "@/components/chatManagement/ConversationList";
 import ConversationThread from "@/components/chatManagement/ConversationThread";
+import { DayFilterChips, phoneAccessFor } from "@/components/chatManagement/ConversationPhone";
 import CustomerPanel from "@/components/chatManagement/CustomerPanel";
 
 const db = supabase as any;
@@ -29,6 +30,7 @@ const NONE = "__none__";
 export default function ChatSupervisor() {
   const { roles } = useAuth() as { roles?: string[] };
   const canManage = canManageConversations(roles);
+  const phoneAccess = phoneAccessFor(roles);
   const { conversations, moderators, lines, campaigns, assignments, settings, loading, error, reload } = useChatConversations();
   const [filters, setFilters] = useState<InboxFilters>({ status: "all", lineId: "all", moderatorId: "all" });
   const [selected, setSelected] = useState<string | null>(null);
@@ -119,14 +121,15 @@ export default function ChatSupervisor() {
             </Select></div>
           <div className="flex items-center gap-2"><Switch id="ab" checked={!!filters.abandonedOnly} onCheckedChange={(v) => set({ abandonedOnly: v })} /><Label htmlFor="ab">المهملة فقط</Label></div>
           <div className="flex items-center gap-2"><Switch id="df" checked={!!filters.deferredOnly} onCheckedChange={(v) => set({ deferredOnly: v })} /><Label htmlFor="df">المؤجلة للصباح فقط</Label></div>
+          <div className="w-full"><DayFilterChips day={filters.day} date={filters.date} onChange={(p) => set(p)} /></div>
         </CardContent></Card>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <Card className="lg:col-span-4"><CardContent className="p-0">
             {loading ? <p className="p-4 text-muted-foreground">جارٍ التحميل…</p> :
-              <ConversationList items={items} selectedId={selected} onSelect={setSelected} now={now} assignments={assignments}
+              <ConversationList items={items} phoneAccess={phoneAccess} selectedId={selected} onSelect={setSelected} now={now} assignments={assignments}
                 settings={settings} moderatorName={modName} lineName={lineName} sourceLabel={srcOf} />}
           </CardContent></Card>
-          <div className="lg:col-span-5"><ConversationThread conversationId={selected} source={sel ? srcOf(sel) : null} title={sel ? `المسندة: ${modName(sel.assigned_moderator_id)}` : undefined} /></div>
+          <div className="lg:col-span-5"><ConversationThread conversationId={selected} phone={sel?.phone_norm ?? null} phoneAccess={phoneAccess} evidence={sel?.order_evidence} source={sel ? srcOf(sel) : null} title={sel ? `المسندة: ${modName(sel.assigned_moderator_id)}` : undefined} /></div>
           <div className="lg:col-span-3 space-y-4">
             <CustomerPanel customerId={sel?.customer_id ?? null} phoneNorm={sel?.phone_norm ?? null} />
             {canManage && sel && (

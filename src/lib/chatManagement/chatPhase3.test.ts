@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { extForMime, mediaPath, fetchOne, MAX_MEDIA_BYTES } from "../../../supabase/functions/_shared/wa-media";
 import { redact, buildChatTranscript, fixOutcome, normalizeChatAnalysis, chatHash } from "../../../supabase/functions/_shared/chat-analysis";
-import { adSourceLabel, filterConversations, withOrderFlags, type InboxConversation } from "./inbox";
+import { adSourceLabel, filterConversations, groupByDay, orderEvidenceText, sameModeratorLabel, withOrderFlags, type InboxConversation } from "./inbox";
+import { DEFAULT_KPI_SETTINGS } from "./responseClock";
 import { mediaKind, mediaStatusText } from "@/components/chatManagement/MessageMedia";
 import { chatLabel, CHAT_CATEGORY_LABELS, fmtMin } from "./chatAnalysisLabels";
 
@@ -90,5 +91,23 @@ describe("ad source UI", () => {
     expect(mediaStatusText({ type: "image", media_path: "x", media_status: "done" })).toBeNull();
     expect(chatLabel(CHAT_CATEGORY_LABELS, "price_inquiry")).toBe("استفسار سعر");
     expect(fmtMin(null)).toBe("—");
+  });
+  it("day grouping + day filter + evidence", () => {
+    const now = new Date("2026-10-30T10:00:00Z");
+    const mk = (id: string, at: string) => ({ ...base, id, last_inbound_at: at, last_outbound_at: null, first_inbound_at: at });
+    const l = [mk("t", "2026-10-30T08:00:00Z"), mk("y", "2026-10-29T22:30:00Z"), mk("y2", "2026-10-29T05:00:00Z"), mk("o", "2026-10-22T09:00:00Z")];
+    // 22:30Z = بعد منتصف الليل بتوقيت القاهرة يوم 30
+    const g = groupByDay(l, now, "Africa/Cairo");
+    expect(g.map((x) => [x.label, x.count])).toEqual([["اليوم", 2], ["أمس", 1], ["الخميس 22 أكتوبر", 1]]);
+    const s = { ...DEFAULT_KPI_SETTINGS, timezone: "Africa/Cairo" };
+    expect(filterConversations(l, { day: "yesterday" }, now, s).map((c) => c.id)).toEqual(["y2"]);
+    expect(filterConversations(l, { day: "7d" }, now, s).map((c) => c.id)).toEqual(["t", "y", "y2"]);
+    expect(filterConversations(l, { day: "date", date: "2026-10-22" }, now, s).map((c) => c.id)).toEqual(["o"]);
+    const ev = { order_id: "1", order_number: "ORD-1", created_at: "2026-10-29T16:33:41Z", customer_name: "س", registered_by: "نورا", same_moderator: true };
+    const w = withOrderFlags([base], [{ conversation_id: "a", orders: 1, evidence: [ev] }]);
+    expect(w[0].order_evidence).toHaveLength(1);
+    const t = orderEvidenceText(w[0].order_evidence, "chat");
+    expect(t).toMatch(/من المحادثة/); expect(t).toMatch(/ORD-1/); expect(t).toMatch(/نفس المودريتور/);
+    expect(sameModeratorLabel({ same_moderator: false })).toBe("سُجّل بواسطة مودريتور آخر");
   });
 });

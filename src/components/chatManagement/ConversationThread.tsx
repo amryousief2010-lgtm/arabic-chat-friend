@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { COMPOSER_DISABLED_PLACEHOLDER } from "@/config/chatManagement";
 import { BRAND } from "./brand";
 import MessageMedia from "./MessageMedia";
+import { ConversationPhone, OrderEvidencePanel, type PhoneAccess } from "./ConversationPhone";
+import type { OrderEvidence } from "@/lib/chatManagement/inbox";
 
 const db = supabase as any;
 interface Msg { id: string; direction: "in" | "out"; type: string; body: string | null; sent_at: string; media_path?: string | null; media_mime?: string | null; media_status?: string | null }
@@ -27,7 +29,9 @@ export const messageText = (m: { type: string; body: string | null }) => {
 };
 
 /** عرض المحادثة (قراءة فقط) + حقل كتابة معطّل حتى يُربط الإرسال عبر واتساب. */
-export default function ConversationThread({ conversationId, title, source }: { conversationId: string | null; title?: string; source?: string | null }) {
+export default function ConversationThread({ conversationId, title, source, phone, phoneAccess = "masked", evidence }: {
+  conversationId: string | null; title?: string; source?: string | null; phone?: string | null; phoneAccess?: PhoneAccess; evidence?: OrderEvidence[];
+}) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -44,7 +48,9 @@ export default function ConversationThread({ conversationId, title, source }: { 
   return (
     <Card className="flex flex-col h-full" dir="rtl">
       <CardHeader className="py-3"><CardTitle className="text-base">{title ?? "المحادثة"}</CardTitle>
-        {conversationId && <p className="text-xs text-muted-foreground" data-testid="thread-source">{source ? `📣 المصدر: ${source}` : "المصدر: عضوي (بدون إعلان)"}</p>}</CardHeader>
+        {conversationId && <p className="text-xs text-muted-foreground" data-testid="thread-source">{source ? `📣 المصدر: ${source}` : "المصدر: عضوي (بدون إعلان)"}</p>}
+        {conversationId && <div className="text-sm">📞 <ConversationPhone key={conversationId} conversationId={conversationId} phone={phone ?? null} access={phoneAccess} /></div>}
+        {conversationId && <OrderEvidencePanel evidence={evidence} source="chat" />}</CardHeader>
       <CardContent className="flex-1 flex flex-col gap-3">
         <div className="flex-1 min-h-[300px] max-h-[55vh] overflow-y-auto space-y-2 rounded-md bg-muted/30 p-3" data-testid="thread">
           {!conversationId && <p className="text-sm text-muted-foreground text-center">اختاري محادثة من القائمة</p>}
