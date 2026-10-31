@@ -1,3 +1,4 @@
+import { ChannelBadge } from "./ChannelTabs";
 import { useEffect, useState } from "react";
 import { formatDateTime12 } from "@/lib/chatManagement/timeFormat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +21,7 @@ export const TYPE_LABEL: Record<string, string> = {
   image: "📷 صورة", audio: "🎤 رسالة صوتية", video: "🎬 فيديو", document: "📄 ملف", sticker: "ملصق",
   location: "📍 موقع", contacts: "👤 جهة اتصال", reaction: "تفاعل", interactive: "ضغط زر", order: "🛒 طلب",
   template: "قالب", system: "إشعار نظام", media_placeholder: "وسائط (من السجل القديم)",
-  unsupported: "رسالة غير مدعومة من واتساب", unknown: "رسالة غير معروفة",
+  unsupported: "رسالة غير مدعومة", postback: "ضغط زر", share: "🔗 مشاركة", story_mention: "إشارة في قصة", story_reply: "رد على قصة", unknown: "رسالة غير معروفة",
 };
 export const messageText = (m: { type: string; body: string | null }) => {
   if (m.type === "text") return m.body ?? "";
@@ -29,8 +30,8 @@ export const messageText = (m: { type: string; body: string | null }) => {
 };
 
 /** عرض المحادثة (قراءة فقط) + حقل كتابة معطّل حتى يُربط الإرسال عبر واتساب. */
-export default function ConversationThread({ conversationId, title, source, phone, phoneAccess = "masked", evidence }: {
-  conversationId: string | null; title?: string; source?: string | null; phone?: string | null; phoneAccess?: PhoneAccess; evidence?: OrderEvidence[];
+export default function ConversationThread({ conversationId, title, source, phone, phoneAccess = "masked", evidence, channel, contact }: {
+  conversationId: string | null; title?: string; channel?: string | null; contact?: string | null; source?: string | null; phone?: string | null; phoneAccess?: PhoneAccess; evidence?: OrderEvidence[];
 }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [loading, setLoading] = useState(false);
@@ -47,9 +48,10 @@ export default function ConversationThread({ conversationId, title, source, phon
 
   return (
     <Card className="flex flex-col h-full" dir="rtl">
-      <CardHeader className="py-3"><CardTitle className="text-base">{title ?? "المحادثة"}</CardTitle>
+      <CardHeader className="py-3"><CardTitle className="text-base flex items-center gap-2">{conversationId && <ChannelBadge channel={channel} withLabel />}{title ?? "المحادثة"}</CardTitle>
         {conversationId && <p className="text-xs text-muted-foreground" data-testid="thread-source">{source ? `📣 المصدر: ${source}` : "المصدر: عضوي (بدون إعلان)"}</p>}
-        {conversationId && <div className="text-sm">📞 <ConversationPhone key={conversationId} conversationId={conversationId} phone={phone ?? null} access={phoneAccess} /></div>}
+        {conversationId && contact && !phone && <div className="text-sm" data-testid="thread-contact">👤 {contact}</div>}
+        {conversationId && (phone || !contact) && <div className="text-sm">📞 <ConversationPhone key={conversationId} conversationId={conversationId} phone={phone ?? null} access={phoneAccess} /></div>}
         {conversationId && <OrderEvidencePanel evidence={evidence} source="chat" />}</CardHeader>
       <CardContent className="flex-1 flex flex-col gap-3">
         <div className="flex-1 min-h-[300px] max-h-[55vh] overflow-y-auto space-y-2 rounded-md bg-muted/30 p-3" data-testid="thread">

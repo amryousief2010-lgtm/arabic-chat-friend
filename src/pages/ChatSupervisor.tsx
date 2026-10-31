@@ -20,6 +20,8 @@ import {
 import KpiStrip from "@/components/chatManagement/KpiStrip";
 import ConversationList from "@/components/chatManagement/ConversationList";
 import ConversationThread from "@/components/chatManagement/ConversationThread";
+import { ChannelTabs } from "@/components/chatManagement/ChannelTabs";
+import { contactLabel, countByChannel, type ChannelFilter } from "@/lib/chatManagement/channels";
 import { DayFilterChips, phoneAccessFor } from "@/components/chatManagement/ConversationPhone";
 import CustomerPanel from "@/components/chatManagement/CustomerPanel";
 
@@ -43,6 +45,7 @@ export default function ChatSupervisor() {
   const modName = (id: string | null) => (id ? moderators.find((m) => m.id === id)?.display_name ?? "—" : "غير مسندة");
   const srcOf = (c: InboxConversation) => adSourceLabel(c, campaigns.find((x) => x.id === c.campaign_id)?.name);
   const lineName = (id: string | null) => lines.find((l) => l.id === id)?.label ?? "خط غير معروف";
+  const channelCounts = useMemo(() => countByChannel(conversations), [conversations]);
   const set = (p: Partial<InboxFilters>) => setFilters((f) => ({ ...f, ...p }));
   const canRename = (roles ?? []).includes("general_manager");
   const adOptions = useMemo(() => campaigns.map((cp) => {
@@ -76,6 +79,7 @@ export default function ChatSupervisor() {
           {canReviewPhones(roles) && <Button asChild variant="outline" size="sm"><Link to={CHAT_PHONE_REVIEW_PATH}>مراجعة الأرقام ودمج العملاء</Link></Button>}
         </div>
         {error && <p className="text-sm text-destructive">تعذّر التحميل: {error}</p>}
+        <ChannelTabs value={(filters.channel ?? "all") as ChannelFilter} onChange={(v) => set({ channel: v })} counts={channelCounts} />
         <KpiStrip kpis={kpis} />
         <Card><CardContent className="p-3 flex flex-wrap gap-4 items-end">
           <div className="space-y-1"><Label>الحالة</Label>
@@ -129,7 +133,7 @@ export default function ChatSupervisor() {
               <ConversationList items={items} phoneAccess={phoneAccess} selectedId={selected} onSelect={setSelected} now={now} assignments={assignments}
                 settings={settings} moderatorName={modName} lineName={lineName} sourceLabel={srcOf} />}
           </CardContent></Card>
-          <div className="lg:col-span-5"><ConversationThread conversationId={selected} phone={sel?.phone_norm ?? null} phoneAccess={phoneAccess} evidence={sel?.order_evidence} source={sel ? srcOf(sel) : null} title={sel ? `المسندة: ${modName(sel.assigned_moderator_id)}` : undefined} /></div>
+          <div className="lg:col-span-5"><ConversationThread conversationId={selected} channel={sel?.channel} contact={sel ? contactLabel(sel) : null} phone={sel?.phone_norm ?? null} phoneAccess={phoneAccess} evidence={sel?.order_evidence} source={sel ? srcOf(sel) : null} title={sel ? `المسندة: ${modName(sel.assigned_moderator_id)}` : undefined} /></div>
           <div className="lg:col-span-3 space-y-4">
             <CustomerPanel customerId={sel?.customer_id ?? null} phoneNorm={sel?.phone_norm ?? null} />
             {canManage && sel && (

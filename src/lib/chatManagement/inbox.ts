@@ -7,6 +7,14 @@ export type ConversationStatus = "open" | "pending" | "closed" | "spam";
 
 export interface InboxConversation {
   id: string;
+  /** whatsapp | messenger | instagram | tiktok */
+  channel?: string | null;
+  /** اسم/معرّف العميل في ماسنجر/إنستجرام (لا يوجد رقم) */
+  contact_name?: string | null;
+  contact_handle?: string | null;
+  external_contact_id?: string | null;
+  /** بيانات عرض تجريبية */
+  is_demo?: boolean | null;
   line_id: string | null;
   status: ConversationStatus;
   owner_moderator_id: string | null;
@@ -114,6 +122,8 @@ export const computeKpis = (
 };
 
 export interface InboxFilters {
+  /** القناة: all | whatsapp | messenger | instagram | tiktok */
+  channel?: string;
   status?: ConversationStatus | "all";
   lineId?: string | "all";
   moderatorId?: string | "all" | "unassigned";
@@ -184,6 +194,7 @@ export const groupByDay = (list: InboxConversation[], now: Date, tz = "Africa/Ca
 export const filterConversations = (
   list: InboxConversation[], f: InboxFilters, now: Date, s: KpiSettings = DEFAULT_KPI_SETTINGS,
 ) => list.filter((c) => {
+  if (f.channel && f.channel !== "all" && (c.channel ?? "whatsapp") !== f.channel) return false;
   if (f.status && f.status !== "all" && c.status !== f.status) return false;
   if (f.lineId && f.lineId !== "all" && c.line_id !== f.lineId) return false;
   if (f.moderatorId === "unassigned" && c.assigned_moderator_id) return false;

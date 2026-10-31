@@ -6,6 +6,8 @@ import {
 } from "@/lib/chatManagement/inbox";
 import type { AssignmentRow, KpiSettings } from "@/lib/chatManagement/responseClock";
 import { BRAND } from "./brand";
+import { ChannelBadge } from "./ChannelTabs";
+import { contactLabel } from "@/lib/chatManagement/channels";
 
 interface Props {
   items: InboxConversation[];
@@ -37,15 +39,21 @@ export default function ConversationList({ items, selectedId, onSelect, now, ass
         const abandoned = isConversationAbandoned(c, now, settings);
         const deferred = isDeferredToMorning(c, now);
         const src = sourceLabel?.(c) ?? null;
+        const who = contactLabel(c);
         return (
           <li key={c.id} className="relative">
-            <span className="absolute top-3 right-3 z-[1]"><ConversationPhone conversationId={c.id} phone={c.phone_norm} access={phoneAccess} /></span>
+            <span className="absolute top-3 right-3 z-[1] flex items-center gap-1">
+              <ChannelBadge channel={c.channel} />
+              {c.phone_norm || !who ? <ConversationPhone conversationId={c.id} phone={c.phone_norm} access={phoneAccess} />
+                : <span className="font-medium text-sm truncate max-w-[12rem]" data-testid="contact-name">{who}</span>}
+            </span>
             <button type="button" onClick={() => onSelect(c.id)}
               className={`w-full text-right p-3 hover:bg-muted/50 ${selectedId === c.id ? "bg-muted" : ""}`}
               style={selectedId === c.id ? { borderInlineStart: `3px solid ${BRAND.magenta}` } : undefined}>
               <div className="flex justify-between gap-2">
                 <span className="invisible font-medium" dir="ltr" aria-hidden>00000000000 إظهار الرقم</span>
                 <span className="flex gap-1 shrink-0">
+                  {c.is_demo && <Badge variant="outline" style={{ borderColor: BRAND.orange, color: BRAND.orange }}>تجريبية</Badge>}
                   {c.has_order && <OrderBadge evidence={c.order_evidence} count={c.orders_count} source="chat" tz={settings.timezone} />}
                   <Badge variant="outline">{STATUS_LABELS[c.status]}</Badge>
                 </span>

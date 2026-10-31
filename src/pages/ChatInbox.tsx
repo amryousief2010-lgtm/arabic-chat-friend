@@ -9,6 +9,8 @@ import { adSourceLabel, computeKpis, filterConversations, sortByActivity, type D
 import KpiStrip from "@/components/chatManagement/KpiStrip";
 import ConversationList from "@/components/chatManagement/ConversationList";
 import ConversationThread from "@/components/chatManagement/ConversationThread";
+import { ChannelTabs } from "@/components/chatManagement/ChannelTabs";
+import { contactLabel, countByChannel, type ChannelFilter } from "@/lib/chatManagement/channels";
 import { DayFilterChips, phoneAccessFor } from "@/components/chatManagement/ConversationPhone";
 import CustomerPanel from "@/components/chatManagement/CustomerPanel";
 
@@ -34,8 +36,10 @@ function InboxFor({ moderatorId }: { moderatorId: string }) {
   const { roles } = useAuth() as { roles?: string[] };
   const phoneAccess = phoneAccessFor(roles);
   const [day, setDay] = useState<{ day: DayFilter; date?: string }>({ day: "all" });
+  const [channel, setChannel] = useState<ChannelFilter>("all");
+  const counts = useMemo(() => countByChannel(conversations), [conversations]);
   const now = useMemo(() => new Date(), [conversations]);
-  const items = useMemo(() => sortByActivity(filterConversations(conversations, day, now, settings)), [conversations, day, now, settings]);
+  const items = useMemo(() => sortByActivity(filterConversations(conversations, { ...day, channel }, now, settings)), [conversations, day, channel, now, settings]);
   const kpis = useMemo(() => computeKpis(conversations, assignments, now, settings), [conversations, assignments, now, settings]);
   const sel = items.find((c) => c.id === selected) ?? null;
   const srcOf = (c: InboxConversation) => adSourceLabel(c, campaigns.find((x) => x.id === c.campaign_id)?.name);
@@ -43,9 +47,10 @@ function InboxFor({ moderatorId }: { moderatorId: string }) {
   return (
     <DashboardLayout>
       <div dir="rtl" className="space-y-4">
-        <Header title="صندوق الرسائل" subtitle="محادثاتك فقط — الإرسال من هنا يُفعَّل بعد ربط واتساب" />
+        <Header title="صندوق الرسائل" subtitle="محادثاتك فقط — واتساب وماسنجر وإنستجرام — الإرسال من هنا يُفعَّل لاحقًا" />
         {error && <p className="text-sm text-destructive">تعذّر التحميل: {error}</p>}
         <KpiStrip kpis={kpis} />
+        <ChannelTabs value={channel} onChange={setChannel} counts={counts} />
         <DayFilterChips day={day.day} date={day.date} onChange={setDay} />
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <Card className="lg:col-span-4"><CardContent className="p-0">
@@ -53,7 +58,7 @@ function InboxFor({ moderatorId }: { moderatorId: string }) {
               <ConversationList items={items} phoneAccess={phoneAccess} selectedId={selected} onSelect={setSelected} now={now}
                 assignments={assignments} settings={settings} lineName={lineName} sourceLabel={srcOf} />}
           </CardContent></Card>
-          <div className="lg:col-span-5"><ConversationThread conversationId={selected} phone={sel?.phone_norm ?? null} phoneAccess={phoneAccess} evidence={sel?.order_evidence} source={sel ? srcOf(sel) : null} /></div>
+          <div className="lg:col-span-5"><ConversationThread conversationId={selected} channel={sel?.channel} contact={sel ? contactLabel(sel) : null} phone={sel?.phone_norm ?? null} phoneAccess={phoneAccess} evidence={sel?.order_evidence} source={sel ? srcOf(sel) : null} /></div>
           <div className="lg:col-span-3"><CustomerPanel customerId={sel?.customer_id ?? null} phoneNorm={sel?.phone_norm ?? null} /></div>
         </div>
       </div>
