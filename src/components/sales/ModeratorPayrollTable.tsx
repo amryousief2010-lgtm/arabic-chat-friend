@@ -251,7 +251,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   const boneForLive = payrollDefaultForMonth(closuresLoaded, !!selectedClosure, BONE_BONUS_PER_KG, DEFAULT_BONE_BONUS_PER_KG);
   const schedules: never[] = [];
 
-  // من أكتوبر 2026: المرحّل يدخل في حد الـ ٤٠٠، وبيتسعّر بمتوسط بونص الكيلو على الإجمالي.
+  // من أكتوبر 2026: المرحّل يدخل في عدّ الكيلو، وبيتسعّر بمتوسط بونص كيلو شهر المسوّقة.
   const carriedProcessedKg = useMemo(() => {
     const map: Record<string, number> = {};
     (carried as any[]).forEach((item) => {

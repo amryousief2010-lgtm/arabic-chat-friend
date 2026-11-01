@@ -72,39 +72,37 @@ describe("moderator kg bonus", () => {
     expect(moderatorSalary(0, baseSalaryForKey("اية"))).toBe(3000);
   });
 
-  it("prices carried kilograms at the average bonus per kilogram", () => {
-    const breakdown = toRisingBreakdown(350, 60);
-    const average = moderatorKgBonus(410) / 410;
-    expect(breakdown.qualified).toBe(true);
-    expect(breakdown.counted_kg).toBe(410);
-    expect(breakdown.calculated_bonus).toBe(0);
-    expect(breakdown.total_bonus).toBeCloseTo(60 * average, 8);
-    expect(breakdown.total_bonus).not.toBeCloseTo(moderatorKgBonus(410), 2);
-    expect(Number.isFinite(breakdown.total_bonus)).toBe(true);
+  it("prices carried kilograms at her own month's average bonus per kilogram", () => {
+    const below = toRisingBreakdown(350, 60);
+    expect(below.qualified).toBe(true);
+    expect(below.counted_kg).toBe(410);
+    expect(below.calculated_bonus).toBe(0);
+    expect(below.total_bonus).toBe(0);
+    expect(risingAverageRate(350, 60)).toBe(0);
+    expect(Number.isFinite(below.total_bonus)).toBe(true);
     const pieces = risingCarryIncrements(350, [
       { orderId: "early", procKg: 30, deliveredAt: "2026-10-02T00:00:00Z" },
       { orderId: "late", procKg: 30, deliveredAt: "2026-10-05T00:00:00Z" },
     ]);
-    expect(pieces[0].rate).toBeCloseTo(average, 8);
-    expect(pieces[1].rate).toBeCloseTo(average, 8);
-    expect(pieces[0].bonus).toBeCloseTo(30 * average, 8);
-    expect(pieces.reduce((sum, piece) => sum + piece.bonus, 0)).toBeCloseTo(breakdown.total_bonus, 8);
+    expect(pieces.every((piece) => piece.bonus === 0 && piece.rate === 0)).toBe(true);
 
+    const ownRate = moderatorKgBonus(500) / 500;
     const above = risingCarryIncrements(500, [
       { orderId: "a", procKg: 100, deliveredAt: "2026-10-03T00:00:00Z" },
     ]);
-    const aboveRate = moderatorKgBonus(600) / 600;
-    expect(above[0].rate).toBeCloseTo(aboveRate, 8);
-    expect(above[0].bonus).toBeCloseTo(100 * aboveRate, 8);
-    expect(toRisingBreakdown(500, 100).total_bonus).toBeCloseTo(moderatorKgBonus(500) + 100 * aboveRate, 8);
+    expect(above[0].rate).toBeCloseTo(ownRate, 8);
+    expect(above[0].bonus).toBeCloseTo(100 * ownRate, 8);
+    expect(toRisingBreakdown(500, 100).total_bonus).toBeCloseTo(moderatorKgBonus(500) + 100 * ownRate, 8);
     expect(toRisingBreakdown(500, 0).total_bonus).toBeCloseTo(moderatorKgBonus(500), 8);
+    expect(risingProcessedTotal(0, 500)).toBe(0);
+    expect(Number.isNaN(risingAverageRate(0, 500))).toBe(false);
   });
 
   it("pays the October 2026 carried share at the average rate, and nothing under 400", () => {
     const october: Array<[string, number, number, number, string]> = [
-      ["آية", 1545, 120.5, 17506.1, "17,506.14"],
-      ["نورا", 1124, 126, 12435.7, "12,435.68"],
-      ["هاجر", 712, 90, 6382.2, "6,382.16"],
+      ["آية", 1545, 120.5, 17483.7, "17,483.75"],
+      ["نورا", 1124, 126, 12417.8, "12,417.81"],
+      ["هاجر", 712, 90, 6337.7, "6,337.74"],
     ];
     for (const [name, own, carried, oneDecimal, shown] of october) {
       const total = risingProcessedTotal(own, carried);
@@ -117,7 +115,7 @@ describe("moderator kg bonus", () => {
       expect(view.bonus).toBeCloseTo(total, 8);
       expect(view.qualified).toBe(true);
       const rate = risingAverageRate(own, carried);
-      expect(rate).toBeCloseTo(moderatorKgBonus(own + carried) / (own + carried), 8);
+      expect(rate).toBeCloseTo(moderatorKgBonus(own) / own, 8);
       expect(total).toBeCloseTo(moderatorKgBonus(own) + carried * rate, 8);
     }
 
@@ -182,7 +180,7 @@ describe("moderator bonus screen", () => {
     expect(close.message).toContain("2,400");
     const past = buildModeratorBonusView({ name: "نورا", kg: 2100, baseSalary: 2500, now: OCT_20 });
     expect(past.message).toContain("٢ طن");
-    expect(carriedProcessedPhrase(40)).toBe("اتضافلك 40 كجم من أوردرات الشهر اللي فات اتسلّمت الشهر ده، وبونصها بمتوسط بونص الكيلو على الإجمالي");
+    expect(carriedProcessedPhrase(40)).toBe("اتضافلك 40 كجم من أوردرات الشهر اللي فات اتسلّمت الشهر ده، وبونصها بمتوسط بونص الكيلو لشهرها");
   });
 
   it("adds meat, bone, and chick bonuses on top of the processed formula", () => {

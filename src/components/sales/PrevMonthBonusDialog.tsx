@@ -58,7 +58,7 @@ const PrevMonthBonusDialog = ({ open, onOpenChange, girl, details }: Props) => {
                   <TableHead className="text-center border">التصنيف</TableHead>
                   <TableHead className="text-center border">الكمية</TableHead>
                   <TableHead className="text-center border">البيان</TableHead>
-                  {showRate && <TableHead className="text-center border">بونص الكيلو</TableHead>}
+                  {showRate && <TableHead className="text-center border">متوسط كيلو شهرها</TableHead>}
                   <TableHead className="text-center border">قيمة البونص</TableHead>
                 </TableRow>
               </TableHeader>
