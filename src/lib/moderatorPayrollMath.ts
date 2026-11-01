@@ -161,8 +161,9 @@ export interface CarrySliceInput {
 
 /**
  * بونص المصنّعات المرحّل.
- * النظام الحالي: فرق المعادلة فوق كيلوات الشهر، والمجموع يساوي بونص الإجمالي.
- * فرع الشرائح القديمة موجود بس لقراءة اختبارات اللقطات التاريخية.
+ * النظام الحالي: كل كيلو مرحّل × متوسط بونص الكيلو على إجمالي الشهر + المرحّل.
+ * المجموع مع منحنى كيلو الشهر يساوي بونص الإجمالي. فرع الشرائح القديمة
+ * موجود بس لقراءة اختبارات اللقطات التاريخية.
  */
 export const allocateProcessedCarry = (
   ownKg: number,
@@ -179,8 +180,8 @@ export const allocateProcessedCarry = (
     return pieces.map((item) => ({
       orderId: item.orderId,
       bonus: item.bonus,
-      rate: 0,
-      tierLabel: 'بونص الكيلو',
+      rate: item.rate,
+      tierLabel: item.rate > 0 ? 'متوسط بونص الكيلو' : 'لم يبلغ الحد الأدنى',
     }));
   }
   if (row.scheme !== 'marginal' || !schedule) {

@@ -8,7 +8,9 @@ import {
   formatBonusEgp,
   moderatorKgBonus,
   moderatorSalary,
+  risingAverageRate,
   risingCarryIncrements,
+  risingProcessedTotal,
   toRisingBreakdown,
 } from "@/lib/moderatorKgBonus";
 
@@ -70,24 +72,68 @@ describe("moderator kg bonus", () => {
     expect(moderatorSalary(0, baseSalaryForKey("اية"))).toBe(3000);
   });
 
-  it("splits carried kilograms so the pieces sum to the bonus on the total", () => {
+  it("prices carried kilograms at the average bonus per kilogram", () => {
     const breakdown = toRisingBreakdown(350, 60);
+    const average = moderatorKgBonus(410) / 410;
     expect(breakdown.qualified).toBe(true);
     expect(breakdown.counted_kg).toBe(410);
     expect(breakdown.calculated_bonus).toBe(0);
-    expect(breakdown.total_bonus).toBeCloseTo(moderatorKgBonus(410), 8);
+    expect(breakdown.total_bonus).toBeCloseTo(60 * average, 8);
+    expect(breakdown.total_bonus).not.toBeCloseTo(moderatorKgBonus(410), 2);
+    expect(Number.isFinite(breakdown.total_bonus)).toBe(true);
     const pieces = risingCarryIncrements(350, [
       { orderId: "early", procKg: 30, deliveredAt: "2026-10-02T00:00:00Z" },
       { orderId: "late", procKg: 30, deliveredAt: "2026-10-05T00:00:00Z" },
     ]);
-    expect(pieces[0].bonus).toBe(0);
-    expect(pieces.reduce((sum, piece) => sum + piece.bonus, 0)).toBeCloseTo(moderatorKgBonus(410), 8);
+    expect(pieces[0].rate).toBeCloseTo(average, 8);
+    expect(pieces[1].rate).toBeCloseTo(average, 8);
+    expect(pieces[0].bonus).toBeCloseTo(30 * average, 8);
+    expect(pieces.reduce((sum, piece) => sum + piece.bonus, 0)).toBeCloseTo(breakdown.total_bonus, 8);
 
     const above = risingCarryIncrements(500, [
       { orderId: "a", procKg: 100, deliveredAt: "2026-10-03T00:00:00Z" },
     ]);
-    expect(above[0].bonus).toBeCloseTo(moderatorKgBonus(600) - moderatorKgBonus(500), 8);
-    expect(toRisingBreakdown(200, 50).total_bonus).toBe(0);
+    const aboveRate = moderatorKgBonus(600) / 600;
+    expect(above[0].rate).toBeCloseTo(aboveRate, 8);
+    expect(above[0].bonus).toBeCloseTo(100 * aboveRate, 8);
+    expect(toRisingBreakdown(500, 100).total_bonus).toBeCloseTo(moderatorKgBonus(500) + 100 * aboveRate, 8);
+    expect(toRisingBreakdown(500, 0).total_bonus).toBeCloseTo(moderatorKgBonus(500), 8);
+  });
+
+  it("pays the October 2026 carried share at the average rate, and nothing under 400", () => {
+    const october: Array<[string, number, number, string]> = [
+      ["آية", 1545, 120.5, "17,506.1"],
+      ["نورا", 1124, 126, "12,435.7"],
+      ["هاجر", 712, 90, "6,382.2"],
+    ];
+    for (const [name, own, carried, shown] of october) {
+      const total = risingProcessedTotal(own, carried);
+      const breakdown = toRisingBreakdown(own, carried);
+      const view = buildModeratorBonusView({ name, kg: own, carriedKg: carried, baseSalary: 2500, now: OCT_20 });
+      expect(formatBonusEgp(total)).toBe(shown);
+      expect(breakdown.total_bonus).toBeCloseTo(total, 8);
+      expect(breakdown.calculated_bonus).toBeCloseTo(moderatorKgBonus(own), 8);
+      expect(view.bonus).toBeCloseTo(total, 8);
+      expect(view.qualified).toBe(true);
+      const rate = risingAverageRate(own, carried);
+      expect(rate).toBeCloseTo(moderatorKgBonus(own + carried) / (own + carried), 8);
+      expect(total).toBeCloseTo(moderatorKgBonus(own) + carried * rate, 8);
+    }
+
+    const under: Array<[number, number]> = [
+      [0, 0],
+      [200, 50],
+      [399, 0],
+      [350, 49],
+      [0, 399],
+      [Number.NaN, 10],
+    ];
+    for (const [own, carried] of under) {
+      expect(risingProcessedTotal(own, carried)).toBe(0);
+      expect(toRisingBreakdown(own, carried).total_bonus).toBe(0);
+      expect(risingAverageRate(own, carried)).toBe(0);
+      expect(Number.isNaN(risingProcessedTotal(own, carried))).toBe(false);
+    }
   });
 });
 
@@ -135,7 +181,7 @@ describe("moderator bonus screen", () => {
     expect(close.message).toContain("2,400");
     const past = buildModeratorBonusView({ name: "نورا", kg: 2100, baseSalary: 2500, now: OCT_20 });
     expect(past.message).toContain("٢ طن");
-    expect(carriedProcessedPhrase(40)).toBe("اتضافلك 40 كجم من أوردرات الشهر اللي فات اتسلّمت الشهر ده");
+    expect(carriedProcessedPhrase(40)).toBe("اتضافلك 40 كجم من أوردرات الشهر اللي فات اتسلّمت الشهر ده، وبونصها بمتوسط بونص الكيلو على الإجمالي");
   });
 
   it("adds meat, bone, and chick bonuses on top of the processed formula", () => {
