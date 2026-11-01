@@ -11,6 +11,7 @@ import {
   ZODEX_REVIEW_ALLOWED_ROLES,
 } from "@/lib/warehouseHubPaths";
 import { CALLER_LOOKUP_ROLES } from "@/constants/callerLookup";
+import { RISING_BONUS_TABLE_ROLES } from "@/lib/risingBonusTableAccess";
 
 // Wrap lazy() so that when a dynamically-imported chunk is missing (e.g. after a
 // new deploy invalidated old chunk hashes), we force a single hard reload instead
@@ -80,6 +81,7 @@ const OAuthConsent = lazy(() => import("@/pages/OAuthConsent"));
 const Trust = lazy(() => import("@/pages/Trust"));
 const TeamPerformance = lazy(() => import("@/pages/TeamPerformance"));
 const SalesTargets = lazy(() => import("@/pages/SalesTargets"));
+const BonusSchedule = lazy(() => import("@/pages/BonusSchedule"));
 const BonusPreview = import.meta.env.DEV ? lazy(() => import("@/pages/dev/BonusPreview")) : null;
 const HagarOrdersReview = lazy(() => import("@/pages/HagarOrdersReview"));
 const MyDeliverySummary = lazy(() => import("@/pages/MyDeliverySummary"));
@@ -619,6 +621,11 @@ const AnimatedRoutes = () => {
           <Route path="/sales-targets" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><SalesTargets /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/bonus-schedule" element={
+            <ProtectedRoute allowedRoles={[...RISING_BONUS_TABLE_ROLES]}>
+              <PageTransition><BonusSchedule /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/offer-boxes" element={

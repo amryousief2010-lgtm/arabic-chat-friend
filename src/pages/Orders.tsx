@@ -64,6 +64,7 @@ import QuickDeliveryDialog from "@/components/orders/QuickDeliveryDialog";
 import ReassignOwnerDialog from "@/components/orders/ReassignOwnerDialog";
 import { MODERATORS, FILTER_MARKETERS, EXTRA_MARKETERS, findModeratorByName, isOrderForModerator, matchesModeratorGroup } from "@/constants/moderators";
 import { ModeratorOwnKgCounter } from "@/components/sales/ModeratorKgCounters";
+import { canViewRisingBonusTable } from "@/lib/risingBonusTableAccess";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -370,10 +371,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
      rolesList.includes('courier');
    // زر «تسليم سريع» — مقصور على م/آلاء (مديرة التسويق والمبيعات) والمدير التنفيذي والمدير العام فقط.
    // الموديريتور (البنات) ممنوعات؛ والسيرفر يرفض أي تغيير حالة منهن (trigger على orders).
-   const canQuickDeliver =
-     isGeneralManager ||
-     isExecutiveManager ||
-     rolesList.includes('marketing_sales_manager');
+   const canQuickDeliver = canViewRisingBonusTable(rolesList);
    // صلاحية نقل الأوردر من مسوقة إلى أخرى — مقصورة على مديرة التسويق والإدارة العليا فقط
    const canReassignOwner =
      isGeneralManager ||
