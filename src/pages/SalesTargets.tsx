@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import UserAvatar from "@/components/UserAvatar";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -90,8 +90,27 @@ const SalesTargets = () => {
   const { role, profile } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedMonth, setSelectedMonthRaw] = useState(() => currentCairoYearMonth().monthIndex0 + 1);
+  const [selectedYear, setSelectedYearRaw] = useState(() => currentCairoYearMonth().year);
+  // لو المستخدم اختار شهر بنفسه ما نغيّروش؛ غير كده نرجع للشهر الحالي عند كل فتح/تركيز للصفحة.
+  const userPickedMonth = useRef(false);
+  const setSelectedMonth = (m: number) => { userPickedMonth.current = true; setSelectedMonthRaw(m); };
+  const setSelectedYear = (y: number) => { userPickedMonth.current = true; setSelectedYearRaw(y); };
+  useEffect(() => {
+    const sync = () => {
+      if (userPickedMonth.current || document.visibilityState === 'hidden') return;
+      const c = currentCairoYearMonth();
+      setSelectedMonthRaw(c.monthIndex0 + 1);
+      setSelectedYearRaw(c.year);
+    };
+    sync();
+    window.addEventListener('focus', sync);
+    document.addEventListener('visibilitychange', sync);
+    return () => {
+      window.removeEventListener('focus', sync);
+      document.removeEventListener('visibilitychange', sync);
+    };
+  }, []);
   const [newTarget, setNewTarget] = useState({
     user_id: '',
     target_amount: '',
