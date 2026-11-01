@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertTriangle, CheckCircle2, XCircle, ExternalLink, Wallet, HandCoins } from "lucide-react";
 import { useLabTreasuryApprovals, type PendingMovement, type PendingAdvanceDiff } from "@/hooks/useLabTreasuryApprovals";
+import { formatDate } from "@/lib/dateFormat";
 
 const PM_LABEL: Record<string, string> = {
   cash: "نقدي",
@@ -17,7 +18,7 @@ const PM_LABEL: Record<string, string> = {
 };
 
 const fmtMoney = (n: any) => `${Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م`;
-const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString("ar-EG") : "—");
+const fmtDate = (d: string | null) => (d ? formatDate(d) : "—");
 
 const SESSION_KEY = "lab_treasury_approvals_dismissed_at";
 

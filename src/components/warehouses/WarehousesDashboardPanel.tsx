@@ -14,6 +14,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
   PieChart, Pie, Legend,
 } from "recharts";
+import { formatDate } from "@/lib/dateFormat";
 
 type WhRow = { id: string; name: string; type: string; is_active: boolean };
 type ItemRow = {
@@ -259,7 +260,7 @@ export default function WarehousesDashboardPanel({
         <Kpi color={lowItems.length ? "destructive" : "muted"} icon={<AlertTriangle className="h-4 w-4" />} label="أصناف منخفضة" value={String(lowItems.length)} />
         <Kpi color={negativeItems.length ? "destructive" : "muted"} icon={<AlertTriangle className="h-4 w-4" />} label="أصناف بالسالب" value={String(negativeItems.length)} />
         <Kpi color="muted" icon={<Clock className="h-4 w-4" />} label="آخر حركة"
-             value={lastMov ? new Date(lastMov.performed_at).toLocaleDateString("ar-EG") : "—"}
+             value={lastMov ? formatDate(lastMov.performed_at) : "—"}
              sub={lastMov ? (lastMov.item?.name || "") : undefined} />
       </div>
 

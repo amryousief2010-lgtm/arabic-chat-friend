@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
+import { formatDate } from "@/lib/dateFormat";
 
 type Range = "today" | "week" | "month" | "year" | "custom";
 
@@ -189,7 +190,7 @@ export default function ExecutiveDashboard() {
             <Kpi label="دفعات حالية" value={fmt(s.hatchery?.current_batches)} tone="primary" />
             <Kpi label="بيض داخل الشهر" value={fmt(s.hatchery?.eggs_in_month)} />
             <Kpi label="بيض داخل الماكينات" value={fmt(s.hatchery?.eggs_in_machine)} />
-            <Kpi label="أقرب فقس" value={s.hatchery?.next_hatch?.batch_number || "—"} hint={s.hatchery?.next_hatch?.date ? new Date(s.hatchery.next_hatch.date).toLocaleDateString("ar-EG") : ""} tone="success" />
+            <Kpi label="أقرب فقس" value={s.hatchery?.next_hatch?.batch_number || "—"} hint={s.hatchery?.next_hatch?.date ? formatDate(s.hatchery.next_hatch.date) : ""} tone="success" />
             <Kpi label="نسبة إخصاب (العاصمة)" value={`${fmt(s.hatchery?.capital_fert_pct, 2)}%`} />
             <Kpi label="كتاكيت العاصمة (شهر)" value={fmt(s.hatchery?.capital_chicks_month)} tone="primary" />
             <Kpi label="كتاكيت العاصمة (سنة)" value={fmt(s.hatchery?.capital_chicks_year)} />
@@ -208,7 +209,7 @@ export default function ExecutiveDashboard() {
             <Kpi label="رصيد العلف (كجم)" value={fmt(s.brooding?.feed_stock_kg, 1)} />
             <Kpi label="تكلفة علف الشهر" value={fmtMoney(s.brooding?.feed_issued_cost_month)} />
             {s.brooding?.next_slaughter?.batch_number && (
-              <Kpi label="أقرب للمجزر" value={s.brooding.next_slaughter.batch_number} hint={s.brooding.next_slaughter.date ? new Date(s.brooding.next_slaughter.date).toLocaleDateString("ar-EG") : ""} />
+              <Kpi label="أقرب للمجزر" value={s.brooding.next_slaughter.batch_number} hint={s.brooding.next_slaughter.date ? formatDate(s.brooding.next_slaughter.date) : ""} />
             )}
           </div>
         </SectionCard>

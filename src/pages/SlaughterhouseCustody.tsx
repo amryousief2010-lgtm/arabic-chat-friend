@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import UserAvatar from "@/components/UserAvatar";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -503,7 +504,7 @@ export default function SlaughterhouseCustody() {
               <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
                 <Clock className="w-3 h-3" /> {getCairoNow()}
                 <span className="text-border">|</span>
-                <span>{profile?.full_name || "محمد شعلة"}</span>
+                <span className="inline-flex items-center gap-1.5"><UserAvatar userId={user?.id} name={profile?.full_name} className="w-5 h-5" fallbackClassName="text-[10px]" />{profile?.full_name || "محمد شعلة"}</span>
               </div>
             </div>
           </div>

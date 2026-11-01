@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Download, RefreshCw, TrendingUp, TrendingDown, Warehouse, Factory, Drumstick, Egg } from "lucide-react";
 import { openPrintWindow } from "@/lib/printPdf";
 import { toast } from "sonner";
+import { formatDate } from "@/lib/dateFormat";
 
 type DistRow = {
   sale_id: string;
@@ -235,7 +236,7 @@ export default function FeedMonthlyReport() {
                   <TableHeader><TableRow><TableHead>التاريخ</TableHead><TableHead>كمية</TableHead><TableHead>ملاحظات</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {slaughterIssues.map((r: any, i) => (
-                      <TableRow key={i}><TableCell>{new Date(r.performed_at).toLocaleDateString("ar-EG")}</TableCell><TableCell>{fmt(r.quantity_kg)}</TableCell><TableCell>{r.notes || "—"}</TableCell></TableRow>
+                      <TableRow key={i}><TableCell>{formatDate(r.performed_at)}</TableCell><TableCell>{fmt(r.quantity_kg)}</TableCell><TableCell>{r.notes || "—"}</TableCell></TableRow>
                     ))}
                     {slaughterIssues.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">لا يوجد</TableCell></TableRow>}
                   </TableBody>

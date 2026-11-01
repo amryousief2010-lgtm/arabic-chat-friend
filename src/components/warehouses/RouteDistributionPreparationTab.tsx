@@ -23,6 +23,7 @@ import { openPrintWindow, escapeHtml } from "@/lib/printPdf";
 
 
 import { MAIN_WAREHOUSE_ID as DEFAULT_MAIN_WAREHOUSE_ID } from "@/lib/warehouseItemFilters";
+import { formatDate } from "@/lib/dateFormat";
 
 interface OrderRow {
   id: string;
@@ -496,7 +497,7 @@ export default function RouteDistributionPreparationTab({ warehouseId = DEFAULT_
                   <div className="px-2 py-3 text-xs text-muted-foreground text-center">لا توجد عهد مفتوحة — استخدم «فتح عهدة جديدة»</div>
                 ) : custodies.map(c => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.courier_name} — {new Date(c.opened_at).toLocaleDateString("ar-EG")}
+                    {c.courier_name} — {formatDate(c.opened_at)}
                   </SelectItem>
                 ))}
               </SelectContent>

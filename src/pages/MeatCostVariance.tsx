@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Info, Scale, AlertTriangle, FileText, ExternalLink } from "lucide-react";
+import { formatDate } from "@/lib/dateFormat";
 
 type Row = {
   canon_name: string;
@@ -212,7 +213,7 @@ export default function MeatCostVariance() {
                   {invoices.map((inv) => (
                     <TableRow key={inv.id}>
                       <TableCell className="font-medium">{inv.invoice_no}</TableCell>
-                      <TableCell>{new Date(inv.created_at).toLocaleDateString("ar-EG")}</TableCell>
+                      <TableCell>{formatDate(inv.created_at)}</TableCell>
                       <TableCell>{n(inv.finished_qty).toLocaleString("ar-EG", { maximumFractionDigits: 2 })} {inv.unit}</TableCell>
                       <TableCell>{money(inv.raw_cost)}</TableCell>
                       <TableCell>{money(inv.spice_cost)}</TableCell>

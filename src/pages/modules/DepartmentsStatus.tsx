@@ -24,6 +24,7 @@ import { withItemUnitCost } from "@/lib/inventoryCostAccess";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { openPrintWindow, COMPANY_AR } from "@/lib/printPdf";
+import { formatDate } from "@/lib/dateFormat";
 
 // ============================================================================
 // Types
@@ -601,7 +602,7 @@ export default function DepartmentsStatus() {
                         {d.net >= 0 ? "+" : ""}{fmt(d.net)}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {d.lastActivity ? new Date(d.lastActivity).toLocaleDateString("ar-EG") : "—"}
+                        {d.lastActivity ? formatDate(d.lastActivity) : "—"}
                       </TableCell>
                       <TableCell>
                         <Button size="sm" variant="ghost" onClick={() => setDetails(d)}>

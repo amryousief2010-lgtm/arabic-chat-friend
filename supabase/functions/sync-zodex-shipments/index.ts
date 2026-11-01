@@ -21,7 +21,8 @@ import {
   collectAwbCandidates,
   dedupeByBill,
   indexAwbCandidate,
-  isExpectedZodexShipment,
+  isAutoLinkCandidate,
+  pickAutoLinkWinner,
   parseZodexDate,
   pickAwbLinkWinner,
   filterAwbCandidatesByMonth,
@@ -46,6 +47,8 @@ const ITEMS_PER_PAGE = 50;
 // Hard safety ceiling on pages; the real stop condition is the time window.
 const MAX_PAGES_CEILING = 20;
 const DEFAULT_MAX_PAGES = 8;
+/** Schedule overlap lock. A real waybill run finishes in seconds; 5 min is plenty. */
+export const RUNNING_LOCK_MINUTES = 5;
 const LOOKBACK_DAYS_FOR_ORDER_MATCH = 14;
 // Main warehouse system took over on 2026-07-01 (Cairo). Only match orders
 // created on/after this date; earlier orders were handled by the old system.
@@ -253,7 +256,8 @@ Deno.serve(async (req) => {
     const { data: running } = await supabase.from("zodex_sync_runs")
       .select("id")
       .eq("status", "running")
-      .gte("started_at", new Date(Date.now() - 20 * 60_000).toISOString())
+      // 5 min (was 20): a manual run that was killed mid-way must not block the schedule.
+      .gte("started_at", new Date(Date.now() - RUNNING_LOCK_MINUTES * 60_000).toISOString())
       .limit(1)
       .maybeSingle();
     if (running) {
@@ -418,7 +422,7 @@ Deno.serve(async (req) => {
 
     // 2) Unlinked delivery-side candidates in the window. Index by 01… and last-9
     // so Zodex 01XXXXXXXXX matches customers.phone / phone2 stored as 20… / +20.
-    // Pickup (استلام) is never a candidate — it must not steal a ZX via FIFO.
+    // 28/10: pickup is a candidate; private courier never; cancelled only for record-keeping links.
     const candidatesByPhone = new Map<string, any[]>();
     const CAND_PAGE = 1000;
     const CAND_CAP = 5000;
@@ -436,7 +440,7 @@ Deno.serve(async (req) => {
       }
       const rows = (candPage || []) as any[];
       for (const o of rows) {
-        if (!isExpectedZodexShipment({
+        if (!isAutoLinkCandidate({
           status: o.status,
           shipping_company: o.shipping_company,
           source_warehouse_id: o.source_warehouse_id,
@@ -470,14 +474,10 @@ Deno.serve(async (req) => {
 
       if (!row.phones.length) { stats.no_phone_in_row++; failure("no_phone_in_row"); continue; }
       if (alreadyLinkedSet.has(row.bill_no)) { stats.already_linked++; continue; }
-      // NEVER heuristically claim an order for a return bill. A customer can have
-      // several bills on Zodex (one delivered, one returned); guessing by phone/COD
-      // would cancel the wrong order. Return bills act only on an existing exact link.
-      if (row.status && RETURN_RE_LINK.test(row.status)) {
-        stats.returns_link_skipped++;
-        failure("return_bill_not_auto_linked", { status: row.status });
-        continue;
-      }
+      // A return bill is linked ONLY to an already-cancelled order (documentation).
+      // It never claims an open order by phone guess, so the returns step below can
+      // never cancel the wrong order or release stock.
+      const isReturnBill = !!(row.status && RETURN_RE_LINK.test(row.status));
 
 
       const phoneCandidates = collectAwbCandidates(row.phones, candidatesByPhone, claimedThisRun);
@@ -502,15 +502,32 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      if (row.cod > 0) {
-        const amountHit = candidates.some((c) => amountMatchesZodex(Number(c.total || 0), row.cod).ok);
-        if (!amountHit) failure("cod_mismatch", { candidate_totals: candidates.map((c) => c.total) });
-      }
-      const picked = pickAwbLinkWinner(candidates, row.cod);
+      const picked = pickAutoLinkWinner(candidates, row.cod, { returnBill: isReturnBill });
       if (!picked) {
-        stats.no_matching_order++;
-        failure("no_matching_phone", { candidates_total: candidates.length });
+        if (isReturnBill) {
+          stats.returns_link_skipped++;
+          failure("return_bill_not_auto_linked", { status: row.status });
+        } else {
+          stats.no_matching_order++;
+          failure("no_matching_phone", { candidates_total: candidates.length });
+        }
         continue;
+      }
+      // Amount differs → NOT linked; listed for review (unresolved) with both amounts.
+      if (picked.blocked) {
+        stats.amount_mismatch = (stats.amount_mismatch || 0) + 1;
+        failure("amount_mismatch", {
+          cod: picked.cod, order_total: picked.order_total,
+          suggested_order: (picked.suggested as any).order_number,
+        });
+        continue;
+      }
+      // Cancelled order: documentation link only (status/stock/ledger never touched).
+      if (picked.flags.length) {
+        stats.review_flags = stats.review_flags || [];
+        if (stats.review_flags.length < 50) {
+          stats.review_flags.push({ bill_no: row.bill_no, order_number: picked.winner.order_number, flags: picked.flags });
+        }
       }
       const winner = picked.winner;
       const matchReason = monthPick.scope === "prev_month_grace"
@@ -532,7 +549,7 @@ Deno.serve(async (req) => {
         bill_no: row.bill_no,
         order_id: winner.id,
         match_reason: matchReason,
-        match_score: matchReason.includes("cod") ? 1 : 0.7,
+        match_score: picked.flags.length ? 0.5 : (matchReason.includes("cod") ? 1 : 0.7),
       });
 
       if (stats.linked_examples.length < 20) {
@@ -630,7 +647,7 @@ Deno.serve(async (req) => {
     // ---- SYNC STATE COMMIT ----
     // Only a fully clean cycle (login OK + every page fetched + comparison
     // finished + no unhandled error) may advance the last-successful timestamp.
-    stats.unresolved = stats.no_matching_order + stats.no_phone_in_row + stats.ambiguous_skipped;
+    stats.unresolved = stats.no_matching_order + stats.no_phone_in_row + stats.ambiguous_skipped + (stats.amount_mismatch || 0);
     const fullyComplete = errors.length === 0 && paginationComplete;
     stats.complete = fullyComplete;
     if (fullyComplete) {

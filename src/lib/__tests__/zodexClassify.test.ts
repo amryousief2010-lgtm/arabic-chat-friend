@@ -99,7 +99,7 @@ describe("explainOrphanBill / no-bill orders", () => {
 });
 
 describe("isExpectedZodexShipment / fulfillmentKeepsZodexWaybill", () => {
-  it("expects a Zodex bill on Agouza delivery, not customer pickup", () => {
+  it("expects a Zodex bill on Agouza delivery and on customer pickup (28/10)", () => {
     expect(isExpectedZodexShipment({
       status: "pending",
       source_warehouse_id: AGOUZA_WAREHOUSE_ID,
@@ -109,7 +109,7 @@ describe("isExpectedZodexShipment / fulfillmentKeepsZodexWaybill", () => {
       status: "pending",
       source_warehouse_id: AGOUZA_WAREHOUSE_ID,
       fulfillment_type: "pickup",
-    })).toBe(false);
+    })).toBe(true);
   });
 
   it("does not treat private-courier or cancelled rows as Zodex shipments", () => {
@@ -125,20 +125,20 @@ describe("isExpectedZodexShipment / fulfillmentKeepsZodexWaybill", () => {
     })).toBe(false);
   });
 
-  it("keeps ZX when editing Agouza delivery or شركة شحن, wipes it for pickup/كيمو", () => {
+  it("keeps ZX for Agouza delivery, شركة شحن and pickup; wipes it for كيمو", () => {
     expect(fulfillmentKeepsZodexWaybill("delivery_agouza")).toBe(true);
     expect(fulfillmentKeepsZodexWaybill("shipping_company")).toBe(true);
-    expect(fulfillmentKeepsZodexWaybill("pickup_agouza")).toBe(false);
-    expect(fulfillmentKeepsZodexWaybill("pickup_main")).toBe(false);
+    expect(fulfillmentKeepsZodexWaybill("pickup_agouza")).toBe(true);
+    expect(fulfillmentKeepsZodexWaybill("pickup_main")).toBe(true);
     expect(fulfillmentKeepsZodexWaybill("delivery_main")).toBe(false);
   });
 
-  it("does not offer «+ بوليصة» on customer pickup / استلام", () => {
+  it("offers «+ بوليصة» on customer pickup / استلام (28/10)", () => {
     expect(shouldOfferManualWaybill({
       status: "pending",
       source_warehouse_id: AGOUZA_WAREHOUSE_ID,
       fulfillment_type: "pickup",
-    })).toBe(false);
+    })).toBe(true);
     expect(shouldOfferManualWaybill({
       status: "pending",
       source_warehouse_id: AGOUZA_WAREHOUSE_ID,

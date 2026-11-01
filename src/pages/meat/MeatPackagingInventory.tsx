@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { openPrintWindow } from "@/lib/printPdf";
 import { useAuth } from "@/hooks/useAuth";
 import * as XLSX from "xlsx";
+import { formatDate } from "@/lib/dateFormat";
 
 type Item = { id: string; name: string; unit: string; current_stock: number; avg_cost: number; low_stock_threshold: number | null; kind: string; is_active: boolean; notes: string | null; updated_at: string };
 type Move = { id: string; item_kind: string; item_id: string; item_name: string; direction: "IN"|"OUT"; quantity: number; unit_cost: number | null; reason: string | null; ref_table: string | null; ref_id: string | null; stock_before: number | null; stock_after: number | null; created_by: string | null; created_at: string };
@@ -119,8 +120,8 @@ export default function MeatPackagingInventory() {
       "الصنف": i.name, "الوحدة": i.unit, "الرصيد الحالي": Number(i.current_stock),
       "متوسط التكلفة": Number(i.avg_cost), "إجمالي القيمة": Number(i.current_stock) * Number(i.avg_cost || 0),
       "حد إعادة الطلب": Number(i.low_stock_threshold || 0),
-      "آخر وارد": lastByItem[i.id]?.in ? new Date(lastByItem[i.id]!.in!).toLocaleDateString("ar-EG") : "",
-      "آخر صرف": lastByItem[i.id]?.out ? new Date(lastByItem[i.id]!.out!).toLocaleDateString("ar-EG") : "",
+      "آخر وارد": lastByItem[i.id]?.in ? formatDate(lastByItem[i.id]!.in!) : "",
+      "آخر صرف": lastByItem[i.id]?.out ? formatDate(lastByItem[i.id]!.out!) : "",
       "الحالة": i.is_active ? "نشط" : "معطّل",
     }));
     const wb = XLSX.utils.book_new();
@@ -132,7 +133,7 @@ export default function MeatPackagingInventory() {
     const total = filtered.reduce((s, i) => s + Number(i.current_stock) * Number(i.avg_cost || 0), 0);
     const html = `
       <h1 style="text-align:center">تقرير مخزن مواد التغليف والتعبئة — مصنع اللحوم</h1>
-      <p style="text-align:center">${new Date().toLocaleDateString("ar-EG")}</p>
+      <p style="text-align:center">${formatDate(new Date())}</p>
       <table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;text-align:center">
         <thead style="background:#f3e8ff"><tr>
           <th>الصنف</th><th>الوحدة</th><th>الرصيد</th><th>متوسط التكلفة</th><th>إجمالي القيمة</th><th>حد الطلب</th><th>الحالة</th>
@@ -211,8 +212,8 @@ export default function MeatPackagingInventory() {
                         <TableCell>{fmt(i.avg_cost)}</TableCell>
                         <TableCell className="font-bold text-purple-700">{fmt(value)}</TableCell>
                         <TableCell className="text-xs">{fmt(i.low_stock_threshold)}</TableCell>
-                        <TableCell className="text-xs">{last.in ? new Date(last.in).toLocaleDateString("ar-EG") : "—"}</TableCell>
-                        <TableCell className="text-xs">{last.out ? new Date(last.out).toLocaleDateString("ar-EG") : "—"}</TableCell>
+                        <TableCell className="text-xs">{last.in ? formatDate(last.in) : "—"}</TableCell>
+                        <TableCell className="text-xs">{last.out ? formatDate(last.out) : "—"}</TableCell>
                         <TableCell>
                           {!i.is_active ? <Badge variant="secondary">معطّل</Badge>
                             : isZero ? <Badge variant="destructive">نفد</Badge>

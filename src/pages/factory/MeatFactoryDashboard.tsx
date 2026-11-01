@@ -14,6 +14,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
 import { Factory, AlertTriangle, Beef, Package, Wallet, Truck, ShoppingCart, Boxes, TrendingDown, CheckCircle2, FileText, Scale } from "lucide-react";
 import { cairoMonthStartUTC, cairoTodayStartUTC, currentCairoYearMonth } from "@/lib/cairoDate";
 import MaterialsConsumptionSection from "@/components/meat/MaterialsConsumptionSection";
+import { formatDate } from "@/lib/dateFormat";
 
 const PURPLE = "#7c3aed", ORANGE = "#ea580c", BLUE = "#2563eb", AMBER = "#d97706", GREEN = "#059669", RED = "#dc2626";
 const fmt = (n: any) => Number(n || 0).toLocaleString("ar-EG", { maximumFractionDigits: 2 });
@@ -408,7 +409,7 @@ export default function MeatFactoryDashboard() {
                   return (
                     <TableRow key={inv.id} className="cursor-pointer hover:bg-muted/40" onClick={() => window.location.assign(`/meat-factory/manufacturing?invoice=${inv.id}`)}>
                       <TableCell className="font-mono text-xs">{inv.invoice_no}</TableCell>
-                      <TableCell className="text-xs">{new Date(inv.created_at).toLocaleDateString("ar-EG")}</TableCell>
+                      <TableCell className="text-xs">{formatDate(inv.created_at)}</TableCell>
                       <TableCell>{inv.product_name}</TableCell>
                       <TableCell className="font-bold">{fmt(qty)} كجم</TableCell>
                       <TableCell><Badge className="bg-emerald-600">{inv.status}</Badge></TableCell>
@@ -487,7 +488,7 @@ export default function MeatFactoryDashboard() {
                     <TableCell>{fmt(r.pack)}</TableCell>
                     <TableCell className="font-bold text-purple-700">{fmt(r.total)}</TableCell>
                     <TableCell className="font-bold">{fmt(r.avg)} ج/كجم</TableCell>
-                    <TableCell className="text-xs">{new Date(r.last).toLocaleDateString("ar-EG")}</TableCell>
+                    <TableCell className="text-xs">{formatDate(r.last)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

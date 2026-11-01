@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import UserAvatar from "@/components/UserAvatar";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { cairoMonthStartUTC, currentCairoYearMonth } from '@/lib/cairoDate';
@@ -501,7 +502,7 @@ const SalesTargets = () => {
                         <SelectContent>
                           {employees.map((emp) => (
                             <SelectItem key={emp.id} value={emp.id}>
-                              {emp.full_name}
+                              <span className="inline-flex items-center gap-2"><UserAvatar userId={emp.id} name={emp.full_name} className="w-5 h-5" fallbackClassName="text-[10px]" />{emp.full_name}</span>
                             </SelectItem>
                           ))}
                         </SelectContent>

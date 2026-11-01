@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import UserAvatar from "@/components/UserAvatar";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
@@ -36,6 +37,7 @@ interface Row {
   source_name?: string;
   destination_name?: string;
   performed_by_name?: string;
+  performed_by?: string | null;
   unit_cost?: number | null;
   total_cost?: number | null;
 }
@@ -190,6 +192,7 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
         warehouse_name: m.warehouse_id ? whMap.get(m.warehouse_id) : undefined,
         source_name: m.source_warehouse_id ? whMap.get(m.source_warehouse_id) : undefined,
         destination_name: m.destination_warehouse_id ? whMap.get(m.destination_warehouse_id) : undefined,
+        performed_by: m.performed_by ?? null,
         performed_by_name: m.performed_by ? userMap.get(m.performed_by) : undefined,
         unit_cost: m.unit_cost != null ? Number(m.unit_cost) : null,
         total_cost: m.total_cost != null ? Number(m.total_cost) : null,
@@ -556,7 +559,7 @@ export default function MainWarehouseActivity({ embedded = false }: MainWarehous
                         {r.destination_name && <span>إلى: {r.destination_name}</span>}
                         {!r.source_name && !r.destination_name && <span className="text-muted-foreground">—</span>}
                       </td>
-                      <td className="p-2 text-xs">{r.performed_by_name || <span className="text-muted-foreground">—</span>}</td>
+                      <td className="p-2 text-xs">{r.performed_by_name ? <span className="inline-flex items-center gap-1.5"><UserAvatar userId={r.performed_by} name={r.performed_by_name} className="w-6 h-6" fallbackClassName="text-[10px]" />{r.performed_by_name}</span> : <span className="text-muted-foreground">—</span>}</td>
                       <td className="p-2 text-xs text-muted-foreground">
                         {r.reason || r.notes || r.party || ""}
                       </td>

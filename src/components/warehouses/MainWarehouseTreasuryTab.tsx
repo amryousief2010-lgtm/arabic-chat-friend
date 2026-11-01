@@ -20,6 +20,7 @@ import { isMainWarehouseName } from "@/constants/warehouseCategoryFilters";
 import { getAllowedWarehouseDropdownItems, getWarehouseItemDebugRow, getWarehouseItemRejectionReason, getWarehouseMissingItemDebugRow } from "@/lib/warehouseItemFilters";
 import AddMainWarehouseItemDialog from "@/components/warehouses/AddMainWarehouseItemDialog";
 import * as XLSX from "xlsx";
+import { formatDate } from "@/lib/dateFormat";
 
 interface Txn {
   id: string;
@@ -232,7 +233,7 @@ export default function MainWarehouseTreasuryTab() {
   const printDepositDetails = () => {
     if (!depDetailsMeta) return;
     const m = depDetailsMeta;
-    const dayLabel = new Date(m.deposit_date).toLocaleDateString("ar-EG");
+    const dayLabel = formatDate(m.deposit_date);
     const totCash = depDetailsLines.reduce((s, l) => s + Number(l.courier_cash_due || 0), 0);
     const totVoda = depDetailsLines.reduce((s, l) => s + Number(l.vodafone_cash_amount || 0), 0);
     const totInsta = depDetailsLines.reduce((s, l) => s + Number(l.instapay_amount || 0), 0);
@@ -625,7 +626,7 @@ export default function MainWarehouseTreasuryTab() {
       let autoNotes = "";
       if (selectedDeps.length) {
         const lines = selectedDeps.map((d) => {
-          const day = new Date(d.deposit_date).toLocaleDateString("ar-EG");
+          const day = formatDate(d.deposit_date);
           const cash = Number(d.amount || 0);
           const nc = Number(d.non_cash_amount || 0);
           const totalD = cash + nc;
@@ -2651,7 +2652,7 @@ export default function MainWarehouseTreasuryTab() {
               {depDetailsMeta ? (
                 <span>
                   المندوب: <b>{depDetailsMeta.courier_name}</b> — اليوم:{" "}
-                  <b>{new Date(depDetailsMeta.deposit_date).toLocaleDateString("ar-EG")}</b> — عدد الأوردرات:{" "}
+                  <b>{formatDate(depDetailsMeta.deposit_date)}</b> — عدد الأوردرات:{" "}
                   <b>{depDetailsMeta.orders_count}</b> — الإجمالي النقدي:{" "}
                   <b className="text-emerald-700">{fmt(Number(depDetailsMeta.amount || 0))} ج.م</b>
                 </span>

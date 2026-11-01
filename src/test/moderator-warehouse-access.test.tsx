@@ -72,23 +72,16 @@ describe("sales_moderator access + May moderator attribution", () => {
     }
   });
 
-  // --- May data attribution: the 5 distinct `orders.moderator` strings used
-  // for May 2026 are منال / شركة الشحن / نورا / أية / سارة. The first four
-  // must map to a moderator; "شركة الشحن" must NOT match any of the girls.
-  it("attributes each May 2026 order to the correct moderator card", () => {
-    const cases: Array<{ raw: string; slug: string }> = [
-      { raw: "أية", slug: "aya" },
-      { raw: "نورا", slug: "noura" },
-      { raw: "سارة", slug: "sara" },
-      { raw: "منال", slug: "manal" },
-    ];
-    for (const { raw, slug } of cases) {
-      const expected = MODERATORS.find((m) => m.slug === slug)!;
-      // Every moderator that matches should be exactly the expected one.
-      const matches = MODERATORS.filter((m) =>
-        isOrderForModerator(m, raw, null),
-      );
-      expect(matches.map((m) => m.slug)).toEqual([expected.slug]);
+  // --- Order attribution: every current moderator's canonical name and each
+  // of her aliases must map to exactly that moderator card (no overlaps).
+  // Derived from MODERATORS so it does not break when a moderator leaves.
+  it("attributes each moderator's orders to exactly her own card", () => {
+    expect(MODERATORS.length).toBeGreaterThan(0);
+    for (const expected of MODERATORS) {
+      for (const raw of [expected.canonicalModerator, ...expected.aliases]) {
+        const matches = MODERATORS.filter((m) => isOrderForModerator(m, raw, null));
+        expect(matches.map((m) => m.slug), `raw="${raw}"`).toEqual([expected.slug]);
+      }
     }
   });
 

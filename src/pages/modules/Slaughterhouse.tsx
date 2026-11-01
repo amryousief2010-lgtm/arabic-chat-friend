@@ -680,7 +680,7 @@ const Slaughterhouse = () => {
       <h1>إذن توريد من المجزر</h1>
       <div class="meta">
         <div><b>رقم الدفعة:</b> ${esc(b.batch_number)}</div>
-        <div><b>التاريخ:</b> ${new Date().toLocaleDateString("ar-EG")}</div>
+        <div><b>التاريخ:</b> ${formatDate(new Date())}</div>
         <div><b>الجهة:</b> ${esc(destLabel)}</div>
       </div>
       <table>

@@ -74,7 +74,8 @@ const userRoles = [
 
 vi.mock("@/integrations/supabase/client", () => {
   const from = (table: string) => {
-    if (table === "profiles") {
+    // SendMessage reads recipients from the profile_directory view.
+    if (table === "profile_directory") {
       return {
         select: () => ({
           order: () => Promise.resolve({ data: profiles, error: null }),
@@ -89,14 +90,19 @@ vi.mock("@/integrations/supabase/client", () => {
     if (table === "notifications") {
       return {
         select: () => ({
-          order: () =>
-            Promise.resolve({
-              data: [...notificationsStore].sort(
-                (a, b) =>
-                  new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-              ),
-              error: null,
-            }),
+          // Notifications page paginates: .order(...).range(from, to)
+          order: () => ({
+            range: (from: number, to: number) =>
+              Promise.resolve({
+                data: [...notificationsStore]
+                  .sort(
+                    (a, b) =>
+                      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+                  )
+                  .slice(from, to + 1),
+                error: null,
+              }),
+          }),
         }),
         insert: (row: any) => {
           notificationsStore.push({

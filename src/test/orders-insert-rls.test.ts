@@ -57,15 +57,24 @@ describe("orders INSERT RLS — migration SQL contract", () => {
     .filter((f) => f.endsWith(".sql"))
     .sort();
 
-  // Find the most recent migration that defines the orders INSERT policy.
+  // Latest statement that sets the orders INSERT policy's WITH CHECK:
+  // the CREATE POLICY ... ON public.orders FOR INSERT, or a later ALTER POLICY
+  // of the same policy (e.g. the 2026-09-28 RLS initplan rewrite). Parsed per
+  // statement so policies on other tables (orders_audit_log, ...) never match.
   const policySql = (() => {
-    for (const f of [...files].reverse()) {
+    let name = "";
+    let latest = "";
+    for (const f of files) {
       const sql = readFileSync(join(migrationsDir, f), "utf8");
-      if (/CREATE POLICY[\s\S]*ON\s+public\.orders[\s\S]*FOR\s+INSERT/i.test(sql)) {
-        return sql;
+      for (const stmt of sql.split(";")) {
+        const create = stmt.match(/CREATE POLICY\s+"([^"]+)"\s+ON\s+public\.orders\s[\s\S]*FOR\s+INSERT/i);
+        if (create) { name = create[1]; latest = stmt + ";"; continue; }
+        if (name && new RegExp(`ALTER POLICY\\s+"${name}"\\s+ON\\s+public\\.orders\\s[\\s\\S]*WITH CHECK`, "i").test(stmt)) {
+          latest = stmt + ";";
+        }
       }
     }
-    return "";
+    return latest;
   })();
 
   it("defines a current INSERT policy on public.orders", () => {
@@ -73,7 +82,7 @@ describe("orders INSERT RLS — migration SQL contract", () => {
   });
 
   it("requires auth.uid() = created_by", () => {
-    expect(policySql).toMatch(/auth\.uid\(\)\s*=\s*created_by/i);
+    expect(policySql).toMatch(/auth\.uid\(\)\s*\)?\s*=\s*created_by/i);
   });
 
   it("requires has_any_role with the sales roles array", () => {
@@ -86,11 +95,6 @@ describe("orders INSERT RLS — migration SQL contract", () => {
   it("does NOT leave a permissive policy that lets any authenticated user insert", () => {
     // The old policy was just `auth.uid() = created_by` with no role gate.
     // Make sure no current INSERT policy on orders lacks has_any_role.
-    const insertPolicies = policySql.match(
-      /CREATE POLICY[\s\S]*?ON\s+public\.orders[\s\S]*?FOR\s+INSERT[\s\S]*?;/gi
-    ) ?? [];
-    for (const p of insertPolicies) {
-      expect(p).toMatch(/has_any_role/i);
-    }
+    expect(policySql).toMatch(/has_any_role/i);
   });
 });

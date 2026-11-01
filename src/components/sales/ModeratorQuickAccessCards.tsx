@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Plus, FileText, UserRound, Beef, Drumstick, Flame } from "lucide-react";
 import { MODERATORS, isOrderForModerator, ModeratorConfig, findModeratorByName, isModeratorActiveInMonth } from "@/constants/moderators";
+import UserAvatar from "@/components/UserAvatar";
 import { useAuth } from "@/hooks/useAuth";
 import { cairoMonthStartUTC, currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
 import { usePayrollClosureCutoff, isDeliveredWithinClosure } from "@/hooks/usePayrollClosure";
@@ -81,7 +82,8 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
   // أسعار الكيلو المشتركة من قاعدة البيانات (نفس مصدر جداول التارجت)
   const { prices } = useKgPrices({ year: viewYear, month: viewMonth + 1 });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
+    retry: 1,
     queryKey: ["moderator-quick-access-v2", privateDeliveryOnly, viewYear, viewMonth, cutoff, prices.meat_price, prices.bone_meat_price, prices.processed_price],
     refetchInterval: 5 * 60_000,
     refetchOnWindowFocus: false,
@@ -95,8 +97,14 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
         .gte("created_at", startOfMonth.toISOString())
         .lt("created_at", startOfNextMonth.toISOString());
       if (privateDeliveryOnly) q = q.eq("shipping_company", "مندوب خاص");
-      const { data: orders, error } = await q;
-      if (error) throw error;
+      // PostgREST يرجّع 1000 صف كحد أقصى — نصفّح عشان مايضيعش أوردرات آخر الشهر
+      const orders: any[] = [];
+      for (let from = 0; ; from += 1000) {
+        const { data: page, error } = await q.order("created_at").range(from, from + 999);
+        if (error) throw error;
+        orders.push(...(page || []));
+        if (!page || page.length < 1000) break;
+      }
 
       const userIds = Array.from(
         new Set((orders || []).map((o: any) => o.created_by).filter(Boolean)),
@@ -122,16 +130,18 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
       // Fetch items for those orders (paged)
       const ids = Array.from(orderToMod.keys());
       let items: any[] = [];
-      for (let i = 0; i < ids.length; i += 300) {
-        const slice = ids.slice(i, i + 300);
+      for (let i = 0; i < ids.length; i += 100) {
+        // دفعات صغيرة: 300 معرّف كانت تعمل رابط ~11KB قد يُرفض من البروكسي
+        const slice = ids.slice(i, i + 100);
         let from = 0;
         const PAGE = 1000;
         while (true) {
-          const { data: chunk } = await supabase
+          const { data: chunk, error: itemsErr } = await supabase
             .from("order_items")
             .select("order_id, product_id, product_name, quantity, unit_price, total_price")
             .in("order_id", slice)
             .range(from, from + PAGE - 1);
+          if (itemsErr) throw itemsErr;
           if (!chunk || chunk.length === 0) break;
           items = items.concat(chunk);
           if (chunk.length < PAGE) break;
@@ -237,6 +247,12 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
           </p>
         </div>
 
+        {isError && (
+          <div className="mb-3 text-sm text-destructive flex items-center gap-2" data-testid="quick-cards-error">
+            تعذّر تحميل أرقام المسوقات.
+            <Button size="sm" variant="outline" onClick={() => refetch()}>إعادة المحاولة</Button>
+          </div>
+        )}
         <div className={`grid grid-cols-1 ${visibleModerators.length > 1 ? "md:grid-cols-2 lg:grid-cols-4" : "max-w-md mx-auto"} gap-3`}>
           {(data || visibleModerators.map((m) => ({
             slug: m.slug, displayName: m.displayName, gradient: m.gradient, iconBg: m.iconBg,
@@ -252,23 +268,26 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
                   <p className="text-xs opacity-80">المسوقة</p>
                   <h4 className="text-xl font-bold">{row.displayName}</h4>
                 </div>
-                <div className={`w-10 h-10 rounded-xl ${row.iconBg} ring-2 ring-white/40 flex items-center justify-center`}>
-                  <UserRound className="w-5 h-5" />
-                </div>
+                <UserAvatar
+                  matchNames={[row.displayName, ...(MODERATORS.find((m) => m.slug === row.slug)?.aliases || [])]}
+                  name={row.displayName}
+                  className="w-12 h-12 ring-2 ring-white/60"
+                  fallbackClassName={`${row.iconBg} text-white font-bold`}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs mb-2">
                 <div className="bg-white/15 rounded-lg p-2">
                   <p className="opacity-80">طلبات اليوم</p>
                   <p className="font-bold text-base">
-                    {isLoading ? "…" : row.todayOrders}
+                    {isLoading ? "…" : isError && !data ? "—" : row.todayOrders}
                   </p>
                   <p className="opacity-70 text-[10px]">{Number(row.todayTotal).toLocaleString()} ج.م</p>
                 </div>
                 <div className="bg-white/15 rounded-lg p-2">
                   <p className="opacity-80">إجمالي الشهر</p>
                   <p className="font-bold text-base">
-                    {isLoading ? "…" : row.monthOrders}
+                    {isLoading ? "…" : isError && !data ? "—" : row.monthOrders}
                   </p>
                   <p className="opacity-70 text-[10px]">{Number(row.monthTotal).toLocaleString()} ج.م</p>
                 </div>
@@ -282,19 +301,19 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
                     <div className="flex items-center justify-center gap-1 opacity-80">
                       <Beef className="w-3 h-3" /> لحوم
                     </div>
-                    <p className="font-bold mt-0.5">{isLoading ? "…" : Number(row.monthMoney?.meat || 0).toLocaleString()}</p>
+                    <p className="font-bold mt-0.5">{isLoading ? "…" : isError && !data ? "—" : Number(row.monthMoney?.meat || 0).toLocaleString()}</p>
                   </div>
                   <div className="bg-white/15 rounded p-1.5 text-center">
                     <div className="flex items-center justify-center gap-1 opacity-80">
                       <Drumstick className="w-3 h-3" /> بالعظم
                     </div>
-                    <p className="font-bold mt-0.5">{isLoading ? "…" : Number(row.monthMoney?.bone || 0).toLocaleString()}</p>
+                    <p className="font-bold mt-0.5">{isLoading ? "…" : isError && !data ? "—" : Number(row.monthMoney?.bone || 0).toLocaleString()}</p>
                   </div>
                   <div className="bg-white/15 rounded p-1.5 text-center">
                     <div className="flex items-center justify-center gap-1 opacity-80">
                       <Flame className="w-3 h-3" /> مصنعات
                     </div>
-                    <p className="font-bold mt-0.5">{isLoading ? "…" : Number(row.monthMoney?.processed || 0).toLocaleString()}</p>
+                    <p className="font-bold mt-0.5">{isLoading ? "…" : isError && !data ? "—" : Number(row.monthMoney?.processed || 0).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
@@ -309,19 +328,19 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
                         <div className="flex items-center justify-center gap-1 opacity-80">
                           <Beef className="w-3 h-3" /> لحوم
                         </div>
-                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.todayW.meat)}</p>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : isError && !data ? "—" : fmt(row.todayW.meat)}</p>
                       </div>
                       <div className="bg-white/15 rounded p-1.5 text-center">
                         <div className="flex items-center justify-center gap-1 opacity-80">
                           <Drumstick className="w-3 h-3" /> بالعظم
                         </div>
-                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.todayW.bone)}</p>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : isError && !data ? "—" : fmt(row.todayW.bone)}</p>
                       </div>
                       <div className="bg-white/15 rounded p-1.5 text-center">
                         <div className="flex items-center justify-center gap-1 opacity-80">
                           <Flame className="w-3 h-3" /> مصنعات
                         </div>
-                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.todayW.processed)}</p>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : isError && !data ? "—" : fmt(row.todayW.processed)}</p>
                       </div>
                     </div>
                   </div>
@@ -334,19 +353,19 @@ const ModeratorQuickAccessCards = ({ privateDeliveryOnly = false, month, year }:
                         <div className="flex items-center justify-center gap-1 opacity-80">
                           <Beef className="w-3 h-3" /> لحوم
                         </div>
-                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.monthW.meat)}</p>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : isError && !data ? "—" : fmt(row.monthW.meat)}</p>
                       </div>
                       <div className="bg-white/15 rounded p-1.5 text-center">
                         <div className="flex items-center justify-center gap-1 opacity-80">
                           <Drumstick className="w-3 h-3" /> بالعظم
                         </div>
-                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.monthW.bone)}</p>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : isError && !data ? "—" : fmt(row.monthW.bone)}</p>
                       </div>
                       <div className="bg-white/15 rounded p-1.5 text-center">
                         <div className="flex items-center justify-center gap-1 opacity-80">
                           <Flame className="w-3 h-3" /> مصنعات
                         </div>
-                        <p className="font-bold mt-0.5">{isLoading ? "…" : fmt(row.monthW.processed)}</p>
+                        <p className="font-bold mt-0.5">{isLoading ? "…" : isError && !data ? "—" : fmt(row.monthW.processed)}</p>
                       </div>
                     </div>
                   </div>

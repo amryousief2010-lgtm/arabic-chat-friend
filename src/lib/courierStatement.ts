@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import { openPrintWindow } from "@/lib/printPdf";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDate } from "@/lib/dateFormat";
 
 export type StatementLine = {
   id: string;
@@ -58,7 +59,7 @@ export function summarizeStatement(lines: StatementLine[]) {
 export function printCourierStatement(courierName: string, custodyId: string, lines: StatementLine[], range?: { from?: string; to?: string }) {
   const s = summarizeStatement(lines);
   const rangeTxt = range && (range.from || range.to)
-    ? `الفترة: ${range.from ? new Date(range.from).toLocaleDateString("ar-EG") : "—"} → ${range.to ? new Date(range.to).toLocaleDateString("ar-EG") : "—"}`
+    ? `الفترة: ${range.from ? formatDate(range.from) : "—"} → ${range.to ? formatDate(range.to) : "—"}`
     : "كل الحركات";
 
   const rows = lines.map((l) => `

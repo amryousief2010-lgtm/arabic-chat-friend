@@ -22,6 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { openPrintWindow, COMPANY_AR } from "@/lib/printPdf";
+import { formatDate } from "@/lib/dateFormat";
 
 type DeptKey = "mother_farm" | "hatchery" | "brooding" | "slaughterhouse" | "feed_factory" | "meat_factory";
 
@@ -253,7 +254,7 @@ export default function DepartmentMonthlyBudget() {
       <td>${p.profit > 0 ? "كسبان" : p.profit < 0 ? "خسران" : "تعادل"}</td></tr>`).join("");
     const body = `
       <header><div><h1>${COMPANY_AR}</h1><div class="en">Monthly P&L Report — Departments</div></div>
-        <div class="meta">الشهر: ${MONTHS_AR[month - 1]} ${year}<br>تاريخ التقرير: ${new Date().toLocaleDateString("ar-EG")}</div>
+        <div class="meta">الشهر: ${MONTHS_AR[month - 1]} ${year}<br>تاريخ التقرير: ${formatDate(new Date())}</div>
       </header>
       <div class="stats">
         <div class="stat"><div class="k">إجمالي التكلفة علينا</div><div class="v">${fmt(totalCostAll)}</div></div>

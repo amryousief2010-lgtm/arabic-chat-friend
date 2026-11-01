@@ -24,6 +24,7 @@ import FeedFactoryTreasuryPanel from "@/components/feed/FeedFactoryTreasuryPanel
 import ProductionOrphanChecker from "@/components/feed/ProductionOrphanChecker";
 import FeedProductionApprovals from "@/components/feed/FeedProductionApprovals";
 import FeedProductionEditDialog from "@/components/feed/FeedProductionEditDialog";
+import { formatDate } from "@/lib/dateFormat";
 
 type Line = { id: string; ref_id: string; qty: number; price: number };
 const newLine = (): Line => ({ id: crypto.randomUUID(), ref_id: "", qty: 0, price: 0 });
@@ -112,7 +113,7 @@ const printRawList = (rows: any[]) => {
     return `<tr><td>${esc(r.name)}</td><td>${esc(r.item_code||'-')}</td><td>${fmt(r.stock)}</td><td>${esc(r.unit||'كجم')}</td><td>${fmt(uc)}</td><td>${fmt(sp)}</td><td>${fmt(Number(r.stock)*uc)}</td><td>${fmt(Number(r.stock)*sp)}</td><td>${sp>0?fmt(margin):'-'}</td><td>${esc(r.supplier||'-')}</td></tr>`;
   }).join("");
   const total = rows.reduce((s,r)=>s+Number(r.stock)*Number(r.unit_cost),0);
-  printHtml("جرد المواد الخام", `<div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — كشف المواد الخام</div></div><div style="text-align:left"><b>التاريخ:</b> ${new Date().toLocaleDateString('ar-EG')}</div></div>
+  printHtml("جرد المواد الخام", `<div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — كشف المواد الخام</div></div><div style="text-align:left"><b>التاريخ:</b> ${formatDate(new Date())}</div></div>
   <table><thead><tr><th>الصنف</th><th>الكود</th><th>الرصيد</th><th>الوحدة</th><th>متوسط التكلفة</th><th>سعر البيع</th><th>القيمة (تكلفة)</th><th>القيمة (بيع)</th><th>الهامش</th><th>المورد</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="6">إجمالي قيمة المخزون (تكلفة)</td><td colspan="4">${fmt(total)} ج.م</td></tr></tfoot></table>`);
 };
 
@@ -138,7 +139,7 @@ const printProdList = (rows: any[], readyRaws: any[] = []) => {
   const totalQty = rows.reduce((s,p)=>s+Number(p.current_stock||0),0)
     + readyRaws.reduce((s,r)=>s+Number(r.stock||0),0);
   const totalItems = rows.length + readyRaws.length;
-  printHtml("جرد العلف الجاهز", `<div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — كشف العلف الجاهز للبيع</div></div><div style="text-align:left"><b>التاريخ:</b> ${new Date().toLocaleDateString('ar-EG')}<br/><b>عدد المنتجات:</b> ${totalItems}</div></div>
+  printHtml("جرد العلف الجاهز", `<div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — كشف العلف الجاهز للبيع</div></div><div style="text-align:left"><b>التاريخ:</b> ${formatDate(new Date())}<br/><b>عدد المنتجات:</b> ${totalItems}</div></div>
   <table><thead><tr><th>المنتج</th><th>المرحلة</th><th>الكمية كجم</th><th>عدد الشكاير</th><th>متوسط التكلفة</th><th>سعر البيع</th><th>قيمة (تكلفة)</th><th>قيمة (بيع)</th></tr></thead><tbody>${body || '<tr><td colspan="8" style="text-align:center">لا توجد منتجات</td></tr>'}</tbody><tfoot><tr><td colspan="2">الإجماليات</td><td>${fmt(totalQty)}</td><td>-</td><td colspan="2">-</td><td>${fmt(totalCost)} ج.م</td><td>${fmt(totalSale)} ج.م</td></tr></tfoot></table>`);
 };
 
@@ -146,7 +147,7 @@ const printTreasury = (rows: any[], balance: number) => {
   const body = rows.map((t)=>`<tr><td>${esc(t.txn_no)}</td><td>${esc(t.txn_date)}</td><td>${esc(KIND_LABEL[t.kind]||t.kind)}</td><td>${esc(t.party||'-')}</td><td>${esc(t.note||'-')}</td><td style="color:#059669">${t.direction==='in'?fmt(t.amount):'-'}</td><td style="color:#dc2626">${t.direction==='out'?fmt(t.amount):'-'}</td></tr>`).join("");
   const tin = rows.filter(r=>r.direction==='in').reduce((s,r)=>s+Number(r.amount),0);
   const tout = rows.filter(r=>r.direction==='out').reduce((s,r)=>s+Number(r.amount),0);
-  printHtml("كشف خزنة المصنع", `<div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — كشف حركة الخزنة</div></div><div style="text-align:left"><b>التاريخ:</b> ${new Date().toLocaleDateString('ar-EG')}<br/><b>الرصيد:</b> ${fmt(balance)} ج.م</div></div>
+  printHtml("كشف خزنة المصنع", `<div class="header"><div><div class="brand">عاصمة النعام</div><div>مصنع الأعلاف — كشف حركة الخزنة</div></div><div style="text-align:left"><b>التاريخ:</b> ${formatDate(new Date())}<br/><b>الرصيد:</b> ${fmt(balance)} ج.م</div></div>
   <table><thead><tr><th>الرقم</th><th>التاريخ</th><th>النوع</th><th>الجهة</th><th>البيان</th><th>وارد</th><th>منصرف</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="5">الإجمالي</td><td>${fmt(tin)}</td><td>${fmt(tout)}</td></tr><tr><td colspan="6">الرصيد الحالي</td><td>${fmt(balance)} ج.م</td></tr></tfoot></table>`);
 };
 

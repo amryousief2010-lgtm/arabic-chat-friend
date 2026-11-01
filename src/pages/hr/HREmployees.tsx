@@ -20,6 +20,11 @@ import EmployeeSuspensionDialog from "@/components/hr/EmployeeSuspensionDialog";
 import EmployeePhotoCell from "@/components/hr/EmployeePhotoCell";
 import JobTitleField from "@/components/hr/JobTitleField";
 import DepartmentField from "@/components/hr/DepartmentField";
+import EmployeeCard from "@/components/hr/redesign/EmployeeCard";
+import { HrHeader, StatTile, brandButtonStyle } from "@/components/hr/redesign/HrUi";
+import { BRAND, SCALE } from "@/lib/hr/brand";
+import { LayoutGrid, Rows3, Network as NetworkIcon, Briefcase as BriefcaseIcon, CalendarDays as CalendarIcon } from "lucide-react";
+import { departmentLabel } from "@/lib/hr/directory";
 
 interface Location { id: string; name: string; department: string | null }
 interface Employee {
@@ -97,6 +102,7 @@ const HREmployees = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"cards" | "table">("cards");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "suspended">("active");
   const [locFilter, setLocFilter] = useState<string>("all");
   const [docFilter, setDocFilter] = useState<
@@ -452,24 +458,30 @@ const HREmployees = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <UsersRound className="w-7 h-7 text-primary" />
+        <HrHeader
+          title="الموظفون"
+          subtitle="صورة واحدة لكل موظف تظهر تلقائيًا في كل الأقسام"
+          actions={<>
+            <div className="inline-flex rounded-full border overflow-hidden" role="group" aria-label="طريقة العرض">
+              <Button variant="ghost" size="sm" onClick={() => setView("cards")} aria-pressed={view === "cards"}
+                style={view === "cards" ? brandButtonStyle : undefined}><LayoutGrid className="w-4 h-4 ml-1" />بطاقات</Button>
+              <Button variant="ghost" size="sm" onClick={() => setView("table")} aria-pressed={view === "table"}
+                style={view === "table" ? brandButtonStyle : undefined}><Rows3 className="w-4 h-4 ml-1" />جدول تفصيلي</Button>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold">بيانات الموظفين</h1>
-              <p className="text-muted-foreground mt-1">إضافة وتعديل بيانات كل موظف ومكان عمله</p>
-            </div>
-          </div>
-          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={() => setPrintOpen(true)}>
               <Printer className="w-4 h-4 ml-1" />طباعة بيان الموظفين والسلف
             </Button>
             {canManage && (
-              <Button onClick={openCreate}><Plus className="w-4 h-4 ml-1" />إضافة موظف</Button>
+              <Button onClick={openCreate} style={brandButtonStyle}><Plus className="w-4 h-4 ml-1" />إضافة موظف</Button>
             )}
-          </div>
+          </>}
+        />
+
+        <div className="grid grid-cols-2 lg:grid-cols-4" style={{ gap: SCALE.md }}>
+          <StatTile icon={UsersRound} color={BRAND.purple} value={employees.filter((e) => e.status === "active").length} label="إجمالي الموظفين النشطين" />
+          <StatTile icon={NetworkIcon} color={BRAND.magenta} value={new Set(employees.filter((e) => e.status === "active").map((e) => departmentLabel(e.department))).size} label="قسمًا" />
+          <StatTile icon={BriefcaseIcon} color={BRAND.orange} value={new Set(employees.map((e) => e.job_title).filter(Boolean)).size} label="مسمى وظيفي مستخدم" />
+          <StatTile icon={CalendarIcon} color={BRAND.magenta} value={Array.from(new Set(employees.filter((e) => e.status === "active").map((e) => e.pay_day))).sort((a, b) => a - b).join(" / ")} label="أيام القبض المعتمدة" />
         </div>
 
         <PrintEmployeesAdvancesDialog
@@ -530,6 +542,19 @@ const HREmployees = () => {
             </div>
           </CardHeader>
           <CardContent>
+            {view === "cards" ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" style={{ gap: SCALE.md }} data-testid="employee-cards">
+                {filtered.map((e) => (
+                  <EmployeeCard
+                    key={e.id}
+                    employee={e as any}
+                    locationName={e.current_location_id ? locById.get(e.current_location_id)?.name : null}
+                    onEdit={canManage ? () => openEdit(e) : undefined}
+                  />
+                ))}
+                {filtered.length === 0 && <div className="col-span-full text-center text-muted-foreground py-10">لا يوجد موظفون مطابقون</div>}
+              </div>
+            ) : (<>
             {/* Pay-day rollup */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
               {[1, 5, 15].map((d) => {
@@ -756,6 +781,7 @@ const HREmployees = () => {
                 </TableBody>
               </Table>
             </div>
+            </>)}
           </CardContent>
         </Card>
       </div>
