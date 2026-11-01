@@ -1,25 +1,26 @@
 /**
  * من يشوف جدول «نظام البونص المعتمد» (منحنى المصنّعات العام).
- * نفس أدوار زر «تسليم سريع» في صفحة الطلبات:
- * المدير العام، المدير التنفيذي، ومديرة التسويق والمبيعات (marketing_sales_manager).
- * مش مربوط باسم شخص. sales_moderator و marketing_sales_viewer و sales_manager لوحده مش داخلين.
+ * المدير العام، المدير التنفيذي، ومدير المبيعات (sales_manager — م. آلاء).
+ * marketing_sales_manager لوحده (محمد سيد) مش داخل الظهور.
+ * تسليم سريع لسه على شرطه القديم ومش بيستخدم القائمة دي.
  */
 export const RISING_BONUS_TABLE_ROLES = [
   'general_manager',
   'executive_manager',
-  'marketing_sales_manager',
+  'sales_manager',
 ] as const;
 
 /**
  * من يقرأ جداول إعداد البونص من قاعدة البيانات مباشرة.
- * نفس أدوار الكتابة الحالية على target_bonus_settings و processed_kg_bonus_schedules
- * عشان جدول التارجت الشهري يفضل يتحرر من مديرة المبيعات.
+ * الأربع أدوار الإدارية اللي كانت بتقرأ الإعدادات، بالإضافة لـ marketing_sales_viewer
+ * (محمد شعلة) عشان شاشاته تفضل تقرأ الجدولين. الظهور غير القراءة.
  */
 export const BONUS_SETTINGS_READ_ROLES = [
   'general_manager',
   'executive_manager',
   'sales_manager',
   'marketing_sales_manager',
+  'marketing_sales_viewer',
 ] as const;
 
 export const hasAnyListedRole = (

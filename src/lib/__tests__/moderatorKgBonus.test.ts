@@ -101,15 +101,16 @@ describe("moderator kg bonus", () => {
   });
 
   it("pays the October 2026 carried share at the average rate, and nothing under 400", () => {
-    const october: Array<[string, number, number, string]> = [
-      ["آية", 1545, 120.5, "17,506.1"],
-      ["نورا", 1124, 126, "12,435.7"],
-      ["هاجر", 712, 90, "6,382.2"],
+    const october: Array<[string, number, number, number, string]> = [
+      ["آية", 1545, 120.5, 17506.1, "17,506.14"],
+      ["نورا", 1124, 126, 12435.7, "12,435.68"],
+      ["هاجر", 712, 90, 6382.2, "6,382.16"],
     ];
-    for (const [name, own, carried, shown] of october) {
+    for (const [name, own, carried, oneDecimal, shown] of october) {
       const total = risingProcessedTotal(own, carried);
       const breakdown = toRisingBreakdown(own, carried);
       const view = buildModeratorBonusView({ name, kg: own, carriedKg: carried, baseSalary: 2500, now: OCT_20 });
+      expect(Math.round(total * 10) / 10).toBe(oneDecimal);
       expect(formatBonusEgp(total)).toBe(shown);
       expect(breakdown.total_bonus).toBeCloseTo(total, 8);
       expect(breakdown.calculated_bonus).toBeCloseTo(moderatorKgBonus(own), 8);

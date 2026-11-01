@@ -18,8 +18,8 @@ describe('ProcessedKgBonusSettings', () => {
     auth.loading = false;
   });
 
-  it('hides the general curve from moderators and from a sales manager without the marketing role', () => {
-    for (const roles of [['sales_moderator'], ['sales_manager'], ['marketing_sales_viewer'], []]) {
+  it('hides the general curve from moderators and from the marketing sales manager', () => {
+    for (const roles of [['sales_moderator'], ['marketing_sales_manager'], ['marketing_sales_viewer'], []]) {
       auth.roles = roles;
       const { unmount } = render(<ProcessedKgBonusSettings />);
       expect(screen.queryByTestId('rising-bonus-table')).toBeNull();
@@ -27,8 +27,8 @@ describe('ProcessedKgBonusSettings', () => {
     }
   });
 
-  it('shows the curve to the general manager, the executive manager, and the marketing sales manager', () => {
-    for (const role of ['general_manager', 'executive_manager', 'marketing_sales_manager']) {
+  it('shows the curve to the general manager, the executive manager, and the sales manager', () => {
+    for (const role of ['general_manager', 'executive_manager', 'sales_manager']) {
       auth.roles = [role];
       const { unmount } = render(<ProcessedKgBonusSettings />);
       expect(screen.getByTestId('rising-bonus-table')).toBeTruthy();

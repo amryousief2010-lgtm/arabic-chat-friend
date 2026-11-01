@@ -3,8 +3,11 @@
 -- لكن الشرائح القديمة لسه مقروءة لأي مستخدم مسجّل:
 --   target_bonus_settings (سياسة "Authenticated can view bonus settings")
 --   processed_kg_bonus_schedules (سياسة "Authenticated can view processed kg bonus schedules")
--- القراءة المباشرة تبقى لأدوار الإدارة اللي بتعدّل جدول التارجت:
+-- القراءة المباشرة تبقى للأربع أدوار الإدارية:
 --   general_manager, executive_manager, sales_manager, marketing_sales_manager.
+-- وpolicy «marketing_sales_viewer read» تفضل على target_bonus_settings
+-- وتتنسخ بنفس الاسم على processed_kg_bonus_schedules.
+-- ظهور جدول «نظام البونص المعتمد» في الواجهة أضيق: من غير marketing_sales_manager.
 -- المسوقة تفضل تشوف كارت بونصها عبر moderator_card_bonus_settings
 -- (أساسي + لحوم + عظم + كتاكيت فقط، من غير شرائح المصنّعات).
 
@@ -37,6 +40,20 @@ USING (
     'marketing_sales_manager'::app_role
   ])
 );
+
+DROP POLICY IF EXISTS "marketing_sales_viewer read" ON public.target_bonus_settings;
+CREATE POLICY "marketing_sales_viewer read"
+ON public.target_bonus_settings
+FOR SELECT
+TO authenticated
+USING (public.has_role(auth.uid(), 'marketing_sales_viewer'::public.app_role));
+
+DROP POLICY IF EXISTS "marketing_sales_viewer read" ON public.processed_kg_bonus_schedules;
+CREATE POLICY "marketing_sales_viewer read"
+ON public.processed_kg_bonus_schedules
+FOR SELECT
+TO authenticated
+USING (public.has_role(auth.uid(), 'marketing_sales_viewer'::public.app_role));
 
 CREATE OR REPLACE FUNCTION public.moderator_card_bonus_settings()
 RETURNS TABLE (
