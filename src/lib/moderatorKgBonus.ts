@@ -15,9 +15,9 @@ import { arabicDaysRemainingPhrase, cairoMonthPace } from '@/lib/processedKgBonu
  * وفوق 1,000 يدخل في المنحنى المتصل.
  *
  * كيلو الشهر نفسه على المنحنى كما هو. الكيلو المرحّل (من أكتوبر 2026 وطالع)
- * بيتسعّر بمتوسط بونص الكيلو على الإجمالي:
- * الإجمالي = منحنى(كيلو الشهر) + مرحّل × منحنى(الإجمالي) / الإجمالي.
- * لو كيلو الشهر تحت 400 والإجمالي عدّاها، نصيب الشهر صفر ونصيب المرحّل هو حصته من المتوسط.
+ * بيتسعّر بمتوسط بونص كيلو شهر المسوّقة نفسها:
+ * الإجمالي = منحنى(كيلو الشهر) + مرحّل × منحنى(كيلو الشهر) / كيلو الشهر.
+ * لو منحنى كيلو الشهر صفر (أقل من 400) متوسط الكيلو صفر والمرحّل صفر، ومن غير قسمة على صفر.
  */
 
 const clampKg = (kg: number) => (Number.isFinite(kg) && kg > 0 ? kg : 0);
@@ -103,30 +103,35 @@ export const formatBonusKg = (n: number) => {
   });
 };
 
-/** جملة الكيلو المرحّل على كارت المسوقة. بيتسعّر بمتوسط بونص الكيلو على الإجمالي. */
+/** جملة الكيلو المرحّل على كارت المسوقة. بيتسعّر بمتوسط بونص كيلو شهرها. */
 export const carriedProcessedPhrase = (kg: number) =>
-  `اتضافلك ${formatBonusKg(kg)} كجم من أوردرات الشهر اللي فات اتسلّمت الشهر ده، وبونصها بمتوسط بونص الكيلو على الإجمالي`;
+  `اتضافلك ${formatBonusKg(kg)} كجم من أوردرات الشهر اللي فات اتسلّمت الشهر ده، وبونصها بمتوسط بونص الكيلو لشهرها`;
 
 /**
- * متوسط بونص الكيلو على إجمالي الشهر + المرحّل.
- * صفر تحت 400، ومن غير قسمة لما الإجمالي صفر.
+ * متوسط بونص كيلو شهر المسوّقة = منحنى(كيلو الشهر) / كيلو الشهر.
+ * كيلو المرحّل ما يغيّرش السعر. صفر لو منحنى الشهر صفر، ومن غير قسمة على صفر أو NaN.
  */
 export const risingAverageRate = (ownKg: number, carriedKg = 0): number => {
-  const counted = clampKg(ownKg) + clampKg(carriedKg);
-  if (counted < RISING_MINIMUM_KG) return 0;
-  return moderatorKgBonus(counted) / counted;
+  void carriedKg;
+  const own = clampKg(ownKg);
+  if (!(own > 0)) return 0;
+  const ownBonus = moderatorKgBonus(own);
+  if (!(ownBonus > 0)) return 0;
+  const rate = ownBonus / own;
+  return Number.isFinite(rate) ? rate : 0;
 };
 
 /**
- * بونص المصنّعات = منحنى كيلو الشهر + المرحّل × متوسط بونص الكيلو على الإجمالي.
- * صفر لو الإجمالي تحت 400. منحنى كيلو الشهر نفسه ما بيتغيّرش.
+ * بونص المصنّعات = منحنى كيلو الشهر + المرحّل × متوسط بونص كيلو شهرها.
+ * لو كيلو الشهر تحت 400 المنحنى صفر والمرحّل صفر. منحنى كيلو الشهر نفسه ما بيتغيّرش.
  */
 export const risingProcessedTotal = (ownKg: number, carriedKg = 0): number => {
   const own = clampKg(ownKg);
   const carried = clampKg(carriedKg);
-  const counted = own + carried;
-  if (counted < RISING_MINIMUM_KG) return 0;
-  return moderatorKgBonus(own) + carried * risingAverageRate(own, carried);
+  const ownBonus = moderatorKgBonus(own);
+  if (!(own > 0) || !(ownBonus > 0)) return 0;
+  const total = ownBonus + carried * (ownBonus / own);
+  return Number.isFinite(total) ? total : 0;
 };
 
 export interface RisingBreakdown {
@@ -135,7 +140,7 @@ export interface RisingBreakdown {
   qualified: boolean;
   /** جزء كيلوات الشهر نفسه، قبل أي تعديل يدوي. */
   calculated_bonus: number;
-  /** بونص الشهر على منحناه + المرحّل بمتوسط بونص الكيلو على الإجمالي. */
+  /** بونص الشهر على منحناه + المرحّل بمتوسط بونص كيلو شهرها. */
   total_bonus: number;
   carried_kg: number;
   counted_kg: number;
@@ -159,8 +164,8 @@ export const toRisingBreakdown = (ownKg: number, carriedKg = 0): RisingBreakdown
 };
 
 /**
- * بونص كل أوردر مرحّل = كيلوه × متوسط بونص الكيلو على إجمالي الشهر + المرحّل.
- * السعر واحد لكل الكيلو المرحّل. تحت 400 الاتنين صفر، ومن غير قسمة على صفر.
+ * بونص كل أوردر مرحّل = كيلوه × متوسط بونص كيلو شهر المسوّقة.
+ * السعر واحد لكل الكيلو المرحّل. لو منحنى شهرها صفر، البونص صفر ومن غير قسمة على صفر.
  */
 export const risingCarryIncrements = (
   ownKg: number,

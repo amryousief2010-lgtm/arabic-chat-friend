@@ -114,7 +114,7 @@ export const useModeratorBonusProgress = (year: number, month: number, options: 
     }));
   }, [tierSettings]);
 
-  // كيلوات المصنّعات المرحّلة تدخل في حد الـ ٤٠٠، وبونصها متوسط بونص الكيلو على الإجمالي.
+  // كيلوات المصنّعات المرحّلة تدخل في عدّ الكيلو، وبونصها متوسط بونص كيلو شهر المسوّقة.
   const carriedKgByGirl = useMemo(() => {
     const map: Record<string, number> = {};
     girls.forEach((girl) => { map[girl] = 0; });
