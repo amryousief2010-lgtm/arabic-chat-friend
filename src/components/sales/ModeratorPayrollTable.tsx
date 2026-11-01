@@ -251,7 +251,7 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
   const boneForLive = payrollDefaultForMonth(closuresLoaded, !!selectedClosure, BONE_BONUS_PER_KG, DEFAULT_BONE_BONUS_PER_KG);
   const schedules: never[] = [];
 
-  // قرار 19 أكتوبر 2026: مصنّعات الأوردرات المرحّلة تُحسب ضمن كيلوات الشهر للحد الأدنى والشرائح.
+  // من أكتوبر 2026: المرحّل يدخل في حد الـ ٤٠٠، وبيتسعّر بمتوسط بونص الكيلو على الإجمالي.
   const carriedProcessedKg = useMemo(() => {
     const map: Record<string, number> = {};
     (carried as any[]).forEach((item) => {

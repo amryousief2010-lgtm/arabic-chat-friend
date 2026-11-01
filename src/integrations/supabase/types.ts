@@ -29160,6 +29160,15 @@ export type Database = {
         Args: { p_product_name: string }
         Returns: number
       }
+      moderator_card_bonus_settings: {
+        Args: never
+        Returns: {
+          bonus_amount: number
+          category: string
+          sales_amount: number
+          tier: number
+        }[]
+      }
       moderator_kg_bonus: { Args: { kg: number }; Returns: number }
       mohtaseb_heartbeat: {
         Args: { p_payload: Json; p_token: string }

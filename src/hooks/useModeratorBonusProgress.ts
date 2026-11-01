@@ -7,7 +7,9 @@ import { useModeratorCategoryQty } from '@/hooks/useModeratorCategoryQty';
 import { useProcessedKgSchedules } from '@/hooks/useProcessedKgSchedules';
 import { moderatorKeysForMonth, displayModeratorName, DEFAULT_BASE_SALARY, payrollDefaultForMonth, matchesModeratorGroup } from '@/constants/moderators';
 import { cairoMonthStartUTC } from '@/lib/cairoDate';
+import { useAuth } from '@/hooks/useAuth';
 import { fetchPayrollCarried } from '@/lib/fetchPayrollCarried';
+import { canReadBonusSettingsTable } from '@/lib/risingBonusTableAccess';
 import { allocateProcessedCarry, buildPayrollBaseRows, carriedMeatBoneBonus, type PayrollOverride } from '@/lib/moderatorPayrollMath';
 import { scheduleForMonth, APPROVED_OCT_2026_SCHEDULE } from '@/lib/processedKgBonus';
 import { combineQueryStates } from '@/lib/queryGuard';
@@ -21,6 +23,8 @@ export interface ModeratorBonusProgressOptions {
 
 export const useModeratorBonusProgress = (year: number, month: number, options: ModeratorBonusProgressOptions = {}) => {
   const { onlyGirl = null } = options;
+  const { roles, loading: authLoading } = useAuth();
+  const canReadSettings = canReadBonusSettingsTable(roles);
   const girls = useMemo(() => {
     const all = moderatorKeysForMonth(year, month);
     return onlyGirl ? all.filter((girl) => girl === onlyGirl) : all;
@@ -32,11 +36,17 @@ export const useModeratorBonusProgress = (year: number, month: number, options: 
   const { data: closures = [], isSuccess: closuresLoaded } = closuresQuery;
 
   const tierQuery = useQuery({
-    queryKey: ['target_bonus_settings'],
+    queryKey: ['target_bonus_settings', canReadSettings ? 'full' : 'card'],
+    enabled: !authLoading,
     queryFn: async () => {
-      const { data, error } = await supabase.from('target_bonus_settings').select('*').order('tier');
+      if (canReadSettings) {
+        const { data, error } = await supabase.from('target_bonus_settings').select('*').order('tier');
+        if (error) throw error;
+        return data as Array<{ category: string; tier: number; sales_amount: number; bonus_amount: number }>;
+      }
+      const { data, error } = await supabase.rpc('moderator_card_bonus_settings');
       if (error) throw error;
-      return data as Array<{ category: string; tier: number; sales_amount: number; bonus_amount: number }>;
+      return (data ?? []) as Array<{ category: string; tier: number; sales_amount: number; bonus_amount: number }>;
     },
   });
 
@@ -104,7 +114,7 @@ export const useModeratorBonusProgress = (year: number, month: number, options: 
     }));
   }, [tierSettings]);
 
-  // كيلوات المصنّعات المرحّلة تدخل في كيلوات الشهر (الحد الأدنى + الشرائح).
+  // كيلوات المصنّعات المرحّلة تدخل في حد الـ ٤٠٠، وبونصها متوسط بونص الكيلو على الإجمالي.
   const carriedKgByGirl = useMemo(() => {
     const map: Record<string, number> = {};
     girls.forEach((girl) => { map[girl] = 0; });

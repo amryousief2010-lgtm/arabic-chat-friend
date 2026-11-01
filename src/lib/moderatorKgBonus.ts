@@ -5,14 +5,19 @@ import { arabicDaysRemainingPhrase, cairoMonthPace } from '@/lib/processedKgBonu
  * مصدر الحساب الوحيد للواجهة. نفس الأرقام في الدالة
  * public.moderator_kg_bonus حتى تبقى التقارير مطابقة.
  *
- * الكيلو المعدود هو كيلو المصنّعات المسلّم بنفس طريقة العدّ الحالية
+ * الكيلو المعدود للحد الأدنى هو كيلو المصنّعات المسلّم بنفس طريقة العدّ الحالية
  * (أوردرات الشهر + الكيلو المرحّل من شهر اتقيّد قبضه).
- * أقل من 400: صفر. عند 400 يفتح 2,400 جنيه.
+ * أقل من 400 على الإجمالي: صفر. عند 400 يفتح منحنى الشهر بـ 2,400 جنيه.
  * من 401 إلى 1,000: مجموع حدّي، سعر الكيلو k يزيد خطيًا
  * 9 عند 400 → 12 عند 750 → 18 عند 1,000.
  * فوق 1,000: سعر حديّ متصل 10.5 عند 1,000 → 12.75 عند 1,500 → 14.25 عند 2,000
  * ثم 14.25 ثابت. الكسر = الكسر × سعر الكيلو التالي تحت 1,000،
  * وفوق 1,000 يدخل في المنحنى المتصل.
+ *
+ * كيلو الشهر نفسه على المنحنى كما هو. الكيلو المرحّل (من أكتوبر 2026 وطالع)
+ * بيتسعّر بمتوسط بونص الكيلو على الإجمالي:
+ * الإجمالي = منحنى(كيلو الشهر) + مرحّل × منحنى(الإجمالي) / الإجمالي.
+ * لو كيلو الشهر تحت 400 والإجمالي عدّاها، نصيب الشهر صفر ونصيب المرحّل هو حصته من المتوسط.
  */
 
 const clampKg = (kg: number) => (Number.isFinite(kg) && kg > 0 ? kg : 0);
@@ -98,9 +103,31 @@ export const formatBonusKg = (n: number) => {
   });
 };
 
-/** جملة الكيلو المرحّل على كارت المسوقة. من غير سعر ومن غير اصطلاحات. */
+/** جملة الكيلو المرحّل على كارت المسوقة. بيتسعّر بمتوسط بونص الكيلو على الإجمالي. */
 export const carriedProcessedPhrase = (kg: number) =>
-  `اتضافلك ${formatBonusKg(kg)} كجم من أوردرات الشهر اللي فات اتسلّمت الشهر ده`;
+  `اتضافلك ${formatBonusKg(kg)} كجم من أوردرات الشهر اللي فات اتسلّمت الشهر ده، وبونصها بمتوسط بونص الكيلو على الإجمالي`;
+
+/**
+ * متوسط بونص الكيلو على إجمالي الشهر + المرحّل.
+ * صفر تحت 400، ومن غير قسمة لما الإجمالي صفر.
+ */
+export const risingAverageRate = (ownKg: number, carriedKg = 0): number => {
+  const counted = clampKg(ownKg) + clampKg(carriedKg);
+  if (counted < RISING_MINIMUM_KG) return 0;
+  return moderatorKgBonus(counted) / counted;
+};
+
+/**
+ * بونص المصنّعات = منحنى كيلو الشهر + المرحّل × متوسط بونص الكيلو على الإجمالي.
+ * صفر لو الإجمالي تحت 400. منحنى كيلو الشهر نفسه ما بيتغيّرش.
+ */
+export const risingProcessedTotal = (ownKg: number, carriedKg = 0): number => {
+  const own = clampKg(ownKg);
+  const carried = clampKg(carriedKg);
+  const counted = own + carried;
+  if (counted < RISING_MINIMUM_KG) return 0;
+  return moderatorKgBonus(own) + carried * risingAverageRate(own, carried);
+};
 
 export interface RisingBreakdown {
   scheme: 'rising';
@@ -108,7 +135,7 @@ export interface RisingBreakdown {
   qualified: boolean;
   /** جزء كيلوات الشهر نفسه، قبل أي تعديل يدوي. */
   calculated_bonus: number;
-  /** بونص الكيلو المعدود كله = الشهر + المرحّل. */
+  /** بونص الشهر على منحناه + المرحّل بمتوسط بونص الكيلو على الإجمالي. */
   total_bonus: number;
   carried_kg: number;
   counted_kg: number;
@@ -124,7 +151,7 @@ export const toRisingBreakdown = (ownKg: number, carriedKg = 0): RisingBreakdown
     minimum_kg: RISING_MINIMUM_KG,
     qualified: counted >= RISING_MINIMUM_KG,
     calculated_bonus: moderatorKgBonus(own),
-    total_bonus: moderatorKgBonus(counted),
+    total_bonus: risingProcessedTotal(own, carried),
     carried_kg: carried,
     counted_kg: counted,
     own_kg: own,
@@ -132,8 +159,8 @@ export const toRisingBreakdown = (ownKg: number, carriedKg = 0): RisingBreakdown
 };
 
 /**
- * فرق البونص لما الكيلو المرحّل يتضاف فوق رصيد قائم.
- * المجموع = بونص الإجمالي. تحت 400 الاتنين صفر.
+ * بونص كل أوردر مرحّل = كيلوه × متوسط بونص الكيلو على إجمالي الشهر + المرحّل.
+ * السعر واحد لكل الكيلو المرحّل. تحت 400 الاتنين صفر، ومن غير قسمة على صفر.
  */
 export const risingCarryIncrements = (
   ownKg: number,
@@ -145,16 +172,13 @@ export const risingCarryIncrements = (
   });
   const own = clampKg(ownKg);
   const carriedTotal = ordered.reduce((sum, item) => sum + clampKg(item.procKg), 0);
-  const qualified = own + carriedTotal >= RISING_MINIMUM_KG;
-  let cursor = own;
+  const rate = risingAverageRate(own, carriedTotal);
   return ordered.map((item) => {
     const qty = clampKg(item.procKg);
-    if (!qualified || qty <= 0) {
-      return { orderId: item.orderId, bonus: 0 };
+    if (rate <= 0 || qty <= 0) {
+      return { orderId: item.orderId, bonus: 0, rate: 0 };
     }
-    const bonus = moderatorKgBonus(cursor + qty) - moderatorKgBonus(cursor);
-    cursor += qty;
-    return { orderId: item.orderId, bonus };
+    return { orderId: item.orderId, bonus: qty * rate, rate };
   });
 };
 
@@ -202,7 +226,7 @@ export const buildModeratorBonusView = (input: {
   const ownKg = clampKg(input.kg);
   const carriedKg = clampKg(input.carriedKg ?? 0);
   const kg = ownKg + carriedKg;
-  const formulaBonus = moderatorKgBonus(kg);
+  const formulaBonus = risingProcessedTotal(ownKg, carriedKg);
   const bonus = input.bonusOverride != null && Number.isFinite(input.bonusOverride)
     ? input.bonusOverride
     : formulaBonus;
