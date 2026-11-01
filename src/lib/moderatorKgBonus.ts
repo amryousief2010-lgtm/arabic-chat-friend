@@ -79,12 +79,13 @@ export const BONUS_MILESTONES: BonusMilestone[] = [
   { kg: 2000, title: '٢ طن', goal: 'الـ ٢ طن' },
 ];
 
+/** تقريب عرض موحّد للفلوس (كارت الشهر ونافذة المرحّل): خانتين عشريتين. العرض فقط، الحساب كما هو. */
 export const formatBonusEgp = (n: number) => {
-  const rounded = Math.round((Number.isFinite(n) ? n : 0) * 10) / 10;
-  const digits = Number.isInteger(rounded) ? 0 : 1;
+  const rounded = Math.round((Number.isFinite(n) ? n : 0) * 100) / 100;
+  const digits = Number.isInteger(rounded) ? 0 : 2;
   return rounded.toLocaleString('en-US', {
     minimumFractionDigits: digits,
-    maximumFractionDigits: 1,
+    maximumFractionDigits: 2,
   });
 };
 

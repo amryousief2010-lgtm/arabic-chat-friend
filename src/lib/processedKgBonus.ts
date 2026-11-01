@@ -27,6 +27,12 @@ export interface BandSlice extends BonusBand {
 
 export const MARGINAL_SCHEME_START = '2026-10-01';
 
+/**
+ * LEGACY (أكتوبر 2026 قبل الخطة الهجينة): شرائح أكتوبر القديمة. الحساب المعتمد الحالي في
+ * moderatorKgBonus.ts (moderatorKgBonus). باقية فقط كـ fallback للجداول المحفوظة وقراءة اللقطات القديمة.
+ * لا تستخدمها لأي حساب بونص جديد.
+ * @deprecated legacy October bands — use moderatorKgBonus for live bonus.
+ */
 export const APPROVED_OCT_2026_SCHEDULE: MarginalSchedule = {
   effectiveFrom: MARGINAL_SCHEME_START,
   minimumKg: 400,
@@ -102,6 +108,7 @@ export const marginalProcessedBonus = (kg: number, schedule: MarginalSchedule) =
  * زيادة الحافز لكميات فوق رصيد قائم. الحد الأدنى يُقاس على الإجمالي (الرصيد + الإضافة)،
  * فلو الإجمالي بلغ الحد تُسعَّر الإضافة بشرائحها فوق الرصيد.
  */
+/** @deprecated LEGACY: مبني على شرائح أكتوبر القديمة؛ المرحّل الحالي يُحسب في moderatorKgBonus/moderatorPayrollMath. للاختبارات والتاريخ فقط. */
 export const marginalIncrement = (startKg: number, addKg: number, schedule: MarginalSchedule) => {
   const add = clampKg(addKg);
   if (add <= 0) return 0;
@@ -173,6 +180,7 @@ export interface GaugeMarker {
 
 const GAUGE_COLORS = ['#F3E2A8', '#E8C872', '#F0C14A', '#C9A24A', '#F6E7B2', '#FFF6D4'];
 
+/** @deprecated LEGACY: غير مستخدم في الواجهة الحالية؛ للاختبارات والتاريخ فقط. */
 export const buildGauge = (kg: number, schedule: MarginalSchedule) => {
   const qty = clampKg(kg);
   const bands = [...schedule.bands].sort((a, b) => a.fromKg - b.fromKg);
@@ -313,6 +321,7 @@ export interface KgCounterView {
   activeIndex: number;
 }
 
+/** @deprecated LEGACY: كارت عدّاد الكيلو القديم (شرائح أكتوبر). غير مستخدم في الواجهة؛ مُبقى للاختبارات والتاريخ فقط. */
 export const buildKgCounterView = (input: {
   name: string;
   /** كيلوات مصنّعات الشهر نفسه. */

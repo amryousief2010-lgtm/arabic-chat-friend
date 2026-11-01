@@ -1,3 +1,4 @@
+import { formatBonusEgp } from '@/lib/moderatorKgBonus';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -17,7 +18,8 @@ export interface CarriedDetail {
 
 const fmtDT = (v: string | null) =>
   v ? new Date(v).toLocaleString('ar-EG', { timeZone: 'Africa/Cairo', dateStyle: 'short', timeStyle: 'short' }) : '-';
-const fmtN = (n: number) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+// نفس تقريب الكارت (formatBonusEgp: خانتين) عشان الأرقام تتطابق بين الكارت والنافذة.
+const fmtN = (n: number) => formatBonusEgp(n);
 
 interface Props {
   open: boolean;

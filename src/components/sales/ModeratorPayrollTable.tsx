@@ -467,6 +467,8 @@ const ModeratorPayrollTable = ({ month, year }: Props = {}) => {
         });
       });
       if (carriedPayload.length > 0) {
+        // ignoreDuplicates مقصود حالياً: الجدول ليه GRANT SELECT, INSERT بس ومفيش UPDATE policy
+        // (migration 20260805230428). تحويله لـ upsert حقيقي محتاج migration منفصلة بموافقة.
         const { error: carErr } = await supabase
           .from('payroll_carried_orders')
           .upsert(carriedPayload, { onConflict: 'order_id,category', ignoreDuplicates: true });
