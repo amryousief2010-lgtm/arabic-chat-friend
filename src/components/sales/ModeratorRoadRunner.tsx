@@ -1,6 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useAvatarUrl } from '@/hooks/useAvatars';
-import { formatBonusEgp, formatBonusKg, moderatorKgBonus } from '@/lib/moderatorKgBonus';
+import { EgpInline, IsolatedNumbers } from '@/components/sales/egpInline';
+import { formatBonusKg, moderatorKgBonus } from '@/lib/moderatorKgBonus';
 import {
   ROAD_D,
   ROAD_FLAGS,
@@ -492,12 +493,12 @@ const ModeratorRoadRunner = ({
             }}
           >
             <p style={{ margin: 0, fontSize: 13, fontWeight: 800, lineHeight: 1.35 }}>{flag.title}</p>
-            <p className="tabular-nums" style={{ margin: '4px 0 0', fontSize: 13, fontWeight: 800, lineHeight: 1.35, direction: 'ltr' }}>
-              {`${formatBonusEgp(moderatorKgBonus(flag.kg))} ج`}
+            <p style={{ margin: '4px 0 0', fontSize: 13, fontWeight: 800, lineHeight: 1.35 }}>
+              <EgpInline amount={moderatorKgBonus(flag.kg)} />
             </p>
             {current && (
               <p style={{ margin: '4px 0 0', fontSize: 13, fontWeight: 800, lineHeight: 1.45 }}>
-                {`فاضلِك ${formatBonusKg(flag.kg - safeKg)} كجم`}
+                <IsolatedNumbers text={`فاضلِك ${formatBonusKg(flag.kg - safeKg)} كجم`} />
               </p>
             )}
           </div>
@@ -515,7 +516,7 @@ const ModeratorRoadRunner = ({
           lineHeight: 1.618,
         }}
       >
-        {cheer}
+        <IsolatedNumbers text={cheer} />
       </p>
     </div>
   );

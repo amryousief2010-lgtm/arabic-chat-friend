@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import companyLogo from '@/assets/company-logo.jpg';
+import { EgpInline, IsolatedNumbers, LtrNum } from '@/components/sales/egpInline';
 import ModeratorRoadRunner from '@/components/sales/ModeratorRoadRunner';
 import {
   type BonusLane,
@@ -87,7 +88,7 @@ const UnlockTeaser = ({ view }: { view: ModeratorBonusView }) => {
     <div style={{ background: '#FFF4EF', border: `1px solid ${ORANGE}`, borderRadius: 21, padding: '13px 21px', textAlign: 'center' }}>
       <p style={{ margin: 0, color: ORANGE, fontWeight: 800, fontSize: 21, lineHeight: 1.618 }}>افتحي البونص</p>
       <p style={{ margin: '8px 0 0', color: INK, fontSize: 13, lineHeight: 1.618 }}>
-        فاضلِك {formatBonusKg(view.kgRemaining ?? 0)} كجم والبونص يفتح بـ {formatBonusEgp(view.bonusAtNext ?? 0)} جنيه
+        فاضلِك <LtrNum value={formatBonusKg(view.kgRemaining ?? 0)} /> كجم والبونص يفتح بـ <LtrNum value={formatBonusEgp(view.bonusAtNext ?? 0)} /> جنيه
       </p>
     </div>
   );
@@ -161,10 +162,38 @@ const ModeratorKgCounterCard = ({
     <article
       dir="rtl"
       data-testid="moderator-bonus-card"
-      className="relative bg-white shadow-lg"
-      style={{ fontFamily: FONT, color: INK, borderRadius: 34, overflow: 'hidden' }}
+      className="coceg-card relative bg-white shadow-lg"
+      style={{ fontFamily: FONT, color: INK, borderRadius: 34, overflow: 'hidden', containerType: 'inline-size' }}
       aria-label={`بونص ${name}`}
     >
+      <style>{`
+        .coceg-lanes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;align-items:stretch}
+        .coceg-lane{display:flex;flex-direction:column;align-items:center;min-width:0;height:100%;text-align:center}
+        .coceg-lane-qty{margin:8px 0 0;font-size:21px;font-weight:800;line-height:1.2;max-width:100%;overflow-wrap:anywhere}
+        .coceg-lane-hint{margin:8px 0 0;width:100%;font-size:13px;line-height:1.45;color:${MUTED};min-height:calc(1.45em * 2)}
+        .coceg-pay-row{display:grid;grid-template-columns:minmax(0,1.618fr) minmax(0,1fr);gap:13px;align-items:stretch}
+        .coceg-pay-card{min-width:0;height:100%;display:flex;flex-direction:column;box-sizing:border-box;border-radius:21px}
+        .coceg-pay-card--bonus{background:${PAPER};padding:21px}
+        .coceg-pay-card--salary{background:${INK};color:#fff;padding:16px}
+        .coceg-bonus-figure,.coceg-salary-figure{margin:8px 0 0;font-weight:800;max-width:100%;overflow-wrap:anywhere}
+        .coceg-bonus-figure{font-size:34px;line-height:1.15;color:${PURPLE}}
+        .coceg-salary-figure{font-size:21px;line-height:1.3;color:${ORANGE}}
+        .coceg-bonus-figure bdi,.coceg-salary-figure bdi,.coceg-salary-base bdi{display:inline-block;max-width:100%;overflow-wrap:anywhere}
+        .coceg-salary-base{margin:8px 0 0;font-size:13px;line-height:1.618;color:rgba(255,255,255,0.75)}
+        @container (max-width: 480px){
+          .coceg-pay-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+          .coceg-pay-card--bonus,.coceg-pay-card--salary{padding:14px 16px}
+          .coceg-bonus-figure{font-size:22px}
+          .coceg-salary-figure{font-size:16px}
+          .coceg-lane-qty{font-size:18px}
+          .coceg-lane-hint{font-size:11px;line-height:1.35;min-height:calc(1.35em * 4)}
+        }
+        @container (max-width: 380px){
+          .coceg-pay-card--bonus,.coceg-pay-card--salary{padding:12px 14px}
+          .coceg-bonus-figure{font-size:18px}
+          .coceg-salary-figure{font-size:15px}
+        }
+      `}</style>
       <div style={{ padding: 21, display: 'flex', flexDirection: 'column', gap: 13 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 13 }}>
           <div style={{ minWidth: 0 }}>
@@ -179,7 +208,7 @@ const ModeratorKgCounterCard = ({
           </p>
         )}
         <p style={{ margin: 0, fontSize: 13, lineHeight: 1.618, color: MUTED }}>
-          طريق المصنّعات · <span className="tabular-nums" style={{ fontWeight: 800, color: INK }}>{formatBonusKg(view.kg)}</span> كجم · بونص {formatBonusEgp(view.bonus)} جنيه
+          طريق المصنّعات · <span style={{ fontWeight: 800, color: INK }}><LtrNum value={formatBonusKg(view.kg)} /></span> كجم · بونص <LtrNum value={formatBonusEgp(view.bonus)} /> جنيه
         </p>
       </div>
 
@@ -189,52 +218,52 @@ const ModeratorKgCounterCard = ({
         <UnlockTeaser view={view} />
         {view.carriedKg > 0 && (
           <p style={{ margin: 0, fontSize: 13, lineHeight: 1.618, color: PURPLE, textAlign: 'center' }}>
-            {carriedProcessedPhrase(view.carriedKg)}
+            <IsolatedNumbers text={carriedProcessedPhrase(view.carriedKg)} />
           </p>
         )}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 13 }}>
+        <div className="coceg-lanes">
           {lanes.map((lane) => (
-            <section key={lane.id} aria-label={`${lane.title}: ${qtyText(lane)} ${lane.unit}`} style={{ textAlign: 'center' }}>
+            <section key={lane.id} className="coceg-lane" aria-label={`${lane.title}: ${qtyText(lane)} ${lane.unit}`}>
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <MiniRing progress={lane.progress} color={colors[lane.id] ?? PURPLE} />
               </div>
               <p style={{ margin: '8px 0 0', fontSize: 13, fontWeight: 800, color: PURPLE }}>{lane.title}</p>
-              <p className="tabular-nums" style={{ margin: '8px 0 0', fontSize: 21, fontWeight: 800, lineHeight: 1.2, direction: 'ltr' }}>
-                {qtyText(lane)}
+              <p className="coceg-lane-qty">
+                <LtrNum value={qtyText(lane)} />
               </p>
               <p style={{ margin: 0, fontSize: 13, color: MUTED }}>{lane.unit}</p>
-              <p className="tabular-nums" style={{ margin: '8px 0 0', fontSize: 13, fontWeight: 800, color: ORANGE }}>
-                {formatBonusEgp(lane.bonus)} ج
+              <p style={{ margin: '8px 0 0', fontSize: 13, fontWeight: 800, color: ORANGE }}>
+                <EgpInline amount={lane.bonus} />
               </p>
-              <p style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.618, color: MUTED }}>{laneHint(lane)}</p>
+              <p className="coceg-lane-hint"><IsolatedNumbers text={laneHint(lane)} /></p>
             </section>
           ))}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1.618fr 1fr', gap: 13 }}>
-          <div style={{ background: PAPER, borderRadius: 21, padding: 21 }}>
+        <div className="coceg-pay-row">
+          <div className="coceg-pay-card coceg-pay-card--bonus">
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.618, color: MUTED }}>البونص كله</p>
-            <p className="tabular-nums" style={{ margin: '8px 0 0', fontSize: 34, lineHeight: 1.15, fontWeight: 800, color: PURPLE, direction: 'ltr', textAlign: 'right' }}>
-              {formatBonusEgp(board.totalBonus)}
+            <p className="coceg-bonus-figure">
+              <LtrNum value={formatBonusEgp(board.totalBonus)} />
             </p>
             <p style={{ margin: '8px 0 0', fontSize: 13, color: MUTED }}>جنيه</p>
           </div>
-          <div style={{ background: INK, borderRadius: 21, padding: 13, color: '#fff' }}>
+          <div className="coceg-pay-card coceg-pay-card--salary">
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.618, color: 'rgba(255,255,255,0.75)' }}>المرتب المتوقع</p>
-            <p className="tabular-nums" style={{ margin: '8px 0 0', fontSize: 21, lineHeight: 1.3, fontWeight: 800, color: ORANGE, direction: 'ltr', textAlign: 'right' }}>
-              {formatBonusEgp(board.salary)}
+            <p className="coceg-salary-figure">
+              <LtrNum value={formatBonusEgp(board.salary)} />
             </p>
-            <p style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.618, color: 'rgba(255,255,255,0.75)' }}>
-              أساسي {formatBonusEgp(board.baseSalary)}
+            <p className="coceg-salary-base">
+              أساسي <LtrNum value={formatBonusEgp(board.baseSalary)} />
             </p>
           </div>
         </div>
         {carriedSideBonus > 0 && (
           <p style={{ margin: 0, textAlign: 'center', fontSize: 13, lineHeight: 1.618, color: PURPLE }}>
-            الإجمالي شامل {formatBonusEgp(carriedSideBonus)} جنيه لحوم وعظم من الشهر اللي فات
+            الإجمالي شامل <LtrNum value={formatBonusEgp(carriedSideBonus)} /> جنيه لحوم وعظم من الشهر اللي فات
           </p>
         )}
         <p style={{ margin: 0, textAlign: 'center', fontSize: 13, fontWeight: 800, color: ORANGE, lineHeight: 1.618 }}>{board.daysPhrase}</p>
-        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.618, color: INK }}>{board.message}</p>
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.618, color: INK }}><IsolatedNumbers text={board.message} /></p>
       </div>
     </article>
   );
