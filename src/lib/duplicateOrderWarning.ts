@@ -2,8 +2,8 @@
 //
 // Priority (matches the SQL):
 //   1. double_submit  — same customer record + same items by the same user < 2 min → block.
-//   2. needs_approval — another moderator has an order for this phone this month → Alaa approval (unchanged).
-//   3. own_repeat     — the SAME moderator already has an order for this phone this month / last 24h
+//   2. needs_approval — another moderator has an order for this phone in the last 7 days or this Cairo month → Alaa approval.
+//   3. own_repeat     — the SAME moderator already has an order for this phone in the last 7 days or this Cairo month
 //                       → confirm dialog; she must accept before the order is saved (no approval, no block).
 //   4. clear.
 
@@ -47,8 +47,8 @@ export const OWN_REPEAT_TITLE = "تنبيه: فيه أوردر سابق ليكِ
 export function ownRepeatDescription(count: number): string {
   const n = Math.max(1, count);
   return n === 1
-    ? "إنتِ سجلتِ أوردر لنفس رقم الموبايل خلال الشهر ده (أو آخر 24 ساعة). اتأكدي إن ده أوردر جديد فعلاً ومش تكرار قبل ما تكملي."
-    : `إنتِ سجلتِ ${n} أوردرات لنفس رقم الموبايل خلال الشهر ده (أو آخر 24 ساعة). اتأكدي إن ده أوردر جديد فعلاً ومش تكرار قبل ما تكملي.`;
+    ? "إنتِ سجلتِ أوردر لنفس رقم الموبايل خلال الشهر ده (أو آخر 7 أيام). اتأكدي إن ده أوردر جديد فعلاً ومش تكرار قبل ما تكملي."
+    : `إنتِ سجلتِ ${n} أوردرات لنفس رقم الموبايل خلال الشهر ده (أو آخر 7 أيام). اتأكدي إن ده أوردر جديد فعلاً ومش تكرار قبل ما تكملي.`;
 }
 
 export const OWN_REPEAT_CONFIRM_LABEL = "أيوه، أوردر جديد — سجّليه";

@@ -1259,7 +1259,7 @@ const NewOrder = () => {
         });
         const outcome = classifyDuplicateCheck(d, { ownRepeatConfirmed: opts.ownRepeatConfirmed });
         if (outcome === 'own_repeat') {
-          // Same moderator already has an order for this phone this month / last 24h.
+          // Same moderator already has an order for this phone this Cairo month / last 7 days.
           // Confirm-only: she must accept before we save (no approval, no block).
           setOwnRepeatDialog({
             open: true,
@@ -2921,7 +2921,7 @@ const NewOrder = () => {
           <DialogHeader>
             <DialogTitle>يلزم موافقة م. آلاء حامد</DialogTitle>
             <DialogDescription>
-              هذا العميل (بنفس رقم الهاتف) لديه طلب مسجل خلال الشهر الحالي مع مسوقة أخرى. لا يمكن تسجيل الطلب إلا بعد موافقة مديرة التسويق (م. آلاء حامد).
+              هذا العميل (بنفس رقم الهاتف) لديه طلب مسجل خلال آخر 7 أيام أو خلال الشهر الحالي مع مسوقة أخرى. لا يمكن تسجيل الطلب إلا بعد موافقة مديرة التسويق (م. آلاء حامد).
             </DialogDescription>
           </DialogHeader>
 

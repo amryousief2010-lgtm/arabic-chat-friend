@@ -62,6 +62,8 @@ describe("classifyDuplicateCheck", () => {
 describe("ownRepeatDescription", () => {
   it("single / multiple wording", () => {
     expect(ownRepeatDescription(1)).toContain("سجلتِ أوردر لنفس رقم الموبايل");
+    expect(ownRepeatDescription(1)).toContain("آخر 7 أيام");
     expect(ownRepeatDescription(3)).toContain("3 أوردرات");
+    expect(ownRepeatDescription(3)).toContain("آخر 7 أيام");
   });
 });
