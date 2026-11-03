@@ -24,7 +24,8 @@ type Row = {
 export default function DuplicateApprovalsAlert() {
   const { roles, isGeneralManager } = useAuth();
   const navigate = useNavigate();
-  const canApprove = (roles || []).includes("marketing_sales_manager") || isGeneralManager;
+  // مدير التسويق وحده (من غير sales_manager) ممنوع من قرارات التكرار — قرار المدير العام 2026-11-03
+  const canApprove = ((roles || []).includes("marketing_sales_manager") && (roles || []).includes("sales_manager")) || isGeneralManager;
   const [rows, setRows] = useState<Row[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [open, setOpen] = useState(false);
