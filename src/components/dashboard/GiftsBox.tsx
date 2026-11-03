@@ -22,7 +22,7 @@ export default function GiftsBox({ gifts, testId }: { gifts: GiftLine[]; testId?
               <td className="p-1">{num(kgTotal)} كجم{gifts.some((g) => g.unit && !(g.unit.includes("كيلو") || g.unit.includes("كجم"))) ? " + أصناف بوحدات أخرى" : ""}</td>
               <td className="p-1">{gifts.reduce((s, g) => s + g.lines, 0)}</td></tr>
           </tbody></table></div>)}
-      <p className="mt-1 text-[10px] text-muted-foreground">الهدايا المصنّفة (لحوم/بالعظم/مصنعات) محسوبة بالفعل داخل الإجمالي والكروت أعلاه كما كانت؛ هذه الخانة للعرض فقط ولا تُضاف مرة ثانية.</p>
+      <p className="mt-1 text-[10px] text-muted-foreground">كل الهدايا بالكيلو محسوبة داخل الإجمالي أعلاه مرة واحدة (المصنّفة داخل فئتها، والباقي تحت «هدايا»). «الرقاب» مستبعدة من العدّاد والإجمالي.</p>
     </div>
   );
 }

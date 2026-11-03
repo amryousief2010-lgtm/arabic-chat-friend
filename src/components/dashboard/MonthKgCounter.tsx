@@ -46,7 +46,7 @@ export default function MonthKgCounter() {
         {q.isLoading && <p className="text-sm text-muted-foreground">جارٍ التحميل…</p>}
         {q.error && <p className="text-sm text-destructive">تعذّر تحميل كيلوهات الشهر.</p>}
         {d && c && <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
             <div className="rounded-lg border bg-primary/5 p-3">
               <div className="text-xs text-muted-foreground">كيلوهات الشهر حتى اليوم</div>
               <div className="text-2xl font-bold">{kg(t)}</div>
@@ -56,15 +56,15 @@ export default function MonthKgCounter() {
               </div>
               <div className="text-xs text-muted-foreground">{d.cur.total.orders} أوردر</div>
             </div>
-            {([["لحوم", d.cur.total.meat], ["لحم بالعظم", d.cur.total.bone], ["مصنعات", d.cur.total.processed]] as const).map(([l, v]) => (
+            {([["لحوم", d.cur.total.meat], ["لحم بالعظم", d.cur.total.bone], ["مصنعات", d.cur.total.processed], ["هدايا أخرى", d.cur.total.gifts]] as const).map(([l, v]) => (
               <div key={l} className="rounded-lg border p-3">
                 <div className="text-xs text-muted-foreground">{l}</div>
                 <div className="text-2xl font-bold">{kg(v)}</div>
               </div>))}
           </div>
           <GiftsBox gifts={d.cur.gifts} testId="dashboard-month-gifts" />
-          <div className="-mx-2 mt-3 overflow-x-auto px-2"><table className="w-full min-w-[460px] whitespace-nowrap text-[11px] sm:text-xs">
-            <thead className="bg-muted"><tr>{["البنت", "أوردرات", "لحوم", "لحم بالعظم", "مصنعات", "الإجمالي"].map((h) => <th key={h} className="p-1 text-right sm:p-1.5">{h}</th>)}</tr></thead>
+          <div className="-mx-2 mt-3 overflow-x-auto px-2"><table className="w-full min-w-[520px] whitespace-nowrap text-[11px] sm:text-xs">
+            <thead className="bg-muted"><tr>{["البنت", "أوردرات", "لحوم", "لحم بالعظم", "مصنعات", "هدايا", "الإجمالي"].map((h) => <th key={h} className="p-1 text-right sm:p-1.5">{h}</th>)}</tr></thead>
             <tbody>
               {[...d.cur.perGirl.map((g) => ({ ...g, muted: false })),
                 ...(d.cur.unassigned.orders > 0 ? [{ key: "_u", name: "غير منسوب لبنت", ...d.cur.unassigned, muted: true }] : [])]
@@ -72,7 +72,7 @@ export default function MonthKgCounter() {
                 <tr key={g.key} className={`border-t ${g.muted ? "text-muted-foreground" : ""}`}>
                   <td className="p-1.5 font-medium">{g.name}</td><td className="p-1.5">{g.orders}</td>
                   <td className="p-1.5">{kg(g.meat)}</td><td className="p-1.5">{kg(g.bone)}</td>
-                  <td className="p-1.5">{kg(g.processed)}</td><td className="p-1.5 font-semibold">{kg(totalKg(g))}</td>
+                  <td className="p-1.5">{kg(g.processed)}</td><td className="p-1.5">{kg(g.gifts)}</td><td className="p-1.5 font-semibold">{kg(totalKg(g))}</td>
                 </tr>))}
             </tbody></table></div>
           <p className="mt-2 text-[11px] text-muted-foreground">من أول الشهر (12:00 ص القاهرة) حتى الآن، والمقارنة بالأيام 1..{d.w.d} من الشهر السابق حتى نفس الساعة. الأوردرات الملغاة مستبعدة. يتحدث تلقائيًا مع تسجيل كل أوردر.</p>
