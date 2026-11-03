@@ -41,6 +41,7 @@ export default function DailyPerformanceAnalysis() {
   const [selected, setSelected] = useState<string>(cairoToday());
   const [monthsBack, setMonthsBack] = useState<1 | 3 | 6>(3);
   const [includeWeekday, setIncludeWeekday] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>("compare");
 
   const comparisonDates = useMemo(() => {
     const arr: { date: string; label: string; kind: "selected" | "month" | "weekday" }[] = [
@@ -412,7 +413,7 @@ export default function DailyPerformanceAnalysis() {
         </div>
       </div>
 
-      <TodayOrderedKgCard />
+      {activeTab !== "plan" && <TodayOrderedKgCard />}
 
       <Card>
         <CardContent className="p-4 flex flex-wrap items-end gap-4">
@@ -465,7 +466,7 @@ export default function DailyPerformanceAnalysis() {
             <KpiCard title="ملغاة / معلقة" value={`${fmt(todayKpis.cancelled)} / ${fmt(todayKpis.pending)}`} cmp={delta(todayKpis.cancelled, avgPrev.cancelled)} invert />
           </div>
 
-          <Tabs defaultValue="compare">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="flex-wrap">
               <TabsTrigger value="compare">المقارنات</TabsTrigger>
               <TabsTrigger value="products">المنتجات</TabsTrigger>
@@ -577,7 +578,8 @@ export default function DailyPerformanceAnalysis() {
               </div>
             </TabsContent>
 
-            <TabsContent value="plan">
+            <TabsContent value="plan" className="space-y-4">
+              <TodayOrderedKgCard />
               {plan && (
                 <Card>
                   <CardHeader>
