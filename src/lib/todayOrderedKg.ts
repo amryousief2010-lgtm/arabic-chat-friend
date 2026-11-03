@@ -66,3 +66,15 @@ export function compareWithYesterday(today: number, yesterday: number) {
   const pct = yesterday > 0 ? Math.round((diff / yesterday) * 1000) / 10 : null;
   return { diff, dir, pct };
 }
+
+/** مقارنة عامة بين فترتين (اسم عام لـ compareWithYesterday). */
+export const comparePeriods = compareWithYesterday;
+
+const AR_MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+/** سنة/شهر/يوم القاهرة للحظة معينة. */
+export function cairoYMD(now = new Date()) {
+  const [y, m, d] = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit" })
+    .formatToParts(now).filter((p) => p.type !== "literal").map((p) => Number(p.value));
+  return { y, m, d };
+}
+export const arabicMonthName = (m: number) => AR_MONTHS[m - 1];

@@ -5,6 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { cairoTodayStartUTC, toCairoDateString } from "@/lib/cairoDate";
 import { canSeeDailyKgCounter, compareWithYesterday, totalKg } from "@/lib/todayOrderedKg";
 import { fetchKgWindow, fetchTodayKg } from "@/components/sales/TodayOrderedKgCard";
+import { KG_POLL_MS, useKgLiveRefresh } from "@/hooks/useKgLiveRefresh";
+import MonthKgCounter from "@/components/dashboard/MonthKgCounter";
 
 const DAY = 24 * 60 * 60 * 1000;
 const kg = (v: number) => `${(Math.round(v * 100) / 100).toLocaleString("en-US")} كجم`;
@@ -25,15 +27,17 @@ export default function DailyKgCounter() {
   const visible = canSeeDailyKgCounter(roles as string[]);
   const q = useQuery({
     queryKey: ["dashboard-daily-kg", toCairoDateString(new Date())],
-    queryFn: fetchCounter, enabled: visible, refetchInterval: 120000,
+    queryFn: fetchCounter, enabled: visible, refetchInterval: KG_POLL_MS, refetchOnWindowFocus: true,
   });
+  useKgLiveRefresh(["dashboard-daily-kg", "dashboard-month-kg"], visible);
   if (!visible) return null;
   const d = q.data;
   const t = d ? totalKg(d.today.total) : 0;
   const c = d ? compareWithYesterday(t, totalKg(d.yesterday.total)) : null;
   const Arrow = c?.dir === "up" ? ArrowUp : c?.dir === "down" ? ArrowDown : Minus;
   return (
-    <Card dir="rtl" className="mb-6" data-testid="dashboard-daily-kg">
+    <>
+    <Card dir="rtl" className="mb-4" data-testid="dashboard-daily-kg">
       <CardContent className="pt-4">
         <div className="mb-2 text-sm font-semibold">عداد الكيلوهات اليومي ({toCairoDateString(new Date())})</div>
         {q.isLoading && <p className="text-sm text-muted-foreground">جارٍ التحميل…</p>}
@@ -55,8 +59,8 @@ export default function DailyKgCounter() {
                 <div className="text-2xl font-bold">{kg(v)}</div>
               </div>))}
           </div>
-          <div className="mt-3 overflow-x-auto"><table className="w-full text-xs">
-            <thead className="bg-muted"><tr>{["البنت", "أوردرات", "لحوم", "لحم بالعظم", "مصنعات", "الإجمالي"].map((h) => <th key={h} className="p-1.5 text-right">{h}</th>)}</tr></thead>
+          <div className="-mx-2 mt-3 overflow-x-auto px-2"><table className="w-full min-w-[460px] whitespace-nowrap text-[11px] sm:text-xs">
+            <thead className="bg-muted"><tr>{["البنت", "أوردرات", "لحوم", "لحم بالعظم", "مصنعات", "الإجمالي"].map((h) => <th key={h} className="p-1 text-right sm:p-1.5">{h}</th>)}</tr></thead>
             <tbody>
               {[...d.today.perGirl.map((g) => ({ ...g, muted: false })),
                 ...(d.today.unassigned.orders > 0 ? [{ key: "_u", name: "غير منسوب لبنت", ...d.today.unassigned, muted: true }] : [])]
@@ -67,9 +71,11 @@ export default function DailyKgCounter() {
                   <td className="p-1.5">{kg(g.processed)}</td><td className="p-1.5 font-semibold">{kg(totalKg(g))}</td>
                 </tr>))}
             </tbody></table></div>
-          <p className="mt-2 text-[11px] text-muted-foreground">الأوردرات الملغاة مستبعدة. يتحدث كل دقيقتين. لا يوجد هدف يومي بالكيلو في «خطة الشهر» (الهدف اليومي هناك بالجنيه) لذلك لا يظهر شريط تقدم.</p>
+          <p className="mt-2 text-[11px] text-muted-foreground">الأوردرات الملغاة مستبعدة. يتحدث تلقائيًا مع تسجيل كل أوردر. اسحب الجدول أفقيًا لرؤية كل الأعمدة.</p>
         </>}
       </CardContent>
     </Card>
+    <MonthKgCounter />
+    </>
   );
 }
