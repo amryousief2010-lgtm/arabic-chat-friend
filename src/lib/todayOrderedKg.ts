@@ -43,3 +43,19 @@ export const girlsForToday = (now = new Date()) => {
     .format(now).split("-").map(Number);
   return moderatorsForMonth(y, m).map((x) => ({ key: x.payrollKey, name: x.displayName }));
 };
+
+/** إجمالي الكيلوهات = لحوم + لحم بالعظم + مصنعات (كل فئة محسوبة مرة واحدة؛ العظم ليس داخل اللحوم). */
+export const totalKg = (b: KgBucket) => b.meat + b.bone + b.processed;
+
+/** الأدوار التي ترى عداد الكيلوهات اليومي في لوحة التحكم — وسّعها هنا فقط. */
+export const DAILY_KG_COUNTER_ROLES: readonly string[] = ["general_manager"];
+export const canSeeDailyKgCounter = (roles: readonly string[] | null | undefined) =>
+  !!roles?.some((r) => DAILY_KG_COUNTER_ROLES.includes(r));
+
+/** مقارنة اليوم بنفس الوقت أمس. pct = null لو أمس صفر. */
+export function compareWithYesterday(today: number, yesterday: number) {
+  const diff = Math.round((today - yesterday) * 100) / 100;
+  const dir: "up" | "down" | "same" = diff > 0 ? "up" : diff < 0 ? "down" : "same";
+  const pct = yesterday > 0 ? Math.round((diff / yesterday) * 1000) / 10 : null;
+  return { diff, dir, pct };
+}

@@ -71,6 +71,7 @@ import {
 import { useProductionStats } from "@/hooks/useProductionStats";
 import { Egg, Bird } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import DailyKgCounter from "@/components/dashboard/DailyKgCounter";
 import { formatDate } from "@/lib/dateFormat";
 import { currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
 
@@ -230,6 +231,7 @@ const DashboardContent = () => {
           </Button>
         </div>
       </div>
+      <DailyKgCounter />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-4">

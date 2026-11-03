@@ -6,9 +6,7 @@ import { computeTodayKg, girlsForToday, type KgItem, type KgOrder } from "@/lib/
 
 const kg = (v: number) => `${(Math.round(v * 100) / 100).toLocaleString("en-US")} كجم`;
 
-async function fetchTodayKg() {
-  const start = cairoTodayStartUTC();
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+export async function fetchKgWindow(start: Date, end: Date) {
   const orders: KgOrder[] = [];
   for (let i = 0; ; i += 1000) {
     const { data, error } = await supabase.from("orders").select("id, moderator, created_by, status")
@@ -36,7 +34,12 @@ async function fetchTodayKg() {
     const { data } = await supabase.from("profile_directory").select("id, full_name").in("id", creators);
     (data ?? []).forEach((p: any) => names.set(p.id, p.full_name || ""));
   }
-  return computeTodayKg(orders, items, names, girlsForToday());
+  return computeTodayKg(orders, items, names, girlsForToday(start));
+}
+
+export function fetchTodayKg() {
+  const start = cairoTodayStartUTC();
+  return fetchKgWindow(start, new Date(start.getTime() + 24 * 60 * 60 * 1000));
 }
 
 /** «طلبات اليوم بالكيلو»: لحوم / لحم بالعظم / مصنعات لكل العملاء ولكل بنت — يوم القاهرة، بدون الملغي، بدون بيانات عملاء. */
