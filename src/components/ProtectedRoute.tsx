@@ -89,8 +89,8 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const effectiveRoles = roles ?? (role ? [role] : []);
   // بوابة «إدارة المحادثات»: في وضع general_manager_only لا يدخل القسم إلا المدير العام (رابط مباشر ⇒ /unauthorized).
   const isCmPath = isChatManagementPath(location.pathname);
-  const { mode: cmMode, loading: cmGateLoading } = useCmFeatureGate(isCmPath && !!user);
-  const isCmGateDenied = isCmPath && !cmGateLoading && !cmGateAllows(effectiveRoles, cmMode);
+  const { mode: cmMode, loading: cmGateLoading, allowed: cmAllowed } = useCmFeatureGate(isCmPath && !!user);
+  const isCmGateDenied = isCmPath && !cmGateLoading && !(cmAllowed ?? cmGateAllows(effectiveRoles, cmMode));
 
   // Users whose ONLY role is marketing_sales_manager get a strict read-only
   // marketing scope. Users who also hold sales_manager (or any other role)

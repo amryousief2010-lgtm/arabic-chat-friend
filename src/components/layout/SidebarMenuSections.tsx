@@ -458,8 +458,8 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
-  const { mode: cmMode, loading: cmGateLoading } = useCmFeatureGate(!!user);
-  const cmVisible = !cmGateLoading && cmGateAllows(userRoles, cmMode);
+  const { mode: cmMode, loading: cmGateLoading, allowed: cmAllowed } = useCmFeatureGate(!!user);
+  const cmVisible = !cmGateLoading && (cmAllowed ?? cmGateAllows(userRoles, cmMode));
 
   // في صفحات «إدارة المحادثات»: مرّر القائمة حتى يظهر الرابط النشط (روابط القسم كانت تقع أسفل حافة الشاشة).
   useEffect(() => {

@@ -17,7 +17,7 @@ vi.mock("@/hooks/useAuth", async () => {
 let gateMode: "general_manager_only" | "roles" = "roles";
 let gateLoading = false;
 vi.mock("@/hooks/useCmFeatureGate", () => ({
-  useCmFeatureGate: () => ({ mode: gateMode, loading: gateLoading }),
+  useCmFeatureGate: () => ({ mode: gateMode, loading: gateLoading, allowed: null }),
   setCmGateModeCache: vi.fn(), resetCmGateCache: vi.fn(), loadCmGateMode: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));

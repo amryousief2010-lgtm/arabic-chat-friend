@@ -35,14 +35,31 @@ export const setCmGateModeCache = (m: CmAccessMode) => {
 /** للاختبارات / تسجيل الخروج. */
 export const resetCmGateCache = () => { cached = null; inflight = null; };
 
-export function useCmFeatureGate(enabled = true): { mode: CmAccessMode; loading: boolean } {
+/**
+ * `allowed`: نتيجة cm_gate_allows() من القاعدة (GM + قائمة الاستثناء cm_feature_gate_allowlist + وضع roles).
+ * null ⇒ خطأ في الاستدعاء؛ المستدعي يرجع للفحص القديم (GM/الوضع) — fail closed.
+ */
+export function useCmFeatureGate(enabled = true): { mode: CmAccessMode; loading: boolean; allowed: boolean | null } {
   const [mode, setMode] = useState<CmAccessMode | null>(cached);
+  const [allowed, setAllowed] = useState<boolean | null>(null);
+  const [rpcDone, setRpcDone] = useState(false);
   useEffect(() => {
     if (!enabled) return;
     let alive = true;
     listeners.add(setMode);
     if (!cached) loadCmGateMode().then((m) => alive && setMode(m));
+    setRpcDone(false);
+    (async () => {
+      try {
+        const { data, error } = await (supabase as any).rpc("cm_gate_allows");
+        if (alive) setAllowed(!error && typeof data === "boolean" ? data : null);
+      } catch {
+        if (alive) setAllowed(null);
+      } finally {
+        if (alive) setRpcDone(true);
+      }
+    })();
     return () => { alive = false; listeners.delete(setMode); };
-  }, [enabled]);
-  return { mode: mode ?? CM_GATE_DEFAULT_MODE, loading: enabled && mode === null };
+  }, [enabled, mode]);
+  return { mode: mode ?? CM_GATE_DEFAULT_MODE, loading: enabled && (mode === null || !rpcDone), allowed };
 }
