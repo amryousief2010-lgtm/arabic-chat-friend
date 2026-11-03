@@ -170,19 +170,21 @@ FROM (SELECT public.check_duplicate_order_attempt(
   '08a465a1-e196-424d-b0bb-6db3a6a08e1a', 'حاتم محمد', '01102626616', NULL, NULL, 'delivery',
   '[]'::jsonb, NULL) r) x;
 
--- 10) Own order from a previous month and older than 24h → no warning
+-- 10) Own order from a previous month and older than the rolling window (7 days) → no warning.
+-- 10 days before the UTC month start is always outside both the old 24h window and the
+-- 7-day window, so this stays a negative case after 20261102220000 as well.
 UPDATE public.orders SET status = 'delivered',
-  created_at = date_trunc('month', now()) - interval '3 days'
+  created_at = date_trunc('month', now()) - interval '10 days'
 WHERE id = '4d75bbd9-2ffa-4420-9fd6-db2ecf27a069';
-SELECT pg_temp.ok(NOT (r->>'is_own_repeat')::boolean, '10 previous-month own order (>24h) → no warning')
+SELECT pg_temp.ok(NOT (r->>'is_own_repeat')::boolean, '10 previous-month own order (>7d) → no warning')
 FROM (SELECT public.check_duplicate_order_attempt(
   '08a465a1-e196-424d-b0bb-6db3a6a08e1a', 'حاتم محمد', '01102626616', NULL, NULL, 'delivery',
   '[]'::jsonb, NULL) r) x;
 
--- 11) Own order within the last 24h (even across a month boundary) → warning
+-- 11) Own order inside the rolling window (20h; was 24h, now 7 days), even across a month boundary → warning
 UPDATE public.orders SET created_at = now() - interval '20 hours'
 WHERE id = '4d75bbd9-2ffa-4420-9fd6-db2ecf27a069';
-SELECT pg_temp.ok((r->>'is_own_repeat')::boolean, '11 own order in last 24h → warning')
+SELECT pg_temp.ok((r->>'is_own_repeat')::boolean, '11 own order inside rolling window → warning')
 FROM (SELECT public.check_duplicate_order_attempt(
   '08a465a1-e196-424d-b0bb-6db3a6a08e1a', 'حاتم محمد', '01102626616', NULL, NULL, 'delivery',
   '[]'::jsonb, NULL) r) x;
