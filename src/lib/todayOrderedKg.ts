@@ -1,10 +1,11 @@
 import { classifyPayrollProduct } from "@/lib/payrollProductCategories";
-import { matchesModeratorGroup, moderatorsForMonth } from "@/constants/moderators";
+import { findModeratorByName, matchesModeratorGroup, moderatorsForMonth } from "@/constants/moderators";
 
 export interface KgOrder { id: string; moderator: string | null; created_by: string | null; status: string | null }
-export interface KgItem { order_id: string; product_name: string | null; quantity: number | null }
+export interface KgItem { order_id: string; product_name: string | null; quantity: number | null; is_gift?: boolean | null; product_id?: string | null }
+export interface GiftLine { name: string; quantity: number; unit: string | null; lines: number }
 export interface KgBucket { orders: number; meat: number; bone: number; processed: number }
-export interface TodayKgResult { total: KgBucket; perGirl: Array<{ key: string; name: string } & KgBucket>; unassigned: KgBucket }
+export interface TodayKgResult { total: KgBucket; perGirl: Array<{ key: string; name: string } & KgBucket>; unassigned: KgBucket; gifts: GiftLine[] }
 
 const empty = (): KgBucket => ({ orders: 0, meat: 0, bone: 0, processed: 0 });
 
@@ -14,6 +15,7 @@ const empty = (): KgBucket => ({ orders: 0, meat: 0, bone: 0, processed: 0 });
  */
 export function computeTodayKg(
   orders: KgOrder[], items: KgItem[], creatorNames: Map<string, string>, girls: Array<{ key: string; name: string }>,
+  productUnits: Map<string, string> = new Map(),
 ): TodayKgResult {
   const live = orders.filter((o) => o.status !== "cancelled");
   const total = empty(); const unassigned = empty();
@@ -21,13 +23,29 @@ export function computeTodayKg(
   const orderGirl = new Map<string, string | null>();
   for (const o of live) {
     const creator = o.created_by ? creatorNames.get(o.created_by) || "" : "";
-    const g = girls.find((x) => matchesModeratorGroup(o.moderator || "", x.key) || matchesModeratorGroup(creator, x.key));
+    let g: { key: string; name: string } | undefined =
+      girls.find((x) => matchesModeratorGroup(o.moderator || "", x.key) || matchesModeratorGroup(creator, x.key));
+    if (!g) {
+      // عرض فقط: بنت خارج قائمة القبض للشهر (مثل مريم بعد endDate أو فاطمة) تظهر بصف باسمها
+      // بدل «غير منسوب لبنت». لا يغيّر قوائم القبض.
+      const m = findModeratorByName(o.moderator) || (!(o.moderator || "").trim() ? findModeratorByName(creator) : undefined);
+      if (m) {
+        g = { key: m.payrollKey, name: m.displayName };
+        if (!per.has(g.key)) per.set(g.key, { ...g, ...empty() });
+      }
+    }
     orderGirl.set(o.id, g?.key ?? null);
     total.orders += 1;
     if (g) per.get(g.key)!.orders += 1; else unassigned.orders += 1;
   }
+  const gifts = new Map<string, GiftLine>();
   for (const it of items) {
     if (!orderGirl.has(it.order_id)) continue;
+    if (it.is_gift) {
+      const name = (it.product_name || "").trim().replace(/\s+/g, " ") || "غير محدد";
+      const gl = gifts.get(name) ?? { name, quantity: 0, unit: (it.product_id && productUnits.get(it.product_id)) || null, lines: 0 };
+      gl.quantity += Number(it.quantity) || 0; gl.lines += 1; gifts.set(name, gl);
+    }
     const cat = classifyPayrollProduct(it.product_name || "");
     if (!cat) continue;
     const q = Number(it.quantity) || 0;
@@ -35,7 +53,8 @@ export function computeTodayKg(
     const b = k ? per.get(k)! : unassigned;
     total[cat] += q; b[cat] += q;
   }
-  return { total, perGirl: Array.from(per.values()), unassigned };
+  return { total, perGirl: Array.from(per.values()), unassigned,
+    gifts: Array.from(gifts.values()).sort((a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name)) };
 }
 
 export const girlsForToday = (now = new Date()) => {

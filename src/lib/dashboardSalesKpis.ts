@@ -113,3 +113,11 @@ export function lifetimeSalesCardChange(stats: Pick<DashboardSalesStats, "salesY
 export function lifetimeOrdersCardChange(stats: Pick<DashboardSalesStats, "ordersYear" | "ordersMonth" | "ordersToday">): string {
   return `منذ البداية · السنة: ${stats.ordersYear.toLocaleString()} | الشهر: ${stats.ordersMonth.toLocaleString()} | اليوم: ${stats.ordersToday.toLocaleString()}`;
 }
+
+/** الأدوار المسموح لها في get_dashboard_overview (coceg-prod) — غيرهم يُرفض فنخفي كروت المبيعات. */
+export const DASHBOARD_OVERVIEW_ROLES: readonly string[] = [
+  "general_manager", "executive_manager", "sales_manager", "accountant", "warehouse_supervisor",
+  "shipping_company", "marketing_sales_manager", "financial_manager",
+];
+export const canSeeDashboardSalesKpis = (roles: readonly string[] | null | undefined) =>
+  !!roles?.some((r) => DASHBOARD_OVERVIEW_ROLES.includes(r));

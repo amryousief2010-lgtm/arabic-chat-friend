@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { cairoWallClockToUTC } from "@/lib/cairoDate";
 import { arabicMonthName, cairoYMD, canSeeDailyKgCounter, comparePeriods, totalKg } from "@/lib/todayOrderedKg";
 import { fetchKgWindow } from "@/components/sales/TodayOrderedKgCard";
+import GiftsBox from "@/components/dashboard/GiftsBox";
 import { KG_POLL_MS } from "@/hooks/useKgLiveRefresh";
 
 const kg = (v: number) => `${(Math.round(v * 100) / 100).toLocaleString("en-US")} كجم`;
@@ -61,6 +62,7 @@ export default function MonthKgCounter() {
                 <div className="text-2xl font-bold">{kg(v)}</div>
               </div>))}
           </div>
+          <GiftsBox gifts={d.cur.gifts} testId="dashboard-month-gifts" />
           <div className="-mx-2 mt-3 overflow-x-auto px-2"><table className="w-full min-w-[460px] whitespace-nowrap text-[11px] sm:text-xs">
             <thead className="bg-muted"><tr>{["البنت", "أوردرات", "لحوم", "لحم بالعظم", "مصنعات", "الإجمالي"].map((h) => <th key={h} className="p-1 text-right sm:p-1.5">{h}</th>)}</tr></thead>
             <tbody>

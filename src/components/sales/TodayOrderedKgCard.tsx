@@ -11,7 +11,7 @@ export async function fetchKgWindow(start: Date, end: Date) {
   for (let i = 0; ; i += 1000) {
     const { data, error } = await supabase.from("orders").select("id, moderator, created_by, status")
       .gte("created_at", start.toISOString()).lt("created_at", end.toISOString()).neq("status", "cancelled")
-      .order("created_at").range(i, i + 999);
+      .order("created_at").order("id").range(i, i + 999);
     if (error) throw error;
     orders.push(...((data as KgOrder[]) ?? []));
     if (!data || data.length < 1000) break;
@@ -21,8 +21,8 @@ export async function fetchKgWindow(start: Date, end: Date) {
   for (let i = 0; i < ids.length; i += 200) {
     const chunk = ids.slice(i, i + 200);
     for (let f = 0; ; f += 1000) {
-      const { data, error } = await supabase.from("order_items").select("order_id, product_name, quantity")
-        .in("order_id", chunk).range(f, f + 999);
+      const { data, error } = await supabase.from("order_items").select("id, order_id, product_id, product_name, quantity, is_gift")
+        .in("order_id", chunk).order("id").range(f, f + 999);
       if (error) throw error;
       items.push(...((data as KgItem[]) ?? []));
       if (!data || data.length < 1000) break;
@@ -34,7 +34,13 @@ export async function fetchKgWindow(start: Date, end: Date) {
     const { data } = await supabase.from("profile_directory").select("id, full_name").in("id", creators);
     (data ?? []).forEach((p: any) => names.set(p.id, p.full_name || ""));
   }
-  return computeTodayKg(orders, items, names, girlsForToday(start));
+  const giftIds = Array.from(new Set(items.filter((i) => i.is_gift && i.product_id).map((i) => i.product_id))) as string[];
+  const units = new Map<string, string>();
+  if (giftIds.length) {
+    const { data } = await supabase.from("products").select("id, unit").in("id", giftIds);
+    (data ?? []).forEach((p: any) => p.unit && units.set(p.id, p.unit));
+  }
+  return computeTodayKg(orders, items, names, girlsForToday(start), units);
 }
 
 export function fetchTodayKg() {

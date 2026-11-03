@@ -71,6 +71,7 @@ import {
 import { useProductionStats } from "@/hooks/useProductionStats";
 import { Egg, Bird } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { canSeeDashboardSalesKpis } from "@/lib/dashboardSalesKpis";
 import DailyKgCounter from "@/components/dashboard/DailyKgCounter";
 import { formatDate } from "@/lib/dateFormat";
 import { currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
@@ -141,7 +142,11 @@ const Index = () => {
 
 const DashboardContent = () => {
   const navigate = useNavigate();
-  const { data: stats, isLoading } = useDashboardStats();
+  const { roles } = useAuth();
+  // get_dashboard_overview يرفض أدوار مثل marketing_sales_viewer و social_media_manager —
+  // نخفي كروت المبيعات لهم بدل ما تظهر أصفار.
+  const canSeeSalesKpis = canSeeDashboardSalesKpis(roles as string[]);
+  const { data: stats, isLoading } = useDashboardStats(canSeeSalesKpis);
 
   const { data: todayBreakdown } = useTodayOrdersBreakdown();
   const [selectedTodayChannel, setSelectedTodayChannel] = useState<TodayOrdersChannel | null>(null);
@@ -234,6 +239,7 @@ const DashboardContent = () => {
       <DailyKgCounter />
 
       {/* Stats Grid */}
+      {canSeeSalesKpis && (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-4">
         <StatCard
           title={salesNetKpiTitleAr("all_time")}
@@ -272,6 +278,7 @@ const DashboardContent = () => {
           to="/low-stock"
         />
       </div>
+      )}
 
       {/* Active users (managers only — component handles role gating) */}
       <div className="mb-6 max-w-md">
@@ -281,7 +288,7 @@ const DashboardContent = () => {
 
 
       {/* Daily / Monthly / Yearly Sales Breakdown - Hidden for sales moderators */}
-      {!isModerator && (
+      {!isModerator && canSeeSalesKpis && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <Card className="glass-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all" onClick={() => navigate('/reports')} role="button" tabIndex={0}>
           <CardContent className="p-4">
@@ -396,6 +403,7 @@ const DashboardContent = () => {
 
 
       {/* Sales Trends — Monthly (current year) & Daily (current month) */}
+      {canSeeSalesKpis && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <Card className="glass-card">
           <CardHeader>
@@ -450,6 +458,7 @@ const DashboardContent = () => {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* التسجيلات اليومية */}
       <DailyRegistrationsTable />

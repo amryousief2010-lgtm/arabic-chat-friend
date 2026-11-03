@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { cairoTodayStartUTC, toCairoDateString } from "@/lib/cairoDate";
 import { canSeeDailyKgCounter, compareWithYesterday, totalKg } from "@/lib/todayOrderedKg";
 import { fetchKgWindow, fetchTodayKg } from "@/components/sales/TodayOrderedKgCard";
+import GiftsBox from "@/components/dashboard/GiftsBox";
 import { KG_POLL_MS, useKgLiveRefresh } from "@/hooks/useKgLiveRefresh";
 import MonthKgCounter from "@/components/dashboard/MonthKgCounter";
 
@@ -59,6 +60,7 @@ export default function DailyKgCounter() {
                 <div className="text-2xl font-bold">{kg(v)}</div>
               </div>))}
           </div>
+          <GiftsBox gifts={d.today.gifts} testId="dashboard-daily-gifts" />
           <div className="-mx-2 mt-3 overflow-x-auto px-2"><table className="w-full min-w-[460px] whitespace-nowrap text-[11px] sm:text-xs">
             <thead className="bg-muted"><tr>{["البنت", "أوردرات", "لحوم", "لحم بالعظم", "مصنعات", "الإجمالي"].map((h) => <th key={h} className="p-1 text-right sm:p-1.5">{h}</th>)}</tr></thead>
             <tbody>
