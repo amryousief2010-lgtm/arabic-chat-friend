@@ -29,9 +29,15 @@ describe("daily kg counter helpers", () => {
     expect(compareWithYesterday(0, 0)).toEqual({ diff: 0, dir: "same", pct: null });
     expect(compareWithYesterday(3, 0).pct).toBeNull();
   });
-  it("is GM only", () => {
-    expect(canSeeDailyKgCounter(["general_manager"])).toBe(true);
-    expect(canSeeDailyKgCounter(["marketing_manager", "moderator"])).toBe(false);
+  it("is visible to every role with full order read access", () => {
+    for (const r of ["general_manager", "executive_manager", "sales_manager", "marketing_sales_manager",
+      "accountant", "warehouse_supervisor", "marketing_sales_viewer", "social_media_manager"])
+      expect(canSeeDailyKgCounter([r])).toBe(true);
+  });
+  it("is hidden for roles whose RLS would give partial/empty numbers", () => {
+    for (const r of ["financial_manager", "production_manager", "quality_manager", "sales_moderator",
+      "shipping_company", "private_delivery_rep", "hr_manager"])
+      expect(canSeeDailyKgCounter([r])).toBe(false);
     expect(canSeeDailyKgCounter(undefined)).toBe(false);
   });
 });

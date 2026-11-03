@@ -47,8 +47,15 @@ export const girlsForToday = (now = new Date()) => {
 /** إجمالي الكيلوهات = لحوم + لحم بالعظم + مصنعات (كل فئة محسوبة مرة واحدة؛ العظم ليس داخل اللحوم). */
 export const totalKg = (b: KgBucket) => b.meat + b.bone + b.processed;
 
-/** الأدوار التي ترى عداد الكيلوهات اليومي في لوحة التحكم — وسّعها هنا فقط. */
-export const DAILY_KG_COUNTER_ROLES: readonly string[] = ["general_manager"];
+/**
+ * الأدوار التي ترى عداد الكيلوهات اليومي في لوحة التحكم: كل دور يقرأ كل الأوردرات
+ * وبنودها عبر RLS في coceg-prod (حتى لا تظهر أرقام ناقصة). أدوار تفتح اللوحة بدون
+ * قراءة الأوردرات (financial_manager, production_manager, quality_manager…) لا تراه.
+ */
+export const DAILY_KG_COUNTER_ROLES: readonly string[] = [
+  "general_manager", "executive_manager", "sales_manager", "marketing_sales_manager",
+  "accountant", "warehouse_supervisor", "marketing_sales_viewer", "social_media_manager",
+];
 export const canSeeDailyKgCounter = (roles: readonly string[] | null | undefined) =>
   !!roles?.some((r) => DAILY_KG_COUNTER_ROLES.includes(r));
 
