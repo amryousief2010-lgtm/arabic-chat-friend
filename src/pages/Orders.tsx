@@ -85,6 +85,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchReviewedOrderIdsForUser, mergeFetchedReviewMarks } from "@/lib/fetchReviewedOrderIds";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
@@ -401,24 +402,68 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     });
   }, []);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
+  // Marks are loaded only for orders already in the list. One unpaged
+  // user-wide query is truncated by PostgREST at 1,000 rows.
+  const reviewedFetchStartedRef = useRef<Set<string>>(new Set());
+  const reviewWriteSeqRef = useRef<Map<string, number>>(new Map());
+  const pendingReviewWritesRef = useRef<Map<string, number>>(new Map());
+  const reviewOpSeqRef = useRef(0);
+  const reviewUserIdRef = useRef<string | null>(null);
+  const reviewMountedRef = useRef(true);
 
   useEffect(() => {
-    if (!user?.id) return;
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await supabase
-        .from('order_review_status')
-        .select('order_id, is_reviewed')
-        .eq('user_id', user.id)
-        .eq('is_reviewed', true);
-      if (cancelled || error) return;
-      setReviewedIds(new Set((data || []).map((r: any) => r.order_id)));
+    reviewMountedRef.current = true;
+    return () => {
+      reviewMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const userId = user?.id ?? null;
+    if (reviewUserIdRef.current !== userId) {
+      reviewUserIdRef.current = userId;
+      reviewedFetchStartedRef.current = new Set();
+      reviewWriteSeqRef.current = new Map();
+      pendingReviewWritesRef.current = new Map();
+      reviewOpSeqRef.current = 0;
+      setReviewedIds(new Set());
+    }
+    if (!userId) return;
+
+    const seen = reviewedFetchStartedRef.current;
+    const pending: string[] = [];
+    for (const order of orders) {
+      if (!order.id || seen.has(order.id)) continue;
+      seen.add(order.id);
+      pending.push(order.id);
+    }
+    if (pending.length === 0) return;
+
+    const startSeq = reviewOpSeqRef.current;
+    const userAtStart = userId;
+    void (async () => {
+      try {
+        const reviewed = await fetchReviewedOrderIdsForUser(userId, pending);
+        if (!reviewMountedRef.current || reviewUserIdRef.current !== userAtStart) return;
+        setReviewedIds((prev) =>
+          mergeFetchedReviewMarks(prev, pending, reviewed, {
+            localWriteSeq: reviewWriteSeqRef.current,
+            fetchStartSeq: startSeq,
+            pendingIds: new Set(pendingReviewWritesRef.current.keys()),
+          }),
+        );
+      } catch {
+        if (!reviewMountedRef.current || reviewUserIdRef.current !== userAtStart) return;
+        for (const id of pending) seen.delete(id);
+      }
     })();
-    return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [user?.id, orders]);
 
   const toggleReviewed = async (orderId: string, next: boolean) => {
     if (!user?.id) return;
+    const seq = ++reviewOpSeqRef.current;
+    pendingReviewWritesRef.current.set(orderId, seq);
+    reviewWriteSeqRef.current.set(orderId, seq);
     setReviewedIds(prev => {
       const n = new Set(prev);
       next ? n.add(orderId) : n.delete(orderId);
@@ -430,14 +475,20 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         { order_id: orderId, user_id: user.id, is_reviewed: next, reviewed_at: next ? new Date().toISOString() : null },
         { onConflict: 'order_id,user_id' }
       );
+    if (pendingReviewWritesRef.current.get(orderId) !== seq) return;
+    pendingReviewWritesRef.current.delete(orderId);
     if (error) {
       toast.error('تعذر حفظ حالة المراجعة');
+      reviewWriteSeqRef.current.delete(orderId);
       setReviewedIds(prev => {
         const n = new Set(prev);
         next ? n.delete(orderId) : n.add(orderId);
         return n;
       });
+      return;
     }
+    // Any fetch that started before this write was stored must not flip the circle back.
+    reviewWriteSeqRef.current.set(orderId, ++reviewOpSeqRef.current);
   };
   const [approvedEditOrderIds, setApprovedEditOrderIds] = useState<Set<string>>(new Set());
   const [pendingEditOrderIds, setPendingEditOrderIds] = useState<Set<string>>(new Set());
