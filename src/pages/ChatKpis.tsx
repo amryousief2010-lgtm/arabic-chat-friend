@@ -10,6 +10,7 @@ import { formatMoney, formatPct } from "@/lib/chatManagement/kpiMetrics";
 import ChatAnalysisSection from "@/components/chatManagement/ChatAnalysisSection";
 import AdFunnelSection from "@/components/chatManagement/AdFunnelSection";
 import { firstOfMonth } from "@/lib/chatManagement/adFunnel";
+import { useCmKpiViewerMode } from "@/hooks/useCmKpiViewerMode";
 
 const db = supabase as any;
 interface ModRow { moderator_id: string; display_name: string; conversations: number; on_time: number; cover: number; late: number; pending: number;
@@ -30,13 +31,15 @@ export default function ChatKpis() {
   const [mods, setMods] = useState<ModRow[]>([]);
   const [camps, setCamps] = useState<CampRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const { ready, viewerOnly } = useCmKpiViewerMode();
 
   const load = useCallback(async () => {
+    if (!ready) return;
     if (from > to) { toast.error("تاريخ البداية بعد النهاية"); return; }
     setLoading(true);
     const [m, c] = await Promise.all([
-      db.rpc("cm_kpi_by_moderator", { _from: from, _to: to }),
-      db.rpc("cm_kpi_by_campaign", { _from: from, _to: to }),
+      db.rpc(viewerOnly ? "cm_kpiv_by_moderator" : "cm_kpi_by_moderator", { _from: from, _to: to }),
+      db.rpc(viewerOnly ? "cm_kpiv_by_campaign" : "cm_kpi_by_campaign", { _from: from, _to: to }),
     ]);
     if (m.error || c.error) {
       const e = m.error ?? c.error;
@@ -49,7 +52,7 @@ export default function ChatKpis() {
         : "تعذّر تحميل المؤشرات بسبب خطأ في الخادم. أعد المحاولة بعد قليل.");
     }
     setMods(m.data ?? []); setCamps(c.data ?? []); setLoading(false);
-  }, [from, to]);
+  }, [from, to, ready, viewerOnly]);
   useEffect(() => { load(); }, [load]);
 
   const conv = sum(mods, "conversations");
@@ -84,7 +87,7 @@ export default function ChatKpis() {
             </CardContent></Card>))}
         </div>
 
-        <AdFunnelSection from={from} to={to} />
+        {ready && <AdFunnelSection from={from} to={to} viewerOnly={viewerOnly} />}
 
         <Card><CardHeader><CardTitle>حسب المودريتور</CardTitle>
           <CardDescription>تكلفة المودريتور = إنفاق كل حملة موزَّع بنسبة محادثاتها منها ÷ طلباتها المُسلَّمة من الحملات</CardDescription></CardHeader>
@@ -116,7 +119,7 @@ export default function ChatKpis() {
               </tr>))}
               {!camps.length && !loading && <tr><td colSpan={9} className="p-4 text-center text-muted-foreground">لا بيانات في هذه الفترة</td></tr>}
             </tbody></table></div></CardContent></Card>
-        <ChatAnalysisSection from={from} to={to} />
+        {ready && !viewerOnly && <ChatAnalysisSection from={from} to={to} />}
       </div>
     </DashboardLayout>
   );

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import TodayOrderedKgCard from "@/components/sales/TodayOrderedKgCard";
 import { useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
@@ -267,6 +268,7 @@ const ModeratorPerformance = () => {
           </Button>
         </div>
       </div>
+      <div className="mb-6"><TodayOrderedKgCard /></div>
 
       {showComparison && (
         <div className="mb-8">

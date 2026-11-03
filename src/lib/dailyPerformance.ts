@@ -1,4 +1,5 @@
 import { fillModeratorFromCreator } from "@/lib/creatorNameFallback";
+import { customersEmbed } from "@/lib/customersSource";
 /**
  * Daily Sales Performance Analysis — read-only analytics helpers.
  *
@@ -126,7 +127,7 @@ export async function fetchDayOrders(cairoDate: string): Promise<OrderRow[]> {
       `id, order_number, total, status, payment_method, payment_status,
        source, shipping_company, moderator, created_by, customer_id, created_at,
        fulfillment_type, collection_status, delivered_at,
-       customer:customers ( id, name, governorate, city, created_at ),
+       ${customersEmbed("customer", "id, name, governorate, city, created_at")},
        items:order_items ( product_name, quantity, unit_price, total_price )`,
     )
     .gte("created_at", startUTC.toISOString())

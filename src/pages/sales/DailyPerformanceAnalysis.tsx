@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import TodayOrderedKgCard from "@/components/sales/TodayOrderedKgCard";
 import { useQuery } from "@tanstack/react-query";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -410,6 +411,8 @@ export default function DailyPerformanceAnalysis() {
           </Button>
         </div>
       </div>
+
+      <TodayOrderedKgCard />
 
       <Card>
         <CardContent className="p-4 flex flex-wrap items-end gap-4">

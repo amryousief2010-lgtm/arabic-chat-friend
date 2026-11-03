@@ -68,7 +68,7 @@ import { useMandatoryMessages } from "@/hooks/useMandatoryMessages";
 import { findModeratorByName } from "@/constants/moderators";
 import { CALLER_LOOKUP_PATH, CALLER_LOOKUP_ROLES } from "@/constants/callerLookup";
 import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, CHAT_MANAGEMENT_SECTION_ROLES, CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES, CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES } from "@/config/chatManagement";
-import { cmGateAllows, isChatManagementPath } from "@/config/chatManagement";
+import { cmGateAllows, isChatManagementPath, isCmKpiViewerPath } from "@/config/chatManagement";
 import { useCmFeatureGate } from "@/hooks/useCmFeatureGate";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -458,7 +458,7 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
-  const { mode: cmMode, loading: cmGateLoading, allowed: cmAllowed } = useCmFeatureGate(!!user);
+  const { mode: cmMode, loading: cmGateLoading, allowed: cmAllowed, kpiViewer: cmKpiViewer } = useCmFeatureGate(!!user);
   const cmVisible = !cmGateLoading && (cmAllowed ?? cmGateAllows(userRoles, cmMode));
 
   // في صفحات «إدارة المحادثات»: مرّر القائمة حتى يظهر الرابط النشط (روابط القسم كانت تقع أسفل حافة الشاشة).
@@ -536,7 +536,8 @@ export const SidebarMenuSections = ({ onItemClick }: SidebarMenuProps) => {
       ...section,
       items: section.items.filter((item) => {
         if (!hasAnyRole(item.roles)) return false;
-        if ((isChatManagementPath(item.path) || section.id === 'chat-management') && !cmVisible) return false;
+        if ((isChatManagementPath(item.path) || section.id === 'chat-management') && !cmVisible
+          && !(cmKpiViewer && !cmGateLoading && isCmKpiViewerPath(item.path))) return false;
         if (isMarketingOnly && !isPathAllowedForMarketingOnly(item.path)) return false;
         // مراجعة أوردرات هاجر: تظهر لنورا فقط (قراءة فقط)
         if (item.path === '/hagar-orders-review') {

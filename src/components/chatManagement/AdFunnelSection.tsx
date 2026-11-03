@@ -12,14 +12,14 @@ const th = (i: number) => `p-2 text-right whitespace-nowrap ${i === 0 ? "sticky 
 const td0 = "sticky right-0 z-10 shadow-[-6px_0_8px_-6px_rgba(102,45,140,0.25)] bg-card p-2 font-medium whitespace-nowrap";
 
 /** قمع الإعلانات لكل مودريتور ولكل إعلان. الإنفاق ← الخط عبر cm_campaign_line_map ← مالكة الخط. */
-export default function AdFunnelSection({ from, to }: { from: string; to: string }) {
+export default function AdFunnelSection({ from, to, viewerOnly = false }: { from: string; to: string; viewerOnly?: boolean }) {
   const [d, setD] = useState<FunnelData | null>(null);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
     let live = true; setErr(null);
-    loadFunnelData(from, to).then((x) => live && setD(x)).catch((e) => { console.error("ad funnel load failed", e); live && setErr("تعذّر تحميل قمع الإعلانات. أعد المحاولة بعد قليل."); });
+    loadFunnelData(from, to, viewerOnly).then((x) => live && setD(x)).catch((e) => { console.error("ad funnel load failed", e); live && setErr("تعذّر تحميل قمع الإعلانات. أعد المحاولة بعد قليل."); });
     return () => { live = false; };
-  }, [from, to]);
+  }, [from, to, viewerOnly]);
 
   const mods = useMemo(() => d ? funnelByModerator({ ...d, moderatorName: (id) => d.moderators.find((m) => m.id === id)?.display_name ?? "—" }) : [], [d]);
   const ads = useMemo(() => d ? funnelByAd(d) : [], [d]);

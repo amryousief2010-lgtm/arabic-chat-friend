@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { customersEmbed, customersTable } from "@/lib/customersSource";
 import { supabase } from "@/integrations/supabase/client";
 import { useMemo } from "react";
 import {
@@ -85,7 +86,7 @@ export const useReportsData = (period: ReportPeriod) => {
     queryKey: ["reports-customers", from, to],
     queryFn: async () => {
       const { count, error } = await supabase
-        .from("customers")
+        .from(customersTable() as "customers")
         .select("id", { count: "exact", head: true });
       if (error) throw error;
       return count || 0;

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import TodayOrderedKgCard from "@/components/sales/TodayOrderedKgCard";
 import { cairoMonthStartUTC, cairoYearStartUTC, currentCairoYearMonth, toCairoDateString } from '@/lib/cairoDate';
 import { isSalesNetOrder, SALES_NET_LABEL_AR, sumSalesNet } from '@/lib/orderSalesFilters';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -473,6 +474,7 @@ const TeamPerformance = () => {
   return (
     <DashboardLayout>
       <Header title="أداء الفريق" subtitle={`متابعة أداء فريق المبيعات — ${SALES_NET_LABEL_AR}`} />
+      <div className="mb-6"><TodayOrderedKgCard /></div>
 
       {/* Controls */}
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">

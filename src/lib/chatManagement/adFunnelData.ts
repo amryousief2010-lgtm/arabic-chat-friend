@@ -19,7 +19,17 @@ export interface FunnelData { spend: FSpend[]; campaigns: FCampaign[]; maps: FLi
   ads: FAd[]; moderators: { id: string; display_name: string }[] }
 
 /** قراءة فقط عبر الجداول والـ views الحالية (تحت بوابة المدير العام نفسها). kpi_date بتوقيت الإعدادات (القاهرة). */
-export async function loadFunnelData(from: string, to: string): Promise<FunnelData> {
+/** «عارض المؤشرات» (بدون بوابة القسم الكاملة): نفس البيانات عبر cm_kpiv_funnel_data (معرّفات وتجميعات فقط). */
+export async function loadFunnelDataViewer(from: string, to: string): Promise<FunnelData & { recent: any[] }> {
+  const { data, error } = await db.rpc("cm_kpiv_funnel_data", { _from: from, _to: to });
+  if (error) throw error;
+  const d = data ?? {};
+  return { spend: d.spend ?? [], campaigns: d.campaigns ?? [], maps: d.maps ?? [], lines: d.lines ?? [], convs: d.convs ?? [],
+    orders: d.orders ?? [], ads: d.ads ?? [], moderators: d.moderators ?? [], recent: d.recent ?? [] };
+}
+
+export async function loadFunnelData(from: string, to: string, viewerOnly = false): Promise<FunnelData> {
+  if (viewerOnly) return loadFunnelDataViewer(from, to);
   const [spend, campaigns, maps, lines, convs, orders, ads, moderators] = await Promise.all([
     all<FSpend>(() => db.from("cm_ad_spend_daily").select("campaign_id,spend_date,spend,impressions,clicks").gte("spend_date", from).lte("spend_date", to).order("spend_date")),
     all<FCampaign>(() => db.from("cm_campaigns").select("id,name,meta_campaign_id,product_tag").order("id")),

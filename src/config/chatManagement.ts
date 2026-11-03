@@ -75,6 +75,10 @@ export type CmAccessMode = "general_manager_only" | "roles";
 export const CM_GATE_DEFAULT_MODE: CmAccessMode = "general_manager_only";
 export const CM_GATE_OWNER_ROLE: AppRole = "general_manager";
 export const CHAT_MANAGEMENT_PATH_PREFIX = "/chat-management";
+/** الصفحتان المسموحتان لبوابة «عارض المؤشرات» الضيقة (cm_kpi_viewer_allowlist) — قراءة فقط. */
+export const CM_KPI_VIEWER_PATHS = [CHAT_KPIS_PATH, CHAT_AD_SPEND_PATH] as const;
+export const isCmKpiViewerPath = (path: string) => (CM_KPI_VIEWER_PATHS as readonly string[]).includes(path.replace(/\/+$/, ""));
+
 export const isChatManagementPath = (path: string) =>
   path === CHAT_MANAGEMENT_PATH_PREFIX || path.startsWith(CHAT_MANAGEMENT_PATH_PREFIX + "/");
 /** هل تسمح البوابة لهذا المستخدم بالقسم أصلاً؟ (قبل مصفوفة الأدوار) */

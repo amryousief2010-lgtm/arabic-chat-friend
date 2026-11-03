@@ -51,8 +51,10 @@ export const MARKETING_ONLY_EXTRA_PREFIXES: string[] = [
   "/team-performance",
   "/moderator-performance",
   "/caller-lookup",
-  // إدارة المحادثات: قراءة فقط لمدير التسويق والمبيعات (التعديل لمديرة المبيعات/المدير العام).
-  "/chat-management",
+  // إدارة المحادثات: «مؤشرات الأداء» و«الإنفاق الإعلاني اليومي» فقط (بوابة cm_kpi_viewer_allowlist، قراءة فقط).
+  // المحادثات والرسائل والمكالمات تبقى مغلقة.
+  "/chat-management/kpis",
+  "/chat-management/ad-spend",
 ];
 
 

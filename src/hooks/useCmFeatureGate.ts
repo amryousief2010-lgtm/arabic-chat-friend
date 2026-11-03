@@ -39,9 +39,11 @@ export const resetCmGateCache = () => { cached = null; inflight = null; };
  * `allowed`: نتيجة cm_gate_allows() من القاعدة (GM + قائمة الاستثناء cm_feature_gate_allowlist + وضع roles).
  * null ⇒ خطأ في الاستدعاء؛ المستدعي يرجع للفحص القديم (GM/الوضع) — fail closed.
  */
-export function useCmFeatureGate(enabled = true): { mode: CmAccessMode; loading: boolean; allowed: boolean | null } {
+export function useCmFeatureGate(enabled = true): { mode: CmAccessMode; loading: boolean; allowed: boolean | null; kpiViewer: boolean } {
   const [mode, setMode] = useState<CmAccessMode | null>(cached);
   const [allowed, setAllowed] = useState<boolean | null>(null);
+  // بوابة ضيقة منفصلة: «مؤشرات الأداء» + «الإنفاق الإعلاني اليومي» فقط (cm_kpi_viewer_allowlist). أي خطأ ⇒ false.
+  const [kpiViewer, setKpiViewer] = useState(false);
   const [rpcDone, setRpcDone] = useState(false);
   useEffect(() => {
     if (!enabled) return;
@@ -51,8 +53,12 @@ export function useCmFeatureGate(enabled = true): { mode: CmAccessMode; loading:
     setRpcDone(false);
     (async () => {
       try {
-        const { data, error } = await (supabase as any).rpc("cm_gate_allows");
-        if (alive) setAllowed(!error && typeof data === "boolean" ? data : null);
+        const [g, v] = await Promise.all([
+          (supabase as any).rpc("cm_gate_allows"),
+          (supabase as any).rpc("cm_kpi_viewer_allows").then((r: any) => r, () => ({ data: false, error: true })),
+        ]);
+        if (alive) setAllowed(!g.error && typeof g.data === "boolean" ? g.data : null);
+        if (alive) setKpiViewer(!v.error && v.data === true);
       } catch {
         if (alive) setAllowed(null);
       } finally {
@@ -61,5 +67,5 @@ export function useCmFeatureGate(enabled = true): { mode: CmAccessMode; loading:
     })();
     return () => { alive = false; listeners.delete(setMode); };
   }, [enabled, mode]);
-  return { mode: mode ?? CM_GATE_DEFAULT_MODE, loading: enabled && (mode === null || !rpcDone), allowed };
+  return { mode: mode ?? CM_GATE_DEFAULT_MODE, loading: enabled && (mode === null || !rpcDone), allowed, kpiViewer };
 }

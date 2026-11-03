@@ -6,7 +6,7 @@ import { CALLER_LOOKUP_PATH } from '@/constants/callerLookup';
 import { toast } from 'sonner';
 import ForcePasswordChange from '@/components/ForcePasswordChange';
 import { mustChangePassword } from '@/lib/mustChangePassword';
-import { cmGateAllows, isChatManagementPath } from '@/config/chatManagement';
+import { cmGateAllows, isChatManagementPath, isCmKpiViewerPath } from '@/config/chatManagement';
 import { useCmFeatureGate } from '@/hooks/useCmFeatureGate';
 
 interface ProtectedRouteProps {
@@ -89,8 +89,9 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const effectiveRoles = roles ?? (role ? [role] : []);
   // بوابة «إدارة المحادثات»: في وضع general_manager_only لا يدخل القسم إلا المدير العام (رابط مباشر ⇒ /unauthorized).
   const isCmPath = isChatManagementPath(location.pathname);
-  const { mode: cmMode, loading: cmGateLoading, allowed: cmAllowed } = useCmFeatureGate(isCmPath && !!user);
-  const isCmGateDenied = isCmPath && !cmGateLoading && !(cmAllowed ?? cmGateAllows(effectiveRoles, cmMode));
+  const { mode: cmMode, loading: cmGateLoading, allowed: cmAllowed, kpiViewer: cmKpiViewer } = useCmFeatureGate(isCmPath && !!user);
+  const isCmGateDenied = isCmPath && !cmGateLoading && !(cmAllowed ?? cmGateAllows(effectiveRoles, cmMode))
+    && !(cmKpiViewer && isCmKpiViewerPath(location.pathname));
 
   // Users whose ONLY role is marketing_sales_manager get a strict read-only
   // marketing scope. Users who also hold sales_manager (or any other role)

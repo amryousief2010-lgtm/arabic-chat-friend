@@ -39,7 +39,7 @@ describe("chat management route access (roles mode = old matrix)", () => {
 
   it.each([
     [["sales_manager"]], [["marketing_sales_manager", "sales_manager"]], [["general_manager"]],
-    [["executive_manager"]], [["marketing_sales_manager"]],
+    [["executive_manager"]],
     [["marketing_sales_viewer"]], [["social_media_manager"]],
   ])("allows %j", async (roles) => {
     currentRoles = roles;
@@ -47,6 +47,18 @@ describe("chat management route access (roles mode = old matrix)", () => {
       cleanup();
       renderAt(p);
       await waitFor(() => expect(screen.getByTestId("page")).toBeInTheDocument());
+    }
+  });
+
+  it("marketing_sales_manager alone: only KPIs + ad-spend, not shifts/settings", async () => {
+    currentRoles = ["marketing_sales_manager"];
+    for (const [p, roles] of [[CHAT_KPIS_PATH, CHAT_KPIS_ROLES], [CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES]] as const) {
+      cleanup(); renderAt(p, roles);
+      await waitFor(() => expect(screen.getByTestId("page")).toBeInTheDocument());
+    }
+    for (const p of [CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH]) {
+      cleanup(); renderAt(p);
+      await waitFor(() => expect(screen.getByTestId("redirected")).toBeInTheDocument());
     }
   });
 

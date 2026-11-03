@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { customersEmbed, customersTable } from "@/lib/customersSource";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -47,7 +48,7 @@ const CustomerWeightReport = () => {
       const toTs = `${to}T23:59:59`;
       const { data: orders, error: oErr } = await supabase
         .from("orders")
-        .select("id, customer_id, total, status, created_at, customers(name)")
+        .select(`id, customer_id, total, status, created_at, ${customersEmbed("customers", "name")}`)
         .gte("created_at", fromTs)
         .lte("created_at", toTs)
         .neq("status", "cancelled");

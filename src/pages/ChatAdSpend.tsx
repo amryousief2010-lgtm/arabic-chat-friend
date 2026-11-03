@@ -12,6 +12,8 @@ import { CsvImportCard } from "@/components/chatManagement/CsvImportCard";
 import { mapSpend, type SpendRow } from "@/lib/chatManagement/csvImport";
 import { formatMoney } from "@/lib/chatManagement/kpiMetrics";
 import AdSpendSummary from "@/components/chatManagement/AdSpendSummary";
+import { useCmKpiViewerMode } from "@/hooks/useCmKpiViewerMode";
+import { loadFunnelDataViewer } from "@/lib/chatManagement/adFunnelData";
 
 const db = supabase as any;
 interface Campaign { id: string; name: string }
@@ -21,7 +23,8 @@ const today = () => new Date().toISOString().slice(0, 10);
 /** الإنفاق الإعلاني اليومي: إدخال يدوي أو CSV (حتى يُفعَّل ربط Marketing API بعد توثيق ميتا). إعادة الإدخال لنفس الحملة واليوم تُحدِّث القيمة. */
 export default function ChatAdSpend() {
   const { roles } = useAuth() as { roles?: string[] };
-  const canWrite = canWriteAdSpend(roles); // EM: عرض فقط
+  const { ready, viewerOnly } = useCmKpiViewerMode();
+  const canWrite = !viewerOnly && canWriteAdSpend(roles); // EM / عارض المؤشرات: عرض فقط
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [rows, setRows] = useState<Spend[]>([]);
   const [form, setForm] = useState({ campaign_id: "", spend_date: today(), spend: "", impressions: "", clicks: "" });
@@ -29,13 +32,22 @@ export default function ChatAdSpend() {
   const [reloadKey, setReloadKey] = useState(0);
 
   const load = useCallback(async () => {
+    if (!ready) return;
+    if (viewerOnly) {
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const d = await loadFunnelDataViewer(today, today);
+        setCampaigns(d.campaigns.map((c: any) => ({ id: c.id, name: c.name }))); setRows(d.recent as Spend[]);
+      } catch (e: any) { toast.error(`تعذّر التحميل: ${e?.message ?? ""}`); }
+      setReloadKey((k) => k + 1); return;
+    }
     const [c, s] = await Promise.all([
       db.from("cm_campaigns").select("id,name").order("name"),
       db.from("cm_ad_spend_daily").select("id,campaign_id,spend_date,spend,currency,impressions,clicks,source").order("spend_date", { ascending: false }).limit(200),
     ]);
     if (c.error || s.error) toast.error(`تعذّر التحميل: ${(c.error ?? s.error).message}`);
     setCampaigns(c.data ?? []); setRows(s.data ?? []); setReloadKey((k) => k + 1);
-  }, []);
+  }, [ready, viewerOnly]);
   useEffect(() => { load(); }, [load]);
   const cname = (id: string) => campaigns.find((c) => c.id === id)?.name ?? "—";
 
@@ -59,7 +71,7 @@ export default function ChatAdSpend() {
     <DashboardLayout>
       <div dir="rtl" className="space-y-4">
         <Header title="الإنفاق الإعلاني اليومي" subtitle="إدخال يدوي أو استيراد CSV — الربط التلقائي مع ميتا يُفعَّل بعد اكتمال توثيق النشاط التجاري" />
-        <AdSpendSummary reloadKey={reloadKey} />
+        {ready && <AdSpendSummary reloadKey={reloadKey} viewerOnly={viewerOnly} />}
         {!canWrite && <p role="note" className="rounded border border-[#662D8C]/30 bg-[#662D8C]/5 p-2 text-sm">عرض فقط — الإدخال والاستيراد لمدير التسويق والمبيعات ومدير المبيعات والمدير العام.</p>}
         {canWrite && <>
         <Card><CardHeader><CardTitle>إدخال يوم</CardTitle><CardDescription>نفس الحملة ونفس اليوم = تحديث القيمة وليس تكراراً</CardDescription></CardHeader>

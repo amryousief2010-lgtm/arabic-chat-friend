@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { loadFunnelDataViewer } from "@/lib/chatManagement/adFunnelData";
 import { formatMoney } from "@/lib/chatManagement/kpiMetrics";
 import { firstOfMonth, lineForSpend, safeDiv, spendByDay, type FCampaign, type FLine, type FLineMap, type FSpend } from "@/lib/chatManagement/adFunnel";
 
@@ -11,7 +12,7 @@ const n = (v: number | null) => (v == null ? "—" : v.toLocaleString("en-US"));
 const th = "p-2 text-right whitespace-nowrap";
 
 /** ملخّص الإنفاق الإعلاني اليومي (قراءة فقط) من أول الشهر: حسب اليوم وحسب الحملة مع الخط والمودريتور. */
-export default function AdSpendSummary({ reloadKey }: { reloadKey?: number }) {
+export default function AdSpendSummary({ reloadKey, viewerOnly = false }: { reloadKey?: number; viewerOnly?: boolean }) {
   const [from, setFrom] = useState(firstOfMonth());
   const [to, setTo] = useState(iso(new Date()));
   const [spend, setSpend] = useState<FSpend[]>([]);
@@ -23,6 +24,13 @@ export default function AdSpendSummary({ reloadKey }: { reloadKey?: number }) {
 
   useEffect(() => {
     let live = true;
+    if (viewerOnly) {
+      loadFunnelDataViewer(from, to).then((d) => {
+        if (!live) return;
+        setErr(null); setSpend(d.spend); setCamps(d.campaigns); setMaps(d.maps); setLines(d.lines); setMods(d.moderators);
+      }).catch(() => live && setErr("تعذّر تحميل ملخّص الإنفاق. أعد المحاولة بعد قليل."));
+      return () => { live = false; };
+    }
     Promise.all([
       db.from("cm_ad_spend_daily").select("campaign_id,spend_date,spend,impressions,clicks").gte("spend_date", from).lte("spend_date", to).order("spend_date").limit(5000),
       db.from("cm_campaigns").select("id,name,meta_campaign_id,product_tag"),
@@ -36,7 +44,7 @@ export default function AdSpendSummary({ reloadKey }: { reloadKey?: number }) {
       setSpend(s.data ?? []); setCamps(c.data ?? []); setMaps(m.data ?? []); setLines(l.data ?? []); setMods(o.data ?? []);
     });
     return () => { live = false; };
-  }, [from, to, reloadKey]);
+  }, [from, to, reloadKey, viewerOnly]);
 
   const days = useMemo(() => spendByDay(spend), [spend]);
   const byCamp = useMemo(() => {
