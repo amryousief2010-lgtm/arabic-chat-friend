@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney, formatPct } from "@/lib/chatManagement/kpiMetrics";
 import ChatAnalysisSection from "@/components/chatManagement/ChatAnalysisSection";
+import AdFunnelSection from "@/components/chatManagement/AdFunnelSection";
+import { firstOfMonth } from "@/lib/chatManagement/adFunnel";
 
 const db = supabase as any;
 interface ModRow { moderator_id: string; display_name: string; conversations: number; on_time: number; cover: number; late: number; pending: number;
@@ -23,7 +25,7 @@ const sum = <T,>(l: T[], k: keyof T) => l.reduce((a, r) => a + Number(r[k] ?? 0)
 
 /** «مؤشرات الأداء»: تُحسب لحظياً من قاعدة البيانات (الإلغاء بأثر رجعي ينعكس فوراً). */
 export default function ChatKpis() {
-  const [from, setFrom] = useState(daysAgo(6));
+  const [from, setFrom] = useState(firstOfMonth());
   const [to, setTo] = useState(iso(new Date()));
   const [mods, setMods] = useState<ModRow[]>([]);
   const [camps, setCamps] = useState<CampRow[]>([]);
@@ -69,7 +71,8 @@ export default function ChatKpis() {
         <Card><CardContent className="flex flex-wrap items-end gap-3 pt-6">
           <label className="text-sm">من<Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-44" /></label>
           <label className="text-sm">إلى<Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-44" /></label>
-          {[["اليوم", 0], ["7 أيام", 6], ["30 يوم", 29]].map(([l, n]) => (
+          <Button variant="outline" size="sm" onClick={() => { setFrom(firstOfMonth()); setTo(iso(new Date())); }}>هذا الشهر</Button>
+          {[["اليوم", 0], ["7 أيام", 6], ["30 يومًا", 29]].map(([l, n]) => (
             <Button key={l as string} variant="outline" size="sm" onClick={() => { setFrom(daysAgo(n as number)); setTo(iso(new Date())); }}>{l}</Button>))}
           <span className="text-xs text-muted-foreground">{loading ? "جارٍ التحميل…" : ""}</span>
         </CardContent></Card>
@@ -80,6 +83,8 @@ export default function ChatKpis() {
               <div className="text-xs text-muted-foreground">{t.label}</div><div className="text-2xl font-bold text-[#662D8C]">{t.value}</div>
             </CardContent></Card>))}
         </div>
+
+        <AdFunnelSection from={from} to={to} />
 
         <Card><CardHeader><CardTitle>حسب المودريتور</CardTitle>
           <CardDescription>تكلفة المودريتور = إنفاق كل حملة موزَّع بنسبة محادثاتها منها ÷ طلباتها المُسلَّمة من الحملات</CardDescription></CardHeader>

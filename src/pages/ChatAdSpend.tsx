@@ -11,6 +11,7 @@ import { canWriteAdSpend } from "@/config/chatManagement";
 import { CsvImportCard } from "@/components/chatManagement/CsvImportCard";
 import { mapSpend, type SpendRow } from "@/lib/chatManagement/csvImport";
 import { formatMoney } from "@/lib/chatManagement/kpiMetrics";
+import AdSpendSummary from "@/components/chatManagement/AdSpendSummary";
 
 const db = supabase as any;
 interface Campaign { id: string; name: string }
@@ -25,6 +26,7 @@ export default function ChatAdSpend() {
   const [rows, setRows] = useState<Spend[]>([]);
   const [form, setForm] = useState({ campaign_id: "", spend_date: today(), spend: "", impressions: "", clicks: "" });
   const [busy, setBusy] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const load = useCallback(async () => {
     const [c, s] = await Promise.all([
@@ -32,7 +34,7 @@ export default function ChatAdSpend() {
       db.from("cm_ad_spend_daily").select("id,campaign_id,spend_date,spend,currency,impressions,clicks,source").order("spend_date", { ascending: false }).limit(200),
     ]);
     if (c.error || s.error) toast.error(`تعذّر التحميل: ${(c.error ?? s.error).message}`);
-    setCampaigns(c.data ?? []); setRows(s.data ?? []);
+    setCampaigns(c.data ?? []); setRows(s.data ?? []); setReloadKey((k) => k + 1);
   }, []);
   useEffect(() => { load(); }, [load]);
   const cname = (id: string) => campaigns.find((c) => c.id === id)?.name ?? "—";
@@ -57,6 +59,7 @@ export default function ChatAdSpend() {
     <DashboardLayout>
       <div dir="rtl" className="space-y-4">
         <Header title="الإنفاق الإعلاني اليومي" subtitle="إدخال يدوي أو استيراد CSV — الربط التلقائي مع ميتا يُفعَّل بعد اكتمال توثيق النشاط التجاري" />
+        <AdSpendSummary reloadKey={reloadKey} />
         {!canWrite && <p role="note" className="rounded border border-[#662D8C]/30 bg-[#662D8C]/5 p-2 text-sm">عرض فقط — الإدخال والاستيراد لمدير التسويق والمبيعات ومدير المبيعات والمدير العام.</p>}
         {canWrite && <>
         <Card><CardHeader><CardTitle>إدخال يوم</CardTitle><CardDescription>نفس الحملة ونفس اليوم = تحديث القيمة وليس تكراراً</CardDescription></CardHeader>
