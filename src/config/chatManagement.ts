@@ -89,3 +89,8 @@ export const cmGateRoles = <T extends string>(base: readonly T[], mode: CmAccess
   (mode ?? CM_GATE_DEFAULT_MODE) === "roles" ? [...base] : base.filter((r) => r === CM_GATE_OWNER_ROLE);
 /** مفتاح البوابة في صفحة الإعدادات: المدير العام فقط. */
 export const canChangeCmGate = (roles: readonly string[] | null | undefined) => !!roles?.includes(CM_GATE_OWNER_ROLE);
+
+// ───── «لوحة البنات» (قرار م. عمرو 5/11): المدير العام + مديرة المبيعات + المدير التنفيذي فقط ─────
+/** الدخول للقسم نفسه يبقى محكوماً ببوابة cm_gate_allows (GM + cm_feature_gate_allowlist). */
+export const CHAT_BOARD_ROLES: AppRole[] = ["general_manager", "sales_manager", "executive_manager"];
+export const canViewModeratorBoard = (roles: readonly string[] | null | undefined) => hasAny(roles, CHAT_BOARD_ROLES);

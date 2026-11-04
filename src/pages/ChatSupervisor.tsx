@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatConversations } from "@/hooks/useChatConversations";
-import { CHAT_PHONE_REVIEW_PATH, canManageConversations, canReviewPhones } from "@/config/chatManagement";
+import { CHAT_PHONE_REVIEW_PATH, canManageConversations, canReviewPhones, canViewModeratorBoard } from "@/config/chatManagement";
+import ModeratorBoard from "@/components/chatManagement/ModeratorBoard";
 import {
   STATUS_LABELS, adSourceLabel, computeKpis, filterConversations, sortByActivity, type ConversationStatus, type InboxConversation, type InboxFilters,
 } from "@/lib/chatManagement/inbox";
@@ -32,6 +33,8 @@ const NONE = "__none__";
 export default function ChatSupervisor() {
   const { roles } = useAuth() as { roles?: string[] };
   const canManage = canManageConversations(roles);
+  const showBoard = canViewModeratorBoard(roles);
+  const [view, setView] = useState<"board" | "all">(showBoard ? "board" : "all");
   const phoneAccess = phoneAccessFor(roles);
   const { conversations, moderators, lines, campaigns, assignments, settings, loading, error, reload } = useChatConversations();
   const [filters, setFilters] = useState<InboxFilters>({ status: "all", lineId: "all", moderatorId: "all" });
@@ -74,6 +77,13 @@ export default function ChatSupervisor() {
     <DashboardLayout>
       <div dir="rtl" className="space-y-4">
         <Header title="كل المحادثات" subtitle="متابعة المشرفات — الفلاتر والمؤشرات الحية" />
+        {showBoard && (
+          <div className="flex gap-2" role="tablist">
+            <Button size="sm" role="tab" aria-selected={view === "board"} variant={view === "board" ? "default" : "outline"} onClick={() => setView("board")}>لوحة البنات</Button>
+            <Button size="sm" role="tab" aria-selected={view === "all"} variant={view === "all" ? "default" : "outline"} onClick={() => setView("all")}>كل المحادثات</Button>
+          </div>
+        )}
+        {view === "board" && showBoard ? <ModeratorBoard roles={roles} /> : (<>
         <div className="flex flex-wrap gap-2 items-center">
           {!canManage && <Badge variant="secondary">عرض فقط — الإسناد والتغطية لمديرة المبيعات والمدير العام</Badge>}
           {canReviewPhones(roles) && <Button asChild variant="outline" size="sm"><Link to={CHAT_PHONE_REVIEW_PATH}>مراجعة الأرقام ودمج العملاء</Link></Button>}
@@ -160,6 +170,7 @@ export default function ChatSupervisor() {
             )}
           </div>
         </div>
+        </>)}
       </div>
     </DashboardLayout>
   );
