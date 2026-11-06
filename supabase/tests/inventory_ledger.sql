@@ -174,9 +174,15 @@ BEGIN
   SELECT stock INTO v_stock FROM public.inventory_items WHERE id = v_item;
   IF v_stock <> 40 THEN RAISE EXCEPTION 'stocktake stock = %', v_stock; END IF;
 
+  -- Approval at or after 2026-09-30 writes the lock. Do not insert it again.
+  IF NOT EXISTS (
+    SELECT 1 FROM public.warehouse_period_locks
+     WHERE source = 'stocktaking' AND source_id = v_session AND warehouse_id = v_wh
+  ) THEN
+    RAISE EXCEPTION 'stocktake approval did not create the period lock';
+  END IF;
+
   -- Period lock rejects an earlier movement. Override with a reason is allowed for GM.
-  INSERT INTO public.warehouse_period_locks (warehouse_id, locked_until, source, source_id, created_by)
-  VALUES (v_wh, now() - interval '1 hour', 'stocktaking', v_session, v_gm);
   BEGIN
     PERFORM public.post_inventory_movement(
       v_item, 'in', 1, 'manual_in', gen_random_uuid(), '1',

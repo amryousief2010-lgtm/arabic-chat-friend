@@ -239,6 +239,24 @@ AS $$
 $$;
 GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role, postgres;
 
+-- Parent row for the historical allowlist insert. Email is synthetic.
+-- The migration file keeps the real note; this fixture does not copy it.
+INSERT INTO auth.users (id, email, aud, role)
+VALUES
+  (
+    '77b71c5f-cfa8-42bc-85de-ae536a3ec1c1',
+    'allowlist-fixture@example.test',
+    'authenticated',
+    'authenticated'
+  ),
+  (
+    '449e61e4-a7d0-411d-bcae-0841b3d5d982',
+    'kpi-viewer-fixture@example.test',
+    'authenticated',
+    'authenticated'
+  )
+ON CONFLICT (id) DO NOTHING;
+
 -- Hosted Supabase and the CLI create this before any user migration
 -- (supabase/cli CreateMigrationTable: schema + version PK, then statements text[], then name).
 -- Migration 20261001230000 records itself with INSERT (version, name, statements) ON CONFLICT (version).
