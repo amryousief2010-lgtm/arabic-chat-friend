@@ -237,16 +237,16 @@ export const buildModeratorBonusView = (input: {
     : formulaBonus;
   const baseSalary = Number.isFinite(input.baseSalary) ? input.baseSalary : 0;
   const pace = cairoMonthPace(input.now ?? new Date());
-  const reached = [...BONUS_MILESTONES].reverse().find((item) => kg >= item.kg) ?? null;
-  const next = BONUS_MILESTONES.find((item) => kg < item.kg) ?? null;
+  const reached = [...BONUS_MILESTONES].reverse().find((item) => ownKg >= item.kg) ?? null;
+  const next = BONUS_MILESTONES.find((item) => ownKg < item.kg) ?? null;
   const segmentFromKg = next
     ? ([...BONUS_MILESTONES].reverse().find((item) => item.kg < next.kg)?.kg ?? 0)
     : 2000;
   const segmentSpan = next ? next.kg - segmentFromKg : 1;
   const segmentProgress = next
-    ? Math.max(0, Math.min(1, (kg - segmentFromKg) / segmentSpan))
+    ? Math.max(0, Math.min(1, (ownKg - segmentFromKg) / segmentSpan))
     : 1;
-  const kgRemaining = next ? Math.max(0, next.kg - kg) : null;
+  const kgRemaining = next ? Math.max(0, next.kg - ownKg) : null;
   const bonusAtNext = next ? moderatorKgBonus(next.kg) : null;
   const qualified = kg >= RISING_MINIMUM_KG;
   const called = calledName(input.name);
