@@ -8,8 +8,9 @@ import { chunkIds } from "@/lib/paginateQuery";
  * items; Oct page: 715). The screenshot order's 6 lines are inside that
  * page, so this helper must not assume a 100-order page is truncated.
  * Wider reads are over the cap: all November (~2826), pending November
- * (~2222), October (8260), a moderator filter of up to 1000 orders, and a
- * product-filter chunk of 200. An unordered or oldest-first window of 1000
+ * (~2222), October (8260), and a product-filter chunk of 200. The moderator
+ * filter used to stop at 1000 orders; it now pages every match. An unordered
+ * or oldest-first window of 1000
  * then drops newer lines. Pages here are ordered by item id. A failed page
  * rejects the whole call so the caller does not store that failure as an
  * empty item list. Rows the server did not return are left absent.
