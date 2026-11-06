@@ -26,6 +26,8 @@ DECLARE
   v_card uuid;
   v_sell uuid := gen_random_uuid();
   v_session uuid := gen_random_uuid();
+  v_sep_wh uuid := gen_random_uuid();
+  v_sep_item uuid := gen_random_uuid();
   v_msg text;
 BEGIN
   INSERT INTO auth.users (id, email, aud, role) VALUES
@@ -257,19 +259,23 @@ BEGIN
   END;
 
   -- 14. June openings are not the invariant. Sep 30 stocktake is.
+  -- Own warehouse and card, so earlier now() movements on v_can are not in this baseline.
+  INSERT INTO public.warehouses (id, name) VALUES (v_sep_wh, 'مخزن سبتمبر ' || left(v_sep_wh::text, 8));
+  INSERT INTO public.inventory_items (id, warehouse_id, name, unit, stock)
+  VALUES (v_sep_item, v_sep_wh, 'بطاقة سبتمبر', 'كجم', 0);
   PERFORM public.post_inventory_movement(
-    v_can, 'in', 2, 'opening_balance', gen_random_uuid(), 'jun2',
+    v_sep_item, 'in', 2, 'opening_balance', gen_random_uuid(), 'jun2',
     'افتتاح يونيو', NULL, timestamptz '2026-06-02 12:00:00+02', 1, NULL, 'JUN2',
-    'delta', false, v_wh, NULL, 'test', NULL, NULL, 'opening_balance', NULL, NULL, NULL, NULL, NULL
+    'delta', false, v_sep_wh, NULL, 'test', NULL, NULL, 'opening_balance', NULL, NULL, NULL, NULL, NULL
   );
   INSERT INTO public.stocktaking_sessions (id, session_no, warehouse_id, stocktaker_name, status, approved_at)
-  VALUES (v_session, 'ST-' || left(v_session::text, 8), v_wh, 'جرد', 'approved', timestamptz '2026-09-30 10:00:00+03');
+  VALUES (v_session, 'ST-' || left(v_session::text, 8), v_sep_wh, 'جرد', 'approved', timestamptz '2026-09-30 10:00:00+03');
   INSERT INTO public.stocktaking_lines (session_id, item_id, system_qty, actual_qty, reason)
   SELECT v_session, id, stock, stock, 'أساس سبتمبر'
-    FROM public.inventory_items WHERE id = v_can;
+    FROM public.inventory_items WHERE id = v_sep_item;
   IF EXISTS (
     SELECT 1 FROM public.inventory_reconciliation_check(3) c
-     WHERE c.check_code = 'stock_mismatch' AND c.item_id = v_can
+     WHERE c.check_code = 'stock_mismatch' AND c.item_id = v_sep_item
   ) THEN
     RAISE EXCEPTION 'item14 June history changed the September invariant';
   END IF;

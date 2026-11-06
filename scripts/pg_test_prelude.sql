@@ -87,6 +87,14 @@ CREATE TABLE IF NOT EXISTS storage.buckets (
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
+-- Supabase Storage buckets (storage-api): owner, owner_id, avif_autodetection,
+-- file_size_limit bigint, allowed_mime_types text[]. 20261029171000 inserts
+-- file_size_limit; 20261025160000 writes allowed_mime_types when that column exists.
+ALTER TABLE storage.buckets ADD COLUMN IF NOT EXISTS owner uuid;
+ALTER TABLE storage.buckets ADD COLUMN IF NOT EXISTS owner_id text;
+ALTER TABLE storage.buckets ADD COLUMN IF NOT EXISTS avif_autodetection boolean DEFAULT false;
+ALTER TABLE storage.buckets ADD COLUMN IF NOT EXISTS file_size_limit bigint;
+ALTER TABLE storage.buckets ADD COLUMN IF NOT EXISTS allowed_mime_types text[];
 CREATE TABLE IF NOT EXISTS storage.objects (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   bucket_id text,
@@ -230,3 +238,32 @@ AS $$
   )
 $$;
 GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role, postgres;
+
+-- Parent row for the historical allowlist insert. Email is synthetic.
+-- The migration file keeps the real note; this fixture does not copy it.
+INSERT INTO auth.users (id, email, aud, role)
+VALUES
+  (
+    '77b71c5f-cfa8-42bc-85de-ae536a3ec1c1',
+    'allowlist-fixture@example.test',
+    'authenticated',
+    'authenticated'
+  ),
+  (
+    '449e61e4-a7d0-411d-bcae-0841b3d5d982',
+    'kpi-viewer-fixture@example.test',
+    'authenticated',
+    'authenticated'
+  )
+ON CONFLICT (id) DO NOTHING;
+
+-- Hosted Supabase and the CLI create this before any user migration
+-- (supabase/cli CreateMigrationTable: schema + version PK, then statements text[], then name).
+-- Migration 20261001230000 records itself with INSERT (version, name, statements) ON CONFLICT (version).
+-- Plain Postgres used by this harness does not have that catalog, so the replay stops there.
+CREATE SCHEMA IF NOT EXISTS supabase_migrations;
+CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (
+  version text NOT NULL PRIMARY KEY
+);
+ALTER TABLE supabase_migrations.schema_migrations ADD COLUMN IF NOT EXISTS statements text[];
+ALTER TABLE supabase_migrations.schema_migrations ADD COLUMN IF NOT EXISTS name text;

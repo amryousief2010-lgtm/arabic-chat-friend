@@ -226,13 +226,18 @@ BEGIN
   END IF;
 
   PERFORM set_config('request.jwt.claim.sub', v_mod::text, true);
-  UPDATE public.orders
-     SET status = 'confirmed'
-   WHERE order_number = 'WB-STATUS-MANUAL'
-     AND created_by = v_mod;
+  BEGIN
+    UPDATE public.orders
+       SET status = 'confirmed'
+     WHERE order_number = 'WB-STATUS-MANUAL'
+       AND created_by = v_mod;
+    RAISE EXCEPTION 'moderator status update was allowed';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
   SELECT status INTO v_status FROM public.orders WHERE order_number = 'WB-STATUS-MANUAL';
-  IF v_status IS DISTINCT FROM 'confirmed' THEN
-    RAISE EXCEPTION 'moderator status update did not apply (%)', v_status;
+  IF v_status IS DISTINCT FROM 'processing' THEN
+    RAISE EXCEPTION 'moderator status update changed the order (%)', v_status;
   END IF;
 END;
 $$;

@@ -86,6 +86,9 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchReviewedOrderIdsForUser, mergeFetchedReviewMarks } from "@/lib/fetchReviewedOrderIds";
+import { fetchOrderItemsForOrderIds, groupOrderItemsByOrderId } from "@/lib/fetchOrderItemsForOrders";
+import { isStaleOrderFetch, loadMatchingOrdersWithItems } from "@/lib/fetchOrderPages";
+import { itemsFromSearchPayload } from "@/lib/searchOrderItems";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
@@ -887,8 +890,6 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         'collection_method','courier_cash_due','collection_updated_at',
         'vodafone_cash_amount','instapay_amount','free_amount','shipping_bill_no',
       ].join(',');
-      const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg,is_gift';
-
       // الخرائط المساعدة تُبنى بشكل تراكمي حتى يظهر الجدول بسرعة
       const profilesMap: Record<string, string> = {};
       const productsMap: Record<string, string> = {};
@@ -1021,7 +1022,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           if (row.created_by && row.creator_name) profilesMap[row.created_by] = row.creator_name;
           if (row.source_warehouse_id && row.warehouse_name) warehousesMap[row.source_warehouse_id] = row.warehouse_name;
           if (row.route_id && row.route_name) routesMap[row.route_id] = row.route_name;
-          const items = Array.isArray(row.items) ? row.items : [];
+          const items = itemsFromSearchPayload(row.items);
           items.forEach((it: any) => {
             if (it.product_id && it.unit) productsMap[it.product_id] = it.unit;
             if (it.product_name) productNamesSet.add(it.product_name);
@@ -1065,15 +1066,24 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       if (filterProduct !== 'all') {
         const matchedIds = new Set<string>();
         const ITEM_STEP = 1000;
+        let previousItemId: string | null = null;
         for (let p = 0; ; p++) {
           const { data: idRows, error: idErr } = await supabase
             .from('order_items')
-            .select('order_id')
+            .select('id, order_id')
             .eq('product_name', filterProduct)
+            .order('id', { ascending: true })
             .range(p * ITEM_STEP, (p + 1) * ITEM_STEP - 1);
           if (idErr) throw idErr;
-          (idRows || []).forEach((r: any) => r.order_id && matchedIds.add(r.order_id));
-          if (!idRows || idRows.length < ITEM_STEP) break;
+          const pageRows = idRows || [];
+          if (pageRows.length === 0) break;
+          const firstId = pageRows[0]?.id ? String(pageRows[0].id) : "";
+          if (firstId && previousItemId && firstId === previousItemId) {
+            throw new Error('Order item page did not advance');
+          }
+          previousItemId = firstId || previousItemId;
+          pageRows.forEach((r: any) => r.order_id && matchedIds.add(r.order_id));
+          if (pageRows.length < ITEM_STEP) break;
         }
         const allIds = Array.from(matchedIds);
         const CHUNK = 200;
@@ -1095,15 +1105,13 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
             if (ordsErr) throw ordsErr;
             const ords = (ordsData || []) as any[];
             if (ords.length === 0) return { formatted: [] as Order[], items: [] as any[] };
-            const [itemsRes] = await Promise.all([
-              supabase.from('order_items').select(ITEM_COLS).in('order_id', ords.map((o) => o.id)),
+            const orderIds = ords.map((o) => o.id);
+            const [itemsData] = await Promise.all([
+              fetchOrderItemsForOrderIds(orderIds),
               loadLookups(ords, []),
             ]);
-            if (itemsRes.error) throw itemsRes.error;
-            const itemsData = itemsRes.data || [];
             await loadLookups([], itemsData);
-            const byOrder: Record<string, any[]> = {};
-            itemsData.forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
+            const byOrder = groupOrderItemsByOrderId(orderIds, itemsData);
             return { formatted: formatBatch(ords, byOrder), items: itemsData };
           }));
           for (const part of parts) {
@@ -1112,6 +1120,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           }
         }
         acc.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        if (seq !== requestSeq.current) return;
         setOrders(applyStatusOverrides(acc));
         setHasMorePages(false);
         setLoading(false);
@@ -1135,29 +1144,31 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         if (extra && !creatorIds.includes(extra.userId)) creatorIds.push(extra.userId);
         const orParts = aliases.map((a) => `moderator.ilike.%${a}%`);
         if (creatorIds.length > 0) orParts.push(`created_by.in.(${creatorIds.join(',')})`);
-        let q = supabase
-          .from('orders')
-          .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`)
-          .or(orParts.join(','))
-          .order('created_at', { ascending: false })
-          .limit(1000);
-        if (startDate) q = q.gte('created_at', startDate);
-        if (endDate) q = q.lt('created_at', endDate);
-        const { data: modData, error: modErr } = await q;
-        if (modErr) throw modErr;
-        const ords = (modData || []) as any[];
-        const [itemsRes] = await Promise.all([
-          ords.length > 0
-            ? supabase.from('order_items').select(ITEM_COLS).in('order_id', ords.map((o) => o.id))
-            : Promise.resolve({ data: [] as any[], error: null }),
-          loadLookups(ords, []),
-        ]);
-        if (itemsRes.error) throw itemsRes.error;
-        const items = itemsRes.data || [];
-        await loadLookups([], items);
-        const byOrder: Record<string, any[]> = {};
-        items.forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
+        const selectWithRel = `${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`;
+        const loaded = await loadMatchingOrdersWithItems({
+          isStale: () => seq !== requestSeq.current,
+          fetchItems: fetchOrderItemsForOrderIds,
+          fetchOrderPage: async ({ from, to }) => {
+            let q = supabase
+              .from('orders')
+              .select(selectWithRel)
+              .or(orParts.join(','))
+              .order('created_at', { ascending: false })
+              .order('id', { ascending: false })
+              .range(from, to);
+            if (startDate) q = q.gte('created_at', startDate);
+            if (endDate) q = q.lt('created_at', endDate);
+            const { data, error } = await q;
+            return { data: (data as any[] | null) ?? null, error };
+          },
+        });
+        if (isStaleOrderFetch(loaded) || seq !== requestSeq.current) return;
+        const ords = loaded.orders as any[];
+        const items = Object.values(loaded.itemsByOrderId).flat();
+        await loadLookups(ords, items);
+        const byOrder = loaded.itemsByOrderId;
         items.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
+        if (seq !== requestSeq.current) return;
         setOrders(applyStatusOverrides(formatBatch(ords, byOrder)));
         setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
         setHasMorePages(false);
@@ -1176,6 +1187,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           .from('orders')
           .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`)
           .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
           .range(page * ORDERS_PAGE, (page + 1) * ORDERS_PAGE - 1);
         if (startDate) q = q.gte('created_at', startDate);
         if (endDate) q = q.lt('created_at', endDate);
@@ -1184,17 +1196,12 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         const ords = (data || []) as any[];
         if (ords.length === 0) return ords;
         const ids = ords.map((o) => o.id);
-        const [itemsRes] = await Promise.all([
-          supabase.from('order_items').select(ITEM_COLS).in('order_id', ids),
+        const [itemsData] = await Promise.all([
+          fetchOrderItemsForOrderIds(ids),
           loadLookups(ords, []),
         ]);
-        if (itemsRes.error) throw itemsRes.error;
-        const itemsData = itemsRes.data || [];
         await loadLookups([], itemsData);
-        const byOrder: Record<string, any[]> = {};
-        (itemsData || []).forEach((it: any) => {
-          (byOrder[it.order_id] ||= []).push(it);
-        });
+        const byOrder = groupOrderItemsByOrderId(ids, itemsData);
         ords.forEach((o: any) => { o.order_items = byOrder[o.id] || []; });
         return ords;
       };
@@ -1209,6 +1216,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       firstBatch.forEach((o: any) => { itemsByOrder1[o.id] = (o.order_items as any[]) || []; });
       accumulated = formatBatch(firstBatch, itemsByOrder1);
       firstItems.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
+      if (seq !== requestSeq.current) return;
       setOrders(applyStatusOverrides(accumulated));
       setAvailableProducts(Array.from(productNamesSet).sort((a, b) => a.localeCompare(b, 'ar')));
       setLoading(false);
@@ -1244,10 +1252,15 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   // يحمّل كل الطلبات المتبقية ضمن نطاق التاريخ الحالي (مثلاً كل طلبات الشهر) دفعة واحدة عبر التصفح الداخلي.
   const loadMoreOrders = async () => {
     if (loadingMore || !hasMorePages) return;
+    const epoch = requestSeq.current;
     setLoadingMore(true);
     let stillHasMore = true;
     try {
       while (stillHasMore) {
+      if (epoch !== requestSeq.current) {
+        stillHasMore = false;
+        break;
+      }
       const { nextPage, startDate, endDate, pageSize } = paginationRef.current;
       const ORDER_COLS = [
         'id','order_number','customer_id','status','payment_method','payment_status',
@@ -1258,11 +1271,11 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         'collection_method','courier_cash_due','collection_updated_at',
         'vodafone_cash_amount','instapay_amount','free_amount','shipping_bill_no',
       ].join(',');
-      const ITEM_COLS = 'id,order_id,product_id,product_name,quantity,unit_price,total_price,offer_name,is_half_kg,is_gift';
       let q = supabase
         .from('orders')
         .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`)
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .range(nextPage * pageSize, (nextPage + 1) * pageSize - 1);
       if (startDate) q = q.gte('created_at', startDate);
       if (endDate) q = q.lt('created_at', endDate);
@@ -1278,8 +1291,8 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       const newWarehouses = Array.from(new Set(ords.map((o: any) => o.source_warehouse_id).filter(Boolean)));
       const newRoutes = Array.from(new Set(ords.map((o: any) => o.route_id).filter(Boolean)));
       const newCreators = Array.from(new Set(ords.map((o: any) => o.created_by).filter(Boolean)));
-      const [itemsRes, profs, whs, rts] = await Promise.all([
-        supabase.from('order_items').select(ITEM_COLS).in('order_id', ids),
+      const [itemsData, profs, whs, rts] = await Promise.all([
+        fetchOrderItemsForOrderIds(ids),
         newCreators.length
           ? supabase.from('profile_directory').select('id, full_name').in('id', newCreators)
           : Promise.resolve({ data: [] as any[] }),
@@ -1290,9 +1303,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           ? supabase.from('delivery_routes').select('id, name').in('id', newRoutes)
           : Promise.resolve({ data: [] as any[] }),
       ]);
-      const itemsData = itemsRes.data;
-      const byOrder: Record<string, any[]> = {};
-      (itemsData || []).forEach((it: any) => { (byOrder[it.order_id] ||= []).push(it); });
+      const byOrder = groupOrderItemsByOrderId(ids, itemsData);
       ords.forEach((o: any) => { o.order_items = byOrder[o.id] || []; });
       const flatItems = ords.flatMap((o: any) => (o.order_items as any[]).map((it) => ({ ...it, order_id: o.id })));
       const newProducts = Array.from(new Set(flatItems.map((it: any) => it.product_id).filter(Boolean)));
@@ -1356,6 +1367,10 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         collection_updated_at: o.collection_updated_at,
         shipping_bill_no: o.shipping_bill_no,
       }));
+      if (epoch !== requestSeq.current) {
+        stillHasMore = false;
+        break;
+      }
       setOrders((prev) => [...prev, ...appended]);
       paginationRef.current.nextPage = nextPage + 1;
       if (ords.length < pageSize) {

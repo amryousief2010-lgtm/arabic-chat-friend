@@ -225,6 +225,36 @@ describe("Orders list product-owner scenarios", () => {
     expect(bounds.endDate).toBe(cairoYearStartUTC(2027).toISOString());
   });
 
+  it("October while the current month is November stays October of that year", () => {
+    const now = new Date("2026-11-06T15:00:00+02:00");
+    const filterMonth = "10";
+    const operational = hasOrderListOperationalFilters({ month: filterMonth });
+    const effectiveYear = resolveEffectiveOrderListYear({
+      filterYear: ALL_YEARS_VALUE,
+      yearPin: "implicit",
+      operationalFiltersActive: operational,
+      now,
+    });
+    const bounds = resolveOrderListDateBounds({
+      effectiveYear,
+      filterMonth,
+      yearGroup: ALL_YEARS_VALUE,
+      restrictToCurrentMonth: shouldRestrictOrdersToCurrentMonth({
+        hasSearch: false,
+        hasPeriod: false,
+        filterMonth,
+        effectiveYear,
+        yearPin: "implicit",
+        yearGroup: ALL_YEARS_VALUE,
+        isShippingCompany: false,
+      }),
+      now,
+    });
+    expect(effectiveYear).toBe("2026");
+    expect(bounds.startDate).toBe(cairoMonthStartUTC(2026, 9).toISOString());
+    expect(bounds.endDate).toBe(cairoMonthStartUTC(2026, 10).toISOString());
+  });
+
   it("November without choosing year → November of the current year only", () => {
     const { effectiveYear, bounds } = resolve({ month: "11" });
     expect(effectiveYear).toBe("2026");
