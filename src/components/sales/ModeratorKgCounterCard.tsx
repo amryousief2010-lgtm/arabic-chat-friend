@@ -208,11 +208,11 @@ const ModeratorKgCounterCard = ({
           </p>
         )}
         <p style={{ margin: 0, fontSize: 13, lineHeight: 1.618, color: MUTED }}>
-          طريق المصنّعات · <span style={{ fontWeight: 800, color: INK }}><LtrNum value={formatBonusKg(view.kg)} /></span> كجم · بونص <LtrNum value={formatBonusEgp(view.bonus)} /> جنيه
+          طريق المصنّعات · <span style={{ fontWeight: 800, color: INK }}><LtrNum value={formatBonusKg(view.ownKg)} /></span> كجم · بونص <LtrNum value={formatBonusEgp(view.bonus)} /> جنيه
         </p>
       </div>
 
-      <ModeratorRoadRunner kg={view.kg} name={name} userId={userId} avatarUrl={avatarUrl} reduceMotion={reduceMotion} hold={hold} />
+      <ModeratorRoadRunner kg={view.ownKg} name={name} userId={userId} avatarUrl={avatarUrl} reduceMotion={reduceMotion} hold={hold} />
 
       <div style={{ padding: 21, display: 'flex', flexDirection: 'column', gap: 21 }}>
         <UnlockTeaser view={view} />
