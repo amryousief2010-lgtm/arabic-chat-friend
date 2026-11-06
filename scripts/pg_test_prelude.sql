@@ -87,6 +87,14 @@ CREATE TABLE IF NOT EXISTS storage.buckets (
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
+-- Supabase Storage buckets (storage-api): owner, owner_id, avif_autodetection,
+-- file_size_limit bigint, allowed_mime_types text[]. 20261029171000 inserts
+-- file_size_limit; 20261025160000 writes allowed_mime_types when that column exists.
+ALTER TABLE storage.buckets ADD COLUMN IF NOT EXISTS owner uuid;
+ALTER TABLE storage.buckets ADD COLUMN IF NOT EXISTS owner_id text;
+ALTER TABLE storage.buckets ADD COLUMN IF NOT EXISTS avif_autodetection boolean DEFAULT false;
+ALTER TABLE storage.buckets ADD COLUMN IF NOT EXISTS file_size_limit bigint;
+ALTER TABLE storage.buckets ADD COLUMN IF NOT EXISTS allowed_mime_types text[];
 CREATE TABLE IF NOT EXISTS storage.objects (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   bucket_id text,
