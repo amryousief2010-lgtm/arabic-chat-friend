@@ -87,6 +87,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchReviewedOrderIdsForUser, mergeFetchedReviewMarks } from "@/lib/fetchReviewedOrderIds";
 import { fetchOrderItemsForOrderIds, groupOrderItemsByOrderId } from "@/lib/fetchOrderItemsForOrders";
+import { isStaleOrderFetch, loadMatchingOrdersWithItems } from "@/lib/fetchOrderPages";
+import { itemsFromSearchPayload } from "@/lib/searchOrderItems";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
@@ -1020,7 +1022,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           if (row.created_by && row.creator_name) profilesMap[row.created_by] = row.creator_name;
           if (row.source_warehouse_id && row.warehouse_name) warehousesMap[row.source_warehouse_id] = row.warehouse_name;
           if (row.route_id && row.route_name) routesMap[row.route_id] = row.route_name;
-          const items = Array.isArray(row.items) ? row.items : [];
+          const items = itemsFromSearchPayload(row.items);
           items.forEach((it: any) => {
             if (it.product_id && it.unit) productsMap[it.product_id] = it.unit;
             if (it.product_name) productNamesSet.add(it.product_name);
@@ -1142,24 +1144,29 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         if (extra && !creatorIds.includes(extra.userId)) creatorIds.push(extra.userId);
         const orParts = aliases.map((a) => `moderator.ilike.%${a}%`);
         if (creatorIds.length > 0) orParts.push(`created_by.in.(${creatorIds.join(',')})`);
-        let q = supabase
-          .from('orders')
-          .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`)
-          .or(orParts.join(','))
-          .order('created_at', { ascending: false })
-          .limit(1000);
-        if (startDate) q = q.gte('created_at', startDate);
-        if (endDate) q = q.lt('created_at', endDate);
-        const { data: modData, error: modErr } = await q;
-        if (modErr) throw modErr;
-        const ords = (modData || []) as any[];
-        const orderIds = ords.map((o) => o.id);
-        const [items] = await Promise.all([
-          fetchOrderItemsForOrderIds(orderIds),
-          loadLookups(ords, []),
-        ]);
-        await loadLookups([], items);
-        const byOrder = groupOrderItemsByOrderId(orderIds, items);
+        const selectWithRel = `${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`;
+        const loaded = await loadMatchingOrdersWithItems({
+          isStale: () => seq !== requestSeq.current,
+          fetchItems: fetchOrderItemsForOrderIds,
+          fetchOrderPage: async ({ from, to }) => {
+            let q = supabase
+              .from('orders')
+              .select(selectWithRel)
+              .or(orParts.join(','))
+              .order('created_at', { ascending: false })
+              .order('id', { ascending: false })
+              .range(from, to);
+            if (startDate) q = q.gte('created_at', startDate);
+            if (endDate) q = q.lt('created_at', endDate);
+            const { data, error } = await q;
+            return { data: (data as any[] | null) ?? null, error };
+          },
+        });
+        if (isStaleOrderFetch(loaded) || seq !== requestSeq.current) return;
+        const ords = loaded.orders as any[];
+        const items = Object.values(loaded.itemsByOrderId).flat();
+        await loadLookups(ords, items);
+        const byOrder = loaded.itemsByOrderId;
         items.forEach((it: any) => { if (it.product_name) productNamesSet.add(it.product_name); });
         if (seq !== requestSeq.current) return;
         setOrders(applyStatusOverrides(formatBatch(ords, byOrder)));
@@ -1180,6 +1187,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
           .from('orders')
           .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`)
           .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
           .range(page * ORDERS_PAGE, (page + 1) * ORDERS_PAGE - 1);
         if (startDate) q = q.gte('created_at', startDate);
         if (endDate) q = q.lt('created_at', endDate);
@@ -1267,6 +1275,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         .from('orders')
         .select(`${ORDER_COLS}, customers (name, phone, phone2, governorate), order_offer_instances (offer_name, quantity)`)
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .range(nextPage * pageSize, (nextPage + 1) * pageSize - 1);
       if (startDate) q = q.gte('created_at', startDate);
       if (endDate) q = q.lt('created_at', endDate);
