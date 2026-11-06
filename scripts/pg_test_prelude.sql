@@ -230,3 +230,14 @@ AS $$
   )
 $$;
 GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role, postgres;
+
+-- Hosted Supabase and the CLI create this before any user migration
+-- (supabase/cli CreateMigrationTable: schema + version PK, then statements text[], then name).
+-- Migration 20261001230000 records itself with INSERT (version, name, statements) ON CONFLICT (version).
+-- Plain Postgres used by this harness does not have that catalog, so the replay stops there.
+CREATE SCHEMA IF NOT EXISTS supabase_migrations;
+CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (
+  version text NOT NULL PRIMARY KEY
+);
+ALTER TABLE supabase_migrations.schema_migrations ADD COLUMN IF NOT EXISTS statements text[];
+ALTER TABLE supabase_migrations.schema_migrations ADD COLUMN IF NOT EXISTS name text;
