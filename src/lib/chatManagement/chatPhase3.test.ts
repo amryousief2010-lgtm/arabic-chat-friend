@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { extForMime, mediaPath, fetchOne, MAX_MEDIA_BYTES } from "../../../supabase/functions/_shared/wa-media";
 import { redact, buildChatTranscript, fixOutcome, normalizeChatAnalysis, chatHash } from "../../../supabase/functions/_shared/chat-analysis";
-import { adSourceLabel, filterConversations, groupByDay, orderEvidenceText, sameModeratorLabel, withOrderFlags, type InboxConversation } from "./inbox";
+import { adSourceLabel, boardContactTitle, resolveBoardAdName, summarizeAds, filterConversations, groupByDay, orderEvidenceText, sameModeratorLabel, withOrderFlags, type InboxConversation } from "./inbox";
 import { DEFAULT_KPI_SETTINGS } from "./responseClock";
 import { mediaKind, mediaStatusText } from "@/components/chatManagement/MessageMedia";
 import { chatLabel, CHAT_CATEGORY_LABELS, fmtMin } from "./chatAnalysisLabels";
@@ -109,5 +109,34 @@ describe("ad source UI", () => {
     const t = orderEvidenceText(w[0].order_evidence, "chat");
     expect(t).toMatch(/من المحادثة/); expect(t).toMatch(/ORD-1/); expect(t).toMatch(/نفس المودريتور/);
     expect(sameModeratorLabel({ same_moderator: false })).toBe("سُجّل بواسطة مودريتور آخر");
+  });
+});
+
+describe("board contact + ad summary", () => {
+  const base = { id: "a", status: "open", line_id: "l", phone_norm: "01012345678", contact_name: null, ad_id: null, ad_headline: null, campaign_id: null } as unknown as InboxConversation;
+  it("boardContactTitle prefers phone, then name+phone", () => {
+    expect(boardContactTitle(base, "010• • •678", null)).toBe("010• • •678");
+    expect(boardContactTitle({ ...base, contact_name: "سارة" }, "01012345678", "سارة")).toBe("سارة · 01012345678");
+    expect(boardContactTitle({ ...base, phone_norm: null }, null, null)).toBe("عميل");
+  });
+  it("resolveBoardAdName prefers campaign ad name over referral headline", () => {
+    const c = { ...base, ad_id: "1202", ad_headline: "شركة نعام العاصمة", campaign_id: "camp1" } as InboxConversation;
+    expect(resolveBoardAdName(c, { "1202": "بوكس 1500" }, { camp1: "حملة" })).toBe("بوكس 1500");
+    expect(resolveBoardAdName(c, {}, { camp1: "إعلان التجار" })).toBe("إعلان التجار");
+    expect(resolveBoardAdName(c)).toBe("شركة نعام العاصمة");
+    expect(resolveBoardAdName(base)).toBe("بدون إعلان");
+  });
+  it("summarizeAds groups and sorts", () => {
+    const rows = [
+      { ...base, id: "1", ad_id: "a1", ad_headline: "x" },
+      { ...base, id: "2", ad_id: "a1", ad_headline: "x" },
+      { ...base, id: "3", ad_id: "a2", ad_headline: "y" },
+      { ...base, id: "4" },
+    ] as InboxConversation[];
+    expect(summarizeAds(rows, { a1: "بوكس 1500", a2: "إعلان التجار" })).toEqual([
+      { ad_name: "بوكس 1500", conversations: 2 },
+      { ad_name: "إعلان التجار", conversations: 1 },
+      { ad_name: "بدون إعلان", conversations: 1 },
+    ]);
   });
 });

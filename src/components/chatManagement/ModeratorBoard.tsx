@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { supabase } from "@/integrations/supabase/client";
 import { MODERATORS, isModeratorActiveInMonth } from "@/constants/moderators";
 import { DEFAULT_KPI_SETTINGS, type AssignmentRow, type KpiSettings } from "@/lib/chatManagement/responseClock";
-import { firstReplyStatusOf, lastActivityAt, localDateKey, type InboxConversation } from "@/lib/chatManagement/inbox";
+import { firstReplyStatusOf, lastActivityAt, localDateKey, maskPhone, boardContactTitle, resolveBoardAdName, summarizeAds, type InboxConversation } from "@/lib/chatManagement/inbox";
 import { contactLabel } from "@/lib/chatManagement/channels";
 import ConversationThread from "@/components/chatManagement/ConversationThread";
 import { phoneAccessFor } from "@/components/chatManagement/ConversationPhone";
@@ -20,6 +20,10 @@ export interface BoardRow {
   moderator_id: string; display_name: string; sort_order: number;
   conversations: number; unanswered: number; on_time: number; cover: number; late: number;
   waiting_customer: number; avg_reply_minutes: number | null; orders_registered: number;
+}
+export interface BoardAdRow {
+  moderator_id: string; ad_id: string | null; ad_name: string;
+  conversations: number; inbound_messages: number | null;
 }
 
 const addDays = (key: string, n: number) => {
@@ -46,6 +50,10 @@ export default function ModeratorBoard({ roles }: { roles?: string[] }) {
   const [period, setPeriod] = useState<Period>("today");
   const [rows, setRows] = useState<BoardRow[] | null>(null);
   const [rpcMissing, setRpcMissing] = useState(false);
+  const [adRpcMissing, setAdRpcMissing] = useState(false);
+  const [adRpcRows, setAdRpcRows] = useState<BoardAdRow[] | null>(null);
+  const [adNameByMetaId, setAdNameByMetaId] = useState<Record<string, string>>({});
+  const [campaignNameById, setCampaignNameById] = useState<Record<string, string>>({});
   const [mods, setMods] = useState<{ id: string; slug: string; display_name: string; sort_order: number }[]>([]);
   const [convs, setConvs] = useState<InboxConversation[]>([]);
   const [orders, setOrders] = useState<Record<string, number>>({});
@@ -60,16 +68,19 @@ export default function ModeratorBoard({ roles }: { roles?: string[] }) {
     const now = new Date();
     const r = periodRange(period, now);
     const b = isoBounds(r);
-    const [m, c, a, k, o, rpc] = await Promise.all([
+    const [m, c, a, k, o, rpc, ads, camps, adRpc] = await Promise.all([
       db.from("cm_moderators").select("id,slug,display_name,sort_order").order("sort_order"),
       db.from("cm_conversations").select(
-        "id,channel,contact_name,contact_handle,external_contact_id,is_demo,line_id,status,owner_moderator_id,assigned_moderator_id,phone_norm,customer_id,first_inbound_at,clock_started_at,first_reply_at,first_reply_was_cover,awaiting_reply_since,last_inbound_at,last_outbound_at,campaign_id",
+        "id,channel,contact_name,contact_handle,external_contact_id,is_demo,line_id,status,owner_moderator_id,assigned_moderator_id,phone_norm,customer_id,first_inbound_at,clock_started_at,first_reply_at,first_reply_was_cover,awaiting_reply_since,last_inbound_at,last_outbound_at,campaign_id,ad_id,ad_headline,ad_source_type",
       ).not("first_inbound_at", "is", null).gte("first_inbound_at", b.lo).lt("first_inbound_at", b.hi)
         .order("first_inbound_at", { ascending: false }).limit(3000),
       db.from("cm_shift_assignments").select("work_date,starts_at,ends_at,moderator_id").gte("work_date", addDays(r.from, -1)).lte("work_date", r.to),
       db.from("cm_kpi_settings").select("*").maybeSingle(),
       db.from("orders").select("moderator_id,created_at").not("moderator_id", "is", null).gte("created_at", b.lo).lt("created_at", b.hi).limit(10000),
       db.rpc("cm_moderator_board", { p_from: r.from, p_to: r.to }),
+      db.from("cm_campaign_ads").select("meta_ad_id,name").limit(5000),
+      db.from("cm_campaigns").select("id,name").limit(2000),
+      db.rpc("cm_moderator_board_ad_summary", { p_from: r.from, p_to: r.to }),
     ]);
     const err = [m, c].find((x: any) => x.error)?.error;
     setError(err ? err.message : null);
@@ -81,10 +92,28 @@ export default function ModeratorBoard({ roles }: { roles?: string[] }) {
     const oc: Record<string, number> = {};
     for (const row of o.data ?? []) if (inRange(row.created_at)) oc[row.moderator_id] = (oc[row.moderator_id] ?? 0) + 1;
     setOrders(oc);
+    const adMap: Record<string, string> = {};
+    for (const row of ads.data ?? []) if (row.meta_ad_id && row.name) adMap[row.meta_ad_id] = row.name;
+    setAdNameByMetaId(adMap);
+    const campMap: Record<string, string> = {};
+    for (const row of camps.data ?? []) if (row.id && row.name) campMap[row.id] = row.name;
+    setCampaignNameById(campMap);
     if (rpc.error) {
       // الدالة غير منشورة بعد (PGRST202/42883) أو خطأ آخر ⇒ أرقام تقريبية من البيانات المحمّلة.
       setRpcMissing(true); setRows(null);
     } else { setRpcMissing(false); setRows(rpc.data ?? []); }
+    if (adRpc.error) {
+      setAdRpcMissing(true); setAdRpcRows(null);
+    } else {
+      setAdRpcMissing(false);
+      setAdRpcRows((adRpc.data ?? []).map((row: any) => ({
+        moderator_id: row.moderator_id,
+        ad_id: row.ad_id ?? null,
+        ad_name: row.ad_name,
+        conversations: Number(row.conversations ?? 0),
+        inbound_messages: row.inbound_messages == null ? null : Number(row.inbound_messages),
+      })));
+    }
     setUpdatedAt(new Date());
   }, [period]);
 
@@ -121,9 +150,14 @@ export default function ModeratorBoard({ roles }: { roles?: string[] }) {
           && (!c.last_inbound_at || c.last_outbound_at >= c.last_inbound_at)).length,
         avg_reply_minutes: null, orders_registered: orders[m!.id] ?? 0,
       };
-      return { mod: m!, stats: row ?? local, list: withSt };
+      const fallbackAds = summarizeAds(mine, adNameByMetaId, campaignNameById);
+      const rpcAds = (adRpcRows ?? []).filter((x) => x.moderator_id === m!.id);
+      const adSummary = rpcAds.length
+        ? rpcAds.map((x) => ({ ad_name: x.ad_name, conversations: x.conversations, inbound_messages: x.inbound_messages }))
+        : fallbackAds.map((x) => ({ ...x, inbound_messages: null as number | null }));
+      return { mod: m!, stats: row ?? local, list: withSt, adSummary };
     });
-  }, [mods, convs, rows, assignments, settings, orders, now]);
+  }, [mods, convs, rows, assignments, settings, orders, now, adNameByMetaId, campaignNameById, adRpcRows]);
 
   const ranked = columns.filter((c) => c.stats.conversations > 0);
   const onTimePct = (s: BoardRow) => pct(s.on_time + s.cover, s.conversations);
@@ -141,6 +175,7 @@ export default function ModeratorBoard({ roles }: { roles?: string[] }) {
       </div>
       {error && <p className="text-sm text-destructive">تعذّر التحميل: {error}</p>}
       {rpcMissing && <p className="text-xs text-amber-700">الأرقام محسوبة مؤقتاً من المحادثات المحمّلة (دالة اللوحة غير مفعّلة بعد) — متوسط وقت الرد غير متاح.</p>}
+      {adRpcMissing && <p className="text-xs text-amber-700">ملخص الإعلانات من المحادثات المحمّلة (دالة ملخص الإعلانات غير مفعّلة بعد) — عدد الرسائل غير متاح.</p>}
       {ranked.length > 0 && (
         <Card><CardContent className="p-3 flex flex-wrap gap-6 text-sm">
           {best && <span>🏆 الأكثر التزاماً: <b>{best.mod.display_name}</b> ({onTimePct(best.stats)}% في الوقت)</span>}
@@ -149,7 +184,7 @@ export default function ModeratorBoard({ roles }: { roles?: string[] }) {
         </CardContent></Card>
       )}
       <div className="grid gap-3 grid-cols-1 md:grid-cols-3 xl:grid-cols-5">
-        {columns.map(({ mod, stats, list }) => (
+        {columns.map(({ mod, stats, list, adSummary }) => (
           <Card key={mod.id} className="flex flex-col min-w-0">
             <CardHeader className="py-2"><CardTitle className="text-base">{mod.display_name}</CardTitle></CardHeader>
             <CardContent className="p-2 space-y-2">
@@ -162,20 +197,43 @@ export default function ModeratorBoard({ roles }: { roles?: string[] }) {
                 <Stat label="متوسط وقت الرد" v={fmtMin(stats.avg_reply_minutes)} />
                 <Stat label="طلبات سجلتها" v={stats.orders_registered} />
               </div>
+              {adSummary.length > 0 && (
+                <div className="rounded border bg-muted/30 p-2 space-y-1" data-testid="board-ad-summary">
+                  <div className="text-[11px] font-semibold text-muted-foreground">حسب الإعلان</div>
+                  {adSummary.slice(0, 8).map((a) => (
+                    <div key={`${mod.id}-${a.ad_name}`} className="flex items-start justify-between gap-2 text-[11px]">
+                      <span className="truncate min-w-0" title={a.ad_name}>{a.ad_name}</span>
+                      <span className="shrink-0 font-medium tabular-nums" dir="ltr">
+                        {a.conversations}
+                        {a.inbound_messages != null ? ` · ${a.inbound_messages} رسالة` : ""}
+                      </span>
+                    </div>
+                  ))}
+                  {adSummary.length > 8 && <div className="text-[10px] text-muted-foreground">+{adSummary.length - 8} إعلان آخر</div>}
+                </div>
+              )}
               <div className="max-h-[60vh] overflow-y-auto divide-y border rounded">
                 {list.length === 0 && <p className="p-3 text-xs text-muted-foreground">لا محادثات في الفترة</p>}
-                {list.map(({ c, st }) => (
-                  <button key={c.id} onClick={() => setOpen(c)} className="w-full text-right flex items-stretch hover:bg-muted/60">
-                    <span className={`w-1.5 shrink-0 ${st ? COLOR[st] : "bg-muted"}`} />
-                    <span className="p-2 min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">{contactLabel(c) ?? (c.phone_norm ? "عميل واتساب" : "عميل")}</span>
-                      <span className="block text-[11px] text-muted-foreground">
-                        {new Date(lastActivityAt(c)).toLocaleString("ar-EG", { timeZone: TZ, hour: "2-digit", minute: "2-digit", day: "numeric", month: "numeric" })}
-                        {st === "pending" ? " · بدون رد" : st === "late" ? " · متأخر" : st ? " · في الوقت" : ""}
+                {list.map(({ c, st }) => {
+                  const phoneShown = c.phone_norm
+                    ? (phoneAccess === "full" ? c.phone_norm : maskPhone(c.phone_norm))
+                    : null;
+                  const title = boardContactTitle(c, phoneShown, contactLabel(c));
+                  const adName = resolveBoardAdName(c, adNameByMetaId, campaignNameById);
+                  return (
+                    <button key={c.id} onClick={() => setOpen(c)} className="w-full text-right flex items-stretch hover:bg-muted/60">
+                      <span className={`w-1.5 shrink-0 ${st ? COLOR[st] : "bg-muted"}`} />
+                      <span className="p-2 min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium" dir="auto">{title}</span>
+                        <span className="block truncate text-[11px] text-violet-700" title={adName}>{adName}</span>
+                        <span className="block text-[11px] text-muted-foreground">
+                          {new Date(lastActivityAt(c)).toLocaleString("ar-EG", { timeZone: TZ, hour: "2-digit", minute: "2-digit", day: "numeric", month: "numeric" })}
+                          {st === "pending" ? " · بدون رد" : st === "late" ? " · متأخر" : st ? " · في الوقت" : ""}
+                        </span>
                       </span>
-                    </span>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>

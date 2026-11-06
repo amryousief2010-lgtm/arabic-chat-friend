@@ -72,6 +72,53 @@ export const adSourceLabel = (c: Pick<InboxConversation, "ad_id" | "ad_headline"
   return c.ad_id ? `${head} · …${c.ad_id.slice(-6)}` : head;
 };
 
+
+/** اسم إعلان للوحة البنات: صف الإعلان ← الحملة ← عنوان الـ referral ← آخر أرقام المعرّف. */
+export const resolveBoardAdName = (
+  c: Pick<InboxConversation, "ad_id" | "ad_headline" | "campaign_id">,
+  adNameByMetaId?: Record<string, string | null | undefined>,
+  campaignNameById?: Record<string, string | null | undefined>,
+): string => {
+  const fromAd = c.ad_id ? (adNameByMetaId?.[c.ad_id] ?? "").trim() : "";
+  if (fromAd) return fromAd;
+  const fromCamp = c.campaign_id ? (campaignNameById?.[c.campaign_id] ?? "").trim() : "";
+  if (fromCamp) return fromCamp;
+  const head = (c.ad_headline ?? "").replace(/^[\u064B-\u0652\s]+/, "").trim();
+  if (head) return head;
+  if (c.ad_id) return `إعلان …${c.ad_id.slice(-6)}`;
+  return "بدون إعلان";
+};
+
+/** عنوان صف المحادثة في اللوحة: رقم (أو اسم + رقم إن وُجد اسم). */
+export const boardContactTitle = (
+  c: Pick<InboxConversation, "contact_name" | "contact_handle" | "channel" | "phone_norm">,
+  phoneShown: string | null,
+  nameLabel: string | null,
+): string => {
+  const phone = (phoneShown ?? "").trim();
+  const name = (nameLabel ?? "").trim();
+  if (name && phone) return `${name} · ${phone}`;
+  if (phone) return phone;
+  if (name) return name;
+  return "عميل";
+};
+
+/** تجميع المحادثات حسب اسم الإعلان (للملخص تحت عمود المودريتور). */
+export const summarizeAds = (
+  list: Pick<InboxConversation, "ad_id" | "ad_headline" | "campaign_id">[],
+  adNameByMetaId?: Record<string, string | null | undefined>,
+  campaignNameById?: Record<string, string | null | undefined>,
+): { ad_name: string; conversations: number }[] => {
+  const map = new Map<string, number>();
+  for (const c of list) {
+    const name = resolveBoardAdName(c, adNameByMetaId, campaignNameById);
+    map.set(name, (map.get(name) ?? 0) + 1);
+  }
+  return [...map.entries()]
+    .map(([ad_name, conversations]) => ({ ad_name, conversations }))
+    .sort((a, b) => b.conversations - a.conversations || a.ad_name.localeCompare(b.ad_name, "ar"));
+};
+
 export const STATUS_LABELS: Record<ConversationStatus, string> = {
   open: "مفتوحة", pending: "قيد المتابعة", closed: "مغلقة", spam: "مزعجة",
 };
