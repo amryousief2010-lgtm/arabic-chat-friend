@@ -170,10 +170,6 @@ const DuplicateOrderApprovals = () => {
         ...approvalsList.map((row) => row.resolved_order_id).filter(Boolean),
         ...auditsList.map((row) => row.matched_order_id).filter(Boolean),
       ])) as string[];
-      const customerIds = Array.from(new Set([
-        ...approvalsList.map((row) => row.customer_id).filter(Boolean),
-        ...auditsList.map((row) => row.customer_id).filter(Boolean),
-      ])) as string[];
       const userIds = Array.from(new Set([
         ...approvalsList.map((row) => row.requested_by).filter(Boolean),
         ...approvalsList.map((row) => row.decided_by).filter(Boolean),
@@ -183,17 +179,25 @@ const DuplicateOrderApprovals = () => {
         ...auditsList.map((row) => row.decision_by).filter(Boolean),
       ])) as string[];
 
-      const [{ data: customers }, { data: profiles }, { data: orders }, { data: orderItems }] = await Promise.all([
-        customerIds.length ? supabase.from("customers").select("id, name, phone").in("id", customerIds) : Promise.resolve({ data: [] as any[] }),
+      const [{ data: profiles }, { data: orders }, { data: orderItems }] = await Promise.all([
         userIds.length ? supabase.from("profile_directory").select("id, full_name").in("id", userIds) : Promise.resolve({ data: [] as any[] }),
         orderIds.length
           ? supabase.from("orders").select("id, order_number, customer_id, created_at, status, shipping_company, fulfillment_type, delivery_address, created_by, total, notes").in("id", orderIds)
           : Promise.resolve({ data: [] as any[] }),
-
         orderIds.length
           ? supabase.from("order_items").select("order_id, product_name, quantity, offer_name").in("order_id", orderIds)
           : Promise.resolve({ data: [] as any[] }),
       ]);
+
+      // Include customers of matched/resolved (old) orders so their name/phone render on the card.
+      const customerIds = Array.from(new Set([
+        ...approvalsList.map((row) => row.customer_id).filter(Boolean),
+        ...auditsList.map((row) => row.customer_id).filter(Boolean),
+        ...(orders || []).map((row: any) => row.customer_id).filter(Boolean),
+      ])) as string[];
+      const { data: customers } = customerIds.length
+        ? await supabase.from("customers").select("id, name, phone").in("id", customerIds)
+        : { data: [] as any[] };
 
       const customerMap = new Map((customers || []).map((row: any) => [row.id, row]));
       const profileMap = new Map((profiles || []).map((row: any) => [row.id, row.full_name]));
