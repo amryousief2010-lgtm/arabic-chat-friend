@@ -48,6 +48,7 @@ const COLOR = { pending: "bg-red-500", late: "bg-orange-500", on_time: "bg-green
 export default function ModeratorBoard({ roles }: { roles?: string[] }) {
   const phoneAccess = phoneAccessFor(roles);
   const [period, setPeriod] = useState<Period>("today");
+  const [day, setDay] = useState<string | null>(null);
   const [rows, setRows] = useState<BoardRow[] | null>(null);
   const [rpcMissing, setRpcMissing] = useState(false);
   const [adRpcMissing, setAdRpcMissing] = useState(false);
@@ -66,7 +67,7 @@ export default function ModeratorBoard({ roles }: { roles?: string[] }) {
 
   const load = useCallback(async () => {
     const now = new Date();
-    const r = periodRange(period, now);
+    const r = day ? { from: day, to: day } : periodRange(period, now);
     const b = isoBounds(r);
     const [m, c, a, k, o, rpc, ads, camps, adRpc] = await Promise.all([
       db.from("cm_moderators").select("id,slug,display_name,sort_order").order("sort_order"),
@@ -115,14 +116,14 @@ export default function ModeratorBoard({ roles }: { roles?: string[] }) {
       })));
     }
     setUpdatedAt(new Date());
-  }, [period]);
+  }, [period, day]);
 
   // تحميل + تحديث مباشر (debounce ثانيتين) + استطلاع كل 30 ثانية احتياطياً.
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     load();
     const bump = () => { if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(load, 2000); };
-    const ch = db.channel(`cm-board-${period}`)
+    const ch = db.channel(`cm-board-${period}-${day ?? ""}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "cm_conversations" }, bump)
       .on("postgres_changes", { event: "*", schema: "public", table: "cm_messages" }, bump)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, bump)
@@ -168,8 +169,13 @@ export default function ModeratorBoard({ roles }: { roles?: string[] }) {
     <div className="space-y-3" data-testid="moderator-board">
       <div className="flex flex-wrap items-center gap-2">
         {(Object.keys(PERIOD_LABEL) as Period[]).map((p) => (
-          <Button key={p} size="sm" variant={p === period ? "default" : "outline"} onClick={() => setPeriod(p)}>{PERIOD_LABEL[p]}</Button>
+          <Button key={p} size="sm" variant={!day && p === period ? "default" : "outline"} onClick={() => { setDay(null); setPeriod(p); }}>{PERIOD_LABEL[p]}</Button>
         ))}
+        <label className="flex items-center gap-1 text-xs">
+          <span className="text-muted-foreground">يوم محدد</span>
+          <input type="date" data-testid="board-day" className={`h-8 rounded border px-2 text-xs ${day ? "border-primary ring-1 ring-primary" : ""}`}
+            value={day ?? ""} max={localDateKey(new Date(), TZ)} onChange={(e) => setDay(e.target.value || null)} />
+        </label>
         <Badge variant={live ? "default" : "secondary"}>{live ? "تحديث مباشر" : "تحديث كل 30 ثانية"}</Badge>
         {updatedAt && <span className="text-xs text-muted-foreground">آخر تحديث {updatedAt.toLocaleTimeString("ar-EG", { timeZone: TZ })}</span>}
       </div>
@@ -199,12 +205,12 @@ export default function ModeratorBoard({ roles }: { roles?: string[] }) {
               </div>
               {adSummary.length > 0 && (
                 <div className="rounded border bg-muted/30 p-2 space-y-1" data-testid="board-ad-summary">
-                  <div className="text-[11px] font-semibold text-muted-foreground">حسب الإعلان</div>
+                  <div className="text-[11px] font-semibold text-muted-foreground">حسب الإعلان (عدد المحادثات · عدد رسائل العملاء)</div>
                   {adSummary.slice(0, 8).map((a) => (
                     <div key={`${mod.id}-${a.ad_name}`} className="flex items-start justify-between gap-2 text-[11px]">
                       <span className="truncate min-w-0" title={a.ad_name}>{a.ad_name}</span>
-                      <span className="shrink-0 font-medium tabular-nums" dir="ltr">
-                        {a.conversations}
+                      <span className="shrink-0 font-medium tabular-nums">
+                        {`${a.conversations} محادثة`}
                         {a.inbound_messages != null ? ` · ${a.inbound_messages} رسالة` : ""}
                       </span>
                     </div>
