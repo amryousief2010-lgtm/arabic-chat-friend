@@ -31,7 +31,11 @@ BEGIN
 END;
 $$;
 
+\if :{?phone_review_outer_tx}
+SAVEPOINT cm_phone_review_rollback_scan;
+\else
 BEGIN;
+\endif
 INSERT INTO public.customers (name, phone, phone2)
 VALUES ('تراجع فحص', '01077773001', '01077773001');
 DO $$
@@ -54,7 +58,11 @@ BEGIN
   END IF;
 END;
 $$;
+\if :{?phone_review_outer_tx}
+ROLLBACK TO SAVEPOINT cm_phone_review_rollback_scan;
+\else
 ROLLBACK;
+\endif
 
 \ir ../migrations/20261108213000_cm_phone_review_page.sql
 
@@ -76,7 +84,11 @@ BEGIN
 END;
 $$;
 
+\if :{?phone_review_outer_tx}
+SAVEPOINT cm_phone_review_rollback_reapply;
+\else
 BEGIN;
+\endif
 DO $$
 DECLARE
   v_id uuid := '00000000-0000-4000-8000-00000000f401';
@@ -92,4 +104,8 @@ BEGIN
   END IF;
 END;
 $$;
+\if :{?phone_review_outer_tx}
+ROLLBACK TO SAVEPOINT cm_phone_review_rollback_reapply;
+\else
 ROLLBACK;
+\endif

@@ -1,5 +1,11 @@
--- Phone review list, month filter, and field correction. Rolls back.
+-- Phone review list, month filter, and field correction.
+-- Standalone: rolls back its own transaction.
+-- Included from cm_phone_review_rehearsal.sql: the outer transaction owns rollback
+-- (\set phone_review_outer_tx 1). Do not COMMIT.
+\if :{?phone_review_outer_tx}
+\else
 BEGIN;
+\endif
 
 DO $$
 DECLARE
@@ -212,4 +218,7 @@ BEGIN
 END;
 $$;
 
+\if :{?phone_review_outer_tx}
+\else
 ROLLBACK;
+\endif
