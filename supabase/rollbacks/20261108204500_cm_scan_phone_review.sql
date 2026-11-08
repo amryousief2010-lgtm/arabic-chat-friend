@@ -1,6 +1,7 @@
 -- تراجع فحص طابور مراجعة الأرقام.
 -- يزيل الدالة والمُشغّل ووظيفة pg_cron. لا يحذف صفوف cm_phone_review_queue
 -- ولا يمسّ cm_contact_phones أو cm_contacts أو customers أو orders.
+-- لا أعمدة جديدة: مجموعة multi_customer المتغيرة تُعاد فتحها على الصف نفسه.
 
 DO $$
 BEGIN

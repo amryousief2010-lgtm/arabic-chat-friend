@@ -7,6 +7,15 @@
 -- cm_phone_is_valid و cm_phone_review_queue). على قاعدة لا تملكها بعد
 -- تُنشأ الدالة والمُشغّل، ويُتخطى الفحص الأول حتى لا يفشل تطبيق الهجرات.
 -- التراجع: supabase/rollbacks/20261108204500_cm_scan_phone_review.sql
+--
+-- two_numbers يُحسب داخل الحقل الواحد (phone أو phone2)، لا بجمع الحقلين.
+-- رقم واحد مكرر في phone و phone2 ليس «رقمان في حقل واحد».
+--
+-- multi_customer: الفهرس الفريد هو (issue, customer_id, phone_raw, phone_norm).
+-- في هذه الحالة customer_id و phone_raw فارغان، فيبقى صف واحد لكل رقم.
+-- نفس مجموعة العملاء على صف dismissed/resolved تبقى مغلقة.
+-- مجموعة مختلفة تُحدّث الصف نفسه، تعيده open، وتمسح resolution حتى يُراجَع
+-- من جديد. الصف المفتوح يُحدَّث في مكانه ولا يُكرَّر.
 
 CREATE OR REPLACE FUNCTION public.cm_scan_phone_review(_customer_ids uuid[] DEFAULT NULL)
 RETURNS jsonb
@@ -20,9 +29,9 @@ DECLARE
   n_multi int := 0;
 BEGIN
   WITH src AS (
-    SELECT cu.id AS customer_id, f.raw
+    SELECT cu.id AS customer_id, f.field_no, f.raw
     FROM public.customers cu
-    CROSS JOIN LATERAL (VALUES (cu.phone), (cu.phone2)) AS f(raw)
+    CROSS JOIN LATERAL (VALUES (1, cu.phone), (2, cu.phone2)) AS f(field_no, raw)
     WHERE nullif(btrim(f.raw), '') IS NOT NULL
       AND (_customer_ids IS NULL OR cu.id = ANY (_customer_ids))
       AND NOT EXISTS (
@@ -31,8 +40,8 @@ BEGIN
       )
   ),
   parts AS (
-    SELECT s.customer_id, s.raw, p.part,
-           count(*) OVER (PARTITION BY s.customer_id, s.raw) AS nparts
+    SELECT s.customer_id, s.field_no, s.raw, p.part,
+           count(*) OVER (PARTITION BY s.customer_id, s.field_no) AS nparts
     FROM src s
     CROSS JOIN LATERAL public.cm_split_phone_field(s.raw) AS p(part)
   ),
@@ -89,9 +98,18 @@ BEGIN
     FROM grouped
     ON CONFLICT (issue, customer_id, phone_raw, phone_norm) DO UPDATE
       SET related_customer_ids = EXCLUDED.related_customer_ids,
+          status = 'open',
+          resolution = NULL,
+          resolved_by = NULL,
+          resolved_at = NULL,
           updated_at = now()
-      WHERE cm_phone_review_queue.status = 'open'
-        AND cm_phone_review_queue.related_customer_ids IS DISTINCT FROM EXCLUDED.related_customer_ids
+      WHERE (
+        SELECT coalesce(array_agg(DISTINCT x ORDER BY x), '{}'::uuid[])
+        FROM unnest(cm_phone_review_queue.related_customer_ids) AS u(x)
+      ) IS DISTINCT FROM (
+        SELECT coalesce(array_agg(DISTINCT x ORDER BY x), '{}'::uuid[])
+        FROM unnest(EXCLUDED.related_customer_ids) AS u(x)
+      )
     RETURNING 1
   )
   SELECT count(*) INTO n_multi FROM ins_multi;
@@ -105,7 +123,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.cm_scan_phone_review(uuid[]) IS
-  'Scan-only fill of cm_phone_review_queue (malformed, two_numbers, multi_customer). Does not write contacts, customers, orders, or ad attributions. NULL scans every customer; an id list scans those customers only.';
+  'Scan-only fill of cm_phone_review_queue. two_numbers is counted inside one phone field. multi_customer keeps one row per phone: an identical closed set stays closed, a changed set reopens that row. Does not write contacts, customers, orders, or ad attributions.';
 
 REVOKE ALL ON FUNCTION public.cm_scan_phone_review(uuid[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.cm_scan_phone_review(uuid[]) FROM anon;
@@ -128,7 +146,8 @@ BEGIN
   BEGIN
     PERFORM public.cm_scan_phone_review(ARRAY[NEW.id]);
   EXCEPTION WHEN OTHERS THEN
-    RAISE WARNING 'cm_scan_phone_review skipped for customer %: %', NEW.id, SQLERRM;
+    -- State code only. The error text can embed the saved phone number.
+    RAISE WARNING 'cm_scan_phone_review skipped for customer % (SQLSTATE %)', NEW.id, SQLSTATE;
   END;
   RETURN NULL;
 END;
