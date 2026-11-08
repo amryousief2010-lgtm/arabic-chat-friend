@@ -66,6 +66,14 @@ jobs:
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/waybill_lock_unset_guc.sql
       - name: Manual waybill delivery status
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/manual_waybill_status_lock.sql
+      - name: Phone review queue page
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/cm_phone_review_page.sql
+      - name: Phone review rollback restores the scanner
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/cm_phone_review_rollback.sql
+      - name: Phone review rehearsal wrapper rolls back
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/cm_phone_review_rehearsal.sql
+      - name: Phone review execute_sql harness rolls back
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/cm_phone_review_rehearsal_exec.sql
       - name: Concurrency
         run: python3 scripts/inventory_ledger_concurrency.py
       - name: Client write lint
@@ -75,6 +83,6 @@ jobs:
       - name: Install
         run: npm install --ignore-scripts
       - name: Unit tests
-        run: npx vitest run src/lib/__tests__/dailyMovementLedger.test.ts src/lib/__tests__/inventoryReadApi.test.ts src/lib/__tests__/packWeight.test.ts src/lib/__tests__/warehouseMovementSign.test.ts src/lib/__tests__/bulkDelivery.test.ts src/lib/__tests__/factoryDataQuality.test.ts src/test/return-movement-trigger-math.test.ts src/lib/__tests__/productCostPricesSecurity.test.ts src/lib/__tests__/outletSalesStatement.test.ts
+        run: npx vitest run src/lib/__tests__/dailyMovementLedger.test.ts src/lib/__tests__/inventoryReadApi.test.ts src/lib/__tests__/packWeight.test.ts src/lib/__tests__/warehouseMovementSign.test.ts src/lib/__tests__/bulkDelivery.test.ts src/lib/__tests__/factoryDataQuality.test.ts src/test/return-movement-trigger-math.test.ts src/lib/__tests__/productCostPricesSecurity.test.ts src/lib/__tests__/outletSalesStatement.test.ts src/lib/__tests__/phoneReview.test.ts src/components/chatManagement/PhoneReviewQueueView.test.tsx
       - name: Build
         run: npm run build
