@@ -72,6 +72,8 @@ jobs:
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/cm_phone_review_rollback.sql
       - name: Phone review rehearsal wrapper rolls back
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/cm_phone_review_rehearsal.sql
+      - name: Phone review execute_sql harness rolls back
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/cm_phone_review_rehearsal_exec.sql
       - name: Concurrency
         run: python3 scripts/inventory_ledger_concurrency.py
       - name: Client write lint
