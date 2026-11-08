@@ -63,6 +63,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 import { normalizePhone } from '@/lib/normalizePhone';
+import { customerSearchInputProps, phoneInputProps } from '@/lib/phoneInputDirection';
 import {
   classifyDuplicateCheck,
   OWN_REPEAT_CANCEL_LABEL,
@@ -1618,9 +1619,10 @@ const NewOrder = () => {
                     <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       placeholder="بحث عن عميل..."
-                      className="pr-10"
                       value={customerSearch}
                       onChange={(e) => setCustomerSearch(e.target.value)}
+                      {...customerSearchInputProps(customerSearch)}
+                      className={`pr-10 ${customerSearchInputProps(customerSearch).className}`}
                     />
                   </div>
                     {searchingCustomers && (
@@ -1671,7 +1673,8 @@ const NewOrder = () => {
                           placeholder="01xxxxxxxxx"
                           value={newCustomerPhone}
                           onChange={(e) => { setNewCustomerPhone(e.target.value); setCustomerErrors(p => ({ ...p, phone: false })); }}
-                          className={errCls(customerErrors.phone)}
+                          {...phoneInputProps()}
+                          className={`${phoneInputProps().className} ${errCls(customerErrors.phone)}`}
                         />
                         {customerErrors.phone && <p className="text-xs text-destructive">رقم الهاتف مطلوب</p>}
                       </div>
@@ -1682,6 +1685,7 @@ const NewOrder = () => {
                           placeholder="01xxxxxxxxx"
                           value={newCustomerPhone2}
                           onChange={(e) => setNewCustomerPhone2(e.target.value)}
+                          {...phoneInputProps()}
                         />
                       </div>
                       {existingCustomerMatch && (
@@ -1807,7 +1811,7 @@ const NewOrder = () => {
                         }}
                       >
                         <p className="font-medium">{customer.name}</p>
-                        <p className="text-sm text-muted-foreground">{customer.phone}</p>
+                        <p className="text-sm text-muted-foreground" dir="ltr" style={{ unicodeBidi: "isolate" }}>{customer.phone}</p>
                       </button>
                     ))}
                   </div>
@@ -1817,7 +1821,7 @@ const NewOrder = () => {
                   <div className="mt-3 p-3 bg-muted/50 rounded-lg flex items-center justify-between gap-2 flex-wrap">
                     <div className="min-w-0">
                       <p className="font-medium">{selectedCustomer.name}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground" dir="ltr" style={{ unicodeBidi: "isolate" }}>
                         {selectedCustomer.phone}
                         {(selectedCustomer as any).phone2 ? ` / ${(selectedCustomer as any).phone2}` : ''}
                       </p>
