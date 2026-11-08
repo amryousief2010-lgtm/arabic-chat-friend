@@ -250,6 +250,7 @@ CREATE TRIGGER trg_customers_cm_phone_review
 
 -- قائمة الصفحة. الشهر هو تاريخ الطلب بتوقيت القاهرة، مثل التقارير.
 -- عميل بلا طلب في الشهر لا يظهر، إلا أعضاء مجموعة تكرار طابقت الشهر.
+-- الاستدعاء للمدير العام والمدير التنفيذي ومديرة المبيعات فقط، ومع بوابة المحادثات.
 CREATE OR REPLACE FUNCTION public.cm_phone_review_list(
   _month date DEFAULT NULL,
   _issue text DEFAULT NULL,
@@ -271,12 +272,13 @@ DECLARE
   v_end date;
   v_q text := NULLIF(btrim(_search), '');
   v_digits text;
-  v_mask boolean;
   v_items jsonb := '[]'::jsonb;
   rec record;
   v_customers jsonb;
 BEGIN
-  IF auth.uid() IS NULL OR NOT public.cm_is_supervisor() THEN
+  IF auth.uid() IS NULL
+     OR NOT public.cm_gate_allows()
+     OR NOT public.has_any_role(auth.uid(), ARRAY['general_manager', 'executive_manager', 'sales_manager']::app_role[]) THEN
     RAISE EXCEPTION 'CM_NOT_ALLOWED' USING ERRCODE = '42501';
   END IF;
   IF _issue IS NOT NULL AND btrim(_issue) <> '' AND _issue NOT IN ('malformed', 'two_numbers', 'multi_customer') THEN
@@ -285,7 +287,6 @@ BEGIN
   v_off := (v_page - 1) * v_size;
   v_end := CASE WHEN _month IS NULL THEN NULL ELSE (_month + interval '1 month')::date END;
   v_digits := NULLIF(regexp_replace(coalesce(_search, ''), '\D', '', 'g'), '');
-  v_mask := public.is_marketing_only_user(auth.uid());
 
   CREATE TEMP TABLE IF NOT EXISTS cm_phone_review_match (
     id uuid, issue text, customer_id uuid, phone_raw text, phone_norm text,
@@ -335,9 +336,9 @@ BEGIN
     FROM (
       SELECT c.id,
              c.name,
-             CASE WHEN v_mask THEN NULL ELSE c.phone END AS phone,
-             CASE WHEN v_mask THEN NULL ELSE c.phone2 END AS phone2,
-             CASE WHEN v_mask THEN '[]'::jsonb ELSE (
+             c.phone,
+             c.phone2,
+             (
                SELECT coalesce(jsonb_agg(f.field), '[]'::jsonb)
                FROM (VALUES ('phone', c.phone), ('phone2', c.phone2)) AS f(field, raw)
                WHERE nullif(btrim(f.raw), '') IS NOT NULL
@@ -354,7 +355,7 @@ BEGIN
                        AND public.cm_normalize_phone(p.part) = rec.phone_norm
                    ))
                  )
-             ) END AS edit_fields,
+             ) AS edit_fields,
              (
                SELECT count(*) FROM public.orders o
                WHERE o.customer_id = c.id
@@ -407,7 +408,7 @@ REVOKE ALL ON FUNCTION public.cm_phone_review_list(date, text, text, int, int) F
 GRANT EXECUTE ON FUNCTION public.cm_phone_review_list(date, text, text, int, int) TO authenticated, service_role;
 
 -- تصحيح حقل واحد. لا يمسّ العمود الآخر ولا الطلبات.
--- أدوار تعديل العملاء من المديرين: المدير العام، التنفيذي، مديرة المبيعات.
+-- المدير العام أو التنفيذي أو مديرة المبيعات، وبوابة المحادثات معاً.
 CREATE OR REPLACE FUNCTION public.cm_correct_customer_phone(
   _customer_id uuid,
   _field text,
@@ -428,6 +429,7 @@ DECLARE
   v_new text;
 BEGIN
   IF auth.uid() IS NULL
+     OR NOT public.cm_gate_allows()
      OR NOT public.has_any_role(auth.uid(), ARRAY['general_manager', 'executive_manager', 'sales_manager']::app_role[]) THEN
     RAISE EXCEPTION 'CM_NOT_ALLOWED' USING ERRCODE = '42501';
   END IF;

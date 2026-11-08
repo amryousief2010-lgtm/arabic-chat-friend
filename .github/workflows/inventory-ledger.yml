@@ -68,6 +68,8 @@ jobs:
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/manual_waybill_status_lock.sql
       - name: Phone review queue page
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/cm_phone_review_page.sql
+      - name: Phone review rollback restores the scanner
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/cm_phone_review_rollback.sql
       - name: Concurrency
         run: python3 scripts/inventory_ledger_concurrency.py
       - name: Client write lint

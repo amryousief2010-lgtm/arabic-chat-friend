@@ -6,6 +6,8 @@ DECLARE
   v_gm uuid := '00000000-0000-4000-8000-00000000f101';
   v_mod uuid := '00000000-0000-4000-8000-00000000f102';
   v_msm uuid := '00000000-0000-4000-8000-00000000f103';
+  v_sm uuid := '00000000-0000-4000-8000-00000000f105';
+  v_gate uuid := '00000000-0000-4000-8000-00000000f205';
   v_same uuid := '00000000-0000-4000-8000-00000000f201';
   v_split uuid := '00000000-0000-4000-8000-00000000f202';
   v_a uuid := '00000000-0000-4000-8000-00000000f301';
@@ -23,12 +25,14 @@ BEGIN
   INSERT INTO auth.users (id, email) VALUES
     (v_gm, 'phone-review-gm@example.com'),
     (v_mod, 'phone-review-mod@example.com'),
-    (v_msm, 'phone-review-msm@example.com');
-  -- New users receive sales_moderator. Replace that default for the other two roles.
-  DELETE FROM public.user_roles WHERE user_id IN (v_gm, v_msm);
+    (v_msm, 'phone-review-msm@example.com'),
+    (v_sm, 'phone-review-sm@example.com');
+  -- New users receive sales_moderator. Replace that default for the other roles.
+  DELETE FROM public.user_roles WHERE user_id IN (v_gm, v_msm, v_sm);
   INSERT INTO public.user_roles (user_id, role) VALUES
     (v_gm, 'general_manager'),
-    (v_msm, 'marketing_sales_manager');
+    (v_msm, 'marketing_sales_manager'),
+    (v_sm, 'sales_manager');
   INSERT INTO public.cm_feature_gate_allowlist (user_id, note)
   VALUES (v_msm, 'اختبار مراجعة الأرقام')
   ON CONFLICT (user_id) DO NOTHING;
@@ -39,7 +43,8 @@ BEGIN
     (v_a, 'عميل اختبار أ', '01077771041', NULL),
     (v_b, 'عميل اختبار ب', '01077771041', NULL),
     (v_c, 'عميل اختبار ج', '01077771055', '01077771041'),
-    (v_old, 'عميل اختبار قديم', '0223456789', NULL);
+    (v_old, 'عميل اختبار قديم', '0223456789', NULL),
+    (v_gate, 'عميل اختبار البوابة', '01077771088', NULL);
 
   IF EXISTS (
     SELECT 1 FROM public.cm_phone_review_queue
@@ -96,6 +101,30 @@ BEGIN
     NULL;
   END;
 
+  PERFORM set_config('request.jwt.claim.sub', v_sm::text, true);
+  BEGIN
+    PERFORM public.cm_phone_review_list('2026-11-01', NULL, NULL, 1, 25);
+    RAISE EXCEPTION 'gate-denied sales manager listed the queue';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+  BEGIN
+    PERFORM public.cm_correct_customer_phone(v_gate, 'phone', '01077771089', false);
+    RAISE EXCEPTION 'gate-denied sales manager corrected a phone';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+  IF (SELECT phone FROM public.customers WHERE id = v_gate) IS DISTINCT FROM '01077771088' THEN
+    RAISE EXCEPTION 'gate-denied correction changed the phone';
+  END IF;
+  INSERT INTO public.cm_feature_gate_allowlist (user_id, note)
+  VALUES (v_sm, 'مديرة مبيعات مسموح لها بالبوابة')
+  ON CONFLICT (user_id) DO NOTHING;
+  PERFORM public.cm_correct_customer_phone(v_gate, 'phone', '01077771089', false);
+  IF (SELECT phone FROM public.customers WHERE id = v_gate) IS DISTINCT FROM '01077771089' THEN
+    RAISE EXCEPTION 'allowlisted sales manager correction did not save';
+  END IF;
+
   PERFORM set_config('request.jwt.claim.sub', v_msm::text, true);
   BEGIN
     PERFORM public.cm_correct_customer_phone(v_split, 'phone', '01077771009', false);
@@ -103,14 +132,12 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN
     NULL;
   END;
-  v_list := public.cm_phone_review_list('2026-11-01', 'multi_customer', NULL, 1, 25);
-  IF EXISTS (
-    SELECT 1 FROM jsonb_array_elements(v_list->'items') item,
-                  jsonb_array_elements(item->'customers') cust
-    WHERE cust->>'phone' IS NOT NULL OR cust->>'phone2' IS NOT NULL
-  ) THEN
-    RAISE EXCEPTION 'marketing-only list returned customer phone fields';
-  END IF;
+  BEGIN
+    PERFORM public.cm_phone_review_list('2026-11-01', 'multi_customer', NULL, 1, 25);
+    RAISE EXCEPTION 'marketing-only list was allowed';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
 
   PERFORM set_config('request.jwt.claim.sub', v_gm::text, true);
   BEGIN
