@@ -154,7 +154,7 @@ export const toRisingBreakdown = (ownKg: number, carriedKg = 0): RisingBreakdown
   return {
     scheme: 'rising',
     minimum_kg: RISING_MINIMUM_KG,
-    qualified: counted >= RISING_MINIMUM_KG,
+    qualified: own >= RISING_MINIMUM_KG,
     calculated_bonus: moderatorKgBonus(own),
     total_bonus: risingProcessedTotal(own, carried),
     carried_kg: carried,
@@ -248,14 +248,14 @@ export const buildModeratorBonusView = (input: {
     : 1;
   const kgRemaining = next ? Math.max(0, next.kg - ownKg) : null;
   const bonusAtNext = next ? moderatorKgBonus(next.kg) : null;
-  const qualified = kg >= RISING_MINIMUM_KG;
+  const qualified = ownKg >= RISING_MINIMUM_KG;
   const called = calledName(input.name);
   const daysPhrase = input.frozen ? 'شهر مكتمل' : arabicDaysRemainingPhrase(pace.daysRemainingAfterToday);
 
   let message: string;
   if (!qualified) {
-    const left = formatBonusKg(RISING_MINIMUM_KG - kg);
-    if (RISING_MINIMUM_KG - kg <= 40) {
+    const left = formatBonusKg(RISING_MINIMUM_KG - ownKg);
+    if (RISING_MINIMUM_KG - ownKg <= 40) {
       message = `${called}، فاضلِك ${left} كجم بس والبونص هيفتح بـ ${formatBonusEgp(BONUS_AT_MINIMUM)} جنيه. كمّلي، إنتي قريبة أوي.`;
     } else {
       message = `${called}، لسه قدامك ${left} كجم عشان البونص يفتح. كل كيلو بتسلّميه بيفرّقك، والـ ${formatBonusEgp(BONUS_AT_MINIMUM)} جنيه مستنياكي.`;
