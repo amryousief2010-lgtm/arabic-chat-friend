@@ -63,7 +63,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 import { normalizePhone } from '@/lib/normalizePhone';
-import { customerSearchInputProps, phoneInputProps } from '@/lib/phoneInputDirection';
+import { phoneInputProps } from '@/lib/phoneInputDirection';
+import { CustomerSearchField } from '@/components/orders/CustomerSearchField';
 import {
   classifyDuplicateCheck,
   OWN_REPEAT_CANCEL_LABEL,
@@ -1614,20 +1615,18 @@ const NewOrder = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex gap-3">
-                  <div className="flex-1 relative">
-                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      placeholder="بحث عن عميل..."
-                      value={customerSearch}
-                      onChange={(e) => setCustomerSearch(e.target.value)}
-                      {...customerSearchInputProps(customerSearch)}
-                      className={`pr-10 ${customerSearchInputProps(customerSearch).className}`}
-                    />
-                  </div>
-                    {searchingCustomers && (
-                      <p className="mt-2 text-xs text-muted-foreground">جاري البحث عن العملاء...</p>
-                    )}
+                <div className="flex items-start gap-3">
+                  <CustomerSearchField
+                    value={customerSearch}
+                    onChange={setCustomerSearch}
+                    customers={customerSearch.trim() && !selectedCustomer ? filteredCustomers : []}
+                    searching={searchingCustomers && !selectedCustomer}
+                    onSelect={(customer) => {
+                      setSelectedCustomer(customer);
+                      setDeliveryAddress(customer.address || '');
+                      setCustomerSearch('');
+                    }}
+                  />
                   <Button
                     variant={isNewCustomerOpen ? 'secondary' : 'outline'}
                     className="gap-2"
@@ -1795,25 +1794,6 @@ const NewOrder = () => {
                         {editingCustomerId ? 'حفظ التعديلات' : 'إضافة العميل'}
                       </Button>
                     </div>
-                  </div>
-                )}
-
-                {customerSearch && filteredCustomers.length > 0 && !selectedCustomer && (
-                  <div className="mt-2 border rounded-lg max-h-48 overflow-auto">
-                    {filteredCustomers.map((customer) => (
-                      <button
-                        key={customer.id}
-                        className="w-full text-right p-3 hover:bg-muted/50 border-b last:border-b-0 transition-colors"
-                        onClick={() => {
-                          setSelectedCustomer(customer);
-                          setDeliveryAddress(customer.address || '');
-                          setCustomerSearch('');
-                        }}
-                      >
-                        <p className="font-medium">{customer.name}</p>
-                        <p className="text-sm text-muted-foreground" dir="ltr" style={{ unicodeBidi: "isolate" }}>{customer.phone}</p>
-                      </button>
-                    ))}
                   </div>
                 )}
 
