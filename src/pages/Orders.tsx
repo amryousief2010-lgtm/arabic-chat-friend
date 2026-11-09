@@ -36,7 +36,9 @@ import { printOrderInvoice } from "@/lib/printUtils";
 import { cairoYearStartUTC, cairoTodayStartUTC, toCairoDateString } from "@/lib/cairoDate";
 import {
   ALL_YEARS_VALUE,
+  currentCairoMonthLabel,
   hasOrderListOperationalFilters,
+  implicitOperationalFilterUsesCurrentMonth,
   resolveEffectiveOrderListYear,
   resolveOrderListDateBounds,
   shouldRestrictOrdersToCurrentMonth,
@@ -712,7 +714,15 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   // عند البحث أو اختيار شهر/سنة محددة يتم تجاوز هذا التقييد لجلب كل المطابقات.
   // شركات الشحن قد لا يكون لديها طلبات في الشهر الحالي (مثلاً زودكس آخر طلب لها في 2025)
   // لتفادي ظهور صفحة فارغة افتراضياً، نحمّل لهم كل الطلبات المسموح بها بدلاً من تقييد الشهر الحالي.
-  // فلتر تشغيلي (عجوزة / شهر / حالة …) يثبّت السنة الحالية ما لم يختر المستخدم «كل السنوات».
+  // فلتر تشغيلي بلا شهر أو فترة أو سنة يثبّت الشهر الحالي (القاهرة)، لا سنة 2026 كلها.
+  const filteredToCurrentMonth = implicitOperationalFilterUsesCurrentMonth({
+    operationalFiltersActive,
+    yearPin,
+    hasExplicitPeriod: !!activePeriod,
+    hasSearch: !!appliedSearch,
+    filterMonth,
+    yearGroup,
+  });
   const restrictToCurrentMonth = shouldRestrictOrdersToCurrentMonth({
     hasSearch: !!appliedSearch,
     hasPeriod: !!activePeriod,
@@ -858,6 +868,14 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       yearGroup,
       isShippingCompany,
     });
+    const scopeImplicitYearToCurrentMonth = implicitOperationalFilterUsesCurrentMonth({
+      operationalFiltersActive,
+      yearPin,
+      hasExplicitPeriod: !!activePeriod,
+      hasSearch: !!activeSearch,
+      filterMonth,
+      yearGroup,
+    });
 
     const seq = ++requestSeq.current;
     // searchOverride provided => explicit بحث / Enter / مسح (not mount/refresh).
@@ -876,6 +894,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
         filterMonth,
         yearGroup,
         restrictToCurrentMonth: restrictToCurrentMonthForFetch,
+        scopeImplicitYearToCurrentMonth,
         now,
       });
 
@@ -1400,7 +1419,8 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   );
   if (filterWarehouseChip !== "all") activeFilterLabels.push(filterWarehouseChip === "main" ? "المخزن الرئيسي" : "مخزن العجوزة");
   if (filterMonth !== "all") activeFilterLabels.push(`الشهر: ${filterMonth}`);
-  if (effectiveYear !== "all") activeFilterLabels.push(`السنة: ${effectiveYear}`);
+  if (filteredToCurrentMonth) activeFilterLabels.push(`الشهر الحالي: ${currentCairoMonthLabel(now)}`);
+  else if (effectiveYear !== "all") activeFilterLabels.push(`السنة: ${effectiveYear}`);
   if (yearGroup !== "all") activeFilterLabels.push(yearGroup === "2026" ? "سنة 2026" : "قبل 2026");
   if (filterProduct !== "all") activeFilterLabels.push(`المنتج: ${filterProduct}`);
   if (filterModerator !== "all") activeFilterLabels.push(`المسوقة: ${filterModerator}`);

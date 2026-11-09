@@ -3,7 +3,9 @@ import { cairoMonthStartUTC, cairoYearStartUTC } from "../cairoDate";
 import {
   ALL_YEARS_VALUE,
   currentAppCalendarYear,
+  currentCairoMonthLabel,
   hasOrderListOperationalFilters,
+  implicitOperationalFilterUsesCurrentMonth,
   resolveEffectiveOrderListYear,
   resolveOrderListDateBounds,
   shouldRestrictOrdersToCurrentMonth,
@@ -144,16 +146,31 @@ describe("resolveOrderListDateBounds", () => {
     expect(bounds.endDate).toBe(cairoMonthStartUTC(2026, 11).toISOString());
   });
 
-  it("queries the full current year when an operational filter pins year without a month", () => {
+  it("queries the full current year when the year was chosen explicitly and no month is set", () => {
     const bounds = resolveOrderListDateBounds({
       effectiveYear: "2026",
       filterMonth: ALL_YEARS_VALUE,
       yearGroup: ALL_YEARS_VALUE,
       restrictToCurrentMonth: false,
+      scopeImplicitYearToCurrentMonth: false,
       now: now2026,
     });
     expect(bounds.startDate).toBe(cairoYearStartUTC(2026).toISOString());
     expect(bounds.endDate).toBe(cairoYearStartUTC(2027).toISOString());
+  });
+
+  it("queries only the current Cairo month when a filter pins the year implicitly", () => {
+    const bounds = resolveOrderListDateBounds({
+      effectiveYear: "2026",
+      filterMonth: ALL_YEARS_VALUE,
+      yearGroup: ALL_YEARS_VALUE,
+      restrictToCurrentMonth: false,
+      scopeImplicitYearToCurrentMonth: true,
+      now: now2026,
+    });
+    expect(bounds.startDate).toBe(cairoMonthStartUTC(2026, 8).toISOString());
+    expect(bounds.endDate).toBe(cairoMonthStartUTC(2026, 9).toISOString());
+    expect(currentCairoMonthLabel(now2026)).toBe("سبتمبر 2026");
   });
 
   it("does not add a year window when the user explicitly chose all years (month-only spans years)", () => {
@@ -200,6 +217,7 @@ describe("Orders list product-owner scenarios", () => {
       operationalFiltersActive: operational,
       now: now2026,
     });
+    const yearPin = filters.yearPin ?? "implicit";
     const bounds = resolveOrderListDateBounds({
       effectiveYear,
       filterMonth,
@@ -209,20 +227,30 @@ describe("Orders list product-owner scenarios", () => {
         hasPeriod: false,
         filterMonth,
         effectiveYear,
-        yearPin: filters.yearPin ?? "implicit",
+        yearPin,
         yearGroup: ALL_YEARS_VALUE,
         isShippingCompany: false,
+      }),
+      scopeImplicitYearToCurrentMonth: implicitOperationalFilterUsesCurrentMonth({
+        operationalFiltersActive: operational,
+        yearPin,
+        filterMonth,
       }),
       now: now2026,
     });
     return { effectiveYear, bounds };
   };
 
-  it("Agouza fulfillment without choosing year → current year only", () => {
-    const { effectiveYear, bounds } = resolve({ fulfillment: "pickup_agouza" });
-    expect(effectiveYear).toBe("2026");
-    expect(bounds.startDate).toBe(cairoYearStartUTC(2026).toISOString());
-    expect(bounds.endDate).toBe(cairoYearStartUTC(2027).toISOString());
+  it("Agouza or the main warehouse without a chosen period → current month only", () => {
+    for (const warehouseChip of ["agouza", "main"]) {
+      const { effectiveYear, bounds } = resolve({ warehouseChip });
+      expect(effectiveYear).toBe("2026");
+      expect(bounds.startDate).toBe(cairoMonthStartUTC(2026, 8).toISOString());
+      expect(bounds.endDate).toBe(cairoMonthStartUTC(2026, 9).toISOString());
+    }
+    const fulfillment = resolve({ fulfillment: "pickup_agouza" });
+    expect(fulfillment.bounds.startDate).toBe(cairoMonthStartUTC(2026, 8).toISOString());
+    expect(fulfillment.bounds.endDate).toBe(cairoMonthStartUTC(2026, 9).toISOString());
   });
 
   it("October while the current month is November stays October of that year", () => {
