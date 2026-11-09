@@ -1,13 +1,13 @@
 /**
  * Orders-list year pinning.
  *
- * Operational filters (month, warehouse/fulfillment, status, …) must query the
- * current Africa/Cairo calendar year unless the user explicitly picks
- * «كل السنوات» or a specific historical year.
+ * Operational filters (warehouse, status, fulfillment, …) query the current
+ * Africa/Cairo month unless the user set a period, a month, a year, or a
+ * year-group tab. An explicit year without a month still spans that year.
  *
  * Default unfiltered view keeps year = "all" so the existing current-month
  * prefetch can stay fast. Period presets and year-group tabs keep owning their
- * own date window.
+ * own date window. Cairo and Asia/Riyadh share the same civil month.
  */
 
 import {
@@ -75,6 +75,35 @@ export function resolveEffectiveOrderListYear(args: {
   return args.filterYear || ALL_YEARS_VALUE;
 }
 
+const MONTHS_AR = [
+  "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+  "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+];
+
+/** Warehouse, status, and the other list filters with no date choice of their own. */
+export function implicitOperationalFilterUsesCurrentMonth(args: {
+  operationalFiltersActive: boolean;
+  yearPin: OrderListYearPin;
+  hasExplicitPeriod?: boolean;
+  hasSearch?: boolean;
+  filterMonth: string;
+  yearGroup?: string;
+}): boolean {
+  return (
+    args.operationalFiltersActive &&
+    args.yearPin !== "explicit" &&
+    !args.hasExplicitPeriod &&
+    !args.hasSearch &&
+    args.filterMonth === ALL_YEARS_VALUE &&
+    (!args.yearGroup || args.yearGroup === ALL_YEARS_VALUE)
+  );
+}
+
+export function currentCairoMonthLabel(now: Date = new Date()): string {
+  const { year, monthIndex0 } = currentCairoYearMonth(now);
+  return `${MONTHS_AR[monthIndex0]} ${year}`;
+}
+
 export function shouldRestrictOrdersToCurrentMonth(args: {
   hasSearch: boolean;
   hasPeriod: boolean;
@@ -101,6 +130,8 @@ export function resolveOrderListDateBounds(args: {
   filterMonth: string;
   yearGroup: string;
   restrictToCurrentMonth: boolean;
+  /** Warehouse/status/… with no explicit month, year, or period. */
+  scopeImplicitYearToCurrentMonth?: boolean;
   now?: Date;
 }): { startDate: string | null; endDate: string | null } {
   const now = args.now ?? new Date();
@@ -123,6 +154,10 @@ export function resolveOrderListDateBounds(args: {
       const m = Number(args.filterMonth);
       startDate = cairoMonthStartUTC(y, m - 1).toISOString();
       endDate = cairoMonthStartUTC(y, m).toISOString();
+    } else if (args.scopeImplicitYearToCurrentMonth) {
+      const { year, monthIndex0 } = currentCairoYearMonth(now);
+      startDate = cairoMonthStartUTC(year, monthIndex0).toISOString();
+      endDate = cairoMonthStartUTC(year, monthIndex0 + 1).toISOString();
     } else {
       startDate = cairoYearStartUTC(y).toISOString();
       endDate = cairoYearStartUTC(y + 1).toISOString();
