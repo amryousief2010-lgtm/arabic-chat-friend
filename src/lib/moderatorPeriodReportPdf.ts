@@ -92,7 +92,7 @@ export function moderatorPeriodReportHtml(report: ModeratorPeriodReport, generat
   </header>
   <p class="note">${hiddenNote} الكيلو للفترة الحالية فقط: اللحم بالعظم منفصل عن اللحوم، الهدايا داخل الإجمالي، والرقاب خارج العدّاد. البنات: ${report.moderators.map((r) => escapeHtml(r.name)).join("، ") || "—"}.</p>
   <h2>مقارنة جنبًا إلى جنب</h2>
-  <p class="note">الخلية المميزة هي الأفضل. في المتأخر وبدون رد وانتظار العميل ومدة أول الرد وغير المحصّل، الأقل هو الأفضل.</p>
+  <p class="note">الخلية المميزة هي الأفضل. في المتأخر وبدون رد وانتظار العميل ومدة أول الرد والملغي وغير المحصّل، الأقل هو الأفضل. الطلبات المسجّلة تبقى الصافي بدون الملغي، والملغي عدد مستقل بجانبها.</p>
   <table><thead><tr><th>المؤشر</th>${head}</tr></thead><tbody>${metricRows}</tbody></table>
   <h2>الكيلو المطلوب والمسلّم</h2>
   <table><thead><tr><th>البنت</th><th>مطلوب</th><th>مسلّم</th></tr></thead><tbody>${kgRows}</tbody></table>

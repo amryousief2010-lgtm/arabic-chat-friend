@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   BRAND_ORANGE,
   BRAND_PURPLE,
+  CANCELLED_ORDERS_LABEL,
+  REGISTERED_ORDERS_LABEL,
   REPORT_PRESETS,
   bestSlugs,
   formatReportPeriod,
@@ -86,6 +88,26 @@ export function ModeratorPeriodReportView({
       )}
       {!loading && !error && report && report.moderators.length > 0 && (
         <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {report.moderators.map((row) => {
+              const cancelledBest = bestSlugs(report.moderators, { id: "cancelled", label: CANCELLED_ORDERS_LABEL, conversation: false, lowerIsBetter: true, value: (r) => r.ordersCancelled }).includes(row.slug);
+              return (
+                <Card key={row.slug} className="glass-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-base">{row.name}</CardTitle></CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">{REGISTERED_ORDERS_LABEL}</p>
+                      <p className="text-2xl font-bold" style={{ color: BRAND_PURPLE }}>{row.ordersRegistered.toLocaleString("ar-EG-u-nu-latn")}</p>
+                    </div>
+                    <div style={cancelledBest ? { background: "#fff1eb", color: BRAND_PURPLE, boxShadow: `inset 0 0 0 2px ${BRAND_ORANGE}`, borderRadius: 8, padding: 8 } : undefined}>
+                      <p className="text-xs text-muted-foreground">{CANCELLED_ORDERS_LABEL}</p>
+                      <p className="text-xl font-bold">{row.ordersCancelled == null ? "—" : row.ordersCancelled.toLocaleString("ar-EG-u-nu-latn")}{cancelledBest ? " الأفضل" : ""}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
           <Card className="glass-card">
             <CardHeader><CardTitle className="text-base">مقارنة البنات</CardTitle></CardHeader>
             <CardContent className="overflow-x-auto">
