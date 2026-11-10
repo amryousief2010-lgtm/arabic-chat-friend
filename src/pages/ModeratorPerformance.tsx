@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import TodayOrderedKgCard from "@/components/sales/TodayOrderedKgCard";
 import { useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -36,7 +37,9 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useModeratorPerformance, type YearFilter } from "@/hooks/useModeratorPerformance";
 import { SALES_NET_LABEL_AR } from "@/lib/orderSalesFilters";
-import { exportModeratorPDF } from "@/utils/exportModeratorReport";
+import ModeratorPeriodReport from "@/components/moderator/ModeratorPeriodReport";
+import { exportModeratorPeriodPdf } from "@/lib/moderatorPeriodReportPdf";
+import type { ModeratorPeriodReport as PeriodReport } from "@/lib/moderatorPeriodReport";
 import ModeratorComparison from "@/components/moderator/ModeratorComparison";
 import { moderatorsForMonth } from "@/constants/moderators";
 import { currentCairoYearMonth } from "@/lib/cairoDate";
@@ -56,6 +59,7 @@ const ModeratorPerformance = () => {
   const [selectedModerator, setSelectedModerator] = useState<string | null>(null);
   const [showComparison, setShowComparison] = useState(false);
   const [yearFilter, setYearFilter] = useState<YearFilter>("all");
+  const [periodReport, setPeriodReport] = useState<PeriodReport | null>(null);
   const { moderators: moderatorPerformanceData, monthlyData: moderatorMonthlyData, totalSales, totalOrders, isLoading } = useModeratorPerformance(yearFilter);
 
   useEffect(() => {
@@ -256,12 +260,13 @@ const ModeratorPerformance = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => exportModeratorPDF({
-              moderators: moderatorPerformanceData,
-              monthlyData: moderatorMonthlyData,
-              totalSales,
-              totalOrders,
-            })}
+            onClick={() => {
+              if (!periodReport) {
+                toast.error("تقرير الفترة لم يكتمل تحميله بعد");
+                return;
+              }
+              exportModeratorPeriodPdf(periodReport);
+            }}
           >
             <FileDown className="w-4 h-4 ml-1" />
             تصدير PDF
@@ -269,6 +274,7 @@ const ModeratorPerformance = () => {
         </div>
       </div>
       <div className="mb-6"><TodayOrderedKgCard /></div>
+      <ModeratorPeriodReport onReport={setPeriodReport} />
 
       {showComparison && (
         <div className="mb-8">
