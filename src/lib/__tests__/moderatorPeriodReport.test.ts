@@ -17,6 +17,7 @@ const row = (patch: Partial<ModeratorPeriodRow>): ModeratorPeriodRow => ({
   slug: "aya",
   name: "آية",
   ordersRegistered: 4,
+  ordersCancelled: 1,
   ordersDelivered: 2,
   deliveredValue: 2000,
   averageOrderValue: 500,
@@ -57,7 +58,7 @@ describe("conversation visibility", () => {
     to: "2026-11-10",
     conversations_visible: true,
     moderators: [{
-      slug: "aya", name: "آية", orders_registered: 2, orders_delivered: 1, delivered_value: 100,
+      slug: "aya", name: "آية", orders_registered: 2, orders_cancelled: 3, orders_delivered: 1, delivered_value: 100,
       average_order_value: 50, collection_collected: 1, collection_not_collected: 1, collection_other: 0,
       kg_requested: { meat: 1, bone: 0, processed: 0, gifts: 0 },
       kg_delivered: { meat: 0, bone: 0, processed: 0, gifts: 0 },
@@ -87,6 +88,12 @@ describe("conversation visibility", () => {
     expect(report.lateByHour).toEqual([]);
     expect(report.ads).toEqual([]);
     expect(report.moderators[0].ordersRegistered).toBe(2);
+    expect(report.moderators[0].ordersCancelled).toBe(3);
+    const { orders_cancelled: _dropped, ...withoutCancelled } = raw.moderators[0] as { orders_cancelled?: number };
+    void _dropped;
+    const legacy = mapModeratorPeriodReport({ ...raw, moderators: [withoutCancelled] }, true);
+    expect(legacy.moderators[0].ordersRegistered).toBe(2);
+    expect(legacy.moderators[0].ordersCancelled).toBeNull();
   });
 
   it("refuses a payload that carries a phone field", () => {
@@ -104,6 +111,17 @@ describe("best highlight", () => {
     expect(bestSlugs(rows, orders)).toEqual(["noura"]);
   });
 
+  it("marks the lowest cancelled count as best and keeps the net orders figure separate", () => {
+    const cancelled = REPORT_METRICS.find((m) => m.id === "cancelled")!;
+    const registered = REPORT_METRICS.find((m) => m.id === "orders")!;
+    expect(registered.label).toBe("الطلبات المسجّلة (الصافي بدون الملغي)");
+    expect(cancelled.label).toBe("الملغي");
+    expect(cancelled.lowerIsBetter).toBe(true);
+    const sample = [row({ slug: "aya", ordersCancelled: 4, ordersRegistered: 10 }), row({ slug: "noura", ordersCancelled: 1, ordersRegistered: 10 })];
+    expect(bestSlugs(sample, cancelled)).toEqual(["noura"]);
+    expect(sample[0].ordersRegistered).toBe(10);
+  });
+
   it("does not crown anyone when every value ties", () => {
     expect(bestSlugs([row({ late: 1 }), row({ slug: "noura", late: 1 })], late)).toEqual([]);
   });
@@ -116,7 +134,7 @@ describe("PDF", () => {
       to: "2026-11-10",
       conversations_visible: true,
       moderators: [row({}), row({ slug: "noura", name: "نورا", late: 0, ordersRegistered: 1 })].map((r) => ({
-        slug: r.slug, name: r.name, orders_registered: r.ordersRegistered, orders_delivered: r.ordersDelivered,
+        slug: r.slug, name: r.name, orders_registered: r.ordersRegistered, orders_cancelled: r.ordersCancelled, orders_delivered: r.ordersDelivered,
         delivered_value: r.deliveredValue, average_order_value: r.averageOrderValue,
         collection_collected: r.collectionCollected, collection_not_collected: r.collectionNotCollected,
         collection_other: 0, kg_requested: r.kgRequested, kg_delivered: r.kgDelivered,
@@ -140,6 +158,8 @@ describe("PDF", () => {
     expect(html).toContain("الأفضل");
     expect(html).toContain("حملة العظم");
     expect(html).not.toMatch(/01[0125]\d{8}/);
+    expect(html).toContain("الطلبات المسجّلة (الصافي بدون الملغي)");
+    expect(html).toContain("الملغي");
     expect(html).toContain("لا تُطبع أرقام العملاء");
   });
 });
@@ -160,5 +180,16 @@ describe("migration contract", () => {
     expect(sql).not.toContain("phone_raw");
     expect(rollback).toContain("DROP FUNCTION IF EXISTS public.cm_moderator_period_report(date, date)");
     expect(rollback).toContain("DROP FUNCTION IF EXISTS public.cm_report_kg_bucket(text, boolean, text)");
+  });
+
+  it("adds a cancelled count without folding it into the net registered orders", () => {
+    const sql = readFileSync(resolve("supabase/migrations/20261110223000_cm_moderator_period_report_cancelled.sql"), "utf8");
+    const undo = readFileSync(resolve("supabase/rollbacks/20261110223000_cm_moderator_period_report_cancelled_ROLLBACK.sql"), "utf8");
+    expect(sql).toContain("'orders_cancelled'");
+    expect(sql).toContain("NOT public.cm_order_is_cancelled(status)");
+    expect(sql).toContain("SECURITY DEFINER");
+    expect(sql).toContain("cm_gate_allows()");
+    expect(undo).not.toContain("'orders_cancelled'");
+    expect(undo).toContain("CREATE OR REPLACE FUNCTION public.cm_moderator_period_report");
   });
 });

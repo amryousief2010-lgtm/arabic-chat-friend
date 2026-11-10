@@ -2,6 +2,10 @@ import { cairoMonthStartUTC, currentCairoYearMonth, toCairoDateString } from "@/
 
 export const REPORT_MODERATOR_SLUGS = ["aya", "noura", "manal", "mariam", "soha"] as const;
 
+/** الصافي يبقى الرقم الرئيسي. الملغي يُعرض بجانبه ولا يُطرح مرة ثانية. */
+export const REGISTERED_ORDERS_LABEL = "الطلبات المسجّلة (الصافي بدون الملغي)";
+export const CANCELLED_ORDERS_LABEL = "الملغي";
+
 export const BRAND_PURPLE = "#A4288A";
 export const BRAND_ORANGE = "#F37346";
 
@@ -31,6 +35,8 @@ export type ModeratorPeriodRow = {
   slug: string;
   name: string;
   ordersRegistered: number;
+  /** null when the installed function does not send the column yet. */
+  ordersCancelled: number | null;
   ordersDelivered: number;
   deliveredValue: number;
   averageOrderValue: number | null;
@@ -189,6 +195,7 @@ export function mapModeratorPeriodReport(raw: unknown, viewerMaySeeConversations
       slug: String(r.slug ?? ""),
       name: String(r.name ?? ""),
       ordersRegistered: num(r.orders_registered),
+      ordersCancelled: Object.prototype.hasOwnProperty.call(r, "orders_cancelled") ? num(r.orders_cancelled) : null,
       ordersDelivered: num(r.orders_delivered),
       deliveredValue: num(r.delivered_value),
       averageOrderValue: numOrNull(r.average_order_value),
@@ -267,7 +274,8 @@ export const REPORT_METRICS: MetricDef[] = [
   { id: "missed", label: "مكالمات فائتة", conversation: true, lowerIsBetter: true, value: (r) => r.calls?.missed ?? null },
   { id: "answerRate", label: "نسبة الرد %", conversation: true, lowerIsBetter: false, value: (r) => r.calls?.answerRate ?? null },
   { id: "matched", label: "مكالمة طابقت طلباً", conversation: true, lowerIsBetter: false, value: (r) => r.calls?.matchedOrder ?? null },
-  { id: "orders", label: "طلبات مسجّلة", conversation: false, lowerIsBetter: false, value: (r) => r.ordersRegistered },
+  { id: "orders", label: REGISTERED_ORDERS_LABEL, conversation: false, lowerIsBetter: false, value: (r) => r.ordersRegistered },
+  { id: "cancelled", label: CANCELLED_ORDERS_LABEL, conversation: false, lowerIsBetter: true, value: (r) => r.ordersCancelled },
   { id: "delivered", label: "طلبات مسلّمة", conversation: false, lowerIsBetter: false, value: (r) => r.ordersDelivered },
   { id: "value", label: "قيمة المسلّم", conversation: false, lowerIsBetter: false, value: (r) => r.deliveredValue },
   { id: "aov", label: "متوسط الطلب", conversation: false, lowerIsBetter: false, value: (r) => r.averageOrderValue },

@@ -20,7 +20,7 @@ const report: ModeratorPeriodReport = {
   conversationsVisible: true,
   moderators: [
     {
-      slug: "aya", name: "آية", ordersRegistered: 2, ordersDelivered: 1, deliveredValue: 100, averageOrderValue: 50,
+      slug: "aya", name: "آية", ordersRegistered: 2, ordersCancelled: 4, ordersDelivered: 1, deliveredValue: 100, averageOrderValue: 50,
       collectionCollected: 1, collectionNotCollected: 1, collectionOther: 0,
       kgRequested: { meat: 1, bone: 0.5, processed: 0, gifts: 0 }, kgDelivered: { meat: 1, bone: 0, processed: 0, gifts: 0 },
       conversations: 8, onTime: 5, cover: 1, late: 3, unreplied: 2, waitingCustomer: 1,
@@ -28,7 +28,7 @@ const report: ModeratorPeriodReport = {
       calls: { answered: 2, missed: 2, under1Min: 1, from1To5Min: 1, over5Min: 0, matchedOrder: 1, answerRate: 50 },
     },
     {
-      slug: "noura", name: "نورا", ordersRegistered: 5, ordersDelivered: 4, deliveredValue: 800, averageOrderValue: 160,
+      slug: "noura", name: "نورا", ordersRegistered: 5, ordersCancelled: 1, ordersDelivered: 4, deliveredValue: 800, averageOrderValue: 160,
       collectionCollected: 4, collectionNotCollected: 1, collectionOther: 0,
       kgRequested: { meat: 2, bone: 1, processed: 0, gifts: 0 }, kgDelivered: { meat: 2, bone: 1, processed: 0, gifts: 0 },
       conversations: 6, onTime: 5, cover: 0, late: 0, unreplied: 0, waitingCustomer: 0,
@@ -58,6 +58,8 @@ describe("ModeratorPeriodReportView", () => {
         onTo={vi.fn()}
       />,
     );
+    expect(screen.getAllByText("الطلبات المسجّلة (الصافي بدون الملغي)").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("الملغي").length).toBeGreaterThan(0);
     expect(screen.getByText("01/11/2026 – 10/11/2026")).toBeTruthy();
     expect(screen.getByText("إعلان تجريبي")).toBeTruthy();
     expect(screen.getAllByText(/الأفضل/).length).toBeGreaterThan(0);
@@ -70,7 +72,7 @@ describe("ModeratorPeriodReportView", () => {
   it("does not render conversation or hotline tables when they are hidden", () => {
     render(
       <ModeratorPeriodReportView
-        report={{ ...report, conversationsVisible: false, ads: [], lateByHour: [], moderators: report.moderators.map((row) => ({ ...row, conversations: null, calls: null, late: null, unreplied: null })) }}
+        report={{ ...report, conversationsVisible: false, ads: [], lateByHour: [], moderators: report.moderators.map((row) => ({ ...row, conversations: null, calls: null, late: null, unreplied: null, ordersCancelled: null })) }}
         loading={false}
         error={null}
         preset="today"
