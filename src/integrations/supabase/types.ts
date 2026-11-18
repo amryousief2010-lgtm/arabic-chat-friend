@@ -20360,6 +20360,7 @@ export type Database = {
       products: {
         Row: {
           barcode: string | null
+          barcode_pending: boolean
           category: string | null
           cost_price: number
           created_at: string
@@ -20378,6 +20379,7 @@ export type Database = {
         }
         Insert: {
           barcode?: string | null
+          barcode_pending?: boolean
           category?: string | null
           cost_price?: number
           created_at?: string
@@ -20396,6 +20398,7 @@ export type Database = {
         }
         Update: {
           barcode?: string | null
+          barcode_pending?: boolean
           category?: string | null
           cost_price?: number
           created_at?: string
