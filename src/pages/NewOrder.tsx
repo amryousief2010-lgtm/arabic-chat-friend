@@ -385,6 +385,15 @@ const NewOrder = () => {
   // Available stock per product per warehouse (stock - reserved - blocked)
   const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
   const [mainStock, setMainStock] = useState<Record<string, number>>({});
+  // «رصيد صفر»: تحذير فقط (لا يمنع الأوردر). يعتمد على مصدر التنفيذ لو متحدد،
+  // وإلا يحذّر لما الرصيد المتاح صفر في العجوزة والرئيسي معًا.
+  const isZeroStock = (productId: string): boolean => {
+    const ag = agouzaStock[productId] ?? 0;
+    const mn = mainStock[productId] ?? 0;
+    if (fulfillmentKey === 'pickup_agouza' || fulfillmentKey === 'delivery_agouza') return ag <= 0;
+    if (fulfillmentKey === 'pickup_main' || fulfillmentKey === 'delivery_main') return mn <= 0;
+    return ag <= 0 && mn <= 0;
+  };
 
   // عند اختيار "توصيل من المخزن الرئيسى" → الأوردر يتسجل تلقائياً على المندوب الخاص (كيمو)
   useEffect(() => {
@@ -2318,6 +2327,11 @@ const NewOrder = () => {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className="font-medium text-sm truncate text-primary">{item.product.name}</p>
+                                {!inventoryLoading && !inventoryError && isZeroStock(item.product.id) && (
+                                  <Badge variant="destructive" className="text-xs" title="الرصيد المتاح صفر — الأوردر هيتسجل لكن البضاعة مش موجودة في المخزن">
+                                    رصيد صفر
+                                  </Badge>
+                                )}
                                 {item.isGift && (
                                   <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">
                                     <Gift className="w-3 h-3 ml-1" /> هدية مجانية
