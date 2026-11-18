@@ -18,6 +18,7 @@ import {
 import { Trash2, Plus, Gift } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getSalesInventoryAvailability, sumAvailableByProduct } from "@/lib/inventoryReadApi";
 import { computeOrderTotals, isOfferShippingLine } from "@/lib/orderTotals";
 import { deliveryFeeForItemEdit, liveOfferNames } from "@/lib/offerBoxOrder";
 import { getOfferUnitPriceForReplacement, getOfferPriceGroup, type OfferPriceGroup } from "@/lib/offerPriceGroups";
@@ -77,6 +78,9 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   const [deliveryFeeTouched, setDeliveryFeeTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  // product_id -> available stock (main + Agouza) from inv_get_sales_availability.
+  // null = not loaded (no warning shown).
+  const [availableByProduct, setAvailableByProduct] = useState<Record<string, number> | null>(null);
   // offer_name -> (group -> unit price) derived from offer_boxes
   const [offerGroupPrices, setOfferGroupPrices] = useState<
     Record<string, Partial<Record<OfferPriceGroup, number>>>
@@ -114,6 +118,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
     setDeliveryFee(safeHeader !== 0 ? safeHeader : lineShipping);
     setDeliveryFeeTouched(false);
     fetchProducts();
+    fetchAvailability();
     fetchOfferGroupPrices(initialItems);
     // Only reset on dialog open transition — don't overwrite user edits
     // when parent re-renders due to tab switch / background refetch.
@@ -127,6 +132,33 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
       .eq("is_active", true)
       .order("name");
     if (!error && data) setProducts(data as Product[]);
+  };
+
+  // Secure read layer (no cost columns). v_product_stock_availability is
+  // security_invoker and reads cost_price, so signed-in users cannot query it.
+  const fetchAvailability = async () => {
+    setAvailableByProduct(null);
+    try {
+      const { data: whs, error } = await supabase
+        .from("warehouses")
+        .select("id, name")
+        .eq("is_active", true);
+      if (error || !whs) return;
+      const ids = whs
+        .filter((w) => w.name?.includes("العجوزة") || w.name?.includes("الرئيسي") || w.name?.includes("المقر"))
+        .map((w) => w.id);
+      if (!ids.length) return;
+      const rows = await getSalesInventoryAvailability({ warehouseIds: ids, activeOnly: false });
+      // per-warehouse clamp so a negative balance in one warehouse doesn't hide stock in the other
+      const map: Record<string, number> = {};
+      for (const wid of ids) {
+        const perWh = sumAvailableByProduct(rows, wid);
+        for (const [pid, qty] of Object.entries(perWh)) map[pid] = (map[pid] ?? 0) + Math.max(0, qty);
+      }
+      setAvailableByProduct(map);
+    } catch {
+      // warning only — never block editing if availability can't be read
+    }
   };
 
   // For every offer referenced by the order, fetch its box items and build a
@@ -433,6 +465,14 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                     {it.is_gift && (
                       <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-300">
                         🎁 هدية مجانية
+                      </span>
+                    )}
+                    {it.product_id && availableByProduct && (availableByProduct[it.product_id] ?? 0) <= 0 && (
+                      <span
+                        className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/40"
+                        title="الرصيد المتاح صفر في المخزن الرئيسي والعجوزة — تحذير فقط"
+                      >
+                        رصيد صفر
                       </span>
                     )}
                   </label>

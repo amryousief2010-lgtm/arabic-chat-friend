@@ -46,6 +46,13 @@ import { printProductLabel, printProductLabels, validateBarcode } from "@/lib/pr
 import BarcodeImportDialog from "@/components/products/BarcodeImportDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast as sonnerToast } from "sonner";
+import {
+  PROCESSED_MEAT_CATEGORY,
+  productDbErrorMessage,
+  validateProductGate,
+  type ProductReadiness,
+} from "@/lib/productGate";
+import ProductActivationDialog from "@/components/products/ProductActivationDialog";
 
 
 const categories = ["لحوم طازجة", "لحوم مصنعة", "منتجات أخرى"];
@@ -60,10 +67,11 @@ interface Product {
   image_url: string | null;
   is_active: boolean;
   barcode: string | null;
+  barcode_pending?: boolean;
 }
 
 const Products = () => {
-  const { role, canManageStock } = useAuth();
+  const { role, roles, canManageStock } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -290,13 +298,21 @@ const Products = () => {
     unit: "كيلو",
     image_url: "",
     barcode: "",
+    barcode_pending: false,
+    cost_price: "",
+    pack_weight_kg: "",
   });
+  // Readiness of the product being edited (cost is never sent to the client, only cost_ok)
+  const [editReadiness, setEditReadiness] = useState<ProductReadiness | null>(null);
+  const [activationProduct, setActivationProduct] = useState<Product | null>(null);
 
   // Permission checks
   const canAddProducts = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager' || role === 'warehouse_supervisor';
   const canEditPrice = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager' || role === 'accountant' || role === 'warehouse_supervisor' || role === 'marketing_sales_manager';
   const canManageProducts = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager' || role === 'warehouse_supervisor';
   const isModerator = role === 'sales_moderator';
+  // تفعيل المنتج: المدير العام أو مدير المبيعات فقط (نفس شرط الداتابيز)
+  const canActivateProducts = roles.includes('general_manager') || roles.includes('sales_manager');
   const canViewFinancials = !isModerator;
 
   // Fetch products from Supabase
@@ -305,10 +321,10 @@ const Products = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, category, price, stock, unit, image_url, is_active, barcode, description, old_price, low_stock_threshold, created_at, updated_at')
+        .select('id, name, category, price, stock, unit, image_url, is_active, barcode, barcode_pending, description, old_price, low_stock_threshold, created_at, updated_at')
         .order('name');
       if (error) throw error;
-      return data as Product[];
+      return (data ?? []) as unknown as Product[];
     },
   });
 
@@ -376,6 +392,7 @@ const Products = () => {
   };
 
   const handleOpenDialog = (product?: Product) => {
+    setEditReadiness(null);
     if (product) {
       setEditingProduct(product);
       setFormData({
@@ -386,7 +403,21 @@ const Products = () => {
         unit: product.unit,
         image_url: product.image_url || "",
         barcode: product.barcode || "",
+        barcode_pending: !!product.barcode_pending,
+        cost_price: "",
+        pack_weight_kg: "",
       });
+      void (supabase as any)
+        .rpc("product_readiness", { p_product_id: product.id })
+        .then(({ data, error }: { data: ProductReadiness | null; error: unknown }) => {
+          if (error || !data) return;
+          setEditReadiness(data);
+          setFormData((f) =>
+            f.pack_weight_kg === "" && data.pack_weight_kg != null
+              ? { ...f, pack_weight_kg: String(data.pack_weight_kg) }
+              : f,
+          );
+        });
     } else {
       setEditingProduct(null);
       setFormData({
@@ -397,6 +428,9 @@ const Products = () => {
         unit: "كيلو",
         image_url: "",
         barcode: "",
+        barcode_pending: false,
+        cost_price: "",
+        pack_weight_kg: "",
       });
     }
     setIsDialogOpen(true);
@@ -405,31 +439,39 @@ const Products = () => {
   // Create product mutation
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const { error } = await supabase.from('products').insert({
+      const barcode = data.barcode?.trim() || null;
+      // المنتج الجديد بيتضاف موقوف؛ التفعيل بعد دخول رصيد وموافقة المدير العام أو مدير المبيعات
+      const { error } = await (supabase as any).from('products').insert({
         name: data.name,
         category: data.category || null,
         price: parseFloat(data.price),
-        stock: parseInt(data.stock) || 0,
         unit: data.unit,
         image_url: data.image_url || null,
-        barcode: data.barcode?.trim() || null,
+        barcode,
+        barcode_pending: !barcode && data.barcode_pending,
+        cost_price: parseFloat(data.cost_price),
+        pack_weight_kg: parseFloat(data.pack_weight_kg),
+        is_active: false,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast({ title: 'تم إضافة المنتج بنجاح' });
+      toast({
+        title: 'تم إضافة المنتج (موقوف)',
+        description: 'المنتج هيفضل موقوف لحد ما يدخله رصيد ويتفعّل من المدير العام أو مدير المبيعات.',
+      });
       setIsDialogOpen(false);
     },
-    onError: () => {
-      toast({ title: 'حدث خطأ', variant: 'destructive' });
+    onError: (err: unknown) => {
+      toast({ title: 'لم يتم إضافة المنتج', description: productDbErrorMessage(err), variant: 'destructive' });
     },
   });
 
   // Update product mutation
   const updateMutation = useMutation({
-    mutationFn: async (data: { id: string; updates: Partial<Product> }) => {
-      const { error } = await supabase
+    mutationFn: async (data: { id: string; updates: Record<string, unknown> }) => {
+      const { error } = await (supabase as any)
         .from('products')
         .update(data.updates)
         .eq('id', data.id);
@@ -440,8 +482,8 @@ const Products = () => {
       toast({ title: 'تم تحديث المنتج بنجاح' });
       setIsDialogOpen(false);
     },
-    onError: () => {
-      toast({ title: 'حدث خطأ', variant: 'destructive' });
+    onError: (err: unknown) => {
+      toast({ title: 'لم يتم حفظ التعديل', description: productDbErrorMessage(err), variant: 'destructive' });
     },
   });
 
@@ -506,15 +548,47 @@ const Products = () => {
       return;
     }
 
+    const gateErrors = validateProductGate(
+      {
+        barcode: formData.barcode,
+        barcodePending: formData.barcode_pending,
+        costPrice: formData.cost_price,
+        packWeightKg: formData.pack_weight_kg,
+      },
+      {
+        // new product: everything required. Edit: cost required only when it is
+        // still missing; pack weight is pre-filled from the DB so it stays required.
+        requireCost: !editingProduct || (editReadiness ? !editReadiness.cost_ok : false),
+        requirePack: true,
+      },
+    );
+    if (gateErrors.length) {
+      toast({
+        title: "بيانات المنتج ناقصة",
+        description: gateErrors.join(" — "),
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (editingProduct) {
-      const updates: Partial<Product> = {
+      const barcode = formData.barcode?.trim() || null;
+      // stock is ledger-owned (products.stock is read-only) — never sent from here
+      const updates: Record<string, unknown> = {
         name: formData.name,
         category: formData.category,
-        stock: parseInt(formData.stock) || 0,
         unit: formData.unit,
         image_url: formData.image_url || null,
-        barcode: formData.barcode?.trim() || null,
+        barcode,
+        barcode_pending: !barcode && formData.barcode_pending,
       };
+      if (formData.cost_price.trim() !== "") updates.cost_price = parseFloat(formData.cost_price);
+      if (
+        formData.pack_weight_kg.trim() !== "" &&
+        Number(formData.pack_weight_kg) !== Number(editReadiness?.pack_weight_kg ?? NaN)
+      ) {
+        updates.pack_weight_kg = parseFloat(formData.pack_weight_kg);
+      }
       // Only include price if user can edit it
       if (canEditPrice) {
         updates.price = parseFloat(formData.price);
@@ -660,17 +734,38 @@ const Products = () => {
                         )}
                       </div>
                       <div className="space-y-2">
-                        <Label>المخزون</Label>
+                        <Label>التكلفة (ج.م) {editingProduct && editReadiness?.cost_ok ? "" : "*"}</Label>
                         <Input
                           type="number"
-                          value={formData.stock}
+                          min="0"
+                          step="0.01"
+                          value={formData.cost_price}
                           onChange={(e) =>
-                            setFormData({ ...formData, stock: e.target.value })
+                            setFormData({ ...formData, cost_price: e.target.value })
                           }
-                          placeholder="0"
+                          placeholder={editingProduct && editReadiness?.cost_ok ? "مسجلة — اتركها فاضية للإبقاء" : "تكلفة الكيلو/الوحدة"}
                           className="input-modern"
                         />
+                        {editingProduct && editReadiness && !editReadiness.cost_ok && (
+                          <p className="text-xs text-destructive">التكلفة غير مسجلة لهذا المنتج</p>
+                        )}
                       </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>وزن العبوة (كجم) *</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        value={formData.pack_weight_kg}
+                        onChange={(e) =>
+                          setFormData({ ...formData, pack_weight_kg: e.target.value })
+                        }
+                        placeholder="مثال: 0.5"
+                        className="input-modern"
+                        dir="ltr"
+                        inputMode="decimal"
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>الوحدة</Label>
@@ -714,9 +809,30 @@ const Products = () => {
                         inputMode="numeric"
                       />
                       <p className="text-xs text-muted-foreground">
-                        الكود المعتمد المطبوع على استيكر المنتج
+                        الكود المعتمد المطبوع على استيكر المنتج (13 رقم)
                       </p>
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox
+                          checked={formData.barcode_pending}
+                          disabled={formData.barcode.trim() !== ""}
+                          onCheckedChange={(v) =>
+                            setFormData({ ...formData, barcode_pending: v === true })
+                          }
+                        />
+                        الكود تحت التسجيل
+                      </label>
                     </div>
+                    {formData.category === PROCESSED_MEAT_CATEGORY && (
+                      <p className="text-xs rounded-md border border-amber-300 bg-amber-50 text-amber-800 p-2">
+                        المنتج المصنّع لازم يكون له صنف تام في مصنع اللحوم بنفس الاسم (مثال: «برجر نعام» ← «برجر»)
+                        عشان يتحوّل للمخزن ويتفعّل.
+                      </p>
+                    )}
+                    {!editingProduct && (
+                      <p className="text-xs text-muted-foreground">
+                        المنتج الجديد بيتضاف <b>موقوف</b>، ويتفعّل من المدير العام أو مدير المبيعات بعد ما يدخله رصيد.
+                      </p>
+                    )}
                     <Button onClick={handleSubmit} className="w-full btn-primary">
                       {editingProduct ? "حفظ التعديلات" : "إضافة المنتج"}
                     </Button>
@@ -809,11 +925,18 @@ const Products = () => {
                           />
                         )}
                         <span className="font-medium">{product.name}</span>
+                        {!product.is_active && (
+                          <Badge variant="outline" className="border-amber-400 text-amber-700 bg-amber-50 text-[10px]">
+                            موقوف
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
                       {product.barcode ? (
                         <span className="font-mono text-xs" dir="ltr">{product.barcode}</span>
+                      ) : product.barcode_pending ? (
+                        <span className="text-xs text-amber-700">تحت التسجيل</span>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
@@ -956,6 +1079,16 @@ const Products = () => {
                         >
                           <Printer className="w-4 h-4" />
                         </Button>
+                        {!product.is_active && canActivateProducts && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs border-emerald-500 text-emerald-700 hover:bg-emerald-50"
+                            onClick={() => setActivationProduct(product)}
+                          >
+                            تفعيل المنتج
+                          </Button>
+                        )}
                         {canManageProducts && (
                           <>
                             <Button
@@ -984,6 +1117,12 @@ const Products = () => {
           )}
         </CardContent>
       </Card>
+
+      <ProductActivationDialog
+        product={activationProduct}
+        onOpenChange={(open) => { if (!open) setActivationProduct(null); }}
+        onActivated={() => queryClient.invalidateQueries({ queryKey: ["products"] })}
+      />
 
       <BarcodeImportDialog
         open={importOpen}
