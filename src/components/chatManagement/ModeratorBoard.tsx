@@ -65,7 +65,14 @@ export default function ModeratorBoard({ roles }: { roles?: string[] }) {
   const [open, setOpen] = useState<InboxConversation | null>(null);
   const [live, setLive] = useState(false);
 
+  // منع تحميلات متراكبة: لو فيه تحميل شغال، علّم إن فيه تحديث مستني بدل ما نبدأ طلب جديد.
+  const inFlight = useRef(false);
+  const pending = useRef(false);
   const load = useCallback(async () => {
+    if (inFlight.current) { pending.current = true; return; }
+    if (typeof document !== "undefined" && document.hidden) return;
+    inFlight.current = true;
+    try {
     const now = new Date();
     const r = day ? { from: day, to: day } : periodRange(period, now);
     const b = isoBounds(r);
@@ -116,20 +123,27 @@ export default function ModeratorBoard({ roles }: { roles?: string[] }) {
       })));
     }
     setUpdatedAt(new Date());
+    } finally {
+      inFlight.current = false;
+      if (pending.current) { pending.current = false; setTimeout(load, 1000); }
+    }
   }, [period, day]);
 
   // تحميل + تحديث مباشر (debounce ثانيتين) + استطلاع كل 30 ثانية احتياطياً.
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     load();
-    const bump = () => { if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(load, 2000); };
+    // throttle (مش debounce): أقصى تحميل واحد كل 10 ثواني مهما كانت الرسايل كتير.
+    const bump = () => { if (!timer.current) timer.current = setTimeout(() => { timer.current = null; load(); }, 10_000); };
+    // cm_messages اتشالت: كل رسالة كانت بتعيد تحميل اللوحة كلها؛ تغيّر المحادثة نفسها (last_inbound_at) كفاية.
     const ch = db.channel(`cm-board-${period}-${day ?? ""}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "cm_conversations" }, bump)
-      .on("postgres_changes", { event: "*", schema: "public", table: "cm_messages" }, bump)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, bump)
       .subscribe((s: string) => setLive(s === "SUBSCRIBED"));
-    const poll = setInterval(load, 30_000);
-    return () => { clearInterval(poll); if (timer.current) clearTimeout(timer.current); db.removeChannel(ch); };
+    const poll = setInterval(load, 60_000);
+    const onVis = () => { if (!document.hidden) load(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { clearInterval(poll); if (timer.current) clearTimeout(timer.current); timer.current = null; document.removeEventListener("visibilitychange", onVis); db.removeChannel(ch); };
   }, [load, period]);
 
   const now = useMemo(() => new Date(), [convs]);
