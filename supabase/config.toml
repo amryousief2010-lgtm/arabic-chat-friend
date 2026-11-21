@@ -70,3 +70,7 @@ verify_jwt = false
 
 [functions.cm-analyze-call]
 verify_jwt = true
+
+# التقرير الصباحي: الكرون بيبعت x-cm-ai-cron-secret من غير JWT؛ الصلاحية جوه الدالة (سر الكرون أو GM/SM).
+[functions.cm-morning-report]
+verify_jwt = false

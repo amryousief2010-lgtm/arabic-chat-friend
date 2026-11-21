@@ -56,6 +56,7 @@ import {
   Phone,
   MessagesSquare,
   SlidersHorizontal,
+  BellRing,
 } from "lucide-react";
 import { useAuth, AppRole } from "@/hooks/useAuth";
 import { SIDEBAR_ITEM_MOVES, MARKETING_ONLY_EXTRA_PREFIXES } from "@/config/sidebarOverrides";
@@ -69,6 +70,7 @@ import { findModeratorByName } from "@/constants/moderators";
 import { CALLER_LOOKUP_PATH, CALLER_LOOKUP_ROLES } from "@/constants/callerLookup";
 import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, CHAT_MANAGEMENT_SECTION_ROLES, CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES, CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES } from "@/config/chatManagement";
 import { cmGateAllows, isChatManagementPath, isCmKpiViewerPath } from "@/config/chatManagement";
+import { AI_REPORTS_PATH, AI_REPORTS_ROLES } from "@/config/aiReports";
 import { useCmFeatureGate } from "@/hooks/useCmFeatureGate";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -102,6 +104,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: BookOpen, label: "دليل الموظف السريع", path: "/quick-guide", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'production_manager', 'marketing_sales_manager', 'financial_manager', 'quality_manager', 'farm_manager', 'hatchery_manager', 'brooding_manager', 'slaughterhouse_manager', 'meat_factory_manager', 'feed_factory_manager', 'hr_manager', 'shipping_company', 'private_delivery_rep','marketing_sales_viewer'] },
       { icon: TrendingUp, label: "لوحة تحكم المدير التنفيذي", path: "/executive-dashboard", roles: ['general_manager', 'executive_manager'] },
       { icon: ShieldCheck, label: "مركز الاعتمادات", path: "/approvals-center", roles: ['general_manager', 'executive_manager'] },
+      { icon: BellRing, label: "التقارير والتنبيهات الذكية", path: AI_REPORTS_PATH, roles: AI_REPORTS_ROLES },
       { icon: BookOpen, label: "دليل تشغيل الموظفين", path: "/operations-guide", roles: ['general_manager', 'executive_manager', 'hatchery_manager', 'farm_manager', 'brooding_manager', 'feed_factory_manager', 'meat_factory_manager', 'warehouse_supervisor', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'production_manager','marketing_sales_viewer'] },
       { icon: LayoutDashboard, label: "لوحة التحكم", path: "/", roles: ['general_manager', 'executive_manager', 'marketing_sales_manager', 'financial_manager', 'production_manager','marketing_sales_viewer'] },
       // مخفي من السايد بار فقط - الرابط والصفحة والصلاحيات تعمل عند الفتح المباشر

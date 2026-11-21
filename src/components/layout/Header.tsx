@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { Bell, Search, LogOut, Shield, User } from "lucide-react";
+import { Bell, BellRing, Search, LogOut, Shield, User } from "lucide-react";
 import companyLogo from "@/assets/company-logo.jpg";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
+import { useAiAlertsUnread } from "@/hooks/useAiAlertsUnread";
+import { AI_REPORTS_PATH, BRAND } from "@/config/aiReports";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,6 +47,7 @@ const Header = ({ title, subtitle }: HeaderProps) => {
   const navigate = useNavigate();
   const { unreadCount, urgentUnreadCount, lastUrgentAt } = useUnreadNotifications();
   const [flash, setFlash] = useState(false);
+  const { enabled: aiAlertsEnabled, count: aiAlertsCount } = useAiAlertsUnread();
 
   useEffect(() => {
     if (!lastUrgentAt) return;
@@ -89,6 +92,27 @@ const Header = ({ title, subtitle }: HeaderProps) => {
             className="pr-10 w-64 input-modern"
           />
         </div>
+
+        {aiAlertsEnabled && (
+          <Button
+            variant="outline"
+            size="icon"
+            className="relative"
+            onClick={() => navigate(`${AI_REPORTS_PATH}?tab=alerts`)}
+            aria-label="التنبيهات الذكية"
+            title={aiAlertsCount > 0 ? `${aiAlertsCount} تنبيه مفتوح` : 'التنبيهات الذكية والتقرير الصباحي'}
+          >
+            <BellRing className="w-5 h-5" style={{ color: BRAND.magenta }} />
+            {aiAlertsCount > 0 && (
+              <span
+                className="absolute -top-1 -left-1 min-w-4 h-4 px-1 text-xs rounded-full flex items-center justify-center text-white"
+                style={{ background: BRAND.orange }}
+              >
+                {aiAlertsCount > 99 ? '99+' : aiAlertsCount}
+              </span>
+            )}
+          </Button>
+        )}
 
         <Button
           variant="outline"

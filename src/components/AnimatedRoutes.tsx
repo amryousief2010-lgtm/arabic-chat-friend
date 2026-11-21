@@ -1,4 +1,5 @@
 import { lazy as reactLazy, Suspense } from "react";
+import { AI_REPORTS_PATH, AI_REPORTS_ROLES } from "@/config/aiReports";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -48,6 +49,7 @@ const ChatPhoneReview = lazy(() => import("@/pages/ChatPhoneReview"));
 const ChatKpis = lazy(() => import("@/pages/ChatKpis"));
 const ChatAdSpend = lazy(() => import("@/pages/ChatAdSpend"));
 const ChatCalls = lazy(() => import("@/pages/ChatCalls"));
+const AiReports = lazy(() => import("@/pages/AiReports"));
 const Products = lazy(() => import("@/pages/Products"));
 const ProductCosts = lazy(() => import("@/pages/ProductCosts"));
 const BoxCosts = lazy(() => import("@/pages/BoxCosts"));
@@ -336,6 +338,11 @@ const AnimatedRoutes = () => {
           <Route path={CHAT_CALLS_PATH} element={
             <ProtectedRoute allowedRoles={CHAT_CALLS_ROLES}>
               <PageTransition><ChatCalls /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={AI_REPORTS_PATH} element={
+            <ProtectedRoute allowedRoles={AI_REPORTS_ROLES}>
+              <PageTransition><AiReports /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/debug" element={
