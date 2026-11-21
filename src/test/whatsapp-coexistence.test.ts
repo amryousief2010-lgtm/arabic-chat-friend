@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { handleWebhook, signBody, extractOps, contentOf, type Op, type IngestArgs } from "../../supabase/functions/whatsapp-webhook/handler";
+import { handleWebhook, signBody, extractOps, contentOf, tsMs, tsIso, type Op, type IngestArgs } from "../../supabase/functions/whatsapp-webhook/handler";
 import { messageText } from "@/components/chatManagement/ConversationThread";
 
 // كل الأرقام وهمية.
@@ -102,6 +102,32 @@ describe("coexistence fields", () => {
     expect(u.ops[0]).toMatchObject({ kind: "log", args: { _field: "account_update", _info: { event: "PARTNER_REMOVED" } } });
     expect((await run(wrap("account_update", {}), "log")).r.status).toBe(200);
     expect((await run(wrap("smb_app_state_sync", { state_sync: [{ type: "contact", contact: { phone_number: CUST }, action: "add" }] }), "contacts")).r.status).toBe(500);
+  });
+
+  it("smb_app_state_sync with millisecond timestamps (prod 22009 bug) → valid ISO, not year +58846", async () => {
+    const msTs = String(Date.UTC(2026, 10, 20, 12, 0, 0)); // 13 رقم = مللي ثانية
+    const { ops, r } = await run(wrap("smb_app_state_sync", { state_sync: [
+      { type: "contact", contact: { full_name: "عميل وهمي", phone_number: CUST }, action: "add", metadata: { timestamp: msTs } },
+      { type: "contact", contact: { phone_number: "201000000001" }, action: "add", metadata: { timestamp: "garbage" } },
+    ] }));
+    expect(r.status).toBe(200);
+    const cs = (ops[0].args as any)._contacts;
+    expect(cs[0].ts).toBe("2026-11-20T12:00:00.000Z");
+    expect(cs[1].ts).toMatch(/^20\d\d-\d\d-\d\dT/); // غير صالح ← الآن
+  });
+
+  it("tsMs: seconds / ms / µs / ISO / invalid → sane epoch ms, never throws", () => {
+    const now = Date.UTC(2026, 10, 21, 6, 0, 0);
+    const t = Date.UTC(2026, 10, 20, 12, 0, 0);
+    expect(tsMs(t / 1000, now)).toBe(t);
+    expect(tsMs(String(t / 1000), now)).toBe(t);
+    expect(tsMs(String(t), now)).toBe(t);
+    expect(tsMs(t * 1000, now)).toBe(t);
+    expect(tsMs("2026-11-20T12:00:00Z", now)).toBe(t);
+    for (const bad of [null, undefined, "", "abc", 0, -5, NaN, Infinity, "1e400", {}, [], 1e20, "+058846-08-11T15:17:53.000Z", 100, now + 10 * 86400000])
+      expect(tsMs(bad as unknown, now)).toBe(now);
+    expect(() => tsIso("1795199567232")).not.toThrow();
+    expect(tsIso("1795199567232").startsWith("2026-")).toBe(true);
   });
 
   it("extractOps ignores non-WABA objects", () => expect(extractOps({ object: "page" })).toEqual([]));
