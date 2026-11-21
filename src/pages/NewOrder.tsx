@@ -63,6 +63,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 import { normalizePhone } from '@/lib/normalizePhone';
+import { phoneInputProps } from '@/lib/phoneInputDirection';
+import { CustomerSearchField } from '@/components/orders/CustomerSearchField';
 import {
   classifyDuplicateCheck,
   OWN_REPEAT_CANCEL_LABEL,
@@ -385,6 +387,15 @@ const NewOrder = () => {
   // Available stock per product per warehouse (stock - reserved - blocked)
   const [agouzaStock, setAgouzaStock] = useState<Record<string, number>>({});
   const [mainStock, setMainStock] = useState<Record<string, number>>({});
+  // «رصيد صفر»: تحذير فقط (لا يمنع الأوردر). يعتمد على مصدر التنفيذ لو متحدد،
+  // وإلا يحذّر لما الرصيد المتاح صفر في العجوزة والرئيسي معًا.
+  const isZeroStock = (productId: string): boolean => {
+    const ag = agouzaStock[productId] ?? 0;
+    const mn = mainStock[productId] ?? 0;
+    if (fulfillmentKey === 'pickup_agouza' || fulfillmentKey === 'delivery_agouza') return ag <= 0;
+    if (fulfillmentKey === 'pickup_main' || fulfillmentKey === 'delivery_main') return mn <= 0;
+    return ag <= 0 && mn <= 0;
+  };
 
   // عند اختيار "توصيل من المخزن الرئيسى" → الأوردر يتسجل تلقائياً على المندوب الخاص (كيمو)
   useEffect(() => {
@@ -1613,19 +1624,18 @@ const NewOrder = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex gap-3">
-                  <div className="flex-1 relative">
-                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      placeholder="بحث عن عميل..."
-                      className="pr-10"
-                      value={customerSearch}
-                      onChange={(e) => setCustomerSearch(e.target.value)}
-                    />
-                  </div>
-                    {searchingCustomers && (
-                      <p className="mt-2 text-xs text-muted-foreground">جاري البحث عن العملاء...</p>
-                    )}
+                <div className="flex items-start gap-3">
+                  <CustomerSearchField
+                    value={customerSearch}
+                    onChange={setCustomerSearch}
+                    customers={customerSearch.trim() && !selectedCustomer ? filteredCustomers : []}
+                    searching={searchingCustomers && !selectedCustomer}
+                    onSelect={(customer) => {
+                      setSelectedCustomer(customer);
+                      setDeliveryAddress(customer.address || '');
+                      setCustomerSearch('');
+                    }}
+                  />
                   <Button
                     variant={isNewCustomerOpen ? 'secondary' : 'outline'}
                     className="gap-2"
@@ -1671,7 +1681,8 @@ const NewOrder = () => {
                           placeholder="01xxxxxxxxx"
                           value={newCustomerPhone}
                           onChange={(e) => { setNewCustomerPhone(e.target.value); setCustomerErrors(p => ({ ...p, phone: false })); }}
-                          className={errCls(customerErrors.phone)}
+                          {...phoneInputProps()}
+                          className={`${phoneInputProps().className} ${errCls(customerErrors.phone)}`}
                         />
                         {customerErrors.phone && <p className="text-xs text-destructive">رقم الهاتف مطلوب</p>}
                       </div>
@@ -1682,6 +1693,7 @@ const NewOrder = () => {
                           placeholder="01xxxxxxxxx"
                           value={newCustomerPhone2}
                           onChange={(e) => setNewCustomerPhone2(e.target.value)}
+                          {...phoneInputProps()}
                         />
                       </div>
                       {existingCustomerMatch && (
@@ -1794,30 +1806,11 @@ const NewOrder = () => {
                   </div>
                 )}
 
-                {customerSearch && filteredCustomers.length > 0 && !selectedCustomer && (
-                  <div className="mt-2 border rounded-lg max-h-48 overflow-auto">
-                    {filteredCustomers.map((customer) => (
-                      <button
-                        key={customer.id}
-                        className="w-full text-right p-3 hover:bg-muted/50 border-b last:border-b-0 transition-colors"
-                        onClick={() => {
-                          setSelectedCustomer(customer);
-                          setDeliveryAddress(customer.address || '');
-                          setCustomerSearch('');
-                        }}
-                      >
-                        <p className="font-medium">{customer.name}</p>
-                        <p className="text-sm text-muted-foreground">{customer.phone}</p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
                 {selectedCustomer && (
                   <div className="mt-3 p-3 bg-muted/50 rounded-lg flex items-center justify-between gap-2 flex-wrap">
                     <div className="min-w-0">
                       <p className="font-medium">{selectedCustomer.name}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground" dir="ltr" style={{ unicodeBidi: "isolate" }}>
                         {selectedCustomer.phone}
                         {(selectedCustomer as any).phone2 ? ` / ${(selectedCustomer as any).phone2}` : ''}
                       </p>
@@ -2318,6 +2311,11 @@ const NewOrder = () => {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className="font-medium text-sm truncate text-primary">{item.product.name}</p>
+                                {!inventoryLoading && !inventoryError && isZeroStock(item.product.id) && (
+                                  <Badge variant="destructive" className="text-xs" title="الرصيد المتاح صفر — الأوردر هيتسجل لكن البضاعة مش موجودة في المخزن">
+                                    رصيد صفر
+                                  </Badge>
+                                )}
                                 {item.isGift && (
                                   <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">
                                     <Gift className="w-3 h-3 ml-1" /> هدية مجانية

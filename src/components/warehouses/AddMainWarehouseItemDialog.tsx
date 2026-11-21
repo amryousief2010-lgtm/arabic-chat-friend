@@ -10,6 +10,8 @@ import { postInventoryDocument } from "@/lib/inventoryStock";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { productDbErrorMessage, validateProductGate } from "@/lib/productGate";
 
 const CATEGORIES = ["لحوم", "علف", "كتاكيت", "مستلزمات", "تغليف", "منتجات أخرى"];
 const UNITS = ["كجم", "جرام", "قطعة", "كرتونة", "شيكارة", "وحدة", "لتر", "علبة"];
@@ -26,6 +28,8 @@ type FormState = {
   name: string;
   sku: string;
   barcode: string;
+  barcode_pending: boolean;
+  pack_weight_kg: string;
   category: string;
   unit: string;
   opening_qty: number;
@@ -39,6 +43,8 @@ const initial: FormState = {
   name: "",
   sku: "",
   barcode: "",
+  barcode_pending: false,
+  pack_weight_kg: "",
   category: "",
   unit: "كجم",
   opening_qty: 0,
@@ -70,6 +76,17 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
     if (Number(form.opening_qty) > 0 && Number(form.unit_cost) <= 0) {
       return "أدخل تكلفة الوحدة عند وجود رصيد افتتاحي";
     }
+    // بيانات المنتج الإجبارية (نفس شرط الداتابيز): الكود أو «تحت التسجيل»، التكلفة، وزن العبوة
+    const gate = validateProductGate(
+      {
+        barcode: form.barcode,
+        barcodePending: form.barcode_pending,
+        costPrice: String(form.unit_cost || ""),
+        packWeightKg: form.pack_weight_kg,
+      },
+      { requireCost: true, requirePack: true },
+    );
+    if (gate.length) return gate.join(" — ");
     return null;
   };
 
@@ -100,7 +117,6 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
         .from("products")
         .select("id,name")
         .eq("name", name)
-        .eq("is_active", true)
         .limit(1);
       if (productDup.error) throw productDup.error;
       if ((productDup.data || []).length > 0) {
@@ -154,8 +170,9 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
         }
       }
 
-      // 5) Create product (master record)
-      const prod = await supabase
+      // 5) Create product (master record). New products always start inactive;
+      // المدير العام أو مدير المبيعات يفعّله من شاشة المنتجات بعد دخول الرصيد.
+      const prod = await (supabase as any)
         .from("products")
         .insert({
           name,
@@ -166,19 +183,15 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
           category,
           low_stock_threshold: Math.round(lowStock) || 10,
           barcode,
-          is_active: true,
+          barcode_pending: !barcode && form.barcode_pending,
+          cost_price: unitCost,
+          pack_weight_kg: Number(form.pack_weight_kg),
+          is_active: false,
         })
         .select("id")
         .single();
-      if (prod.error) throw prod.error;
-      createdProductId = prod.data!.id;
-      if (unitCost > 0) {
-        const costSet = await (supabase as any).rpc("set_product_cost_price", {
-          p_product_id: createdProductId,
-          p_cost: unitCost,
-        });
-        if (costSet.error) throw costSet.error;
-      }
+      if (prod.error) throw new Error(productDbErrorMessage(prod.error));
+      createdProductId = prod.data!.id as string;
 
       // 6) Create or reuse inventory_item in main warehouse linked to product.
       // A DB trigger auto-links newly inserted products to customer/main warehouses;
@@ -253,7 +266,10 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
         });
       }
 
-      toast({ title: "تمت الإضافة", description: "تم إضافة الصنف للمخزن الرئيسي بنجاح" });
+      toast({
+        title: "تمت الإضافة",
+        description: "تم إضافة الصنف للمخزن الرئيسي. المنتج موقوف للبيع لحد ما يتفعّل من المدير العام أو مدير المبيعات.",
+      });
       reset();
       onOpenChange(false);
       onCreated?.();
@@ -297,8 +313,35 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
           </div>
 
           <div>
-            <Label>الباركود (اختياري)</Label>
-            <Input value={form.barcode} onChange={(e) => set("barcode", e.target.value)} placeholder="—" />
+            <Label>الباركود (13 رقم) *</Label>
+            <Input
+              value={form.barcode}
+              onChange={(e) => set("barcode", e.target.value)}
+              placeholder="6224003208XXX"
+              dir="ltr"
+              inputMode="numeric"
+            />
+            <label className="flex items-center gap-2 text-xs mt-1 cursor-pointer">
+              <Checkbox
+                checked={form.barcode_pending}
+                disabled={form.barcode.trim() !== ""}
+                onCheckedChange={(v) => set("barcode_pending", v === true)}
+              />
+              الكود تحت التسجيل
+            </label>
+          </div>
+
+          <div>
+            <Label>وزن العبوة (كجم) *</Label>
+            <Input
+              type="number"
+              min={0}
+              step="0.001"
+              value={form.pack_weight_kg}
+              onChange={(e) => set("pack_weight_kg", e.target.value)}
+              placeholder="مثال: 0.5"
+              dir="ltr"
+            />
           </div>
 
           <div>
@@ -338,7 +381,7 @@ export default function AddMainWarehouseItemDialog({ open, onOpenChange, mainWar
           </div>
 
           <div>
-            <Label>تكلفة الوحدة</Label>
+            <Label>تكلفة الوحدة *</Label>
             <Input
               type="number"
               min={0}

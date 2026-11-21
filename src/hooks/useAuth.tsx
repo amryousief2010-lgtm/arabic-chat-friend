@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { isMarketingOnlyRoles, setMaskedCustomers } from '@/lib/customersSource';
 
 export type AppRole =
   | 'general_manager'
@@ -96,6 +97,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  // يُضبط أثناء الرسم (قبل أن تبدأ استعلامات الصفحات) — مدير التسويق فقط يقرأ customers_masked.
+  setMaskedCustomers(isMarketingOnlyRoles(roles));
 
   const fetchUserProfile = async (userId: string) => {
     try {

@@ -187,8 +187,9 @@ export const useTopOfferBoxesLast3Days = (limit = 5, days: 1 | 3 | 7 | 30 = 3) =
 
 export type { DashboardOverview } from "@/lib/dashboardSalesKpis";
 
-export const useDashboardStats = () => {
+export const useDashboardStats = (enabled = true) => {
   return useQuery({
+    enabled,
     queryKey: ["dashboard-stats-v4-lifetime-net"],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_dashboard_overview");

@@ -5,14 +5,19 @@ import { arabicDaysRemainingPhrase, cairoMonthPace } from '@/lib/processedKgBonu
  * مصدر الحساب الوحيد للواجهة. نفس الأرقام في الدالة
  * public.moderator_kg_bonus حتى تبقى التقارير مطابقة.
  *
- * الكيلو المعدود هو كيلو المصنّعات المسلّم بنفس طريقة العدّ الحالية
+ * الكيلو المعدود للحد الأدنى هو كيلو المصنّعات المسلّم بنفس طريقة العدّ الحالية
  * (أوردرات الشهر + الكيلو المرحّل من شهر اتقيّد قبضه).
- * أقل من 400: صفر. عند 400 يفتح 2,400 جنيه.
+ * أقل من 400 على الإجمالي: صفر. عند 400 يفتح منحنى الشهر بـ 2,400 جنيه.
  * من 401 إلى 1,000: مجموع حدّي، سعر الكيلو k يزيد خطيًا
  * 9 عند 400 → 12 عند 750 → 18 عند 1,000.
  * فوق 1,000: سعر حديّ متصل 10.5 عند 1,000 → 12.75 عند 1,500 → 14.25 عند 2,000
  * ثم 14.25 ثابت. الكسر = الكسر × سعر الكيلو التالي تحت 1,000،
  * وفوق 1,000 يدخل في المنحنى المتصل.
+ *
+ * كيلو الشهر نفسه على المنحنى كما هو. الكيلو المرحّل (من أكتوبر 2026 وطالع)
+ * بيتسعّر بمتوسط بونص كيلو شهر المسوّقة نفسها:
+ * الإجمالي = منحنى(كيلو الشهر) + مرحّل × منحنى(كيلو الشهر) / كيلو الشهر.
+ * لو منحنى كيلو الشهر صفر (أقل من 400) متوسط الكيلو صفر والمرحّل صفر، ومن غير قسمة على صفر.
  */
 
 const clampKg = (kg: number) => (Number.isFinite(kg) && kg > 0 ? kg : 0);
@@ -79,12 +84,13 @@ export const BONUS_MILESTONES: BonusMilestone[] = [
   { kg: 2000, title: '٢ طن', goal: 'الـ ٢ طن' },
 ];
 
+/** تقريب عرض موحّد للفلوس (كارت الشهر ونافذة المرحّل): خانتين عشريتين. العرض فقط، الحساب كما هو. */
 export const formatBonusEgp = (n: number) => {
-  const rounded = Math.round((Number.isFinite(n) ? n : 0) * 10) / 10;
-  const digits = Number.isInteger(rounded) ? 0 : 1;
+  const rounded = Math.round((Number.isFinite(n) ? n : 0) * 100) / 100;
+  const digits = Number.isInteger(rounded) ? 0 : 2;
   return rounded.toLocaleString('en-US', {
     minimumFractionDigits: digits,
-    maximumFractionDigits: 1,
+    maximumFractionDigits: 2,
   });
 };
 
@@ -97,9 +103,36 @@ export const formatBonusKg = (n: number) => {
   });
 };
 
-/** جملة الكيلو المرحّل على كارت المسوقة. من غير سعر ومن غير اصطلاحات. */
+/** جملة الكيلو المرحّل على كارت المسوقة. بيتسعّر بمتوسط بونص كيلو شهرها. */
 export const carriedProcessedPhrase = (kg: number) =>
-  `اتضافلك ${formatBonusKg(kg)} كجم من أوردرات الشهر اللي فات اتسلّمت الشهر ده`;
+  `اتضافلك ${formatBonusKg(kg)} كجم من أوردرات الشهر اللي فات اتسلّمت الشهر ده، وبونصها بمتوسط بونص الكيلو لشهرها`;
+
+/**
+ * متوسط بونص كيلو شهر المسوّقة = منحنى(كيلو الشهر) / كيلو الشهر.
+ * كيلو المرحّل ما يغيّرش السعر. صفر لو منحنى الشهر صفر، ومن غير قسمة على صفر أو NaN.
+ */
+export const risingAverageRate = (ownKg: number, carriedKg = 0): number => {
+  void carriedKg;
+  const own = clampKg(ownKg);
+  if (!(own > 0)) return 0;
+  const ownBonus = moderatorKgBonus(own);
+  if (!(ownBonus > 0)) return 0;
+  const rate = ownBonus / own;
+  return Number.isFinite(rate) ? rate : 0;
+};
+
+/**
+ * بونص المصنّعات = منحنى كيلو الشهر + المرحّل × متوسط بونص كيلو شهرها.
+ * لو كيلو الشهر تحت 400 المنحنى صفر والمرحّل صفر. منحنى كيلو الشهر نفسه ما بيتغيّرش.
+ */
+export const risingProcessedTotal = (ownKg: number, carriedKg = 0): number => {
+  const own = clampKg(ownKg);
+  const carried = clampKg(carriedKg);
+  const ownBonus = moderatorKgBonus(own);
+  if (!(own > 0) || !(ownBonus > 0)) return 0;
+  const total = ownBonus + carried * (ownBonus / own);
+  return Number.isFinite(total) ? total : 0;
+};
 
 export interface RisingBreakdown {
   scheme: 'rising';
@@ -107,7 +140,7 @@ export interface RisingBreakdown {
   qualified: boolean;
   /** جزء كيلوات الشهر نفسه، قبل أي تعديل يدوي. */
   calculated_bonus: number;
-  /** بونص الكيلو المعدود كله = الشهر + المرحّل. */
+  /** بونص الشهر على منحناه + المرحّل بمتوسط بونص كيلو شهرها. */
   total_bonus: number;
   carried_kg: number;
   counted_kg: number;
@@ -121,9 +154,9 @@ export const toRisingBreakdown = (ownKg: number, carriedKg = 0): RisingBreakdown
   return {
     scheme: 'rising',
     minimum_kg: RISING_MINIMUM_KG,
-    qualified: counted >= RISING_MINIMUM_KG,
+    qualified: own >= RISING_MINIMUM_KG,
     calculated_bonus: moderatorKgBonus(own),
-    total_bonus: moderatorKgBonus(counted),
+    total_bonus: risingProcessedTotal(own, carried),
     carried_kg: carried,
     counted_kg: counted,
     own_kg: own,
@@ -131,8 +164,8 @@ export const toRisingBreakdown = (ownKg: number, carriedKg = 0): RisingBreakdown
 };
 
 /**
- * فرق البونص لما الكيلو المرحّل يتضاف فوق رصيد قائم.
- * المجموع = بونص الإجمالي. تحت 400 الاتنين صفر.
+ * بونص كل أوردر مرحّل = كيلوه × متوسط بونص كيلو شهر المسوّقة.
+ * السعر واحد لكل الكيلو المرحّل. لو منحنى شهرها صفر، البونص صفر ومن غير قسمة على صفر.
  */
 export const risingCarryIncrements = (
   ownKg: number,
@@ -144,16 +177,13 @@ export const risingCarryIncrements = (
   });
   const own = clampKg(ownKg);
   const carriedTotal = ordered.reduce((sum, item) => sum + clampKg(item.procKg), 0);
-  const qualified = own + carriedTotal >= RISING_MINIMUM_KG;
-  let cursor = own;
+  const rate = risingAverageRate(own, carriedTotal);
   return ordered.map((item) => {
     const qty = clampKg(item.procKg);
-    if (!qualified || qty <= 0) {
-      return { orderId: item.orderId, bonus: 0 };
+    if (rate <= 0 || qty <= 0) {
+      return { orderId: item.orderId, bonus: 0, rate: 0 };
     }
-    const bonus = moderatorKgBonus(cursor + qty) - moderatorKgBonus(cursor);
-    cursor += qty;
-    return { orderId: item.orderId, bonus };
+    return { orderId: item.orderId, bonus: qty * rate, rate };
   });
 };
 
@@ -201,31 +231,31 @@ export const buildModeratorBonusView = (input: {
   const ownKg = clampKg(input.kg);
   const carriedKg = clampKg(input.carriedKg ?? 0);
   const kg = ownKg + carriedKg;
-  const formulaBonus = moderatorKgBonus(kg);
+  const formulaBonus = risingProcessedTotal(ownKg, carriedKg);
   const bonus = input.bonusOverride != null && Number.isFinite(input.bonusOverride)
     ? input.bonusOverride
     : formulaBonus;
   const baseSalary = Number.isFinite(input.baseSalary) ? input.baseSalary : 0;
   const pace = cairoMonthPace(input.now ?? new Date());
-  const reached = [...BONUS_MILESTONES].reverse().find((item) => kg >= item.kg) ?? null;
-  const next = BONUS_MILESTONES.find((item) => kg < item.kg) ?? null;
+  const reached = [...BONUS_MILESTONES].reverse().find((item) => ownKg >= item.kg) ?? null;
+  const next = BONUS_MILESTONES.find((item) => ownKg < item.kg) ?? null;
   const segmentFromKg = next
     ? ([...BONUS_MILESTONES].reverse().find((item) => item.kg < next.kg)?.kg ?? 0)
     : 2000;
   const segmentSpan = next ? next.kg - segmentFromKg : 1;
   const segmentProgress = next
-    ? Math.max(0, Math.min(1, (kg - segmentFromKg) / segmentSpan))
+    ? Math.max(0, Math.min(1, (ownKg - segmentFromKg) / segmentSpan))
     : 1;
-  const kgRemaining = next ? Math.max(0, next.kg - kg) : null;
+  const kgRemaining = next ? Math.max(0, next.kg - ownKg) : null;
   const bonusAtNext = next ? moderatorKgBonus(next.kg) : null;
-  const qualified = kg >= RISING_MINIMUM_KG;
+  const qualified = ownKg >= RISING_MINIMUM_KG;
   const called = calledName(input.name);
   const daysPhrase = input.frozen ? 'شهر مكتمل' : arabicDaysRemainingPhrase(pace.daysRemainingAfterToday);
 
   let message: string;
   if (!qualified) {
-    const left = formatBonusKg(RISING_MINIMUM_KG - kg);
-    if (RISING_MINIMUM_KG - kg <= 40) {
+    const left = formatBonusKg(RISING_MINIMUM_KG - ownKg);
+    if (RISING_MINIMUM_KG - ownKg <= 40) {
       message = `${called}، فاضلِك ${left} كجم بس والبونص هيفتح بـ ${formatBonusEgp(BONUS_AT_MINIMUM)} جنيه. كمّلي، إنتي قريبة أوي.`;
     } else {
       message = `${called}، لسه قدامك ${left} كجم عشان البونص يفتح. كل كيلو بتسلّميه بيفرّقك، والـ ${formatBonusEgp(BONUS_AT_MINIMUM)} جنيه مستنياكي.`;

@@ -1,11 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/hooks/useAuth';
 import { BONUS_MILESTONES, formatBonusEgp, moderatorKgBonus } from '@/lib/moderatorKgBonus';
+import { canViewRisingBonusTable } from '@/lib/risingBonusTableAccess';
 
 const CHECKS = [400, 1000, 1500, 2000, 2500];
 
 /** شرح ثابت للنظام المعتمد. تعديل الشرائح القديمة اتلغى عشان مايبقاش ليها أثر على القبض. */
-const ProcessedKgBonusSettings = () => (
-  <Card className="glass-card mb-6" dir="rtl">
+const ProcessedKgBonusSettings = () => {
+  const { roles, loading } = useAuth();
+  if (loading || !canViewRisingBonusTable(roles)) return null;
+  return (
+  <Card className="glass-card mb-6" dir="rtl" data-testid="rising-bonus-table">
     <CardHeader>
       <CardTitle className="text-sm md:text-base">نظام البونص المعتمد</CardTitle>
     </CardHeader>
@@ -33,6 +38,7 @@ const ProcessedKgBonusSettings = () => (
       </p>
     </CardContent>
   </Card>
-);
+  );
+};
 
 export default ProcessedKgBonusSettings;

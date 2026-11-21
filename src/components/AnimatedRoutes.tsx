@@ -1,4 +1,5 @@
 import { lazy as reactLazy, Suspense } from "react";
+import { AI_REPORTS_PATH, AI_REPORTS_ROLES } from "@/config/aiReports";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -11,10 +12,12 @@ import {
   ZODEX_REVIEW_ALLOWED_ROLES,
 } from "@/lib/warehouseHubPaths";
 import { CALLER_LOOKUP_ROLES } from "@/constants/callerLookup";
+import { RISING_BONUS_TABLE_ROLES } from "@/lib/risingBonusTableAccess";
 
 // Wrap lazy() so that when a dynamically-imported chunk is missing (e.g. after a
 // new deploy invalidated old chunk hashes), we force a single hard reload instead
 // of crashing the whole app / closing the sidebar.
+import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES, CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES } from "@/config/chatManagement";
 const lazy: typeof reactLazy = ((factory: any) =>
   reactLazy(() =>
     factory().catch((err: any) => {
@@ -39,6 +42,14 @@ const lazy: typeof reactLazy = ((factory: any) =>
 // All page components are lazy-loaded to dramatically reduce initial bundle size.
 // Each route's JS chunk is only fetched when the user navigates to it.
 const Index = lazy(() => import("@/pages/Index"));
+const ChatManagementShifts = lazy(() => import("@/pages/ChatManagementShifts"));
+const ChatInbox = lazy(() => import("@/pages/ChatInbox"));
+const ChatSupervisor = lazy(() => import("@/pages/ChatSupervisor"));
+const ChatPhoneReview = lazy(() => import("@/pages/ChatPhoneReview"));
+const ChatKpis = lazy(() => import("@/pages/ChatKpis"));
+const ChatAdSpend = lazy(() => import("@/pages/ChatAdSpend"));
+const ChatCalls = lazy(() => import("@/pages/ChatCalls"));
+const AiReports = lazy(() => import("@/pages/AiReports"));
 const Products = lazy(() => import("@/pages/Products"));
 const ProductCosts = lazy(() => import("@/pages/ProductCosts"));
 const BoxCosts = lazy(() => import("@/pages/BoxCosts"));
@@ -72,6 +83,7 @@ const OAuthConsent = lazy(() => import("@/pages/OAuthConsent"));
 const Trust = lazy(() => import("@/pages/Trust"));
 const TeamPerformance = lazy(() => import("@/pages/TeamPerformance"));
 const SalesTargets = lazy(() => import("@/pages/SalesTargets"));
+const BonusSchedule = lazy(() => import("@/pages/BonusSchedule"));
 const BonusPreview = import.meta.env.DEV ? lazy(() => import("@/pages/dev/BonusPreview")) : null;
 const HagarOrdersReview = lazy(() => import("@/pages/HagarOrdersReview"));
 const MyDeliverySummary = lazy(() => import("@/pages/MyDeliverySummary"));
@@ -288,6 +300,51 @@ const AnimatedRoutes = () => {
               <PageTransition><BonusPreview /></PageTransition>
             } />
           )}
+          <Route path={CHAT_MANAGEMENT_SHIFTS_PATH} element={
+            <ProtectedRoute allowedRoles={CHAT_MANAGEMENT_VIEW_ROLES}>
+              <PageTransition><ChatManagementShifts tab="shifts" /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={CHAT_MANAGEMENT_SETTINGS_PATH} element={
+            <ProtectedRoute allowedRoles={CHAT_MANAGEMENT_VIEW_ROLES}>
+              <PageTransition><ChatManagementShifts tab="settings" /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={CHAT_INBOX_PATH} element={
+            <ProtectedRoute allowedRoles={CHAT_INBOX_ROLES}>
+              <PageTransition><ChatInbox /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={CHAT_SUPERVISOR_PATH} element={
+            <ProtectedRoute allowedRoles={CHAT_SUPERVISOR_ROLES}>
+              <PageTransition><ChatSupervisor /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={CHAT_PHONE_REVIEW_PATH} element={
+            <ProtectedRoute allowedRoles={CHAT_PHONE_REVIEW_ROLES}>
+              <PageTransition><ChatPhoneReview /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={CHAT_KPIS_PATH} element={
+            <ProtectedRoute allowedRoles={CHAT_KPIS_ROLES}>
+              <PageTransition><ChatKpis /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={CHAT_AD_SPEND_PATH} element={
+            <ProtectedRoute allowedRoles={CHAT_AD_SPEND_ROLES}>
+              <PageTransition><ChatAdSpend /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={CHAT_CALLS_PATH} element={
+            <ProtectedRoute allowedRoles={CHAT_CALLS_ROLES}>
+              <PageTransition><ChatCalls /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={AI_REPORTS_PATH} element={
+            <ProtectedRoute allowedRoles={AI_REPORTS_ROLES}>
+              <PageTransition><AiReports /></PageTransition>
+            </ProtectedRoute>
+          } />
           <Route path="/debug" element={
             <ProtectedRoute allowedRoles={['general_manager']}>
               <PageTransition><Debug /></PageTransition>
@@ -571,6 +628,11 @@ const AnimatedRoutes = () => {
           <Route path="/sales-targets" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><SalesTargets /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/bonus-schedule" element={
+            <ProtectedRoute allowedRoles={[...RISING_BONUS_TABLE_ROLES]}>
+              <PageTransition><BonusSchedule /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/offer-boxes" element={
