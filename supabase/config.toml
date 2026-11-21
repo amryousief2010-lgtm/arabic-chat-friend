@@ -1,4 +1,4 @@
-project_id = "ssznmzijopyxkwpctcxw"
+project_id = "dnhmilojeuvmjazoqlzi"
 
 [functions.auth-email-hook]
 verify_jwt = false
@@ -60,4 +60,13 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.update-user-email]
+verify_jwt = true
+
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+[functions.meta-social-webhook]
+verify_jwt = false
+
+[functions.cm-analyze-call]
 verify_jwt = true

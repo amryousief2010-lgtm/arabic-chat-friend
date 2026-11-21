@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { customersEmbed, customersTable } from "@/lib/customersSource";
 import { useSearchParams, Link } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Header from "@/components/layout/Header";
@@ -44,7 +45,7 @@ const OrderHalfKgReport = () => {
     try {
       const { data: orders, error: oErr } = await supabase
         .from("orders")
-        .select("id, order_number, customers(name)")
+        .select(`id, order_number, ${customersEmbed("customers", "name")}`)
         .ilike("order_number", `%${orderNumber.trim()}%`)
         .limit(100);
       if (oErr) throw oErr;
@@ -55,7 +56,7 @@ const OrderHalfKgReport = () => {
         return;
       }
 
-      const orderIds = orders.map(o => o.id);
+      const orderIds = (orders as unknown as Array<{ id: string }>).map(o => o.id);
       const { data: itemsData, error: iErr } = await supabase
         .from("order_items")
         .select("order_id, product_id, product_name, quantity, unit_price, is_half_kg")

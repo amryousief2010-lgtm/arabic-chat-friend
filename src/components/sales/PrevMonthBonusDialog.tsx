@@ -1,3 +1,4 @@
+import { formatBonusEgp } from '@/lib/moderatorKgBonus';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -17,7 +18,8 @@ export interface CarriedDetail {
 
 const fmtDT = (v: string | null) =>
   v ? new Date(v).toLocaleString('ar-EG', { timeZone: 'Africa/Cairo', dateStyle: 'short', timeStyle: 'short' }) : '-';
-const fmtN = (n: number) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+// نفس تقريب الكارت (formatBonusEgp: خانتين) عشان الأرقام تتطابق بين الكارت والنافذة.
+const fmtN = (n: number) => formatBonusEgp(n);
 
 interface Props {
   open: boolean;
@@ -56,7 +58,7 @@ const PrevMonthBonusDialog = ({ open, onOpenChange, girl, details }: Props) => {
                   <TableHead className="text-center border">التصنيف</TableHead>
                   <TableHead className="text-center border">الكمية</TableHead>
                   <TableHead className="text-center border">البيان</TableHead>
-                  {showRate && <TableHead className="text-center border">بونص الكيلو</TableHead>}
+                  {showRate && <TableHead className="text-center border">متوسط كيلو شهرها</TableHead>}
                   <TableHead className="text-center border">قيمة البونص</TableHead>
                 </TableRow>
               </TableHeader>
@@ -72,7 +74,7 @@ const PrevMonthBonusDialog = ({ open, onOpenChange, girl, details }: Props) => {
                     <TableCell className="text-center border">{fmtN(d.quantity)}</TableCell>
                     <TableCell className="text-center border">{d.tierLabel}</TableCell>
                     {showRate && (
-                      <TableCell className="text-center border">{d.category === 'مصنعات' || d.rate <= 0 ? '—' : fmtN(d.rate)}</TableCell>
+                      <TableCell className="text-center border">{d.rate > 0 ? fmtN(d.rate) : '—'}</TableCell>
                     )}
                     <TableCell className="text-center border font-semibold text-primary">{fmtN(d.bonus)}</TableCell>
                   </TableRow>

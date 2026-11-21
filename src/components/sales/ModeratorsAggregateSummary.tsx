@@ -12,6 +12,8 @@ import {
 import { MODERATORS, isOrderForModerator } from "@/constants/moderators";
 import { cairoMonthStartUTC, currentCairoYearMonth, toCairoDateString } from "@/lib/cairoDate";
 import { usePayrollClosureCutoff, isDeliveredWithinClosure } from "@/hooks/usePayrollClosure";
+import { fetchAllPages } from "@/lib/fetchPayrollCarried";
+import { countOrderBuckets, arabicMonthLabel } from "@/lib/aggregateOrderStatus";
 
 type Category = "meat" | "bone" | "processed" | "other";
 
@@ -69,10 +71,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
   const cur = currentCairoYearMonth(nowRef);
   const viewYear = year ?? cur.year;
   const viewMonth = (month ?? cur.monthIndex0 + 1) - 1;
-  const monthLabel = new Date(Date.UTC(viewYear, viewMonth, 1)).toLocaleDateString(
-    "en-GB",
-    { month: "long", year: "numeric" },
-  );
+  const monthLabel = arabicMonthLabel(viewYear, viewMonth);
 
   const { cutoff } = usePayrollClosureCutoff(viewYear, viewMonth + 1);
 
@@ -84,12 +83,17 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
       const startOfNextMonth = cairoMonthStartUTC(viewYear, viewMonth + 1);
 
       // 1) Orders for this month (UTC boundaries — created_at is UTC)
-      const { data: orders, error } = await supabase
-        .from("orders")
-        .select("id, total, moderator, created_by, created_at, delivered_at, status")
-        .gte("created_at", startOfMonth.toISOString())
-        .lt("created_at", startOfNextMonth.toISOString());
-      if (error) throw error;
+      // مرقّم بصفحات 1000 صف بترتيب ثابت — بدون ده PostgREST بيقطع عند 1000.
+      const orders = await fetchAllPages<any>((from, to) =>
+        supabase
+          .from("orders")
+          .select("id, total, moderator, created_by, created_at, delivered_at, status")
+          .gte("created_at", startOfMonth.toISOString())
+          .lt("created_at", startOfNextMonth.toISOString())
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
 
       // 2) Resolve creator profile names to attribute orders to the 4 girls
       const userIds = Array.from(
@@ -97,10 +101,15 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
       ) as string[];
       let profileMap = new Map<string, string>();
       if (userIds.length) {
-        const { data: profiles } = await supabase
-          .from("profile_directory")
-          .select("id, full_name")
-          .in("id", userIds);
+        const profiles: any[] = [];
+        for (let i = 0; i < userIds.length; i += 300) {
+          const slice = userIds.slice(i, i + 300);
+          profiles.push(
+            ...(await fetchAllPages<any>((from, to) =>
+              supabase.from("profile_directory").select("id, full_name").in("id", slice).order("id").range(from, to),
+            )),
+          );
+        }
         profileMap = new Map(
           (profiles || []).map((p: any) => [p.id, p.full_name as string]),
         );
@@ -125,11 +134,13 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
         let from = 0;
         const PAGE = 1000;
         while (true) {
-          const { data: chunk } = await supabase
+          const { data: chunk, error: itemsErr } = await supabase
             .from("order_items")
-            .select("order_id, product_id, product_name, quantity")
+            .select("id, order_id, product_id, product_name, quantity")
             .in("order_id", slice)
+            .order("id", { ascending: true })
             .range(from, from + PAGE - 1);
+          if (itemsErr) throw itemsErr;
           if (!chunk || chunk.length === 0) break;
           items = items.concat(chunk);
           if (chunk.length < PAGE) break;
@@ -143,11 +154,16 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
       ) as string[];
       const productCat = new Map<string, string | null>();
       if (productIds.length) {
-        const { data: products } = await supabase
-          .from("products")
-          .select("id, category")
-          .in("id", productIds);
-        (products || []).forEach((p: any) =>
+        const products: any[] = [];
+        for (let i = 0; i < productIds.length; i += 300) {
+          const slice = productIds.slice(i, i + 300);
+          products.push(
+            ...(await fetchAllPages<any>((from, to) =>
+              supabase.from("products").select("id, category").in("id", slice).order("id").range(from, to),
+            )),
+          );
+        }
+        products.forEach((p: any) =>
           productCat.set(p.id, p.category ?? null),
         );
       }
@@ -160,20 +176,21 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
 
       const monthAgg = emptyAgg();
       const today = emptyAgg();
-      const isReturned = (s: string) =>
-        s === "cancelled" || s === "returned" || s === "refunded";
       const todaysOrders = girlsOrders.filter(
         (o: any) => toCairoDateString(o.created_at) === todayStr,
       );
-      monthAgg.orders = girlsOrders.length;
-      today.orders = todaysOrders.length;
       const isDeliv = (o: any) => isDeliveredWithinClosure(o.status, o.delivered_at, cutoff);
-      monthAgg.delivered = girlsOrders.filter(isDeliv).length;
-      monthAgg.returned = girlsOrders.filter((o: any) => isReturned(o.status)).length;
-      monthAgg.inProgress = monthAgg.orders - monthAgg.delivered - monthAgg.returned;
-      today.delivered = todaysOrders.filter(isDeliv).length;
-      today.returned = todaysOrders.filter((o: any) => isReturned(o.status)).length;
-      today.inProgress = today.orders - today.delivered - today.returned;
+      // العدّ مباشرة بالحالة (مش بالطرح)، وكل أوردر في خانة واحدة فقط فيتطابق المجموع.
+      const mb = countOrderBuckets(girlsOrders, cutoff);
+      const tb = countOrderBuckets(todaysOrders, cutoff);
+      monthAgg.orders = mb.orders;
+      monthAgg.delivered = mb.delivered;
+      monthAgg.inProgress = mb.pending;
+      monthAgg.returned = mb.returned;
+      today.orders = tb.orders;
+      today.delivered = tb.delivered;
+      today.inProgress = tb.pending;
+      today.returned = tb.returned;
       monthAgg.sales = girlsOrders.reduce(
         (s: number, o: any) => s + Number(o.total || 0),
         0,
@@ -249,7 +266,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
                 <p className="font-bold text-sm">{isLoading ? "…" : today.delivered}</p>
               </div>
               <div className="bg-white/15 rounded-lg p-2 text-center">
-                <p className="opacity-80">قيد التوصيل</p>
+                <p className="opacity-80">قيد التوصيل/معلّق</p>
                 <p className="font-bold text-sm">{isLoading ? "…" : today.inProgress}</p>
               </div>
               <div className="bg-white/15 rounded-lg p-2 text-center">
@@ -290,7 +307,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
           <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-secondary to-secondary/70 p-4 text-primary-foreground shadow-md">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-xs opacity-80">إجمالي الشهر</p>
+                <p className="text-xs opacity-80">إجمالي شهر {monthLabel}</p>
                 <h4 className="text-xl font-bold">
                   {isLoading ? "…" : `${fmt(monthAgg.sales)} ج.م`}
                 </h4>
@@ -308,7 +325,7 @@ const ModeratorsAggregateSummary = ({ month, year }: Props = {}) => {
                 <p className="font-bold text-sm">{isLoading ? "…" : monthAgg.delivered}</p>
               </div>
               <div className="bg-white/15 rounded-lg p-2 text-center">
-                <p className="opacity-80">قيد التوصيل</p>
+                <p className="opacity-80">قيد التوصيل/معلّق</p>
                 <p className="font-bold text-sm">{isLoading ? "…" : monthAgg.inProgress}</p>
               </div>
               <div className="bg-white/15 rounded-lg p-2 text-center">

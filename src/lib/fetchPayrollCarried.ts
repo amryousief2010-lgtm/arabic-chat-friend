@@ -22,6 +22,31 @@ export interface CarriedOrderQty {
   procKg: number;
 }
 
+export const PAGE_SIZE = 1000;
+export const ID_CHUNK = 100;
+
+export const chunkIds = <T,>(ids: T[], size: number): T[][] => {
+  const out: T[][] = [];
+  for (let i = 0; i < ids.length; i += size) out.push(ids.slice(i, i + size));
+  return out;
+};
+
+/** يجيب كل الصفوف صفحة صفحة (1000 لكل صفحة) بترتيب ثابت، عشان مفيش حاجة تتقطع عند حد الـ1000 صف. */
+export const fetchAllPages = async <T,>(
+  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+  pageSize = PAGE_SIZE,
+): Promise<T[]> => {
+  const all: T[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await page(from, from + pageSize - 1);
+    if (error) throw error;
+    const rows = data || [];
+    all.push(...rows);
+    if (rows.length < pageSize) break;
+  }
+  return all;
+};
+
 /** نفس منطق ترحيل بونص الأوردرات التي سُلّمت بعد اعتماد شهرها. */
 export const fetchPayrollCarried = async (
   year: number,
@@ -50,22 +75,31 @@ export const fetchPayrollCarried = async (
     if (originIdx >= selIdx) continue;
     const start = cairoMonthStartUTC(closure.year, closure.month - 1).toISOString();
     const end = cairoMonthStartUTC(closure.year, closure.month).toISOString();
-    const { data: rows, error } = await supabase
-      .from('orders')
-      .select('id, order_number, moderator, created_by, delivered_at')
-      .eq('status', 'delivered')
-      .gte('created_at', start)
-      .lt('created_at', end)
-      .gt('delivered_at', closure.approved_at);
-    if (error) throw error;
+    const rows = await fetchAllPages((from, to) =>
+      supabase
+        .from('orders')
+        .select('id, order_number, moderator, created_by, delivered_at')
+        .eq('status', 'delivered')
+        .gte('created_at', start)
+        .lt('created_at', end)
+        .gt('delivered_at', closure.approved_at)
+        .order('id', { ascending: true })
+        .range(from, to),
+    );
     const candidates = (rows || []).filter((order) => order.delivered_at && payingIdx(originIdx, order.delivered_at) === selIdx);
     if (candidates.length === 0) continue;
 
     const userIds = Array.from(new Set(candidates.map((order) => order.created_by).filter(Boolean))) as string[];
     let profileMap = new Map<string, string>();
     if (userIds.length > 0) {
-      const { data: profiles } = await supabase.from('profile_directory').select('id, full_name').in('id', userIds);
-      profileMap = new Map((profiles || []).map((profile) => [profile.id, profile.full_name]));
+      const profiles: Array<{ id: string; full_name: string }> = [];
+      for (const chunk of chunkIds(userIds, ID_CHUNK)) {
+        const page = await fetchAllPages((from, to) =>
+          supabase.from('profile_directory').select('id, full_name').in('id', chunk).order('id', { ascending: true }).range(from, to),
+        );
+        profiles.push(...(page as any));
+      }
+      profileMap = new Map(profiles.map((profile) => [profile.id, profile.full_name]));
     }
     candidates.forEach((order) => {
       const modName = order.moderator || '';
@@ -87,15 +121,16 @@ export const fetchPayrollCarried = async (
   if (out.length === 0) return [];
   const byId = new Map(out.map((order) => [order.orderId, { ...order, meatKg: 0, boneKg: 0, procKg: 0 }]));
   const ids = Array.from(byId.keys());
-  const ID_CHUNK = 200;
-  for (let i = 0; i < ids.length; i += ID_CHUNK) {
-    const chunk = ids.slice(i, i + ID_CHUNK);
-    const { data: items, error } = await supabase
-      .from('order_items')
-      .select('order_id, product_name, quantity')
-      .in('order_id', chunk);
-    if (error) throw error;
-    (items || []).forEach((item) => {
+  for (const chunk of chunkIds(ids, ID_CHUNK)) {
+    const items = await fetchAllPages((from, to) =>
+      supabase
+        .from('order_items')
+        .select('id, order_id, product_name, quantity')
+        .in('order_id', chunk)
+        .order('id', { ascending: true })
+        .range(from, to),
+    );
+    items.forEach((item: any) => {
       const rec = byId.get(item.order_id);
       if (!rec) return;
       const quantity = Number(item.quantity) || 0;

@@ -63,8 +63,6 @@ export const MODERATORS: ModeratorConfig[] = [
     payrollKey: "مريم",
     // بداية العمل الرسمية — لا قبض/تارجت/بونص عن أي شهر قبلها.
     startDate: "2026-09-01",
-    // آخر شهر لها أكتوبر 2026 — تختفي من نوفمبر 2026 (قرار عمرو 23/10/2026).
-    endDate: "2026-10-31",
     baseSalary: 2500,
     aliases: ["مريم", "مريام"],
     gradient: "from-chart-2 to-chart-2/70",

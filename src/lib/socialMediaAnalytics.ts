@@ -14,6 +14,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { customersEmbed, customersTable } from "@/lib/customersSource";
 import { toCairoDateString } from "@/lib/cairoDate";
 import { isCancelledOrderStatus } from "@/lib/orderSalesFilters";
 
@@ -180,7 +181,7 @@ export async function fetchOrdersInRange(range: DateRange): Promise<OrderLite[]>
     supabase
       .from("orders")
       .select(
-        "id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, source, moderator, customers:customer_id(name, source, governorate, area, communication_channel, campaign_name)",
+        `id, order_number, status, total, customer_id, created_at, update_status_marker, collection_method, source, moderator, ${customersEmbed("customers", "name, source, governorate, area, communication_channel, campaign_name", "customer_id")}`,
       )
       .gte("created_at", range.from)
       .lte("created_at", range.to)
