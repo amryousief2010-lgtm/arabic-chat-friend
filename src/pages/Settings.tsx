@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Settings as SettingsIcon, Building2, Bell, CreditCard, Shield, Volume2 } from "lucide-react";
+import { Building2, Bell, CreditCard, Volume2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import UpdateLogPanel from "@/components/UpdateLogPanel";
 import ServiceWorkerStatusCard from "@/components/ServiceWorkerStatusCard";
+import ChangePasswordCard from "@/components/settings/ChangePasswordCard";
 import { useAuth } from "@/hooks/useAuth";
 
 const Settings = () => {
@@ -190,44 +191,7 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Security */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-destructive" />
-              الأمان
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label>كلمة المرور الحالية</Label>
-              <Input
-                type="password"
-                placeholder="••••••••"
-                className="input-modern"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>كلمة المرور الجديدة</Label>
-              <Input
-                type="password"
-                placeholder="••••••••"
-                className="input-modern"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>تأكيد كلمة المرور</Label>
-              <Input
-                type="password"
-                placeholder="••••••••"
-                className="input-modern"
-              />
-            </div>
-            <Button onClick={handleSave} className="btn-primary w-full">
-              تغيير كلمة المرور
-            </Button>
-          </CardContent>
-        </Card>
+        <ChangePasswordCard />
       </div>
 
       <div className="mt-6">
