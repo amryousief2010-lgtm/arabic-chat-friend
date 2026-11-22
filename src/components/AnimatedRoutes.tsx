@@ -205,6 +205,7 @@ const MegaOrderDiscrepancies = lazy(() => import("@/pages/orders/MegaOrderDiscre
 
 const Debug = lazy(() => import("@/pages/Debug"));
 const PwaDiagnostics = lazy(() => import("@/pages/PwaDiagnostics"));
+const WaOnboard = lazy(() => import("@/pages/admin/WaOnboard"));
 const ExecutiveDashboards = lazy(() => import("@/pages/ExecutiveDashboards"));
 const ExecutiveDashboard = lazy(() => import("@/pages/ExecutiveDashboard"));
 const ApprovalsCenter = lazy(() => import("@/pages/ApprovalsCenter"));
@@ -348,6 +349,11 @@ const AnimatedRoutes = () => {
           <Route path="/debug" element={
             <ProtectedRoute allowedRoles={['general_manager']}>
               <PageTransition><Debug /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/wa-onboard" element={
+            <ProtectedRoute allowedRoles={['general_manager']}>
+              <PageTransition><WaOnboard /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/pwa-diagnostics" element={
