@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import WaOnboard from "./WaOnboard";
-import { FB_SDK_SRC, resetFacebookSdkForTests } from "@/lib/waEmbeddedSignup";
+import { FB_SDK_SRC, resetFacebookSdkForTests, type FacebookSdk } from "@/lib/waEmbeddedSignup";
 
 const SECRET = "super-secret-auth-code";
 
@@ -34,7 +34,7 @@ describe("WaOnboard page", () => {
   });
 
   it("opens Embedded Signup with the coexistence options when config_id is given", async () => {
-    const login = vi.fn((callback: (response: unknown) => void) => {
+    const login = vi.fn<FacebookSdk["login"]>((callback) => {
       callback({ status: "connected", authResponse: { code: SECRET } });
     });
     renderPage("?config_id=1732339851839711");
