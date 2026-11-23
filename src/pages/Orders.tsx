@@ -91,6 +91,12 @@ import { fetchReviewedOrderIdsForUser, mergeFetchedReviewMarks } from "@/lib/fet
 import { fetchOrderItemsForOrderIds, groupOrderItemsByOrderId } from "@/lib/fetchOrderItemsForOrders";
 import { isStaleOrderFetch, loadMatchingOrdersWithItems } from "@/lib/fetchOrderPages";
 import { itemsFromSearchPayload } from "@/lib/searchOrderItems";
+import {
+  orderMatchesProductFilter,
+  productFilterLookups,
+  productIdsMatchingFilter,
+  type CatalogProduct,
+} from "@/lib/orderProductFilter";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
@@ -586,14 +592,21 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   const [yearPin, setYearPin] = useState<OrderListYearPin>(initialFy ? "explicit" : "implicit");
   const [availableRoutes, setAvailableRoutes] = useState<{ id: string; name: string; color: string }[]>([]);
   const [availableProducts, setAvailableProducts] = useState<string[]>([]);
-  // كتالوج كامل لكل المنتجات المسجلة (حتى لو مش موجودة في الأوردرات المحمّلة حاليًا)
-  const [catalogProducts, setCatalogProducts] = useState<string[]>([]);
+  // كتالوج كامل لكل المنتجات المسجلة (حتى لو مش موجودة في الأوردرات المحمّلة حاليًا).
+  // المعرّف لازم يفضل مع الاسم الحالي عشان فلتر المنتج يلاقي الأوردرات القديمة
+  // اللي اتحفظت باسم سابق لنفس المنتج.
+  const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([]);
   const productFilterOptions = useMemo(() => {
     const set = new Set<string>();
-    catalogProducts.forEach((n) => n && set.add(n));
+    catalogProducts.forEach((p) => p.name && set.add(p.name));
     availableProducts.forEach((n) => n && set.add(n));
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'ar'));
   }, [catalogProducts, availableProducts]);
+  const catalogIdsForProductFilter = useMemo(
+    () => productIdsMatchingFilter(filterProduct, catalogProducts),
+    [filterProduct, catalogProducts],
+  );
+  const catalogIdsForProductFilterKey = catalogIdsForProductFilter.join(",");
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get("year");
   const todayParam = searchParams.get("today") === "1";
@@ -742,25 +755,32 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       const { data } = await supabase.from('delivery_routes').select('id,name,color').order('name', { ascending: true });
       setAvailableRoutes((data as any[]) || []);
     })();
-  }, [filterMonth, filterYear, effectiveYear, yearPin, yearGroup, activePeriod?.fromYMD, activePeriod?.toYMD, filterProduct, filterModerator]);
+  }, [filterMonth, filterYear, effectiveYear, yearPin, yearGroup, activePeriod?.fromYMD, activePeriod?.toYMD, filterProduct, filterModerator, catalogIdsForProductFilterKey]);
 
   // تحميل كتالوج المنتجات لفلتر المنتجات — بعد أول رسم حتى لا ينافس جلب الطلبات
   useEffect(() => {
     let cancelled = false;
     const t = window.setTimeout(async () => {
-      const names = new Set<string>();
+      const loaded: CatalogProduct[] = [];
+      const seenIds = new Set<string>();
       const PAGE = 1000;
       for (let page = 0; page < 20; page++) {
         const { data, error } = await supabase
           .from('products')
-          .select('name')
+          .select('id, name')
           .order('name', { ascending: true })
           .range(page * PAGE, page * PAGE + PAGE - 1);
         if (error || !data || data.length === 0) break;
-        data.forEach((p: any) => p?.name && names.add(String(p.name)));
+        data.forEach((p: any) => {
+          const id = p?.id ? String(p.id) : "";
+          const name = p?.name ? String(p.name) : "";
+          if (!id || !name || seenIds.has(id)) return;
+          seenIds.add(id);
+          loaded.push({ id, name });
+        });
         if (data.length < PAGE) break;
       }
-      if (!cancelled) setCatalogProducts(Array.from(names));
+      if (!cancelled) setCatalogProducts(loaded);
     }, 2000);
     return () => {
       cancelled = true;
@@ -1082,28 +1102,52 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       // ====== فرع فلتر المنتج: نجلب من الخادم كل الأوردرات التي تحتوي هذا المنتج ======
       // بدون هذا الفرع كنا نعتمد على التحميل بالصفحات (الأحدث أولاً) فتظهر النتائج
       // ناقصة (مثلاً تقف عند شهر 6) قبل اكتمال تحميل السنة كلها.
+      // المطابقة بمعرّف المنتج الحالي (مش بالاسم المحفوظ على السطر) عشان إعادة تسمية
+      // المنتج ما تخبيش الأوردرات القديمة. الاسم الحرفي يفضل للأسطر غير المربوطة.
+      // الشهر والسنة يتطبقوا على استعلام الطلبات تحت، والحالة على العميل.
+      // البحث لسه مسار منفصل وبيتجاهل فلاتر الصفحة زي ما كان.
       if (filterProduct !== 'all') {
         const matchedIds = new Set<string>();
         const ITEM_STEP = 1000;
-        let previousItemId: string | null = null;
-        for (let p = 0; ; p++) {
-          const { data: idRows, error: idErr } = await supabase
-            .from('order_items')
-            .select('id, order_id')
-            .eq('product_name', filterProduct)
-            .order('id', { ascending: true })
-            .range(p * ITEM_STEP, (p + 1) * ITEM_STEP - 1);
-          if (idErr) throw idErr;
-          const pageRows = idRows || [];
-          if (pageRows.length === 0) break;
-          const firstId = pageRows[0]?.id ? String(pageRows[0].id) : "";
-          if (firstId && previousItemId && firstId === previousItemId) {
-            throw new Error('Order item page did not advance');
+        const scanOrderItemOrderIds = async (applyFilter: (query: any) => any) => {
+          const orderIds = new Set<string>();
+          let previousItemId: string | null = null;
+          for (let p = 0; ; p++) {
+            let query = supabase
+              .from('order_items')
+              .select('id, order_id');
+            query = applyFilter(query);
+            const { data: idRows, error: idErr } = await query
+              .order('id', { ascending: true })
+              .range(p * ITEM_STEP, (p + 1) * ITEM_STEP - 1);
+            if (idErr) throw idErr;
+            const pageRows = idRows || [];
+            if (pageRows.length === 0) break;
+            const firstId = pageRows[0]?.id ? String(pageRows[0].id) : "";
+            if (firstId && previousItemId && firstId === previousItemId) {
+              throw new Error('Order item page did not advance');
+            }
+            previousItemId = firstId || previousItemId;
+            pageRows.forEach((r: any) => r.order_id && orderIds.add(String(r.order_id)));
+            if (pageRows.length < ITEM_STEP) break;
           }
-          previousItemId = firstId || previousItemId;
-          pageRows.forEach((r: any) => r.order_id && matchedIds.add(r.order_id));
-          if (pageRows.length < ITEM_STEP) break;
-        }
+          return orderIds;
+        };
+        const lookups = productFilterLookups(filterProduct, catalogProducts);
+        const foundSets = await Promise.all(lookups.map(async (lookup) => {
+          if (lookup.kind === 'product_name') {
+            return scanOrderItemOrderIds((query) => query.eq('product_name', lookup.productName));
+          }
+          const orderIds = new Set<string>();
+          const ID_CHUNK = 100;
+          for (let i = 0; i < lookup.productIds.length; i += ID_CHUNK) {
+            const chunk = lookup.productIds.slice(i, i + ID_CHUNK);
+            const pageIds = await scanOrderItemOrderIds((query) => query.in('product_id', chunk));
+            pageIds.forEach((id) => orderIds.add(id));
+          }
+          return orderIds;
+        }));
+        foundSets.forEach((ids) => ids.forEach((id) => matchedIds.add(id)));
         const allIds = Array.from(matchedIds);
         const CHUNK = 200;
         const idChunks: string[][] = [];
@@ -1506,9 +1550,11 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       (yearGroup === "pre2026" && year < 2026);
     const matchesMonth = searchActive || filterMonth === "all" || String(month) === filterMonth;
     const matchesYear = searchActive || effectiveYear === "all" || String(year) === effectiveYear;
-    const matchesProduct =
-      filterProduct === "all" ||
-      order.items.some((it) => it.product_name === filterProduct);
+    const matchesProduct = orderMatchesProductFilter(
+      order.items,
+      filterProduct,
+      catalogIdsForProductFilter,
+    );
     const matchesModerator =
       filterModerator === "all" ||
       (() => {
@@ -1618,7 +1664,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     (order as any).__matchesBaseNoChip = baseMatch;
     (order as any).__matchesBaseNoStatus = baseMatchNoStatus && (searchActive || matchesWarehouseChip);
     return baseMatch && (searchActive || matchesWarehouseChip);
-  }), [visibleOrders, isNouraAccount, filterStatus, filterWarehouseChip, appliedSearch, yearGroup, filterMonth, filterYear, effectiveYear, filterProduct, filterModerator, filterGovernorate, activePeriod, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
+  }), [visibleOrders, isNouraAccount, filterStatus, filterWarehouseChip, appliedSearch, yearGroup, filterMonth, filterYear, effectiveYear, filterProduct, catalogIdsForProductFilter, filterModerator, filterGovernorate, activePeriod, filterFulfillment, filterRoute, filterCollectionMethod, isWarehouseSupervisor, isGeneralManager, isExecutiveManager, todayParam, channelParam, rangeParam, productIdParam, productNameParam]);
 
   // Counts per warehouse chip that honor ALL other filters (including current status).
   const warehouseChipCounts = useMemo(() => {
