@@ -8,6 +8,7 @@ import Header from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { canImportCdr, canListenRecordings, canUploadRecordings, canManageHotlineUsernames } from "@/config/chatManagement";
@@ -18,6 +19,7 @@ import { RecordingUploadCard, uploadRecording } from "@/components/chatManagemen
 import { CallAnalysisDialog } from "@/components/chatManagement/CallAnalysisDialog";
 import { CallAnalysisStrip, type CallAnalysisKpis } from "@/components/chatManagement/KpiStrip";
 import { OUTCOME_AR, ANALYSIS_STATUS_AR, type CallAnalysisRow } from "@/lib/chatManagement/callAnalysis";
+import { CALLS_LIST_EMPTY_AR, CALLS_LIST_ERROR_AR, secondaryPlan, withOneListRetry, type SectionStatus } from "@/lib/chatManagement/callsLoad";
 
 const db = supabase as any;
 interface Call { id: string; external_call_id: string | null; direction: string; started_at: string; duration_sec: number; status: string; phone_masked: string | null;
@@ -26,6 +28,8 @@ interface Filters { from: string; to: string; moderator: string; outcome: string
 interface Summary { calls: number; analyzed: number; avg_score: number | null; order_pct: number | null; open_followups: number }
 const PAGE = 100;
 const NO_FILTERS: Filters = { from: "", to: "", moderator: "", outcome: "", category: "" };
+const EMPTY_SUMMARY: Summary = { calls: 0, analyzed: 0, avg_score: null, order_pct: null, open_followups: 0 };
+const filterArgs = (f: Filters) => ({ _from: f.from || null, _to: f.to || null, _moderator: f.moderator || null, _outcome: f.outcome || null, _category: f.category || null });
 const CATEGORY_AR: Record<string, string> = { answered: "تم الرد", missed: "فائتة (مبيعات)", ivr: "انقطعت في القائمة الصوتية", non_sales: "غير المبيعات" };
 const OUTCOME_FILTER_AR: Record<string, string> = { inquiry_only: "استفسار فقط", order_placed: "تم الطلب", order_promised: "وعد بالطلب",
   followup: "يحتاج متابعة", not_interested: "غير مهتم", complaint: "شكوى", other: "أخرى", followup_needed: "متابعة مطلوبة", not_analyzed: "لم تُحلَّل" };
@@ -35,6 +39,46 @@ const STATUS_AR: Record<string, string> = { answered: "تم الرد", missed: "
 const REASON_AR: Record<string, string> = { missing_id: "Cdr Id ناقص", duplicate_in_file: "مكرر داخل الملف", bad_direction: "اتجاه غير معروف",
   bad_started_at: "وقت غير صالح", bad_duration: "مدة غير صالحة", bad_phone: "رقم غير صالح" };
 const fmt = (x: string) => formatDateTime12(x);
+
+function SummaryCards({ status, summary, onRetry }: { status: SectionStatus; summary: Summary | null; onRetry: () => void }) {
+  if (status === "idle") return null;
+  const err = status === "error";
+  const loading = status === "loading";
+  const tiles = [
+    { id: "summary-calls", label: !err && status === "ready" ? `مكالمة مطابقة (المحلَّلة ${summary?.analyzed ?? 0})` : "مكالمة مطابقة", value: err ? "—" : String(summary?.calls ?? 0) },
+    { id: "summary-avg", label: "متوسط تقييم التعامل (من 5)", value: err || summary?.avg_score == null ? "—" : String(summary.avg_score) },
+    { id: "summary-order", label: "وصلت لطلب أو وعد (من المحلَّلة)", value: err || summary?.order_pct == null ? "—" : `${summary.order_pct}%` },
+    { id: "summary-followups", label: "متابعات مطلوبة مفتوحة", value: err ? "—" : String(summary?.open_followups ?? 0) },
+  ];
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2 text-center text-sm md:grid-cols-4" data-testid="calls-summary">
+        {tiles.map((t) => (
+          <div key={t.id} className="rounded-md border p-2">
+            {loading
+              ? <Skeleton className="mx-auto h-7 w-16" data-testid={`${t.id}-skeleton`} />
+              : <div className="text-lg font-bold" data-testid={t.id}>{t.value}</div>}
+            <div className="text-xs text-muted-foreground">{t.label}</div>
+          </div>
+        ))}
+      </div>
+      {err && (
+        <div className="text-center">
+          <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs text-[#A4288A]" onClick={onRetry} aria-label="إعادة تحميل المؤشرات">إعادة المحاولة</Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ListError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div role="alert" data-testid="calls-list-error" className="p-4 text-center">
+      <p className="text-sm">{CALLS_LIST_ERROR_AR}</p>
+      <Button type="button" size="sm" variant="outline" className="mt-2 border-[#662D8C] text-[#662D8C]" onClick={onRetry} aria-label="إعادة تحميل المكالمات">إعادة المحاولة</Button>
+    </div>
+  );
+}
 
 /** سجل مكالمات الخط الساخن: استيراد CDR يدوي (لا API لدى المزوّد)، متابعة الفائتة خلال ساعة، والاستماع المسجَّل. */
 export default function ChatCalls() {
@@ -54,43 +98,164 @@ export default function ChatCalls() {
   const [openCall, setOpenCall] = useState<Call | null>(null);
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [batchMsg, setBatchMsg] = useState<string | null>(null);
+  const [listStatus, setListStatus] = useState<SectionStatus>("loading");
+  const [summaryStatus, setSummaryStatus] = useState<SectionStatus>("loading");
+  const [missedStatus, setMissedStatus] = useState<SectionStatus>("loading");
+  const [analysisStatus, setAnalysisStatus] = useState<SectionStatus>("idle");
+  const [objectionsStatus, setObjectionsStatus] = useState<SectionStatus>("idle");
+  const [matchableStatus, setMatchableStatus] = useState<SectionStatus>("idle");
+  const [moreLoading, setMoreLoading] = useState(false);
   const isGM = (roles ?? []).includes("general_manager");
   const canAnalyze = canUploadRecordings(roles);
+  const plan = secondaryPlan(roles);
+  const generation = useRef(0);
+  const callsLen = useRef(0);
+  callsLen.current = calls.length;
 
-  const args = (f: Filters) => ({ _from: f.from || null, _to: f.to || null, _moderator: f.moderator || null, _outcome: f.outcome || null, _category: f.category || null });
-  // تُحمَّل المكالمات حسب الفلتر من الخادم (كل مكالمات الموظفة مثلاً)، على صفحات من 100 مع «تحميل المزيد».
-  const load = useCallback(async (more = false) => {
-    const offset = more ? calls.length : 0;
-    const [c, s, m, md] = await Promise.all([
-      db.rpc("cm_calls_search", { ...args(filters), _limit: Math.max(PAGE, more ? PAGE : calls.length), _offset: offset }),
-      db.rpc("cm_calls_search_summary", args(filters)),
-      db.from("cm_kpi_missed_calls_v").select("call_id,followup_at,followed_within_target").order("started_at", { ascending: false }).limit(2000),
-      db.from("cm_moderators").select("id,display_name"),
-    ]);
-    setSummary((s.data ?? [])[0] ?? null);
-    // مطابقة ملفات التسجيل اليدوية بالرقم تحتاج الرقم الكامل — لمن يرفع التسجيلات فقط (مدير المبيعات/المدير العام).
-    if (canUploadRecordings(roles)) {
-      const mc = await db.from("cm_calls").select("id,external_call_id,phone_norm,started_at").order("started_at", { ascending: false }).limit(1000);
-      setMatchable(mc.data ?? []);
+  const fetchSummary = useCallback(async (gen: number, f: Filters) => {
+    if (generation.current !== gen) return;
+    setSummaryStatus("loading");
+    try {
+      const s = await db.rpc("cm_calls_search_summary", filterArgs(f));
+      if (generation.current !== gen) return;
+      if (s.error) { setSummaryStatus("error"); return; }
+      setSummary(((s.data ?? []) as Summary[])[0] ?? EMPTY_SUMMARY);
+      setSummaryStatus("ready");
+    } catch {
+      if (generation.current === gen) setSummaryStatus("error");
     }
-    const [an, ob] = await Promise.all([db.rpc("cm_call_analysis_list", {}), db.rpc("cm_kpi_call_objections", { _from: "2000-01-01", _to: "2100-01-01", _limit: 5 })]);
-    setAnalysis(Object.fromEntries(((an.data ?? []) as CallAnalysisRow[]).map((x) => [x.call_id, x])));
-    setObjections(ob.data ?? []);
-    if (c.error) toast.error(`تعذّر التحميل: ${c.error.message}`);
-    const rows = (c.data ?? []) as Call[];
-    // «تم الطلب» للمكالمة: طلب غير ملغي لنفس رقم العميل خلال نافذة التحويل بعد المكالمة — غير حرج.
-    if (rows.length) db.rpc("cm_call_order_flags", { _call_ids: rows.map((r) => r.id) }).then((r: any) => {
-      if (!r.error) setOrderFlags((p) => ({ ...(more ? p : {}), ...Object.fromEntries((r.data ?? []).map((x: { call_id: string; evidence: OrderEvidence[] }) => [x.call_id, x.evidence ?? []])) }));
-    });
+  }, []);
+  const fetchMissed = useCallback(async (gen: number) => {
+    if (generation.current !== gen) return;
+    setMissedStatus("loading");
+    try {
+      const m = await db.from("cm_kpi_missed_calls_v").select("call_id,followup_at,followed_within_target").order("started_at", { ascending: false }).limit(2000);
+      if (generation.current !== gen) return;
+      if (m.error) { setMissedStatus("error"); return; }
+      setMissed(Object.fromEntries(((m.data ?? []) as Missed[]).map((x) => [x.call_id, x])));
+      setMissedStatus("ready");
+    } catch {
+      if (generation.current === gen) setMissedStatus("error");
+    }
+  }, []);
+  const fetchMatchable = useCallback(async (gen: number) => {
+    if (generation.current !== gen) return;
+    setMatchableStatus("loading");
+    try {
+      // الرقم الكامل لمطابقة ملف التسجيل فقط — لا يُعرض في الجدول.
+      const mc = await db.from("cm_calls").select("id,external_call_id,phone_norm,started_at").order("started_at", { ascending: false }).limit(1000);
+      if (generation.current !== gen) return;
+      if (mc.error) { setMatchableStatus("error"); return; }
+      setMatchable((mc.data ?? []) as MatchableCall[]);
+      setMatchableStatus("ready");
+    } catch {
+      if (generation.current === gen) setMatchableStatus("error");
+    }
+  }, []);
+  const fetchAnalysis = useCallback(async (gen: number) => {
+    if (generation.current !== gen) return;
+    setAnalysisStatus("loading");
+    try {
+      const an = await db.rpc("cm_call_analysis_list", {});
+      if (generation.current !== gen) return;
+      if (an.error) { setAnalysisStatus("error"); return; }
+      setAnalysis(Object.fromEntries(((an.data ?? []) as CallAnalysisRow[]).map((x) => [x.call_id, x])));
+      setAnalysisStatus("ready");
+    } catch {
+      if (generation.current === gen) setAnalysisStatus("error");
+    }
+  }, []);
+  const fetchObjections = useCallback(async (gen: number) => {
+    if (generation.current !== gen) return;
+    setObjectionsStatus("loading");
+    try {
+      const ob = await db.rpc("cm_kpi_call_objections", { _from: "2000-01-01", _to: "2100-01-01", _limit: 5 });
+      if (generation.current !== gen) return;
+      if (ob.error) { setObjectionsStatus("error"); return; }
+      setObjections(ob.data ?? []);
+      setObjectionsStatus("ready");
+    } catch {
+      if (generation.current === gen) setObjectionsStatus("error");
+    }
+  }, []);
+
+  // القائمة أولاً (مع المودريتورز لأنها صغيرة). المؤشرات وما بعدها بعد الرسم، وفشل أي منها لا يمسح الجدول.
+  const load = useCallback(async (more = false) => {
+    const gen = more ? generation.current : ++generation.current;
+    const f = filters;
+    const offset = more ? callsLen.current : 0;
+    const limit = more ? PAGE : Math.max(PAGE, callsLen.current);
+    if (!more) {
+      setListStatus("loading");
+      setSummaryStatus("loading");
+      setMissedStatus("loading");
+      setAnalysisStatus(plan.analysis ? "loading" : "idle");
+      setObjectionsStatus(plan.objections ? "loading" : "idle");
+      if (plan.matchable) setMatchableStatus("loading");
+    } else setMoreLoading(true);
+
+    const listPromise = withOneListRetry<{ data: Call[] | null; error?: unknown }>(() => db.rpc("cm_calls_search", { ...filterArgs(f), _limit: limit, _offset: offset }));
+    const modsPromise = Promise.resolve(db.from("cm_moderators").select("id,display_name")).then(
+      (md: { data?: { id: string; display_name: string }[] | null; error?: unknown }) => {
+        if (generation.current !== gen || md?.error) return;
+        setMods(Object.fromEntries((md.data ?? []).map((x) => [x.id, x.display_name])));
+      },
+      () => {},
+    );
+
+    let listRes: { data: Call[] | null; error?: unknown };
+    try {
+      listRes = await listPromise;
+    } catch (error) {
+      listRes = { data: null, error };
+    }
+    if (generation.current !== gen) return;
+    void modsPromise;
+
+    if (listRes.error) {
+      setMoreLoading(false);
+      setListStatus("error");
+      if (!more) {
+        setSummaryStatus((s) => (s === "loading" ? "idle" : s));
+        setMissedStatus((s) => (s === "loading" ? "idle" : s));
+        setAnalysisStatus((s) => (s === "loading" ? "idle" : s));
+        setObjectionsStatus((s) => (s === "loading" ? "idle" : s));
+        setMatchableStatus((s) => (s === "loading" ? "idle" : s));
+      }
+      return;
+    }
+
+    const rows = (listRes.data ?? []) as Call[];
     setCalls((prev) => (more ? [...prev, ...rows] : rows));
-    setHasMore(rows.length >= (more ? PAGE : Math.max(PAGE, calls.length)));
-    setMissed(Object.fromEntries((m.data ?? []).map((x: Missed) => [x.call_id, x])));
-    setMods(Object.fromEntries((md.data ?? []).map((x: { id: string; display_name: string }) => [x.id, x.display_name])));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, calls.length, roles]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [filters]);
-  const setF = (k: keyof Filters, v: string) => { setCalls([]); setFilters((f) => ({ ...f, [k]: v })); };
+    setHasMore(rows.length >= limit);
+    setListStatus("ready");
+    setMoreLoading(false);
+    if (!rows.length && !more) setOrderFlags({});
+    // «تم الطلب» غير حرج: لا يُنتظر ولا يمسح القائمة إن فشل.
+    if (rows.length) {
+      void Promise.resolve(db.rpc("cm_call_order_flags", { _call_ids: rows.map((r) => r.id) })).then(
+        (r: { error?: unknown; data?: { call_id: string; evidence: OrderEvidence[] }[] }) => {
+          if (generation.current !== gen || r?.error) return;
+          setOrderFlags((p) => ({ ...(more ? p : {}), ...Object.fromEntries((r.data ?? []).map((x) => [x.call_id, x.evidence ?? []])) }));
+        },
+        () => {},
+      );
+    }
+
+    const secondary: Promise<unknown>[] = [fetchSummary(gen, f), fetchMissed(gen)];
+    if (plan.matchable) secondary.push(fetchMatchable(gen));
+    if (plan.analysis) secondary.push(fetchAnalysis(gen));
+    if (plan.objections) secondary.push(fetchObjections(gen));
+    void Promise.allSettled(secondary);
+  }, [filters, plan.analysis, plan.matchable, plan.objections, fetchSummary, fetchMissed, fetchMatchable, fetchAnalysis, fetchObjections]);
+  useEffect(() => { void load(); }, [load]);
+  const setF = (k: keyof Filters, v: string) => {
+    setListStatus("loading");
+    setSummaryStatus("loading");
+    setMissedStatus("loading");
+    setCalls([]);
+    setFilters((f) => ({ ...f, [k]: v }));
+  };
 
   // إظهار الرقم الكامل: كل إظهار يُسجَّل في cm_phone_reveal_log باسمك ووقته (المدير العام/التنفيذي/مدير المبيعات).
   const reveal = async (c: Call) => {
@@ -202,8 +367,17 @@ export default function ChatCalls() {
               r.preview.username ?? "—", (r.call_result ?? "—") + (r.preview.unknownResult ? " ⚠" : "")]}
             onImport={importRows} />)}
         {canManageHotlineUsernames(roles) && <HotlineUsernamesCard onChange={() => load()} />}
+        {canUploadRecordings(roles) && matchableStatus === "error" && (
+          <p className="text-center text-xs text-muted-foreground">
+            تعذّر تحميل فهرس مطابقة التسجيلات{" "}
+            <button type="button" className="text-[#A4288A] underline" onClick={() => void fetchMatchable(generation.current)} aria-label="إعادة تحميل فهرس المكالمات">إعادة</button>
+          </p>
+        )}
         {canUploadRecordings(roles) && <RecordingUploadCard calls={matchable} onDone={() => load()} />}
-        {canListenRecordings(roles) && <CallAnalysisStrip k={kpis} />}
+        {plan.analysis && analysisStatus !== "idle" && (
+          <CallAnalysisStrip k={kpis} status={analysisStatus === "error" ? "error" : analysisStatus === "ready" ? "ready" : "loading"} objectionsStatus={objectionsStatus}
+            onRetry={() => void fetchAnalysis(generation.current)} onRetryObjections={() => void fetchObjections(generation.current)} />
+        )}
         <Card><CardContent className="space-y-3 pt-4">
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-xs">الموظفة<select className={sel} value={filters.moderator} onChange={(e) => setF("moderator", e.target.value)}>
@@ -214,18 +388,15 @@ export default function ChatCalls() {
               <option value="">الكل</option>{Object.entries(CATEGORY_AR).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
             <label className="flex flex-col gap-1 text-xs">من تاريخ<input type="date" className={sel} value={filters.from} onChange={(e) => setF("from", e.target.value)} /></label>
             <label className="flex flex-col gap-1 text-xs">إلى تاريخ<input type="date" className={sel} value={filters.to} onChange={(e) => setF("to", e.target.value)} /></label>
-            <Button size="sm" variant="outline" onClick={() => { setCalls([]); setFilters(NO_FILTERS); }}>مسح الفلاتر</Button>
+            <Button size="sm" variant="outline" onClick={() => { setListStatus("loading"); setSummaryStatus("loading"); setMissedStatus("loading"); setCalls([]); setFilters({ ...NO_FILTERS }); }}>مسح الفلاتر</Button>
           </div>
-          {summary && <div className="grid grid-cols-2 gap-2 text-center text-sm md:grid-cols-4">
-            <div className="rounded-md border p-2"><div className="text-lg font-bold">{summary.calls}</div><div className="text-xs text-muted-foreground">مكالمة مطابقة (المحلَّلة {summary.analyzed})</div></div>
-            <div className="rounded-md border p-2"><div className="text-lg font-bold">{summary.avg_score ?? "—"}</div><div className="text-xs text-muted-foreground">متوسط تقييم التعامل (من 5)</div></div>
-            <div className="rounded-md border p-2"><div className="text-lg font-bold">{summary.order_pct != null ? `${summary.order_pct}%` : "—"}</div><div className="text-xs text-muted-foreground">وصلت لطلب أو وعد (من المحلَّلة)</div></div>
-            <div className="rounded-md border p-2"><div className="text-lg font-bold">{summary.open_followups}</div><div className="text-xs text-muted-foreground">متابعات مطلوبة مفتوحة</div></div>
-          </div>}
+          <SummaryCards status={summaryStatus} summary={summary} onRetry={() => void fetchSummary(generation.current, filters)} />
         </CardContent></Card>
-        <Card><CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0"><div><CardTitle>المكالمات</CardTitle><CardDescription>معروض {calls.length} من {summary?.calls ?? calls.length} — اضغط على أي مكالمة لعرض التفريغ والتحليل</CardDescription></div>
+        <Card><CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0"><div><CardTitle>المكالمات</CardTitle><CardDescription>معروض {calls.length} من {summaryStatus === "ready" && summary ? summary.calls : summaryStatus === "error" ? "—" : "…"} — اضغط على أي مكالمة لعرض التفريغ والتحليل</CardDescription></div>
           {isGM && <Button size="sm" disabled={!!batchMsg} onClick={analyzeAll} className="bg-[#662D8C] text-white">{batchMsg ?? "تحليل الكل"}</Button>}</CardHeader>
-          <CardContent className="overflow-auto"><table className="w-full text-sm">
+          <CardContent className="overflow-auto">
+            {listStatus === "error" && calls.length > 0 && <ListError onRetry={() => void load()} />}
+            <table className="w-full text-sm" data-testid="calls-table">
             <thead className="bg-muted"><tr>{["الوقت","الاتجاه","الحالة","الرقم","المدة","المودريتور","المتابعة","التحليل",""].map((h, i) => <th key={i} className="p-2 text-right">{h}</th>)}</tr></thead>
             <tbody>{calls.map((c) => { const m = missed[c.id]; return (
               <tr key={c.id} className="cursor-pointer border-t align-top hover:bg-muted/50" onClick={() => setOpenCall(c)}>
@@ -233,18 +404,26 @@ export default function ChatCalls() {
                 <td className="p-2"><Badge variant={c.status === "missed" ? "destructive" : "secondary"}>{STATUS_AR[c.status] ?? c.status}</Badge>{c.is_sales === false && <Badge variant="outline" className="ms-1">غير المبيعات</Badge>}{c.category === "ivr" && <Badge variant="outline" className="ms-1">القائمة الصوتية</Badge>}</td>
                 <td className="p-2" onClick={(e) => e.stopPropagation()}>{phoneCell(c)}</td><td className="p-2">{Math.round(c.duration_sec / 60)} د</td>
                 <td className="p-2">{c.moderator_id ? mods[c.moderator_id] ?? "—" : "—"}</td>
-                <td className="p-2" onClick={(e) => e.stopPropagation()}>{c.status !== "missed" || c.direction !== "inbound" || c.is_sales === false ? "—" : m?.followed_within_target
+                <td className="p-2" onClick={(e) => e.stopPropagation()}>{c.status !== "missed" || c.direction !== "inbound" || c.is_sales === false ? "—"
+                  : missedStatus === "loading" ? <Skeleton className="h-4 w-16" data-testid="missed-skeleton" />
+                  : missedStatus === "error" ? "—"
+                  : m?.followed_within_target
                   ? <span className="text-green-700">خلال ساعة</span>
                   : <span className="flex items-center gap-2 text-[#F37346]">{m?.followup_at ? "متأخرة" : "لم تُتابَع"}
                       {!c.followed_up_at && <Button size="sm" variant="outline" onClick={() => markFollowed(c)}>تمت المتابعة</Button>}</span>}</td>
-                <td className="p-2" onClick={(e) => e.stopPropagation()}>{(() => { const a = analysis[c.id]; return (
+                <td className="p-2" onClick={(e) => e.stopPropagation()}>{(() => {
+                  const a = analysis[c.id];
+                  const analyzeBtn = canAnalyze && c.recording_path && c.is_sales !== false && a?.status !== "done" &&
+                    <Button size="sm" variant="outline" disabled={busy.has(c.id)} onClick={() => analyzeOne(c.id)}>{busy.has(c.id) ? "جارٍ…" : "تحليل"}</Button>;
+                  if (plan.analysis && analysisStatus === "loading") return <Skeleton className="inline-block h-4 w-16" data-testid="analysis-skeleton" />;
+                  if (plan.analysis && analysisStatus === "error") return <span className="flex flex-wrap items-center gap-1"><span data-testid="analysis-cell-error">—</span>{analyzeBtn}</span>;
+                  return (
                   <span className="flex flex-wrap items-center gap-1">
                     {a?.status === "done" && a.outcome && <Badge className="bg-[#662D8C]">{OUTCOME_AR[a.outcome] ?? a.outcome}</Badge>}
                     {a?.status === "done" && a.handling_score != null && <Badge variant="outline">{a.handling_score}/5</Badge>}
                     {a?.status === "done" && a.followup_needed && <Badge className="bg-[#F37346]">متابعة مطلوبة</Badge>}
                     {a && a.status !== "done" && <Badge variant={a.status === "error" ? "destructive" : "secondary"} title={a.error ?? undefined}>{ANALYSIS_STATUS_AR[a.status]}</Badge>}
-                    {canAnalyze && c.recording_path && c.is_sales !== false && a?.status !== "done" &&
-                      <Button size="sm" variant="outline" disabled={busy.has(c.id)} onClick={() => analyzeOne(c.id)}>{busy.has(c.id) ? "جارٍ…" : "تحليل"}</Button>}
+                    {analyzeBtn}
                   </span>); })()}</td>
                 <td className="p-2" onClick={(e) => e.stopPropagation()}><span className="flex items-center gap-1">{c.recording_path && canListenRecordings(roles) && (audio?.id === c.id
                   ? <audio controls autoPlay src={audio.url} className="h-8" />
@@ -254,9 +433,13 @@ export default function ChatCalls() {
                       const f = e.target.files?.[0]; e.target.value = ""; if (!f) return;
                       const err = await uploadRecording(c.id, f); if (err) toast.error(err); else { toast.success("تم رفع التسجيل"); load(); } }} /></label>}</span></td>
               </tr>); })}
-              {!calls.length && <tr><td colSpan={9} className="p-4 text-center text-muted-foreground">لا توجد مكالمات مطابقة</td></tr>}
+              {listStatus === "loading" && !calls.length && <tr data-testid="calls-table-skeleton"><td colSpan={9} className="p-4"><div className="space-y-2"><Skeleton className="h-6 w-full" /><Skeleton className="h-6 w-full" /><Skeleton className="h-6 w-full" /></div></td></tr>}
+              {listStatus === "error" && !calls.length && <tr><td colSpan={9}><ListError onRetry={() => void load()} /></td></tr>}
+              {listStatus === "ready" && !calls.length && <tr data-testid="calls-empty"><td colSpan={9} className="p-4 text-center text-muted-foreground">{CALLS_LIST_EMPTY_AR}</td></tr>}
             </tbody></table>
-            {hasMore && <div className="mt-3 text-center"><Button size="sm" variant="outline" onClick={() => load(true)}>تحميل المزيد</Button></div>}
+            {hasMore && listStatus !== "error" && <div className="mt-3 text-center"><Button size="sm" variant="outline" disabled={moreLoading} onClick={() => load(true)}>{moreLoading ? "جارٍ التحميل…" : "تحميل المزيد"}</Button></div>}
+            {missedStatus === "error" && <p className="mt-2 text-center text-xs text-muted-foreground">تعذّر تحميل متابعة الفائتة{" "}
+              <button type="button" className="text-[#A4288A] underline" onClick={() => void fetchMissed(generation.current)} aria-label="إعادة تحميل المتابعات">إعادة</button></p>}
             {canListenRecordings(roles) && <p className="mt-2 text-xs text-muted-foreground">زر «إظهار» يعرض رقم العميل كاملاً مع روابط الاتصال والواتساب، وكل إظهار يُسجَّل باسمك ووقته.</p>}
             {canListenRecordings(roles) && <p className="mt-2 text-xs text-muted-foreground">كل استماع يُسجَّل باسمك ووقته، والرابط صالح لدقيقتين فقط.</p>}
           </CardContent></Card>
