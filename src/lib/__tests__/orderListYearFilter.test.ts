@@ -39,6 +39,24 @@ describe("hasOrderListOperationalFilters", () => {
     expect(hasOrderListOperationalFilters({ month: "11" })).toBe(true);
     expect(hasOrderListOperationalFilters({ status: "pending" })).toBe(true);
   });
+
+  it("does not treat a product filter as a date-scoping operational filter", () => {
+    expect(hasOrderListOperationalFilters({ product: "فخدة  بالعظم" })).toBe(false);
+    expect(
+      hasOrderListOperationalFilters({
+        product: "فخدة  بالعظم",
+        status: "all",
+        warehouseChip: "all",
+        month: "all",
+      }),
+    ).toBe(false);
+    expect(
+      hasOrderListOperationalFilters({
+        product: "فخدة  بالعظم",
+        warehouseChip: "agouza",
+      }),
+    ).toBe(true);
+  });
 });
 
 describe("resolveEffectiveOrderListYear", () => {
@@ -131,6 +149,12 @@ describe("shouldRestrictOrdersToCurrentMonth", () => {
       shouldRestrictOrdersToCurrentMonth({ ...base, yearPin: "explicit" }),
     ).toBe(false);
   });
+
+  it("does not use the default current-month prefetch when a product is selected", () => {
+    expect(
+      shouldRestrictOrdersToCurrentMonth({ ...base, product: "فخدة  بالعظم" }),
+    ).toBe(false);
+  });
 });
 
 describe("resolveOrderListDateBounds", () => {
@@ -202,14 +226,17 @@ describe("Orders list product-owner scenarios", () => {
     month?: string;
     fulfillment?: string;
     warehouseChip?: string;
+    product?: string;
     yearPin?: "implicit" | "explicit";
     filterYear?: string;
   }) => {
     const filterMonth = filters.month ?? ALL_YEARS_VALUE;
+    const product = filters.product ?? ALL_YEARS_VALUE;
     const operational = hasOrderListOperationalFilters({
       month: filterMonth,
       fulfillment: filters.fulfillment ?? ALL_YEARS_VALUE,
       warehouseChip: filters.warehouseChip ?? ALL_YEARS_VALUE,
+      product,
     });
     const effectiveYear = resolveEffectiveOrderListYear({
       filterYear: filters.filterYear ?? ALL_YEARS_VALUE,
@@ -230,11 +257,13 @@ describe("Orders list product-owner scenarios", () => {
         yearPin,
         yearGroup: ALL_YEARS_VALUE,
         isShippingCompany: false,
+        product,
       }),
       scopeImplicitYearToCurrentMonth: implicitOperationalFilterUsesCurrentMonth({
         operationalFiltersActive: operational,
         yearPin,
         filterMonth,
+        product,
       }),
       now: now2026,
     });
@@ -306,5 +335,52 @@ describe("Orders list product-owner scenarios", () => {
     });
     expect(november.effectiveYear).toBe(ALL_YEARS_VALUE);
     expect(november.bounds).toEqual({ startDate: null, endDate: null });
+  });
+
+  it("product only, كل الشهور, no explicit year → every year, not the current month", () => {
+    const { effectiveYear, bounds } = resolve({ product: "فخدة  بالعظم" });
+    expect(effectiveYear).toBe(ALL_YEARS_VALUE);
+    expect(bounds).toEqual({ startDate: null, endDate: null });
+  });
+
+  it("product plus an explicit year and كل الشهور → that whole year", () => {
+    const { effectiveYear, bounds } = resolve({
+      product: "نعامة صندوق بالعظم",
+      yearPin: "explicit",
+      filterYear: "2026",
+    });
+    expect(effectiveYear).toBe("2026");
+    expect(bounds.startDate).toBe(cairoYearStartUTC(2026).toISOString());
+    expect(bounds.endDate).toBe(cairoYearStartUTC(2027).toISOString());
+  });
+
+  it("product plus explicit كل السنوات stays unbounded", () => {
+    const { effectiveYear, bounds } = resolve({
+      product: "دبوس نعام بالعظم",
+      yearPin: "explicit",
+      filterYear: ALL_YEARS_VALUE,
+    });
+    expect(effectiveYear).toBe(ALL_YEARS_VALUE);
+    expect(bounds).toEqual({ startDate: null, endDate: null });
+  });
+
+  it("product plus a chosen month still uses that month of the pinned year", () => {
+    const { effectiveYear, bounds } = resolve({
+      product: "فخدة  بالعظم",
+      month: "5",
+    });
+    expect(effectiveYear).toBe("2026");
+    expect(bounds.startDate).toBe(cairoMonthStartUTC(2026, 4).toISOString());
+    expect(bounds.endDate).toBe(cairoMonthStartUTC(2026, 5).toISOString());
+  });
+
+  it("product plus a warehouse without a chosen period uses the whole pinned year, not the current month", () => {
+    const { effectiveYear, bounds } = resolve({
+      product: "فخدة  بالعظم",
+      warehouseChip: "agouza",
+    });
+    expect(effectiveYear).toBe("2026");
+    expect(bounds.startDate).toBe(cairoYearStartUTC(2026).toISOString());
+    expect(bounds.endDate).toBe(cairoYearStartUTC(2027).toISOString());
   });
 });

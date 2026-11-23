@@ -5,6 +5,12 @@
  * Africa/Cairo month unless the user set a period, a month, a year, or a
  * year-group tab. An explicit year without a month still spans that year.
  *
+ * A product filter is not a date-scoping operational filter: it searches every
+ * year unless the user explicitly picks a year or a month. Combined with
+ * warehouse/status/… and no explicit date, it uses the whole pinned year
+ * rather than only the current month, so the month dropdown («كل الشهور»)
+ * and the year dropdown stay truthful.
+ *
  * Default unfiltered view keeps year = "all" so the existing current-month
  * prefetch can stay fast. Period presets and year-group tabs keep owning their
  * own date window. Cairo and Asia/Riyadh share the same civil month.
@@ -45,6 +51,8 @@ export function currentAppCalendarYear(now: Date = new Date()): number {
 export function hasOrderListOperationalFilters(
   filters: OrderListOperationalFilterInputs,
 ): boolean {
+  // Product is intentionally omitted: it must not pin the year or the
+  // current month on its own. See implicitOperationalFilterUsesCurrentMonth.
   return (
     isActiveFilter(filters.status) ||
     isActiveFilter(filters.warehouseChip) ||
@@ -52,7 +60,6 @@ export function hasOrderListOperationalFilters(
     isActiveFilter(filters.fulfillment) ||
     isActiveFilter(filters.route) ||
     isActiveFilter(filters.governorate) ||
-    isActiveFilter(filters.product) ||
     isActiveFilter(filters.collectionMethod) ||
     isActiveFilter(filters.moderator)
   );
@@ -80,7 +87,8 @@ const MONTHS_AR = [
   "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
 ];
 
-/** Warehouse, status, and the other list filters with no date choice of their own. */
+/** Warehouse, status, and the other list filters with no date choice of their own.
+ *  A product filter never triggers this implicit current-month clamp. */
 export function implicitOperationalFilterUsesCurrentMonth(args: {
   operationalFiltersActive: boolean;
   yearPin: OrderListYearPin;
@@ -88,7 +96,9 @@ export function implicitOperationalFilterUsesCurrentMonth(args: {
   hasSearch?: boolean;
   filterMonth: string;
   yearGroup?: string;
+  product?: string;
 }): boolean {
+  if (isActiveFilter(args.product)) return false;
   return (
     args.operationalFiltersActive &&
     args.yearPin !== "explicit" &&
@@ -112,7 +122,9 @@ export function shouldRestrictOrdersToCurrentMonth(args: {
   yearPin: OrderListYearPin;
   yearGroup: string;
   isShippingCompany: boolean;
+  product?: string;
 }): boolean {
+  if (isActiveFilter(args.product)) return false;
   return (
     !args.hasSearch &&
     !args.hasPeriod &&

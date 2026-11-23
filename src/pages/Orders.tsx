@@ -728,6 +728,8 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
   // شركات الشحن قد لا يكون لديها طلبات في الشهر الحالي (مثلاً زودكس آخر طلب لها في 2025)
   // لتفادي ظهور صفحة فارغة افتراضياً، نحمّل لهم كل الطلبات المسموح بها بدلاً من تقييد الشهر الحالي.
   // فلتر تشغيلي بلا شهر أو فترة أو سنة يثبّت الشهر الحالي (القاهرة)، لا سنة 2026 كلها.
+  // فلتر المنتج مش ضمن التضييق الضمني: من غير سنة أو شهر صريح يبحث في كل السنوات،
+  // والقوائم والشرائح الصفراء تعكس النطاق الفعلي.
   const filteredToCurrentMonth = implicitOperationalFilterUsesCurrentMonth({
     operationalFiltersActive,
     yearPin,
@@ -735,6 +737,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     hasSearch: !!appliedSearch,
     filterMonth,
     yearGroup,
+    product: filterProduct,
   });
   const restrictToCurrentMonth = shouldRestrictOrdersToCurrentMonth({
     hasSearch: !!appliedSearch,
@@ -744,6 +747,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
     yearPin,
     yearGroup,
     isShippingCompany,
+    product: filterProduct,
   });
 
   useEffect(() => {
@@ -887,6 +891,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       yearPin,
       yearGroup,
       isShippingCompany,
+      product: filterProduct,
     });
     const scopeImplicitYearToCurrentMonth = implicitOperationalFilterUsesCurrentMonth({
       operationalFiltersActive,
@@ -895,6 +900,7 @@ const Orders = ({ reviewModeratorGroup }: OrdersPageProps = {}) => {
       hasSearch: !!activeSearch,
       filterMonth,
       yearGroup,
+      product: filterProduct,
     });
 
     const seq = ++requestSeq.current;
