@@ -49,6 +49,9 @@ export interface CocBox {
   is_active: boolean;
   image_url?: string | null;
   items?: BoxItemSummary[];
+  starts_at?: string | null;
+  expires_at?: string | null;
+  site_hidden_by_validity?: boolean;
 }
 
 export interface CatalogRow {
@@ -169,6 +172,8 @@ export interface CocMissingItem {
   barcode: string | null;
   image_url: string | null;
   items: BoxItemSummary[];
+  starts_at?: string | null;
+  expires_at?: string | null;
 }
 
 export function buildMissingItems(products: CocProduct[], boxes: CocBox[]): CocMissingItem[] {
@@ -181,6 +186,8 @@ export function buildMissingItems(products: CocProduct[], boxes: CocBox[]): CocM
     barcode: null,
     image_url: b.image_url?.trim() || null,
     items: b.items ?? [],
+    starts_at: b.starts_at ?? null,
+    expires_at: b.expires_at ?? null,
   }));
   const pRows: CocMissingItem[] = products.map((p) => ({
     kind: "product",
@@ -280,6 +287,7 @@ export function boxImportCheck(sitePrice: number | null, shipping: number | null
 export const CHANGE_FIELD_LABELS: Record<string, string> = {
   name: "الاسم",
   regular_price: "السعر",
+  price: "السعر المعروض",
   sale_price: "سعر التخفيض",
   sku: "رمز الصنف (الباركود)",
   short_description: "مكونات العرض",
@@ -319,6 +327,13 @@ const ERRORS: Record<string, string> = {
   WEB_MAP_ONE_TARGET: "يُرجى اختيار منتج واحد أو عرض واحد",
   woo_keys_missing: "مفاتيح الكتابة على الموقع غير مضبوطة بعد؛ المعاينة متاحة والكتابة متوقفة حتى اعتماد المدير العام",
   changed_since_preview: "تغيّر المنتج على الموقع بعد المعاينة؛ يُرجى مراجعة المعاينة الجديدة",
+  backup_not_found: "لم نعثَر على النسخة الاحتياطية لهذا التعديل",
+  bad_backup_id: "نسخة الاسترجاع غير محددة",
+  WOO_DATES_REQUIRED: "حدّدي تاريخ بداية ونهاية لمدة العرض",
+  WOO_END_BEFORE_START: "تاريخ البداية يجب أن يسبق تاريخ الانتهاء",
+  dates_required: "حدّدي تاريخ بداية ونهاية لمدة العرض",
+  end_before_start: "تاريخ البداية يجب أن يسبق تاريخ الانتهاء",
+
   already_on_site: "هذا البند موجود بالفعل على الموقع",
   not_mapped: "هذا البند غير مربوط بمنتج على الموقع",
   coc_price_missing: "لا يوجد سعر مسجّل لهذا البند",

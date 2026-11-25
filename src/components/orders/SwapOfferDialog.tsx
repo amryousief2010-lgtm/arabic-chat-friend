@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Plus, Gift, PackageOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { offerBoxIsSelectable } from "@/lib/offerValidity";
 import {
   BOX_COPY_OPERATIONS,
   listBoxCopies,
@@ -198,9 +199,7 @@ const SwapOfferDialog = ({
   const activeOffers = useMemo(() => {
     const now = new Date();
     return offers.filter((offer) => {
-      if (offer.is_active === false) return false;
-      if (offer.expires_at && new Date(offer.expires_at) <= now) return false;
-      if (offer.starts_at && new Date(offer.starts_at) > now) return false;
+      if (!offerBoxIsSelectable(offer, now)) return false;
       return true;
     });
   }, [offers]);

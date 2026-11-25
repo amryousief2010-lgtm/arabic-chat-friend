@@ -16,6 +16,9 @@
  * coceg; one coceg box ↔ one site product (meta `_coc_offer_box_id`).
  */
 
+import { hideOnSitePayload, restoreChanges, restorePayload, showOnSitePayload, snapshotSha } from "./restore.ts";
+
+
 export const DEFAULT_SITE_URL = "https://capitalostrich.com";
 export const COMPANY_BARCODE_RE = /^622400320\d{4}$/;
 export const STORE_PAGE_SIZE = 100;
@@ -28,6 +31,8 @@ export interface CatalogEnv {
   WOO_CONSUMER_SECRET?: string;
   WOO_SITE_URL?: string;
   WOO_BOX_SHIPPING_CLASS_SLUG?: string;
+  /** pg_cron → expire_offers. Empty means cron calls are rejected. */
+  WOO_CATALOG_CRON_SECRET?: string;
 }
 
 export interface SiteProductRow {
@@ -73,8 +78,8 @@ export interface Change { field: keyof WooFields; before: string | null; after: 
 export interface Mapping { woo_product_id: number; woo_variation_id: number; kind: "product" | "offer_box"; product_id: string | null; offer_box_id: string | null }
 
 export interface LogEntry {
-  actor: string;
-  action: "push_create" | "push_update" | SiteEditAction;
+  actor: string | null;
+  action: "push_create" | "push_update" | SiteEditAction | "site_validity" | "site_restore";
   woo_product_id: number | null;
   woo_variation_id: number;
   product_id: string | null;
@@ -103,12 +108,28 @@ export interface CatalogDeps {
   cachedSiteProduct: (wooId: number) => Promise<SiteProductRow | null>;
   /** woo_catalog_map as the caller (role-gated + logged in the DB). */
   mapAsUser: (token: string, wooId: number, t: Target) => Promise<void>;
-  log: (e: LogEntry) => Promise<void>;
+  log: (e: LogEntry) => Promise<string | void>;
+  /** Constant-time cron secret (expire_offers only). */
+  authenticateCron?: (req: Request) => Promise<boolean>;
+  listValidityJobs?: () => Promise<ValidityJob[]>;
+  setValidityFlag?: (boxId: string, hidden: boolean, prevVisibility: string | null) => Promise<void>;
+  saveBackup?: (logId: string | null, wooId: number, snapshot: unknown, sha: string, actor: string | null) => Promise<void>;
+  loadBackup?: (backupId: string) => Promise<{ id: string; woo_product_id: number; snapshot: Record<string, unknown>; snapshot_sha: string; confirmed_by: string | null; confirmed_at: string } | null>;
+}
+
+export interface ValidityJob {
+  offer_box_id: string;
+  woo_product_id: number;
+  starts_at: string | null;
+  expires_at: string | null;
+  site_hidden_by_validity: boolean;
+  validity_prev_catalog_visibility: string | null;
+  wanted: "hide" | "show" | "none";
 }
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-woo-catalog-cron-secret",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const json = (status: number, body: unknown) =>
@@ -278,11 +299,41 @@ const pickFields = (p: any): WooFields => ({
   image_url: p?.images?.[0]?.src ? String(p.images[0].src) : "",
 });
 
-async function restGet(env: CatalogEnv, f: typeof fetch, wooId: number): Promise<WooFields> {
+async function restGetRaw(env: CatalogEnv, f: typeof fetch, wooId: number): Promise<Record<string, unknown>> {
   const res = await f(`${siteUrl(env)}/wp-json/wc/v3/products/${wooId}`, { headers: { Authorization: restAuth(env) } });
   if (res.status === 404) throw new SyncError(404, "woo_product_not_found");
   if (!res.ok) throw new SyncError(502, `woo_rest_${res.status}`);
-  return pickFields(await res.json());
+  const body = await res.json();
+  if (!body || typeof body !== "object") throw new SyncError(502, "woo_rest_bad_body");
+  return body as Record<string, unknown>;
+}
+
+async function restGet(env: CatalogEnv, f: typeof fetch, wooId: number): Promise<WooFields> {
+  return pickFields(await restGetRaw(env, f, wooId));
+}
+
+/** يكتب على الموقع بعد حفظ لقطة المنتج الحالية (ما عدا الإنشاء). */
+async function writeWithBackup(
+  deps: CatalogDeps,
+  entry: Omit<LogEntry, "status" | "error">,
+  method: "POST" | "PUT",
+  path: string,
+  body: unknown,
+): Promise<{ wooId: number; logId: string | null }> {
+  let snapshot: Record<string, unknown> | null = null;
+  let sha = "";
+  if (method === "PUT" && entry.woo_product_id) {
+    snapshot = await restGetRaw(deps.env, deps.fetchImpl, entry.woo_product_id);
+    sha = await snapshotSha(snapshot);
+  }
+  const res = await restWrite(deps.env, deps.fetchImpl, method, path, body);
+  // deno-lint-ignore no-explicit-any
+  const wooId = Number((res as any)?.id ?? entry.woo_product_id ?? 0);
+  const logId = (await deps.log({ ...entry, woo_product_id: wooId || entry.woo_product_id, status: "applied", error: null })) ?? null;
+  if (snapshot && deps.saveBackup) {
+    await deps.saveBackup(typeof logId === "string" ? logId : null, wooId || entry.woo_product_id!, snapshot, sha, entry.actor);
+  }
+  return { wooId, logId: typeof logId === "string" ? logId : null };
 }
 
 async function restWrite(env: CatalogEnv, f: typeof fetch, method: "POST" | "PUT", path: string, body: unknown) {
@@ -485,16 +536,108 @@ export function siteEditPayload(after: WooFields): Record<string, unknown> {
   return image_url ? { ...rest, images: [{ src: image_url }] } : { ...rest };
 }
 
+export async function buildRestorePreview(deps: CatalogDeps, backupId: string) {
+  if (!deps.loadBackup) throw new SyncError(500, "internal");
+  const backup = await deps.loadBackup(backupId);
+  if (!backup) throw new SyncError(404, "backup_not_found");
+  if (!keysConfigured(deps.env)) throw new SyncError(503, "woo_keys_missing");
+  const current = await restGetRaw(deps.env, deps.fetchImpl, backup.woo_product_id);
+  const currentSha = await snapshotSha(current);
+  const changes = restoreChanges(current, backup.snapshot);
+  const token = await snapshotSha({ backup: backup.id, woo: backup.woo_product_id, currentSha, after: restorePayload(backup.snapshot) });
+  return {
+    backup_id: backup.id,
+    woo_product_id: backup.woo_product_id,
+    confirmed_by: backup.confirmed_by,
+    confirmed_at: backup.confirmed_at,
+    before: current,
+    after: restorePayload(backup.snapshot),
+    changes,
+    token,
+    current_sha: currentSha,
+    keys_configured: true,
+    warnings: changes.length === 0 ? ["already_matches_snapshot"] : [],
+  };
+}
+
+export async function runExpireOffers(deps: CatalogDeps, actor: string | null) {
+  if (!keysConfigured(deps.env)) throw new SyncError(503, "woo_keys_missing");
+  if (!deps.listValidityJobs || !deps.setValidityFlag) throw new SyncError(500, "internal");
+  const jobs = (await deps.listValidityJobs()).filter((j) => j.wanted === "hide" || j.wanted === "show");
+  const results: { offer_box_id: string; woo_product_id: number; wanted: string; result: string }[] = [];
+  for (const job of jobs) {
+    try {
+      const current = await restGetRaw(deps.env, deps.fetchImpl, job.woo_product_id);
+      const vis = String(current.catalog_visibility ?? "visible");
+      const status = String(current.status ?? "publish");
+      if (job.wanted === "hide") {
+        // Safest reversible hide: keep publish, set catalog_visibility=hidden.
+        if (vis === "hidden") {
+          results.push({ offer_box_id: job.offer_box_id, woo_product_id: job.woo_product_id, wanted: "hide", result: "already_hidden" });
+          continue; // do not claim a manual hide as ours
+        }
+        const after = hideOnSitePayload();
+        await writeWithBackup(deps, {
+          actor, action: "site_validity", woo_product_id: job.woo_product_id, woo_variation_id: 0,
+          product_id: null, offer_box_id: job.offer_box_id,
+          before: { status, catalog_visibility: vis }, after,
+        }, "PUT", `products/${job.woo_product_id}`, after);
+        await deps.setValidityFlag(job.offer_box_id, true, vis);
+        results.push({ offer_box_id: job.offer_box_id, woo_product_id: job.woo_product_id, wanted: "hide", result: "hidden" });
+      } else {
+        if (!job.site_hidden_by_validity) {
+          results.push({ offer_box_id: job.offer_box_id, woo_product_id: job.woo_product_id, wanted: "show", result: "skipped_not_ours" });
+          continue;
+        }
+        const after = showOnSitePayload(job.validity_prev_catalog_visibility);
+        if (vis === after.catalog_visibility && (status === "publish" || status === after.status)) {
+          await deps.setValidityFlag(job.offer_box_id, false, null);
+          results.push({ offer_box_id: job.offer_box_id, woo_product_id: job.woo_product_id, wanted: "show", result: "already_visible" });
+          continue;
+        }
+        await writeWithBackup(deps, {
+          actor, action: "site_validity", woo_product_id: job.woo_product_id, woo_variation_id: 0,
+          product_id: null, offer_box_id: job.offer_box_id,
+          before: { status, catalog_visibility: vis }, after,
+        }, "PUT", `products/${job.woo_product_id}`, after);
+        await deps.setValidityFlag(job.offer_box_id, false, null);
+        results.push({ offer_box_id: job.offer_box_id, woo_product_id: job.woo_product_id, wanted: "show", result: "shown" });
+      }
+    } catch (e) {
+      const code = e instanceof SyncError ? e.code : "woo_write_failed";
+      await deps.log({
+        actor, action: "site_validity", woo_product_id: job.woo_product_id, woo_variation_id: 0,
+        product_id: null, offer_box_id: job.offer_box_id, before: null, after: { wanted: job.wanted },
+        status: "failed", error: code,
+      });
+      results.push({ offer_box_id: job.offer_box_id, woo_product_id: job.woo_product_id, wanted: job.wanted, result: `failed:${code}` });
+    }
+  }
+  return { ok: true, count: results.length, results };
+}
+
 export async function handleCatalogSync(req: Request, deps: CatalogDeps): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json(405, { error: "method_not_allowed" });
 
+  let body: Record<string, unknown>;
+  try { body = await req.json(); } catch { return json(400, { error: "bad_json" }); }
+
+  const cron = deps.authenticateCron ? await deps.authenticateCron(req) : false;
+  if (cron) {
+    if (body.action !== "expire_offers") return json(403, { error: "forbidden" });
+    try {
+      return json(200, await runExpireOffers(deps, null));
+    } catch (e) {
+      if (e instanceof SyncError) return json(e.status, { error: e.code });
+      console.error("woo-catalog-sync expire_offers failed", String((e as Error)?.message ?? e).slice(0, 200));
+      return json(500, { error: "internal" });
+    }
+  }
+
   const auth = await deps.authenticate(req);
   if (!auth) return json(401, { error: "unauthorized" });
   if (!(await deps.canManage(auth.token))) return json(403, { error: "forbidden" });
-
-  let body: Record<string, unknown>;
-  try { body = await req.json(); } catch { return json(400, { error: "bad_json" }); }
 
   try {
     switch (body.action) {
@@ -529,10 +672,8 @@ export async function handleCatalogSync(req: Request, deps: CatalogDeps): Promis
             const meta = [{ key: input.target.kind === "product" ? "_coc_product_id" : "_coc_offer_box_id", value: input.target.id }];
             const { image_url: imgUrl, ...wooAfter } = p.after;
             const wooPayload = { type: "simple", ...wooAfter, ...(imgUrl ? { images: [{ src: imgUrl }] } : {}), meta_data: meta };
-            const created = await restWrite(deps.env, deps.fetchImpl, "POST", "products", wooPayload);
-            const wooId = Number(created?.id);
+            const { wooId } = await writeWithBackup(deps, { ...base, action: "push_create", woo_product_id: null, after: p.after }, "POST", "products", wooPayload);
             if (!Number.isInteger(wooId) || wooId <= 0) throw new SyncError(502, "woo_create_no_id");
-            await deps.log({ ...base, action: "push_create", woo_product_id: wooId, after: { ...p.after, id: wooId }, status: "applied", error: null });
             try {
               await deps.mapAsUser(auth.token, wooId, input.target);
             } catch {
@@ -540,8 +681,7 @@ export async function handleCatalogSync(req: Request, deps: CatalogDeps): Promis
             }
             return json(200, { ok: true, changed: true, woo_product_id: wooId });
           }
-          await restWrite(deps.env, deps.fetchImpl, "PUT", `products/${p.woo_product_id}`, p.after);
-          await deps.log({ ...base, action: "push_update", woo_product_id: p.woo_product_id, status: "applied", error: null });
+          await writeWithBackup(deps, { ...base, action: "push_update", woo_product_id: p.woo_product_id }, "PUT", `products/${p.woo_product_id}`, p.after);
           return json(200, { ok: true, changed: true, woo_product_id: p.woo_product_id });
         } catch (e) {
           const code = e instanceof SyncError ? e.code : "woo_write_failed";
@@ -560,19 +700,54 @@ export async function handleCatalogSync(req: Request, deps: CatalogDeps): Promis
         if (typeof body.token !== "string" || body.token !== p.token) return json(409, { error: "changed_since_preview", preview: p });
         if (p.changes.length === 0) return json(200, { ok: true, changed: false });
         const entry = {
-          actor: auth.userId, action: SITE_EDIT_ACTION[edit.kind], woo_product_id: wooId, woo_variation_id: 0,
+          actor: auth.userId, action: edit.kind === "visibility" ? (body.reason === "validity" ? "site_validity" as const : SITE_EDIT_ACTION[edit.kind]) : SITE_EDIT_ACTION[edit.kind],
+          woo_product_id: wooId, woo_variation_id: 0,
           product_id: p.mapping?.product_id ?? null, offer_box_id: p.mapping?.offer_box_id ?? null,
           before: p.before, after: p.after,
         };
         try {
-          await restWrite(deps.env, deps.fetchImpl, "PUT", `products/${wooId}`, siteEditPayload(p.after));
-          await deps.log({ ...entry, status: "applied", error: null });
+          await writeWithBackup(deps, entry, "PUT", `products/${wooId}`, siteEditPayload(p.after));
+          if (body.reason === "validity" && p.mapping?.offer_box_id && deps.setValidityFlag) {
+            const hidden = p.after.catalog_visibility === "hidden";
+            await deps.setValidityFlag(p.mapping.offer_box_id, hidden, hidden ? String(p.before?.catalog_visibility ?? "visible") : null);
+          }
           return json(200, { ok: true, changed: true, woo_product_id: wooId });
         } catch (e) {
           await deps.log({ ...entry, status: "failed", error: e instanceof SyncError ? e.code : "woo_write_failed" });
           throw e;
         }
       }
+
+      case "restore_preview": {
+        const backupId = String(body.backup_id ?? "");
+        if (!backupId) return json(400, { error: "bad_backup_id" });
+        return json(200, await buildRestorePreview(deps, backupId));
+      }
+
+      case "restore_apply": {
+        const backupId = String(body.backup_id ?? "");
+        if (!backupId) return json(400, { error: "bad_backup_id" });
+        if (!keysConfigured(deps.env)) return json(503, { error: "woo_keys_missing" });
+        const p = await buildRestorePreview(deps, backupId);
+        if (typeof body.token !== "string" || body.token !== p.token) return json(409, { error: "changed_since_preview", preview: p });
+        if (p.changes.length === 0) return json(200, { ok: true, changed: false });
+        const mapping = deps.mappingForWoo ? await deps.mappingForWoo(p.woo_product_id) : null;
+        const entry = {
+          actor: auth.userId, action: "site_restore" as const, woo_product_id: p.woo_product_id, woo_variation_id: 0,
+          product_id: mapping?.product_id ?? null, offer_box_id: mapping?.offer_box_id ?? null,
+          before: p.before, after: p.after,
+        };
+        try {
+          await writeWithBackup(deps, entry, "PUT", `products/${p.woo_product_id}`, p.after);
+          return json(200, { ok: true, changed: true, woo_product_id: p.woo_product_id });
+        } catch (e) {
+          await deps.log({ ...entry, status: "failed", error: e instanceof SyncError ? e.code : "woo_write_failed" });
+          throw e;
+        }
+      }
+
+      case "expire_offers":
+        return json(200, await runExpireOffers(deps, auth.userId));
 
       default:
         return json(400, { error: "bad_action" });

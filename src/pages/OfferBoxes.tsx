@@ -38,6 +38,7 @@ import { openPrintWindow, escapeHtml, fmtNum, fmtDate } from '@/lib/printPdf';
 import { format, isPast, isFuture, parseISO, differenceInHours } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { formatValidityDate, offerBoxIsSelectable, parseValidityInput, toDatetimeLocal, validityModeOf, validityState, type ValidityMode } from "@/lib/offerValidity";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -144,25 +145,15 @@ const OfferBoxes = () => {
   const [shippingValue, setShippingValue] = useState('');
   const [editingBox, setEditingBox] = useState<OfferBox | null>(null);
   const [selectedBox, setSelectedBox] = useState<OfferBox | null>(null);
-  const [formData, setFormData] = useState({ name: '', description: '', starts_at: '', expires_at: '', offer_price: '' });
+  const [formData, setFormData] = useState({ name: '', description: '', validity_mode: 'open' as ValidityMode, starts_at: '', expires_at: '', offer_price: '' });
   const [newItem, setNewItem] = useState({ product_id: '', custom_price: '', quantity: '1', is_gift: false });
 
   // Check and deactivate expired offers on load
-  const checkExpiredOffers = async () => {
-    await supabase.rpc('deactivate_expired_offers');
-  };
+  const isExpired = (expiresAt: string | null, startsAt: string | null = null) =>
+    validityState({ starts_at: startsAt, expires_at: expiresAt }) === 'expired';
 
-  // Helper to check if offer is expired
-  const isExpired = (expiresAt: string | null) => {
-    if (!expiresAt) return false;
-    return isPast(parseISO(expiresAt));
-  };
-
-  // Helper to check if offer hasn't started yet
-  const isScheduled = (startsAt: string | null) => {
-    if (!startsAt) return false;
-    return isFuture(parseISO(startsAt));
-  };
+  const isScheduled = (startsAt: string | null, expiresAt: string | null = null) =>
+    validityState({ starts_at: startsAt, expires_at: expiresAt }) === 'scheduled';
 
   // Helper to check if offer expires within 24 hours
   const isExpiringSoon = (expiresAt: string | null) => {
@@ -179,9 +170,6 @@ const OfferBoxes = () => {
   const { data: offerBoxes = [], isLoading } = useQuery({
     queryKey: ['offer-boxes'],
     queryFn: async () => {
-      // First deactivate expired offers
-      await checkExpiredOffers();
-      
       const { data, error } = await supabase
         .from('offer_boxes')
         .select('*')
@@ -269,7 +257,7 @@ const OfferBoxes = () => {
       queryClient.invalidateQueries({ queryKey: ['offer-boxes'] });
       toast({ title: 'تم إنشاء صندوق العرض بنجاح' });
       setIsDialogOpen(false);
-      setFormData({ name: '', description: '', starts_at: '', expires_at: '', offer_price: '' });
+      setFormData({ name: '', description: '', validity_mode: 'open' as ValidityMode, starts_at: '', expires_at: '', offer_price: '' });
     },
     onError: () => {
       toast({ title: 'حدث خطأ', variant: 'destructive' });
@@ -297,7 +285,7 @@ const OfferBoxes = () => {
       toast({ title: 'تم تحديث صندوق العرض' });
       setIsDialogOpen(false);
       setEditingBox(null);
-      setFormData({ name: '', description: '', starts_at: '', expires_at: '', offer_price: '' });
+      setFormData({ name: '', description: '', validity_mode: 'open' as ValidityMode, starts_at: '', expires_at: '', offer_price: '' });
     },
   });
 
@@ -408,13 +396,14 @@ const OfferBoxes = () => {
       setFormData({ 
         name: box.name, 
         description: box.description || '',
-        starts_at: box.starts_at ? box.starts_at.slice(0, 16) : '',
-        expires_at: box.expires_at ? box.expires_at.slice(0, 16) : '',
+        validity_mode: validityModeOf(box),
+        starts_at: toDatetimeLocal(box.starts_at),
+        expires_at: toDatetimeLocal(box.expires_at),
         offer_price: box.offer_price != null ? String(box.offer_price) : '',
       });
     } else {
       setEditingBox(null);
-      setFormData({ name: '', description: '', starts_at: '', expires_at: '', offer_price: '' });
+      setFormData({ name: '', description: '', validity_mode: 'open' as ValidityMode, starts_at: '', expires_at: '', offer_price: '' });
     }
     setIsDialogOpen(true);
   };
@@ -424,20 +413,32 @@ const OfferBoxes = () => {
       toast({ title: 'يرجى إدخال اسم العرض', variant: 'destructive' });
       return;
     }
-    // Dates are optional. Only validate ordering when both are provided.
-    if (formData.starts_at && formData.expires_at && new Date(formData.starts_at) >= new Date(formData.expires_at)) {
-      toast({ title: 'تاريخ البداية يجب أن يسبق تاريخ الانتهاء', variant: 'destructive' });
+    const parsed = parseValidityInput(formData.validity_mode, formData.starts_at, formData.expires_at);
+    if (!parsed.ok) {
+      toast({
+        title: parsed.error === 'dates_required' ? 'حدّدي تاريخ بداية ونهاية لمدة العرض' : 'تاريخ البداية يجب أن يسبق تاريخ الانتهاء',
+        variant: 'destructive',
+      });
       return;
     }
     if (editingBox) {
       updateBoxMutation.mutate({
-        ...editingBox,
-        ...formData,
-        starts_at: formData.starts_at || null,
-        expires_at: formData.expires_at || null,
+        id: editingBox.id,
+        name: formData.name,
+        description: formData.description,
+        is_active: editingBox.is_active,
+        starts_at: parsed.starts_at,
+        expires_at: parsed.expires_at,
+        offer_price: formData.offer_price,
       });
     } else {
-      createBoxMutation.mutate(formData);
+      createBoxMutation.mutate({
+        name: formData.name,
+        description: formData.description,
+        starts_at: parsed.starts_at ?? '',
+        expires_at: parsed.expires_at ?? '',
+        offer_price: formData.offer_price,
+      });
     }
   };
 
@@ -499,9 +500,9 @@ const OfferBoxes = () => {
                 'سعر العرض (ج.م)': b.offer_price ?? '',
                 'الشحن (ج.م)': b.shipping_cost ?? '',
                 'عدد المنتجات': boxItemCounts[b.id] || 0,
-                'الحالة': !b.is_active ? 'موقوف' : isExpired(b.expires_at) ? 'منتهي' : isScheduled(b.starts_at) ? 'مجدول' : 'نشط',
-                'تاريخ البداية': b.starts_at ? new Date(b.starts_at).toLocaleString('ar-EG') : '',
-                'تاريخ الانتهاء': b.expires_at ? new Date(b.expires_at).toLocaleString('ar-EG') : '',
+                'الحالة': !b.is_active ? 'موقوف' : ({ open: 'مفتوح بدون مدة', scheduled: 'مجدول', active: 'ساري المدة', expired: 'منتهي' } as const)[validityState(b)],
+                'تاريخ البداية': b.starts_at ? formatValidityDate(b.starts_at) : '',
+                'تاريخ الانتهاء': b.expires_at ? formatValidityDate(b.expires_at) : '',
                 'تاريخ الإنشاء': new Date(b.created_at).toLocaleString('ar-EG'),
               }));
               const ws = XLSX.utils.json_to_sheet(rows);
@@ -514,8 +515,8 @@ const OfferBoxes = () => {
             </Button>
             <Button variant="outline" size="sm" onClick={async () => {
               const statusLabel = (b: OfferBox) =>
-                !b.is_active ? 'موقوف' : isExpired(b.expires_at) ? 'منتهي' : isScheduled(b.starts_at) ? 'مجدول' : 'نشط';
-              const totalActive = offerBoxes.filter(b => b.is_active && !isExpired(b.expires_at) && !isScheduled(b.starts_at)).length;
+                !b.is_active ? 'موقوف' : ({ open: 'مفتوح بدون مدة', scheduled: 'مجدول', active: 'ساري المدة', expired: 'منتهي' } as const)[validityState(b)];
+              const totalActive = offerBoxes.filter(b => offerBoxIsSelectable(b)).length;
 
               // Fetch all items for all boxes
               const boxIds = offerBoxes.map(b => b.id);
@@ -629,27 +630,50 @@ const OfferBoxes = () => {
                     />
                     <p className="text-xs text-muted-foreground">سعر إجمالي ثابت للعرض. اتركه فارغًا لاحتساب السعر تلقائيًا من المنتجات.</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label>تاريخ بداية العرض (اختياري)</Label>
-                      <Input
-                        type="datetime-local"
-                        value={formData.starts_at}
-                        onChange={(e) => setFormData({ ...formData, starts_at: e.target.value })}
-                      />
+                  <div className="space-y-2">
+                    <Label>صلاحية العرض</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        className={`rounded-xl border px-3 py-2 text-sm ${formData.validity_mode === 'open' ? 'border-[#662D8C] bg-[#662D8C]/10 font-medium' : 'border-border'}`}
+                        onClick={() => setFormData({ ...formData, validity_mode: 'open', starts_at: '', expires_at: '' })}
+                      >
+                        مفتوح بدون مدة
+                      </button>
+                      <button
+                        type="button"
+                        className={`rounded-xl border px-3 py-2 text-sm ${formData.validity_mode === 'window' ? 'border-[#662D8C] bg-[#662D8C]/10 font-medium' : 'border-border'}`}
+                        onClick={() => setFormData({ ...formData, validity_mode: 'window' })}
+                      >
+                        له مدة
+                      </button>
                     </div>
-                    <div className="space-y-2">
-                      <Label>تاريخ انتهاء العرض (اختياري)</Label>
-                      <Input
-                        type="datetime-local"
-                        value={formData.expires_at}
-                        onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
-                      />
-                    </div>
+                    {formData.validity_mode === 'window' && (
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        <div className="space-y-2">
+                          <Label>تاريخ البداية</Label>
+                          <Input
+                            type="datetime-local"
+                            dir="ltr"
+                            value={formData.starts_at}
+                            onChange={(e) => setFormData({ ...formData, starts_at: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>تاريخ النهاية</Label>
+                          <Input
+                            type="datetime-local"
+                            dir="ltr"
+                            value={formData.expires_at}
+                            onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      الافتراضي «مفتوح بدون مدة». خارج المدة لا يُختار العرض لطلبات جديدة (الطلبات القائمة لا تتأثر)، ويُخفى على الموقع تلقائيًا. يمكن تمديد المدة أو تقصيرها في أي وقت. السعر والشحن والمكوّنات لا تتغير من هنا.
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    تحديد المواعيد اختياري — اتركهما فارغين ليكون العرض دائمًا. يمكنك إضافة تفاصيل العرض (المنتجات والأسعار) من زر "المنتجات" بعد إنشاء العرض.
-                  </p>
                   <Button className="w-full" onClick={handleSubmit}>
                     {editingBox ? 'حفظ التعديلات' : 'إنشاء العرض'}
                   </Button>
@@ -671,8 +695,9 @@ const OfferBoxes = () => {
             </div>
           ) : (
             offerBoxes.map((box) => {
-              const expired = isExpired(box.expires_at);
-              const scheduled = isScheduled(box.starts_at);
+              const expired = isExpired(box.expires_at, box.starts_at);
+              const scheduled = isScheduled(box.starts_at, box.expires_at);
+              const openEnded = !box.starts_at && !box.expires_at;
               return (
               <Card key={box.id} className={`${!box.is_active || expired ? 'opacity-60' : ''}`}>
                 <CardHeader className="pb-3">
@@ -692,6 +717,11 @@ const OfferBoxes = () => {
                         <Badge variant="outline" className="gap-1">
                           <CalendarDays className="h-3 w-3" />
                           مجدول
+                        </Badge>
+                      )}
+                      {openEnded && !expired && (
+                        <Badge variant="secondary" className="gap-1">
+                          مفتوح بدون مدة
                         </Badge>
                       )}
                       <div className="flex items-center gap-2 rounded-full border px-2 py-1 bg-card">
@@ -714,7 +744,7 @@ const OfferBoxes = () => {
                       <CalendarDays className="h-3 w-3" />
                       <span>
                         {scheduled ? 'يبدأ في: ' : 'بدأ في: '}
-                        {format(parseISO(box.starts_at), 'dd MMM yyyy - hh:mm a', { locale: ar })}
+                        {formatValidityDate(box.starts_at)}
                       </span>
                     </div>
                   )}
@@ -723,7 +753,7 @@ const OfferBoxes = () => {
                       <Clock className="h-3 w-3" />
                       <span>
                         {expired ? 'انتهى في: ' : 'ينتهي في: '}
-                        {format(parseISO(box.expires_at), 'dd MMM yyyy - hh:mm a', { locale: ar })}
+                        {formatValidityDate(box.expires_at)}
                       </span>
                     </div>
                   )}

@@ -54,7 +54,7 @@ import {
 } from "@/lib/websiteProducts";
 import { BRAND, CocTag, MiniThumb, StatCard, TypeBadge } from "@/components/website-products/shared";
 import { CocMissingCard, type ManageAction, SiteProductCard, SiteTableRow, type Target } from "@/components/website-products/ProductCards";
-import { ImageDialog, type ManageCtx, PriceEditDialog, SaleDialog, VisibilityDialog, previewSiteEdit } from "@/components/website-products/ManageDialogs";
+import { ImageDialog, type ManageCtx, PriceEditDialog, RestoreDialog, SaleDialog, ValidityDialog, VisibilityDialog, previewSiteEdit } from "@/components/website-products/ManageDialogs";
 import { type Change, ImportDialog, PreviewDialog, type PreviewState } from "@/components/website-products/Dialogs";
 import { callSync } from "@/components/website-products/sync";
 
@@ -90,6 +90,9 @@ const ACTION_LABELS: Record<string, string> = {
   site_visibility: "الظهور على الموقع",
   site_sku: "مطابقة الكود على الموقع",
   site_image: "صورة على الموقع",
+  coc_validity: "مدة صلاحية العرض في COCEG",
+  site_validity: "إخفاء/إظهار العرض حسب المدة",
+  site_restore: "استرجاع من نسخة قبل الكتابة",
 };
 
 export default function WebsiteProducts() {
@@ -110,7 +113,9 @@ export default function WebsiteProducts() {
   const [sortKey, setSortKey] = useState<SortKey>("name_asc");
 
   const [preview, setPreview] = useState<PreviewState | null>(null);
-  const [manage, setManage] = useState<{ action: "price" | "image" | "sale" | "visibility"; ctx: ManageCtx; vis?: "publish_visible" | "publish_hidden" | "draft" } | null>(null);
+  const [manage, setManage] = useState<{ action: "price" | "image" | "sale" | "visibility" | "validity"; ctx: ManageCtx; vis?: "publish_visible" | "publish_hidden" | "draft" } | null>(null);
+  const [restore, setRestore] = useState<{ backupId: string; title: string } | null>(null);
+  const [backups, setBackups] = useState<Record<string, { id: string }>>({});
   const [importTarget, setImportTarget] = useState<{ site: SiteProduct; as: "product" | "offer_box" } | null>(null);
 
   const load = useCallback(async () => {
@@ -119,7 +124,7 @@ export default function WebsiteProducts() {
       db.from("woo_site_products").select("woo_product_id, woo_variation_id, name, sku, price, regular_price, sale_price, permalink, image_url, removed_at").order("name"),
       db.from("woo_product_map").select("woo_product_id, woo_variation_id, kind, product_id, offer_box_id"),
       db.from("products").select("id, name, price, barcode, image_url, is_active").order("name"),
-      db.from("offer_boxes").select("id, name, offer_price, shipping_cost, is_active, image_url").order("name"),
+      db.from("offer_boxes").select("id, name, offer_price, shipping_cost, is_active, image_url, starts_at, expires_at, site_hidden_by_validity").order("name"),
       db.from("offer_box_items").select("id, offer_box_id, quantity, is_gift, custom_price, created_at, products(name)").order("created_at"),
       db.from("woo_sync_log").select("*").order("created_at", { ascending: false }).limit(100),
     ]);
@@ -146,7 +151,19 @@ export default function WebsiteProducts() {
     setMaps((m.data ?? []).map(num));
     setProducts(p.data ?? []);
     setBoxes(((b.data ?? []) as CocBox[]).map((bx) => ({ ...bx, items: boxItemsMap.get(bx.id) ?? [] })));
-    setLogs(l.data ?? []);
+    const logRows = l.data ?? [];
+    setLogs(logRows);
+    const logIds = logRows.map((x: { id: string }) => x.id);
+    if (logIds.length) {
+      const bk = await db.from("woo_product_backups").select("id, log_id").in("log_id", logIds);
+      const map: Record<string, { id: string }> = {};
+      for (const row of bk.data ?? []) {
+        if (row.log_id) map[String(row.log_id)] = { id: String(row.id) };
+      }
+      setBackups(map);
+    } else {
+      setBackups({});
+    }
     setLoading(false);
   }, []);
 
@@ -191,6 +208,9 @@ export default function WebsiteProducts() {
     siteRegular: r.site.regular_price ?? r.site.price,
     siteSale: r.site.sale_price,
     siteImage: r.site.image_url ?? null,
+    startsAt: r.box?.starts_at ?? null,
+    expiresAt: r.box?.expires_at ?? null,
+    siteHiddenByValidity: !!r.box?.site_hidden_by_validity,
   });
   const ctxFromMissing = (it: CocMissingItem): ManageCtx => ({
     kind: it.kind,
@@ -204,6 +224,9 @@ export default function WebsiteProducts() {
     siteRegular: null,
     siteSale: null,
     siteImage: null,
+    startsAt: it.starts_at ?? null,
+    expiresAt: it.expires_at ?? null,
+    siteHiddenByValidity: false,
   });
 
   const onManageRow = (a: ManageAction, r: CatalogRow) => {
@@ -569,6 +592,7 @@ export default function WebsiteProducts() {
                   <TableHead className="text-right">قبل</TableHead>
                   <TableHead className="text-right">بعد</TableHead>
                   <TableHead className="text-right">الحالة</TableHead>
+                  <TableHead className="text-right">استرجاع</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {logs.map((l) => (
@@ -581,10 +605,17 @@ export default function WebsiteProducts() {
                       <TableCell>
                         {l.status === "applied" ? <Badge variant="outline" className="border-emerald-500 text-emerald-700">تم</Badge> : <Badge variant="destructive">فشل{l.error ? `: ${l.error}` : ""}</Badge>}
                       </TableCell>
+                      <TableCell>
+                        {l.status === "applied" && l.woo_product_id && backups[l.id] ? (
+                          <Button size="sm" variant="outline" className="rounded-xl h-8" onClick={() => setRestore({ backupId: backups[l.id].id, title: ACTION_LABELS[l.action] ?? l.action })}>
+                            استرجاع
+                          </Button>
+                        ) : "—"}
+                      </TableCell>
                     </TableRow>
                   ))}
                   {logs.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">لا توجد عمليات مسجّلة بعد</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">لا توجد عمليات مسجّلة بعد</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -600,6 +631,8 @@ export default function WebsiteProducts() {
         <VisibilityDialog ctx={manage.ctx} current={manage.vis ?? "publish_visible"} onClose={() => setManage(null)} onPreview={setPreview} onDone={load} />
       )}
       {manage?.action === "image" && <ImageDialog ctx={manage.ctx} onClose={() => setManage(null)} onDone={load} />}
+      {manage?.action === "validity" && <ValidityDialog ctx={manage.ctx} onClose={() => setManage(null)} onPreview={setPreview} onDone={load} />}
+      {restore && <RestoreDialog backupId={restore.backupId} title={restore.title} onClose={() => setRestore(null)} onPreview={setPreview} onDone={load} />}
       {importTarget && (
         <ImportDialog target={importTarget} products={products} onClose={() => setImportTarget(null)} onDone={() => { setImportTarget(null); void load(); }} />
       )}
