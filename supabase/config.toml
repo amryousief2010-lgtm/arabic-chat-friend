@@ -82,3 +82,7 @@ verify_jwt = false
 # طلبات وتسجيلات موقع capitalostrich.com: ووكومرس بيبعت الـwebhook من غير JWT؛ التحقق بتوقيع X-WC-Webhook-Signature (WOO_WEBHOOK_SECRET) في زمن ثابت جوه الدالة.
 [functions.woo-order-ingest]
 verify_jwt = false
+
+# شاشة «منتجات الموقع»: JWT مطلوب + website_inbox_can_manage(). الكتابة على الموقع بمفاتيح WOO_CONSUMER_KEY / WOO_CONSUMER_SECRET فقط.
+[functions.woo-catalog-sync]
+verify_jwt = true

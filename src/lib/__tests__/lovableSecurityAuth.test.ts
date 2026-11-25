@@ -185,6 +185,18 @@ describe("Lovable remaining edge-function auth hardening", () => {
     ]);
   });
 
+  // شاشة «منتجات الموقع»: JWT من البوابة + صلاحية website_inbox_can_manage، ومفاتيح الكتابة من الأسرار فقط.
+  it("woo-catalog-sync keeps gateway JWT, checks the role, and reads Woo keys only from secrets", () => {
+    expect(config()).toMatch(/\[functions\.woo-catalog-sync\]\s*\nverify_jwt\s*=\s*true/);
+    const idx = fn("woo-catalog-sync");
+    const src = readFileSync(resolve(process.cwd(), "supabase/functions/woo-catalog-sync/handler.ts"), "utf8");
+    expect(idx).toMatch(/website_inbox_can_manage/);
+    expect(idx).toMatch(/Deno\.env\.get\("WOO_CONSUMER_KEY"\)/);
+    expect(src).toMatch(/403/);
+    expect(src).toMatch(/woo_keys_missing/);
+    expect(src + idx).not.toMatch(/console\.(log|info|debug|warn|error)\(.*(CONSUMER|secret)/i);
+  });
+
   // ووكومرس لا يرسل JWT؛ البديل الإلزامي هو توقيع X-WC-Webhook-Signature في زمن ثابت ورفض العمل بدون السر.
   it("woo-order-ingest (no gateway JWT) verifies the WooCommerce HMAC in constant time and is inert without the secret", () => {
     const src = readFileSync(resolve(process.cwd(), "supabase/functions/woo-order-ingest/handler.ts"), "utf8");

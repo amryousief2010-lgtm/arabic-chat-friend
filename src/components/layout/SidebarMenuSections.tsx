@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import {
   Globe,
+  Store,
   LayoutDashboard,
   Package,
   ShoppingCart,
@@ -73,6 +74,7 @@ import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGE
 import { cmGateAllows, isChatManagementPath, isCmKpiViewerPath } from "@/config/chatManagement";
 import { AI_REPORTS_PATH, AI_REPORTS_ROLES } from "@/config/aiReports";
 import { WEBSITE_ORDERS_PATH, WEBSITE_ORDERS_ROLES } from "@/config/websiteOrders";
+import { WEBSITE_PRODUCTS_PATH, WEBSITE_PRODUCTS_ROLES } from "@/config/websiteProducts";
 import { useCmFeatureGate } from "@/hooks/useCmFeatureGate";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -143,6 +145,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: Phone, label: "استعلام عن متصل", path: CALLER_LOOKUP_PATH, roles: CALLER_LOOKUP_ROLES },
       { icon: Bird, label: "طلبات الكتاكيت", path: "/chick-orders", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'accountant', 'financial_manager','marketing_sales_viewer'] },
       { icon: Globe, label: "طلبات الموقع", path: WEBSITE_ORDERS_PATH, roles: WEBSITE_ORDERS_ROLES },
+      { icon: Store, label: "منتجات الموقع", path: WEBSITE_PRODUCTS_PATH, roles: WEBSITE_PRODUCTS_ROLES },
       { icon: ShieldAlert, label: "موافقات تكرار الطلبات", path: "/duplicate-order-approvals", roles: ['general_manager','executive_manager','sales_manager'] },
       { icon: Users, label: "العملاء", path: "/customers", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: Gift, label: "صناديق العروض", path: "/offer-boxes", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
