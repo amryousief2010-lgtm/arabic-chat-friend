@@ -46,9 +46,9 @@ export interface SiteProductRow {
   categories: string[];
 }
 
-export interface CocProduct { id: string; name: string; price: number | null; barcode: string | null }
+export interface CocProduct { id: string; name: string; price: number | null; barcode: string | null; image_url?: string | null }
 export interface CocBoxItem { name: string; quantity: number; is_gift: boolean }
-export interface CocBox { id: string; name: string; offer_price: number | null; shipping_cost: number | null; items: CocBoxItem[] }
+export interface CocBox { id: string; name: string; offer_price: number | null; shipping_cost: number | null; image_url?: string | null; items: CocBoxItem[] }
 
 export type Target = { kind: "product"; id: string } | { kind: "offer_box"; id: string };
 export type Mode = "create" | "update";
@@ -61,7 +61,11 @@ export interface WooFields {
   sku?: string | null;
   short_description?: string | null;
   shipping_class?: string | null;
+  image_url?: string | null;
   status?: string | null;
+  catalog_visibility?: string | null;
+  date_on_sale_from?: string | null;
+  date_on_sale_to?: string | null;
 }
 
 export interface Change { field: keyof WooFields; before: string | null; after: string }
@@ -70,7 +74,7 @@ export interface Mapping { woo_product_id: number; woo_variation_id: number; kin
 
 export interface LogEntry {
   actor: string;
-  action: "push_create" | "push_update";
+  action: "push_create" | "push_update" | SiteEditAction;
   woo_product_id: number | null;
   woo_variation_id: number;
   product_id: string | null;
@@ -92,6 +96,10 @@ export interface CatalogDeps {
   loadProduct: (id: string) => Promise<CocProduct | null>;
   loadBox: (id: string) => Promise<CocBox | null>;
   mappingForTarget: (t: Target) => Promise<Mapping | null>;
+  /** The coceg product/box mapped to a site product (variation 0). */
+  mappingForWoo?: (wooId: number) => Promise<Mapping | null>;
+  /** Other site products (from the cached copy) already using this SKU. */
+  cachedSkuOwners?: (sku: string) => Promise<number[]>;
   cachedSiteProduct: (wooId: number) => Promise<SiteProductRow | null>;
   /** woo_catalog_map as the caller (role-gated + logged in the DB). */
   mapAsUser: (token: string, wooId: number, t: Target) => Promise<void>;
@@ -118,6 +126,12 @@ export function stripHalal(text: string): string {
     .replace(/\s{2,}/g, " ")
     .replace(/^[\s\-–|،,]+|[\s\-–|،,]+$/g, "")
     .trim();
+}
+
+export function validImageUrl(u: string | null | undefined): string | null {
+  const s = String(u ?? "").trim();
+  if (!s) return null;
+  return /^https?:\/\/\S+$/i.test(s) ? s : null;
 }
 
 export const isCompanyBarcode = (b: string | null | undefined) => COMPANY_BARCODE_RE.test(String(b ?? "").trim());
@@ -194,7 +208,8 @@ export function desiredFields(mode: Mode, target: Target, src: CocProduct | CocB
   if (mode === "create") {
     const name = stripHalal(src.name);
     if (!name) throw new SyncError(422, "coc_name_missing");
-    return { name, ...out, status: "draft" };
+    const img = validImageUrl(src.image_url);
+    return { name, ...out, ...(img ? { image_url: img } : {}), status: "draft" };
   }
   return out;
 }
@@ -257,6 +272,10 @@ const pickFields = (p: any): WooFields => ({
   short_description: p?.short_description ?? null,
   shipping_class: p?.shipping_class ?? null,
   status: p?.status ?? null,
+  catalog_visibility: p?.catalog_visibility ?? null,
+  date_on_sale_from: p?.date_on_sale_from ? String(p.date_on_sale_from).slice(0, 10) : "",
+  date_on_sale_to: p?.date_on_sale_to ? String(p.date_on_sale_to).slice(0, 10) : "",
+  image_url: p?.images?.[0]?.src ? String(p.images[0].src) : "",
 });
 
 async function restGet(env: CatalogEnv, f: typeof fetch, wooId: number): Promise<WooFields> {
@@ -327,6 +346,145 @@ function parseInput(body: Record<string, unknown>): PreviewInput {
   return { mode, target: { kind: t.kind, id: t.id }, woo_product_id: w === undefined || w === null ? null : Number(w) };
 }
 
+// ── site edits on a mapped product (price / sale / visibility / SKU / image) ──
+
+export type SiteEditKind = "price" | "sale" | "visibility" | "sku" | "image";
+export type SiteEditAction = "site_price" | "site_sale" | "site_visibility" | "site_sku" | "site_image";
+export interface SiteEdit {
+  kind: SiteEditKind;
+  regular_price?: number;
+  sale_price?: number | null;
+  date_from?: string | null;
+  date_to?: string | null;
+  status?: "publish" | "draft";
+  catalog_visibility?: "visible" | "hidden";
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function parseSiteEdit(raw: unknown): SiteEdit {
+  // deno-lint-ignore no-explicit-any
+  const e = raw as any;
+  if (!e || typeof e !== "object") throw new SyncError(400, "bad_edit");
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : Number.NaN);
+  switch (e.kind) {
+    case "price": {
+      const p = num(e.regular_price);
+      if (!(p > 0) || p > 1_000_000) throw new SyncError(422, "price_invalid");
+      return { kind: "price", regular_price: p };
+    }
+    case "sale": {
+      if (e.sale_price === null || e.sale_price === undefined) return { kind: "sale", sale_price: null, date_from: null, date_to: null };
+      const sp = num(e.sale_price);
+      if (!(sp > 0)) throw new SyncError(422, "sale_price_invalid");
+      const df = e.date_from ? String(e.date_from) : null;
+      const dt = e.date_to ? String(e.date_to) : null;
+      if ((df && !DATE_RE.test(df)) || (dt && !DATE_RE.test(dt))) throw new SyncError(422, "sale_dates_invalid");
+      if (df && dt && df > dt) throw new SyncError(422, "sale_dates_invalid");
+      return { kind: "sale", sale_price: sp, date_from: df, date_to: dt };
+    }
+    case "visibility": {
+      if (e.status !== "publish" && e.status !== "draft") throw new SyncError(400, "bad_edit");
+      const cv = e.catalog_visibility === "hidden" ? "hidden" : "visible";
+      return { kind: "visibility", status: e.status, catalog_visibility: cv };
+    }
+    case "sku":
+      return { kind: "sku" };
+    case "image":
+      return { kind: "image" };
+    default:
+      throw new SyncError(400, "bad_edit");
+  }
+}
+
+/** The exact Woo fields one site edit writes (coceg stays the source for SKU and image). */
+export function siteEditFields(edit: SiteEdit, before: WooFields | null, src: CocProduct | CocBox | null, srcKind: "product" | "offer_box" | null): WooFields {
+  switch (edit.kind) {
+    case "price": {
+      const out: WooFields = { regular_price: money(edit.regular_price) };
+      const sale = Number(before?.sale_price || 0);
+      if (sale > 0 && sale >= Number(edit.regular_price)) out.sale_price = ""; // a sale must stay below the price
+      return out;
+    }
+    case "sale": {
+      if (edit.sale_price === null || edit.sale_price === undefined) return { sale_price: "", date_on_sale_from: "", date_on_sale_to: "" };
+      const regular = Number(before?.regular_price || 0);
+      if (!(regular > 0)) throw new SyncError(422, "site_price_missing");
+      if (Number(edit.sale_price) >= regular) throw new SyncError(422, "sale_not_below_price");
+      return { sale_price: money(edit.sale_price), date_on_sale_from: edit.date_from ?? "", date_on_sale_to: edit.date_to ?? "" };
+    }
+    case "visibility":
+      return { status: edit.status!, catalog_visibility: edit.catalog_visibility! };
+    case "sku": {
+      if (!src || srcKind !== "product") throw new SyncError(422, "sku_needs_mapped_product");
+      const b = String((src as CocProduct).barcode ?? "").trim();
+      if (!isCompanyBarcode(b)) throw new SyncError(422, "coc_barcode_not_registered");
+      return { sku: b };
+    }
+    case "image": {
+      const img = validImageUrl(src?.image_url);
+      if (!src || !img) throw new SyncError(422, "coc_image_missing");
+      return { image_url: img };
+    }
+  }
+}
+
+const SITE_EDIT_ACTION: Record<SiteEditKind, SiteEditAction> = {
+  price: "site_price", sale: "site_sale", visibility: "site_visibility", sku: "site_sku", image: "site_image",
+};
+
+export async function buildSiteEditPreview(deps: CatalogDeps, wooId: number, edit: SiteEdit) {
+  if (!Number.isInteger(wooId) || wooId <= 0) throw new SyncError(400, "bad_woo_product_id");
+  const mapping = deps.mappingForWoo ? await deps.mappingForWoo(wooId) : null;
+  const srcKind = mapping?.kind ?? null;
+  const src = !mapping ? null
+    : mapping.kind === "product" && mapping.product_id ? await deps.loadProduct(mapping.product_id)
+    : mapping.offer_box_id ? await deps.loadBox(mapping.offer_box_id) : null;
+  if ((edit.kind === "sku" || edit.kind === "image") && !mapping) throw new SyncError(409, "not_mapped");
+  const warnings: string[] = [];
+  let before: WooFields | null;
+  if (keysConfigured(deps.env)) {
+    before = await restGet(deps.env, deps.fetchImpl, wooId);
+  } else {
+    const c = await deps.cachedSiteProduct(wooId);
+    if (!c) throw new SyncError(404, "woo_product_not_found");
+    before = {
+      regular_price: money(c.regular_price ?? c.price), sale_price: money(c.sale_price) ?? "", sku: c.sku ?? "",
+      image_url: c.image_url ?? "", status: null, catalog_visibility: null, date_on_sale_from: null, date_on_sale_to: null,
+    };
+    warnings.push("preview_from_cache");
+  }
+  const after = siteEditFields(edit, before, src, srcKind);
+  if (edit.kind === "sku" && after.sku) {
+    const owners = new Set<number>();
+    if (keysConfigured(deps.env)) {
+      const res = await deps.fetchImpl(`${siteUrl(deps.env)}/wp-json/wc/v3/products?sku=${encodeURIComponent(after.sku)}&status=any`, { headers: { Authorization: restAuth(deps.env) } });
+      if (!res.ok) throw new SyncError(502, `woo_rest_${res.status}`);
+      const list = await res.json().catch(() => []);
+      // deno-lint-ignore no-explicit-any
+      for (const p of Array.isArray(list) ? list : []) if (Number((p as any)?.id) !== wooId) owners.add(Number((p as any).id));
+    }
+    if (deps.cachedSkuOwners) for (const id of await deps.cachedSkuOwners(after.sku)) if (id !== wooId) owners.add(id);
+    if (owners.size) throw new SyncError(409, "duplicate_sku");
+  }
+  if (srcKind === "offer_box" && edit.kind === "price") {
+    const box = src as CocBox | null;
+    if (box?.offer_price && Number(edit.regular_price) !== Number(box.offer_price)) warnings.push("box_site_price_differs_from_coc");
+  }
+  if (edit.kind === "sale") warnings.push("coc_price_unchanged");
+  const changes = diffFields(before, after);
+  const target: Target = srcKind === "offer_box" && mapping?.offer_box_id ? { kind: "offer_box", id: mapping.offer_box_id }
+    : { kind: "product", id: mapping?.product_id ?? "00000000-0000-0000-0000-000000000000" };
+  const token = await sha256Hex(JSON.stringify(["site_edit", wooId, edit, before, after]));
+  return { woo_product_id: wooId, edit, mapping, target, before, after, changes, token, warnings, keys_configured: keysConfigured(deps.env) };
+}
+
+/** Woo REST body for a site edit (image goes as images[0]). */
+export function siteEditPayload(after: WooFields): Record<string, unknown> {
+  const { image_url, ...rest } = after;
+  return image_url ? { ...rest, images: [{ src: image_url }] } : { ...rest };
+}
+
 export async function handleCatalogSync(req: Request, deps: CatalogDeps): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json(405, { error: "method_not_allowed" });
@@ -369,7 +527,9 @@ export async function handleCatalogSync(req: Request, deps: CatalogDeps): Promis
         try {
           if (input.mode === "create") {
             const meta = [{ key: input.target.kind === "product" ? "_coc_product_id" : "_coc_offer_box_id", value: input.target.id }];
-            const created = await restWrite(deps.env, deps.fetchImpl, "POST", "products", { type: "simple", ...p.after, meta_data: meta });
+            const { image_url: imgUrl, ...wooAfter } = p.after;
+            const wooPayload = { type: "simple", ...wooAfter, ...(imgUrl ? { images: [{ src: imgUrl }] } : {}), meta_data: meta };
+            const created = await restWrite(deps.env, deps.fetchImpl, "POST", "products", wooPayload);
             const wooId = Number(created?.id);
             if (!Number.isInteger(wooId) || wooId <= 0) throw new SyncError(502, "woo_create_no_id");
             await deps.log({ ...base, action: "push_create", woo_product_id: wooId, after: { ...p.after, id: wooId }, status: "applied", error: null });
@@ -389,6 +549,31 @@ export async function handleCatalogSync(req: Request, deps: CatalogDeps): Promis
           throw e;
         }
       }
+      case "site_preview":
+        return json(200, await buildSiteEditPreview(deps, Number(body.woo_product_id), parseSiteEdit(body.edit)));
+
+      case "site_apply": {
+        const wooId = Number(body.woo_product_id);
+        const edit = parseSiteEdit(body.edit);
+        if (!keysConfigured(deps.env)) return json(503, { error: "woo_keys_missing" });
+        const p = await buildSiteEditPreview(deps, wooId, edit);
+        if (typeof body.token !== "string" || body.token !== p.token) return json(409, { error: "changed_since_preview", preview: p });
+        if (p.changes.length === 0) return json(200, { ok: true, changed: false });
+        const entry = {
+          actor: auth.userId, action: SITE_EDIT_ACTION[edit.kind], woo_product_id: wooId, woo_variation_id: 0,
+          product_id: p.mapping?.product_id ?? null, offer_box_id: p.mapping?.offer_box_id ?? null,
+          before: p.before, after: p.after,
+        };
+        try {
+          await restWrite(deps.env, deps.fetchImpl, "PUT", `products/${wooId}`, siteEditPayload(p.after));
+          await deps.log({ ...entry, status: "applied", error: null });
+          return json(200, { ok: true, changed: true, woo_product_id: wooId });
+        } catch (e) {
+          await deps.log({ ...entry, status: "failed", error: e instanceof SyncError ? e.code : "woo_write_failed" });
+          throw e;
+        }
+      }
+
       default:
         return json(400, { error: "bad_action" });
     }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Clock } from "lucide-react";
+import { useCompactFloating } from "@/hooks/useCompactFloating";
 
 /**
  * Floating Clock + Calendar widget — visible to all users on every page.
@@ -10,6 +11,7 @@ import { Clock } from "lucide-react";
 const ClockCalendarWidget = () => {
   const [now, setNow] = useState(new Date());
   const [open, setOpen] = useState(false);
+  const compact = useCompactFloating();
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -48,7 +50,7 @@ const ClockCalendarWidget = () => {
       <PopoverTrigger asChild>
         <button
           aria-label="الساعة والتاريخ"
-          className="fixed z-40 left-4 bottom-24 md:bottom-6 group"
+          className={`fixed z-40 left-4 bottom-24 md:bottom-6 group ${compact ? "max-md:hidden md:left-3 md:scale-75 md:origin-bottom-left" : ""}`}
           style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
         >
           <div className="relative w-14 h-14 rounded-full bg-gradient-to-br from-primary to-accent shadow-xl ring-2 ring-background flex items-center justify-center transition-transform group-hover:scale-110">

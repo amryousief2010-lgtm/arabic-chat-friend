@@ -200,3 +200,18 @@ describe("normalizers", () => {
     expect(d).toMatchObject({ woo_customer_id: 5, customer_name: "x", phone: "01200000000", email: "x@y.com", city: "طنطا", items: [] });
   });
 });
+
+describe("address parts for governorate / city / area split", () => {
+  it("keeps address_1 and address_2 separate (shipping first, else billing)", async () => {
+    const { normalizeOrder, normalizeCustomer } = await import("../../../supabase/functions/woo-order-ingest/handler");
+    const o = normalizeOrder({
+      id: 16323, status: "processing", line_items: [],
+      billing: { address_1: "شارع 9", address_2: "المعادي", city: "القاهره", state: "EGC", phone: "01000000000" },
+      shipping: { address_1: "كمبوند روضه الأزهر", address_2: "التجمع الأول", city: "القاهره", state: "EGC" },
+    });
+    expect(o).toMatchObject({ address_1: "كمبوند روضه الأزهر", address_2: "التجمع الأول", address: "كمبوند روضه الأزهر التجمع الأول", governorate: "EGC" });
+    const o2 = normalizeOrder({ id: 1, status: "processing", line_items: [], billing: { address_1: "شارع 9", address_2: "المعادي" }, shipping: {} });
+    expect(o2).toMatchObject({ address_1: "شارع 9", address_2: "المعادي" });
+    expect(normalizeCustomer({ id: 5, billing: { address_1: "شارع 1", address_2: "" } })).toMatchObject({ address_1: "شارع 1", address_2: null });
+  });
+});

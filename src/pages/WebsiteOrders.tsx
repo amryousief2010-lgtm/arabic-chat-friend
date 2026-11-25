@@ -8,9 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import GovernorateSelect from "@/components/shared/GovernorateSelect";
+import { FULFILLMENT_OPTIONS, deliveryAddressLine, splitWooAddress } from "@/lib/wooAddress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { AlertTriangle, Globe, Link2, RefreshCw, UserPlus, XCircle } from "lucide-react";
+import { AlertTriangle, Globe, Link2, MapPin, RefreshCw, Truck, UserPlus, XCircle } from "lucide-react";
 import {
   type InboxItem, type InboxKind, type InboxStatus, type MappedItem, type ProductMapRow,
   KIND_LABELS, STATUS_LABELS, assignBlocker, attributionLabel, formatCairo, mapItems, maskPhone,
@@ -33,6 +37,8 @@ interface InboxRow {
   phone_raw: string | null;
   email: string | null;
   address: string | null;
+  address_1?: string | null;
+  address_2?: string | null;
   city: string | null;
   governorate: string | null;
   items: InboxItem[] | null;
@@ -63,7 +69,7 @@ const STATUS_FILTERS: { value: InboxStatus | "all"; label: string }[] = [
   { value: "all", label: "الكل" },
 ];
 
-const money = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `${Number(n).toLocaleString("ar-EG")} ج.م`);
+const money = (n: number | null | undefined) => (n === null || n === undefined ? "—" : `${Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 })} ج.م`);
 
 export default function WebsiteOrders() {
   const [kind, setKind] = useState<InboxKind>("order");
@@ -161,6 +167,17 @@ function InboxCard({ row, maps, products, boxes, moderators, moderatorName, onCh
   const [showPhone, setShowPhone] = useState(false);
   const [dismissReason, setDismissReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const split = useMemo(
+    () => splitWooAddress({ address_1: row.address_1, address_2: row.address_2, address: row.address, city: row.city, state: row.governorate }),
+    [row.address_1, row.address_2, row.address, row.city, row.governorate],
+  );
+  const [gov, setGov] = useState(split.governorate);
+  const [city, setCity] = useState(split.city);
+  const [area, setArea] = useState(split.area);
+  const [street, setStreet] = useState(split.address);
+  const [fKey, setFKey] = useState<string>("later");
+  const [shipCo, setShipCo] = useState("");
+  const [updateCustomer, setUpdateCustomer] = useState(false);
 
   useEffect(() => {
     if (row.kind !== "order" || !row.possible_duplicate || row.status !== "new") return;
@@ -173,11 +190,23 @@ function InboxCard({ row, maps, products, boxes, moderators, moderatorName, onCh
     if (blocker || !moderatorId) return;
     if (!window.confirm(`تأكيد إسناد ${KIND_LABELS[row.kind]} الموقع إلى ${moderatorName(moderatorId)}؟`)) return;
     setBusy(true);
-    const { error } = await db.rpc("website_inbox_assign", {
+    if (row.kind === "order" && fKey === "shipping_company" && !shipCo.trim()) {
+      setBusy(false);
+      return toast.error("اكتبي اسم شركة الشحن أو اتركي طريقة التسليم للمودريتور");
+    }
+    const existing = customerChoice && customerChoice !== "new" ? customerChoice : null;
+    const { error } = await db.rpc("website_inbox_assign_v2", {
       _inbox_id: row.id,
       _moderator_user_id: moderatorId,
-      _customer_id: customerChoice && customerChoice !== "new" ? customerChoice : null,
+      _customer_id: existing,
       _create_new_customer: customerChoice === "new",
+      _governorate: gov || null,
+      _city: city.trim() || null,
+      _area: area.trim() || null,
+      _street: street.trim() || null,
+      _fulfillment_key: row.kind === "order" && fKey !== "later" ? fKey : null,
+      _shipping_company: fKey === "shipping_company" ? shipCo.trim() : null,
+      _update_customer_address: !!existing && updateCustomer,
     });
     setBusy(false);
     if (error) return toast.error(websiteErrorMessage(error.message));
@@ -225,7 +254,7 @@ function InboxCard({ row, maps, products, boxes, moderators, moderatorName, onCh
               </button>
             )}
           </div>
-          <div><span className="text-muted-foreground">العنوان: </span>{[row.address, row.city, row.governorate].filter(Boolean).join("، ") || "—"}</div>
+          <div><span className="text-muted-foreground">العنوان على الموقع: </span>{[row.address, row.city, row.governorate].filter(Boolean).join("، ") || "—"}</div>
           <div><span className="text-muted-foreground">المصدر: </span>{attributionLabel(row.attribution)}</div>
           {row.kind === "order" && <div><span className="text-muted-foreground">الدفع على الموقع: </span>{row.payment_method_title ?? "—"}</div>}
           {row.customer_note && <div className="md:col-span-2"><span className="text-muted-foreground">ملاحظة العميل: </span>{row.customer_note}</div>}
@@ -277,6 +306,61 @@ function InboxCard({ row, maps, products, boxes, moderators, moderatorName, onCh
                   <input type="radio" name={`cust-${row.id}`} checked={customerChoice === "new"} onChange={() => setCustomerChoice("new")} />
                   <UserPlus className="w-4 h-4" /> عميل جديد
                 </label>
+              </div>
+            )}
+            {row.kind === "order" && (
+              <div className="rounded-xl border bg-muted/20 p-3 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-bold" style={{ color: BRAND.deep }}>
+                  <MapPin className="w-4 h-4" />
+                  العنوان وطريقة التسليم
+                  <span className="text-xs font-normal text-muted-foreground">(معبأة من بيانات الموقع وقابلة للتعديل)</span>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">المحافظة</div>
+                    <GovernorateSelect value={gov} onChange={setGov} />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">المدينة</div>
+                    <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="اختياري" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">المنطقة</div>
+                    <Input value={area} onChange={(e) => setArea(e.target.value)} placeholder="اختياري" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">العنوان (الشارع والمبنى والشقة)</div>
+                  <Textarea rows={2} value={street} onChange={(e) => setStreet(e.target.value)} />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground flex items-center gap-1"><Truck className="w-3.5 h-3.5" />طريقة التسليم</div>
+                    <Select value={fKey} onValueChange={setFKey}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="later">تحددها المودريتور بعد المكالمة</SelectItem>
+                        {FULFILLMENT_OPTIONS.map((o) => <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {fKey === "shipping_company" && (
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground">اسم شركة الشحن</div>
+                      <Input value={shipCo} onChange={(e) => setShipCo(e.target.value)} placeholder="مثل: بوسطة / أرامكس" />
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  عنوان التوصيل على الطلب: <span className="text-foreground">{deliveryAddressLine({ governorate: gov, city, area, address: street }) || "—"}</span>
+                </div>
+                {customerChoice && customerChoice !== "new" && (
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Checkbox checked={updateCustomer} onCheckedChange={(v) => setUpdateCustomer(!!v)} />
+                    تحديث عنوان العميل المختار بهذه البيانات (لن يتغير عنوانه بدون هذا الاختيار)
+                  </label>
+                )}
+                <div className="text-xs text-muted-foreground">تستطيع المودريتور تغيير طريقة التسليم والمنفذ من الطلب بعد المكالمة.</div>
               </div>
             )}
             <div className="flex flex-wrap items-center gap-2">

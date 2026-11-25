@@ -44,6 +44,8 @@ export interface InboxData {
   phone2: string | null;
   email: string | null;
   address: string | null;
+  address_1?: string | null;
+  address_2?: string | null;
   city: string | null;
   governorate: string | null;
   items: InboxItem[];
@@ -161,6 +163,8 @@ export function normalizeOrder(o: any): InboxData {
     phone2: shippingPhone && shippingPhone !== billingPhone ? shippingPhone : null,
     email: str(b.email),
     address: joinName(s.address_1 || b.address_1, s.address_2 || b.address_2),
+    address_1: str(s.address_1 || b.address_1),
+    address_2: str(s.address_1 ? s.address_2 : b.address_2),
     city: str(s.city || b.city),
     governorate: str(s.state || b.state),
     items,
@@ -185,6 +189,8 @@ export function normalizeCustomer(c: any): InboxData {
     phone2: str(c?.shipping?.phone) !== str(b.phone) ? str(c?.shipping?.phone) : null,
     email: str(c?.email) ?? str(b.email),
     address: joinName(b.address_1, b.address_2),
+    address_1: str(b.address_1),
+    address_2: str(b.address_2),
     city: str(b.city),
     governorate: str(b.state),
     items: [],

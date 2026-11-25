@@ -108,4 +108,4 @@ export function websiteErrorMessage(message: string | null | undefined): string 
 }
 
 export const formatCairo = (iso: string | null | undefined) =>
-  iso ? new Date(iso).toLocaleString("ar-EG", { timeZone: "Africa/Cairo", dateStyle: "short", timeStyle: "short" }) : "—";
+  iso ? new Date(iso).toLocaleString("ar-EG-u-nu-latn", { timeZone: "Africa/Cairo", dateStyle: "short", timeStyle: "short" }) : "—";
