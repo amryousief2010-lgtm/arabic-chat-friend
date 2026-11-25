@@ -70,7 +70,7 @@ import { useUnreadInternalMessages } from "@/hooks/useUnreadInternalMessages";
 import { useMandatoryMessages } from "@/hooks/useMandatoryMessages";
 import { findModeratorByName } from "@/constants/moderators";
 import { CALLER_LOOKUP_PATH, CALLER_LOOKUP_ROLES } from "@/constants/callerLookup";
-import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, CHAT_MANAGEMENT_SECTION_ROLES, CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES, CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES } from "@/config/chatManagement";
+import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, CHAT_SHIFTS_VIEW_ROLES, CHAT_MANAGEMENT_SECTION_ROLES, CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES, CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES } from "@/config/chatManagement";
 import { cmGateAllows, isChatManagementPath, isCmKpiViewerPath } from "@/config/chatManagement";
 import { AI_REPORTS_PATH, AI_REPORTS_ROLES } from "@/config/aiReports";
 import { WEBSITE_ORDERS_PATH, WEBSITE_ORDERS_ROLES } from "@/config/websiteOrders";
@@ -171,7 +171,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: BarChart3, label: "مؤشرات الأداء", path: CHAT_KPIS_PATH, roles: CHAT_KPIS_ROLES },
       { icon: Megaphone, label: "الإنفاق الإعلاني اليومي", path: CHAT_AD_SPEND_PATH, roles: CHAT_AD_SPEND_ROLES },
       { icon: PhoneCall, label: "مكالمات الخط الساخن", path: CHAT_CALLS_PATH, roles: CHAT_CALLS_ROLES },
-      { icon: CalendarClock, label: "الشيفتات والأجازات", path: CHAT_MANAGEMENT_SHIFTS_PATH, roles: CHAT_MANAGEMENT_VIEW_ROLES },
+      { icon: CalendarClock, label: "الشيفتات والإجازات", path: CHAT_MANAGEMENT_SHIFTS_PATH, roles: CHAT_SHIFTS_VIEW_ROLES },
       { icon: SlidersHorizontal, label: "إعدادات التوزيع والمؤشرات", path: CHAT_MANAGEMENT_SETTINGS_PATH, roles: CHAT_MANAGEMENT_VIEW_ROLES },
       // اختصار لصفحة قائمة أصلاً في قسم المبيعات؛ يظهر هنا فقط لمن تسمح له البوابة بالقسم.
       { icon: UserCheck, label: "أداء المودريتورز", path: "/moderator-performance", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },

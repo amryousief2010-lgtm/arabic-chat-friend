@@ -18,7 +18,8 @@ interface ProtectedRouteProps {
 // hard-redirected to her own orders log with a clear toast.
 const MODERATOR_ALLOWED_PREFIXES = [
   '/orders',
-  '/chat-management/inbox', // صندوق رسائل المودريتور فقط — باقي صفحات إدارة المحادثات محجوبة
+  '/chat-management/inbox', // صندوق رسائل المودريتور
+  '/chat-management/shifts', // جدول الشيفتات والإجازات (قراءة فقط)
   CALLER_LOOKUP_PATH,
   '/hagar-orders-review',
   '/my-delivery-summary',

@@ -13,11 +13,20 @@ export const CHAT_MANAGEMENT_VIEW_ROLES: AppRole[] = [
   "social_media_manager",
 ];
 
-/** من يعدّل الشيفتات والأجازات والتوزيع (يطابق cm_can_manage في قاعدة البيانات). */
+/** من يرى صفحة الشيفتات والإجازات (تشمل المودريتورز للعرض فقط). */
+export const CHAT_SHIFTS_VIEW_ROLES: AppRole[] = [...CHAT_MANAGEMENT_VIEW_ROLES, "sales_moderator"];
+
+/** من يعدّل جدول الشيفتات والقوالب والإجازات (يطابق cm_can_manage_shifts في قاعدة البيانات). */
+export const CHAT_SHIFTS_EDIT_ROLES: AppRole[] = ["general_manager", "executive_manager", "sales_manager"];
+
+/** من يعدّل التوزيع والمؤشرات والمراجعة المتبادلة والمحادثات (يطابق cm_can_manage في قاعدة البيانات). */
 export const CHAT_MANAGEMENT_EDIT_ROLES: AppRole[] = ["sales_manager", "general_manager"];
 
 export const canEditChatManagement = (roles: readonly string[] | null | undefined): boolean =>
   !!roles?.some((r) => (CHAT_MANAGEMENT_EDIT_ROLES as string[]).includes(r));
+
+export const canEditShifts = (roles: readonly string[] | null | undefined): boolean =>
+  !!roles?.some((r) => (CHAT_SHIFTS_EDIT_ROLES as string[]).includes(r));
 
 // ───── الخطوة 3: صناديق المحادثات ─────
 export const CHAT_INBOX_PATH = "/chat-management/inbox";
