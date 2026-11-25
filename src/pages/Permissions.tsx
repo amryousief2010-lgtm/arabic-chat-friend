@@ -27,7 +27,7 @@ type PermissionKey =
 const permissionDetails: Record<PermissionKey, { label: string; description: string }> = {
   manage_chat_shifts: {
     label: "إدارة الشيفتات وتوزيع المحادثات",
-    description: "تحديد الشيفتات والأجازات الأسبوعية والمراجعة المتبادلة وطريقة التوزيع وأهداف الرد (المدير التنفيذي ومدير التسويق والمبيعات والمشاهدون ومشرف السوشيال: عرض فقط)",
+    description: "تحديد الشيفتات والإجازات الأسبوعية (المدير العام والتنفيذي ومدير المبيعات؛ والمودريتورز عرض فقط)، وطريقة التوزيع وأهداف الرد (المدير العام ومدير المبيعات)",
   },
   manage_employees: {
     label: "إدارة الموظفين",
@@ -103,7 +103,7 @@ const permissionsMatrix: Record<(typeof rolesOrder)[number], Record<PermissionKe
     manage_offers: true,
   },
   executive_manager: {
-    manage_chat_shifts: false,
+    manage_chat_shifts: true,
     manage_employees: false,
     manage_products: true,
     manage_stock: true,

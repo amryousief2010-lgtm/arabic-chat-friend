@@ -19,7 +19,7 @@ import { RISING_BONUS_TABLE_ROLES } from "@/lib/risingBonusTableAccess";
 // Wrap lazy() so that when a dynamically-imported chunk is missing (e.g. after a
 // new deploy invalidated old chunk hashes), we force a single hard reload instead
 // of crashing the whole app / closing the sidebar.
-import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES, CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES } from "@/config/chatManagement";
+import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, CHAT_SHIFTS_VIEW_ROLES, CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES, CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES } from "@/config/chatManagement";
 const lazy: typeof reactLazy = ((factory: any) =>
   reactLazy(() =>
     factory().catch((err: any) => {
@@ -306,7 +306,7 @@ const AnimatedRoutes = () => {
             } />
           )}
           <Route path={CHAT_MANAGEMENT_SHIFTS_PATH} element={
-            <ProtectedRoute allowedRoles={CHAT_MANAGEMENT_VIEW_ROLES}>
+            <ProtectedRoute allowedRoles={CHAT_SHIFTS_VIEW_ROLES}>
               <PageTransition><ChatManagementShifts tab="shifts" /></PageTransition>
             </ProtectedRoute>
           } />

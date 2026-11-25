@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import {
-  CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, canEditChatManagement,
+  CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, CHAT_SHIFTS_VIEW_ROLES, canEditChatManagement, canEditShifts,
   CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES,
   CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES, canImportCdr, canListenRecordings, canWriteAdSpend, CHAT_AD_SPEND_WRITE_ROLES, canUploadRecordings,
   canManageConversations, cmGateAllows, cmGateRoles, canChangeCmGate, isChatManagementPath, CM_GATE_DEFAULT_MODE,
@@ -62,13 +62,13 @@ describe("chat management route access (roles mode = old matrix)", () => {
     }
   });
 
-  it.each([[["sales_moderator"]], [["accountant"]], [["warehouse_supervisor"]], [["financial_manager"]]])("blocks %j", async (roles) => {
+  it.each([[["accountant"]], [["warehouse_supervisor"]], [["financial_manager"]]])("blocks %j", async (roles) => {
     currentRoles = roles;
     renderAt(CHAT_MANAGEMENT_SHIFTS_PATH);
     await waitFor(() => expect(screen.queryByTestId("page")).toBeNull());
   });
 
-  it("only sales_manager and general_manager can edit", () => {
+  it("only sales_manager and general_manager can edit general settings; GM, exec, sales_manager can edit shifts", () => {
     expect(canEditChatManagement(["marketing_sales_manager", "sales_manager"])).toBe(true);
     expect(canEditChatManagement(["general_manager"])).toBe(true);
     expect(canEditChatManagement(["executive_manager"])).toBe(false);
@@ -76,6 +76,14 @@ describe("chat management route access (roles mode = old matrix)", () => {
     expect(canEditChatManagement(["sales_moderator"])).toBe(false);
     expect(canEditChatManagement(["marketing_sales_viewer"])).toBe(false);
     expect(canEditChatManagement(["social_media_manager"])).toBe(false);
+
+    expect(canEditShifts(["general_manager"])).toBe(true);
+    expect(canEditShifts(["executive_manager"])).toBe(true);
+    expect(canEditShifts(["sales_manager"])).toBe(true);
+    expect(canEditShifts(["marketing_sales_manager"])).toBe(false);
+    expect(canEditShifts(["marketing_sales_viewer"])).toBe(false);
+    expect(canEditShifts(["social_media_manager"])).toBe(false);
+    expect(canEditShifts(["sales_moderator"])).toBe(false);
   });
 
   it("sidebar has the إدارة المحادثات section with all pages", () => {
@@ -88,7 +96,8 @@ describe("chat management route access (roles mode = old matrix)", () => {
     expect(item(CHAT_INBOX_PATH).roles).toEqual(["sales_moderator"]);
     expect(item(CHAT_SUPERVISOR_PATH).roles).not.toContain("sales_moderator");
     expect(item(CHAT_PHONE_REVIEW_PATH).roles).not.toContain("sales_moderator");
-    expect(item(CHAT_MANAGEMENT_SHIFTS_PATH).roles).not.toContain("sales_moderator");
+    expect(item(CHAT_MANAGEMENT_SHIFTS_PATH).roles).toContain("sales_moderator");
+    expect(item(CHAT_MANAGEMENT_SETTINGS_PATH).roles).not.toContain("sales_moderator");
   });
 
   it("sidebar section is visible to viewers and moderators, hidden from accountant", () => {
@@ -98,11 +107,13 @@ describe("chat management route access (roles mode = old matrix)", () => {
     for (const r of ["accountant", "warehouse_supervisor"]) expect(s.roles).not.toContain(r);
   });
 
-  it("moderator reaches her inbox but not supervisor / phone review / shifts", async () => {
+  it("moderator reaches her inbox and shifts (read-only), but not settings / supervisor / phone review / KPIs", async () => {
     currentRoles = ["sales_moderator"];
-    renderAt(CHAT_INBOX_PATH, CHAT_INBOX_ROLES);
-    await waitFor(() => expect(screen.getByTestId("page")).toBeInTheDocument());
-    for (const [p, r] of [[CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES], [CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES], [CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_VIEW_ROLES], [CHAT_KPIS_PATH, CHAT_KPIS_ROLES], [CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES], [CHAT_CALLS_PATH, CHAT_CALLS_ROLES]] as const) {
+    for (const [p, r] of [[CHAT_INBOX_PATH, CHAT_INBOX_ROLES], [CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_SHIFTS_VIEW_ROLES]] as const) {
+      cleanup(); renderAt(p, r);
+      await waitFor(() => expect(screen.getByTestId("page")).toBeInTheDocument());
+    }
+    for (const [p, r] of [[CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES], [CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES], [CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES], [CHAT_KPIS_PATH, CHAT_KPIS_ROLES], [CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES], [CHAT_CALLS_PATH, CHAT_CALLS_ROLES]] as const) {
       cleanup(); renderAt(p, r);
       await waitFor(() => expect(screen.queryByTestId("page")).toBeNull());
     }
@@ -149,7 +160,7 @@ describe("chat management route access (roles mode = old matrix)", () => {
 });
 
 const ALL_CM_ROUTES = [
-  [CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_VIEW_ROLES], [CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES],
+  [CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_SHIFTS_VIEW_ROLES], [CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES],
   [CHAT_INBOX_PATH, CHAT_INBOX_ROLES], [CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES], [CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES],
   [CHAT_KPIS_PATH, CHAT_KPIS_ROLES], [CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES], [CHAT_CALLS_PATH, CHAT_CALLS_ROLES],
 ] as const;
