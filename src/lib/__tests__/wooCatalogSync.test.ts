@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  boxContentsText, desiredFields, diffFields, fetchStoreProducts, handleCatalogSync, isCompanyBarcode,
+  DEFAULT_BOX_SHIPPING_CLASS_SLUG, boxContentsText, desiredFields, diffFields, fetchStoreProducts, handleCatalogSync, isCompanyBarcode,
   normalizeStoreProduct, storePrice, stripHalal, type CatalogDeps, type LogEntry,
 } from "../../../supabase/functions/woo-catalog-sync/handler";
 
@@ -78,13 +78,20 @@ describe("pure helpers", () => {
   it("create payload: draft, stripped name, barcode SKU, no shipping", () => {
     const f = desiredFields("create", { kind: "product", id: PID }, { id: PID, name: "استيك حلال", price: 800, barcode: "6224003208018" }, null);
     expect(f).toEqual({ name: "استيك", regular_price: "800", sale_price: "", sku: "6224003208018", status: "draft" });
+    expect(f.shipping_class).toBeUndefined();
     const nob = desiredFields("create", { kind: "product", id: PID }, { id: PID, name: "كفتة", price: 620, barcode: null }, null);
     expect(nob.sku).toBeUndefined();
   });
-  it("box payload uses offer_price exactly and lists contents", () => {
+  it("box payload uses offer_price exactly, lists contents, and sets the free-shipping class", () => {
     const f = desiredFields("update", { kind: "offer_box", id: BID }, { id: BID, name: "بوكس", offer_price: 1500, shipping_cost: 120, items: [{ name: "استيك", quantity: 1, is_gift: false }] }, { regular_price: "1400", sale_price: "1300" });
-    expect(f).toEqual({ regular_price: "1500", sale_price: "", short_description: "• استيك × 1" });
-    expect(JSON.stringify(f)).not.toMatch(/shipping/);
+    expect(f).toEqual({ regular_price: "1500", sale_price: "", short_description: "• استيك × 1", shipping_class: DEFAULT_BOX_SHIPPING_CLASS_SLUG });
+    expect(JSON.stringify(f)).not.toMatch(/shipping_cost/);
+    const custom = desiredFields(
+      "create", { kind: "offer_box", id: BID },
+      { id: BID, name: "بوكس", offer_price: 1500, shipping_cost: 120, items: [{ name: "استيك", quantity: 1, is_gift: false }] },
+      null, { WOO_BOX_SHIPPING_CLASS_SLUG: "custom-free-boxes" },
+    );
+    expect(custom.shipping_class).toBe("custom-free-boxes");
   });
   it("diff lists only changed fields", () => {
     expect(diffFields({ regular_price: "850", sale_price: "" }, { regular_price: "800", sale_price: "" })).toEqual([{ field: "regular_price", before: "850", after: "800" }]);
@@ -161,9 +168,11 @@ describe("handleCatalogSync", () => {
     const create = restCalls.find((c) => c.method === "POST")!;
     expect(create.body).toEqual({
       type: "simple", name: "بوكس 1500", regular_price: "1500", sale_price: "",
-      short_description: "• استيك × 1\n• مرقة × 1 (هدية)", status: "draft",
+      short_description: "• استيك × 1\n• مرقة × 1 (هدية)",
+      shipping_class: DEFAULT_BOX_SHIPPING_CLASS_SLUG, status: "draft",
       meta_data: [{ key: "_coc_offer_box_id", value: BID }],
     });
+    expect(pv.warnings).toContain("box_free_shipping_class");
     expect(deps.mapAsUser).toHaveBeenCalledWith("jwt", 5555, { kind: "offer_box", id: BID });
     expect(logs[0]).toMatchObject({ action: "push_create", status: "applied", woo_product_id: 5555 });
   });
