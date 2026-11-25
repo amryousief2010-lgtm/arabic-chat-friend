@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_BOX_SHIPPING_CLASS_SLUG, boxContentsText, desiredFields, diffFields, fetchStoreProducts, handleCatalogSync, isCompanyBarcode,
-  normalizeStoreProduct, storePrice, stripHalal, type CatalogDeps, type LogEntry,
+  normalizeStoreProduct, storePrice, stripHalal, validImageUrl, type CatalogDeps, type LogEntry,
 } from "../../../supabase/functions/woo-catalog-sync/handler";
 
 const PID = "10000000-0000-0000-0000-000000000001";
@@ -175,6 +175,23 @@ describe("handleCatalogSync", () => {
     expect(pv.warnings).toContain("box_free_shipping_class");
     expect(deps.mapAsUser).toHaveBeenCalledWith("jwt", 5555, { kind: "offer_box", id: BID });
     expect(logs[0]).toMatchObject({ action: "push_create", status: "applied", woo_product_id: 5555 });
+  });
+
+  it("create product with coceg image_url pushes images[{src}]; never invents when absent", async () => {
+    expect(validImageUrl("https://cdn.example.com/a.jpg")).toBe("https://cdn.example.com/a.jpg");
+    expect(validImageUrl("not-a-url")).toBeNull();
+    const { deps, restCalls } = makeDeps({
+      mappingForTarget: async () => null,
+      loadProduct: async () => ({ id: PID, name: "استيك حلال", price: 800, barcode: "6224003208018", image_url: "https://cdn.example.com/steak.jpg" }),
+    });
+    const body = { mode: "create", target: { kind: "product", id: PID } };
+    const pv = await (await handleCatalogSync(post({ action: "preview", ...body }), deps)).json();
+    expect(pv.after.image_url).toBe("https://cdn.example.com/steak.jpg");
+    const res = await handleCatalogSync(post({ action: "apply", ...body, token: pv.token }), deps);
+    expect(res.status).toBe(200);
+    const create = restCalls.find((c) => c.method === "POST")!;
+    expect(create.body).toMatchObject({ images: [{ src: "https://cdn.example.com/steak.jpg" }], status: "draft" });
+    expect((create.body as Record<string, unknown>).image_url).toBeUndefined();
   });
 
   it("create for something already on the site → 409", async () => {

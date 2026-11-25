@@ -46,9 +46,9 @@ export interface SiteProductRow {
   categories: string[];
 }
 
-export interface CocProduct { id: string; name: string; price: number | null; barcode: string | null }
+export interface CocProduct { id: string; name: string; price: number | null; barcode: string | null; image_url?: string | null }
 export interface CocBoxItem { name: string; quantity: number; is_gift: boolean }
-export interface CocBox { id: string; name: string; offer_price: number | null; shipping_cost: number | null; items: CocBoxItem[] }
+export interface CocBox { id: string; name: string; offer_price: number | null; shipping_cost: number | null; image_url?: string | null; items: CocBoxItem[] }
 
 export type Target = { kind: "product"; id: string } | { kind: "offer_box"; id: string };
 export type Mode = "create" | "update";
@@ -61,6 +61,7 @@ export interface WooFields {
   sku?: string | null;
   short_description?: string | null;
   shipping_class?: string | null;
+  image_url?: string | null;
   status?: string | null;
 }
 
@@ -118,6 +119,12 @@ export function stripHalal(text: string): string {
     .replace(/\s{2,}/g, " ")
     .replace(/^[\s\-–|،,]+|[\s\-–|،,]+$/g, "")
     .trim();
+}
+
+export function validImageUrl(u: string | null | undefined): string | null {
+  const s = String(u ?? "").trim();
+  if (!s) return null;
+  return /^https?:\/\/\S+$/i.test(s) ? s : null;
 }
 
 export const isCompanyBarcode = (b: string | null | undefined) => COMPANY_BARCODE_RE.test(String(b ?? "").trim());
@@ -194,7 +201,8 @@ export function desiredFields(mode: Mode, target: Target, src: CocProduct | CocB
   if (mode === "create") {
     const name = stripHalal(src.name);
     if (!name) throw new SyncError(422, "coc_name_missing");
-    return { name, ...out, status: "draft" };
+    const img = validImageUrl(src.image_url);
+    return { name, ...out, ...(img ? { image_url: img } : {}), status: "draft" };
   }
   return out;
 }
@@ -369,7 +377,9 @@ export async function handleCatalogSync(req: Request, deps: CatalogDeps): Promis
         try {
           if (input.mode === "create") {
             const meta = [{ key: input.target.kind === "product" ? "_coc_product_id" : "_coc_offer_box_id", value: input.target.id }];
-            const created = await restWrite(deps.env, deps.fetchImpl, "POST", "products", { type: "simple", ...p.after, meta_data: meta });
+            const { image_url: imgUrl, ...wooAfter } = p.after;
+            const wooPayload = { type: "simple", ...wooAfter, ...(imgUrl ? { images: [{ src: imgUrl }] } : {}), meta_data: meta };
+            const created = await restWrite(deps.env, deps.fetchImpl, "POST", "products", wooPayload);
             const wooId = Number(created?.id);
             if (!Number.isInteger(wooId) || wooId <= 0) throw new SyncError(502, "woo_create_no_id");
             await deps.log({ ...base, action: "push_create", woo_product_id: wooId, after: { ...p.after, id: wooId }, status: "applied", error: null });

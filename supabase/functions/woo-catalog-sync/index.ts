@@ -42,8 +42,8 @@ Deno.serve((req) => {
       return data;
     },
     loadProduct: async (id) => {
-      const { data } = await admin.from("products").select("id, name, price, barcode").eq("id", id).maybeSingle();
-      return data ? { id: data.id, name: data.name, price: data.price === null ? null : Number(data.price), barcode: data.barcode } : null;
+      const { data } = await admin.from("products").select("id, name, price, barcode, image_url").eq("id", id).maybeSingle();
+      return data ? { id: data.id, name: data.name, price: data.price === null ? null : Number(data.price), barcode: data.barcode, image_url: data.image_url ?? null } : null;
     },
     loadBox: async (id) => {
       const { data: box } = await admin.from("offer_boxes").select("id, name, offer_price, shipping_cost").eq("id", id).maybeSingle();

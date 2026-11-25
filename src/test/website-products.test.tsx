@@ -5,8 +5,10 @@ import { WEBSITE_PRODUCTS_PATH, WEBSITE_PRODUCTS_ROLES, canManageWebsiteProducts
 import { moduleSections } from "@/components/layout/SidebarMenuSections";
 import { WOO_MAP_SUGGESTIONS } from "@/data/wooMapSuggestions";
 import {
-  barcodeFromSiteSku, barcodeWarning, boxImportCheck, buildCatalogRows, cocNotOnSite, importProductMissing,
-  suggestionFor, syncErrorMessage, type CocBox, type CocProduct, type MapRow, type SiteProduct,
+  barcodeFromSiteSku, barcodeWarning, boxImportCheck, buildCatalogRows, buildMissingItems, cocNotOnSite,
+  filterAndSortMissing, filterAndSortSiteRows, formatCairoLatn, formatEgp, formatNum, formatSignedEgp,
+  importProductMissing, suggestionFor, summarizeBoxItems, syncErrorMessage,
+  type CocBox, type CocProduct, type MapRow, type SiteProduct,
 } from "@/lib/websiteProducts";
 
 let currentRoles: string[] = [];
@@ -109,5 +111,31 @@ describe("website products helpers", () => {
     expect(syncErrorMessage("WOO_IMPORT_MISSING: التكلفة")).toBe("بيانات ناقصة: التكلفة");
     expect(syncErrorMessage("woo_keys_missing")).toContain("مفاتيح");
     expect(syncErrorMessage("WOO_NOT_MAPPED")).toBe("هذا المنتج غير مربوط");
+  });
+
+  it("formats all numbers and EGP prices consistently in Latin digits (no ١٬٠١٠)", () => {
+    expect(formatNum(1010)).toBe("1,010");
+    expect(formatEgp(1500)).toBe("1,500 ج.م");
+    expect(formatSignedEgp(50)).toBe("+50 ج.م");
+    expect(formatSignedEgp(-120)).toBe("-120 ج.م");
+    const ts = formatCairoLatn("2026-11-25T18:00:00Z");
+    expect(ts).not.toMatch(/[٠-٩]/);
+  });
+
+  it("filters, searches, sorts, and summarizes offer box contents", () => {
+    const rows = buildCatalogRows(site, maps, products, boxes);
+    expect(filterAndSortSiteRows(rows, { query: "1500", type: "all", status: "all", sort: "name_asc" })).toHaveLength(1);
+    expect(filterAndSortSiteRows(rows, { query: "", type: "offer_box", status: "all", sort: "name_asc" }).map((r) => r.site.woo_product_id)).toEqual([960]);
+    expect(filterAndSortSiteRows(rows, { query: "", type: "all", status: "diff", sort: "diff_desc" }).map((r) => r.site.woo_product_id)).toEqual([937]);
+
+    const missing = cocNotOnSite(products, boxes, maps);
+    const items = buildMissingItems(missing.products, missing.boxes);
+    expect(filterAndSortMissing(items, { query: "", type: "offer_box", sort: "price_desc" }).map((i) => i.id)).toEqual(["b2"]);
+    expect(summarizeBoxItems([
+      { name: "استيك", quantity: 1, is_gift: false },
+      { name: "كفتة", quantity: 2, is_gift: false },
+      { name: "مرقة", quantity: 1, is_gift: true },
+      { name: "سجق", quantity: 1, is_gift: false },
+    ])).toBe("استيك × 1، كفتة × 2، مرقة × 1 (هدية) + 1 أخرى");
   });
 });
