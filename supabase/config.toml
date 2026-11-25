@@ -78,3 +78,7 @@ verify_jwt = false
 # عدادات طلبات المنتجات لموقع capitalostrich.com (قراءة فقط): ووردبريس/ووكومرس بيبعت x-site-key من غير JWT؛ التحقق في زمن ثابت جوه الدالة (SITE_COUNTERS_KEY).
 [functions.site-product-counters]
 verify_jwt = false
+
+# طلبات وتسجيلات موقع capitalostrich.com: ووكومرس بيبعت الـwebhook من غير JWT؛ التحقق بتوقيع X-WC-Webhook-Signature (WOO_WEBHOOK_SECRET) في زمن ثابت جوه الدالة.
+[functions.woo-order-ingest]
+verify_jwt = false

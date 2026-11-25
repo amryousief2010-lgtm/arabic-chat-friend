@@ -1,5 +1,6 @@
 import { lazy as reactLazy, Suspense } from "react";
 import { AI_REPORTS_PATH, AI_REPORTS_ROLES } from "@/config/aiReports";
+import { WEBSITE_ORDERS_PATH, WEBSITE_ORDERS_ROLES } from "@/config/websiteOrders";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -76,6 +77,7 @@ const CustomerWarehouseView = lazy(() => import("@/pages/CustomerWarehouseView")
 const ModeratorWarehouseStock = lazy(() => import("@/pages/ModeratorWarehouseStock"));
 const Notifications = lazy(() => import("@/pages/Notifications"));
 const DuplicateOrderApprovals = lazy(() => import("@/pages/DuplicateOrderApprovals"));
+const WebsiteOrders = lazy(() => import("@/pages/WebsiteOrders"));
 const OrderDetails = lazy(() => import("@/pages/OrderDetails"));
 const Install = lazy(() => import("@/pages/Install"));
 const Auth = lazy(() => import("@/pages/Auth"));
@@ -390,6 +392,11 @@ const AnimatedRoutes = () => {
           <Route path="/orders/new" element={
             <ProtectedRoute allowedRoles={['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'marketing_sales_viewer']}>
               <PageTransition><NewOrder /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={WEBSITE_ORDERS_PATH} element={
+            <ProtectedRoute allowedRoles={WEBSITE_ORDERS_ROLES}>
+              <PageTransition><WebsiteOrders /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path="/duplicate-order-approvals" element={

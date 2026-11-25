@@ -181,7 +181,20 @@ describe("Lovable remaining edge-function auth hardening", () => {
       "site-product-counters",
       "sync-zodex-shipments",
       "whatsapp-webhook",
+      "woo-order-ingest",
     ]);
+  });
+
+  // ووكومرس لا يرسل JWT؛ البديل الإلزامي هو توقيع X-WC-Webhook-Signature في زمن ثابت ورفض العمل بدون السر.
+  it("woo-order-ingest (no gateway JWT) verifies the WooCommerce HMAC in constant time and is inert without the secret", () => {
+    const src = readFileSync(resolve(process.cwd(), "supabase/functions/woo-order-ingest/handler.ts"), "utf8");
+    expect(src).toMatch(/x-wc-webhook-signature/i);
+    expect(src).toMatch(/WOO_WEBHOOK_SECRET/);
+    expect(src).toMatch(/timingSafeEqualText/);
+    expect(src).toMatch(/401/);
+    expect(src).toMatch(/503/);
+    expect(src).not.toMatch(/from\(["']cm_ad_attributions/);
+    expect(src).not.toMatch(/console\.(log|info|debug|warn|error)\(.*(secret|phone)/i);
   });
 
   it("site-product-counters (no gateway JWT) enforces constant-time x-site-key auth and never logs the secret", () => {

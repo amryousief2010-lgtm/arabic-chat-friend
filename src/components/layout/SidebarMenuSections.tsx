@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import {
+  Globe,
   LayoutDashboard,
   Package,
   ShoppingCart,
@@ -71,6 +72,7 @@ import { CALLER_LOOKUP_PATH, CALLER_LOOKUP_ROLES } from "@/constants/callerLooku
 import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGEMENT_VIEW_ROLES, CHAT_MANAGEMENT_SECTION_ROLES, CHAT_INBOX_PATH, CHAT_INBOX_ROLES, CHAT_SUPERVISOR_PATH, CHAT_SUPERVISOR_ROLES, CHAT_PHONE_REVIEW_PATH, CHAT_PHONE_REVIEW_ROLES, CHAT_KPIS_PATH, CHAT_KPIS_ROLES, CHAT_AD_SPEND_PATH, CHAT_AD_SPEND_ROLES, CHAT_CALLS_PATH, CHAT_CALLS_ROLES } from "@/config/chatManagement";
 import { cmGateAllows, isChatManagementPath, isCmKpiViewerPath } from "@/config/chatManagement";
 import { AI_REPORTS_PATH, AI_REPORTS_ROLES } from "@/config/aiReports";
+import { WEBSITE_ORDERS_PATH, WEBSITE_ORDERS_ROLES } from "@/config/websiteOrders";
 import { useCmFeatureGate } from "@/hooks/useCmFeatureGate";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -140,6 +142,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: ShoppingCart, label: "الطلبات", path: "/orders", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'accountant', 'warehouse_supervisor', 'marketing_sales_manager', 'financial_manager', 'quality_manager','marketing_sales_viewer'] },
       { icon: Phone, label: "استعلام عن متصل", path: CALLER_LOOKUP_PATH, roles: CALLER_LOOKUP_ROLES },
       { icon: Bird, label: "طلبات الكتاكيت", path: "/chick-orders", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'accountant', 'financial_manager','marketing_sales_viewer'] },
+      { icon: Globe, label: "طلبات الموقع", path: WEBSITE_ORDERS_PATH, roles: WEBSITE_ORDERS_ROLES },
       { icon: ShieldAlert, label: "موافقات تكرار الطلبات", path: "/duplicate-order-approvals", roles: ['general_manager','executive_manager','sales_manager'] },
       { icon: Users, label: "العملاء", path: "/customers", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: Gift, label: "صناديق العروض", path: "/offer-boxes", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
