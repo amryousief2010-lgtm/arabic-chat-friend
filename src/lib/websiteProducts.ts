@@ -286,8 +286,8 @@ export function boxImportCheck(sitePrice: number | null, shipping: number | null
 
 export const CHANGE_FIELD_LABELS: Record<string, string> = {
   name: "الاسم",
-  regular_price: "السعر",
-  price: "السعر المعروض",
+  regular_price: "السعر الأساسي",
+  price: "السعر النهائي للعميل",
   sale_price: "سعر التخفيض",
   sku: "رمز الصنف (الباركود)",
   short_description: "مكونات العرض",
@@ -433,6 +433,6 @@ export function changeValueLabel(field: string, v: string | null | undefined): s
   const s = String(v ?? "");
   if (!s) return "—";
   if (field === "status" || field === "catalog_visibility") return SITE_STATUS_LABELS[s] ?? s;
-  if (field === "regular_price" || field === "sale_price") return formatEgp(Number(s));
+  if (field === "regular_price" || field === "sale_price" || field === "price") return formatEgp(Number(s));
   return s;
 }

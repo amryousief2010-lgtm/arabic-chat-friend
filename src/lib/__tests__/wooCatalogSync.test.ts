@@ -411,3 +411,104 @@ describe("restore, backups and expire_offers", () => {
     expect(denied.status).toBe(403);
   });
 });
+
+
+describe("keep_sale: burger update and site price", () => {
+  function burgerDeps(over: Partial<CatalogDeps> = {}) {
+    const backups: unknown[] = [];
+    const base = makeDeps({
+      loadProduct: async () => ({ id: PID, name: "برجر", price: 300, barcode: "6224003208124" }),
+      mappingForWoo: async () => ({ woo_product_id: 937, woo_variation_id: 0, kind: "product" as const, product_id: PID, offer_box_id: null }),
+      saveBackup: async (...args: unknown[]) => { backups.push(args); },
+      ...over,
+    });
+    const inner = base.deps.fetchImpl;
+    base.deps.fetchImpl = (async (url: string | URL | Request, init?: RequestInit) => {
+      const method = init?.method ?? "GET";
+      const u = String(url);
+      if (method === "GET" && /\/wp-json\/wc\/v3\/products\/937/.test(u)) {
+        base.restCalls.push({ method, url: u, body: null });
+        return new Response(JSON.stringify({
+          id: 937, name: "برجر", regular_price: "390", sale_price: "320", sku: "",
+          short_description: "", status: "publish", catalog_visibility: "visible", images: [],
+        }));
+      }
+      return inner(url, init);
+    }) as unknown as typeof fetch;
+    return { ...base, backups };
+  }
+
+  const body = { mode: "update" as const, target: { kind: "product" as const, id: PID }, woo_product_id: 937 };
+
+  it("desiredFields default clears the sale; keep_sale sets coceg as sale and leaves regular", () => {
+    const before = { regular_price: "390", sale_price: "320", sku: "" };
+    const src = { id: PID, name: "برجر", price: 300, barcode: "6224003208124" };
+    expect(desiredFields("update", { kind: "product", id: PID }, src, before)).toEqual({
+      regular_price: "300", sale_price: "", sku: "6224003208124",
+    });
+    expect(desiredFields("update", { kind: "product", id: PID }, src, before, {}, true)).toEqual({
+      sale_price: "300", sku: "6224003208124",
+    });
+  });
+
+  it("preview default: regular 390→300, sale 320→empty, sku written", async () => {
+    const { deps } = burgerDeps();
+    const pv = await (await handleCatalogSync(post({ action: "preview", ...body }), deps)).json();
+    expect(pv.changes).toEqual([
+      { field: "regular_price", before: "390", after: "300" },
+      { field: "sale_price", before: "320", after: "" },
+      { field: "sku", before: "", after: "6224003208124" },
+    ]);
+  });
+
+  it("preview keep_sale: sale 320→300, regular unchanged, then apply PUTs sale only + sku, logs and backs up", async () => {
+    const { deps, logs, restCalls, backups } = burgerDeps();
+    const pv = await (await handleCatalogSync(post({ action: "preview", ...body, keep_sale: true }), deps)).json();
+    expect(pv.changes).toEqual([
+      { field: "sale_price", before: "320", after: "300" },
+      { field: "sku", before: "", after: "6224003208124" },
+    ]);
+    const res = await handleCatalogSync(post({ action: "apply", ...body, keep_sale: true, token: pv.token }), deps);
+    expect(res.status).toBe(200);
+    expect(restCalls.find((c) => c.method === "PUT")!.body).toEqual({ sale_price: "300", sku: "6224003208124" });
+    expect(logs[0]).toMatchObject({ action: "push_update", status: "applied", woo_product_id: 937, after: expect.objectContaining({ sale_price: "300" }) });
+    expect(backups.length).toBeGreaterThan(0);
+  });
+
+  it("apply keep_sale with the default (clear-sale) token → 409 and no write", async () => {
+    const { deps, restCalls } = burgerDeps();
+    const clear = await (await handleCatalogSync(post({ action: "preview", ...body }), deps)).json();
+    const res = await handleCatalogSync(post({ action: "apply", ...body, keep_sale: true, token: clear.token }), deps);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: "changed_since_preview" });
+    expect(restCalls.filter((c) => c.method === "PUT")).toHaveLength(0);
+  });
+
+  it("keep_sale when the selling price is not below regular → 422 sale_not_below_price", async () => {
+    const { deps } = burgerDeps({
+      loadProduct: async () => ({ id: PID, name: "برجر", price: 390, barcode: "6224003208124" }),
+    });
+    const res = await handleCatalogSync(post({ action: "preview", ...body, keep_sale: true }), deps);
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ error: "sale_not_below_price" });
+  });
+
+  it("site price keep_sale sets only sale_price and apply PUTs it", async () => {
+    const { deps, logs, restCalls } = burgerDeps();
+    const pvRes = await handleCatalogSync(post({ action: "site_preview", woo_product_id: 937, edit: { kind: "price", regular_price: 300 }, keep_sale: true }), deps);
+    expect(pvRes.status).toBe(200);
+    const pv = await pvRes.json();
+    expect(pv.changes).toEqual([{ field: "sale_price", before: "320", after: "300" }]);
+    const res = await handleCatalogSync(post({ action: "site_apply", woo_product_id: 937, edit: { kind: "price", regular_price: 300 }, keep_sale: true, token: pv.token }), deps);
+    expect(res.status).toBe(200);
+    expect(restCalls.find((c) => c.method === "PUT")!.body).toEqual({ sale_price: "300" });
+    expect(logs[0]).toMatchObject({ action: "site_price", status: "applied" });
+  });
+
+  it("site price keep_sale rejects selling price not below regular", async () => {
+    const { deps } = burgerDeps();
+    const res = await handleCatalogSync(post({ action: "site_preview", woo_product_id: 937, edit: { kind: "price", regular_price: 390 }, keep_sale: true }), deps);
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ error: "sale_not_below_price" });
+  });
+});

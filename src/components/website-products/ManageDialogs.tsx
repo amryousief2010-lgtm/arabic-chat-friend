@@ -15,10 +15,8 @@ import { toast } from "sonner";
 import { ArrowLeft, BadgePercent, CalendarClock, Eye, EyeOff, Gift, ImagePlus, Lock, PencilLine, Truck, UploadCloud } from "lucide-react";
 import {
   type BoxItemSummary,
-  CHANGE_FIELD_LABELS,
   IMAGE_BUCKET,
   boxPriceFromItems,
-  changeValueLabel,
   formatEgp,
   formatNum,
   imageFileProblem,
@@ -26,6 +24,12 @@ import {
   syncErrorMessage,
 } from "@/lib/websiteProducts";
 import { formatValidityDate, parseValidityInput, shouldHideOnSite, toDatetimeLocal, type ValidityMode, validityModeOf, validityState, VALIDITY_STATE_LABELS } from "@/lib/offerValidity";
+import {
+  canKeepSale,
+  customerPriceContextFromPreview,
+  keepSaleDisabledReason,
+  saleWouldBeCleared,
+} from "@/lib/wooPreview";
 import { compressImage } from "@/lib/imageCompress";
 import type { Change, PreviewState } from "./Dialogs";
 import { BRAND, CocTag, ProductImageFrame } from "./shared";
@@ -53,12 +57,12 @@ export interface ManageCtx {
   siteHiddenByValidity?: boolean;
 }
 
-/** يحوّل فروق الموقع إلى صفوف معاينة مقروءة («على الموقع»). */
+/** يحتفظ بمفاتيح الحقول الخام حتى تتعرّف نافذة المعاينة على السعر والباركود. */
 export const siteRows = (changes: Change[]): Change[] =>
   changes.map((c) => ({
-    field: `${CHANGE_FIELD_LABELS[c.field] ?? c.field} · على الموقع`,
-    before: changeValueLabel(c.field, c.before),
-    after: changeValueLabel(c.field, c.after) === "—" ? "(فارغ)" : changeValueLabel(c.field, c.after),
+    field: c.field,
+    before: c.before,
+    after: c.after ?? "",
   }));
 
 /** معاينة كتابة على الموقع ثم تنفيذها بعد التأكيد. */
@@ -73,22 +77,47 @@ export async function previewSiteEdit(
 ) {
   const { data, error } = await sitePreview(wooId, edit);
   if (error || !data) return void toast.error(syncErrorMessage(error));
-  onPreview({
-    title,
-    changes: siteRows(data.changes),
-    warnings: data.warnings,
-    confirmLabel,
-    blocked: data.keys_configured ? (data.changes.length ? null : "لا توجد فروق") : syncErrorMessage("woo_keys_missing"),
-    onConfirm: async () => {
-      const r = reason
-        ? await siteApplyWithReason(wooId, edit, data.token, reason)
-        : await siteApply(wooId, edit, data.token);
-      if (r.error) return void toast.error(syncErrorMessage(r.error));
-      toast.success("تم التنفيذ على الموقع وتسجيله في السجل");
-      onPreview(null);
-      onDone();
-    },
-  });
+  const selling = edit.kind === "price" ? edit.regular_price : undefined;
+  const defaultCtx = customerPriceContextFromPreview(data, selling);
+  const allowKeep = edit.kind === "price" && !!defaultCtx && saleWouldBeCleared(defaultCtx);
+  let keepData: typeof data | null = null;
+  if (allowKeep && defaultCtx && canKeepSale(defaultCtx)) {
+    const k = await sitePreview(wooId, edit, true);
+    if (!k.error && k.data) keepData = k.data;
+  }
+  const show = (keep: boolean) => {
+    const d = keep && keepData ? keepData : data;
+    const blocked = d.keys_configured ? (d.changes.length ? null : "لا توجد فروق") : syncErrorMessage("woo_keys_missing");
+    onPreview({
+      title,
+      changes: siteRows(d.changes),
+      warnings: d.warnings,
+      confirmLabel,
+      blocked,
+      priceContext: customerPriceContextFromPreview(d, selling) ?? defaultCtx,
+      keepSale: allowKeep
+        ? {
+            available: true,
+            enabled: keep,
+            onToggle: (enabled) => {
+              if (enabled && !keepData) return;
+              show(enabled);
+            },
+            disabledReason: defaultCtx && canKeepSale(defaultCtx) && keepData ? null : keepSaleDisabledReason(defaultCtx!),
+          }
+        : undefined,
+      onConfirm: async () => {
+        const r = reason
+          ? await siteApplyWithReason(wooId, edit, d.token, reason, keep)
+          : await siteApply(wooId, edit, d.token, keep);
+        if (r.error) return void toast.error(syncErrorMessage(r.error));
+        toast.success("تم التنفيذ على الموقع وتسجيله في السجل");
+        onPreview(null);
+        onDone();
+      },
+    });
+  };
+  show(false);
 }
 
 function Section({ icon, title, children }: { icon: React.ReactNode; title: React.ReactNode; children: React.ReactNode }) {
@@ -142,66 +171,94 @@ export function PriceEditDialog({
   const siteChanged = editSite && ctx.wooId !== null && siteVal > 0 && siteVal !== ctx.siteRegular;
 
   const preview = async () => {
-    const changes: Change[] = [];
+    const cocChanges: Change[] = [];
     if (cocChanged) {
       if (isBox) {
         for (const i of ctx.items.filter((x) => x.id && !x.is_gift)) {
           const after = Number(itemPrices[i.id!]);
           if (after !== Number(i.custom_price ?? 0)) {
-            changes.push({ field: `سعر «${i.name}» × ${formatNum(i.quantity)} في COCEG`, before: formatEgp(i.custom_price ?? 0), after: formatEgp(after) });
+            cocChanges.push({ field: `سعر «${i.name}» × ${formatNum(i.quantity)} في COCEG`, before: formatEgp(i.custom_price ?? 0), after: formatEgp(after) });
           }
         }
-        changes.push({ field: "الشحن (ضمن السعر — بدون تغيير)", before: formatEgp(ctx.shipping ?? 0), after: formatEgp(ctx.shipping ?? 0) });
+        cocChanges.push({ field: "الشحن (ضمن السعر — بدون تغيير)", before: formatEgp(ctx.shipping ?? 0), after: formatEgp(ctx.shipping ?? 0) });
       }
-      changes.push({ field: isBox ? "سعر العرض في COCEG" : "السعر في COCEG", before: formatEgp(ctx.cocPrice), after: formatEgp(newCoc) });
+      cocChanges.push({ field: isBox ? "سعر العرض في COCEG" : "السعر في COCEG", before: formatEgp(ctx.cocPrice), after: formatEgp(newCoc) });
     }
-    let token: string | null = null;
     const warnings: string[] = [];
     let blocked: string | null = null;
     const edit: SiteEditBody | null = siteChanged ? { kind: "price", regular_price: siteVal } : null;
+    let siteData: Awaited<ReturnType<typeof sitePreview>>["data"] = null;
+    let keepData: typeof siteData = null;
     if (edit && ctx.wooId) {
       setBusy(true);
       const { data, error } = await sitePreview(ctx.wooId, edit);
-      setBusy(false);
-      if (error || !data) return void toast.error(syncErrorMessage(error));
-      changes.push(...siteRows(data.changes));
+      if (error || !data) {
+        setBusy(false);
+        return void toast.error(syncErrorMessage(error));
+      }
+      siteData = data;
       warnings.push(...data.warnings);
-      token = data.token;
       if (!data.keys_configured) blocked = syncErrorMessage("woo_keys_missing");
+      const previewCtx = customerPriceContextFromPreview(data, siteVal);
+      if (previewCtx && saleWouldBeCleared(previewCtx) && canKeepSale(previewCtx)) {
+        const k = await sitePreview(ctx.wooId, edit, true);
+        if (!k.error && k.data) keepData = k.data;
+      }
+      setBusy(false);
     }
-    if (!changes.length) return void toast.info("لا توجد فروق");
+    if (!cocChanges.length && !(siteData?.changes.length)) return void toast.info("لا توجد فروق");
     if (isBox && cocChanged) warnings.push("box_identity_kept");
     onClose();
-    onPreview({
-      title: `تعديل سعر «${ctx.name}»`,
-      changes,
-      warnings,
-      confirmLabel: "تأكيد التعديل",
-      blocked,
-      onConfirm: async () => {
-        if (cocChanged) {
-          const { error } = isBox
-            ? await db.rpc("website_set_coc_box_prices", {
-                _box_id: ctx.id,
-                _items: Object.entries(itemPrices).map(([item_id, v]) => ({ item_id, custom_price: Number(v) })),
-                _expected_offer_price: ctx.cocPrice,
-              })
-            : await db.rpc("website_set_coc_product_price", { _product_id: ctx.id, _price: newCoc, _expected: ctx.cocPrice });
-          if (error) return void toast.error(syncErrorMessage(error.message));
-        }
-        if (edit && ctx.wooId && token) {
-          const r = await siteApply(ctx.wooId, edit, token);
-          if (r.error) {
-            toast.error(`${cocChanged ? "تم تعديل سعر COCEG، لكن " : ""}${syncErrorMessage(r.error)}`);
-            onPreview(null);
-            return onDone();
+    const selling = siteChanged ? siteVal : undefined;
+    const defaultCtx = siteData ? customerPriceContextFromPreview(siteData, selling) : undefined;
+    const allowKeep = !!edit && !!defaultCtx && saleWouldBeCleared(defaultCtx);
+    const show = (keep: boolean) => {
+      const d = keep && keepData ? keepData : siteData;
+      const changes = [...cocChanges, ...siteRows(d?.changes ?? [])];
+      onPreview({
+        title: `تعديل سعر «${ctx.name}»`,
+        changes,
+        warnings: d && keep ? d.warnings : warnings,
+        confirmLabel: "تأكيد التعديل",
+        blocked,
+        priceContext: (d ? customerPriceContextFromPreview(d, selling) : undefined) ?? defaultCtx,
+        keepSale: allowKeep
+          ? {
+              available: true,
+              enabled: keep,
+              onToggle: (enabled) => {
+                if (enabled && !keepData) return;
+                show(enabled);
+              },
+              disabledReason: defaultCtx && canKeepSale(defaultCtx) && keepData ? null : (defaultCtx ? keepSaleDisabledReason(defaultCtx) : null),
+            }
+          : undefined,
+        onConfirm: async () => {
+          if (cocChanged) {
+            const { error } = isBox
+              ? await db.rpc("website_set_coc_box_prices", {
+                  _box_id: ctx.id,
+                  _items: Object.entries(itemPrices).map(([item_id, v]) => ({ item_id, custom_price: Number(v) })),
+                  _expected_offer_price: ctx.cocPrice,
+                })
+              : await db.rpc("website_set_coc_product_price", { _product_id: ctx.id, _price: newCoc, _expected: ctx.cocPrice });
+            if (error) return void toast.error(syncErrorMessage(error.message));
           }
-        }
-        toast.success("تم تعديل السعر وتسجيله في السجل");
-        onPreview(null);
-        onDone();
-      },
-    });
+          if (edit && ctx.wooId && d) {
+            const r = await siteApply(ctx.wooId, edit, d.token, keep);
+            if (r.error) {
+              toast.error(`${cocChanged ? "تم تعديل سعر COCEG، لكن " : ""}${syncErrorMessage(r.error)}`);
+              onPreview(null);
+              return onDone();
+            }
+          }
+          toast.success("تم تعديل السعر وتسجيله في السجل");
+          onPreview(null);
+          onDone();
+        },
+      });
+    };
+    show(false);
   };
 
   return (
@@ -757,16 +814,18 @@ export function RestoreDialog({
         return;
       }
       onClose();
+      const rawChanges = (data.changes ?? []).map((c) => ({
+        field: String(c.field),
+        before: typeof c.before === "string" || c.before == null ? (c.before as string | null) : JSON.stringify(c.before),
+        after: typeof c.after === "string" || c.after == null ? String(c.after ?? "") : JSON.stringify(c.after),
+      }));
       onPreview({
         title: `استرجاع المنتج إلى ما قبل: ${title}`,
-        changes: (data.changes ?? []).map((c) => ({
-          field: CHANGE_FIELD_LABELS[c.field] ?? c.field,
-          before: typeof c.before === "string" || c.before == null ? changeValueLabel(c.field, c.before as string | null) : JSON.stringify(c.before),
-          after: typeof c.after === "string" || c.after == null ? changeValueLabel(c.field, c.after as string | null) : JSON.stringify(c.after),
-        })),
+        changes: rawChanges,
         warnings: data.warnings ?? [],
         confirmLabel: "تأكيد الاسترجاع",
         blocked: data.keys_configured ? (data.changes.length ? null : "المنتج مطابق للنسخة المحفوظة") : syncErrorMessage("woo_keys_missing"),
+        priceContext: customerPriceContextFromPreview({ changes: rawChanges, before: data.before, after: data.after }),
         onConfirm: async () => {
           const r = await restoreApply(backupId, data.token);
           if (r.error) return void toast.error(syncErrorMessage(r.error));

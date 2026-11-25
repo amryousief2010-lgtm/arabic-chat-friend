@@ -55,6 +55,13 @@ import {
 import { BRAND, CocTag, MiniThumb, StatCard, TypeBadge } from "@/components/website-products/shared";
 import { CocMissingCard, type ManageAction, SiteProductCard, SiteTableRow, type Target } from "@/components/website-products/ProductCards";
 import { ImageDialog, type ManageCtx, PriceEditDialog, RestoreDialog, SaleDialog, ValidityDialog, VisibilityDialog, previewSiteEdit } from "@/components/website-products/ManageDialogs";
+import {
+  canKeepSale,
+  customerPriceContextFromPreview,
+  keepSaleDisabledReason,
+  saleWouldBeCleared,
+} from "@/lib/wooPreview";
+
 import { type Change, ImportDialog, PreviewDialog, type PreviewState } from "@/components/website-products/Dialogs";
 import { callSync } from "@/components/website-products/sync";
 
@@ -275,22 +282,54 @@ export default function WebsiteProducts() {
 
   const openPush = async (mode: "create" | "update", target: Target, wooId: number | null, label: string) => {
     const body = { mode, target, woo_product_id: wooId };
-    const { data, error } = await callSync<{ changes: Change[]; warnings: string[]; token: string; keys_configured: boolean }>({ action: "preview", ...body });
+    type PushPreview = {
+      changes: Change[];
+      warnings: string[];
+      token: string;
+      keys_configured: boolean;
+      before?: { regular_price?: string | null; sale_price?: string | null } | null;
+      after?: { regular_price?: string | null; sale_price?: string | null } | null;
+    };
+    const { data, error } = await callSync<PushPreview>({ action: "preview", ...body });
     if (error || !data) return toast.error(syncErrorMessage(error));
-    setPreview({
-      title: mode === "create" ? `إضافة «${label}» إلى الموقع` : `تحديث «${label}» على الموقع`,
-      changes: data.changes,
-      warnings: data.warnings,
-      confirmLabel: mode === "create" ? "تأكيد الإضافة إلى الموقع" : "تأكيد التحديث على الموقع",
-      blocked: data.keys_configured ? (data.changes.length ? null : "لا توجد فروق") : syncErrorMessage("woo_keys_missing"),
-      onConfirm: async () => {
-        const r = await callSync<{ warning?: string }>({ action: "apply", ...body, token: data.token });
-        if (r.error) return void toast.error(syncErrorMessage(r.error));
-        toast.success(r.data?.warning === "created_not_mapped" ? "أُضيف إلى الموقع، ويُرجى ربطه يدوياً" : "تم التنفيذ على الموقع");
-        setPreview(null);
-        void load();
-      },
-    });
+    const selling = Number(data.after?.regular_price || data.after?.sale_price || 0) || undefined;
+    const defaultCtx = customerPriceContextFromPreview(data, selling);
+    const allowKeep = mode === "update" && !!defaultCtx && saleWouldBeCleared(defaultCtx);
+    let keepData: PushPreview | null = null;
+    if (allowKeep && defaultCtx && canKeepSale(defaultCtx)) {
+      const k = await callSync<PushPreview>({ action: "preview", ...body, keep_sale: true });
+      if (!k.error && k.data) keepData = k.data;
+    }
+    const show = (keep: boolean) => {
+      const d = keep && keepData ? keepData : data;
+      setPreview({
+        title: mode === "create" ? `إضافة «${label}» إلى الموقع` : `تحديث «${label}» على الموقع`,
+        changes: d.changes,
+        warnings: d.warnings,
+        confirmLabel: mode === "create" ? "تأكيد الإضافة إلى الموقع" : "تأكيد التحديث على الموقع",
+        blocked: d.keys_configured ? (d.changes.length ? null : "لا توجد فروق") : syncErrorMessage("woo_keys_missing"),
+        priceContext: customerPriceContextFromPreview(d, selling) ?? defaultCtx,
+        keepSale: allowKeep
+          ? {
+              available: true,
+              enabled: keep,
+              onToggle: (enabled) => {
+                if (enabled && !keepData) return;
+                show(enabled);
+              },
+              disabledReason: defaultCtx && canKeepSale(defaultCtx) && keepData ? null : (defaultCtx ? keepSaleDisabledReason(defaultCtx) : null),
+            }
+          : undefined,
+        onConfirm: async () => {
+          const r = await callSync<{ warning?: string }>({ action: "apply", ...body, token: d.token, ...(keep ? { keep_sale: true } : {}) });
+          if (r.error) return void toast.error(syncErrorMessage(r.error));
+          toast.success(r.data?.warning === "created_not_mapped" ? "أُضيف إلى الموقع، ويُرجى ربطه يدوياً" : "تم التنفيذ على الموقع");
+          setPreview(null);
+          void load();
+        },
+      });
+    };
+    show(false);
   };
 
   const openPull = (r: CatalogRow) => {
