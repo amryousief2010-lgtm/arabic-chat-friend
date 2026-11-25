@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { writeOrderTotalsPreservingShipping } from "@/lib/preserveOrderShipping";
 import { isOfferShippingLine } from "@/lib/orderTotals";
 import { includedShippingForInstances, instancesAfterAddingBox } from "@/lib/offerBoxOrder";
+import { offerBoxIsSelectable } from "@/lib/offerValidity";
 
 interface OfferBox {
   id: string;
@@ -83,8 +84,7 @@ const AddOfferDialog = ({ open, onOpenChange, orderId, onSaved }: Props) => {
 
       const now = new Date();
       const active = (offersRes.data || []).filter((o: any) => {
-        if (o.expires_at && new Date(o.expires_at) <= now) return false;
-        if (o.starts_at && new Date(o.starts_at) > now) return false;
+        if (!offerBoxIsSelectable(o, now)) return false;
         return true;
       });
       setOffers(active as OfferBox[]);

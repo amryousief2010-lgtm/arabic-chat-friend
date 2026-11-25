@@ -24,6 +24,7 @@ import {
   Truck,
   Unlink,
   Upload,
+  CalendarClock,
 } from "lucide-react";
 import { WOO_MAP_SUGGESTIONS } from "@/data/wooMapSuggestions";
 import {
@@ -38,10 +39,11 @@ import {
   suggestionFor,
   summarizeBoxItems,
 } from "@/lib/websiteProducts";
+import { formatValidityDate, VALIDITY_STATE_LABELS, validityState } from "@/lib/offerValidity";
 import { BRAND, CocTag, MiniThumb, ProductImageFrame, SkuChip, TypeBadge } from "./shared";
 
 export type Target = { kind: "product" | "offer_box"; id: string };
-export type ManageAction = "price" | "image" | "sale" | "visibility" | "sku";
+export type ManageAction = "price" | "image" | "sale" | "visibility" | "sku" | "validity";
 
 /** زر الصورة على البطاقة: بارز عند غياب أي صورة، ويظهر عند المرور فقط إذا كانت هناك صورة معروضة. */
 function ImageButton({ hasImage, shown, onClick }: { hasImage: boolean; shown?: boolean; onClick: () => void }) {
@@ -158,6 +160,12 @@ export function SiteProductCard({
           <div className="text-[11px] text-muted-foreground mt-0.5">
             رقم الموقع: <bdi dir="ltr">#{s.woo_product_id}</bdi>
           </div>
+          {isBox && row.box && (
+            <div className="text-[11px] mt-1 font-medium" style={{ color: BRAND.deep }}>
+              صلاحية العرض: {VALIDITY_STATE_LABELS[validityState(row.box)]}
+              {row.box.expires_at ? ` · حتى ${formatValidityDate(row.box.expires_at)}` : ""}
+            </div>
+          )}
         </div>
 
         <div className="rounded-xl bg-muted/45 p-2.5 space-y-1.5">
@@ -351,6 +359,12 @@ export function SiteProductCard({
                     <Eye className="w-4 h-4" />
                     <span>الظهور على الموقع</span>
                   </DropdownMenuItem>
+                  {row.kind === "offer_box" && (
+                    <DropdownMenuItem className="gap-2" onSelect={() => onManage("validity", row)}>
+                      <CalendarClock className="w-4 h-4" />
+                      <span>صلاحية العرض</span>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem className="gap-2" onSelect={() => onManage("image", row)}>
                     <ImagePlus className="w-4 h-4" />
                     <span>{cocImage ? "استبدال الصورة" : "إضافة صورة"}</span>
@@ -428,7 +442,7 @@ export function CocMissingCard({
 }: {
   item: CocMissingItem;
   onPush: () => void;
-  onManage?: (a: "price" | "image", item: CocMissingItem) => void;
+  onManage?: (a: "price" | "image" | "validity", item: CocMissingItem) => void;
 }) {
   const isBox = item.kind === "offer_box";
   const ready = (item.price ?? 0) > 0 && (!isBox || item.items.length > 0);
@@ -526,6 +540,12 @@ export function CocMissingCard({
                   <ImagePlus className="w-4 h-4" />
                   <span>{item.image_url ? "استبدال الصورة" : "إضافة صورة"}</span>
                 </DropdownMenuItem>
+                {item.kind === "offer_box" && (
+                  <DropdownMenuItem className="gap-2" onSelect={() => onManage("validity", item)}>
+                    <CalendarClock className="w-4 h-4" />
+                    <span>صلاحية العرض</span>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -694,6 +714,12 @@ export function SiteTableRow({
                 <ImagePlus className="w-3.5 h-3.5" />
                 الصورة
               </Button>
+              {row.kind === "offer_box" && (
+                <Button size="sm" variant="outline" className="gap-1 rounded-xl" onClick={() => onManage("validity", row)}>
+                  <CalendarClock className="w-3.5 h-3.5" />
+                  الصلاحية
+                </Button>
+              )}
               {skuState(row) === "mismatch" && !skuDuplicate && (
                 <Button size="sm" variant="outline" className="gap-1 rounded-xl" onClick={() => onManage("sku", row)}>
                   <ScanLine className="w-3.5 h-3.5" />

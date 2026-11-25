@@ -8,6 +8,7 @@
 // deno-lint-ignore no-import-prefix
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { createServiceClient } from "../_shared/require-user.ts";
+import { matchesCronSecret } from "../_shared/cron-secret.ts";
 import { handleCatalogSync, type CocBox, type Target } from "./handler.ts";
 
 const userClient = (token: string) =>
@@ -24,6 +25,7 @@ Deno.serve((req) => {
       WOO_CONSUMER_SECRET: Deno.env.get("WOO_CONSUMER_SECRET") ?? undefined,
       WOO_SITE_URL: Deno.env.get("WOO_SITE_URL") ?? undefined,
       WOO_BOX_SHIPPING_CLASS_SLUG: Deno.env.get("WOO_BOX_SHIPPING_CLASS_SLUG") ?? undefined,
+      WOO_CATALOG_CRON_SECRET: Deno.env.get("WOO_CATALOG_CRON_SECRET") ?? undefined,
     },
     fetchImpl: fetch,
     authenticate: async (r) => {
@@ -85,12 +87,56 @@ Deno.serve((req) => {
       if (error) throw new Error(error.message);
     },
     log: async (e) => {
-      const { error } = await admin.rpc("woo_sync_log_write", {
+      const { data, error } = await admin.rpc("woo_sync_log_write", {
         _actor: e.actor, _action: e.action, _direction: "coc_to_site", _woo_product_id: e.woo_product_id,
         _woo_variation_id: e.woo_variation_id, _product_id: e.product_id, _offer_box_id: e.offer_box_id,
         _before: e.before, _after: e.after, _status: e.status, _error: e.error,
       });
       if (error) console.error("woo_sync_log_write failed", error.message.slice(0, 200));
+      return data ? String(data) : undefined;
+    },
+    authenticateCron: (r) => {
+      const got = (r.headers.get("x-woo-catalog-cron-secret") ?? "").trim();
+      const want = Deno.env.get("WOO_CATALOG_CRON_SECRET") ?? "";
+      return Promise.resolve(matchesCronSecret(got, want));
+    },
+    listValidityJobs: async () => {
+      const { data, error } = await admin.rpc("website_offer_validity_jobs");
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        offer_box_id: String(r.offer_box_id),
+        woo_product_id: Number(r.woo_product_id),
+        starts_at: r.starts_at ? String(r.starts_at) : null,
+        expires_at: r.expires_at ? String(r.expires_at) : null,
+        site_hidden_by_validity: !!r.site_hidden_by_validity,
+        validity_prev_catalog_visibility: r.validity_prev_catalog_visibility ? String(r.validity_prev_catalog_visibility) : null,
+        wanted: r.wanted === "hide" || r.wanted === "show" ? r.wanted : "none",
+      }));
+    },
+    setValidityFlag: async (boxId, hidden, prev) => {
+      const { error } = await admin.rpc("website_set_validity_site_flag", {
+        _box_id: boxId, _hidden: hidden, _prev_visibility: prev,
+      });
+      if (error) throw new Error(error.message);
+    },
+    saveBackup: async (logId, wooId, snapshot, sha, actor) => {
+      const { error } = await admin.rpc("woo_product_backup_write", {
+        _log_id: logId, _woo_product_id: wooId, _snapshot: snapshot, _snapshot_sha: sha, _confirmed_by: actor,
+      });
+      if (error) console.error("woo_product_backup_write failed", error.message.slice(0, 200));
+    },
+    loadBackup: async (backupId) => {
+      const { data } = await admin.from("woo_product_backups").select("id, woo_product_id, snapshot, snapshot_sha, confirmed_by, confirmed_at")
+        .eq("id", backupId).maybeSingle();
+      if (!data) return null;
+      return {
+        id: String(data.id),
+        woo_product_id: Number(data.woo_product_id),
+        snapshot: (data.snapshot ?? {}) as Record<string, unknown>,
+        snapshot_sha: String(data.snapshot_sha),
+        confirmed_by: data.confirmed_by ? String(data.confirmed_by) : null,
+        confirmed_at: String(data.confirmed_at),
+      };
     },
   });
 });

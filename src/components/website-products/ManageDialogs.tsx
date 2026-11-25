@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, BadgePercent, Eye, EyeOff, Gift, ImagePlus, Lock, PencilLine, Truck, UploadCloud } from "lucide-react";
+import { ArrowLeft, BadgePercent, CalendarClock, Eye, EyeOff, Gift, ImagePlus, Lock, PencilLine, Truck, UploadCloud } from "lucide-react";
 import {
   type BoxItemSummary,
   CHANGE_FIELD_LABELS,
@@ -25,10 +25,11 @@ import {
   imageStoragePath,
   syncErrorMessage,
 } from "@/lib/websiteProducts";
+import { formatValidityDate, parseValidityInput, shouldHideOnSite, toDatetimeLocal, type ValidityMode, validityModeOf, validityState, VALIDITY_STATE_LABELS } from "@/lib/offerValidity";
 import { compressImage } from "@/lib/imageCompress";
 import type { Change, PreviewState } from "./Dialogs";
 import { BRAND, CocTag, ProductImageFrame } from "./shared";
-import { type SiteEditBody, siteApply, sitePreview } from "./sync";
+import { type SiteEditBody, siteApply, siteApplyWithReason, sitePreview } from "./sync";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -47,6 +48,9 @@ export interface ManageCtx {
   siteRegular: number | null;
   siteSale: number | null;
   siteImage: string | null;
+  startsAt?: string | null;
+  expiresAt?: string | null;
+  siteHiddenByValidity?: boolean;
 }
 
 /** يحوّل فروق الموقع إلى صفوف معاينة مقروءة («على الموقع»). */
@@ -65,6 +69,7 @@ export async function previewSiteEdit(
   confirmLabel: string,
   onPreview: (p: PreviewState | null) => void,
   onDone: () => void,
+  reason?: string,
 ) {
   const { data, error } = await sitePreview(wooId, edit);
   if (error || !data) return void toast.error(syncErrorMessage(error));
@@ -75,7 +80,9 @@ export async function previewSiteEdit(
     confirmLabel,
     blocked: data.keys_configured ? (data.changes.length ? null : "لا توجد فروق") : syncErrorMessage("woo_keys_missing"),
     onConfirm: async () => {
-      const r = await siteApply(wooId, edit, data.token);
+      const r = reason
+        ? await siteApplyWithReason(wooId, edit, data.token, reason)
+        : await siteApply(wooId, edit, data.token);
       if (r.error) return void toast.error(syncErrorMessage(r.error));
       toast.success("تم التنفيذ على الموقع وتسجيله في السجل");
       onPreview(null);
@@ -604,4 +611,171 @@ export function ImageDialog({ ctx, onClose, onDone }: { ctx: ManageCtx | null; o
       </DialogContent>
     </Dialog>
   );
+}
+
+
+// ── 5) صلاحية العرض ────────────────────────────────────────────────────────
+
+
+export function ValidityDialog({
+  ctx,
+  onClose,
+  onPreview,
+  onDone,
+}: {
+  ctx: ManageCtx | null;
+  onClose: () => void;
+  onPreview: (p: PreviewState | null) => void;
+  onDone: () => void;
+}) {
+  const initial = { starts_at: ctx?.startsAt ?? null, expires_at: ctx?.expiresAt ?? null };
+  const [mode, setMode] = useState<ValidityMode>(validityModeOf(initial));
+  const [starts, setStarts] = useState(toDatetimeLocal(ctx?.startsAt));
+  const [expires, setExpires] = useState(toDatetimeLocal(ctx?.expiresAt));
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const v = { starts_at: ctx?.startsAt ?? null, expires_at: ctx?.expiresAt ?? null };
+    setMode(validityModeOf(v));
+    setStarts(toDatetimeLocal(ctx?.startsAt));
+    setExpires(toDatetimeLocal(ctx?.expiresAt));
+  }, [ctx]);
+  if (!ctx || ctx.kind !== "offer_box") return null;
+
+  const save = async () => {
+    const parsed = parseValidityInput(mode, starts, expires);
+    if (!parsed.ok) return void toast.error(syncErrorMessage(parsed.error));
+    setBusy(true);
+    const { data, error } = await db.rpc("website_set_offer_validity", {
+      _box_id: ctx.id,
+      _mode: mode,
+      _starts_at: parsed.starts_at,
+      _expires_at: parsed.expires_at,
+    });
+    setBusy(false);
+    if (error) return void toast.error(syncErrorMessage(error.message) || error.message);
+    toast.success("تم حفظ مدة العرض في النظام");
+    onClose();
+    onDone();
+    if (ctx.wooId != null && data) {
+      const hide = shouldHideOnSite({ starts_at: parsed.starts_at, expires_at: parsed.expires_at });
+      const alreadyOurs = !!ctx.siteHiddenByValidity;
+      if (hide) {
+        void previewSiteEdit(
+          ctx.wooId,
+          { kind: "visibility", status: "publish", catalog_visibility: "hidden" },
+          `إخفاء العرض على الموقع لانتهاء/عدم بدء المدة: «${ctx.siteName ?? ctx.name}»`,
+          "تأكيد الإخفاء على الموقع",
+          onPreview,
+          onDone,
+          "validity",
+        );
+      } else if (alreadyOurs) {
+        void previewSiteEdit(
+          ctx.wooId,
+          { kind: "visibility", status: "publish", catalog_visibility: "visible" },
+          `إعادة إظهار العرض على الموقع بعد تمديد المدة: «${ctx.siteName ?? ctx.name}»`,
+          "تأكيد الإظهار على الموقع",
+          onPreview,
+          onDone,
+          "validity",
+        );
+      }
+    }
+  };
+
+  const state = validityState({ starts_at: mode === "open" ? null : starts, expires_at: mode === "open" ? null : expires });
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent dir="rtl" className="font-cairo max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2" style={{ color: BRAND.deep }}>
+            <CalendarClock className="w-5 h-5" />
+            صلاحية العرض — {ctx.name}
+          </DialogTitle>
+          <DialogDescription>
+            اختاري «مفتوح بدون مدة» أو حدّدي بداية ونهاية. يمكن التعديل في أي وقت. السعر والشحن والمكوّنات لا تتغير. الحالة الحالية: {VALIDITY_STATE_LABELS[state]}
+            {ctx.startsAt || ctx.expiresAt ? ` (من ${formatValidityDate(ctx.startsAt)} إلى ${formatValidityDate(ctx.expiresAt)})` : ""}.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" className={`rounded-xl border px-3 py-2 text-sm ${mode === "open" ? "border-[#662D8C] bg-[#662D8C]/10 font-medium" : "border-border"}`} onClick={() => setMode("open")}>
+            مفتوح بدون مدة
+          </button>
+          <button type="button" className={`rounded-xl border px-3 py-2 text-sm ${mode === "window" ? "border-[#662D8C] bg-[#662D8C]/10 font-medium" : "border-border"}`} onClick={() => setMode("window")}>
+            له مدة
+          </button>
+        </div>
+        {mode === "window" && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>تاريخ البداية</Label>
+              <Input type="datetime-local" dir="ltr" value={starts} onChange={(e) => setStarts(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>تاريخ النهاية</Label>
+              <Input type="datetime-local" dir="ltr" value={expires} onChange={(e) => setExpires(e.target.value)} />
+            </div>
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">
+          خارج المدة لا يُختار العرض لطلبات جديدة، ويُخفى من متجر الموقع (منشور ومخفي — عكسه آمن). عند التمديد يظهر مرة أخرى بعد التأكيد.
+        </p>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose}>إلغاء</Button>
+          <Button style={{ backgroundColor: BRAND.primary }} disabled={busy} onClick={() => void save()} className="gap-1.5">
+            حفظ المدة
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function RestoreDialog({
+  backupId,
+  title,
+  onClose,
+  onPreview,
+  onDone,
+}: {
+  backupId: string | null;
+  title: string;
+  onClose: () => void;
+  onPreview: (p: PreviewState | null) => void;
+  onDone: () => void;
+}) {
+  useEffect(() => {
+    if (!backupId) return;
+    void (async () => {
+      const { restorePreview, restoreApply } = await import("./sync");
+      const { data, error } = await restorePreview(backupId);
+      if (error || !data) {
+        toast.error(syncErrorMessage(error));
+        onClose();
+        return;
+      }
+      onClose();
+      onPreview({
+        title: `استرجاع المنتج إلى ما قبل: ${title}`,
+        changes: (data.changes ?? []).map((c) => ({
+          field: CHANGE_FIELD_LABELS[c.field] ?? c.field,
+          before: typeof c.before === "string" || c.before == null ? changeValueLabel(c.field, c.before as string | null) : JSON.stringify(c.before),
+          after: typeof c.after === "string" || c.after == null ? changeValueLabel(c.field, c.after as string | null) : JSON.stringify(c.after),
+        })),
+        warnings: data.warnings ?? [],
+        confirmLabel: "تأكيد الاسترجاع",
+        blocked: data.keys_configured ? (data.changes.length ? null : "المنتج مطابق للنسخة المحفوظة") : syncErrorMessage("woo_keys_missing"),
+        onConfirm: async () => {
+          const r = await restoreApply(backupId, data.token);
+          if (r.error) return void toast.error(syncErrorMessage(r.error));
+          toast.success("تم استرجاع المنتج على الموقع من النسخة المحفوظة");
+          onPreview(null);
+          onDone();
+        },
+      });
+    })();
+  }, [backupId, title, onClose, onPreview, onDone]);
+  return null;
 }

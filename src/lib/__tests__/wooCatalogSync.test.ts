@@ -24,7 +24,7 @@ function makeDeps(over: Partial<CatalogDeps> = {}) {
       return new Response(JSON.stringify([storeItem(937, "850"), storeItem(940, "300")]), { headers: { "x-wp-totalpages": "1" } });
     }
     restCalls.push({ method, url: u, body: init?.body ? JSON.parse(String(init.body)) : null });
-    if (method === "GET") return new Response(JSON.stringify({ id: 937, name: "استيك نعام حلال", regular_price: "850", sale_price: "", sku: "", short_description: "", status: "publish" }));
+    if (method === "GET") return new Response(JSON.stringify({ id: 937, name: "استيك نعام حلال", regular_price: "850", sale_price: "", sku: "", short_description: "", status: "publish", catalog_visibility: "visible", images: [] }));
     if (method === "POST") return new Response(JSON.stringify({ id: 5555 }), { status: 201 });
     return new Response(JSON.stringify({ id: 937 }));
   }) as unknown as typeof fetch;
@@ -317,5 +317,97 @@ describe("site edits (price / sale / visibility / SKU / image)", () => {
     expect(bad.logs[0]).toMatchObject({ action: "site_price", status: "failed" });
     expect((await run(deps, { kind: "nope" })).status).toBe(400);
     expect((await run(deps, { kind: "price", regular_price: -1 })).status).toBe(422);
+  });
+});
+
+
+describe("restore, backups and expire_offers", () => {
+  it("takes a pre-write snapshot on site_apply", async () => {
+    const backups: { woo: number; sha: string }[] = [];
+    const { deps, restCalls, logs } = makeDeps({
+      saveBackup: async (_id, woo, _snap, sha) => { backups.push({ woo, sha }); },
+      mappingForWoo: async () => ({ woo_product_id: 937, woo_variation_id: 0, kind: "product", product_id: PID, offer_box_id: null }),
+    });
+    const pv = await (await handleCatalogSync(post({ action: "site_preview", woo_product_id: 937, edit: { kind: "visibility", status: "publish", catalog_visibility: "hidden" } }), deps)).json();
+    const res = await handleCatalogSync(post({ action: "site_apply", woo_product_id: 937, edit: { kind: "visibility", status: "publish", catalog_visibility: "hidden" }, token: pv.token }), deps);
+    expect(res.status).toBe(200);
+    expect(backups).toHaveLength(1);
+    expect(backups[0].woo).toBe(937);
+    expect(backups[0].sha).toHaveLength(64);
+    expect(restCalls.some((c) => c.method === "PUT")).toBe(true);
+    expect(logs.some((e) => e.action === "site_visibility" && e.status === "applied")).toBe(true);
+  });
+
+  it("restore_apply returns 409 when the live product changed after preview", async () => {
+    const snap = { id: 937, name: "استيك نعام حلال", regular_price: "850", sale_price: "", status: "publish", catalog_visibility: "visible" };
+    let flip = 0;
+    const { deps } = makeDeps({
+      loadBackup: async () => ({ id: "bk1", woo_product_id: 937, snapshot: snap, snapshot_sha: "x", confirmed_by: "u1", confirmed_at: "2026-11-25T00:00:00Z" }),
+      fetchImpl: (async (url: string | URL | Request, init?: RequestInit) => {
+        const method = init?.method ?? "GET";
+        if (method === "GET") {
+          flip += 1;
+          const name = flip === 1 ? "استيك نعام حلال" : "اسم تغيّر";
+          return new Response(JSON.stringify({ id: 937, name, regular_price: "850", sale_price: "", status: "publish", catalog_visibility: "visible" }));
+        }
+        return new Response(JSON.stringify({ id: 937 }));
+      }) as unknown as typeof fetch,
+    });
+    const pv = await (await handleCatalogSync(post({ action: "restore_preview", backup_id: "bk1" }), deps)).json();
+    expect(pv.token).toBeTruthy();
+    // second GET during apply sees a different name → token mismatch
+    const res = await handleCatalogSync(post({ action: "restore_apply", backup_id: "bk1", token: pv.token }), deps);
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toBe("changed_since_preview");
+  });
+
+  it("expire_offers hides a mapped box outside its window and is idempotent when already hidden", async () => {
+    const flags: { hidden: boolean; prev: string | null }[] = [];
+    const job = {
+      offer_box_id: BID, woo_product_id: 937, starts_at: "2026-11-01T00:00:00Z", expires_at: "2026-11-20T00:00:00Z",
+      site_hidden_by_validity: false, validity_prev_catalog_visibility: null, wanted: "hide" as const,
+    };
+    const { deps, logs } = makeDeps({
+      listValidityJobs: async () => [job],
+      setValidityFlag: async (_id, hidden, prev) => { flags.push({ hidden, prev }); },
+      saveBackup: async () => {},
+    });
+    const res = await handleCatalogSync(post({ action: "expire_offers" }), deps);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.results[0].result).toBe("hidden");
+    expect(flags[0]).toEqual({ hidden: true, prev: "visible" });
+    expect(logs.some((e) => e.action === "site_validity" && e.status === "applied")).toBe(true);
+
+    // already hidden: no flag claim
+    const { deps: d2 } = makeDeps({
+      listValidityJobs: async () => [job],
+      setValidityFlag: async () => { throw new Error("should not set flag"); },
+      fetchImpl: (async (_u: string | URL | Request, init?: RequestInit) => {
+        const method = init?.method ?? "GET";
+        if (method === "GET") return new Response(JSON.stringify({ id: 937, status: "publish", catalog_visibility: "hidden" }));
+        return new Response(JSON.stringify({ id: 937 }));
+      }) as unknown as typeof fetch,
+    });
+    const res2 = await handleCatalogSync(post({ action: "expire_offers" }), d2);
+    const body2 = await res2.json();
+    expect(res2.status).toBe(200);
+    expect(body2.results[0].result).toBe("already_hidden");
+  });
+
+  it("cron secret can run expire_offers without a user JWT, and other actions stay forbidden", async () => {
+    const { deps } = makeDeps({
+      authenticate: async () => null,
+      authenticateCron: async (req) => req.headers.get("x-woo-catalog-cron-secret") === "s3cret",
+      listValidityJobs: async () => [],
+      setValidityFlag: async () => {},
+    });
+    const cronReq = (action: string) =>
+      new Request(URL_, { method: "POST", headers: { "content-type": "application/json", "x-woo-catalog-cron-secret": "s3cret" }, body: JSON.stringify({ action }) });
+    const ok = await handleCatalogSync(cronReq("expire_offers"), deps);
+    expect(ok.status).toBe(200);
+    const denied = await handleCatalogSync(cronReq("refresh"), deps);
+    expect(denied.status).toBe(403);
   });
 });

@@ -34,3 +34,20 @@ export type SiteEditBody =
 export const sitePreview = (wooId: number, edit: SiteEditBody) => callSync<SitePreview>({ action: "site_preview", woo_product_id: wooId, edit });
 export const siteApply = (wooId: number, edit: SiteEditBody, token: string) =>
   callSync<{ changed: boolean }>({ action: "site_apply", woo_product_id: wooId, edit, token });
+
+export const restorePreview = (backupId: string) =>
+  callSync<{
+    changes: { field: string; before: unknown; after: unknown }[];
+    warnings: string[];
+    token: string;
+    keys_configured: boolean;
+    confirmed_by: string | null;
+    confirmed_at: string;
+    woo_product_id: number;
+  }>({ action: "restore_preview", backup_id: backupId });
+
+export const restoreApply = (backupId: string, token: string) =>
+  callSync<{ changed: boolean }>({ action: "restore_apply", backup_id: backupId, token });
+
+export const siteApplyWithReason = (wooId: number, edit: SiteEditBody, token: string, reason?: string) =>
+  callSync<{ changed: boolean }>({ action: "site_apply", woo_product_id: wooId, edit, token, reason });

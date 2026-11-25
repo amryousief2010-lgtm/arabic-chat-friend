@@ -76,6 +76,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { AGOUZA_WAREHOUSE_ID, reserveAgouzaForOrder } from '@/lib/agouzaReservations';
 import { getSalesInventoryAvailability, sumAvailableByProduct } from '@/lib/inventoryReadApi';
+import { offerBoxIsSelectable } from "@/lib/offerValidity";
 
 
 interface Product {
@@ -482,8 +483,7 @@ const NewOrder = () => {
 
         const now = new Date();
         const activeOffers = (offersRes.data || []).filter((offer: any) => {
-          if (offer.expires_at && new Date(offer.expires_at) <= now) return false;
-          if (offer.starts_at && new Date(offer.starts_at) > now) return false;
+          if (!offerBoxIsSelectable(offer, now)) return false;
           return true;
         });
 
