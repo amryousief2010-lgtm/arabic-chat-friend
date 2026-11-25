@@ -74,3 +74,7 @@ verify_jwt = true
 # التقرير الصباحي: الكرون بيبعت x-cm-ai-cron-secret من غير JWT؛ الصلاحية جوه الدالة (سر الكرون أو GM/SM).
 [functions.cm-morning-report]
 verify_jwt = false
+
+# عدادات طلبات المنتجات لموقع capitalostrich.com (قراءة فقط): ووردبريس/ووكومرس بيبعت x-site-key من غير JWT؛ التحقق في زمن ثابت جوه الدالة (SITE_COUNTERS_KEY).
+[functions.site-product-counters]
+verify_jwt = false

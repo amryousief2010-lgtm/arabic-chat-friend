@@ -169,12 +169,34 @@ describe("Lovable remaining edge-function auth hardening", () => {
     }
   });
 
-  it("config.toml disables gateway JWT only for auth-email-hook, meta-social-webhook, sync-zodex-shipments and whatsapp-webhook", () => {
+  it("config.toml disables gateway JWT only for approved in-function-auth endpoints", () => {
     const toml = config();
     const disabled = [...toml.matchAll(/\[functions\.([^\]]+)\]\s*\nverify_jwt\s*=\s*false/g)]
       .map((m) => m[1])
       .sort();
-    expect(disabled).toEqual(["auth-email-hook", "meta-social-webhook", "sync-zodex-shipments", "whatsapp-webhook"]);
+    expect(disabled).toEqual([
+      "auth-email-hook",
+      "cm-morning-report",
+      "meta-social-webhook",
+      "site-product-counters",
+      "sync-zodex-shipments",
+      "whatsapp-webhook",
+    ]);
+  });
+
+  it("site-product-counters (no gateway JWT) enforces constant-time x-site-key auth and never logs the secret", () => {
+    const handlerSrc = readFileSync(
+      resolve(process.cwd(), "supabase/functions/site-product-counters/handler.ts"),
+      "utf8",
+    );
+    const indexSrc = fn("site-product-counters");
+    expect(handlerSrc).toMatch(/x-site-key/i);
+    expect(handlerSrc).toMatch(/SITE_COUNTERS_KEY/);
+    expect(handlerSrc).toMatch(/timingSafeEqualText/);
+    expect(handlerSrc).toMatch(/401/);
+    expect(handlerSrc).toMatch(/https:\/\/capitalostrich\.com/);
+    expect(handlerSrc).not.toMatch(/console\.(log|info|debug|warn|error)\(.*SITE_COUNTERS_KEY/);
+    expect(indexSrc).not.toMatch(/console\.(log|info|debug|warn|error)\(.*SITE_COUNTERS_KEY/);
   });
 
   // ميتا لا ترسل JWT؛ البديل الإلزامي هو التحقق من توقيع X-Hub-Signature-256 ورفض العمل بدون الأسرار.
