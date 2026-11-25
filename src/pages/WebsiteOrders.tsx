@@ -48,7 +48,7 @@ interface InboxRow {
   assigned_moderator_user_id: string | null;
   created_order_id: string | null;
   assigned_at: string | null;
-  dismissed_reason: string | null;
+  dismiss_reason: string | null;
   site_changed_after_assign: boolean;
 }
 
@@ -260,7 +260,7 @@ function InboxCard({ row, maps, products, boxes, moderators, moderatorName, onCh
             )}
           </div>
         )}
-        {row.status === "dismissed" && row.dismissed_reason && <div className="text-sm text-muted-foreground">سبب التجاهل: {row.dismissed_reason}</div>}
+        {row.status === "dismissed" && row.dismiss_reason && <div className="text-sm text-muted-foreground">سبب التجاهل: {row.dismiss_reason}</div>}
 
         {isNew && (
           <div className="space-y-3 border-t pt-3">
