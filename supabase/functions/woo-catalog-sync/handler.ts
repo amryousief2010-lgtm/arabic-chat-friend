@@ -209,13 +209,18 @@ export class SyncError extends Error {
 }
 
 /** What we want the Woo product to look like (only the fields we manage). */
-export function desiredFields(mode: Mode, target: Target, src: CocProduct | CocBox, before: WooFields | null, env: CatalogEnv = {}): WooFields {
+export function desiredFields(mode: Mode, target: Target, src: CocProduct | CocBox, before: WooFields | null, env: CatalogEnv = {}, keepSale = false): WooFields {
   const isBox = target.kind === "offer_box";
   const price = isBox ? (src as CocBox).offer_price : (src as CocProduct).price;
   if (!price || price <= 0) throw new SyncError(422, "coc_price_missing");
-  const out: WooFields = { regular_price: money(price) };
-  // Remove any site sale so the selling price equals coceg exactly (shown in the diff).
-  if (mode === "create" || (before?.sale_price ?? "") !== "") out.sale_price = "";
+  const currentRegular = Number(before?.regular_price || 0);
+  const currentSale = Number(before?.sale_price || 0);
+  const canKeep = keepSale && currentSale > 0 && currentRegular > 0 && price < currentRegular;
+  if (keepSale && currentSale > 0 && !(price < currentRegular)) throw new SyncError(422, "sale_not_below_price");
+  const out: WooFields = canKeep ? { sale_price: money(price) } : { regular_price: money(price) };
+  // Default: remove any site sale so the selling price equals coceg exactly (shown in the diff).
+  // keep_sale: set coceg as the sale price and leave the current regular as the crossed-out price.
+  if (!canKeep && (mode === "create" || (before?.sale_price ?? "") !== "")) out.sale_price = "";
   if (isBox) {
     const box = src as CocBox;
     if (!box.items.length) throw new SyncError(422, "box_has_no_items");
@@ -349,7 +354,7 @@ async function restWrite(env: CatalogEnv, f: typeof fetch, method: "POST" | "PUT
 
 // ── preview / apply ─────────────────────────────────────────────────────────
 
-interface PreviewInput { mode: Mode; target: Target; woo_product_id: number | null }
+interface PreviewInput { mode: Mode; target: Target; woo_product_id: number | null; keep_sale?: boolean }
 
 export async function buildPreview(deps: CatalogDeps, input: PreviewInput) {
   const { mode, target } = input;
@@ -379,7 +384,7 @@ export async function buildPreview(deps: CatalogDeps, input: PreviewInput) {
     warnings.push("box_free_shipping_class");
     if ((src as CocBox).shipping_cost) warnings.push("box_price_includes_shipping");
   }
-  const after = desiredFields(mode, target, src, before, deps.env);
+  const after = desiredFields(mode, target, src, before, deps.env, !!input.keep_sale);
   const changes = diffFields(before, after);
   const token = await previewToken({ mode, target, woo_product_id: wooId, before, after });
   return { mode, target, woo_product_id: wooId, before, after, changes, token, warnings, keys_configured: keysConfigured(deps.env) };
@@ -394,7 +399,7 @@ function parseInput(body: Record<string, unknown>): PreviewInput {
     throw new SyncError(400, "bad_target");
   }
   const w = body.woo_product_id;
-  return { mode, target: { kind: t.kind, id: t.id }, woo_product_id: w === undefined || w === null ? null : Number(w) };
+  return { mode, target: { kind: t.kind, id: t.id }, woo_product_id: w === undefined || w === null ? null : Number(w), keep_sale: body.keep_sale === true };
 }
 
 // ── site edits on a mapped product (price / sale / visibility / SKU / image) ──
@@ -404,6 +409,7 @@ export type SiteEditAction = "site_price" | "site_sale" | "site_visibility" | "s
 export interface SiteEdit {
   kind: SiteEditKind;
   regular_price?: number;
+  keep_sale?: boolean;
   sale_price?: number | null;
   date_from?: string | null;
   date_to?: string | null;
@@ -452,6 +458,11 @@ export function parseSiteEdit(raw: unknown): SiteEdit {
 export function siteEditFields(edit: SiteEdit, before: WooFields | null, src: CocProduct | CocBox | null, srcKind: "product" | "offer_box" | null): WooFields {
   switch (edit.kind) {
     case "price": {
+      if (edit.keep_sale) {
+        const currentRegular = Number(before?.regular_price || 0);
+        if (!(Number(edit.regular_price) > 0 && Number(edit.regular_price) < currentRegular)) throw new SyncError(422, "sale_not_below_price");
+        return { sale_price: money(edit.regular_price) };
+      }
       const out: WooFields = { regular_price: money(edit.regular_price) };
       const sale = Number(before?.sale_price || 0);
       if (sale > 0 && sale >= Number(edit.regular_price)) out.sale_price = ""; // a sale must stay below the price
@@ -484,7 +495,9 @@ const SITE_EDIT_ACTION: Record<SiteEditKind, SiteEditAction> = {
   price: "site_price", sale: "site_sale", visibility: "site_visibility", sku: "site_sku", image: "site_image",
 };
 
-export async function buildSiteEditPreview(deps: CatalogDeps, wooId: number, edit: SiteEdit) {
+export async function buildSiteEditPreview(deps: CatalogDeps, wooId: number, edit: SiteEdit, keepSale = false) {
+  if (keepSale) edit = { ...edit, keep_sale: true };
+
   if (!Number.isInteger(wooId) || wooId <= 0) throw new SyncError(400, "bad_woo_product_id");
   const mapping = deps.mappingForWoo ? await deps.mappingForWoo(wooId) : null;
   const srcKind = mapping?.kind ?? null;
@@ -690,13 +703,13 @@ export async function handleCatalogSync(req: Request, deps: CatalogDeps): Promis
         }
       }
       case "site_preview":
-        return json(200, await buildSiteEditPreview(deps, Number(body.woo_product_id), parseSiteEdit(body.edit)));
+        return json(200, await buildSiteEditPreview(deps, Number(body.woo_product_id), parseSiteEdit(body.edit), body.keep_sale === true));
 
       case "site_apply": {
         const wooId = Number(body.woo_product_id);
         const edit = parseSiteEdit(body.edit);
         if (!keysConfigured(deps.env)) return json(503, { error: "woo_keys_missing" });
-        const p = await buildSiteEditPreview(deps, wooId, edit);
+        const p = await buildSiteEditPreview(deps, wooId, edit, body.keep_sale === true);
         if (typeof body.token !== "string" || body.token !== p.token) return json(409, { error: "changed_since_preview", preview: p });
         if (p.changes.length === 0) return json(200, { ok: true, changed: false });
         const entry = {

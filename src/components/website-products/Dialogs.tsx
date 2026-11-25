@@ -12,7 +12,6 @@ import {
   type BoxItemDraft,
   type CocProduct,
   type SiteProduct,
-  CHANGE_FIELD_LABELS,
   WARNING_LABELS,
   barcodeFromSiteSku,
   barcodeWarning,
@@ -21,6 +20,14 @@ import {
   importProductMissing,
   syncErrorMessage,
 } from "@/lib/websiteProducts";
+import {
+  type PreviewPriceContext,
+  canKeepSale,
+  customerPaySummary,
+  keepSaleLabel,
+  previewTableRows,
+  saleRemovalWarning,
+} from "@/lib/wooPreview";
 import { BRAND, CocTag } from "./shared";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,18 +46,60 @@ export interface PreviewState {
   confirmLabel: string;
   blocked: string | null;
   onConfirm: () => Promise<void>;
+  priceContext?: PreviewPriceContext;
+  keepSale?: {
+    available: boolean;
+    enabled: boolean;
+    onToggle: (enabled: boolean) => void;
+    disabledReason?: string | null;
+  };
 }
 
 export function PreviewDialog({ state, onClose }: { state: PreviewState | null; onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   if (!state) return null;
+  const ctx = state.priceContext ?? null;
+  const pay = ctx ? customerPaySummary(ctx) : null;
+  const saleWarn = ctx && !state.keepSale?.enabled ? saleRemovalWarning(ctx) : null;
+  const rows = previewTableRows(state.changes, ctx);
+  const keepAvailable = !!state.keepSale?.available || (!!ctx && canKeepSale(ctx));
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent dir="rtl" className="font-cairo max-w-2xl">
+      <DialogContent dir="rtl" className="font-cairo max-w-2xl max-h-[90dvh] overflow-hidden flex flex-col gap-3 p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle style={{ color: BRAND.deep }}>{state.title}</DialogTitle>
           <DialogDescription>معاينة الفروق قبل التنفيذ. لن يتغير شيء قبل التأكيد.</DialogDescription>
         </DialogHeader>
+        <div className="preview-scroll min-h-0 flex-1 overflow-y-auto space-y-3 pe-0.5 pb-2">
+        {pay && (
+          <div className="rounded-xl border px-4 py-3 text-sm font-medium leading-relaxed" style={{ borderColor: BRAND.deep, color: BRAND.deep, background: "color-mix(in srgb, #662D8C 8%, white)" }}>
+            {pay}
+          </div>
+        )}
+        {(saleWarn || keepAvailable) && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 space-y-2 text-sm text-amber-900">
+            {saleWarn && (
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{saleWarn}</span>
+              </div>
+            )}
+            {state.keepSale && keepAvailable && (
+              <label className="flex items-start gap-2 cursor-pointer">
+                <Checkbox
+                  checked={state.keepSale.enabled}
+                  disabled={!!state.keepSale.disabledReason}
+                  onCheckedChange={(v) => state.keepSale?.onToggle(v === true)}
+                  className="mt-0.5"
+                />
+                <span>{keepSaleLabel(ctx ?? { beforeRegular: null, beforeSale: null, afterRegular: null, afterSale: null })}</span>
+              </label>
+            )}
+            {state.keepSale?.disabledReason && (
+              <p className="text-xs text-destructive">{state.keepSale.disabledReason}</p>
+            )}
+          </div>
+        )}
         <Table dir="rtl">
           <TableHeader>
             <TableRow>
@@ -60,16 +109,25 @@ export function PreviewDialog({ state, onClose }: { state: PreviewState | null; 
             </TableRow>
           </TableHeader>
           <TableBody>
-            {state.changes.map((c) => (
+            {rows.map((c) => (
               <TableRow key={c.field}>
-                <TableCell>{CHANGE_FIELD_LABELS[c.field] ?? c.field}</TableCell>
+                <TableCell>
+                  <div>{c.label}</div>
+                  {c.hint && (
+                    <p className="text-xs text-muted-foreground mt-1 font-normal">
+                      {c.hint.includes("COCEG") ? (
+                        <>سيُكتب باركود <bdi dir="ltr">COCEG</bdi> على المنتج في الموقع.</>
+                      ) : c.hint}
+                    </p>
+                  )}
+                </TableCell>
                 <TableCell className="whitespace-pre-line text-muted-foreground">{c.before || "—"}</TableCell>
                 <TableCell className="whitespace-pre-line font-medium" style={{ color: BRAND.primary }}>
                   {c.after || "(فارغ)"}
                 </TableCell>
               </TableRow>
             ))}
-            {state.changes.length === 0 && (
+            {rows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={3} className="text-center text-muted-foreground">
                   لا توجد فروق
@@ -85,7 +143,8 @@ export function PreviewDialog({ state, onClose }: { state: PreviewState | null; 
           </div>
         ))}
         {state.blocked && <div className="text-sm text-destructive">{state.blocked}</div>}
-        <DialogFooter className="gap-2">
+        </div>
+        <DialogFooter className="gap-2 shrink-0 border-t bg-background pt-3 mt-1">
           <Button variant="outline" onClick={onClose}>
             إلغاء
           </Button>

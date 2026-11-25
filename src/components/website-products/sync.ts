@@ -22,6 +22,8 @@ export interface SitePreview {
   warnings: string[];
   token: string;
   keys_configured: boolean;
+  before?: { regular_price?: string | null; sale_price?: string | null } | null;
+  after?: { regular_price?: string | null; sale_price?: string | null } | null;
 }
 
 export type SiteEditBody =
@@ -31,9 +33,10 @@ export type SiteEditBody =
   | { kind: "sku" }
   | { kind: "image" };
 
-export const sitePreview = (wooId: number, edit: SiteEditBody) => callSync<SitePreview>({ action: "site_preview", woo_product_id: wooId, edit });
-export const siteApply = (wooId: number, edit: SiteEditBody, token: string) =>
-  callSync<{ changed: boolean }>({ action: "site_apply", woo_product_id: wooId, edit, token });
+export const sitePreview = (wooId: number, edit: SiteEditBody, keepSale = false) =>
+  callSync<SitePreview>({ action: "site_preview", woo_product_id: wooId, edit, ...(keepSale ? { keep_sale: true } : {}) });
+export const siteApply = (wooId: number, edit: SiteEditBody, token: string, keepSale = false) =>
+  callSync<{ changed: boolean }>({ action: "site_apply", woo_product_id: wooId, edit, token, ...(keepSale ? { keep_sale: true } : {}) });
 
 export const restorePreview = (backupId: string) =>
   callSync<{
@@ -44,10 +47,12 @@ export const restorePreview = (backupId: string) =>
     confirmed_by: string | null;
     confirmed_at: string;
     woo_product_id: number;
+    before?: { regular_price?: string | null; sale_price?: string | null } | null;
+    after?: { regular_price?: string | null; sale_price?: string | null } | null;
   }>({ action: "restore_preview", backup_id: backupId });
 
 export const restoreApply = (backupId: string, token: string) =>
   callSync<{ changed: boolean }>({ action: "restore_apply", backup_id: backupId, token });
 
-export const siteApplyWithReason = (wooId: number, edit: SiteEditBody, token: string, reason?: string) =>
-  callSync<{ changed: boolean }>({ action: "site_apply", woo_product_id: wooId, edit, token, reason });
+export const siteApplyWithReason = (wooId: number, edit: SiteEditBody, token: string, reason?: string, keepSale = false) =>
+  callSync<{ changed: boolean }>({ action: "site_apply", woo_product_id: wooId, edit, token, reason, ...(keepSale ? { keep_sale: true } : {}) });
