@@ -177,6 +177,24 @@ describe("normalizers", () => {
     expect(extractAttribution(null)).toBeNull();
   });
 
+  it("maps site plugin _coc_* last-touch and _coc_ft_* first-touch into attribution", () => {
+    expect(extractAttribution([
+      { key: "_coc_utm_source", value: "facebook" },
+      { key: "_coc_utm_campaign", value: "nov-sale" },
+      { key: "_coc_referrer", value: "https://l.facebook.com/" },
+      { key: "_coc_fbclid", value: "abc" },
+      { key: "_coc_gclid", value: "g1" },
+      { key: "_coc_ft_utm_source", value: "google" },
+      { key: "_coc_ft_utm_campaign", value: "oct" },
+      { key: "_coc_ft_referrer", value: "https://google.com/" },
+      { key: "_coc_ft_gclid", value: "first-g" },
+      { key: "_coc_internal_secret", value: "nope" },
+    ])).toEqual({
+      utm_source: "facebook", utm_campaign: "nov-sale", referrer: "https://l.facebook.com/", fbclid: "abc", gclid: "g1",
+      ft_utm_source: "google", ft_utm_campaign: "oct", ft_referrer: "https://google.com/", ft_gclid: "first-g",
+    });
+  });
+
   it("normalizeCustomer maps a registration", () => {
     const d = normalizeCustomer({ id: 5, email: "x@y.com", username: "x", billing: { phone: "01200000000", city: "طنطا", state: "الغربية" } });
     expect(d).toMatchObject({ woo_customer_id: 5, customer_name: "x", phone: "01200000000", email: "x@y.com", city: "طنطا", items: [] });

@@ -107,12 +107,14 @@ export const CHANGE_FIELD_LABELS: Record<string, string> = {
   sku: "SKU (الباركود)",
   short_description: "مكونات العرض",
   status: "الحالة على الموقع",
+  shipping_class: "فئة الشحن على الموقع",
 };
 
 export const WARNING_LABELS: Record<string, string> = {
   preview_from_cache: "المعاينة من آخر نسخة محفوظة لمنتجات الموقع لأن مفاتيح الكتابة غير مضبوطة بعد.",
   no_company_barcode_sku_left_empty: "لا يوجد باركود للشركة على المنتج، لذلك لن يُرسل SKU.",
   box_price_includes_shipping: "سعر العرض في coceg يشمل تكلفة الشحن كما هو، ولن يُرسل الشحن منفصلاً.",
+  box_free_shipping_class: "سيُضبط العرض على فئة الشحن المجاني للبوكسات حتى لا يُضاف شحن ثانٍ على الموقع.",
 };
 
 const ERRORS: Record<string, string> = {

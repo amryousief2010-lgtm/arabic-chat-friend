@@ -111,6 +111,9 @@ const joinName = (...parts: unknown[]) => str(parts.map((p) => str(p) ?? "").fil
 export const ATTRIBUTION_KEYS = [
   "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "utm_id",
   "referrer", "fbclid", "gclid", "landing_page", "source_type", "session_entry", "device_type",
+  // First-touch copies from the site plugin (_coc_ft_* → ft_* after the _coc_ prefix is stripped).
+  "ft_utm_source", "ft_utm_medium", "ft_utm_campaign", "ft_utm_term", "ft_utm_content",
+  "ft_referrer", "ft_fbclid", "ft_gclid",
 ] as const;
 
 export function extractAttribution(meta: unknown): Record<string, string> | null {

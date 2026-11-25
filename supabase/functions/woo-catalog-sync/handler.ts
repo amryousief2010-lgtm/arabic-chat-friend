@@ -12,7 +12,7 @@
  *   3) the result (applied or failed) goes to woo_sync_log with actor, before and after.
  * Rules: no description/halal text is pushed (names and box contents are stripped of halal claims);
  * SKU = company barcode (13 digits, 622400320…) only when present; never invented; new site
- * products are created as `draft`; shipping is never sent; box price = offer_price exactly as in
+ * products are created as `draft`; offer boxes get shipping_class (default «بوكسات-شحن-مجاني»); box price = offer_price exactly as in
  * coceg; one coceg box ↔ one site product (meta `_coc_offer_box_id`).
  */
 
@@ -20,11 +20,14 @@ export const DEFAULT_SITE_URL = "https://capitalostrich.com";
 export const COMPANY_BARCODE_RE = /^622400320\d{4}$/;
 export const STORE_PAGE_SIZE = 100;
 export const STORE_MAX_PAGES = 20;
+/** شحن العروض على الموقع: فئة «بوكسات - شحن مجاني» (term 516). يمكن تجاوزه بالسر WOO_BOX_SHIPPING_CLASS_SLUG. */
+export const DEFAULT_BOX_SHIPPING_CLASS_SLUG = "بوكسات-شحن-مجاني";
 
 export interface CatalogEnv {
   WOO_CONSUMER_KEY?: string;
   WOO_CONSUMER_SECRET?: string;
   WOO_SITE_URL?: string;
+  WOO_BOX_SHIPPING_CLASS_SLUG?: string;
 }
 
 export interface SiteProductRow {
@@ -57,6 +60,7 @@ export interface WooFields {
   sale_price?: string | null;
   sku?: string | null;
   short_description?: string | null;
+  shipping_class?: string | null;
   status?: string | null;
 }
 
@@ -170,7 +174,7 @@ export class SyncError extends Error {
 }
 
 /** What we want the Woo product to look like (only the fields we manage). */
-export function desiredFields(mode: Mode, target: Target, src: CocProduct | CocBox, before: WooFields | null): WooFields {
+export function desiredFields(mode: Mode, target: Target, src: CocProduct | CocBox, before: WooFields | null, env: CatalogEnv = {}): WooFields {
   const isBox = target.kind === "offer_box";
   const price = isBox ? (src as CocBox).offer_price : (src as CocProduct).price;
   if (!price || price <= 0) throw new SyncError(422, "coc_price_missing");
@@ -181,6 +185,8 @@ export function desiredFields(mode: Mode, target: Target, src: CocProduct | CocB
     const box = src as CocBox;
     if (!box.items.length) throw new SyncError(422, "box_has_no_items");
     out.short_description = boxContentsText(box.items);
+    // Free-shipping class so the site does not add a second delivery fee on top of offer_price.
+    out.shipping_class = boxShippingClassSlug(env);
   } else {
     const b = (src as CocProduct).barcode;
     if (isCompanyBarcode(b) && (mode === "create" || (before?.sku ?? "") !== b)) out.sku = String(b).trim();
@@ -215,6 +221,9 @@ export const previewToken = (p: { mode: Mode; target: Target; woo_product_id: nu
 
 const siteUrl = (env: CatalogEnv) => (env.WOO_SITE_URL || DEFAULT_SITE_URL).replace(/\/+$/, "");
 export const keysConfigured = (env: CatalogEnv) => !!(env.WOO_CONSUMER_KEY?.trim() && env.WOO_CONSUMER_SECRET?.trim());
+export const boxShippingClassSlug = (env: CatalogEnv) =>
+  (env.WOO_BOX_SHIPPING_CLASS_SLUG ?? DEFAULT_BOX_SHIPPING_CLASS_SLUG).trim() || DEFAULT_BOX_SHIPPING_CLASS_SLUG;
+
 
 function restAuth(env: CatalogEnv): string {
   return "Basic " + btoa(`${env.WOO_CONSUMER_KEY!.trim()}:${env.WOO_CONSUMER_SECRET!.trim()}`);
@@ -246,6 +255,7 @@ const pickFields = (p: any): WooFields => ({
   sale_price: p?.sale_price ?? null,
   sku: p?.sku ?? null,
   short_description: p?.short_description ?? null,
+  shipping_class: p?.shipping_class ?? null,
   status: p?.status ?? null,
 });
 
@@ -290,13 +300,16 @@ export async function buildPreview(deps: CatalogDeps, input: PreviewInput) {
       before = await restGet(deps.env, deps.fetchImpl, wooId);
     } else {
       const c = await deps.cachedSiteProduct(wooId);
-      before = c ? { regular_price: money(c.regular_price ?? c.price), sale_price: money(c.sale_price) ?? "", sku: c.sku ?? "", short_description: null } : null;
+      before = c ? { regular_price: money(c.regular_price ?? c.price), sale_price: money(c.sale_price) ?? "", sku: c.sku ?? "", short_description: null, shipping_class: null } : null;
       warnings.push("preview_from_cache");
     }
   }
   if (target.kind === "product" && !isCompanyBarcode((src as CocProduct).barcode)) warnings.push("no_company_barcode_sku_left_empty");
-  if (target.kind === "offer_box" && (src as CocBox).shipping_cost) warnings.push("box_price_includes_shipping");
-  const after = desiredFields(mode, target, src, before);
+  if (target.kind === "offer_box") {
+    warnings.push("box_free_shipping_class");
+    if ((src as CocBox).shipping_cost) warnings.push("box_price_includes_shipping");
+  }
+  const after = desiredFields(mode, target, src, before, deps.env);
   const changes = diffFields(before, after);
   const token = await previewToken({ mode, target, woo_product_id: wooId, before, after });
   return { mode, target, woo_product_id: wooId, before, after, changes, token, warnings, keys_configured: keysConfigured(deps.env) };

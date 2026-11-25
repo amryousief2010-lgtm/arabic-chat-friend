@@ -23,6 +23,7 @@ Deno.serve((req) => {
       WOO_CONSUMER_KEY: Deno.env.get("WOO_CONSUMER_KEY") ?? undefined,
       WOO_CONSUMER_SECRET: Deno.env.get("WOO_CONSUMER_SECRET") ?? undefined,
       WOO_SITE_URL: Deno.env.get("WOO_SITE_URL") ?? undefined,
+      WOO_BOX_SHIPPING_CLASS_SLUG: Deno.env.get("WOO_BOX_SHIPPING_CLASS_SLUG") ?? undefined,
     },
     fetchImpl: fetch,
     authenticate: async (r) => {
