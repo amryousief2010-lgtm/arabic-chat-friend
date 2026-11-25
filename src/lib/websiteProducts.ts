@@ -34,9 +34,11 @@ export interface CocProduct {
 }
 
 export interface BoxItemSummary {
+  id?: string;
   name: string;
   quantity: number;
   is_gift: boolean;
+  custom_price?: number | null;
 }
 
 export interface CocBox {
@@ -45,6 +47,7 @@ export interface CocBox {
   offer_price: number | null;
   shipping_cost: number | null;
   is_active: boolean;
+  image_url?: string | null;
   items?: BoxItemSummary[];
 }
 
@@ -102,7 +105,7 @@ export function buildCatalogRows(site: SiteProduct[], maps: MapRow[], products: 
     const cocPrice = product ? n(product.price) : box ? n(box.offer_price) : null;
     const sitePrice = n(s.price);
     const priceDiff = cocPrice !== null && sitePrice !== null ? Math.round((sitePrice - cocPrice) * 100) / 100 : null;
-    const displayImage = (s.image_url?.trim() || product?.image_url?.trim() || null) as string | null;
+    const displayImage = (s.image_url?.trim() || product?.image_url?.trim() || box?.image_url?.trim() || null) as string | null;
     const kind: "product" | "offer_box" = map?.kind === "offer_box" || /بوكس|عرض/.test(s.name) ? "offer_box" : "product";
     return { site: s, map, product, box, cocPrice, priceDiff, displayImage, kind };
   });
@@ -118,7 +121,7 @@ export function cocNotOnSite(products: CocProduct[], boxes: CocBox[], maps: MapR
   };
 }
 
-export type SiteStatusFilter = "all" | "mapped" | "unmapped" | "diff" | "removed";
+export type SiteStatusFilter = "all" | "mapped" | "unmapped" | "diff" | "removed" | "sku_mismatch" | "no_image";
 export type TypeFilter = "all" | "product" | "offer_box";
 export type SortKey = "name_asc" | "price_desc" | "price_asc" | "diff_desc";
 
@@ -133,6 +136,8 @@ export function filterAndSortSiteRows(
     if (opts.status === "mapped" && !r.map) return false;
     if (opts.status === "diff" && !r.priceDiff) return false;
     if (opts.status === "removed" && !r.site.removed_at) return false;
+    if (opts.status === "sku_mismatch" && skuState(r) !== "mismatch") return false;
+    if (opts.status === "no_image" && r.displayImage) return false;
     if (!q) return true;
     const hay = [
       r.site.name,
@@ -174,7 +179,7 @@ export function buildMissingItems(products: CocProduct[], boxes: CocBox[]): CocM
     price: n(b.offer_price),
     shipping_cost: n(b.shipping_cost),
     barcode: null,
-    image_url: null,
+    image_url: b.image_url?.trim() || null,
     items: b.items ?? [],
   }));
   const pRows: CocMissingItem[] = products.map((p) => ({
@@ -281,6 +286,9 @@ export const CHANGE_FIELD_LABELS: Record<string, string> = {
   status: "الحالة على الموقع",
   shipping_class: "فئة الشحن على الموقع",
   image_url: "صورة المنتج",
+  catalog_visibility: "الظهور في المتجر",
+  date_on_sale_from: "بداية التخفيض",
+  date_on_sale_to: "نهاية التخفيض",
 };
 
 export const WARNING_LABELS: Record<string, string> = {
@@ -288,6 +296,9 @@ export const WARNING_LABELS: Record<string, string> = {
   no_company_barcode_sku_left_empty: "لا يوجد باركود للشركة على المنتج، لذلك لن يُرسل رمز الصنف.",
   box_price_includes_shipping: "سعر العرض في النظام يشمل تكلفة الشحن كما هو، ولن يُرسل الشحن منفصلاً.",
   box_free_shipping_class: "سيُضبط العرض على فئة الشحن المجاني للبوكسات حتى لا يُضاف شحن ثانٍ على الموقع.",
+  box_identity_kept: "يبقى العرض نفسه (الاسم والمكونات والكميات والهدايا)، والشحن ضمن السعر بدون تغيير.",
+  coc_price_unchanged: "سعر COCEG لن يتغير؛ التخفيض على الموقع فقط.",
+  box_site_price_differs_from_coc: "سعر العرض على الموقع سيختلف عن سعر العرض في COCEG (المرتبط بمكوناته والشحن ضمنه).",
 };
 
 const ERRORS: Record<string, string> = {
@@ -313,6 +324,19 @@ const ERRORS: Record<string, string> = {
   coc_price_missing: "لا يوجد سعر مسجّل لهذا البند",
   box_has_no_items: "العرض بلا مكونات",
   forbidden: "ليس لديك صلاحية",
+  duplicate_sku: "هذا الكود مستخدم لمنتج آخر على الموقع؛ لا يُسمح بتكرار رمز الصنف",
+  coc_barcode_not_registered: "لا يوجد باركود شركة مسجّل لهذا المنتج في COCEG (الكود تحت التسجيل)؛ لن يُخترع كود",
+  sku_needs_mapped_product: "مطابقة الكود متاحة للمنتجات المربوطة فقط؛ العروض بلا باركود",
+  coc_image_missing: "لا توجد صورة لهذا البند في COCEG بعد",
+  sale_not_below_price: "سعر التخفيض يجب أن يكون أقل من سعر الموقع",
+  sale_price_invalid: "سعر التخفيض غير صحيح",
+  sale_dates_invalid: "تواريخ التخفيض غير صحيحة",
+  price_invalid: "السعر غير صحيح",
+  site_price_missing: "لا يوجد سعر أساسي للمنتج على الموقع",
+  woo_product_not_found: "منتج الموقع غير موجود",
+  WEB_IMAGE_URL_INVALID: "رابط الصورة غير مقبول",
+  WEB_TARGET_NOT_FOUND: "البند غير موجود",
+  WEB_PRICE_INVALID: "السعر غير صحيح",
 };
 
 export function syncErrorMessage(message: string | null | undefined): string {
@@ -321,4 +345,79 @@ export function syncErrorMessage(message: string | null | undefined): string {
   if (!code) return "تعذّر تنفيذ العملية، يُرجى المحاولة مرة أخرى";
   if (code === "WOO_IMPORT_MISSING") return `بيانات ناقصة: ${msg.split("WOO_IMPORT_MISSING:")[1]?.trim() ?? ""}`.trim();
   return ERRORS[code];
+}
+
+
+// ── إدارة المنتجات من الشاشة (الصور، الأسعار، الظهور، التخفيض، الكود) ──────────
+
+/**
+ * مطابقة الكود: باركود coceg هو المصدر ويجب أن يساوي رمز الصنف (SKU) على الموقع.
+ *  - match: متطابق
+ *  - mismatch: «الكود غير مطابق» (يوجد باركود شركة في coceg يختلف عن الموقع)
+ *  - pending: «الكود تحت التسجيل» (لا يوجد باركود شركة مسجّل؛ يبقى رمز الموقع فارغاً ولا يُخترع)
+ *  - na: غير مربوط أو عرض (العروض بلا باركود)
+ */
+export type SkuState = "match" | "mismatch" | "pending" | "na";
+
+export function skuState(row: Pick<CatalogRow, "product" | "site" | "map">): SkuState {
+  if (!row.map || !row.product) return "na";
+  const b = String(row.product.barcode ?? "").trim();
+  if (!isCompanyBarcode(b)) return "pending";
+  return String(row.site.sku ?? "").trim() === b ? "match" : "mismatch";
+}
+
+/** رموز أصناف مكررة على أكثر من منتج ظاهر على الموقع. */
+export function duplicateSiteSkus(site: SiteProduct[]): Set<string> {
+  const seen = new Map<string, number>();
+  for (const s of site) {
+    const k = String(s.sku ?? "").trim();
+    if (!k || s.removed_at) continue;
+    seen.set(k, (seen.get(k) ?? 0) + 1);
+  }
+  return new Set([...seen].filter(([, c]) => c > 1).map(([k]) => k));
+}
+
+/** هل يسبب نسخ باركود coceg إلى هذا المنتج تكراراً لرمز صنف منتج آخر على الموقع؟ */
+export function skuWouldDuplicate(row: CatalogRow, site: SiteProduct[]): boolean {
+  const b = String(row.product?.barcode ?? "").trim();
+  if (!b) return false;
+  return site.some((s) => !s.removed_at && s.woo_product_id !== row.site.woo_product_id && String(s.sku ?? "").trim() === b);
+}
+
+/** قاعدة العروض: سعر العرض = مجموع المكونات المدفوعة × الكمية + الشحن (الشحن ضمن السعر). */
+export function boxPriceFromItems(items: BoxItemSummary[], shipping: number | null | undefined): number {
+  const paid = items.filter((i) => !i.is_gift).reduce((sum, i) => sum + (Number(i.custom_price) || 0) * (Number(i.quantity) || 0), 0);
+  return Math.round((paid + (Number(shipping) || 0)) * 100) / 100;
+}
+
+export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+export const IMAGE_BUCKET = "website-product-images";
+
+/** يتحقق من ملف الصورة قبل الضغط (النوع والحجم الخام حتى 10 ميجابايت). */
+export function imageFileProblem(file: { type: string; size: number }): string | null {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) return "يُسمح بصور JPG أو PNG أو WebP فقط";
+  if (file.size > 10 * 1024 * 1024) return "حجم الصورة كبير جداً (الحد الأقصى 10 ميجابايت قبل الضغط)";
+  return null;
+}
+
+export const imageStoragePath = (kind: "product" | "offer_box", id: string, now = Date.now()) => `${kind}/${id}/${now}.webp`;
+
+export const SITE_STATUS_LABELS: Record<string, string> = {
+  publish: "منشور",
+  draft: "مسودة (مخفي)",
+  pending: "قيد المراجعة",
+  private: "خاص",
+  visible: "ظاهر في المتجر والبحث",
+  hidden: "مخفي من المتجر والبحث",
+  catalog: "المتجر فقط",
+  search: "البحث فقط",
+};
+
+export function changeValueLabel(field: string, v: string | null | undefined): string {
+  const s = String(v ?? "");
+  if (!s) return "—";
+  if (field === "status" || field === "catalog_visibility") return SITE_STATUS_LABELS[s] ?? s;
+  if (field === "regular_price" || field === "sale_price") return formatEgp(Number(s));
+  return s;
 }

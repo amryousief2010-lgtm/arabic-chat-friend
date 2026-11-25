@@ -219,3 +219,103 @@ describe("handleCatalogSync", () => {
     expect((await handleCatalogSync(post({ action: "nope" }), deps)).status).toBe(400);
   });
 });
+
+describe("site edits (price / sale / visibility / SKU / image)", () => {
+  const mapP = { woo_product_id: 937, woo_variation_id: 0, kind: "product" as const, product_id: PID, offer_box_id: null };
+  const mapB = { woo_product_id: 937, woo_variation_id: 0, kind: "offer_box" as const, product_id: null, offer_box_id: BID };
+  const run = async (deps: CatalogDeps, edit: Record<string, unknown>) => {
+    const pv = await handleCatalogSync(post({ action: "site_preview", woo_product_id: 937, edit }), deps);
+    const pj = await pv.json();
+    return { status: pv.status, pv: pj };
+  };
+  const apply = async (deps: CatalogDeps, edit: Record<string, unknown>, token: string) =>
+    handleCatalogSync(post({ action: "site_apply", woo_product_id: 937, edit, token }), deps);
+
+  it("price: preview diff then PUT regular_price and log site_price", async () => {
+    const { deps, logs, restCalls } = makeDeps({ mappingForWoo: async () => mapP });
+    const { status, pv } = await run(deps, { kind: "price", regular_price: 900 });
+    expect(status).toBe(200);
+    expect(pv.changes).toEqual([{ field: "regular_price", before: "850", after: "900" }]);
+    const res = await apply(deps, { kind: "price", regular_price: 900 }, pv.token);
+    expect(res.status).toBe(200);
+    expect(restCalls.find((c) => c.method === "PUT")!.body).toEqual({ regular_price: "900" });
+    expect(logs[0]).toMatchObject({ action: "site_price", status: "applied", product_id: PID, woo_product_id: 937 });
+  });
+
+  it("sale: sets sale_price + dates, must stay below the price; clear removes it", async () => {
+    const { deps, restCalls } = makeDeps({ mappingForWoo: async () => mapP });
+    const edit = { kind: "sale", sale_price: 765, date_from: "2026-11-26", date_to: "2026-12-05" };
+    const { pv } = await run(deps, edit);
+    expect(pv.after).toEqual({ sale_price: "765", date_on_sale_from: "2026-11-26", date_on_sale_to: "2026-12-05" });
+    expect(pv.warnings).toContain("coc_price_unchanged");
+    expect((await apply(deps, edit, pv.token)).status).toBe(200);
+    expect(restCalls.find((c) => c.method === "PUT")!.body).toMatchObject({ sale_price: "765" });
+    expect((await run(deps, { kind: "sale", sale_price: 900 })).status).toBe(422);
+    expect((await run(deps, { kind: "sale", sale_price: 700, date_from: "2026-12-05", date_to: "2026-11-01" })).status).toBe(422);
+    const clear = await run(deps, { kind: "sale", sale_price: null });
+    expect(clear.pv.after).toEqual({ sale_price: "", date_on_sale_from: "", date_on_sale_to: "" });
+  });
+
+  it("visibility: publish/draft and catalog_visibility hidden", async () => {
+    const { deps, restCalls, logs } = makeDeps({ mappingForWoo: async () => mapB });
+    const edit = { kind: "visibility", status: "draft", catalog_visibility: "hidden" };
+    const { pv } = await run(deps, edit);
+    expect(pv.changes.map((c: { field: string }) => c.field)).toEqual(["status", "catalog_visibility"]);
+    expect((await apply(deps, edit, pv.token)).status).toBe(200);
+    expect(restCalls.find((c) => c.method === "PUT")!.body).toEqual({ status: "draft", catalog_visibility: "hidden" });
+    expect(logs[0]).toMatchObject({ action: "site_visibility", offer_box_id: BID });
+  });
+
+  it("SKU: coceg company barcode becomes the Woo SKU; never invented; duplicates blocked", async () => {
+    const { deps, restCalls } = makeDeps({ mappingForWoo: async () => mapP });
+    const { pv } = await run(deps, { kind: "sku" });
+    expect(pv.after).toEqual({ sku: "6224003208018" });
+    expect((await apply(deps, { kind: "sku" }, pv.token)).status).toBe(200);
+    expect(restCalls.find((c) => c.method === "PUT")!.body).toEqual({ sku: "6224003208018" });
+
+    const noBc = makeDeps({ mappingForWoo: async () => mapP, loadProduct: async () => ({ id: PID, name: "كبدة", price: 420, barcode: null }) });
+    const r1 = await run(noBc.deps, { kind: "sku" });
+    expect(r1.status).toBe(422);
+    expect(r1.pv.error).toBe("coc_barcode_not_registered");
+
+    const dup = makeDeps({ mappingForWoo: async () => mapP, cachedSkuOwners: async () => [940] });
+    const r2 = await run(dup.deps, { kind: "sku" });
+    expect(r2.status).toBe(409);
+    expect(r2.pv.error).toBe("duplicate_sku");
+
+    const box = makeDeps({ mappingForWoo: async () => mapB });
+    expect((await run(box.deps, { kind: "sku" })).pv.error).toBe("sku_needs_mapped_product");
+  });
+
+  it("image: pushes the coceg image as images[0] only when it exists", async () => {
+    const withImg = makeDeps({
+      mappingForWoo: async () => mapB,
+      loadBox: async () => ({ id: BID, name: "بوكس 1500", offer_price: 1500, shipping_cost: 120, image_url: "https://x.supabase.co/storage/v1/object/public/website-product-images/offer_box/a/b.webp", items: [] }),
+    });
+    const { pv } = await run(withImg.deps, { kind: "image" });
+    expect((await apply(withImg.deps, { kind: "image" }, pv.token)).status).toBe(200);
+    const put = withImg.restCalls.find((c) => c.method === "PUT")!.body as Record<string, unknown>;
+    expect(put).toEqual({ images: [{ src: "https://x.supabase.co/storage/v1/object/public/website-product-images/offer_box/a/b.webp" }] });
+    const noImg = makeDeps({ mappingForWoo: async () => mapP });
+    expect((await run(noImg.deps, { kind: "image" })).pv.error).toBe("coc_image_missing");
+  });
+
+  it("site_apply: stale token → 409; no keys → 503; failed write logged", async () => {
+    const { deps, restCalls } = makeDeps({ mappingForWoo: async () => mapP });
+    expect((await apply(deps, { kind: "price", regular_price: 900 }, "stale")).status).toBe(409);
+    expect(restCalls.some((c) => c.method === "PUT")).toBe(false);
+    const nk = makeDeps({ mappingForWoo: async () => mapP, env: {} });
+    const p = await run(nk.deps, { kind: "price", regular_price: 900 });
+    expect(p.pv.warnings).toContain("preview_from_cache");
+    expect((await apply(nk.deps, { kind: "price", regular_price: 900 }, p.pv.token)).status).toBe(503);
+    const bad = makeDeps({ mappingForWoo: async () => mapP });
+    const pv = (await run(bad.deps, { kind: "price", regular_price: 900 })).pv;
+    const base = bad.deps.fetchImpl;
+    bad.deps.fetchImpl = (async (u: string, init?: RequestInit) =>
+      init?.method === "PUT" ? new Response("{}", { status: 500 }) : base(u, init)) as unknown as typeof fetch;
+    expect((await apply(bad.deps, { kind: "price", regular_price: 900 }, pv.token)).status).toBe(502);
+    expect(bad.logs[0]).toMatchObject({ action: "site_price", status: "failed" });
+    expect((await run(deps, { kind: "nope" })).status).toBe(400);
+    expect((await run(deps, { kind: "price", regular_price: -1 })).status).toBe(422);
+  });
+});

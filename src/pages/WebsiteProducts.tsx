@@ -20,6 +20,7 @@ import {
   PackagePlus,
   RefreshCw,
   ScanBarcode,
+  ScanLine,
   Search,
   Store,
   Truck,
@@ -38,6 +39,10 @@ import {
   type TypeFilter,
   buildCatalogRows,
   buildMissingItems,
+  duplicateSiteSkus,
+  skuState,
+  skuWouldDuplicate,
+  type CocMissingItem,
   cocNotOnSite,
   filterAndSortMissing,
   filterAndSortSiteRows,
@@ -48,12 +53,13 @@ import {
   syncErrorMessage,
 } from "@/lib/websiteProducts";
 import { BRAND, CocTag, MiniThumb, StatCard, TypeBadge } from "@/components/website-products/shared";
-import { CocMissingCard, SiteProductCard, SiteTableRow, type Target } from "@/components/website-products/ProductCards";
+import { CocMissingCard, type ManageAction, SiteProductCard, SiteTableRow, type Target } from "@/components/website-products/ProductCards";
+import { ImageDialog, type ManageCtx, PriceEditDialog, SaleDialog, VisibilityDialog, previewSiteEdit } from "@/components/website-products/ManageDialogs";
 import { type Change, ImportDialog, PreviewDialog, type PreviewState } from "@/components/website-products/Dialogs";
+import { callSync } from "@/components/website-products/sync";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
-const FN = "woo-catalog-sync";
 
 interface LogRow {
   id: string;
@@ -76,22 +82,15 @@ const ACTION_LABELS: Record<string, string> = {
   pull_price: "سحب سعر من الموقع",
   push_create: "إضافة إلى الموقع",
   push_update: "تحديث على الموقع",
+  coc_price: "تعديل سعر منتج في COCEG",
+  coc_box_price: "تعديل سعر عرض في COCEG",
+  coc_image: "صورة في COCEG",
+  site_price: "سعر على الموقع",
+  site_sale: "تخفيض على الموقع",
+  site_visibility: "الظهور على الموقع",
+  site_sku: "مطابقة الكود على الموقع",
+  site_image: "صورة على الموقع",
 };
-
-/** يستدعي دالة المزامنة ويعيد رمز الخطأ من جسم الاستجابة إن وُجد. */
-async function callSync<T = Record<string, unknown>>(body: Record<string, unknown>): Promise<{ data: T | null; error: string | null }> {
-  const { data, error } = await supabase.functions.invoke(FN, { body });
-  if (!error) return { data: data as T, error: null };
-  let code = error.message;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const j = await (error as any).context?.json?.();
-    if (j?.error) code = j.error;
-  } catch {
-    /* ignore */
-  }
-  return { data: null, error: code };
-}
 
 export default function WebsiteProducts() {
   const [site, setSite] = useState<SiteProduct[]>([]);
@@ -111,6 +110,7 @@ export default function WebsiteProducts() {
   const [sortKey, setSortKey] = useState<SortKey>("name_asc");
 
   const [preview, setPreview] = useState<PreviewState | null>(null);
+  const [manage, setManage] = useState<{ action: "price" | "image" | "sale" | "visibility"; ctx: ManageCtx; vis?: "publish_visible" | "publish_hidden" | "draft" } | null>(null);
   const [importTarget, setImportTarget] = useState<{ site: SiteProduct; as: "product" | "offer_box" } | null>(null);
 
   const load = useCallback(async () => {
@@ -119,8 +119,8 @@ export default function WebsiteProducts() {
       db.from("woo_site_products").select("woo_product_id, woo_variation_id, name, sku, price, regular_price, sale_price, permalink, image_url, removed_at").order("name"),
       db.from("woo_product_map").select("woo_product_id, woo_variation_id, kind, product_id, offer_box_id"),
       db.from("products").select("id, name, price, barcode, image_url, is_active").order("name"),
-      db.from("offer_boxes").select("id, name, offer_price, shipping_cost, is_active").order("name"),
-      db.from("offer_box_items").select("offer_box_id, quantity, is_gift, products(name)"),
+      db.from("offer_boxes").select("id, name, offer_price, shipping_cost, is_active, image_url").order("name"),
+      db.from("offer_box_items").select("id, offer_box_id, quantity, is_gift, custom_price, created_at, products(name)").order("created_at"),
       db.from("woo_sync_log").select("*").order("created_at", { ascending: false }).limit(100),
     ]);
     if (s.error) toast.error("تعذّر تحميل منتجات الموقع");
@@ -132,7 +132,13 @@ export default function WebsiteProducts() {
       const boxId = String(item.offer_box_id ?? "");
       if (!boxId) continue;
       const arr = boxItemsMap.get(boxId) ?? [];
-      arr.push({ name: item.products?.name ?? "منتج", quantity: Number(item.quantity ?? 1), is_gift: !!item.is_gift });
+      arr.push({
+        id: item.id,
+        name: item.products?.name ?? "منتج",
+        quantity: Number(item.quantity ?? 1),
+        is_gift: !!item.is_gift,
+        custom_price: item.custom_price === null || item.custom_price === undefined ? null : Number(item.custom_price),
+      });
       boxItemsMap.set(boxId, arr);
     }
 
@@ -160,6 +166,54 @@ export default function WebsiteProducts() {
     () => filterAndSortMissing(missingAll, { query, type: typeFilter, sort: sortKey }),
     [missingAll, query, typeFilter, sortKey],
   );
+
+  const dupSkus = useMemo(() => duplicateSiteSkus(site), [site]);
+  const skuMismatchCount = rows.filter((r) => !r.site.removed_at && skuState(r) === "mismatch").length;
+
+  useEffect(() => {
+    // شارة الإصدار تصبح نقطة صغيرة في هذه الشاشة حتى لا تغطي أسعار البطاقات.
+    document.body.dataset.versionBadge = "compact";
+    return () => {
+      delete document.body.dataset.versionBadge;
+    };
+  }, []);
+
+  const ctxFromRow = (r: CatalogRow): ManageCtx => ({
+    kind: r.box ? "offer_box" : "product",
+    id: (r.box?.id ?? r.product?.id)!,
+    name: r.box?.name ?? r.product?.name ?? r.site.name,
+    cocPrice: r.cocPrice,
+    shipping: r.box?.shipping_cost ?? null,
+    items: r.box?.items ?? [],
+    imageUrl: r.product?.image_url?.trim() || r.box?.image_url?.trim() || null,
+    wooId: r.site.woo_product_id,
+    siteName: r.site.name,
+    siteRegular: r.site.regular_price ?? r.site.price,
+    siteSale: r.site.sale_price,
+    siteImage: r.site.image_url ?? null,
+  });
+  const ctxFromMissing = (it: CocMissingItem): ManageCtx => ({
+    kind: it.kind,
+    id: it.id,
+    name: it.name,
+    cocPrice: it.price,
+    shipping: it.shipping_cost,
+    items: it.items,
+    imageUrl: it.image_url,
+    wooId: null,
+    siteRegular: null,
+    siteSale: null,
+    siteImage: null,
+  });
+
+  const onManageRow = (a: ManageAction, r: CatalogRow) => {
+    if (!r.product && !r.box) return;
+    if (a === "sku") {
+      if (skuWouldDuplicate(r, site)) return void toast.error(syncErrorMessage("duplicate_sku"));
+      return void previewSiteEdit(r.site.woo_product_id, { kind: "sku" }, `مطابقة كود «${r.site.name}» مع COCEG`, "تأكيد مطابقة الكود", setPreview, load);
+    }
+    setManage({ action: a, ctx: ctxFromRow(r), vis: r.site.removed_at ? "draft" : "publish_visible" });
+  };
 
   const activeSiteCount = rows.filter((r) => !r.site.removed_at).length;
   const unmappedCount = rows.filter((r) => !r.map && !r.site.removed_at).length;
@@ -241,7 +295,7 @@ export default function WebsiteProducts() {
 
   return (
     <DashboardLayout>
-      <div dir="rtl" className="font-cairo space-y-6 text-right">
+      <div dir="rtl" className="font-cairo space-y-6 text-right pb-16 md:pl-16">
         <div className="space-y-3">
           <div className="[&>header]:mb-0">
             <Header
@@ -266,6 +320,19 @@ export default function WebsiteProducts() {
               </span>
             </CardContent>
           </Card>
+        )}
+
+        {skuMismatchCount > 0 && (
+          <button
+            type="button"
+            onClick={() => { setTab("site"); setStatusFilter("sku_mismatch"); }}
+            className="w-full text-right rounded-2xl border border-red-200 bg-red-50/70 p-3.5 text-sm flex items-center gap-2.5 text-red-800 hover:bg-red-50"
+          >
+            <ScanLine className="w-5 h-5 shrink-0" />
+            <span className="flex-1">
+              {formatNum(skuMismatchCount)} منتج كوده على الموقع غير مطابق لباركود <CocTag />. اضغطي للعرض ثم «مطابقة الكود» (<CocTag /> هو المصدر).
+            </span>
+          </button>
         )}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -368,6 +435,8 @@ export default function WebsiteProducts() {
                       <SelectItem value="mapped">مربوط</SelectItem>
                       <SelectItem value="diff">فروق أسعار</SelectItem>
                       <SelectItem value="removed">غير ظاهر بالموقع</SelectItem>
+                      <SelectItem value="sku_mismatch">الكود غير مطابق</SelectItem>
+                      <SelectItem value="no_image">بدون صورة</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
@@ -401,7 +470,8 @@ export default function WebsiteProducts() {
                   <SiteProductCard key={`${r.site.woo_product_id}-${r.site.woo_variation_id}`} row={r} products={products} boxes={boxes}
                     onMap={map} onUnmap={unmap} onPull={openPull}
                     onPush={(t, label) => openPush("update", t, r.site.woo_product_id, label)}
-                    onImport={(as) => setImportTarget({ site: r.site, as })} />
+                    onImport={(as) => setImportTarget({ site: r.site, as })}
+                    onManage={onManageRow} skuDuplicate={(!!r.site.sku && dupSkus.has(String(r.site.sku).trim())) || skuWouldDuplicate(r, site)} />
                 ))}
               </div>
             ) : (
@@ -419,7 +489,8 @@ export default function WebsiteProducts() {
                       <SiteTableRow key={`${r.site.woo_product_id}-${r.site.woo_variation_id}`} row={r} products={products} boxes={boxes}
                         onMap={map} onUnmap={unmap} onPull={openPull}
                         onPush={(t, label) => openPush("update", t, r.site.woo_product_id, label)}
-                        onImport={(as) => setImportTarget({ site: r.site, as })} />
+                        onImport={(as) => setImportTarget({ site: r.site, as })}
+                        onManage={onManageRow} skuDuplicate={(!!r.site.sku && dupSkus.has(String(r.site.sku).trim())) || skuWouldDuplicate(r, site)} />
                     ))}
                   </TableBody>
                 </Table>
@@ -437,7 +508,8 @@ export default function WebsiteProducts() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {shownMissing.map((item) => (
                   <CocMissingCard key={`${item.kind}-${item.id}`} item={item}
-                    onPush={() => openPush("create", { kind: item.kind, id: item.id }, null, item.name)} />
+                    onPush={() => openPush("create", { kind: item.kind, id: item.id }, null, item.name)}
+                    onManage={(a, it) => setManage({ action: a, ctx: ctxFromMissing(it) })} />
                 ))}
               </div>
             ) : (
@@ -522,6 +594,12 @@ export default function WebsiteProducts() {
       </div>
 
       <PreviewDialog state={preview} onClose={() => setPreview(null)} />
+      {manage?.action === "price" && <PriceEditDialog ctx={manage.ctx} onClose={() => setManage(null)} onPreview={setPreview} onDone={load} />}
+      {manage?.action === "sale" && <SaleDialog ctx={manage.ctx} onClose={() => setManage(null)} onPreview={setPreview} onDone={load} />}
+      {manage?.action === "visibility" && (
+        <VisibilityDialog ctx={manage.ctx} current={manage.vis ?? "publish_visible"} onClose={() => setManage(null)} onPreview={setPreview} onDone={load} />
+      )}
+      {manage?.action === "image" && <ImageDialog ctx={manage.ctx} onClose={() => setManage(null)} onDone={load} />}
       {importTarget && (
         <ImportDialog target={importTarget} products={products} onClose={() => setImportTarget(null)} onDone={() => { setImportTarget(null); void load(); }} />
       )}

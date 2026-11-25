@@ -65,6 +65,7 @@ export function ProductImageFrame({
   topRight,
   topLeft,
   dimmed,
+  bottom,
 }: {
   imageUrl: string | null | undefined;
   alt: string;
@@ -72,6 +73,8 @@ export function ProductImageFrame({
   topRight?: React.ReactNode;
   topLeft?: React.ReactNode;
   dimmed?: boolean;
+  /** زر يظهر أسفل الصورة (مثل «إضافة صورة» أو «استبدال الصورة»). */
+  bottom?: React.ReactNode;
 }) {
   const [broken, setBroken] = useState(false);
   const showImage = !!imageUrl && !broken;
@@ -100,7 +103,8 @@ export function ProductImageFrame({
         </div>
       )}
       {topRight && <div className="absolute top-3 right-3 z-10">{topRight}</div>}
-      {topLeft && <div className="absolute top-3 left-3 z-10">{topLeft}</div>}
+      {topLeft && <div className="absolute top-3 left-3 z-10 flex flex-col items-start gap-1">{topLeft}</div>}
+      {bottom && <div className="absolute bottom-3 inset-x-3 z-10 flex justify-center">{bottom}</div>}
     </div>
   );
 }
@@ -118,4 +122,17 @@ export function MiniThumb({ imageUrl, isBox, name }: { imageUrl: string | null |
       {isBox ? <Gift className="w-5 h-5" style={{ color: BRAND.deep }} /> : <Package className="w-5 h-5" style={{ color: BRAND.primary }} />}
     </div>
   );
+}
+
+/** شارة مطابقة الكود بين COCEG والموقع. */
+export function SkuChip({ state, duplicate }: { state: "match" | "mismatch" | "pending" | "na"; duplicate?: boolean }) {
+  if (duplicate)
+    return <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 text-[11px] font-bold">كود مكرر على الموقع</span>;
+  if (state === "mismatch")
+    return <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 text-[11px] font-bold">الكود غير مطابق</span>;
+  if (state === "pending")
+    return <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 text-[11px] font-bold">الكود تحت التسجيل</span>;
+  if (state === "match")
+    return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-[11px] font-bold">الكود مطابق</span>;
+  return null;
 }

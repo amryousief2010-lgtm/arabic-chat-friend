@@ -6,8 +6,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
+  BadgePercent,
   CheckCircle2,
   Download,
+  Eye,
+  ImagePlus,
+  PencilLine,
+  ScanLine,
   ExternalLink,
   Gift,
   Layers,
@@ -29,12 +34,34 @@ import {
   formatEgp,
   formatNum,
   formatSignedEgp,
+  skuState,
   suggestionFor,
   summarizeBoxItems,
 } from "@/lib/websiteProducts";
-import { BRAND, CocTag, MiniThumb, ProductImageFrame, TypeBadge } from "./shared";
+import { BRAND, CocTag, MiniThumb, ProductImageFrame, SkuChip, TypeBadge } from "./shared";
 
 export type Target = { kind: "product" | "offer_box"; id: string };
+export type ManageAction = "price" | "image" | "sale" | "visibility" | "sku";
+
+/** زر الصورة على البطاقة: بارز عند غياب أي صورة، ويظهر عند المرور فقط إذا كانت هناك صورة معروضة. */
+function ImageButton({ hasImage, shown, onClick }: { hasImage: boolean; shown?: boolean; onClick: () => void }) {
+  return hasImage || shown ? (
+    <Button
+      size="sm"
+      variant="secondary"
+      className="h-8 rounded-full gap-1.5 bg-white/90 text-[#662D8C] shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+      onClick={onClick}
+    >
+      <ImagePlus className="w-3.5 h-3.5" />
+      {hasImage ? "استبدال الصورة" : "إضافة صورة"}
+    </Button>
+  ) : (
+    <Button size="sm" className="h-8 rounded-full gap-1.5 text-white shadow-md" style={{ backgroundColor: BRAND.primary }} onClick={onClick}>
+      <ImagePlus className="w-3.5 h-3.5" />
+      إضافة صورة
+    </Button>
+  );
+}
 
 export function SiteProductCard({
   row,
@@ -45,6 +72,8 @@ export function SiteProductCard({
   onPull,
   onPush,
   onImport,
+  onManage,
+  skuDuplicate,
 }: {
   row: CatalogRow;
   products: CocProduct[];
@@ -54,10 +83,14 @@ export function SiteProductCard({
   onPull: (r: CatalogRow) => void;
   onPush: (t: Target, label: string) => void;
   onImport: (as: "product" | "offer_box") => void;
+  onManage?: (a: ManageAction, r: CatalogRow) => void;
+  skuDuplicate?: boolean;
 }) {
   const [choice, setChoice] = useState<string | null>(null);
   const s = row.site;
   const isBox = row.kind === "offer_box";
+  const sku = skuState(row);
+  const cocImage = row.product?.image_url?.trim() || row.box?.image_url?.trim() || null;
   const suggestion = !row.map ? suggestionFor(s.woo_product_id, WOO_MAP_SUGGESTIONS, products) : null;
   const target: Target | null = row.product ? { kind: "product", id: row.product.id } : row.box ? { kind: "offer_box", id: row.box.id } : null;
   const label = row.product?.name ?? row.box?.name ?? "";
@@ -90,7 +123,18 @@ export function SiteProductCard({
         isBox={isBox}
         dimmed={!!s.removed_at}
         topRight={<TypeBadge isBox={isBox} />}
-        topLeft={statusBadge}
+        topLeft={
+          <>
+            {statusBadge}
+            {s.sale_price !== null && !s.removed_at && (
+              <Badge className="border-0 text-white gap-1 shadow-sm" style={{ backgroundColor: BRAND.accent }}>
+                <BadgePercent className="w-3 h-3" />
+                تخفيض
+              </Badge>
+            )}
+          </>
+        }
+        bottom={target && onManage ? <ImageButton hasImage={!!cocImage} shown={!!row.displayImage} onClick={() => onManage("image", row)} /> : undefined}
       />
 
       <CardContent className="p-4 flex-1 flex flex-col gap-3">
@@ -221,10 +265,41 @@ export function SiteProductCard({
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <ScanBarcode className="w-3.5 h-3.5 shrink-0" />
-            <span>{barcode ? <bdi dir="ltr">{barcode}</bdi> : "بدون باركود"}</span>
-          </div>
+          {row.product ? (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <ScanBarcode className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  <CocTag />: {row.product.barcode ? <bdi dir="ltr">{row.product.barcode}</bdi> : "—"}
+                </span>
+                <span className="text-muted-foreground/60">·</span>
+                <span>
+                  الموقع: {s.sku ? <bdi dir="ltr">{s.sku}</bdi> : "فارغ"}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <SkuChip state={sku} duplicate={skuDuplicate} />
+                {sku === "mismatch" && onManage && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-[11px] font-bold gap-1"
+                    style={{ color: BRAND.primary }}
+                    disabled={skuDuplicate}
+                    onClick={() => onManage("sku", row)}
+                  >
+                    <ScanLine className="w-3.5 h-3.5" />
+                    مطابقة الكود
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <ScanBarcode className="w-3.5 h-3.5 shrink-0" />
+              <span>{barcode ? <bdi dir="ltr">{barcode}</bdi> : row.box ? "العروض بلا باركود" : "بدون باركود"}</span>
+            </div>
+          )}
 
           {row.box && (
             <div className="flex items-start gap-1.5">
@@ -261,7 +336,34 @@ export function SiteProductCard({
                 <MoreVertical className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuContent align="start" className="w-60">
+              {target && onManage && (
+                <>
+                  <DropdownMenuItem className="gap-2" onSelect={() => onManage("price", row)}>
+                    <PencilLine className="w-4 h-4" />
+                    <span>تعديل السعر</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2" onSelect={() => onManage("sale", row)}>
+                    <BadgePercent className="w-4 h-4" />
+                    <span>{s.sale_price !== null ? "تعديل التخفيض على الموقع" : "تخفيض على الموقع"}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2" onSelect={() => onManage("visibility", row)}>
+                    <Eye className="w-4 h-4" />
+                    <span>الظهور على الموقع</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2" onSelect={() => onManage("image", row)}>
+                    <ImagePlus className="w-4 h-4" />
+                    <span>{cocImage ? "استبدال الصورة" : "إضافة صورة"}</span>
+                  </DropdownMenuItem>
+                  {row.product && (
+                    <DropdownMenuItem className="gap-2" disabled={sku !== "mismatch" || skuDuplicate} onSelect={() => onManage("sku", row)}>
+                      <ScanLine className="w-4 h-4" />
+                      <span>مطابقة الكود</span>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                </>
+              )}
               {target && row.product && (
                 <DropdownMenuItem className="gap-2" onSelect={() => onPull(row)}>
                   <Download className="w-4 h-4" />
@@ -319,7 +421,15 @@ export function SiteProductCard({
   );
 }
 
-export function CocMissingCard({ item, onPush }: { item: CocMissingItem; onPush: () => void }) {
+export function CocMissingCard({
+  item,
+  onPush,
+  onManage,
+}: {
+  item: CocMissingItem;
+  onPush: () => void;
+  onManage?: (a: "price" | "image", item: CocMissingItem) => void;
+}) {
   const isBox = item.kind === "offer_box";
   const ready = (item.price ?? 0) > 0 && (!isBox || item.items.length > 0);
 
@@ -329,6 +439,7 @@ export function CocMissingCard({ item, onPush }: { item: CocMissingItem; onPush:
         imageUrl={item.image_url}
         alt={item.name}
         isBox={isBox}
+        bottom={onManage ? <ImageButton hasImage={!!item.image_url} onClick={() => onManage("image", item)} /> : undefined}
         topRight={<TypeBadge isBox={isBox} />}
         topLeft={
           ready ? (
@@ -376,7 +487,8 @@ export function CocMissingCard({ item, onPush }: { item: CocMissingItem; onPush:
           {!isBox && (
             <div className="flex items-center gap-1.5">
               <ScanBarcode className="w-3.5 h-3.5 shrink-0" />
-              <span>{item.barcode ? <bdi dir="ltr">{item.barcode}</bdi> : "بدون باركود"}</span>
+              <span>{item.barcode ? <bdi dir="ltr">{item.barcode}</bdi> : "—"}</span>
+              {!/^622400320\d{4}$/.test(item.barcode ?? "") && <SkuChip state="pending" />}
             </div>
           )}
 
@@ -388,16 +500,35 @@ export function CocMissingCard({ item, onPush }: { item: CocMissingItem; onPush:
           )}
         </div>
 
-        <div className="pt-2 mt-auto">
+        <div className="pt-2 mt-auto flex items-center gap-2">
           <Button
             size="sm"
-            className="w-full gap-2 rounded-xl font-semibold shadow-sm hover:opacity-95"
+            className="flex-1 gap-2 rounded-xl font-semibold shadow-sm hover:opacity-95"
             style={{ backgroundColor: BRAND.primary }}
             onClick={onPush}
           >
             <Upload className="w-4 h-4" />
             إضافة إلى الموقع
           </Button>
+          {onManage && (
+            <DropdownMenu dir="rtl">
+              <DropdownMenuTrigger asChild>
+                <Button size="icon" variant="outline" className="h-9 w-9 rounded-xl shrink-0" aria-label="إجراءات إضافية">
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-52">
+                <DropdownMenuItem className="gap-2" onSelect={() => onManage("price", item)}>
+                  <PencilLine className="w-4 h-4" />
+                  <span>تعديل السعر</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2" onSelect={() => onManage("image", item)}>
+                  <ImagePlus className="w-4 h-4" />
+                  <span>{item.image_url ? "استبدال الصورة" : "إضافة صورة"}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -413,6 +544,8 @@ export function SiteTableRow({
   onPull,
   onPush,
   onImport,
+  onManage,
+  skuDuplicate,
 }: {
   row: CatalogRow;
   products: CocProduct[];
@@ -422,6 +555,8 @@ export function SiteTableRow({
   onPull: (r: CatalogRow) => void;
   onPush: (t: Target, label: string) => void;
   onImport: (as: "product" | "offer_box") => void;
+  onManage?: (a: ManageAction, r: CatalogRow) => void;
+  skuDuplicate?: boolean;
 }) {
   const [choice, setChoice] = useState<string | null>(null);
   const s = row.site;
@@ -453,6 +588,11 @@ export function SiteTableRow({
                 </>
               )}
             </div>
+            {row.product && (
+              <div className="mt-1">
+                <SkuChip state={skuState(row)} duplicate={skuDuplicate} />
+              </div>
+            )}
             {s.removed_at && (
               <Badge variant="destructive" className="mt-1">
                 غير ظاهر بالموقع
@@ -544,6 +684,24 @@ export function SiteTableRow({
       </TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1.5">
+          {target && onManage && (
+            <>
+              <Button size="sm" variant="outline" className="gap-1 rounded-xl" onClick={() => onManage("price", row)}>
+                <PencilLine className="w-3.5 h-3.5" />
+                السعر
+              </Button>
+              <Button size="sm" variant="outline" className="gap-1 rounded-xl" onClick={() => onManage("image", row)}>
+                <ImagePlus className="w-3.5 h-3.5" />
+                الصورة
+              </Button>
+              {skuState(row) === "mismatch" && !skuDuplicate && (
+                <Button size="sm" variant="outline" className="gap-1 rounded-xl" onClick={() => onManage("sku", row)}>
+                  <ScanLine className="w-3.5 h-3.5" />
+                  مطابقة الكود
+                </Button>
+              )}
+            </>
+          )}
           {target && (row.priceDiff || row.box) && (
             <Button size="sm" variant="outline" className="gap-1 rounded-xl" onClick={() => onPush(target, label)}>
               <Upload className="w-3.5 h-3.5" />

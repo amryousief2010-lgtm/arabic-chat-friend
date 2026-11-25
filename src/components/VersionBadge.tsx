@@ -6,10 +6,13 @@ import {
   triggerReload,
   type LastCheckState,
 } from "@/lib/updateChecker";
+import { useCompactFloating } from "@/hooks/useCompactFloating";
 
 const VersionBadge = () => {
   const [state, setState] = useState<LastCheckState | null>(getLastCheck());
   const [open, setOpen] = useState(false);
+  // الشاشات ذات البطاقات تطلب نسخة مصغرة (نقطة فقط) عبر body[data-version-badge="compact"].
+  const compact = useCompactFloating();
 
   useEffect(() => {
     const unsub = subscribeToChecks(setState);
@@ -40,7 +43,8 @@ const VersionBadge = () => {
           display: "flex",
           alignItems: "center",
           gap: 6,
-          padding: "4px 8px",
+          padding: compact && !open ? 4 : "4px 8px",
+          opacity: compact && !open ? 0.55 : 1,
           borderRadius: 999,
           background: "rgba(15,23,42,0.7)",
           color: "#e2e8f0",
@@ -48,10 +52,11 @@ const VersionBadge = () => {
           backdropFilter: "blur(6px)",
           cursor: "pointer",
         }}
-        title="حالة الإصدار"
+        title={`حالة الإصدار v${CURRENT_VERSION}`}
+        aria-label="حالة الإصدار"
       >
         <span style={{ width: 7, height: 7, borderRadius: "50%", background: dot }} />
-        <span style={{ fontFamily: "monospace" }}>v{CURRENT_VERSION}</span>
+        {(!compact || open) && <span style={{ fontFamily: "monospace" }}>v{CURRENT_VERSION}</span>}
       </button>
       {open && (
         <div
