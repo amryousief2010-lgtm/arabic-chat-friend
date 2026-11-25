@@ -1,4 +1,5 @@
 /** منطق شاشة «طلبات الموقع» (بدون React) — قابل للاختبار. */
+import { type PackState, packStateFor } from "@/lib/sitePack";
 
 export type InboxKind = "order" | "registration";
 export type InboxStatus = "new" | "assigned" | "dismissed" | "cancelled_on_site";
@@ -18,10 +19,23 @@ export interface ProductMapRow {
   kind: "product" | "offer_box";
   product_id: string | null;
   offer_box_id: string | null;
+  /** وزن عبوة الموقع بوحدة COCEG (الافتراضي 1). */
+  site_pack_qty?: number | null;
+  site_pack_label?: string | null;
+  site_pack_confirmed_at?: string | null;
+}
+
+export interface PackProduct {
+  id: string;
+  name: string;
+  unit?: string | null;
 }
 
 export interface MappedItem extends InboxItem {
   map: ProductMapRow | null;
+  /** للمنتجات المربوطة: وزن العبوة وما إذا كان يحتاج تأكيداً. */
+  pack?: PackState | null;
+  unit?: string | null;
 }
 
 export const STATUS_LABELS: Record<InboxStatus, string> = {
@@ -51,9 +65,16 @@ export function findMapping(item: InboxItem, maps: ProductMapRow[]): ProductMapR
   return maps.find((m) => m.woo_product_id === item.woo_product_id && m.woo_variation_id === 0) ?? null;
 }
 
-export function mapItems(items: InboxItem[] | null | undefined, maps: ProductMapRow[]): MappedItem[] {
-  return (items ?? []).map((it) => ({ ...it, map: findMapping(it, maps) }));
+export function mapItems(items: InboxItem[] | null | undefined, maps: ProductMapRow[], products: PackProduct[] = []): MappedItem[] {
+  return (items ?? []).map((it) => {
+    const map = findMapping(it, maps);
+    const product = map?.kind === "product" ? products.find((p) => p.id === map.product_id) ?? null : null;
+    const pack = map?.kind === "product" ? packStateFor(map, it.name, product ?? { unit: "كجم" }) : null;
+    return { ...it, map, pack, unit: product?.unit ?? (map?.kind === "product" ? "كجم" : null) };
+  });
 }
+
+export const packNeedsConfirmCount = (items: MappedItem[]) => items.filter((i) => i.pack?.needsConfirm).length;
 
 export const unmappedCount = (items: MappedItem[]) => items.filter((i) => !i.map).length;
 
@@ -72,6 +93,8 @@ export function assignBlocker(opts: {
   if (opts.items.length === 0) return "لا توجد بنود في الطلب";
   const n = unmappedCount(opts.items);
   if (n > 0) return `يوجد ${n} بند غير مربوط بمنتج أو عرض في النظام`;
+  const p = packNeedsConfirmCount(opts.items);
+  if (p > 0) return `يوجد ${p} بند وزن عبوته على الموقع غير مؤكَّد؛ يُرجى تأكيده من شاشة «منتجات الموقع»`;
   if (opts.possibleDuplicate && !opts.customerChoice) return "يوجد عميل بنفس الرقم: يُرجى اختيار العميل الصحيح أو «عميل جديد»";
   return null;
 }

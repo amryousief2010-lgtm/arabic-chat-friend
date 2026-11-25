@@ -11,6 +11,8 @@ import { createServiceClient } from "../_shared/require-user.ts";
 import { matchesCronSecret } from "../_shared/cron-secret.ts";
 import { handleCatalogSync, type CocBox, type Target } from "./handler.ts";
 
+const MAP_COLS = "woo_product_id, woo_variation_id, kind, product_id, offer_box_id, site_pack_qty, site_pack_label, site_pack_confirmed_at";
+
 const userClient = (token: string) =>
   createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -44,8 +46,8 @@ Deno.serve((req) => {
       return data;
     },
     loadProduct: async (id) => {
-      const { data } = await admin.from("products").select("id, name, price, barcode, image_url").eq("id", id).maybeSingle();
-      return data ? { id: data.id, name: data.name, price: data.price === null ? null : Number(data.price), barcode: data.barcode, image_url: data.image_url ?? null } : null;
+      const { data } = await admin.from("products").select("id, name, price, barcode, image_url, unit").eq("id", id).maybeSingle();
+      return data ? { id: data.id, name: data.name, price: data.price === null ? null : Number(data.price), barcode: data.barcode, image_url: data.image_url ?? null, unit: data.unit ?? null } : null;
     },
     loadBox: async (id) => {
       const { data: box } = await admin.from("offer_boxes").select("id, name, offer_price, shipping_cost, image_url").eq("id", id).maybeSingle();
@@ -62,14 +64,14 @@ Deno.serve((req) => {
     },
     mappingForTarget: async (t: Target) => {
       const col = t.kind === "product" ? "product_id" : "offer_box_id";
-      const { data } = await admin.from("woo_product_map").select("woo_product_id, woo_variation_id, kind, product_id, offer_box_id")
+      const { data } = await admin.from("woo_product_map").select(MAP_COLS)
         .eq(col, t.id).order("mapped_at").limit(1).maybeSingle();
-      return data ? { ...data, woo_product_id: Number(data.woo_product_id), woo_variation_id: Number(data.woo_variation_id) } : null;
+      return data ? { ...data, woo_product_id: Number(data.woo_product_id), woo_variation_id: Number(data.woo_variation_id), site_pack_qty: data.site_pack_qty === null || data.site_pack_qty === undefined ? 1 : Number(data.site_pack_qty) } : null;
     },
     mappingForWoo: async (wooId) => {
-      const { data } = await admin.from("woo_product_map").select("woo_product_id, woo_variation_id, kind, product_id, offer_box_id")
+      const { data } = await admin.from("woo_product_map").select(MAP_COLS)
         .eq("woo_product_id", wooId).eq("woo_variation_id", 0).maybeSingle();
-      return data ? { ...data, woo_product_id: Number(data.woo_product_id), woo_variation_id: Number(data.woo_variation_id) } : null;
+      return data ? { ...data, woo_product_id: Number(data.woo_product_id), woo_variation_id: Number(data.woo_variation_id), site_pack_qty: data.site_pack_qty === null || data.site_pack_qty === undefined ? 1 : Number(data.site_pack_qty) } : null;
     },
     cachedSkuOwners: async (sku) => {
       const { data } = await admin.from("woo_site_products").select("woo_product_id").eq("sku", sku).is("removed_at", null);

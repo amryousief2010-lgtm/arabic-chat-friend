@@ -31,6 +31,7 @@ import {
   saleWouldBeCleared,
 } from "@/lib/wooPreview";
 import { compressImage } from "@/lib/imageCompress";
+import { packPriceExplanation, sitePackPrice } from "@/lib/sitePack";
 import type { Change, PreviewState } from "./Dialogs";
 import { BRAND, CocTag, ProductImageFrame } from "./shared";
 import { type SiteEditBody, siteApply, siteApplyWithReason, sitePreview } from "./sync";
@@ -55,6 +56,10 @@ export interface ManageCtx {
   startsAt?: string | null;
   expiresAt?: string | null;
   siteHiddenByValidity?: boolean;
+  /** وزن عبوة الموقع بوحدة COCEG (المنتجات فقط؛ الافتراضي 1). */
+  packQty?: number;
+  packLabel?: string | null;
+  unit?: string | null;
 }
 
 /** يحتفظ بمفاتيح الحقول الخام حتى تتعرّف نافذة المعاينة على السعر والباركود. */
@@ -167,6 +172,8 @@ export function PriceEditDialog({
   if (!ctx) return null;
   const newCoc = isBox ? boxNew : Number(cocPrice) || null;
   const cocChanged = newCoc !== null && newCoc !== ctx.cocPrice;
+  const packQty = !isBox && ctx.packQty && ctx.packQty > 0 ? ctx.packQty : 1;
+  const cocForSite = isBox ? newCoc : sitePackPrice(newCoc, packQty);
   const siteVal = Number(sitePrice);
   const siteChanged = editSite && ctx.wooId !== null && siteVal > 0 && siteVal !== ctx.siteRegular;
 
@@ -222,6 +229,7 @@ export function PriceEditDialog({
         confirmLabel: "تأكيد التعديل",
         blocked,
         priceContext: (d ? customerPriceContextFromPreview(d, selling) : undefined) ?? defaultCtx,
+        packNote: edit && packQty !== 1 ? packPriceExplanation(newCoc, packQty, ctx.unit, ctx.packLabel) : null,
         keepSale: allowKeep
           ? {
               available: true,
@@ -328,10 +336,15 @@ export function PriceEditDialog({
             {editSite && (
               <div className="flex items-center gap-2">
                 <Input dir="ltr" inputMode="decimal" className="text-left" value={sitePrice} onChange={(e) => setSitePrice(e.target.value.replace(/[^\d.]/g, ""))} />
-                <Button type="button" size="sm" variant="outline" className="whitespace-nowrap rounded-xl" onClick={() => newCoc && setSitePrice(String(newCoc))}>
-                  مثل سعر <CocTag />
+                <Button type="button" size="sm" variant="outline" className="whitespace-nowrap rounded-xl" onClick={() => cocForSite && setSitePrice(String(cocForSite))}>
+                  {packQty !== 1 ? <>مثل سعر <CocTag /> للعبوة</> : <>مثل سعر <CocTag /></>}
                 </Button>
               </div>
+            )}
+            {packQty !== 1 && (
+              <p className="text-xs font-semibold" style={{ color: BRAND.primary }}>
+                {packPriceExplanation(newCoc, packQty, ctx.unit, ctx.packLabel)}
+              </p>
             )}
             <p className="text-xs text-muted-foreground">الحالي على الموقع {formatEgp(ctx.siteRegular)}{ctx.siteSale ? ` · تخفيض ${formatEgp(ctx.siteSale)}` : ""}</p>
           </Section>

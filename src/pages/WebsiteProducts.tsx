@@ -64,6 +64,8 @@ import {
 
 import { type Change, ImportDialog, PreviewDialog, type PreviewState } from "@/components/website-products/Dialogs";
 import { callSync } from "@/components/website-products/sync";
+import { PackDialog, type PackDialogState } from "@/components/website-products/PackDialog";
+import { cocPriceFromSite, formatPackQty, packPriceExplanation, unitSymbol } from "@/lib/sitePack";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -123,20 +125,22 @@ export default function WebsiteProducts() {
   const [manage, setManage] = useState<{ action: "price" | "image" | "sale" | "visibility" | "validity"; ctx: ManageCtx; vis?: "publish_visible" | "publish_hidden" | "draft" } | null>(null);
   const [restore, setRestore] = useState<{ backupId: string; title: string } | null>(null);
   const [backups, setBackups] = useState<Record<string, { id: string }>>({});
+  const [pack, setPack] = useState<PackDialogState | null>(null);
   const [importTarget, setImportTarget] = useState<{ site: SiteProduct; as: "product" | "offer_box" } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     const [s, m, p, b, bi, l] = await Promise.all([
       db.from("woo_site_products").select("woo_product_id, woo_variation_id, name, sku, price, regular_price, sale_price, permalink, image_url, removed_at").order("name"),
-      db.from("woo_product_map").select("woo_product_id, woo_variation_id, kind, product_id, offer_box_id"),
-      db.from("products").select("id, name, price, barcode, image_url, is_active").order("name"),
+      db.from("woo_product_map").select("woo_product_id, woo_variation_id, kind, product_id, offer_box_id, site_pack_qty, site_pack_label, site_pack_confirmed_at"),
+      db.from("products").select("id, name, price, barcode, image_url, is_active, unit").order("name"),
       db.from("offer_boxes").select("id, name, offer_price, shipping_cost, is_active, image_url, starts_at, expires_at, site_hidden_by_validity").order("name"),
       db.from("offer_box_items").select("id, offer_box_id, quantity, is_gift, custom_price, created_at, products(name)").order("created_at"),
       db.from("woo_sync_log").select("*").order("created_at", { ascending: false }).limit(100),
     ]);
     if (s.error) toast.error("تعذّر تحميل منتجات الموقع");
     const num = (r: Record<string, unknown>) => ({ ...r, woo_product_id: Number(r.woo_product_id), woo_variation_id: Number(r.woo_variation_id) });
+    const numMap = (r: Record<string, unknown>) => ({ ...num(r), ...("site_pack_qty" in r ? { site_pack_qty: r.site_pack_qty === null ? 1 : Number(r.site_pack_qty) } : {}) });
 
     const boxItemsMap = new Map<string, BoxItemSummary[]>();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -155,7 +159,7 @@ export default function WebsiteProducts() {
     }
 
     setSite((s.data ?? []).map(num));
-    setMaps((m.data ?? []).map(num));
+    setMaps((m.data ?? []).map(numMap));
     setProducts(p.data ?? []);
     setBoxes(((b.data ?? []) as CocBox[]).map((bx) => ({ ...bx, items: boxItemsMap.get(bx.id) ?? [] })));
     const logRows = l.data ?? [];
@@ -218,6 +222,9 @@ export default function WebsiteProducts() {
     startsAt: r.box?.starts_at ?? null,
     expiresAt: r.box?.expires_at ?? null,
     siteHiddenByValidity: !!r.box?.site_hidden_by_validity,
+    packQty: r.product ? r.pack?.qty ?? 1 : 1,
+    packLabel: r.pack?.label ?? null,
+    unit: r.product?.unit ?? null,
   });
   const ctxFromMissing = (it: CocMissingItem): ManageCtx => ({
     kind: it.kind,
@@ -238,6 +245,10 @@ export default function WebsiteProducts() {
 
   const onManageRow = (a: ManageAction, r: CatalogRow) => {
     if (!r.product && !r.box) return;
+    if (a === "pack") {
+      if (r.product) setPack({ mode: "edit", site: r.site, product: r.product, map: r.map });
+      return;
+    }
     if (a === "sku") {
       if (skuWouldDuplicate(r, site)) return void toast.error(syncErrorMessage("duplicate_sku"));
       return void previewSiteEdit(r.site.woo_product_id, { kind: "sku" }, `مطابقة كود «${r.site.name}» مع COCEG`, "تأكيد مطابقة الكود", setPreview, load);
@@ -260,6 +271,12 @@ export default function WebsiteProducts() {
   };
 
   const map = async (wooId: number, t: Target) => {
+    if (t.kind === "product") {
+      // المنتجات تمر بنافذة الربط لتأكيد وزن عبوة الموقع (مثال: عبوة 500 جم = 0.5 كجم).
+      const siteRow = site.find((x) => x.woo_product_id === wooId && Number(x.woo_variation_id || 0) === 0);
+      const product = products.find((p) => p.id === t.id);
+      if (siteRow && product) return void setPack({ mode: "link", site: siteRow, product, map: null });
+    }
     const { error } = await db.rpc("woo_catalog_map", {
       _woo_product_id: wooId,
       _woo_variation_id: 0,
@@ -281,6 +298,13 @@ export default function WebsiteProducts() {
   };
 
   const openPush = async (mode: "create" | "update", target: Target, wooId: number | null, label: string) => {
+    if (mode === "update" && target.kind === "product") {
+      const row = rows.find((x) => x.site.woo_product_id === wooId && x.product?.id === target.id);
+      if (row?.pack?.needsConfirm && row.product) {
+        toast.info("يُرجى تأكيد وزن عبوة الموقع أولاً حتى يُحسب سعر الموقع صحيحاً");
+        return void setPack({ mode: "edit", site: row.site, product: row.product, map: row.map });
+      }
+    }
     const body = { mode, target, woo_product_id: wooId };
     type PushPreview = {
       changes: Change[];
@@ -289,6 +313,7 @@ export default function WebsiteProducts() {
       keys_configured: boolean;
       before?: { regular_price?: string | null; sale_price?: string | null } | null;
       after?: { regular_price?: string | null; sale_price?: string | null } | null;
+      pack?: { qty: number; label: string | null; unit: string | null; coc_price: number | null; site_pack_price: number | null } | null;
     };
     const { data, error } = await callSync<PushPreview>({ action: "preview", ...body });
     if (error || !data) return toast.error(syncErrorMessage(error));
@@ -309,6 +334,7 @@ export default function WebsiteProducts() {
         confirmLabel: mode === "create" ? "تأكيد الإضافة إلى الموقع" : "تأكيد التحديث على الموقع",
         blocked: d.keys_configured ? (d.changes.length ? null : "لا توجد فروق") : syncErrorMessage("woo_keys_missing"),
         priceContext: customerPriceContextFromPreview(d, selling) ?? defaultCtx,
+        packNote: d.pack && d.pack.qty !== 1 ? packPriceExplanation(d.pack.coc_price, d.pack.qty, d.pack.unit, d.pack.label) : null,
         keepSale: allowKeep
           ? {
               available: true,
@@ -334,9 +360,15 @@ export default function WebsiteProducts() {
 
   const openPull = (r: CatalogRow) => {
     if (!r.product) return;
+    const packQty = r.pack?.qty ?? 1;
+    const newCoc = cocPriceFromSite(r.site.price, packQty);
     setPreview({
       title: `تحديث سعر «${r.product.name}» في النظام من الموقع`,
-      changes: [{ field: "regular_price", before: r.cocPrice === null ? null : String(r.cocPrice), after: String(r.site.price) }],
+      changes: [{ field: "regular_price", before: r.cocPrice === null ? null : String(r.cocPrice), after: String(newCoc ?? r.site.price) }],
+      packNote:
+        packQty !== 1
+          ? `سعر عبوة الموقع ${formatEgp(r.site.price)} ÷ ${formatPackQty(packQty, r.product.unit)} = ${formatEgp(newCoc)} لكل ${unitSymbol(r.product.unit)} في COCEG`
+          : null,
       warnings: [],
       confirmLabel: "تأكيد تحديث السعر في النظام",
       blocked: null,
@@ -664,6 +696,7 @@ export default function WebsiteProducts() {
       </div>
 
       <PreviewDialog state={preview} onClose={() => setPreview(null)} />
+      <PackDialog state={pack} onClose={() => setPack(null)} onDone={() => { setPack(null); void load(); }} />
       {manage?.action === "price" && <PriceEditDialog ctx={manage.ctx} onClose={() => setManage(null)} onPreview={setPreview} onDone={load} />}
       {manage?.action === "sale" && <SaleDialog ctx={manage.ctx} onClose={() => setManage(null)} onPreview={setPreview} onDone={load} />}
       {manage?.action === "visibility" && (

@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Scale } from "lucide-react";
 import {
   type BoxItemDraft,
   type CocProduct,
@@ -47,6 +47,8 @@ export interface PreviewState {
   blocked: string | null;
   onConfirm: () => Promise<void>;
   priceContext?: PreviewPriceContext;
+  /** شرح حساب سعر عبوة الموقع من سعر COCEG (مثال: 350 × 0.5 كجم = 175 للعبوة). */
+  packNote?: string | null;
   keepSale?: {
     available: boolean;
     enabled: boolean;
@@ -71,6 +73,12 @@ export function PreviewDialog({ state, onClose }: { state: PreviewState | null; 
           <DialogDescription>معاينة الفروق قبل التنفيذ. لن يتغير شيء قبل التأكيد.</DialogDescription>
         </DialogHeader>
         <div className="preview-scroll min-h-0 flex-1 overflow-y-auto space-y-3 pe-0.5 pb-2">
+        {state.packNote && (
+          <div className="rounded-xl border px-4 py-3 text-sm font-bold leading-relaxed flex items-start gap-2" style={{ borderColor: BRAND.primary, color: BRAND.primary, background: "color-mix(in srgb, #A4288A 7%, white)" }}>
+            <Scale className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{state.packNote}</span>
+          </div>
+        )}
         {pay && (
           <div className="rounded-xl border px-4 py-3 text-sm font-medium leading-relaxed" style={{ borderColor: BRAND.deep, color: BRAND.deep, background: "color-mix(in srgb, #662D8C 8%, white)" }}>
             {pay}

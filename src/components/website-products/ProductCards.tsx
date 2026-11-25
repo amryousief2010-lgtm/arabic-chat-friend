@@ -25,6 +25,7 @@ import {
   Unlink,
   Upload,
   CalendarClock,
+  Scale,
 } from "lucide-react";
 import { WOO_MAP_SUGGESTIONS } from "@/data/wooMapSuggestions";
 import {
@@ -40,10 +41,54 @@ import {
   summarizeBoxItems,
 } from "@/lib/websiteProducts";
 import { formatValidityDate, VALIDITY_STATE_LABELS, validityState } from "@/lib/offerValidity";
+import { formatPackQty, unitSymbol } from "@/lib/sitePack";
 import { BRAND, CocTag, MiniThumb, ProductImageFrame, SkuChip, TypeBadge } from "./shared";
 
+/** سطر وزن عبوة الموقع على بطاقة منتج مربوط. */
+export function PackChip({ row, onManage, compact }: { row: CatalogRow; onManage?: (a: ManageAction, r: CatalogRow) => void; compact?: boolean }) {
+  if (!row.product || !row.map || !row.pack) return null;
+  const p = row.pack;
+  const unit = row.product.unit;
+  if (p.needsConfirm && p.suggestion) {
+    return (
+      <button
+        type="button"
+        onClick={() => onManage?.("pack", row)}
+        className={`w-full text-right rounded-xl border border-amber-300 bg-amber-50 text-amber-900 px-2.5 py-1.5 flex items-center gap-1.5 ${compact ? "text-[11px]" : "text-xs"}`}
+      >
+        <Scale className="w-3.5 h-3.5 shrink-0" style={{ color: BRAND.accent }} />
+        <span className="flex-1">
+          يُقترح وزن عبوة {p.suggestion.label} = {formatPackQty(p.suggestion.qty, unit)} · غير مؤكَّد
+        </span>
+        <span className="font-bold shrink-0" style={{ color: BRAND.primary }}>تأكيد</span>
+      </button>
+    );
+  }
+  return (
+    <div className={`flex items-center gap-1.5 ${compact ? "text-[11px]" : "text-xs"} text-muted-foreground`}>
+      <Scale className="w-3.5 h-3.5 shrink-0" />
+      <span>
+        عبوة الموقع: {p.label ? `${p.label} = ` : ""}
+        {formatPackQty(p.qty, unit)}
+        {p.confirmed ? "" : " (افتراضي)"}
+      </span>
+      {onManage && (
+        <button type="button" className="font-bold" style={{ color: BRAND.primary }} onClick={() => onManage("pack", row)}>
+          تعديل
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** سعر COCEG للعبوة، مع سعر الوحدة عندما يختلف وزن العبوة عن 1. */
+function cocPriceSub(row: CatalogRow): string | null {
+  if (!row.product || !row.pack || row.pack.qty === 1) return null;
+  return `${formatEgp(row.cocPrice)} لكل ${unitSymbol(row.product.unit)} × ${formatPackQty(row.pack.qty, row.product.unit)}`;
+}
+
 export type Target = { kind: "product" | "offer_box"; id: string };
-export type ManageAction = "price" | "image" | "sale" | "visibility" | "sku" | "validity";
+export type ManageAction = "price" | "image" | "sale" | "visibility" | "sku" | "validity" | "pack";
 
 /** زر الصورة على البطاقة: بارز عند غياب أي صورة، ويظهر عند المرور فقط إذا كانت هناك صورة معروضة. */
 function ImageButton({ hasImage, shown, onClick }: { hasImage: boolean; shown?: boolean; onClick: () => void }) {
@@ -185,9 +230,11 @@ export function SiteProductCard({
             <div className="flex items-baseline justify-between gap-2 border-t border-border/60 pt-1.5">
               <span className="text-xs text-muted-foreground">
                 سعر <CocTag />
+                {cocPriceSub(row) ? " للعبوة" : ""}
+                {cocPriceSub(row) && <span className="block text-[10px] mt-0.5">{cocPriceSub(row)}</span>}
               </span>
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold text-foreground">{formatEgp(row.cocPrice)}</span>
+                <span className="text-sm font-bold text-foreground">{formatEgp(row.cocPackPrice)}</span>
                 {!!row.priceDiff && (
                   <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md text-white" style={{ backgroundColor: BRAND.accent }}>
                     {formatSignedEgp(row.priceDiff)}
@@ -204,7 +251,9 @@ export function SiteProductCard({
               <Link2 className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">مربوط بـ: {label || "—"}</span>
             </div>
-          ) : (
+          ) : null}
+          {row.map && row.product ? <PackChip row={row} onManage={onManage} /> : null}
+          {row.map ? null : (
             <div className="space-y-2 pt-0.5">
               {suggestion && (
                 <div className="flex items-center justify-between gap-2 rounded-xl bg-amber-50 border border-amber-200 px-2.5 py-1.5 text-amber-900">
@@ -369,6 +418,12 @@ export function SiteProductCard({
                     <ImagePlus className="w-4 h-4" />
                     <span>{cocImage ? "استبدال الصورة" : "إضافة صورة"}</span>
                   </DropdownMenuItem>
+                  {row.product && (
+                    <DropdownMenuItem className="gap-2" onSelect={() => onManage("pack", row)}>
+                      <Scale className="w-4 h-4" />
+                      <span>وزن عبوة الموقع</span>
+                    </DropdownMenuItem>
+                  )}
                   {row.product && (
                     <DropdownMenuItem className="gap-2" disabled={sku !== "mismatch" || skuDuplicate} onSelect={() => onManage("sku", row)}>
                       <ScanLine className="w-4 h-4" />
@@ -635,6 +690,7 @@ export function SiteTableRow({
               {row.box ? "عرض: " : "منتج: "}
               {label || "—"}
             </Badge>
+            {row.product && <div className="basis-full"><PackChip row={row} onManage={onManage} compact /></div>}
             <button
               type="button"
               className="text-xs text-muted-foreground hover:text-destructive inline-flex items-center gap-1"
@@ -693,7 +749,8 @@ export function SiteTableRow({
         )}
       </TableCell>
       <TableCell className="whitespace-nowrap">
-        {formatEgp(row.cocPrice)}
+        {formatEgp(row.cocPackPrice)}
+        {cocPriceSub(row) && <div className="text-[11px] text-muted-foreground">{cocPriceSub(row)}</div>}
         {!!row.priceDiff && (
           <div>
             <Badge variant="outline" className="border-amber-500 text-amber-700">

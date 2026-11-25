@@ -51,7 +51,7 @@ export interface SiteProductRow {
   categories: string[];
 }
 
-export interface CocProduct { id: string; name: string; price: number | null; barcode: string | null; image_url?: string | null }
+export interface CocProduct { id: string; name: string; price: number | null; barcode: string | null; image_url?: string | null; unit?: string | null }
 export interface CocBoxItem { name: string; quantity: number; is_gift: boolean }
 export interface CocBox { id: string; name: string; offer_price: number | null; shipping_cost: number | null; image_url?: string | null; items: CocBoxItem[] }
 
@@ -75,7 +75,33 @@ export interface WooFields {
 
 export interface Change { field: keyof WooFields; before: string | null; after: string }
 
-export interface Mapping { woo_product_id: number; woo_variation_id: number; kind: "product" | "offer_box"; product_id: string | null; offer_box_id: string | null }
+export interface Mapping {
+  woo_product_id: number;
+  woo_variation_id: number;
+  kind: "product" | "offer_box";
+  product_id: string | null;
+  offer_box_id: string | null;
+  /** وزن عبوة الموقع بوحدة COCEG (0.5 = نصف كيلو لمنتج بالكيلو). الافتراضي 1؛ العروض دائماً 1. */
+  site_pack_qty?: number | null;
+  site_pack_label?: string | null;
+  site_pack_confirmed_at?: string | null;
+}
+
+/** وزن العبوة الفعّال لربط (1 للعروض أو القيم غير الصالحة). */
+export function packQtyOf(m: Pick<Mapping, "kind" | "site_pack_qty"> | null | undefined): number {
+  if (!m || m.kind !== "product") return 1;
+  const n = Number(m.site_pack_qty ?? 1);
+  return Number.isFinite(n) && n > 0 && n <= 100 ? Math.round(n * 1000) / 1000 : 1;
+}
+
+export interface PackInfo {
+  qty: number;
+  label: string | null;
+  confirmed: boolean;
+  unit: string | null;
+  coc_price: number | null;
+  site_pack_price: number | null;
+}
 
 export interface LogEntry {
   actor: string | null;
@@ -209,10 +235,13 @@ export class SyncError extends Error {
 }
 
 /** What we want the Woo product to look like (only the fields we manage). */
-export function desiredFields(mode: Mode, target: Target, src: CocProduct | CocBox, before: WooFields | null, env: CatalogEnv = {}, keepSale = false): WooFields {
+export function desiredFields(mode: Mode, target: Target, src: CocProduct | CocBox, before: WooFields | null, env: CatalogEnv = {}, keepSale = false, packQty = 1): WooFields {
   const isBox = target.kind === "offer_box";
-  const price = isBox ? (src as CocBox).offer_price : (src as CocProduct).price;
-  if (!price || price <= 0) throw new SyncError(422, "coc_price_missing");
+  const cocPrice = isBox ? (src as CocBox).offer_price : (src as CocProduct).price;
+  if (!cocPrice || cocPrice <= 0) throw new SyncError(422, "coc_price_missing");
+  // سعر عبوة الموقع = سعر COCEG × وزن العبوة (العروض بسعرها كما هو).
+  const price = isBox ? cocPrice : Math.round(cocPrice * (packQty > 0 ? packQty : 1) * 100) / 100;
+  if (!(price > 0)) throw new SyncError(422, "coc_price_missing");
   const currentRegular = Number(before?.regular_price || 0);
   const currentSale = Number(before?.sale_price || 0);
   const canKeep = keepSale && currentSale > 0 && currentRegular > 0 && price < currentRegular;
@@ -255,8 +284,22 @@ async function sha256Hex(s: string): Promise<string> {
   return [...new Uint8Array(d)].map((x) => x.toString(16).padStart(2, "0")).join("");
 }
 
-export const previewToken = (p: { mode: Mode; target: Target; woo_product_id: number | null; before: WooFields | null; after: WooFields }) =>
-  sha256Hex(JSON.stringify([p.mode, p.target.kind, p.target.id, p.woo_product_id, p.before, p.after]));
+export const previewToken = (p: { mode: Mode; target: Target; woo_product_id: number | null; before: WooFields | null; after: WooFields; pack_qty?: number }) =>
+  sha256Hex(JSON.stringify([p.mode, p.target.kind, p.target.id, p.woo_product_id, p.before, p.after, ...(p.pack_qty !== undefined && p.pack_qty !== 1 ? [p.pack_qty] : [])]));
+
+export function packInfo(mapping: Mapping | null, src: CocProduct | CocBox | null, kind: "product" | "offer_box" | null): PackInfo | null {
+  if (kind !== "product" || !src) return null;
+  const qty = packQtyOf(mapping);
+  const cocPrice = (src as CocProduct).price ?? null;
+  return {
+    qty,
+    label: mapping?.site_pack_label?.trim() || null,
+    confirmed: !!mapping?.site_pack_confirmed_at,
+    unit: (src as CocProduct).unit ?? null,
+    coc_price: cocPrice,
+    site_pack_price: cocPrice && cocPrice > 0 ? Math.round(cocPrice * qty * 100) / 100 : null,
+  };
+}
 
 // ── WooCommerce I/O ─────────────────────────────────────────────────────────
 
@@ -384,10 +427,13 @@ export async function buildPreview(deps: CatalogDeps, input: PreviewInput) {
     warnings.push("box_free_shipping_class");
     if ((src as CocBox).shipping_cost) warnings.push("box_price_includes_shipping");
   }
-  const after = desiredFields(mode, target, src, before, deps.env, !!input.keep_sale);
+  const packQty = mode === "update" && target.kind === "product" ? packQtyOf(mapping) : 1;
+  if (packQty !== 1) warnings.push("site_pack_applied");
+  const after = desiredFields(mode, target, src, before, deps.env, !!input.keep_sale, packQty);
   const changes = diffFields(before, after);
-  const token = await previewToken({ mode, target, woo_product_id: wooId, before, after });
-  return { mode, target, woo_product_id: wooId, before, after, changes, token, warnings, keys_configured: keysConfigured(deps.env) };
+  const token = await previewToken({ mode, target, woo_product_id: wooId, before, after, pack_qty: packQty });
+  const pack = mode === "update" ? packInfo(mapping, src, target.kind) : null;
+  return { mode, target, woo_product_id: wooId, before, after, changes, token, warnings, pack, keys_configured: keysConfigured(deps.env) };
 }
 
 function parseInput(body: Record<string, unknown>): PreviewInput {
@@ -535,12 +581,16 @@ export async function buildSiteEditPreview(deps: CatalogDeps, wooId: number, edi
     const box = src as CocBox | null;
     if (box?.offer_price && Number(edit.regular_price) !== Number(box.offer_price)) warnings.push("box_site_price_differs_from_coc");
   }
+  const pack = packInfo(mapping, src, srcKind);
+  if (srcKind === "product" && edit.kind === "price" && pack?.site_pack_price && Number(edit.regular_price) !== pack.site_pack_price) {
+    warnings.push("site_price_differs_from_coc_pack");
+  }
   if (edit.kind === "sale") warnings.push("coc_price_unchanged");
   const changes = diffFields(before, after);
   const target: Target = srcKind === "offer_box" && mapping?.offer_box_id ? { kind: "offer_box", id: mapping.offer_box_id }
     : { kind: "product", id: mapping?.product_id ?? "00000000-0000-0000-0000-000000000000" };
   const token = await sha256Hex(JSON.stringify(["site_edit", wooId, edit, before, after]));
-  return { woo_product_id: wooId, edit, mapping, target, before, after, changes, token, warnings, keys_configured: keysConfigured(deps.env) };
+  return { woo_product_id: wooId, edit, mapping, target, before, after, changes, token, warnings, pack, keys_configured: keysConfigured(deps.env) };
 }
 
 /** Woo REST body for a site edit (image goes as images[0]). */

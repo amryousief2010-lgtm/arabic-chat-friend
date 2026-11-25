@@ -1,5 +1,6 @@
 /** منطق شاشة «منتجات الموقع» (بدون React) — قابل للاختبار. */
 import type { WooMapSuggestion } from "@/data/wooMapSuggestions";
+import { type PackState, packStateFor, sitePackPrice } from "@/lib/sitePack";
 
 export const COMPANY_BARCODE_PREFIX = "622400320";
 
@@ -22,6 +23,10 @@ export interface MapRow {
   kind: "product" | "offer_box";
   product_id: string | null;
   offer_box_id: string | null;
+  /** وزن عبوة الموقع بوحدة COCEG (الافتراضي 1). */
+  site_pack_qty?: number | null;
+  site_pack_label?: string | null;
+  site_pack_confirmed_at?: string | null;
 }
 
 export interface CocProduct {
@@ -31,6 +36,7 @@ export interface CocProduct {
   barcode: string | null;
   image_url?: string | null;
   is_active: boolean;
+  unit?: string | null;
 }
 
 export interface BoxItemSummary {
@@ -60,7 +66,10 @@ export interface CatalogRow {
   product: CocProduct | null;
   box: CocBox | null;
   cocPrice: number | null;
-  priceDiff: number | null; // site − coc
+  /** سعر COCEG لعبوة الموقع = cocPrice × وزن العبوة (العروض = cocPrice). */
+  cocPackPrice: number | null;
+  pack: PackState | null;
+  priceDiff: number | null; // site − سعر COCEG للعبوة
   displayImage: string | null;
   kind: "product" | "offer_box";
 }
@@ -106,11 +115,13 @@ export function buildCatalogRows(site: SiteProduct[], maps: MapRow[], products: 
     const product = map?.kind === "product" ? products.find((p) => p.id === map.product_id) ?? null : null;
     const box = map?.kind === "offer_box" ? boxes.find((b) => b.id === map.offer_box_id) ?? null : null;
     const cocPrice = product ? n(product.price) : box ? n(box.offer_price) : null;
+    const pack = product && map ? packStateFor(map, s.name, product) : null;
+    const cocPackPrice = product ? sitePackPrice(cocPrice, pack?.qty ?? 1) : cocPrice;
     const sitePrice = n(s.price);
-    const priceDiff = cocPrice !== null && sitePrice !== null ? Math.round((sitePrice - cocPrice) * 100) / 100 : null;
+    const priceDiff = cocPackPrice !== null && sitePrice !== null ? Math.round((sitePrice - cocPackPrice) * 100) / 100 : null;
     const displayImage = (s.image_url?.trim() || product?.image_url?.trim() || box?.image_url?.trim() || null) as string | null;
     const kind: "product" | "offer_box" = map?.kind === "offer_box" || /بوكس|عرض/.test(s.name) ? "offer_box" : "product";
-    return { site: s, map, product, box, cocPrice, priceDiff, displayImage, kind };
+    return { site: s, map, product, box, cocPrice, cocPackPrice, pack, priceDiff, displayImage, kind };
   });
 }
 
@@ -307,6 +318,8 @@ export const WARNING_LABELS: Record<string, string> = {
   box_identity_kept: "يبقى العرض نفسه (الاسم والمكونات والكميات والهدايا)، والشحن ضمن السعر بدون تغيير.",
   coc_price_unchanged: "سعر COCEG لن يتغير؛ التخفيض على الموقع فقط.",
   box_site_price_differs_from_coc: "سعر العرض على الموقع سيختلف عن سعر العرض في COCEG (المرتبط بمكوناته والشحن ضمنه).",
+  site_pack_applied: "سعر الموقع محسوب لعبوة الموقع: سعر COCEG × وزن العبوة المؤكَّد في الربط.",
+  site_price_differs_from_coc_pack: "سعر الموقع الجديد يختلف عن سعر COCEG لهذه العبوة (سعر COCEG × وزن العبوة).",
 };
 
 const ERRORS: Record<string, string> = {
@@ -324,6 +337,9 @@ const ERRORS: Record<string, string> = {
   WOO_BOX_ITEMS_INVALID: "مكونات العرض غير صحيحة",
   WOO_BOX_PRICE_MISMATCH: "مجموع المكونات المدفوعة مع الشحن لا يساوي سعر العرض على الموقع",
   WOO_REASON_REQUIRED: "يُرجى كتابة سبب من 3 أحرف على الأقل",
+  WOO_PACK_QTY_INVALID: "وزن العبوة غير صحيح؛ يجب أن يكون أكبر من صفر ولا يتجاوز 100",
+  WOO_PACK_LABEL_TOO_LONG: "وصف العبوة طويل؛ 40 حرفاً على الأكثر",
+  WOO_PACK_BOX_BLOCKED: "العروض بلا وزن عبوة؛ يبقى سعر العرض كما هو في COCEG",
   WEB_MAP_ONE_TARGET: "يُرجى اختيار منتج واحد أو عرض واحد",
   woo_keys_missing: "مفاتيح الكتابة على الموقع غير مضبوطة بعد؛ المعاينة متاحة والكتابة متوقفة حتى اعتماد المدير العام",
   changed_since_preview: "تغيّر المنتج على الموقع بعد المعاينة؛ يُرجى مراجعة المعاينة الجديدة",
