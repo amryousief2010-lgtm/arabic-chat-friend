@@ -22,7 +22,7 @@ const row = (s: SiteProduct, barcode: string | null, mapped = true): CatalogRow 
   site: s,
   map: mapped ? { woo_product_id: s.woo_product_id, woo_variation_id: 0, kind: "product", product_id: "p", offer_box_id: null } : null,
   product: mapped ? { id: "p", name: "استيك", price: 100, barcode, is_active: true } : null,
-  box: null, cocPrice: 100, priceDiff: 0, displayImage: null, kind: "product",
+  box: null, cocPrice: 100, cocPackPrice: 100, pack: null, priceDiff: 0, displayImage: null, kind: "product",
 });
 
 describe("SKU parity (COCEG barcode is the source)", () => {

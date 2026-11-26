@@ -14,7 +14,8 @@ import GovernorateSelect from "@/components/shared/GovernorateSelect";
 import { FULFILLMENT_OPTIONS, deliveryAddressLine, splitWooAddress } from "@/lib/wooAddress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { AlertTriangle, Globe, Link2, MapPin, RefreshCw, Truck, UserPlus, XCircle } from "lucide-react";
+import { AlertTriangle, Globe, Link2, MapPin, RefreshCw, Scale, Truck, UserPlus, XCircle } from "lucide-react";
+import { formatPackQty, packQtyLine } from "@/lib/sitePack";
 import {
   type InboxItem, type InboxKind, type InboxStatus, type MappedItem, type ProductMapRow,
   KIND_LABELS, STATUS_LABELS, assignBlocker, attributionLabel, formatCairo, mapItems, maskPhone,
@@ -58,7 +59,7 @@ interface InboxRow {
   site_changed_after_assign: boolean;
 }
 
-interface Option { id: string; name: string }
+interface Option { id: string; name: string; unit?: string | null }
 interface Candidate { customer_id: string; name: string; phone_masked: string; total_orders: number; last_order_at: string | null }
 
 const STATUS_FILTERS: { value: InboxStatus | "all"; label: string }[] = [
@@ -85,10 +86,10 @@ export default function WebsiteOrders() {
     setLoading(true);
     let q = db.from("website_inbox").select("*").eq("kind", kind).order("created_at", { ascending: false }).limit(200);
     if (statusFilter !== "all") q = q.eq("status", statusFilter);
-    const [inbox, mapRes] = await Promise.all([q, db.from("woo_product_map").select("woo_product_id, woo_variation_id, kind, product_id, offer_box_id")]);
+    const [inbox, mapRes] = await Promise.all([q, db.from("woo_product_map").select("woo_product_id, woo_variation_id, kind, product_id, offer_box_id, site_pack_qty, site_pack_label, site_pack_confirmed_at")]);
     if (inbox.error) toast.error("تعذّر تحميل طلبات الموقع");
     setRows((inbox.data ?? []) as InboxRow[]);
-    setMaps(((mapRes.data ?? []) as ProductMapRow[]).map((m) => ({ ...m, woo_product_id: Number(m.woo_product_id), woo_variation_id: Number(m.woo_variation_id) })));
+    setMaps(((mapRes.data ?? []) as ProductMapRow[]).map((m) => ({ ...m, woo_product_id: Number(m.woo_product_id), woo_variation_id: Number(m.woo_variation_id), site_pack_qty: m.site_pack_qty === null || m.site_pack_qty === undefined ? 1 : Number(m.site_pack_qty) })));
     setLoading(false);
   }, [kind, statusFilter]);
 
@@ -97,11 +98,11 @@ export default function WebsiteOrders() {
   useEffect(() => {
     (async () => {
       const [p, b, r] = await Promise.all([
-        db.from("products").select("id, name").eq("is_active", true).order("name"),
+        db.from("products").select("id, name, unit").eq("is_active", true).order("name"),
         db.from("offer_boxes").select("id, name").eq("is_active", true).order("name"),
         db.from("user_roles").select("user_id").eq("role", "sales_moderator"),
       ]);
-      setProducts((p.data ?? []).map((x: { id: string; name: string }) => ({ id: x.id, name: x.name })));
+      setProducts((p.data ?? []).map((x: { id: string; name: string; unit?: string | null }) => ({ id: x.id, name: x.name, unit: x.unit ?? null })));
       setBoxes((b.data ?? []).map((x: { id: string; name: string }) => ({ id: x.id, name: x.name })));
       const ids = Array.from(new Set((r.data ?? []).map((x: { user_id: string }) => x.user_id)));
       if (ids.length) {
@@ -160,7 +161,7 @@ function InboxCard({ row, maps, products, boxes, moderators, moderatorName, onCh
   row: InboxRow; maps: ProductMapRow[]; products: Option[]; boxes: Option[]; moderators: Option[];
   moderatorName: (id: string | null) => string; onChanged: () => void;
 }) {
-  const items: MappedItem[] = useMemo(() => mapItems(row.items, maps), [row.items, maps]);
+  const items: MappedItem[] = useMemo(() => mapItems(row.items, maps, products), [row.items, maps, products]);
   const [moderatorId, setModeratorId] = useState<string | null>(null);
   const [customerChoice, setCustomerChoice] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
@@ -420,6 +421,18 @@ function ItemRow({ item, products, boxes, canMap, onMapped }: {
       <span className="font-medium">{item.name}</span>
       <span className="text-muted-foreground">× {item.quantity}</span>
       <span className="text-muted-foreground">{money(item.unit_price)}</span>
+      {item.pack && item.pack.qty !== 1 && (
+        <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold" style={{ color: BRAND.primary, background: "color-mix(in srgb, #A4288A 8%, white)" }}>
+          <Scale className="w-3 h-3" />
+          {packQtyLine(item.quantity, item.pack.qty, item.unit)} في COCEG
+        </span>
+      )}
+      {item.pack?.needsConfirm && item.pack.suggestion && (
+        <span className="inline-flex items-center gap-1 text-xs text-amber-700">
+          <AlertTriangle className="w-3 h-3" />
+          وزن العبوة غير مؤكَّد (يُقترح {formatPackQty(item.pack.suggestion.qty, item.unit)})؛ يُرجى تأكيده من «منتجات الموقع»
+        </span>
+      )}
       {item.map ? (
         <Badge variant="outline" className="gap-1" style={{ borderColor: BRAND.deep, color: BRAND.deep }}>
           <Link2 className="w-3 h-3" />{item.map.kind === "offer_box" ? "عرض: " : "منتج: "}{mappedName ?? "—"}
