@@ -1,6 +1,7 @@
 import { lazy as reactLazy, Suspense } from "react";
 import { AI_REPORTS_PATH, AI_REPORTS_ROLES } from "@/config/aiReports";
 import { WEBSITE_ORDERS_PATH, WEBSITE_ORDERS_ROLES } from "@/config/websiteOrders";
+import { B2B_QUOTES_PATH, B2B_QUOTES_VIEW_ROLES } from "@/config/b2bQuotes";
 import { WEBSITE_PRODUCTS_PATH, WEBSITE_PRODUCTS_ROLES } from "@/config/websiteProducts";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
@@ -79,6 +80,7 @@ const ModeratorWarehouseStock = lazy(() => import("@/pages/ModeratorWarehouseSto
 const Notifications = lazy(() => import("@/pages/Notifications"));
 const DuplicateOrderApprovals = lazy(() => import("@/pages/DuplicateOrderApprovals"));
 const WebsiteOrders = lazy(() => import("@/pages/WebsiteOrders"));
+const B2BQuoteRequests = lazy(() => import("@/pages/B2BQuoteRequests"));
 const WebsiteProducts = lazy(() => import("@/pages/WebsiteProducts"));
 const OrderDetails = lazy(() => import("@/pages/OrderDetails"));
 const Install = lazy(() => import("@/pages/Install"));
@@ -399,6 +401,11 @@ const AnimatedRoutes = () => {
           <Route path={WEBSITE_ORDERS_PATH} element={
             <ProtectedRoute allowedRoles={WEBSITE_ORDERS_ROLES}>
               <PageTransition><WebsiteOrders /></PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path={B2B_QUOTES_PATH} element={
+            <ProtectedRoute allowedRoles={B2B_QUOTES_VIEW_ROLES}>
+              <PageTransition><B2BQuoteRequests /></PageTransition>
             </ProtectedRoute>
           } />
           <Route path={WEBSITE_PRODUCTS_PATH} element={

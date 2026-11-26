@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import { MARKETING_ONLY_EXTRA_PREFIXES } from '@/config/sidebarOverrides';
+import { B2B_QUOTES_PATH } from '@/config/b2bQuotes';
 import { CALLER_LOOKUP_PATH } from '@/constants/callerLookup';
 import { toast } from 'sonner';
 import ForcePasswordChange from '@/components/ForcePasswordChange';
@@ -24,6 +25,7 @@ const MODERATOR_ALLOWED_PREFIXES = [
   '/hagar-orders-review',
   '/my-delivery-summary',
   '/chick-orders',
+  B2B_QUOTES_PATH, // طلبات عروض الأسعار – الفنادق والمطاعم (المُسندة إليها فقط بحكم RLS)
   '/sales-targets',
   '/notifications',
   '/permissions',

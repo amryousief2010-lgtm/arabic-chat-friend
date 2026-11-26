@@ -176,6 +176,7 @@ describe("Lovable remaining edge-function auth hardening", () => {
       .sort();
     expect(disabled).toEqual([
       "auth-email-hook",
+      "b2b-quote-ingest",
       "cm-morning-report",
       "meta-social-webhook",
       "site-product-counters",
@@ -207,6 +208,22 @@ describe("Lovable remaining edge-function auth hardening", () => {
     expect(src).toMatch(/503/);
     expect(src).not.toMatch(/from\(["']cm_ad_attributions/);
     expect(src).not.toMatch(/console\.(log|info|debug|warn|error)\(.*(secret|phone)/i);
+  });
+
+  // نموذج «للفنادق والمطاعم» يُرسَل من سيرفر الموقع بدون JWT؛ البديل توقيع HMAC + طابع زمني في زمن ثابت.
+  it("b2b-quote-ingest (no gateway JWT) verifies the site HMAC + timestamp in constant time and is inert without the secret", () => {
+    const src = readFileSync(resolve(process.cwd(), "supabase/functions/b2b-quote-ingest/handler.ts"), "utf8");
+    const idx = fn("b2b-quote-ingest");
+    expect(src).toMatch(/x-coc-signature/i);
+    expect(src).toMatch(/x-coc-timestamp/i);
+    expect(src).toMatch(/B2B_QUOTE_SECRET/);
+    expect(src).toMatch(/timingSafeEqualText/);
+    expect(src).toMatch(/401/);
+    expect(src).toMatch(/503/);
+    expect(src).toMatch(/company_website/); // honeypot
+    expect(idx).toMatch(/b2b_quote_ingest/);
+    expect(src + idx).not.toMatch(/cm_ad_attributions|catering_/);
+    expect(src + idx).not.toMatch(/console\.(log|info|debug|warn|error)\(.*(secret|phone|mobile)/i);
   });
 
   it("site-product-counters (no gateway JWT) enforces constant-time x-site-key auth and never logs the secret", () => {
