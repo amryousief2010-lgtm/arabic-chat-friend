@@ -1,4 +1,5 @@
 import GovernorateSelect from "@/components/shared/GovernorateSelect";
+import { fixedWeightOf, fixedWeightLabel, fixedWeightError, fixedPieces, isFixedWeightQtyValid, snapFixedWeightQty, firstFixedWeightViolation } from "@/lib/fixedWeight";
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { findModeratorBySlug, findModeratorByName } from '@/constants/moderators';
@@ -86,6 +87,7 @@ interface Product {
   unit: string;
   stock: number;
   category: string | null;
+  fixed_weight_kg?: number | string | null;
 }
 
 interface Customer {
@@ -461,7 +463,7 @@ const NewOrder = () => {
       try {
         const productsRes: any = await withTimedQuery(
           '[NewOrder] products query',
-          () => supabase.from('products').select('id, name, price, unit, category').eq('is_active', true),
+          () => supabase.from('products').select('id, name, price, unit, category, fixed_weight_kg').eq('is_active', true),
         );
         if (productsRes.error) throw productsRes.error;
         setProducts(productsRes.data || []);
@@ -656,7 +658,7 @@ const NewOrder = () => {
       if (existingItem) {
         setCart(cart.map(item =>
           item.cartItemId === existingItem.cartItemId
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: item.quantity + (fixedWeightOf(product) ?? 1) }
             : item
         ));
         return;
@@ -665,7 +667,7 @@ const NewOrder = () => {
     setCart(prev => [...prev, {
       cartItemId: genCartId(),
       product,
-      quantity: 1,
+      quantity: fixedWeightOf(product) ?? 1,
       customPrice,
       isOfferItem,
       isHalfKg,
@@ -676,6 +678,11 @@ const NewOrder = () => {
 
   const addCustomKgToCart = (product: Product, qty: number) => {
     if (!qty || qty <= 0 || !isFinite(qty)) return;
+    const fixedKg = fixedWeightOf(product);
+    if (fixedKg && !isFixedWeightQtyValid(qty, fixedKg)) {
+      qty = snapFixedWeightQty(qty, fixedKg);
+      toast.info(`«${product.name}» قطعة كاملة ${fixedWeightLabel(fixedKg)}؛ تم ضبط الكمية على ${qty} كجم`);
+    }
     const existing = cart.find(
       i => !i.isOfferItem && i.product.id === product.id && !i.isHalfKg && i.customPrice === undefined
     );
@@ -756,7 +763,7 @@ const NewOrder = () => {
       const productIds = items.map(i => i.product_id);
       const { data: productData } = await supabase
         .from('products')
-        .select('id, name, price, unit, category')
+        .select('id, name, price, unit, category, fixed_weight_kg')
         .in('id', productIds);
 
       const previewItems: OfferPreviewItem[] = items.map(it => ({
@@ -960,7 +967,7 @@ const NewOrder = () => {
   const updateQuantityById = (cartItemId: string, delta: number) => {
     setCart(cart.map(item => {
       if (item.cartItemId === cartItemId) {
-        const newQuantity = item.quantity + delta;
+        const newQuantity = item.quantity + delta * (fixedWeightOf(item.product) ?? 1);
         if (newQuantity <= 0) return item;
         return { ...item, quantity: newQuantity };
       }
@@ -1031,6 +1038,12 @@ const NewOrder = () => {
   const swapCartProduct = (cartItemId: string, newProductId: string) => {
     const newProduct = products.find(p => p.id === newProductId);
     if (!newProduct) return;
+    const fixedKg = fixedWeightOf(newProduct);
+    const current = cart.find((i) => i.cartItemId === cartItemId);
+    if (fixedKg && current && !isFixedWeightQtyValid(current.quantity, fixedKg)) {
+      updateCartItem(cartItemId, { product: newProduct, quantity: snapFixedWeightQty(current.quantity, fixedKg) });
+      return;
+    }
     updateCartItem(cartItemId, { product: newProduct });
   };
 
@@ -1222,6 +1235,14 @@ const NewOrder = () => {
   ) => {
     if (cart.length === 0) {
       toast.error('يرجى إضافة منتجات للطلب');
+      return;
+    }
+
+    const fixedBad = firstFixedWeightViolation(cart.filter((i) => !i.isHalfKg).map((i) => ({ quantity: i.quantity, product: i.product })));
+    const fixedHalf = cart.find((i) => i.isHalfKg && fixedWeightOf(i.product));
+    if (fixedBad || fixedHalf) {
+      const fp = fixedBad ?? { name: fixedHalf!.product.name, qty: fixedHalf!.quantity * 0.5, fixedKg: fixedWeightOf(fixedHalf!.product)! };
+      toast.error(fixedWeightError(fp.name, fp.qty, fp.fixedKg));
       return;
     }
 
@@ -1967,7 +1988,8 @@ const NewOrder = () => {
                         </thead>
                         <tbody>
                           {filteredProducts.map((product) => {
-                            const kg = isKgUnit(product.unit);
+                            const fixedKg = fixedWeightOf(product);
+                        const kg = isKgUnit(product.unit) && !fixedKg;
                             return (
                               <tr key={product.id} className="border-t hover:bg-muted/30 transition-colors">
                                 <td className="p-2 align-middle">
@@ -1992,7 +2014,21 @@ const NewOrder = () => {
                                   </div>
                                 </td>
                                 <td className="p-2 align-middle">
-                                  {kg ? (
+                                  {fixedKg ? (
+                                <div className="flex flex-col gap-1.5" data-testid="fixed-weight-add">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-9 text-xs"
+                                    onClick={() => addToCart(product)}
+                                    title="قطعة كاملة بوزن ثابت لا تُجزَّأ ولا تُزاد"
+                                  >
+                                    <Plus className="w-3 h-3 ml-1" />
+                                    قطعة كاملة {fixedWeightLabel(fixedKg)}
+                                  </Button>
+                                  <span className="text-[10px] text-muted-foreground">وزن ثابت — لا تقسيم ولا زيادة</span>
+                                </div>
+                              ) : kg ? (
                                     <div className="flex flex-col gap-1.5">
                                       <div className="grid grid-cols-2 gap-1.5">
                                         <Button
@@ -2100,7 +2136,8 @@ const NewOrder = () => {
                     {/* Mobile card view */}
                     <div className="md:hidden space-y-2">
                       {filteredProducts.map((product) => {
-                        const kg = isKgUnit(product.unit);
+                        const fixedKg = fixedWeightOf(product);
+                        const kg = isKgUnit(product.unit) && !fixedKg;
                         return (
                           <div
                             key={product.id}
@@ -2122,7 +2159,21 @@ const NewOrder = () => {
                             <div className="text-primary font-bold text-sm mb-2">
                               {product.price.toLocaleString()} ج.م / {product.unit}
                             </div>
-                            {kg ? (
+                            {fixedKg ? (
+                                <div className="flex flex-col gap-1.5" data-testid="fixed-weight-add">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-9 text-xs"
+                                    onClick={() => addToCart(product)}
+                                    title="قطعة كاملة بوزن ثابت لا تُجزَّأ ولا تُزاد"
+                                  >
+                                    <Plus className="w-3 h-3 ml-1" />
+                                    قطعة كاملة {fixedWeightLabel(fixedKg)}
+                                  </Button>
+                                  <span className="text-[10px] text-muted-foreground">وزن ثابت — لا تقسيم ولا زيادة</span>
+                                </div>
+                              ) : kg ? (
                               <div className="flex flex-col gap-1.5">
                                 <div className="grid grid-cols-2 gap-1.5">
                                   <Button
@@ -2351,6 +2402,11 @@ const NewOrder = () => {
                                   </>
                                 )}
                               </p>
+                              {fixedWeightOf(item.product) ? (
+                                <p className="mt-0.5 text-xs text-amber-700" data-testid="fixed-weight-note">
+                                  قطعة كاملة وزنها ثابت {fixedWeightLabel(fixedWeightOf(item.product)!)} — {fixedPieces(item.quantity, fixedWeightOf(item.product)!)} قطعة (لا تقسيم ولا زيادة)
+                                </p>
+                              ) : null}
                               {item.isOfferItem && item.offerBoxId && offerCartSummaryById[item.offerBoxId]?.length ? (
                                 <p className="mt-1 text-xs text-muted-foreground">
                                   {offerCartSummaryById[item.offerBoxId].join(' + ')}
@@ -2373,7 +2429,7 @@ const NewOrder = () => {
                                 onClick={() => updateQuantityById(item.cartItemId, -1)}>
                                 <Minus className="w-3 h-3" />
                               </Button>
-                              <span className="w-8 text-center font-medium">{item.quantity}</span>
+                              <span className="min-w-8 text-center font-medium">{item.quantity}</span>
                               <Button variant="outline" size="icon" className="h-7 w-7"
                                 onClick={() => updateQuantityById(item.cartItemId, 1)}>
                                 <Plus className="w-3 h-3" />
