@@ -18,8 +18,8 @@ import { AlertTriangle, Globe, Link2, MapPin, RefreshCw, Scale, Truck, UserPlus,
 import { formatPackQty, packQtyLine } from "@/lib/sitePack";
 import {
   type InboxItem, type InboxKind, type InboxStatus, type MappedItem, type ProductMapRow,
-  KIND_LABELS, STATUS_LABELS, assignBlocker, attributionLabel, formatCairo, mapItems, maskPhone,
-  unmappedCount, websiteErrorMessage,
+  KIND_LABELS, SHIP_BOX_LABEL, SHIP_RULE_TEXT, SHIP_SITE_LABEL, SHIP_SITE_NOTE, STATUS_LABELS, assignBlocker,
+  attributionLabel, formatCairo, mapItems, maskPhone, shippingSummary, unmappedCount, websiteErrorMessage,
 } from "@/lib/websiteOrders";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,7 +59,7 @@ interface InboxRow {
   site_changed_after_assign: boolean;
 }
 
-interface Option { id: string; name: string; unit?: string | null }
+interface Option { id: string; name: string; unit?: string | null; shipping_cost?: number | null }
 interface Candidate { customer_id: string; name: string; phone_masked: string; total_orders: number; last_order_at: string | null }
 
 const STATUS_FILTERS: { value: InboxStatus | "all"; label: string }[] = [
@@ -99,11 +99,11 @@ export default function WebsiteOrders() {
     (async () => {
       const [p, b, r] = await Promise.all([
         db.from("products").select("id, name, unit").eq("is_active", true).order("name"),
-        db.from("offer_boxes").select("id, name").eq("is_active", true).order("name"),
+        db.from("offer_boxes").select("id, name, shipping_cost").eq("is_active", true).order("name"),
         db.from("user_roles").select("user_id").eq("role", "sales_moderator"),
       ]);
       setProducts((p.data ?? []).map((x: { id: string; name: string; unit?: string | null }) => ({ id: x.id, name: x.name, unit: x.unit ?? null })));
-      setBoxes((b.data ?? []).map((x: { id: string; name: string }) => ({ id: x.id, name: x.name })));
+      setBoxes((b.data ?? []).map((x: { id: string; name: string; shipping_cost?: number | string | null }) => ({ id: x.id, name: x.name, shipping_cost: x.shipping_cost === null || x.shipping_cost === undefined ? null : Number(x.shipping_cost) })));
       const ids = Array.from(new Set((r.data ?? []).map((x: { user_id: string }) => x.user_id)));
       if (ids.length) {
         const { data: profs } = await db.from("profile_directory").select("id, full_name").in("id", ids);
@@ -227,6 +227,7 @@ function InboxCard({ row, maps, products, boxes, moderators, moderatorName, onCh
 
   const itemsTotal = items.reduce((s, i) => s + (Number(i.line_total ?? (i.unit_price ?? 0) * i.quantity) || 0), 0);
   const isNew = row.status === "new";
+  const ship = useMemo(() => shippingSummary(items, boxes, row.shipping_total), [items, boxes, row.shipping_total]);
 
   return (
     <Card className="border-r-4" style={{ borderRightColor: isNew ? BRAND.accent : BRAND.deep }}>
@@ -267,16 +268,38 @@ function InboxCard({ row, maps, products, boxes, moderators, moderatorName, onCh
               <ItemRow key={`${it.woo_product_id}-${it.woo_variation_id ?? 0}-${idx}`} item={it} products={products} boxes={boxes}
                 canMap={isNew} onMapped={onChanged} />
             ))}
-            <div className="flex flex-wrap gap-4 p-2 text-sm bg-muted/40">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 p-2 text-sm bg-muted/40" data-testid="order-totals">
               <span>إجمالي البنود: {money(itemsTotal)}</span>
-              <span>شحن الموقع: {money(row.shipping_total)}</span>
+              {isNew && ship.boxLines.length > 0 && (
+                <span className="font-semibold" style={{ color: BRAND.deep }} data-testid="box-shipping">
+                  {SHIP_BOX_LABEL}: {money(ship.boxTotal)}
+                </span>
+              )}
+              <span className="text-muted-foreground" data-testid="site-shipping">
+                {SHIP_SITE_LABEL}: {money(row.shipping_total)}
+                {ship.siteShippingIgnored && <span className="ms-1 text-xs">({SHIP_SITE_NOTE})</span>}
+              </span>
               {Number(row.discount_total) > 0 && <span>خصم الموقع: {money(row.discount_total)}</span>}
               <span className="font-bold">إجمالي الموقع: {money(row.order_total)}</span>
             </div>
-            {Number(row.shipping_total) > 0 && isNew && (
-              <div className="p-2 text-xs text-amber-700 flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3" />
-                شحن العروض يُحتسب من بيانات العرض في النظام؛ أما شحن المنتجات المنفردة فيُضبط مع العميل عند المكالمة، لذا قد يختلف الإجمالي عن إجمالي الموقع.
+            {isNew && ship.boxLines.length > 0 && (
+              <div className="px-2 pb-2 text-xs text-muted-foreground space-y-0.5" data-testid="box-shipping-lines">
+                {ship.boxLines.map((l, i) => (
+                  <div key={`${l.offerBoxId}-${i}`}>
+                    {l.name}: {money(l.perBox)} × {l.quantity} = {money(l.total)}
+                  </div>
+                ))}
+                {ship.boxesWithoutShipping.length > 0 && (
+                  <div className="text-amber-700">
+                    لا يوجد شحن مسجَّل على: {Array.from(new Set(ship.boxesWithoutShipping)).join("، ")}
+                  </div>
+                )}
+              </div>
+            )}
+            {ship.siteShippingIgnored && isNew && (
+              <div className="p-2 text-xs text-amber-700 flex items-start gap-1" data-testid="ship-rule">
+                <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                <span>{SHIP_RULE_TEXT}</span>
               </div>
             )}
           </div>
