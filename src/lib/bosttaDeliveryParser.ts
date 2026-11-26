@@ -18,6 +18,14 @@ export interface CatalogProduct {
   name: string;
   unit: string;
   price: number;
+  /** Official 13-digit barcode, when registered. A sheet token equal to it matches the product. */
+  barcode?: string | null;
+}
+
+/** A previous name of a product (from product_edit_audit), kept so old sheets still match after a rename. */
+export interface ProductNameAlias {
+  product_id: string;
+  old_name: string;
 }
 
 export interface ParsedItem {
@@ -155,11 +163,36 @@ const ALIAS_KEYS_SORTED = Object.keys(ALIASES).sort((a, b) => b.length - a.lengt
 
 const GIFT_TOKENS = new Set(["هديه", "هدية"]);
 
-/** Build lookup of normalized catalog name → product. */
-export function buildProductLookup(products: CatalogProduct[]): Map<string, CatalogProduct> {
+/**
+ * Build lookup of normalized catalog name → product.
+ * Keys: current names first, then registered barcodes, then previous names (aliases).
+ * A previous name never overrides a current product name or barcode, so a rename
+ * cannot steal another product's sheets; an alias claimed by two products is dropped.
+ */
+export function buildProductLookup(
+  products: CatalogProduct[],
+  aliases: ProductNameAlias[] = [],
+): Map<string, CatalogProduct> {
   const map = new Map<string, CatalogProduct>();
   for (const p of products) {
     map.set(normalizeArabic(p.name), p);
+  }
+  for (const p of products) {
+    const code = String(p.barcode ?? "").replace(/\D/g, "");
+    if (code.length === 13 && !map.has(code)) map.set(code, p);
+  }
+  const byId = new Map(products.map((p) => [p.id, p]));
+  const aliasOwner = new Map<string, CatalogProduct | null>();
+  for (const a of aliases) {
+    const product = byId.get(a.product_id);
+    const key = normalizeArabic(a.old_name || "");
+    if (!product || !key || map.has(key)) continue;
+    const prev = aliasOwner.get(key);
+    if (prev === undefined) aliasOwner.set(key, product);
+    else if (prev && prev.id !== product.id) aliasOwner.set(key, null);
+  }
+  for (const [key, product] of aliasOwner) {
+    if (product) map.set(key, product);
   }
   return map;
 }
@@ -272,6 +305,15 @@ export function parseProductText(
       // Try each word individually as alias
       for (const w of b.words) {
         if (ALIASES[w]) { canonical = ALIASES[w]; matchedRaw = w; break; }
+      }
+    }
+    if (!canonical) {
+      // Exact match on a current name, a previous name (after a rename) or a barcode
+      if (productLookup.has(phrase)) { canonical = phrase; matchedRaw = phrase; }
+      else {
+        for (const w of b.words) {
+          if (/^\d{13}$/.test(w) && productLookup.has(w)) { canonical = w; matchedRaw = w; break; }
+        }
       }
     }
     if (!canonical) {

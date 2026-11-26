@@ -40,6 +40,7 @@ interface AffectedOrder {
 interface Row {
   product_id: string;
   product_name: string;
+  category?: string | null;
   unit: string;
   current_stock: number;
   low_stock_threshold: number;
@@ -78,7 +79,7 @@ const ManufacturingQueue = () => {
     try {
       const { data: products, error: pErr } = await supabase
         .from("products")
-        .select("id, name, unit, stock, low_stock_threshold, is_active")
+        .select("id, name, category, unit, stock, low_stock_threshold, is_active")
         .eq("is_active", true);
       if (pErr) throw pErr;
 
@@ -103,6 +104,7 @@ const ManufacturingQueue = () => {
         map.set(p.id, {
           product_id: p.id,
           product_name: p.name,
+          category: p.category ?? null,
           unit: p.unit,
           current_stock: p.stock,
           low_stock_threshold: p.low_stock_threshold,
@@ -334,7 +336,7 @@ const ManufacturingQueue = () => {
     setDispatchReview(
       shortageRows.map(r => ({
         row: r,
-        destination: classifyProductDestination(r.product_name),
+        destination: classifyProductDestination(r.product_name, r.category),
         qty: r.shortage,
       }))
     );
