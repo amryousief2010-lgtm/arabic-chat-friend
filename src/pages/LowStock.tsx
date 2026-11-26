@@ -82,7 +82,8 @@ const LowStock = () => {
             return (data || []) as { id: string; product_id: string | null; stock: number | null; warehouse_id: string }[];
           },
         }),
-        supabase.from("warehouses").select("id").eq("is_active", true),
+        // مخازن المنتج التام فقط: أصناف خامات المصنع/التغليف قد تُربط بالمنتج نفسه ولا تُحسب رصيدًا قابلًا للبيع
+        supabase.from("warehouses").select("id").eq("is_active", true).not("type", "in", "(raw_materials,packaging)"),
       ]);
       if (warehouseRes.error) throw warehouseRes.error;
 

@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   buildProductLookup,
   parseProductText,
+  type ProductNameAlias,
   consolidateItems,
   normalizePhone,
   type CatalogProduct,
@@ -55,12 +56,16 @@ export function BulkDeliveryUploadButton() {
     try {
       // Fetch catalog
       const { data: productsRaw, error: pErr } = await supabase
-        .from("products").select("id, name, unit, price").eq("is_active", true);
+        .from("products").select("id, name, unit, price, barcode").eq("is_active", true);
       if (pErr) throw pErr;
       const catalog: CatalogProduct[] = (productsRaw || []).map((p: any) => ({
-        id: p.id, name: p.name, unit: p.unit || "كيلو", price: Number(p.price || 0),
+        id: p.id, name: p.name, unit: p.unit || "كيلو", price: Number(p.price || 0), barcode: p.barcode ?? null,
       }));
-      const lookup = buildProductLookup(catalog);
+      // الأسماء القديمة للمنتجات بعد إعادة التسمية، حتى تظل شيتات بوسطة القديمة مطابقة.
+      // لو الدالة غير متاحة نكمل بالأسماء الحالية فقط.
+      const { data: aliasRows } = await (supabase as any).rpc("product_name_aliases");
+      const aliases: ProductNameAlias[] = Array.isArray(aliasRows) ? aliasRows : [];
+      const lookup = buildProductLookup(catalog, aliases);
 
       // Read xlsx
       const buf = await file.arrayBuffer();

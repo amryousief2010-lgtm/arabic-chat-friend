@@ -53,6 +53,8 @@ import {
   type ProductReadiness,
 } from "@/lib/productGate";
 import ProductActivationDialog from "@/components/products/ProductActivationDialog";
+import RenameFactoryWarningDialog from "@/components/products/RenameFactoryWarningDialog";
+import { isRealRename, shouldWarnRename, type RenameFactoryCheck } from "@/lib/productRename";
 
 
 const categories = ["لحوم طازجة", "لحوم مصنعة", "منتجات أخرى"];
@@ -305,6 +307,11 @@ const Products = () => {
   // Readiness of the product being edited (cost is never sent to the client, only cost_ok)
   const [editReadiness, setEditReadiness] = useState<ProductReadiness | null>(null);
   const [activationProduct, setActivationProduct] = useState<Product | null>(null);
+  // تحذير إعادة تسمية منتج مصنّع قد تفصله عن صنف مصنع اللحوم
+  const [renameWarning, setRenameWarning] = useState<
+    { id: string; updates: Record<string, unknown>; oldName: string; newName: string; lost: string[] } | null
+  >(null);
+  const [checkingRename, setCheckingRename] = useState(false);
 
   // Permission checks
   const canAddProducts = role === 'general_manager' || role === 'executive_manager' || role === 'sales_manager' || role === 'warehouse_supervisor';
@@ -538,6 +545,26 @@ const Products = () => {
     updateStockMutation.mutate({ id: productId, newStock });
   };
 
+  const saveProductUpdate = async (id: string, updates: Record<string, unknown>, oldName: string) => {
+    const newName = String(updates.name ?? "");
+    if (String(updates.category ?? "") === PROCESSED_MEAT_CATEGORY && isRealRename(oldName, newName)) {
+      setCheckingRename(true);
+      try {
+        const { data, error } = await (supabase as any).rpc("product_rename_factory_check", {
+          p_product_id: id,
+          p_new_name: newName,
+        });
+        if (!error && shouldWarnRename(data as RenameFactoryCheck)) {
+          setRenameWarning({ id, updates, oldName, newName, lost: (data as RenameFactoryCheck).name_linked_lost });
+          return;
+        }
+      } finally {
+        setCheckingRename(false);
+      }
+    }
+    updateMutation.mutate({ id, updates });
+  };
+
   const handleSubmit = () => {
     if (!formData.name || !formData.category || !formData.price) {
       toast({
@@ -593,7 +620,7 @@ const Products = () => {
       if (canEditPrice) {
         updates.price = parseFloat(formData.price);
       }
-      updateMutation.mutate({ id: editingProduct.id, updates });
+      void saveProductUpdate(editingProduct.id, updates, editingProduct.name);
     } else {
       createMutation.mutate(formData);
     }
@@ -824,8 +851,8 @@ const Products = () => {
                     </div>
                     {formData.category === PROCESSED_MEAT_CATEGORY && (
                       <p className="text-xs rounded-md border border-amber-300 bg-amber-50 text-amber-800 p-2">
-                        المنتج المصنّع لازم يكون له صنف تام في مصنع اللحوم بنفس الاسم (مثال: «برجر نعام» ← «برجر»)
-                        عشان يتحوّل للمخزن ويتفعّل.
+                        يجب أن يكون للمنتج المصنّع صنف تام في مصنع اللحوم مربوط به (بالمنتج نفسه أو بالاسم، مثال: «برجر نعام» ← «برجر»)
+                        حتى يُحوَّل إلى المخزن ويُفعَّل. وعند تغيير الاسم سيُنبهك النظام إن كان التغيير سيفصله عن صنف المصنع.
                       </p>
                     )}
                     {!editingProduct && (
@@ -833,7 +860,7 @@ const Products = () => {
                         المنتج الجديد بيتضاف <b>موقوف</b>، ويتفعّل من المدير العام أو مدير المبيعات بعد ما يدخله رصيد.
                       </p>
                     )}
-                    <Button onClick={handleSubmit} className="w-full btn-primary">
+                    <Button onClick={handleSubmit} className="w-full btn-primary" disabled={checkingRename || updateMutation.isPending}>
                       {editingProduct ? "حفظ التعديلات" : "إضافة المنتج"}
                     </Button>
                   </div>
@@ -1118,6 +1145,17 @@ const Products = () => {
         </CardContent>
       </Card>
 
+      <RenameFactoryWarningDialog
+        open={!!renameWarning}
+        oldName={renameWarning?.oldName ?? ""}
+        newName={renameWarning?.newName ?? ""}
+        lostItems={renameWarning?.lost ?? []}
+        onCancel={() => setRenameWarning(null)}
+        onConfirm={() => {
+          if (renameWarning) updateMutation.mutate({ id: renameWarning.id, updates: renameWarning.updates as any });
+          setRenameWarning(null);
+        }}
+      />
       <ProductActivationDialog
         product={activationProduct}
         onOpenChange={(open) => { if (!open) setActivationProduct(null); }}
