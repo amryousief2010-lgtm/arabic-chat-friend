@@ -74,6 +74,66 @@ export function mapItems(items: InboxItem[] | null | undefined, maps: ProductMap
   });
 }
 
+/** عرض/بوكس بسعر شحنه المسجَّل على بيانات العرض في النظام. */
+export interface ShippingBox {
+  id: string;
+  name: string;
+  shipping_cost?: number | null;
+}
+
+export interface BoxShippingLine {
+  offerBoxId: string;
+  name: string;
+  quantity: number;
+  perBox: number;
+  total: number;
+}
+
+export interface ShippingSummary {
+  /** شحن كل بوكس مربوط في الطلب (من بيانات العرض فقط). */
+  boxLines: BoxShippingLine[];
+  /** مجموع شحن البوكسات = ما يُسجَّل في الطلب بعد الإسناد. */
+  boxTotal: number;
+  /** بوكسات بلا شحن مسجَّل على العرض. */
+  boxesWithoutShipping: string[];
+  /** شحن الموقع للعلم فقط، لا يدخل في الطلب أبداً. */
+  siteShipping: number;
+  siteShippingIgnored: boolean;
+}
+
+export const SHIP_BOX_LABEL = "شحن البوكسات (من بيانات العرض)";
+export const SHIP_SITE_LABEL = "شحن الموقع";
+export const SHIP_SITE_NOTE = "للعلم فقط، لا يُضاف إلى الطلب";
+export const SHIP_RULE_TEXT =
+  "لا يُنقل شحن المنتجات المنفردة من الموقع إلى الطلب. يحتفظ النظام بشحن البوكسات المسجَّل على العروض فقط، " +
+  "ويُحدَّد شحن المنتجات المنفردة يدويًا من المودريتور مع العميل عند المكالمة.";
+
+/** شحن الطلب بعد الإسناد = شحن البوكسات من بيانات العرض فقط؛ شحن الموقع لا يُحتسب. */
+export function shippingSummary(items: MappedItem[], boxes: ShippingBox[], siteShipping: number | null | undefined): ShippingSummary {
+  const boxLines: BoxShippingLine[] = [];
+  for (const it of items) {
+    if (it.map?.kind !== "offer_box") continue;
+    const box = boxes.find((b) => b.id === it.map?.offer_box_id);
+    const perBox = Math.max(Number(box?.shipping_cost ?? 0) || 0, 0);
+    const quantity = Math.max(Number(it.quantity) || 0, 0);
+    boxLines.push({
+      offerBoxId: it.map.offer_box_id ?? "",
+      name: box?.name ?? it.name,
+      quantity,
+      perBox,
+      total: Math.round(perBox * quantity * 100) / 100,
+    });
+  }
+  const site = Math.max(Number(siteShipping ?? 0) || 0, 0);
+  return {
+    boxLines,
+    boxTotal: Math.round(boxLines.reduce((s, l) => s + l.total, 0) * 100) / 100,
+    boxesWithoutShipping: boxLines.filter((l) => l.perBox === 0).map((l) => l.name),
+    siteShipping: site,
+    siteShippingIgnored: site > 0,
+  };
+}
+
 export const packNeedsConfirmCount = (items: MappedItem[]) => items.filter((i) => i.pack?.needsConfirm).length;
 
 export const unmappedCount = (items: MappedItem[]) => items.filter((i) => !i.map).length;
