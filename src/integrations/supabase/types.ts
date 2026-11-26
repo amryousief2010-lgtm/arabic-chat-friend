@@ -20372,6 +20372,7 @@ export type Database = {
           name: string
           old_price: number | null
           pack_weight_kg: number | null
+          fixed_weight_kg: number | null
           price: number
           stock: number
           unit: string
@@ -20391,6 +20392,7 @@ export type Database = {
           name: string
           old_price?: number | null
           pack_weight_kg?: number | null
+          fixed_weight_kg?: number | null
           price: number
           stock?: number
           unit?: string
@@ -20410,6 +20412,7 @@ export type Database = {
           name?: string
           old_price?: number | null
           pack_weight_kg?: number | null
+          fixed_weight_kg?: number | null
           price?: number
           stock?: number
           unit?: string

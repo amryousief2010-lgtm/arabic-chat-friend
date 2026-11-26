@@ -182,6 +182,7 @@ const ERRORS: Record<string, string> = {
   WEB_MAP_ONE_TARGET: "يُرجى اختيار منتج واحد أو عرض واحد",
   WEB_PRODUCT_NOT_FOUND: "المنتج غير موجود",
   WEB_BOX_NOT_FOUND: "العرض غير موجود",
+  FIXED_WEIGHT_QTY: "يوجد منتج وزنه ثابت (قطعة كاملة) وكميته ليست من مضاعفات هذا الوزن؛ راجع «وزن عبوة الموقع» لهذا المنتج",
 };
 
 export function websiteErrorMessage(message: string | null | undefined): string {

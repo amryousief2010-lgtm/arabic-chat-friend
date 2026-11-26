@@ -19,6 +19,7 @@ import { Trash2, Plus, Gift } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getSalesInventoryAvailability, sumAvailableByProduct } from "@/lib/inventoryReadApi";
+import { fixedWeightOf, fixedWeightLabel, fixedWeightError, fixedPieces, isFixedWeightQtyValid, snapFixedWeightQty } from "@/lib/fixedWeight";
 import { computeOrderTotals, isOfferShippingLine } from "@/lib/orderTotals";
 import { deliveryFeeForItemEdit, liveOfferNames } from "@/lib/offerBoxOrder";
 import { getOfferUnitPriceForReplacement, getOfferPriceGroup, type OfferPriceGroup } from "@/lib/offerPriceGroups";
@@ -35,6 +36,7 @@ interface Product {
   name: string;
   price: number;
   unit: string;
+  fixed_weight_kg?: number | string | null;
 }
 
 interface EditableItem {
@@ -128,7 +130,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
   const fetchProducts = async () => {
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, price, unit")
+      .select("id, name, price, unit, fixed_weight_kg")
       .eq("is_active", true)
       .order("name");
     if (!error && data) setProducts(data as Product[]);
@@ -217,6 +219,9 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
       product_id: p.id,
       product_name: p.name,
       unit_price: oldItem.is_gift ? 0 : Number(newUnit),
+      ...(fixedWeightOf(p) && !isFixedWeightQtyValid(Number(oldItem.quantity), fixedWeightOf(p)!)
+        ? { quantity: snapFixedWeightQty(Number(oldItem.quantity), fixedWeightOf(p)!) }
+        : {}),
     });
   };
 
@@ -279,6 +284,11 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
       }
       if (it.unit_price < 0) {
         toast.error("السعر غير صالح");
+        return;
+      }
+      const fixedKg = fixedWeightOf(products.find((p) => p.id === it.product_id));
+      if (fixedKg && (it.is_half_kg || !isFixedWeightQtyValid(Number(it.quantity), fixedKg))) {
+        toast.error(fixedWeightError(it.product_name, Number(it.quantity), fixedKg));
         return;
       }
     }
@@ -449,6 +459,7 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
         <div className="space-y-3">
           {visibleItems.map((it) => {
             const realIdx = items.indexOf(it);
+            const fixedKg = fixedWeightOf(products.find((p) => p.id === it.product_id));
             return (
               <div
                 key={realIdx}
@@ -499,14 +510,26 @@ const EditOrderItemsDialog = ({ open, onOpenChange, orderId, initialItems, initi
                   <Input
                     type="number"
                     min={0}
-                    step={it.is_half_kg ? 0.5 : "any"}
+                    step={fixedKg ?? (it.is_half_kg ? 0.5 : "any")}
                     placeholder="0"
                     value={Number(it.quantity) === 0 ? "" : it.quantity}
                     onChange={(e) => {
                       const v = e.target.value;
                       updateItem(realIdx, { quantity: v === "" ? 0 : Number(v) });
                     }}
+                    onBlur={() => {
+                      if (fixedKg && Number(it.quantity) > 0 && !isFixedWeightQtyValid(Number(it.quantity), fixedKg)) {
+                        updateItem(realIdx, { quantity: snapFixedWeightQty(Number(it.quantity), fixedKg) });
+                        toast.info(`«${it.product_name}» قطعة كاملة ${fixedWeightLabel(fixedKg)}؛ تم ضبط الكمية`);
+                      }
+                    }}
+                    data-testid="qty-input"
                   />
+                  {fixedKg && (
+                    <div className="text-[10px] text-amber-700 font-medium mt-1" data-testid="fixed-weight-note">
+                      وزن ثابت {fixedWeightLabel(fixedKg)} للقطعة = {fixedPieces(Number(it.quantity), fixedKg)} قطعة (لا تقسيم ولا زيادة)
+                    </div>
+                  )}
                   {it.is_half_kg && (
                     <div className="text-[10px] text-primary font-medium mt-1">
                       = {(Number(it.quantity) * 2).toLocaleString()} عبوة نص كيلو
