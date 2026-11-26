@@ -111,7 +111,22 @@ export const contentOf = (m: any): Content => {
   return { type: "unknown", body: null, media: null };
 };
 
-const tsIso = (x: any) => { const n = Number(x); return new Date(Number.isFinite(n) && n > 0 ? n * 1000 : Date.now()).toISOString(); };
+// تطبيع الطوابع الزمنية من ميتا: أغلب الحقول ثواني epoch، لكن smb_app_state_sync (metadata.timestamp) بالمللي ثانية،
+// وكان ضربها ×1000 بينتج سنة ‎+58846 فيرفضها Postgres (22009 time zone displacement out of range) ويرجع الويبهوك 500 كل مرة.
+// القاعدة: نكتشف الوحدة من حجم الرقم (ثواني/مللي/مايكرو)، نقبل نص ISO، وأي قيمة غير صالحة أو خارج النطاق ← الآن. لا نرمي أبداً.
+const TS_MIN_MS = Date.UTC(2009, 0, 1); // قبل واتساب = غير صالح
+const TS_MAX_SKEW_MS = 2 * 24 * 3600 * 1000; // أكثر من يومين في المستقبل = غير صالح
+export const tsMs = (x: unknown, now = Date.now()): number => {
+  let ms = NaN;
+  if (x instanceof Date) ms = x.getTime();
+  else if (typeof x === "number" || (typeof x === "string" && /^\s*\d+(\.\d+)?\s*$/.test(x))) {
+    const n = Number(x);
+    if (Number.isFinite(n) && n > 0) ms = n < 1e11 ? n * 1000 : n < 1e14 ? n : n < 1e17 ? n / 1000 : NaN;
+  } else if (typeof x === "string" && x.trim()) ms = Date.parse(x.trim());
+  if (!Number.isFinite(ms) || ms < TS_MIN_MS || ms > now + TS_MAX_SKEW_MS) return now;
+  return Math.floor(ms);
+};
+export const tsIso = (x: unknown): string => new Date(tsMs(x)).toISOString();
 const digits = (x: any) => String(x ?? "").replace(/[^0-9]/g, "");
 
 /** يستخرج الرسائل الواردة (field=messages) فقط. */
