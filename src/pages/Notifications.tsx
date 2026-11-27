@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { PRODUCTION_NEEDED_TYPE, isUnreadProductionNeeded } from "@/lib/productionNeededNotifications";
+import { B2B_QUOTES_PATH, isB2BQuoteNotification } from "@/config/b2bQuotes";
 
 interface Notification {
   id: string;
@@ -306,7 +307,8 @@ const Notifications = () => {
             ) : (
               <div className="space-y-3">
                 {visibleNotifications.map((notification) => {
-                  const hasOrder = !!notification.order_id;
+                  const b2bLink = isB2BQuoteNotification(notification.type) ? B2B_QUOTES_PATH : null;
+                  const hasOrder = !!notification.order_id || !!b2bLink;
                   const urgent = requiresImmediateReply(notification) && !notification.is_read;
                   return (
                   <div
@@ -326,7 +328,7 @@ const Notifications = () => {
                       if (!notification.is_read) {
                         markAsReadMutation.mutate(notification.id);
                       }
-                      navigate(`/orders/${notification.order_id}`);
+                      navigate(b2bLink ?? `/orders/${notification.order_id}`);
                     }}
                     className={`p-4 rounded-lg border transition-colors ${
                       notification.is_read

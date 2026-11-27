@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import {
   Globe,
   Store,
+  Hotel,
   LayoutDashboard,
   Package,
   ShoppingCart,
@@ -74,6 +75,7 @@ import { CHAT_MANAGEMENT_SHIFTS_PATH, CHAT_MANAGEMENT_SETTINGS_PATH, CHAT_MANAGE
 import { cmGateAllows, isChatManagementPath, isCmKpiViewerPath } from "@/config/chatManagement";
 import { AI_REPORTS_PATH, AI_REPORTS_ROLES } from "@/config/aiReports";
 import { WEBSITE_ORDERS_PATH, WEBSITE_ORDERS_ROLES } from "@/config/websiteOrders";
+import { B2B_QUOTES_LABEL, B2B_QUOTES_PATH, B2B_QUOTES_VIEW_ROLES } from "@/config/b2bQuotes";
 import { WEBSITE_PRODUCTS_PATH, WEBSITE_PRODUCTS_ROLES } from "@/config/websiteProducts";
 import { useCmFeatureGate } from "@/hooks/useCmFeatureGate";
 import { Badge } from "@/components/ui/badge";
@@ -146,6 +148,7 @@ export const moduleSections: ModuleSection[] = [
       { icon: Bird, label: "طلبات الكتاكيت", path: "/chick-orders", roles: ['general_manager', 'executive_manager', 'sales_manager', 'sales_moderator', 'marketing_sales_manager', 'accountant', 'financial_manager','marketing_sales_viewer'] },
       { icon: Globe, label: "طلبات الموقع", path: WEBSITE_ORDERS_PATH, roles: WEBSITE_ORDERS_ROLES },
       { icon: Store, label: "منتجات الموقع", path: WEBSITE_PRODUCTS_PATH, roles: WEBSITE_PRODUCTS_ROLES },
+      { icon: Hotel, label: B2B_QUOTES_LABEL, path: B2B_QUOTES_PATH, roles: B2B_QUOTES_VIEW_ROLES },
       { icon: ShieldAlert, label: "موافقات تكرار الطلبات", path: "/duplicate-order-approvals", roles: ['general_manager','executive_manager','sales_manager'] },
       { icon: Users, label: "العملاء", path: "/customers", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },
       { icon: Gift, label: "صناديق العروض", path: "/offer-boxes", roles: ['general_manager', 'executive_manager', 'sales_manager', 'marketing_sales_manager','marketing_sales_viewer'] },

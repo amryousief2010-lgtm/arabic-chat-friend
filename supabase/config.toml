@@ -83,6 +83,10 @@ verify_jwt = false
 [functions.woo-order-ingest]
 verify_jwt = false
 
+# طلبات عروض الأسعار «للفنادق والمطاعم» من سيرفر الموقع: بدون JWT؛ التحقق بتوقيع X-COC-Signature (B2B_QUOTE_SECRET) + طابع زمني في زمن ثابت جوه الدالة.
+[functions.b2b-quote-ingest]
+verify_jwt = false
+
 # شاشة «منتجات الموقع»: JWT مطلوب + website_inbox_can_manage(). الكتابة على الموقع بمفاتيح WOO_CONSUMER_KEY / WOO_CONSUMER_SECRET فقط.
 [functions.woo-catalog-sync]
 verify_jwt = true
