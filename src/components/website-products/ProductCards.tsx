@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
+  AlertTriangle,
   BadgePercent,
   CheckCircle2,
   Download,
@@ -36,6 +37,7 @@ import {
   formatEgp,
   formatNum,
   formatSignedEgp,
+  hasPriceMismatch,
   skuState,
   suggestionFor,
   summarizeBoxItems,
@@ -142,6 +144,7 @@ export function SiteProductCard({
   const target: Target | null = row.product ? { kind: "product", id: row.product.id } : row.box ? { kind: "offer_box", id: row.box.id } : null;
   const label = row.product?.name ?? row.box?.name ?? "";
   const barcode = row.product?.barcode ?? s.sku ?? null;
+  const mismatch = hasPriceMismatch(row);
 
   const statusBadge = s.removed_at ? (
     <Badge variant="destructive" className="shadow-sm">
@@ -151,9 +154,10 @@ export function SiteProductCard({
     <Badge className="border-0 text-white shadow-sm" style={{ backgroundColor: BRAND.accent }}>
       غير مربوط
     </Badge>
-  ) : row.priceDiff ? (
-    <Badge className="border-0 text-white shadow-sm" style={{ backgroundColor: BRAND.accent }}>
-      فرق {formatSignedEgp(row.priceDiff)}
+  ) : mismatch ? (
+    <Badge className="border-0 text-white shadow-sm gap-1" style={{ backgroundColor: BRAND.accent }}>
+      <AlertTriangle className="w-3 h-3" />
+      {row.priceDiff ? `فرق ${formatSignedEgp(row.priceDiff)}` : "لا يوجد سعر على الموقع"}
     </Badge>
   ) : (
     <Badge className="border-0 bg-emerald-600 text-white gap-1 shadow-sm">
@@ -163,7 +167,11 @@ export function SiteProductCard({
   );
 
   return (
-    <Card className="group rounded-2xl overflow-hidden border bg-card shadow-sm hover:shadow-md transition-all flex flex-col">
+    <Card
+      className={`group rounded-2xl overflow-hidden border bg-card shadow-sm hover:shadow-md transition-all flex flex-col ${mismatch ? "ring-2 ring-offset-1" : ""}`}
+      style={mismatch ? ({ borderColor: BRAND.accent, "--tw-ring-color": BRAND.accent } as React.CSSProperties) : undefined}
+      data-price-mismatch={mismatch ? "true" : undefined}
+    >
       <ProductImageFrame
         imageUrl={row.displayImage}
         alt={s.name}
@@ -244,6 +252,16 @@ export function SiteProductCard({
             </div>
           )}
         </div>
+
+        {mismatch && (
+          <div className="rounded-xl border px-2.5 py-2 text-xs font-medium leading-relaxed flex items-start gap-1.5" style={{ borderColor: BRAND.accent, color: "#8a3a17", background: "rgba(243, 115, 70, 0.08)" }}>
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: BRAND.accent }} />
+            <span>
+              سعر الموقع لا يطابق <CocTag />: المتوقع {formatEgp(row.cocPackPrice)}
+              {isBox ? " (سعر العرض كما هو)" : ""}
+            </span>
+          </div>
+        )}
 
         <div className="space-y-1.5 text-xs text-muted-foreground">
           {row.map ? (
@@ -751,10 +769,11 @@ export function SiteTableRow({
       <TableCell className="whitespace-nowrap">
         {formatEgp(row.cocPackPrice)}
         {cocPriceSub(row) && <div className="text-[11px] text-muted-foreground">{cocPriceSub(row)}</div>}
-        {!!row.priceDiff && (
+        {hasPriceMismatch(row) && (
           <div>
-            <Badge variant="outline" className="border-amber-500 text-amber-700">
-              فرق {formatSignedEgp(row.priceDiff)}
+            <Badge variant="outline" className="gap-1" style={{ borderColor: BRAND.accent, color: "#8a3a17" }}>
+              <AlertTriangle className="w-3 h-3" />
+              {row.priceDiff ? `فرق ${formatSignedEgp(row.priceDiff)}` : "لا يوجد سعر على الموقع"}
             </Badge>
           </div>
         )}

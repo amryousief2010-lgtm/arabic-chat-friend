@@ -15,6 +15,7 @@ import {
   ArrowLeftRight,
   ArrowUpDown,
   CheckCircle2,
+  CloudUpload,
   LayoutGrid,
   List,
   PackagePlus,
@@ -29,6 +30,7 @@ import {
 } from "lucide-react";
 import {
   type BoxItemSummary,
+  type BulkCandidate,
   type CatalogRow,
   type CocBox,
   type CocProduct,
@@ -39,6 +41,8 @@ import {
   type TypeFilter,
   buildCatalogRows,
   buildMissingItems,
+  bulkPushCandidates,
+  hasPriceMismatch,
   duplicateSiteSkus,
   skuState,
   skuWouldDuplicate,
@@ -65,6 +69,7 @@ import {
 import { type Change, ImportDialog, PreviewDialog, type PreviewState } from "@/components/website-products/Dialogs";
 import { callSync } from "@/components/website-products/sync";
 import { PackDialog, type PackDialogState } from "@/components/website-products/PackDialog";
+import { BulkPushDialog } from "@/components/website-products/BulkPushDialog";
 import { cocPriceFromSite, formatPackQty, packPriceExplanation, unitSymbol } from "@/lib/sitePack";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -127,6 +132,7 @@ export default function WebsiteProducts() {
   const [backups, setBackups] = useState<Record<string, { id: string }>>({});
   const [pack, setPack] = useState<PackDialogState | null>(null);
   const [importTarget, setImportTarget] = useState<{ site: SiteProduct; as: "product" | "offer_box" } | null>(null);
+  const [bulk, setBulk] = useState<BulkCandidate[] | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -258,7 +264,9 @@ export default function WebsiteProducts() {
 
   const activeSiteCount = rows.filter((r) => !r.site.removed_at).length;
   const unmappedCount = rows.filter((r) => !r.map && !r.site.removed_at).length;
-  const diffCount = rows.filter((r) => !!r.priceDiff).length;
+  const diffCount = rows.filter(hasPriceMismatch).length;
+  // لقطة ثابتة من الفروق لحظة الضغط حتى لا تتغير القائمة أثناء المعاينة.
+  const openBulk = () => setBulk(bulkPushCandidates(rows));
   const missingCount = missingAll.length;
 
   const refresh = async () => {
@@ -397,7 +405,18 @@ export default function WebsiteProducts() {
               subtitle="مطابقة منتجات وعروض المتجر الإلكتروني مع النظام، وإدارة الأسعار والإضافة في الاتجاهين بعد المعاينة"
             />
           </div>
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              onClick={() => openBulk()}
+              disabled={diffCount === 0 || keysConfigured === false || loading}
+              title={keysConfigured === false ? syncErrorMessage("woo_keys_missing") : diffCount === 0 ? "لا توجد فروق أسعار حالياً" : undefined}
+              style={{ backgroundColor: BRAND.accent }}
+              className="gap-2 rounded-xl px-5 shadow-sm text-white hover:opacity-95"
+            >
+              <CloudUpload className="w-4 h-4" />
+              نشر كل الفروق
+              {diffCount > 0 && <Badge className="border-0 bg-white/25 text-white text-[11px] px-1.5 py-0">{formatNum(diffCount)}</Badge>}
+            </Button>
             <Button onClick={refresh} disabled={refreshing} style={{ backgroundColor: BRAND.primary }} className="gap-2 rounded-xl px-5 shadow-sm hover:opacity-95">
               <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
               تحديث من الموقع
@@ -429,6 +448,24 @@ export default function WebsiteProducts() {
           </button>
         )}
 
+        {diffCount > 0 && (
+          <div className="w-full rounded-2xl border p-3.5 text-sm flex flex-wrap items-center gap-2.5" style={{ borderColor: BRAND.accent, background: "rgba(243, 115, 70, 0.08)", color: "#8a3a17" }}>
+            <AlertTriangle className="w-5 h-5 shrink-0" style={{ color: BRAND.accent }} />
+            <span className="flex-1 min-w-[220px]">
+              {formatNum(diffCount)} من المنتجات والعروض سعرها على الموقع لا يطابق السعر المتوقع من <CocTag /> (سعر الوحدة × وزن العبوة، وسعر العرض كما هو).
+            </span>
+            <Button size="sm" variant="outline" className="rounded-xl h-8" style={{ borderColor: BRAND.accent, color: "#8a3a17" }}
+              onClick={() => { setTab("site"); setStatusFilter("diff"); }}>
+              عرض الفروق
+            </Button>
+            <Button size="sm" className="rounded-xl h-8 gap-1.5 text-white hover:opacity-95" style={{ backgroundColor: BRAND.accent }}
+              disabled={keysConfigured === false || loading} onClick={() => openBulk()}>
+              <CloudUpload className="w-3.5 h-3.5" />
+              نشر كل الفروق
+            </Button>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             icon={<Store className="w-5 h-5" style={{ color: BRAND.deep }} />}
@@ -453,7 +490,7 @@ export default function WebsiteProducts() {
             tint="rgba(164, 40, 138, 0.12)"
             label="فروق الأسعار"
             value={formatNum(diffCount)}
-            sub="بحاجة لمراجعة الاتجاه"
+            sub={diffCount ? "سعر الموقع لا يطابق COCEG" : "الأسعار مطابقة"}
             active={tab === "site" && statusFilter === "diff"}
             onClick={() => { setTab("site"); setStatusFilter("diff"); }}
           />
@@ -705,6 +742,9 @@ export default function WebsiteProducts() {
       {manage?.action === "image" && <ImageDialog ctx={manage.ctx} onClose={() => setManage(null)} onDone={load} />}
       {manage?.action === "validity" && <ValidityDialog ctx={manage.ctx} onClose={() => setManage(null)} onPreview={setPreview} onDone={load} />}
       {restore && <RestoreDialog backupId={restore.backupId} title={restore.title} onClose={() => setRestore(null)} onPreview={setPreview} onDone={load} />}
+      {bulk && (
+        <BulkPushDialog candidates={bulk} onClose={() => setBulk(null)} onDone={() => { setBulk(null); void load(); }} />
+      )}
       {importTarget && (
         <ImportDialog target={importTarget} products={products} onClose={() => setImportTarget(null)} onDone={() => { setImportTarget(null); void load(); }} />
       )}

@@ -148,7 +148,7 @@ export function filterAndSortSiteRows(
     if (opts.type !== "all" && r.kind !== opts.type) return false;
     if (opts.status === "unmapped" && (r.map || r.site.removed_at)) return false;
     if (opts.status === "mapped" && !r.map) return false;
-    if (opts.status === "diff" && !r.priceDiff) return false;
+    if (opts.status === "diff" && !hasPriceMismatch(r)) return false;
     if (opts.status === "removed" && !r.site.removed_at) return false;
     if (opts.status === "sku_mismatch" && skuState(r) !== "mismatch") return false;
     if (opts.status === "no_image" && r.displayImage) return false;
@@ -451,4 +451,78 @@ export function changeValueLabel(field: string, v: string | null | undefined): s
   if (field === "status" || field === "catalog_visibility") return SITE_STATUS_LABELS[s] ?? s;
   if (field === "regular_price" || field === "sale_price" || field === "price") return formatEgp(Number(s));
   return s;
+}
+
+// ── فروق الأسعار بين الموقع و COCEG + «نشر كل الفروق» ──────────────────────
+
+/**
+ * السعر المتوقع على الموقع:
+ * - المنتج: سعر COCEG × وزن عبوة الموقع (cocPackPrice).
+ * - العرض/البوكس: سعر العرض في COCEG كما هو (offer_price)، ولا يُضاف الشحن ولا يُغيَّر.
+ * يُعدّ السعر مختلفاً إذا زاد الفرق عن قرش واحد، أو إذا لم يكن للمنتج المربوط سعر على الموقع.
+ * لا تُحسب المنتجات غير المربوطة أو غير الظاهرة بالموقع أو التي ليس لها سعر في COCEG.
+ */
+export function hasPriceMismatch(r: CatalogRow): boolean {
+  if (!r.map || r.site.removed_at) return false;
+  if (!r.product && !r.box) return false;
+  const expected = r.cocPackPrice;
+  if (expected === null || !Number.isFinite(expected) || !(expected > 0)) return false;
+  const sitePrice = r.site.price;
+  if (sitePrice === null || sitePrice === undefined || !Number.isFinite(Number(sitePrice))) return true;
+  return Math.abs(Number(sitePrice) - expected) >= 0.01;
+}
+
+export type BulkSkipReason = "pack_unconfirmed" | "extra_fields" | "no_changes" | "keys_missing" | "preview_failed";
+
+export const BULK_SKIP_LABELS: Record<BulkSkipReason, string> = {
+  pack_unconfirmed: "يلزم تأكيد وزن عبوة الموقع أولاً من بطاقة المنتج",
+  extra_fields: "التحديث يشمل حقولاً غير السعر (مثل وصف العرض أو فئة الشحن)، لذا يُنفَّذ فردياً من بطاقة المنتج",
+  no_changes: "السعر على الموقع مطابق حالياً، ولا يلزم تحديث",
+  keys_missing: "الكتابة على الموقع متوقفة حتى ضبط مفاتيح المتجر",
+  preview_failed: "تعذّرت المعاينة",
+};
+
+/** الحقول المسموح بها في النشر الجماعي: السعر فقط، فلا يتغير وصف العرض ولا فئة الشحن ولا الكود. */
+export const BULK_ALLOWED_FIELDS = new Set(["regular_price", "sale_price"]);
+
+/** يحدد سبب استبعاد بند من النشر الجماعي بعد المعاينة، أو null إذا كان جاهزاً. */
+export function bulkPreviewIssue(preview: { changes: { field: string }[]; keys_configured: boolean }): BulkSkipReason | null {
+  if (!preview.keys_configured) return "keys_missing";
+  if (!preview.changes.length) return "no_changes";
+  if (preview.changes.some((c) => !BULK_ALLOWED_FIELDS.has(c.field))) return "extra_fields";
+  return null;
+}
+
+/** سعر البيع على الموقع بعد التحديث كما في المعاينة (التخفيض إن وُجد، وإلا السعر الأساسي). */
+export function sellingPriceAfter(
+  after: { regular_price?: string | null; sale_price?: string | null } | null | undefined,
+  before: { regular_price?: string | null; sale_price?: string | null } | null | undefined,
+): number | null {
+  const num = (v: string | null | undefined) => (v === null || v === undefined || v === "" ? null : Number(v));
+  const sale = after && "sale_price" in after ? num(after.sale_price) : num(before?.sale_price);
+  if (sale !== null && sale > 0) return sale;
+  const regular = after && "regular_price" in after ? num(after.regular_price) : num(before?.regular_price);
+  return regular !== null && Number.isFinite(regular) ? regular : null;
+}
+
+export interface BulkCandidate {
+  row: CatalogRow;
+  target: { kind: "product" | "offer_box"; id: string };
+  label: string;
+  sitePrice: number | null;
+  expectedPrice: number;
+  /** سبب استبعاد معروف قبل المعاينة (مثل وزن عبوة غير مؤكد). */
+  skip: BulkSkipReason | null;
+}
+
+/** المنتجات والعروض المختلفة السعر المرشحة لـ«نشر كل الفروق». */
+export function bulkPushCandidates(rows: CatalogRow[]): BulkCandidate[] {
+  return rows.filter(hasPriceMismatch).map((r) => ({
+    row: r,
+    target: r.box ? { kind: "offer_box" as const, id: r.box.id } : { kind: "product" as const, id: r.product!.id },
+    label: r.box?.name ?? r.product?.name ?? r.site.name,
+    sitePrice: r.site.price,
+    expectedPrice: r.cocPackPrice as number,
+    skip: r.product && r.pack?.needsConfirm ? "pack_unconfirmed" : null,
+  }));
 }
