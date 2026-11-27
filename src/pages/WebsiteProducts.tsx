@@ -22,6 +22,7 @@ import {
   RefreshCw,
   ScanBarcode,
   ScanLine,
+  Gift,
   Search,
   Store,
   Truck,
@@ -70,6 +71,8 @@ import { type Change, ImportDialog, PreviewDialog, type PreviewState } from "@/c
 import { callSync } from "@/components/website-products/sync";
 import { PackDialog, type PackDialogState } from "@/components/website-products/PackDialog";
 import { BulkPushDialog } from "@/components/website-products/BulkPushDialog";
+import { OfferOverviewCard, LinkBadge, OfferStatusChip, SectionTile } from "@/components/website-products/OfferCards";
+import { type CatalogSection, type OfferFilter, buildOfferOverview, filterAndSortOffers, offerAddDisabledReason, rowsForSection, sectionCounts } from "@/lib/websiteOffers";
 import { cocPriceFromSite, formatPackQty, packPriceExplanation, unitSymbol } from "@/lib/sitePack";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -119,10 +122,11 @@ export default function WebsiteProducts() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [tab, setTab] = useState<"site" | "coc" | "log">("site");
+  const [section, setSection] = useState<CatalogSection>("products");
+  const [tab, setTab] = useState<"overview" | "site" | "coc" | "log">("site");
+  const [offerFilter, setOfferFilter] = useState<OfferFilter>("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [query, setQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [statusFilter, setStatusFilter] = useState<SiteStatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("name_asc");
 
@@ -141,7 +145,7 @@ export default function WebsiteProducts() {
       db.from("woo_product_map").select("woo_product_id, woo_variation_id, kind, product_id, offer_box_id, site_pack_qty, site_pack_label, site_pack_confirmed_at"),
       db.from("products").select("id, name, price, barcode, image_url, is_active, unit").order("name"),
       db.from("offer_boxes").select("id, name, offer_price, shipping_cost, is_active, image_url, starts_at, expires_at, site_hidden_by_validity").order("name"),
-      db.from("offer_box_items").select("id, offer_box_id, quantity, is_gift, custom_price, created_at, products(name)").order("created_at"),
+      db.from("offer_box_items").select("id, offer_box_id, quantity, is_gift, custom_price, created_at, products(name, unit)").order("created_at"),
       db.from("woo_sync_log").select("*").order("created_at", { ascending: false }).limit(100),
     ]);
     if (s.error) toast.error("تعذّر تحميل منتجات الموقع");
@@ -157,6 +161,7 @@ export default function WebsiteProducts() {
       arr.push({
         id: item.id,
         name: item.products?.name ?? "منتج",
+        unit: item.products?.unit ?? null,
         quantity: Number(item.quantity ?? 1),
         is_gift: !!item.is_gift,
         custom_price: item.custom_price === null || item.custom_price === undefined ? null : Number(item.custom_price),
@@ -189,6 +194,8 @@ export default function WebsiteProducts() {
     callSync<{ keys_configured: boolean }>({ action: "status" }).then(({ data }) => setKeysConfigured(data?.keys_configured ?? null));
   }, [load]);
 
+  // القسم العلوي يحدد النوع: «منتجات الموقع» = منتجات منفردة، «العروض والصناديق» = عروض وبوكسات.
+  const typeFilter: TypeFilter = section === "offers" ? "offer_box" : "product";
   const rows = useMemo(() => buildCatalogRows(site, maps, products, boxes), [site, maps, products, boxes]);
   const shownSite = useMemo(
     () => filterAndSortSiteRows(rows, { query, type: typeFilter, status: statusFilter, sort: sortKey }),
@@ -200,6 +207,26 @@ export default function WebsiteProducts() {
     () => filterAndSortMissing(missingAll, { query, type: typeFilter, sort: sortKey }),
     [missingAll, query, typeFilter, sortKey],
   );
+
+  const offers = useMemo(() => buildOfferOverview(boxes, maps, rows), [boxes, maps, rows]);
+  const shownOffers = useMemo(
+    () => filterAndSortOffers(offers, { query, filter: offerFilter, sort: sortKey }),
+    [offers, query, offerFilter, sortKey],
+  );
+  const counts = useMemo(() => sectionCounts(rows, offers, missing.products), [rows, offers, missing.products]);
+
+  const switchSection = (s: CatalogSection) => {
+    setSection(s);
+    setStatusFilter("all");
+    setOfferFilter("all");
+    setTab((t) => (t === "log" ? "log" : s === "offers" ? "overview" : "site"));
+  };
+  // «عرض الفروق»: يبقى في القسم الحالي إن كان فيه فروق، وإلا ينتقل للقسم الذي فيه الفروق.
+  const showDiffs = () => {
+    if (counts[section].diffs === 0) setSection(section === "offers" ? "products" : "offers");
+    setTab("site");
+    setStatusFilter("diff");
+  };
 
   const dupSkus = useMemo(() => duplicateSiteSkus(site), [site]);
   const skuMismatchCount = rows.filter((r) => !r.site.removed_at && skuState(r) === "mismatch").length;
@@ -262,12 +289,15 @@ export default function WebsiteProducts() {
     setManage({ action: a, ctx: ctxFromRow(r), vis: r.site.removed_at ? "draft" : "publish_visible" });
   };
 
-  const activeSiteCount = rows.filter((r) => !r.site.removed_at).length;
-  const unmappedCount = rows.filter((r) => !r.map && !r.site.removed_at).length;
+  const sectionRows = rowsForSection(rows, section);
+  const activeSiteCount = sectionRows.filter((r) => !r.site.removed_at).length;
+  const unmappedCount = sectionRows.filter((r) => !r.map && !r.site.removed_at).length;
+  const sectionDiffCount = sectionRows.filter(hasPriceMismatch).length;
+  // «نشر كل الفروق» يبقى شاملاً للمنتجات والعروض معاً.
   const diffCount = rows.filter(hasPriceMismatch).length;
   // لقطة ثابتة من الفروق لحظة الضغط حتى لا تتغير القائمة أثناء المعاينة.
   const openBulk = () => setBulk(bulkPushCandidates(rows));
-  const missingCount = missingAll.length;
+  const missingCount = section === "offers" ? missing.boxes.length : missing.products.length;
 
   const refresh = async () => {
     setRefreshing(true);
@@ -438,7 +468,7 @@ export default function WebsiteProducts() {
         {skuMismatchCount > 0 && (
           <button
             type="button"
-            onClick={() => { setTab("site"); setStatusFilter("sku_mismatch"); }}
+            onClick={() => { setSection("products"); setTab("site"); setStatusFilter("sku_mismatch"); }}
             className="w-full text-right rounded-2xl border border-red-200 bg-red-50/70 p-3.5 text-sm flex items-center gap-2.5 text-red-800 hover:bg-red-50"
           >
             <ScanLine className="w-5 h-5 shrink-0" />
@@ -452,10 +482,10 @@ export default function WebsiteProducts() {
           <div className="w-full rounded-2xl border p-3.5 text-sm flex flex-wrap items-center gap-2.5" style={{ borderColor: BRAND.accent, background: "rgba(243, 115, 70, 0.08)", color: "#8a3a17" }}>
             <AlertTriangle className="w-5 h-5 shrink-0" style={{ color: BRAND.accent }} />
             <span className="flex-1 min-w-[220px]">
-              {formatNum(diffCount)} من المنتجات والعروض سعرها على الموقع لا يطابق السعر المتوقع من <CocTag /> (سعر الوحدة × وزن العبوة، وسعر العرض كما هو).
+              {formatNum(diffCount)} من المنتجات والعروض ({formatNum(counts.products.diffs)} منتج · {formatNum(counts.offers.diffs)} عرض) سعرها على الموقع لا يطابق السعر المتوقع من <CocTag /> (سعر الوحدة × وزن العبوة، وسعر العرض كما هو).
             </span>
             <Button size="sm" variant="outline" className="rounded-xl h-8" style={{ borderColor: BRAND.accent, color: "#8a3a17" }}
-              onClick={() => { setTab("site"); setStatusFilter("diff"); }}>
+              onClick={showDiffs}>
               عرض الفروق
             </Button>
             <Button size="sm" className="rounded-xl h-8 gap-1.5 text-white hover:opacity-95" style={{ backgroundColor: BRAND.accent }}
@@ -466,11 +496,40 @@ export default function WebsiteProducts() {
           </div>
         )}
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-[26px]">
+          <SectionTile
+            icon={<Store className="w-7 h-7 sm:w-8 sm:h-8" />}
+            color={BRAND.primary}
+            title="منتجات الموقع"
+            value={formatNum(counts.products.onSite)}
+            lines={[
+              `مربوط: ${formatNum(counts.products.linked)}`,
+              <span key="m">في <CocTag /> وليست على الموقع: {formatNum(counts.products.notOnSite)}</span>,
+              counts.products.diffs ? `فروق أسعار: ${formatNum(counts.products.diffs)}` : "الأسعار مطابقة",
+            ]}
+            active={section === "products"}
+            onClick={() => switchSection("products")}
+          />
+          <SectionTile
+            icon={<Gift className="w-7 h-7 sm:w-8 sm:h-8" />}
+            color={BRAND.accent}
+            title="العروض والصناديق"
+            value={formatNum(counts.offers.total)}
+            lines={[
+              `مربوط بالموقع: ${formatNum(counts.offers.linked)}`,
+              `غير موجود على الموقع: ${formatNum(counts.offers.unlinked)}`,
+              counts.offers.diffs ? `فروق أسعار: ${formatNum(counts.offers.diffs)}` : "الأسعار مطابقة",
+            ]}
+            active={section === "offers"}
+            onClick={() => switchSection("offers")}
+          />
+        </div>
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             icon={<Store className="w-5 h-5" style={{ color: BRAND.deep }} />}
             tint="rgba(102, 45, 140, 0.10)"
-            label="منتجات الموقع"
+            label={section === "offers" ? "عروض على الموقع" : "منتجات على الموقع"}
             value={formatNum(activeSiteCount)}
             sub={`مربوط: ${formatNum(activeSiteCount - unmappedCount)}`}
             active={tab === "site" && statusFilter === "all"}
@@ -489,8 +548,8 @@ export default function WebsiteProducts() {
             icon={<ArrowLeftRight className="w-5 h-5" style={{ color: BRAND.primary }} />}
             tint="rgba(164, 40, 138, 0.12)"
             label="فروق الأسعار"
-            value={formatNum(diffCount)}
-            sub={diffCount ? "سعر الموقع لا يطابق COCEG" : "الأسعار مطابقة"}
+            value={formatNum(sectionDiffCount)}
+            sub={sectionDiffCount ? "سعر الموقع لا يطابق COCEG" : "الأسعار مطابقة"}
             active={tab === "site" && statusFilter === "diff"}
             onClick={() => { setTab("site"); setStatusFilter("diff"); }}
           />
@@ -499,18 +558,25 @@ export default function WebsiteProducts() {
             tint="rgba(102, 45, 140, 0.10)"
             label={<span>في <CocTag /> وليست على الموقع</span>}
             value={formatNum(missingCount)}
-            sub={`${formatNum(missing.boxes.length)} عرض · ${formatNum(missing.products.length)} منتج`}
+            sub={section === "offers" ? "عروض وبوكسات نشطة" : "منتجات نشطة"}
             active={tab === "coc"}
             onClick={() => setTab("coc")}
           />
         </div>
 
-        <Tabs dir="rtl" value={tab} onValueChange={(v) => setTab(v as "site" | "coc" | "log")} className="space-y-4">
+        <Tabs dir="rtl" value={tab} onValueChange={(v) => setTab(v as "overview" | "site" | "coc" | "log")} className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <TabsList className="h-auto flex-wrap p-1 rounded-xl bg-muted/80">
+              {section === "offers" && (
+                <TabsTrigger value="overview" className="rounded-lg px-4 py-2 gap-1.5">
+                  <Gift className="w-4 h-4" />
+                  <span>كل العروض</span>
+                  <Badge variant="secondary" className="text-[11px] px-1.5 py-0">{formatNum(counts.offers.total)}</Badge>
+                </TabsTrigger>
+              )}
               <TabsTrigger value="site" className="rounded-lg px-4 py-2 gap-1.5">
                 <Store className="w-4 h-4" />
-                <span>منتجات الموقع</span>
+                <span>{section === "offers" ? "عروض الموقع" : "منتجات الموقع"}</span>
                 <Badge variant="secondary" className="text-[11px] px-1.5 py-0">{formatNum(activeSiteCount)}</Badge>
               </TabsTrigger>
               <TabsTrigger value="coc" className="rounded-lg px-4 py-2 gap-1.5">
@@ -547,16 +613,22 @@ export default function WebsiteProducts() {
               <CardContent className="p-3.5 flex flex-wrap items-center gap-3">
                 <div className="relative flex-1 min-w-[220px]">
                   <Search className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ابحث بالاسم أو الباركود أو رقم المنتج..." className="pr-9 rounded-xl" />
+                  <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={section === "offers" ? "ابحث باسم العرض أو مكوناته أو رقم المنتج..." : "ابحث بالاسم أو الباركود أو رقم المنتج..."} className="pr-9 rounded-xl" />
                 </div>
-                <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as TypeFilter)}>
-                  <SelectTrigger className="w-40 rounded-xl"><SelectValue placeholder="النوع" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">كل الأنواع</SelectItem>
-                    <SelectItem value="offer_box">عروض وبوكسات</SelectItem>
-                    <SelectItem value="product">منتجات منفردة</SelectItem>
-                  </SelectContent>
-                </Select>
+                {tab === "overview" && (
+                  <Select value={offerFilter} onValueChange={(v) => setOfferFilter(v as OfferFilter)}>
+                    <SelectTrigger className="w-44 rounded-xl"><SelectValue placeholder="الحالة" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">كل العروض</SelectItem>
+                      <SelectItem value="linked">مربوط بالموقع</SelectItem>
+                      <SelectItem value="unlinked">غير موجود على الموقع</SelectItem>
+                      <SelectItem value="diff">فروق أسعار</SelectItem>
+                      <SelectItem value="active">ساري</SelectItem>
+                      <SelectItem value="expired">منتهي الصلاحية</SelectItem>
+                      <SelectItem value="inactive">موقوف</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
                 {tab === "site" && (
                   <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as SiteStatusFilter)}>
                     <SelectTrigger className="w-44 rounded-xl"><SelectValue placeholder="الحالة" /></SelectTrigger>
@@ -580,12 +652,91 @@ export default function WebsiteProducts() {
                     <SelectItem value="name_asc">الاسم (أ - ي)</SelectItem>
                     <SelectItem value="price_desc">السعر: من الأعلى</SelectItem>
                     <SelectItem value="price_asc">السعر: من الأقل</SelectItem>
-                    {tab === "site" && <SelectItem value="diff_desc">أكبر فرق سعر</SelectItem>}
+                    {(tab === "site" || tab === "overview") && <SelectItem value="diff_desc">أكبر فرق سعر</SelectItem>}
                   </SelectContent>
                 </Select>
               </CardContent>
             </Card>
           )}
+
+          <TabsContent value="overview" className="space-y-4">
+            {shownOffers.length === 0 ? (
+              <Card className="rounded-2xl"><CardContent className="py-12 text-center text-muted-foreground space-y-2">
+                <Gift className="w-10 h-10 mx-auto opacity-40" />
+                <p>{offers.length === 0 ? "لا توجد عروض أو بوكسات مسجّلة في COCEG" : "لا توجد نتائج مطابقة للبحث أو التصفية الحالية"}</p>
+              </CardContent></Card>
+            ) : viewMode === "grid" ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                {shownOffers.map((o) => (
+                  <OfferOverviewCard key={o.box.id} offer={o}
+                    onUpdate={() => openPush("update", { kind: "offer_box", id: o.box.id }, o.wooProductId, o.box.name)}
+                    onAdd={() => openPush("create", { kind: "offer_box", id: o.box.id }, null, o.box.name)} />
+                ))}
+              </div>
+            ) : (
+              <Card className="rounded-2xl overflow-hidden"><CardContent className="p-0 overflow-x-auto">
+                <Table dir="rtl">
+                  <TableHeader><TableRow>
+                    <TableHead className="text-right">العرض</TableHead>
+                    <TableHead className="text-right">الحالة</TableHead>
+                    <TableHead className="text-right">سعر <CocTag /></TableHead>
+                    <TableHead className="text-right">سعر الموقع</TableHead>
+                    <TableHead className="text-right">الشحن</TableHead>
+                    <TableHead className="text-right">الموقع</TableHead>
+                    <TableHead className="text-right">الإجراء</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {shownOffers.map((o) => {
+                      const addReason = offerAddDisabledReason(o);
+                      return (
+                        <TableRow key={o.box.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <MiniThumb imageUrl={o.primary?.displayImage ?? o.box.image_url} isBox name={o.box.name} />
+                              <div>
+                                <div className="font-semibold">{o.box.name}</div>
+                                <div className="text-xs text-muted-foreground line-clamp-1">{summarizeBoxItems(o.box.items ?? [], 3)}</div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell><OfferStatusChip status={o.status} /></TableCell>
+                          <TableCell className="font-bold whitespace-nowrap" style={{ color: BRAND.deep }}>{formatEgp(o.box.offer_price)}</TableCell>
+                          <TableCell className="font-bold whitespace-nowrap" style={{ color: o.priceMismatch ? BRAND.accent : BRAND.deep }}>{o.linked ? formatEgp(o.sitePrice) : "—"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{Number(o.box.shipping_cost) > 0 ? formatEgp(o.box.shipping_cost) : "—"}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col items-start gap-1">
+                              <LinkBadge linked={o.linked} />
+                              {o.wooProductId && <bdi dir="ltr" className="text-[11px] text-muted-foreground">#{o.wooProductId}</bdi>}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {o.linked ? (
+                              <div className="flex gap-1.5">
+                                <Button size="sm" style={{ backgroundColor: o.priceMismatch ? BRAND.accent : BRAND.primary }} className="gap-1.5 rounded-xl text-white" disabled={!o.wooProductId}
+                                  onClick={() => openPush("update", { kind: "offer_box", id: o.box.id }, o.wooProductId, o.box.name)}>
+                                  <RefreshCw className="w-3.5 h-3.5" />تحديث العرض على الموقع
+                                </Button>
+                                {o.permalink && (
+                                  <Button asChild size="sm" variant="outline" className="rounded-xl"><a href={o.permalink} target="_blank" rel="noreferrer">فتح في المتجر</a></Button>
+                                )}
+                              </div>
+                            ) : (
+                              <span title={addReason ?? undefined}>
+                                <Button size="sm" style={{ backgroundColor: BRAND.primary }} className="gap-1.5 rounded-xl" disabled={!!addReason}
+                                  onClick={() => openPush("create", { kind: "offer_box", id: o.box.id }, null, o.box.name)}>
+                                  <Upload className="w-3.5 h-3.5" />إضافة إلى الموقع
+                                </Button>
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent></Card>
+            )}
+          </TabsContent>
 
           <TabsContent value="site" className="space-y-4">
             {!loading && site.length === 0 ? (

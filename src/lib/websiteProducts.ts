@@ -45,6 +45,8 @@ export interface BoxItemSummary {
   quantity: number;
   is_gift: boolean;
   custom_price?: number | null;
+  /** وحدة المنتج في COCEG (كجم إن كانت فارغة). */
+  unit?: string | null;
 }
 
 export interface CocBox {
