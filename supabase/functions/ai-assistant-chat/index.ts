@@ -4,6 +4,8 @@
 // - Sends compact JSON context + question to Lovable AI Gateway.
 // - Enforces daily usage limits.
 // - Logs usage to ai_assistant_query_log (question + module + range only).
+// - Voice mode (prototype 28-11-2026): body.kind = "voice" (audio_base64) or "voice_text" (question)
+//   → ./voice.ts: STT → fixed read-only ai_tool_* RPCs as the caller (RLS) → spoken answer (Yasmine).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
@@ -11,6 +13,7 @@ import {
   requireVerifiedUser,
   userHasAnyRole,
 } from "../_shared/require-user.ts";
+import { handleVoice, VOICE_ALLOWED_ROLES } from "./voice.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -345,14 +348,39 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    const body = await req.json().catch(() => ({}));
+
+    // Voice assistant (prototype): its own role list + per-tool role checks inside voice.ts.
+    if (body?.kind === "voice" || body?.kind === "voice_text") {
+      const voiceAllowed = await userHasAnyRole(auditAdmin, user.id, VOICE_ALLOWED_ROLES);
+      if (!voiceAllowed) {
+        return json({ error: "المساعد الصوتي متاح للمدير العام والتنفيذي ومدير المبيعات والمدير المالي بس." }, 403);
+      }
+      const { data: roleRows } = await auditAdmin.from("user_roles").select("role").eq("user_id", user.id);
+      const roles = (roleRows || []).map((r: { role: string }) => r.role);
+      return await handleVoice({
+        input: {
+          audio_base64: body.kind === "voice" ? String(body.audio_base64 || "") : undefined,
+          mime: body.mime,
+          question: body.kind === "voice_text" ? String(body.question || "") : undefined,
+          speak: body.speak !== false,
+        },
+        roles,
+        userId: user.id,
+        userClient,
+        auditAdmin,
+        aiKey,
+        json,
+      });
+    }
+
     // 2) Role gate — managers only
     const allowed = await userHasAnyRole(auditAdmin, user.id, ALLOWED_ROLES);
     if (!allowed) {
       return json({ error: "السؤال الحر متاح فقط للمدير العام والمدير التنفيذي." }, 403);
     }
 
-    // 3) Parse + validate input
-    const body = await req.json().catch(() => ({}));
+    // 3) Validate input
     const question = String(body?.question || "").trim();
     const module = String(body?.module || "all");
     const dateFromStr = String(body?.date_from || "");
@@ -369,10 +397,10 @@ Deno.serve(async (req) => {
       fromDate = new Date(toDate.getTime() - maxRangeDays * 86400000);
     }
 
-    // 4) Usage limits — per-user via user RLS; global cross-user count via auditAdmin (counts only).
+    // 4) Usage limits — counts only, via auditAdmin (since 28-11-2026 the log is readable by the GM only).
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);
-    const { count: userTodayCount } = await userClient
+    const { count: userTodayCount } = await auditAdmin
       .from("ai_assistant_query_log")
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id)

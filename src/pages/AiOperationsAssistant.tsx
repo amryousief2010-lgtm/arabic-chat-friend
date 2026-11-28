@@ -29,6 +29,8 @@ import { cairoTodayStartUTC, currentCairoYearMonth, cairoMonthStartUTC } from "@
 import { exportCSV } from "@/lib/csvExport";
 import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
+import VoiceAssistantPanel from "@/components/aiAssistant/VoiceAssistantPanel";
+import { canUseVoiceAssistant } from "@/config/voiceAssistant";
 
 type ModuleKey = "farm" | "hatchery" | "sales" | "orders" | "customers" | "private_courier";
 
@@ -832,6 +834,9 @@ export default function AiOperationsAssistant() {
             </AlertDescription>
           </Alert>
         </div>
+
+        {/* المساعد الصوتي للمديرين (نموذج تجريبي 28-11-2026) */}
+        {canUseVoiceAssistant(roles) && <VoiceAssistantPanel />}
 
         {/* Filters + question composer */}
         <Card>
