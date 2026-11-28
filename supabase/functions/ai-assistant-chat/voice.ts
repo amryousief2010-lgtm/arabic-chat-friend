@@ -1,7 +1,7 @@
 // المساعد الصوتي للمديرين (نموذج أولي — موافقة م. عمرو «نفذ» 28-11-2026، على قاعدة التجربة).
 // صوت → نص (ElevenLabs scribe-v2) → نموذج لغة بأدوات قراءة ثابتة (ai_tool_* بصلاحية المستخدم) → صوت ياسمين (ElevenLabs eleven-v4).
 // كل النداءات عن طريق Vercel AI Gateway من السيرفر بس؛ المفتاح عمره ما بيوصل للمتصفح.
-// - مفيش SQL حر: النموذج بيختار من 8 أدوات، والسيرفر بيتحقق من الدور قبل أي نداء، والقاعدة بتتحقق تاني.
+// - مفيش SQL حر: النموذج بيختار من 11 أداة (8 + 3 أدوات محادثات)، والسيرفر بيتحقق من الدور قبل أي نداء، والقاعدة بتتحقق تاني.
 // - المصدر (الصفحة والفترة) بيتحط من الكود من الأداة اللي اتنادت، مش من كلام النموذج.
 // - كل رقم في الإجابة بيتراجع على نتايج الأدوات؛ أي رقم مش موجود بيتعلّم «غير متحقق».
 // - سجل مراجعة كامل في ai_assistant_query_log (المدير العام بس بيقراه)، وحد يومي لكل مستخدم وسقف شهري للتكلفة.
@@ -34,6 +34,7 @@ type ToolDef = {
   rpc: string;
   roles: string[];
   source: { label: string; path: string };
+  topic: string; // اسم الموضوع بالعربي، بيتقال للمدير لما سؤاله مش متاح
   description: string;
   params: Record<string, unknown>;
   required: string[];
@@ -46,6 +47,7 @@ const range = (a: Record<string, unknown>) => ({ _from: String(a.date_from ?? ""
 export const TOOLS: ToolDef[] = [
   {
     name: "sales_summary", rpc: "ai_tool_sales_summary", roles: MGR,
+    topic: "المبيعات",
     source: { label: "كل الطلبات", path: "/orders" },
     description: "صافي المبيعات وعدد الطلبات والملغي لفترة، ومقارنة بالفترة اللي قبلها بنفس الطول.",
     params: { date_from: dateParam("بداية الفترة"), date_to: dateParam("نهاية الفترة") }, required: ["date_from", "date_to"],
@@ -53,6 +55,7 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "top_products", rpc: "ai_tool_top_products", roles: MGR,
+    topic: "الأصناف الأكتر مبيعًا",
     source: { label: "التقارير", path: "/reports" },
     description: "أكتر الأصناف مبيعًا بالقيمة والكمية لفترة.",
     params: { date_from: dateParam("بداية الفترة"), date_to: dateParam("نهاية الفترة"), limit: { type: "integer", description: "عدد الأصناف (1 إلى 15)" } },
@@ -61,6 +64,7 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "ads_vs_cap", rpc: "ai_tool_ads_vs_cap", roles: SALES_OPS,
+    topic: "الإعلانات",
     source: { label: "الإعلانات والإنفاق", path: "/chat-management/ad-spend" },
     description: "صرف الإعلانات لفترة ونسبته من صافي المبيعات مقابل سقف 6%، وأكتر الحملات صرفًا.",
     params: { date_from: dateParam("بداية الفترة"), date_to: dateParam("نهاية الفترة") }, required: ["date_from", "date_to"],
@@ -68,6 +72,7 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "moderator_ranking", rpc: "ai_tool_moderator_ranking", roles: SALES_OPS,
+    topic: "المودريتورز",
     source: { label: "أداء المودريتورز", path: "/moderator-performance" },
     description: "ترتيب المودريتورز بصافي المبيعات وعدد الطلبات والملغي لفترة.",
     params: { date_from: dateParam("بداية الفترة"), date_to: dateParam("نهاية الفترة") }, required: ["date_from", "date_to"],
@@ -75,6 +80,7 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "pending_orders", rpc: "ai_tool_pending_orders", roles: MGR,
+    topic: "الطلبات المعلّقة",
     source: { label: "كل الطلبات (المعلّق)", path: "/orders" },
     description: "عدد الطلبات المعلّقة الأقدم من عدد ساعات معيّن (الافتراضي 72 ساعة)، وأقدمها.",
     params: { older_than_hours: { type: "integer", description: "عدد الساعات، الافتراضي 72" } }, required: [],
@@ -82,22 +88,49 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "zero_stock", rpc: "ai_tool_zero_stock", roles: MGR,
+    topic: "المخزون الصفري",
     source: { label: "أرصدة المخازن", path: "/warehouse-stock" },
     description: "الأصناف النشطة اللي رصيدها صفر، والطلبات المعلّقة عليها.",
     params: {}, required: [], args: () => ({}),
   },
   {
     name: "treasury_balance", rpc: "ai_tool_treasury_balance", roles: TREASURY,
+    topic: "رصيد الخزنة",
     source: { label: "الخزنة الرئيسية", path: "/main-treasury" },
     description: "رصيد الخزنة الرئيسية الحالي بالحسابات والحركات المعلّقة.",
     params: {}, required: [], args: () => ({}),
   },
   {
     name: "calls_quality", rpc: "ai_tool_calls_quality", roles: SALES_OPS,
+    topic: "المكالمات",
     source: { label: "سجل المكالمات", path: "/chat-management/calls" },
     description: "مكالمات الخط الساخن لفترة: المردود عليها والفايتة، ومتوسط تقييم التعامل، وأكتر اعتراضات العملاء.",
     params: { date_from: dateParam("بداية الفترة"), date_to: dateParam("نهاية الفترة") }, required: ["date_from", "date_to"],
     args: range,
+  },
+  {
+    name: "chat_response_by_moderator", rpc: "ai_tool_chat_response_by_moderator", roles: MGR,
+    source: { label: "مؤشرات المحادثات", path: "/chat-management/kpis" },
+    topic: "سرعة الرد على الواتساب",
+    description: "محادثات الواتساب لفترة: لكل مودريتور عدد المحادثات ومتوسط أول رد بالدقايق (بساعات الخدمة) وعدد غير المردود عليه، ومين الأبطأ (slowest_moderator_by_avg) ومين عنده أكتر محادثات من غير رد.",
+    params: { date_from: dateParam("بداية الفترة"), date_to: dateParam("نهاية الفترة") }, required: ["date_from", "date_to"],
+    args: range,
+  },
+  {
+    name: "chat_summary", rpc: "ai_tool_chat_summary", roles: MGR,
+    source: { label: "مؤشرات المحادثات", path: "/chat-management/kpis" },
+    topic: "ملخص المحادثات",
+    description: "ملخص محادثات الواتساب لفترة: العدد، المردود عليه وغير المردود عليه، متوسط ووسيط أول رد بالدقايق، نسبة الرد في 15 دقيقة، من الإعلانات مقابل الطبيعي، ومقارنة بالفترة اللي قبلها.",
+    params: { date_from: dateParam("بداية الفترة"), date_to: dateParam("نهاية الفترة") }, required: ["date_from", "date_to"],
+    args: range,
+  },
+  {
+    name: "chats_waiting_now", rpc: "ai_tool_chats_waiting_now", roles: MGR,
+    source: { label: "صندوق المحادثات", path: "/chat-management/inbox" },
+    topic: "المحادثات المستنية رد",
+    description: "عدد محادثات الواتساب المستنية رد دلوقتي لأكتر من عدد دقايق معيّن (الافتراضي 30)، وأقدمها، وتوزيعها على المودريتورز.",
+    params: { older_than_minutes: { type: "integer", description: "عدد الدقايق، الافتراضي 30" } }, required: [],
+    args: (a, ctx) => ({ _older_than_minutes: Math.max(1, Number(a.older_than_minutes) || 30), _as_of: ctx.asOf }),
   },
 ];
 
@@ -122,15 +155,30 @@ function cairoToday(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo" }).format(new Date());
 }
 
+/** مواضيع الأدوات المتاحة لحساب السائل، بالعربي (للرد لما السؤال مش متاح). */
+export function voiceTopics(roles: string[]): string {
+  return TOOLS.filter((t) => t.roles.some((r) => roles.includes(r))).map((t) => t.topic).join("، ");
+}
+
+/** لو مفيش أي أداة اتنادت، ممنوع رد فيه «صلاحيات»: الرد الصحيح «مش متاح لسه». */
+export function guardNoToolAnswer(answer: string, toolCalled: boolean, roles: string[]): string {
+  if (!toolCalled && /صلاحي/.test(answer)) return `ده مش متاح في المساعد لسه. أقدر أجاوبك عن ${voiceTopics(roles)}.`;
+  return answer;
+}
+
 function systemPrompt(today: string, roles: string[]) {
   const d = new Date(today + "T12:00:00Z");
-  const allowed = TOOLS.filter((t) => t.roles.some((r) => roles.includes(r))).map((t) => t.name).join("، ");
+  const mine = TOOLS.filter((t) => t.roles.some((r) => roles.includes(r)));
+  const allowed = mine.map((t) => t.name).join("، ");
+  const topics = voiceTopics(roles);
   return `إنتِ «مساعد نعام»: مساعدة صوتية للمديرين في شركة «نعام العاصمة» (لحوم ومنتجات النعام في مصر). المدير بيسألك بصوته وإنتِ بتردي بصوت.
 النهارده ${DAYS[d.getUTCDay()]} ${today} (بتوقيت القاهرة). «امبارح» = اليوم اللي قبله. «الأسبوع اللي فات» = آخر 7 أيام لحد امبارح. «الشهر ده» = من أول الشهر لحد امبارح.
 القواعد:
 - أي رقم لازم يكون من نتيجة أداة اتنادت دلوقتي. ممنوع تخمني أو تحسبي رقم مش موجود، إلا نسبة بسيطة من رقمين موجودين.
-- لو الأداة رجّعت forbidden قولي: «المعلومة دي مش ضمن صلاحيات حسابك». لو مفيش أداة مناسبة قولي إنك لسه مش بتعرفي تجاوبي عليه، واذكري اللي تقدري تجاوبي عنه.
+- عبارة «المعلومة دي مش ضمن صلاحيات حسابك» ممنوعة إلا لو أداة اتنادت فعلًا ورجّعت error=forbidden. غير كده ممنوع تذكري الصلاحيات خالص.
+- لو مفيش أداة مناسبة للسؤال قولي بالنص: «ده مش متاح في المساعد لسه. أقدر أجاوبك عن ${topics}.» ومتنادييش أي أداة ومتخمنيش.
 - الأدوات المتاحة لحساب السائل: ${allowed}.
+- «محادثات الواتساب» و«الشات» و«الردود» = أدوات المحادثات. «سرعة الرد» = أول رد بدقايق ساعات الخدمة (من 9 صباحًا لـ1 بعد منتصف الليل). «مين أكتر واحدة بتتأخر» = slowest_moderator_by_avg، واذكري كمان عدد غير المردود عليه لو موجود. «المستني رد دلوقتي» = chats_waiting_now.
 - لو الأداة رجّعت أصفار أو مفيش بيانات للفترة، قولي كده بوضوح ومتخترعيش.
 - الرد بالمصري، جملتين أو تلاتة قصيرين بالكتير (أقل من 300 حرف)، لأنه هيتقري بصوت. اذكري الفترة.
 - الأرقام بالأرقام اللاتينية (0-9) مع فاصلة الآلاف (284,330)، الفلوس مقربة للجنيه، والنسب برقم عشري واحد.
@@ -335,10 +383,10 @@ export async function handleVoice(opts: {
   }
   timing.llm_ms = Date.now() - tl;
   if (!answer) answer = "معلش، مقدرتش أجهّز إجابة. جرّب تسأل بطريقة تانية.";
-  const display = toLatinDigits(answer).replace(/[*_#`]/g, "").slice(0, MAX_ANSWER_CHARS);
+  const display = guardNoToolAnswer(toLatinDigits(answer).replace(/[*_#`]/g, ""), toolLog.length > 0, roles).slice(0, MAX_ANSWER_CHARS);
 
   // 4) التحقق من الأرقام (الأرقام اللي في السؤال والتواريخ مسموحة)
-  const extra = new Set<number>([...extractNumbers(transcript), 6, 72]);
+  const extra = new Set<number>([...extractNumbers(transcript), 6, 15, 30, 72]);
   const d = new Date(today + "T12:00:00Z");
   for (let i = 0; i < 400; i++) { const x = new Date(d.getTime() - i * 86400000); extra.add(x.getUTCDate()); extra.add(x.getUTCFullYear()); }
   for (let i = 1; i <= 7; i++) extra.add(i);
