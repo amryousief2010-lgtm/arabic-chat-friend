@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { SidebarMenuSections } from "./SidebarMenuSections";
 import UserAvatar from "@/components/UserAvatar";
 import companyLogo from "@/assets/company-logo.jpg";
+import { VoiceFabSidebarToggle } from "@/components/aiAssistant/VoiceFabMenuToggle";
 
 const AppSidebar = () => {
   const { signOut, user, profile } = useAuth();
@@ -34,6 +35,7 @@ const AppSidebar = () => {
 
       {/* Footer */}
       <div className="p-4 border-t border-sidebar-border">
+        <VoiceFabSidebarToggle />
         <button
           onClick={signOut}
           className="sidebar-item w-full text-destructive hover:bg-destructive/10"

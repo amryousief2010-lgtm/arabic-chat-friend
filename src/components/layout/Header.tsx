@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import UserAvatar from "@/components/UserAvatar";
+import { VoiceFabMenuItem } from "@/components/aiAssistant/VoiceFabMenuToggle";
 
 interface HeaderProps {
   title: string;
@@ -167,6 +168,7 @@ const Header = ({ title, subtitle }: HeaderProps) => {
                 </DropdownMenuItem>
               </>
             )}
+            <VoiceFabMenuItem />
             <DropdownMenuSeparator />
             <DropdownMenuItem 
               onClick={signOut}

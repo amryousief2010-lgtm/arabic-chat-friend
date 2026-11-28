@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { SidebarMenuSections } from "./SidebarMenuSections";
 import UserAvatar from "@/components/UserAvatar";
 import companyLogo from "@/assets/company-logo.jpg";
+import { VoiceFabSidebarToggle } from "@/components/aiAssistant/VoiceFabMenuToggle";
 
 interface MobileSidebarContentProps {
   onClose: () => void;
@@ -43,6 +44,7 @@ const MobileSidebarContent = ({ onClose }: MobileSidebarContentProps) => {
 
       {/* Footer */}
       <div className="p-4 border-t border-sidebar-border">
+        <VoiceFabSidebarToggle />
         <button
           onClick={handleLogout}
           className="sidebar-item w-full text-destructive hover:bg-destructive/10"
