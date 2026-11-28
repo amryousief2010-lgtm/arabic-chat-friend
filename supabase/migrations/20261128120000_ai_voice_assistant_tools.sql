@@ -1,5 +1,6 @@
 -- ============================================================
 -- المساعد الصوتي للمديرين (نموذج أولي) — موافقة م. عمرو «نفذ» 28-11-2026، على قاعدة التجربة فقط.
+-- الوصول: المدير العام والمدير التنفيذي ومدير المبيعات بس، وكلهم بيشوفوا الأدوات الـ8 كلها بما فيها الخزنة (قرار م. عمرو 28-11-2026).
 -- 1) 8 أدوات قراءة فقط (ai_tool_*) بتشتغل بصلاحية المستخدم نفسه (SECURITY INVOKER)
 --    فالـ RLS وإخفاء التكلفة بيتطبقوا. كل أداة بتتحقق من الدور جوه القاعدة.
 --    مفيش أي أداة بتكتب، ومفيش أرقام موبايل ولا أسماء عملاء ولا تكلفة.
@@ -49,7 +50,7 @@ CREATE OR REPLACE FUNCTION public.ai_tool_sales_summary(_from date, _to date)
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path = public AS $$
 DECLARE f date; t date; n int; p_from date; p_to date; r jsonb;
 BEGIN
-  PERFORM public.ai_asst_require(ARRAY['general_manager','executive_manager','sales_manager','financial_manager']::public.app_role[]);
+  PERFORM public.ai_asst_require(ARRAY['general_manager','executive_manager','sales_manager']::public.app_role[]);
   SELECT d_from, d_to INTO f, t FROM public.ai_asst_range(_from, _to);
   n := t - f + 1; p_to := f - 1; p_from := f - n;
   SELECT jsonb_build_object(
@@ -75,7 +76,7 @@ CREATE OR REPLACE FUNCTION public.ai_tool_top_products(_from date, _to date, _li
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path = public AS $$
 DECLARE f date; t date; r jsonb;
 BEGIN
-  PERFORM public.ai_asst_require(ARRAY['general_manager','executive_manager','sales_manager','financial_manager']::public.app_role[]);
+  PERFORM public.ai_asst_require(ARRAY['general_manager','executive_manager','sales_manager']::public.app_role[]);
   SELECT d_from, d_to INTO f, t FROM public.ai_asst_range(_from, _to);
   SELECT coalesce(jsonb_agg(x ORDER BY (x->>'sales')::numeric DESC), '[]'::jsonb) INTO r FROM (
     SELECT jsonb_build_object('product', coalesce(p.name, oi.product_name), 'quantity', round(sum(oi.quantity)::numeric, 1),
@@ -137,7 +138,7 @@ RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path = public 
 DECLARE h int := least(greatest(coalesce(_older_than_hours, 72), 1), 24 * 60);
         ref timestamptz := coalesce(_as_of, now()); r jsonb;
 BEGIN
-  PERFORM public.ai_asst_require(ARRAY['general_manager','executive_manager','sales_manager','financial_manager']::public.app_role[]);
+  PERFORM public.ai_asst_require(ARRAY['general_manager','executive_manager','sales_manager']::public.app_role[]);
   SELECT jsonb_build_object(
     'as_of', ref, 'older_than_hours', h,
     'count', count(*),
@@ -158,7 +159,7 @@ CREATE OR REPLACE FUNCTION public.ai_tool_zero_stock()
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path = public AS $$
 DECLARE r jsonb;
 BEGIN
-  PERFORM public.ai_asst_require(ARRAY['general_manager','executive_manager','sales_manager','financial_manager']::public.app_role[]);
+  PERFORM public.ai_asst_require(ARRAY['general_manager','executive_manager','sales_manager']::public.app_role[]);
   SELECT coalesce(jsonb_agg(x ORDER BY (x->>'pending_orders')::int DESC, x->>'product'), '[]'::jsonb) INTO r FROM (
     SELECT jsonb_build_object('product', p.name, 'stock', coalesce(p.stock, 0),
       'pending_orders', (SELECT count(DISTINCT oi.order_id) FROM public.order_items oi JOIN public.orders o ON o.id = oi.order_id
@@ -170,12 +171,14 @@ BEGIN
                             'note', 'الرصيد من products.stock (الرصيد الإجمالي)');
 END $$;
 
--- 7) رصيد الخزنة الرئيسية — المدير العام والمدير التنفيذي بس
+-- 7) رصيد الخزنة الرئيسية — للتلات أدوار (قرار م. عمرو 28-11-2026)
+-- استثناء وحيد: SECURITY DEFINER، لأن RLS جداول الخزنة مش بتسمح لمدير المبيعات، وم. عمرو قرر إنه يشوف الرصيد من المساعد.
+-- الدور بيتفحص في أول سطر، والناتج أرصدة مجمعة بس (من غير حركات أو أسماء أشخاص غير اسم الحساب).
 CREATE OR REPLACE FUNCTION public.ai_tool_treasury_balance()
-RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path = public AS $$
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
 DECLARE r jsonb;
 BEGIN
-  PERFORM public.ai_asst_require(ARRAY['general_manager','executive_manager']::public.app_role[]);
+  PERFORM public.ai_asst_require(ARRAY['general_manager','executive_manager','sales_manager']::public.app_role[]);
   SELECT jsonb_build_object('as_of', now(), 'currency', 'EGP',
     'total_balance', round(coalesce(sum(b.current_balance), 0)),
     'pending_amount', round(coalesce(sum(b.pending_amount), 0)),

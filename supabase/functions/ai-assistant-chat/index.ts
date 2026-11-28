@@ -354,7 +354,7 @@ Deno.serve(async (req) => {
     if (body?.kind === "voice" || body?.kind === "voice_text") {
       const voiceAllowed = await userHasAnyRole(auditAdmin, user.id, VOICE_ALLOWED_ROLES);
       if (!voiceAllowed) {
-        return json({ error: "المساعد الصوتي متاح للمدير العام والتنفيذي ومدير المبيعات والمدير المالي بس." }, 403);
+        return json({ error: "المساعد الصوتي متاح للمدير العام والمدير التنفيذي ومدير المبيعات بس." }, 403);
       }
       const { data: roleRows } = await auditAdmin.from("user_roles").select("role").eq("user_id", user.id);
       const roles = (roleRows || []).map((r: { role: string }) => r.role);

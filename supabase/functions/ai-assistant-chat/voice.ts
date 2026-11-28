@@ -9,10 +9,11 @@ import { extractNumbers, toLatinDigits, toSpeechText } from "../_shared/ar-speec
 
 const GW = "https://ai-gateway.vercel.sh";
 
-export const VOICE_ALLOWED_ROLES = ["general_manager", "executive_manager", "sales_manager", "financial_manager"];
+export const VOICE_ALLOWED_ROLES = ["general_manager", "executive_manager", "sales_manager"];
 const MGR = VOICE_ALLOWED_ROLES;
-const SALES_OPS = ["general_manager", "executive_manager", "sales_manager"];
-const TREASURY = ["general_manager", "executive_manager"];
+// قرار م. عمرو 28-11-2026: التلات أدوار بيشوفوا الأدوات الـ8 كلها (والخزنة كمان). المدير المالي مالوش وصول.
+const SALES_OPS = MGR;
+const TREASURY = MGR;
 
 const envNum = (k: string, d: number) => {
   const v = Number(Deno.env.get(k));
@@ -88,7 +89,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: "treasury_balance", rpc: "ai_tool_treasury_balance", roles: TREASURY,
     source: { label: "الخزنة الرئيسية", path: "/main-treasury" },
-    description: "رصيد الخزنة الرئيسية الحالي بالحسابات والحركات المعلّقة. (للمدير العام والمدير التنفيذي بس)",
+    description: "رصيد الخزنة الرئيسية الحالي بالحسابات والحركات المعلّقة.",
     params: {}, required: [], args: () => ({}),
   },
   {
