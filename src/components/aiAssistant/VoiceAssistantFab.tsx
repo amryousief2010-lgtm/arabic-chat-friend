@@ -45,11 +45,6 @@ export default function VoiceAssistantFab() {
 
   if (!allowed) return null;
 
-  const dock = cn(
-    "font-cairo fixed z-[45] bottom-24 md:bottom-6",
-    compact ? "end-4" : "end-[85px]",
-  );
-
   if (hidden) {
     return (
       <button
@@ -57,7 +52,7 @@ export default function VoiceAssistantFab() {
         aria-label="إظهار المساعد الصوتي"
         data-testid="voice-fab-tab"
         onClick={() => { setHidden(false); setOpen(true); }}
-        className="font-cairo fixed z-[45] end-0 bottom-24 md:bottom-6 flex h-[55px] w-[34px] items-center justify-center rounded-s-[13px] text-white shadow-lg"
+        className="font-cairo fixed z-[45] end-0 top-[38.2%] flex h-[55px] w-[34px] -translate-y-1/2 items-center justify-center rounded-s-[13px] text-white shadow-lg"
         style={{ background: `linear-gradient(180deg, ${BRAND.magenta}, ${BRAND.purple})` }}
         title="إظهار المساعد الصوتي"
       >
@@ -72,12 +67,17 @@ export default function VoiceAssistantFab() {
     <div
       ref={rootRef}
       dir="rtl"
-      className={cn(dock, "pointer-events-none flex flex-col items-end gap-[13px]")}
+      className={cn(
+        "font-cairo pointer-events-none fixed z-[60] flex flex-col items-stretch gap-[13px]",
+        open
+          ? "inset-x-3 bottom-24 md:inset-x-auto md:end-[85px] md:bottom-6 md:w-[377px]"
+          : cn("bottom-24 md:bottom-6", compact ? "end-4" : "end-[85px]"),
+      )}
       data-testid="voice-fab-root"
     >
       {open && (
         <div
-          className="pointer-events-auto flex w-[min(377px,calc(100vw-26px))] max-h-[min(68vh,34rem)] flex-col overflow-hidden rounded-[21px] bg-background"
+          className="pointer-events-auto flex max-h-[min(68vh,34rem)] w-full flex-col overflow-hidden rounded-[21px] bg-background"
           style={{ boxShadow: `0 13px 34px ${BRAND.purple}40` }}
           data-testid="voice-fab-panel"
           role="dialog"
