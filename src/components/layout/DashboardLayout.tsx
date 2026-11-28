@@ -6,6 +6,7 @@ import SwipeIndicator from "./SwipeIndicator";
 import StartOfDayDialog from "@/components/StartOfDayDialog";
 
 const ClockCalendarWidget = lazy(() => import("@/components/ClockCalendarWidget"));
+const VoiceAssistantFab = lazy(() => import("@/components/aiAssistant/VoiceAssistantFab"));
 const PendingApprovalsAlert = lazy(() => import("@/components/lab-treasury/PendingApprovalsAlert"));
 const ExecutiveApprovalsAlert = lazy(() => import("@/components/executive/ExecutiveApprovalsAlert"));
 const MegaDiscrepancyAlert = lazy(() => import("@/components/orders/MegaDiscrepancyAlert"));
@@ -137,6 +138,7 @@ const DashboardLayoutInner = ({ children }: DashboardLayoutProps) => {
       {/* Floating Clock + Calendar widget (visible to all users on every page) */}
       <Suspense fallback={null}>
         <ClockCalendarWidget />
+        <VoiceAssistantFab />
       </Suspense>
     </div>
     </DashboardLayoutContext.Provider>
