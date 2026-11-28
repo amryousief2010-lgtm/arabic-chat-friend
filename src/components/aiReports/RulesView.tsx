@@ -20,7 +20,7 @@ interface Props { rules: RuleRow[]; canEdit: boolean; onSave: (code: string, pat
 export default function RulesView({ rules, canEdit, onSave }: Props) {
   const [edits, setEdits] = useState<Record<string, Record<string, number>>>({});
   return (
-    <Card><CardContent className="pt-6 overflow-x-auto">
+    <Card dir="rtl" className="font-cairo"><CardContent className="pt-6 overflow-x-auto text-start">
       <p className="text-sm text-muted-foreground mb-3">«تجريبي» يعني التنبيه بيتسجل في الخلفية ومش بيظهر في الجرس، عشان نراجع العدد أسبوع قبل التشغيل الفعلي. التعديل للمدير العام بس.</p>
       <Table>
         <TableHeader><TableRow>

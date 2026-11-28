@@ -97,7 +97,7 @@ export default function AiReports() {
     <DashboardLayout>
       <div dir="rtl" className="space-y-4 font-cairo">
         <Header title="التقارير والتنبيهات الذكية" subtitle="التقرير الصباحي، وتقييم المودريتورز من المكالمات، والتنبيهات" />
-        <Tabs value={tab} onValueChange={(v) => setParams({ tab: v })}>
+        <Tabs dir="rtl" value={tab} onValueChange={(v) => setParams({ tab: v })}>
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="report">التقرير الصباحي</TabsTrigger>
             <TabsTrigger value="moderators">تقييم المودريتورز</TabsTrigger>
