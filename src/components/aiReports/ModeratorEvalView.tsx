@@ -19,14 +19,14 @@ function ScoreBar({ dist }: { dist: Record<string, number> }) {
 export default function ModeratorEvalView({ rows }: { rows: ModeratorEvalRow[] }) {
   if (!rows.length) return <Card><CardContent className="py-10 text-center text-muted-foreground">مفيش مكالمات محللة في الفترة دي.</CardContent></Card>;
   return (
-    <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div dir="rtl" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-start font-cairo">
       {rows.map((r) => (
         <Card key={r.moderator_id} className="overflow-hidden">
           <div className="h-1" style={{ background: scoreColor(r.avg_score) }} />
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center justify-between text-base">
-              <span>{r.display_name}</span>
-              <span className="text-2xl font-bold" style={{ color: scoreColor(r.avg_score) }}>{r.avg_score == null ? "—" : num(r.avg_score, 1)}<span className="text-xs text-muted-foreground font-normal"> / 5</span></span>
+              <bdi>{r.display_name}</bdi>
+              <span className="text-2xl font-bold" style={{ color: scoreColor(r.avg_score) }}><bdi dir="ltr">{r.avg_score == null ? "—" : num(r.avg_score, 1)}<span className="text-xs text-muted-foreground font-normal"> / 5</span></bdi></span>
             </CardTitle>
             {r.small_sample && <Badge variant="outline" className="w-fit" style={{ borderColor: BRAND.orange, color: BRAND.orange }}>عينة صغيرة: التقييم مبدئي</Badge>}
           </CardHeader>
@@ -47,7 +47,7 @@ export default function ModeratorEvalView({ rows }: { rows: ModeratorEvalRow[] }
             {r.recent_notes.length > 0 && (
               <div className="space-y-1"><div className="text-xs font-semibold">ملاحظات آخر مكالمات</div>
                 {r.recent_notes.slice(0, 3).map((n, i) => (
-                  <p key={i} className="text-xs leading-6 rounded bg-muted/50 p-2"><span className="font-bold" style={{ color: scoreColor(n.score) }}>{n.score ?? "—"}/5</span> · {n.note}</p>
+                  <p key={i} dir="rtl" className="text-xs leading-6 rounded bg-muted/50 p-2 text-start"><bdi dir="ltr" className="font-bold" style={{ color: scoreColor(n.score) }}>{n.score ?? "—"}/5</bdi> · {n.note}</p>
                 ))}</div>
             )}
           </CardContent>

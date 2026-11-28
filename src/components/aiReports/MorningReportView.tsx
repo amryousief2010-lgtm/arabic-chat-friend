@@ -18,7 +18,7 @@ const Para = ({ icon: Icon, title, text }: { icon: typeof Users; title: string; 
   text ? (
     <div className="space-y-1">
       <div className="flex items-center gap-2 font-semibold"><Icon className="w-4 h-4" style={{ color: BRAND.purple }} />{title}</div>
-      <p className="text-sm leading-7 text-foreground/90">{text}</p>
+      <p dir="rtl" className="text-sm leading-7 text-foreground/90 text-start">{text}</p>
     </div>
   ) : null;
 
@@ -28,16 +28,16 @@ export default function MorningReportView({ row }: { row: MorningReportRow | nul
   const salesUp = f.sales.net_sales >= f.sales.avg7_net_sales;
   const adBad = (f.ads.pct ?? 0) > f.ads_cap_pct; const mtdBad = (f.ads.mtd_pct ?? 0) > f.ads_cap_pct;
   return (
-    <div className="space-y-4">
+    <div dir="rtl" className="space-y-4 text-start font-cairo">
       <div className="rounded-2xl p-5 text-white shadow" style={{ background: `linear-gradient(135deg, ${BRAND.purple}, ${BRAND.magenta})` }}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-lg font-bold">التقرير الصباحي · أرقام {arDate(f.date)}</div>
           <Badge className="bg-white/20 text-white border-0">{ai ? "مكتوب بالذكاء الاصطناعي" : "أرقام بس"}</Badge>
         </div>
         {ai?.headline?.length ? (
-          <ol className="mt-3 space-y-1 list-decimal pr-5 text-sm leading-7">{ai.headline.map((h, i) => <li key={i}>{h}</li>)}</ol>
+          <ol dir="rtl" className="mt-3 space-y-1 list-decimal list-outside ps-6 text-sm leading-7 text-start">{ai.headline.map((h, i) => <li key={i}>{h}</li>)}</ol>
         ) : (
-          <p className="mt-3 text-sm opacity-90">{row.status === "error" ? "النص ماتكتبش النهارده، والأرقام تحت كاملة." : "النص بيتكتب بعد تسجيل صرف امبارح."}</p>
+          <p dir="rtl" className="mt-3 text-sm opacity-90 text-start">{row.status === "error" ? "النص ماتكتبش النهارده، والأرقام تحت كاملة." : "النص بيتكتب بعد تسجيل صرف امبارح."}</p>
         )}
       </div>
 
@@ -85,13 +85,13 @@ export default function MorningReportView({ row }: { row: MorningReportRow | nul
                 const note = ai?.moderator_notes?.find((n) => n.name === m.name)?.note;
                 return (
                   <TableRow key={m.name}>
-                    <TableCell className="font-semibold">{m.name}{note && <div className="text-xs font-normal text-muted-foreground max-w-xs">{note}</div>}</TableCell>
+                    <TableCell className="font-semibold"><bdi>{m.name}</bdi>{note && <div className="text-xs font-normal text-muted-foreground max-w-xs">{note}</div>}</TableCell>
                     <TableCell>{num(m.conversations)}</TableCell>
                     <TableCell style={{ color: (late ?? 0) > 25 ? BRAND.orange : undefined }}>{m.conversations ? pct(late, 0) : "—"}</TableCell>
                     <TableCell style={{ color: (ab ?? 0) > 15 ? BRAND.orange : undefined }}>{m.conversations ? pct(ab, 0) : "—"}</TableCell>
                     <TableCell className="font-bold">{num(m.orders)}</TableCell>
                     <TableCell>{num(m.cancelled)}</TableCell>
-                    <TableCell>{num(m.calls_answered)} / {num(m.calls_missed)}</TableCell>
+                    <TableCell><bdi dir="ltr">{num(m.calls_answered)} / {num(m.calls_missed)}</bdi></TableCell>
                     <TableCell>{num(m.pending_over_72h)}</TableCell>
                     <TableCell>{egp(m.mtd_net_sales)}{m.target ? <div className="text-xs text-muted-foreground">الهدف {egp(m.target)}</div> : null}</TableCell>
                   </TableRow>
@@ -103,7 +103,7 @@ export default function MorningReportView({ row }: { row: MorningReportRow | nul
         </CardContent>
       </Card>
 
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">الحملات آخر 3 أيام</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto">
@@ -112,7 +112,7 @@ export default function MorningReportView({ row }: { row: MorningReportRow | nul
               <TableBody>
                 {f.ads.campaigns_3d.slice(0, 10).map((c) => (
                   <TableRow key={c.name}>
-                    <TableCell className="max-w-[12rem] truncate" title={c.name}>{c.name}{!c.tracked && <Badge variant="outline" className="mr-1 text-[10px]" style={{ borderColor: BRAND.orange, color: BRAND.orange }}>مش متتبعة</Badge>}</TableCell>
+                    <TableCell className="max-w-[12rem] truncate" title={c.name}><bdi>{c.name}</bdi>{!c.tracked && <Badge variant="outline" className="mr-1 text-[10px]" style={{ borderColor: BRAND.orange, color: BRAND.orange }}>مش متتبعة</Badge>}</TableCell>
                     <TableCell>{egp(c.spend)}</TableCell><TableCell>{num(c.conversations)}</TableCell><TableCell>{num(c.orders)}</TableCell>
                     <TableCell style={{ color: !c.orders || c.spend / c.orders > 1000 ? BRAND.orange : undefined }}>{c.orders ? egp(c.spend / c.orders) : "بدون طلبات"}</TableCell>
                   </TableRow>
@@ -129,7 +129,7 @@ export default function MorningReportView({ row }: { row: MorningReportRow | nul
               <Tile label="مكالمات فايتة من غير رجوع" value={num(f.followups.missed_calls_no_callback)} hint="امبارح" />
             </div>
             <div className="flex flex-wrap gap-2">
-              {f.top_objections_7d.map((o) => <Badge key={o.text} variant="secondary">{o.text} · {num(o.n)}</Badge>)}
+              {f.top_objections_7d.map((o) => <Badge key={o.text} variant="secondary"><bdi>{o.text}</bdi>&nbsp;·&nbsp;{num(o.n)}</Badge>)}
               {!f.top_objections_7d.length && <span className="text-sm text-muted-foreground">لسه مفيش مكالمات محللة كفاية.</span>}
             </div>
           </CardContent>

@@ -21,7 +21,7 @@ export default function AlertsView({ alerts, actions, scope, onScope, isGm, onOp
   const pending = actions.filter((a) => a.status === "requested");
   const scopes: [AlertScope, string][] = [["active", "المفتوحة"], ...(isGm ? [["shadow", "تجريبي (أسبوع الخلفية)"] as [AlertScope, string]] : []), ["resolved", "المقفولة"]];
   return (
-    <div className="space-y-4">
+    <div dir="rtl" className="space-y-4 text-start font-cairo">
       {pending.length > 0 && (
         <Card style={{ borderColor: BRAND.magenta }}>
           <CardHeader className="pb-2"><CardTitle className="text-base">طلبات مستنية موافقة ({pending.length})</CardTitle></CardHeader>
@@ -70,8 +70,8 @@ export default function AlertsView({ alerts, actions, scope, onScope, isGm, onOp
                     {a.action_status && <Badge variant="outline">{a.action_status === "requested" ? "مستني موافقة" : a.action_status === "approved" ? "اتوافق عليه" : "اترفض"}</Badge>}
                   </div>
                 </div>
-                {a.body && <p className="text-sm text-foreground/90">{a.body}</p>}
-                {a.ai_note && <p className="text-sm rounded-lg p-2 flex gap-2" style={{ background: "#A4288A10" }}><Sparkles className="w-4 h-4 shrink-0 mt-1" style={{ color: BRAND.magenta }} />{a.ai_note}</p>}
+                {a.body && <p dir="rtl" className="text-sm text-foreground/90 text-start">{a.body}</p>}
+                {a.ai_note && <p dir="rtl" className="text-sm rounded-lg p-2 flex gap-2 text-start" style={{ background: "#A4288A10" }}><Sparkles className="w-4 h-4 shrink-0 mt-1" style={{ color: BRAND.magenta }} />{a.ai_note}</p>}
                 {a.status !== "resolved" && (
                   <div className="flex flex-wrap gap-2 pt-1">
                     {a.suggested_action && !a.action_status && (
